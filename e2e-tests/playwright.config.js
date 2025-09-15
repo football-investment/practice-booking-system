@@ -50,11 +50,20 @@ module.exports = defineConfig({
       name: 'firefox', 
       use: { 
         ...devices['Desktop Firefox'],
-        // Firefox-specific optimizations
+        // Firefox-specific optimizations for booking flow timeouts
+        actionTimeout: 20000, // Increase from 10s to 20s for Firefox
+        navigationTimeout: 45000, // Increase from 30s to 45s for Firefox
+        expect: {
+          timeout: 15000 // Increase expect timeout to 15s for Firefox
+        },
         launchOptions: process.env.CI ? {
           firefoxUserPrefs: {
             'media.navigator.streams.fake': true,
-            'media.navigator.permission.disabled': true
+            'media.navigator.permission.disabled': true,
+            // Optimize Firefox performance for CI
+            'dom.webdriver.enabled': false,
+            'useAutomationExtension': false,
+            'security.tls.insecure_fallback_hosts': 'localhost'
           }
         } : {}
       }

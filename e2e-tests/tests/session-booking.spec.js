@@ -8,28 +8,37 @@ test.describe('🏃 Session Booking System', () => {
   };
 
   test.beforeEach(async ({ page }) => {
-    // Set longer timeout for beforeEach
-    page.setDefaultTimeout(30000);
+    // Firefox-specific timeout optimizations
+    const isFirefox = page.context().browser().browserType().name() === 'firefox';
+    const defaultTimeout = isFirefox ? 45000 : 30000;
+    const elementTimeout = isFirefox ? 20000 : 15000;
+    
+    page.setDefaultTimeout(defaultTimeout);
     
     // Login as completed onboarding student
     await page.goto('/login');
-    await expect(page.locator('[data-testid="email"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="email"]')).toBeVisible({ timeout: elementTimeout });
     
     await page.fill('[data-testid="email"]', TEST_STUDENT.email);
     await page.fill('[data-testid="password"]', TEST_STUDENT.password);
     await page.click('[data-testid="login-button"]');
     
     // Wait for successful login before navigation
-    await expect(page).toHaveURL(/\/student/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/student/, { timeout: elementTimeout });
     
     // Navigate to sessions page
     await page.goto('/student/sessions');
     
     // Ensure page is fully loaded - use specific locator to avoid strict mode violation
-    await expect(page.locator('h1').filter({ hasText: 'All Sessions' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h1').filter({ hasText: 'All Sessions' })).toBeVisible({ timeout: elementTimeout });
   });
 
   test('📅 Browse available sessions', async ({ page }) => {
+    // Firefox-specific timeout optimizations
+    const isFirefox = page.context().browser().browserType().name() === 'firefox';
+    const raceTimeout = isFirefox ? 8000 : 5000;
+    const loadingTimeout = isFirefox ? 30000 : 20000;
+    
     // Optimized session loading test with better error handling
     await test.step('Wait for page load and API response', async () => {
       // First check if loading state is present
@@ -37,19 +46,20 @@ test.describe('🏃 Session Booking System', () => {
       
       // Wait for either loading to appear or session list to appear directly
       await Promise.race([
-        loadingState.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {}),
-        page.locator('[data-testid="session-list"]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {})
+        loadingState.waitFor({ state: 'visible', timeout: raceTimeout }).catch(() => {}),
+        page.locator('[data-testid="session-list"]').waitFor({ state: 'visible', timeout: raceTimeout }).catch(() => {})
       ]);
       
       // If loading was present, wait for it to disappear
       if (await loadingState.isVisible()) {
-        await expect(loadingState).not.toBeVisible({ timeout: 20000 });
+        await expect(loadingState).not.toBeVisible({ timeout: loadingTimeout });
       }
     });
     
     await test.step('Verify session list renders', async () => {
       // Should load session list (either with data or empty state)
-      await expect(page.locator('[data-testid="session-list"]')).toBeVisible({ timeout: 15000 });
+      const sessionListTimeout = isFirefox ? 20000 : 15000;
+      await expect(page.locator('[data-testid="session-list"]')).toBeVisible({ timeout: sessionListTimeout });
     });
     
     await test.step('Check session content', async () => {
@@ -98,11 +108,14 @@ test.describe('🏃 Session Booking System', () => {
         await firstBookButton.click();
         console.log('✅ Booking button clicked successfully');
         
-        // Wait for booking response with multiple possible outcomes
+        // Wait for booking response with Firefox-optimized timeouts
+        const isFirefox = process.env.BROWSER_NAME === 'firefox' || page.context().browser().browserType().name() === 'firefox';
+        const waitTimeout = isFirefox ? 15000 : 8000;
+        
         await Promise.race([
-          page.waitForSelector('[data-testid="booking-success"]', { timeout: 8000 }),
-          page.waitForSelector('.booking-error, .error-message', { timeout: 8000 }),
-          page.waitForTimeout(8000) // Fallback timeout
+          page.waitForSelector('[data-testid="booking-success"]', { timeout: waitTimeout }),
+          page.waitForSelector('.booking-error, .error-message', { timeout: waitTimeout }),
+          page.waitForTimeout(waitTimeout) // Fallback timeout
         ]);
         
         // Check what response we got
