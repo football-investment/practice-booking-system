@@ -132,9 +132,10 @@ jobs:
 
       - name: 🔧 Install E2E Dependencies
         run: |
-          npm install -g playwright
+          cd e2e-tests
+          npm install
           npx playwright install
-          npm install browserstack-local
+          cd ..
 
       - name: 🚀 Start Test Environment
         run: |
@@ -150,7 +151,9 @@ jobs:
 
       - name: 🧪 Run Playwright E2E Tests
         run: |
+          cd e2e-tests
           npx playwright test --browser=${{ matrix.browser }} --reporter=html
+          cd ..
         env:
           TEST_URL: http://localhost:3000
           API_URL: http://localhost:8000
@@ -160,7 +163,7 @@ jobs:
         if: always()
         with:
           name: e2e-results-${{ matrix.browser }}
-          path: test-results/
+          path: e2e-tests/playwright-report/
 
   # iOS Safari Testing (BrowserStack)
   ios-safari-testing:
