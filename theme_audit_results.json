@@ -1,0 +1,497 @@
+[
+  {
+    "file": "pages/LoginPage.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Common"
+  },
+  {
+    "file": "pages/DashboardPage.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Common"
+  },
+  {
+    "file": "pages/student/SessionDetails.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/StudentProfile.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/AllSessions.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/GamificationProfile.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/QuizDashboard.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/MyProjects.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/FeedbackPage.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/StudentMessages.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/ProjectDetails.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/StudentDashboard.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/Projects.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/QuizResult.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/ProjectProgress.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/MyBookings.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/student/QuizTaking.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Student"
+  },
+  {
+    "file": "pages/admin/SemesterManagement.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/GroupManagement.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/SessionManagement.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/FeedbackOverview.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/AttendanceTracking.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/AdminDashboard.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/ProjectManagement.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: data-theme"
+    ],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/BookingManagement.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/admin/UserManagement.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Administrator"
+  },
+  {
+    "file": "pages/instructor/InstructorProgressReport.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorMessages.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorProfile.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorStudentProgress.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorStudents.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorProjects.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorStudentDetails.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorSessionDetails.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorSessions.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorAnalytics.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorFeedback.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorDashboard.js",
+    "has_theme_state": true,
+    "has_color_scheme_state": true,
+    "has_theme_effect": true,
+    "has_theme_ui": true,
+    "theme_patterns": [
+      "useState theme",
+      "useState colorScheme",
+      "useEffect theme",
+      "UI: setTheme"
+    ],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorProjectStudents.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorProjectDetails.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  },
+  {
+    "file": "pages/instructor/InstructorAttendance.js",
+    "has_theme_state": false,
+    "has_color_scheme_state": false,
+    "has_theme_effect": false,
+    "has_theme_ui": false,
+    "theme_patterns": [],
+    "issues": [],
+    "role": "Instructor"
+  }
+]

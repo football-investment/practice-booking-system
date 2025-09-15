@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.5, pytest-7.4.3, pluggy-1.6.0 -- /Users/lovas.zoltan/Seafile/Football Investment/Projects/Football Invetsment - Internship/practice_booking_system/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/lovas.zoltan/Seafile/Football Investment/Projects/Football Invetsment - Internship/practice_booking_system
+plugins: asyncio-0.21.1, cov-6.2.1, anyio-3.7.1
+asyncio: mode=Mode.STRICT
+collecting ... collected 1 item
+
+app/tests/test_api_users.py::test_update_own_profile PASSED              [100%]
+
+=============================== warnings summary ===============================
+app/tests/test_api_users.py::test_update_own_profile
+  /Users/lovas.zoltan/Seafile/Football Investment/Projects/Football Invetsment - Internship/practice_booking_system/venv/lib/python3.13/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 1 passed, 1 warning in 0.60s =========================

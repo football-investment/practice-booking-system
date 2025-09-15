@@ -1,0 +1,331 @@
+{
+  "timestamp": "2025-08-23T11:54:50.977307",
+  "total_tests": 56,
+  "passed_tests": 44,
+  "failed_tests": 12,
+  "success_rate": 78.57142857142857,
+  "total_time": 1.970689058303833,
+  "avg_response_time": 0.03579277125271884,
+  "max_response_time": 0.27056312561035156,
+  "results": [
+    {
+      "test": "Health Check",
+      "passed": true,
+      "duration": 0.008839845657348633,
+      "details": "Status: {'status': 'healthy'}"
+    },
+    {
+      "test": "Root Endpoint",
+      "passed": true,
+      "duration": 0.0007739067077636719,
+      "details": ""
+    },
+    {
+      "test": "Swagger UI",
+      "passed": true,
+      "duration": 0.0006339550018310547,
+      "details": ""
+    },
+    {
+      "test": "OpenAPI Schema",
+      "passed": false,
+      "duration": 0.0007050037384033203,
+      "details": ""
+    },
+    {
+      "test": "Admin Login Success",
+      "passed": true,
+      "duration": 0.24456191062927246,
+      "details": ""
+    },
+    {
+      "test": "Invalid Credentials Rejected",
+      "passed": true,
+      "duration": 0.24030089378356934,
+      "details": ""
+    },
+    {
+      "test": "Nonexistent User Rejected",
+      "passed": true,
+      "duration": 0.001971006393432617,
+      "details": ""
+    },
+    {
+      "test": "Get Current User",
+      "passed": true,
+      "duration": 0.0019719600677490234,
+      "details": "User: admin@company.com"
+    },
+    {
+      "test": "Token Refresh",
+      "passed": true,
+      "duration": 0.002084970474243164,
+      "details": ""
+    },
+    {
+      "test": "Invalid Token Rejected",
+      "passed": true,
+      "duration": 0.001007080078125,
+      "details": ""
+    },
+    {
+      "test": "No Token Rejected",
+      "passed": false,
+      "duration": 0.0008449554443359375,
+      "details": ""
+    },
+    {
+      "test": "List Users",
+      "passed": true,
+      "duration": 0.0050890445709228516,
+      "details": "Found 2 users"
+    },
+    {
+      "test": "Create Instructor",
+      "passed": true,
+      "duration": 0.252377986907959,
+      "details": "ID: 3"
+    },
+    {
+      "test": "Create Student",
+      "passed": true,
+      "duration": 0.24257802963256836,
+      "details": "ID: 4"
+    },
+    {
+      "test": "Instructor Login",
+      "passed": true,
+      "duration": 0.23822712898254395,
+      "details": ""
+    },
+    {
+      "test": "Student Login",
+      "passed": true,
+      "duration": 0.23598098754882812,
+      "details": ""
+    },
+    {
+      "test": "Get User by ID",
+      "passed": false,
+      "duration": 0.02200603485107422,
+      "details": ""
+    },
+    {
+      "test": "Update User",
+      "passed": true,
+      "duration": 0.0062448978424072266,
+      "details": ""
+    },
+    {
+      "test": "Duplicate Email Rejected",
+      "passed": true,
+      "duration": 0.002622842788696289,
+      "details": ""
+    },
+    {
+      "test": "Invalid Email Rejected",
+      "passed": true,
+      "duration": 0.0024230480194091797,
+      "details": ""
+    },
+    {
+      "test": "Create Semester",
+      "passed": true,
+      "duration": 0.007484912872314453,
+      "details": "ID: 2"
+    },
+    {
+      "test": "List Semesters",
+      "passed": true,
+      "duration": 0.00711512565612793,
+      "details": "Found 2 semesters"
+    },
+    {
+      "test": "Get Semester by ID",
+      "passed": true,
+      "duration": 0.004361867904663086,
+      "details": ""
+    },
+    {
+      "test": "Update Semester",
+      "passed": true,
+      "duration": 0.004360198974609375,
+      "details": ""
+    },
+    {
+      "test": "Invalid Date Range Rejected",
+      "passed": false,
+      "duration": 0.0035238265991210938,
+      "details": ""
+    },
+    {
+      "test": "Create Group",
+      "passed": true,
+      "duration": 0.007502079010009766,
+      "details": "ID: 1"
+    },
+    {
+      "test": "List Groups",
+      "passed": true,
+      "duration": 0.007982969284057617,
+      "details": ""
+    },
+    {
+      "test": "Add User to Group",
+      "passed": true,
+      "duration": 0.006800174713134766,
+      "details": ""
+    },
+    {
+      "test": "Get Group Details",
+      "passed": true,
+      "duration": 0.003854036331176758,
+      "details": ""
+    },
+    {
+      "test": "Create Session",
+      "passed": true,
+      "duration": 0.006996870040893555,
+      "details": "ID: 1"
+    },
+    {
+      "test": "List Sessions",
+      "passed": true,
+      "duration": 0.014759063720703125,
+      "details": ""
+    },
+    {
+      "test": "Get Session by ID",
+      "passed": true,
+      "duration": 0.006325960159301758,
+      "details": ""
+    },
+    {
+      "test": "Update Session",
+      "passed": true,
+      "duration": 0.004928112030029297,
+      "details": ""
+    },
+    {
+      "test": "Create Booking",
+      "passed": true,
+      "duration": 0.007925987243652344,
+      "details": "ID: 1"
+    },
+    {
+      "test": "Get Own Bookings",
+      "passed": true,
+      "duration": 0.005270957946777344,
+      "details": ""
+    },
+    {
+      "test": "View Session Bookings",
+      "passed": false,
+      "duration": 0.0007469654083251953,
+      "details": ""
+    },
+    {
+      "test": "Confirm Booking",
+      "passed": true,
+      "duration": 0.003609180450439453,
+      "details": ""
+    },
+    {
+      "test": "Double Booking Prevention",
+      "passed": false,
+      "duration": 0.005015850067138672,
+      "details": ""
+    },
+    {
+      "test": "Student Check-in",
+      "passed": false,
+      "duration": 0.003686189651489258,
+      "details": ""
+    },
+    {
+      "test": "View Attendance",
+      "passed": true,
+      "duration": 0.003741025924682617,
+      "details": ""
+    },
+    {
+      "test": "Submit Feedback",
+      "passed": true,
+      "duration": 0.007896184921264648,
+      "details": "Rating: 5.0"
+    },
+    {
+      "test": "Get Own Feedback",
+      "passed": true,
+      "duration": 0.005073070526123047,
+      "details": ""
+    },
+    {
+      "test": "Get Session Feedback",
+      "passed": false,
+      "duration": 0.0007150173187255859,
+      "details": ""
+    },
+    {
+      "test": "Anonymous Feedback",
+      "passed": false,
+      "duration": 0.003004789352416992,
+      "details": ""
+    },
+    {
+      "test": "Semester Report",
+      "passed": false,
+      "duration": 0.011192083358764648,
+      "details": ""
+    },
+    {
+      "test": "User Report",
+      "passed": false,
+      "duration": 0.01344609260559082,
+      "details": ""
+    },
+    {
+      "test": "Export Sessions CSV",
+      "passed": false,
+      "duration": 0.0035550594329833984,
+      "details": ""
+    },
+    {
+      "test": "Student Admin Access Blocked",
+      "passed": true,
+      "duration": 0.0018398761749267578,
+      "details": ""
+    },
+    {
+      "test": "Student Create User Blocked",
+      "passed": true,
+      "duration": 0.001667022705078125,
+      "details": ""
+    },
+    {
+      "test": "Instructor Reports Blocked",
+      "passed": true,
+      "duration": 0.0018589496612548828,
+      "details": ""
+    },
+    {
+      "test": "Instructor Session Access",
+      "passed": true,
+      "duration": 0.005772113800048828,
+      "details": ""
+    },
+    {
+      "test": "SQL Injection Prevention",
+      "passed": true,
+      "duration": 0.003371000289916992,
+      "details": ""
+    },
+    {
+      "test": "XSS Prevention",
+      "passed": true,
+      "duration": 0.27056312561035156,
+      "details": ""
+    },
+    {
+      "test": "Large Payload Handling",
+      "passed": 

@@ -1,0 +1,63 @@
+# FRONTEND SECURITY-FOCUSED .GITIGNORE
+
+# Critical Security Files
+.env.local
+.env.production.local
+.env.*.local
+*.key
+*.pem
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production Build
+build/
+dist/
+
+# Runtime Data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage Directory
+coverage/
+.nyc_output/
+
+# Debug Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime Data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+
+# Temporary Files
+*.tmp
+*.temp
+*.log
+
+# Build Outputs
+*.tgz
+*.tar.gz
+
+# SECURITY NOTE:
+# .env.development and .env.production are committed for configuration
+# but .env.local and .env.*.local are NEVER committed for security

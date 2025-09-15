@@ -1,0 +1,84 @@
+🎨 THEME CONSISTENCY AUDIT - Practice Booking System
+======================================================================
+
+📋 STUDENT PAGES ANALYSIS
+--------------------------------------------------
+✅ pages/student/SessionDetails.js          
+✅ pages/student/StudentProfile.js          
+✅ pages/student/AllSessions.js             
+✅ pages/student/GamificationProfile.js     
+✅ pages/student/QuizDashboard.js           
+✅ pages/student/MyProjects.js              
+✅ pages/student/FeedbackPage.js            
+❌ pages/student/StudentMessages.js         
+✅ pages/student/ProjectDetails.js          
+✅ pages/student/StudentDashboard.js        
+✅ pages/student/Projects.js                
+✅ pages/student/QuizResult.js              
+✅ pages/student/ProjectProgress.js         
+✅ pages/student/MyBookings.js              
+✅ pages/student/QuizTaking.js              
+
+SUMMARY: 14 with themes, 1 without, 0 total issues
+
+📋 INSTRUCTOR PAGES ANALYSIS
+--------------------------------------------------
+❌ pages/instructor/InstructorProgressReport.js 
+❌ pages/instructor/InstructorMessages.js   
+❌ pages/instructor/InstructorProfile.js    
+❌ pages/instructor/InstructorStudentProgress.js 
+❌ pages/instructor/InstructorStudents.js   
+❌ pages/instructor/InstructorProjects.js   
+❌ pages/instructor/InstructorStudentDetails.js 
+❌ pages/instructor/InstructorSessionDetails.js 
+❌ pages/instructor/InstructorSessions.js   
+❌ pages/instructor/InstructorAnalytics.js  
+❌ pages/instructor/InstructorFeedback.js   
+✅ pages/instructor/InstructorDashboard.js  
+❌ pages/instructor/InstructorProjectStudents.js 
+❌ pages/instructor/InstructorProjectDetails.js 
+❌ pages/instructor/InstructorAttendance.js 
+
+SUMMARY: 1 with themes, 14 without, 0 total issues
+
+📋 ADMINISTRATOR PAGES ANALYSIS
+--------------------------------------------------
+❌ pages/admin/SemesterManagement.js        
+❌ pages/admin/GroupManagement.js           
+❌ pages/admin/SessionManagement.js         
+❌ pages/admin/FeedbackOverview.js          
+❌ pages/admin/AttendanceTracking.js        
+✅ pages/admin/AdminDashboard.js            
+✅ pages/admin/ProjectManagement.js         
+❌ pages/admin/BookingManagement.js         
+❌ pages/admin/UserManagement.js            
+
+SUMMARY: 2 with themes, 7 without, 0 total issues
+
+📋 COMMON PAGES ANALYSIS
+--------------------------------------------------
+❌ pages/LoginPage.js                       
+❌ pages/DashboardPage.js                   
+
+SUMMARY: 0 with themes, 2 without, 0 total issues
+
+🔍 OVERALL ANALYSIS
+==================================================
+📊 Total Pages: 41
+✅ With Theme Support: 17 (41.5%)
+❌ Without Theme Support: 24 (58.5%)
+⚠️  Total Issues Found: 0
+
+🎯 CONSISTENCY ISSUES
+------------------------------
+❌ CRITICAL: 24 pages lack theme support
+   → Users cannot change themes on these pages
+
+💡 RECOMMENDATIONS
+------------------------------
+1. Create centralized ThemeContext to eliminate code duplication
+2. Add theme support to pages that currently lack it
+3. Ensure all theme-capable pages have UI controls
+4. Implement consistent theme switcher component
+
+📄 Detailed results saved to: theme_audit_results.json

@@ -1,0 +1,15 @@
+SECURITY INCIDENT BACKUP - 2025 Sze  2 Ked 04:19:41 CEST
+Hardcoded admin credentials found in source code
+Files affected:
+./api_validation_report.html
+./debug_user_creation.sh
+./system_verification.sh
+./backend_perfect.sh
+./automated_test.sh
+./database_seed_script.py
+./app/config.py
+./app/tests/conftest.py
+./app/tests/__pycache__/test_api_auth.cpython-313-pytest-7.4.3.pyc
+./app/tests/__pycache__/conftest.cpython-313-pytest-7.4.3.pyc
+./app/tests/test_api_auth.py
+./app/__pycache__/config.cpython-313.pyc

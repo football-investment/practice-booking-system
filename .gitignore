@@ -1,0 +1,77 @@
+# SECURITY-FOCUSED .GITIGNORE
+# Critical security exclusions
+
+# Environment Variables & Secrets
+.env.local
+.env.production
+.env.*.local
+*.key
+*.pem
+config/secrets.json
+config/production.json
+
+# Logs & Debug Files
+*.log
+logs/
+debug/
+nohup.out
+*.pid
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+test.db
+
+# Python Virtual Environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build Outputs
+build/
+dist/
+*.tgz
+*.tar.gz
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Temporary Files
+temp/
+tmp/
+*.tmp
+*.temp
+*.backup
+*.bak
+
+# Security & Sensitive Data
+secrets/
+credentials/
+keys/
+certs/
+*.env.production
+.env.production.local.env
+*.env

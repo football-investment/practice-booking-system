@@ -1,0 +1,245 @@
+from typing import Any, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import func, and_
+
+from ....database import get_db
+from ....dependencies import get_current_user, get_current_admin_or_instructor_user
+from ....models.user import User
+from ....models.session import Session as SessionModel, SessionMode
+from ....models.booking import Booking, BookingStatus
+from ....models.attendance import Attendance
+from ....models.feedback import Feedback
+from ....schemas.session import (
+    Session as SessionSchema, SessionCreate, SessionUpdate,
+    SessionWithStats, SessionList
+)
+from ....schemas.booking import (
+    BookingWithRelations, BookingList
+)
+
+router = APIRouter()
+
+
+@router.post("/", response_model=SessionSchema)
+def create_session(
+    session_data: SessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_or_instructor_user)
+) -> Any:
+    """
+    Create new session (Admin/Instructor only)
+    """
+    session = SessionModel(**session_data.model_dump())
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    
+    return session
+
+
+@router.get("/", response_model=SessionList)
+def list_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=100),
+    semester_id: Optional[int] = Query(None),
+    group_id: Optional[int] = Query(None),
+    mode: Optional[SessionMode] = Query(None)
+) -> Any:
+    """
+    List sessions with pagination and filtering
+    """
+    query = db.query(SessionModel)
+    
+    # Apply filters
+    if semester_id:
+        query = query.filter(SessionModel.semester_id == semester_id)
+    if group_id:
+        query = query.filter(SessionModel.group_id == group_id)
+    if mode:
+        query = query.filter(SessionModel.mode == mode)
+    
+    # Get total count
+    total = query.count()
+    
+    # Apply pagination
+    offset = (page - 1) * size
+    sessions = query.offset(offset).limit(size).all()
+    
+    # Add statistics
+    session_stats = []
+    for session in sessions:
+        booking_count = db.query(func.count(Booking.id)).filter(Booking.session_id == session.id).scalar() or 0
+        confirmed_bookings = db.query(func.count(Booking.id)).filter(
+            and_(Booking.session_id == session.id, Booking.status == BookingStatus.CONFIRMED)
+        ).scalar() or 0
+        waitlist_count = db.query(func.count(Booking.id)).filter(
+            and_(Booking.session_id == session.id, Booking.status == BookingStatus.WAITLISTED)
+        ).scalar() or 0
+        attendance_count = db.query(func.count(Attendance.id)).filter(Attendance.session_id == session.id).scalar() or 0
+        avg_rating = db.query(func.avg(Feedback.rating)).filter(Feedback.session_id == session.id).scalar()
+        
+        session_stats.append(SessionWithStats(
+            **session.__dict__,
+            semester=session.semester,
+            group=session.group,
+            instructor=session.instructor,
+            booking_count=booking_count,
+            confirmed_bookings=confirmed_bookings,
+            waitlist_count=waitlist_count,
+            attendance_count=attendance_count,
+            average_rating=float(avg_rating) if avg_rating else None
+        ))
+    
+    return SessionList(
+        sessions=session_stats,
+        total=total,
+        page=page,
+        size=size
+    )
+
+
+@router.get("/{session_id}/bookings", response_model=BookingList)
+def get_session_bookings(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=100)
+) -> Any:
+    """
+    Get bookings for a session (Admin/Instructor only)
+    """
+    # Check if session exists
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    query = db.query(Booking).filter(Booking.session_id == session_id)
+    
+    # Get total count
+    total = query.count()
+    
+    # Apply pagination
+    offset = (page - 1) * size
+    bookings = query.offset(offset).limit(size).all()
+    
+    # Convert to response schema
+    booking_responses = []
+    for booking in bookings:
+        booking_responses.append(BookingWithRelations(
+            **booking.__dict__,
+            user=booking.user,
+            session=booking.session
+        ))
+    
+    return BookingList(
+        bookings=booking_responses,
+        total=total,
+        page=page,
+        size=size
+    )
+
+
+@router.get("/{session_id}", response_model=SessionWithStats)
+def get_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Get session by ID with statistics
+    """
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    # Calculate statistics
+    booking_count = db.query(func.count(Booking.id)).filter(Booking.session_id == session.id).scalar() or 0
+    confirmed_bookings = db.query(func.count(Booking.id)).filter(
+        and_(Booking.session_id == session.id, Booking.status == BookingStatus.CONFIRMED)
+    ).scalar() or 0
+    waitlist_count = db.query(func.count(Booking.id)).filter(
+        and_(Booking.session_id == session.id, Booking.status == BookingStatus.WAITLISTED)
+    ).scalar() or 0
+    attendance_count = db.query(func.count(Attendance.id)).filter(Attendance.session_id == session.id).scalar() or 0
+    avg_rating = db.query(func.avg(Feedback.rating)).filter(Feedback.session_id == session.id).scalar()
+    
+    return SessionWithStats(
+        **session.__dict__,
+        semester=session.semester,
+        group=session.group,
+        instructor=session.instructor,
+        booking_count=booking_count,
+        confirmed_bookings=confirmed_bookings,
+        waitlist_count=waitlist_count,
+        attendance_count=attendance_count,
+        average_rating=float(avg_rating) if avg_rating else None
+    )
+
+
+@router.patch("/{session_id}", response_model=SessionSchema)
+def update_session(
+    session_id: int,
+    session_update: SessionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_or_instructor_user)
+) -> Any:
+    """
+    Update session (Admin/Instructor only)
+    """
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    # Update fields
+    update_data = session_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(session, field, value)
+    
+    db.commit()
+    db.refresh(session)
+    
+    return session
+
+
+@router.delete("/{session_id}")
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_or_instructor_user)
+) -> Any:
+    """
+    Delete session (Admin/Instructor only)
+    """
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+    
+    # Check if there are any bookings for this session
+    booking_count = db.query(func.count(Booking.id)).filter(Booking.session_id == session_id).scalar()
+    if booking_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete session with existing bookings"
+        )
+    
+    db.delete(session)
+    db.commit()
+    
+    return {"message": "Session deleted successfully"}
