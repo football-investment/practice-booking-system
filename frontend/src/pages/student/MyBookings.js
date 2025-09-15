@@ -315,6 +315,7 @@ const MyBookings = () => {
                         <button 
                             onClick={() => handleCancelBooking(booking.id)}
                             className="btn btn-cancel"
+                            data-testid="cancel-booking"
                             disabled={cancellingBooking === booking.id}
                         >
                             {cancellingBooking === booking.id ? (

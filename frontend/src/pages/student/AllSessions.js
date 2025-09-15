@@ -11,6 +11,8 @@ const AllSessions = () => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [bookingMessage, setBookingMessage] = useState('');
+  const [bookingMessageType, setBookingMessageType] = useState(''); // 'success' or 'error'
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [bookingSession, setBookingSession] = useState(null);
@@ -72,13 +74,38 @@ const AllSessions = () => {
 
   const handleBooking = async (sessionId) => {
     setBookingSession(sessionId);
+    setBookingMessage('');
     try {
       await apiService.createBooking({ session_id: sessionId });
-      alert('Session booked successfully!');
+      setBookingMessage('Session booked successfully!');
+      setBookingMessageType('success');
       loadSessions(); // Refresh to update availability
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setBookingMessage('');
+        setBookingMessageType('');
+      }, 5000);
     } catch (err) {
       console.error('Booking failed:', err);
-      alert(`Booking failed: ${err.message}`);
+      const errorMsg = err.message || 'Unknown error occurred';
+      
+      // Determine specific error type for testing
+      let errorType = 'error';
+      if (errorMsg.includes('limit') || errorMsg.includes('capacity') || errorMsg.includes('full')) {
+        errorType = 'limit-error';
+      } else if (errorMsg.includes('deadline') || errorMsg.includes('expired') || errorMsg.includes('time')) {
+        errorType = 'deadline-error';
+      }
+      
+      setBookingMessage(`Booking failed: ${errorMsg}`);
+      setBookingMessageType(errorType);
+      
+      // Auto-hide error message after 8 seconds
+      setTimeout(() => {
+        setBookingMessage('');
+        setBookingMessageType('');
+      }, 8000);
     } finally {
       setBookingSession(null);
     }
@@ -156,6 +183,21 @@ const AllSessions = () => {
       </div>
 
       {error && <div className="error-banner">⚠️ {error}</div>}
+      
+      {/* Booking Status Messages */}
+      {bookingMessage && (
+        <div 
+          className={`booking-message ${bookingMessageType}`}
+          data-testid={
+            bookingMessageType === 'success' ? 'booking-success' :
+            bookingMessageType === 'limit-error' ? 'booking-limit-error' :
+            bookingMessageType === 'deadline-error' ? 'booking-deadline-error' :
+            'booking-error'
+          }
+        >
+          {bookingMessageType === 'success' ? '✅' : '❌'} {bookingMessage}
+        </div>
+      )}
 
       {/* Sessions List */}
       <div className="sessions-container">

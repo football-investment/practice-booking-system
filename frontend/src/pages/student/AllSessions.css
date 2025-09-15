@@ -1,6 +1,55 @@
 /* Import theme variables from StudentDashboard.css */
 @import './StudentDashboard.css';
 
+/* Booking Message Styles */
+.booking-message {
+  padding: 12px 20px;
+  margin: 10px 0;
+  border-radius: 8px;
+  font-weight: 500;
+  text-align: center;
+  z-index: 1000;
+  position: relative;
+  animation: slideInDown 0.3s ease-out;
+}
+
+.booking-message.success {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.booking-message.error,
+.booking-message.limit-error,
+.booking-message.deadline-error {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.booking-message.limit-error {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.booking-message.deadline-error {
+  background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* AllSessions - Creative Modern Design with theme support */
 .all-sessions {
   min-height: 100vh;

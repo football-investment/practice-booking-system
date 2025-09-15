@@ -98,12 +98,12 @@ async function testLoginAndAccess(driver, device) {
   // Navigate to app
   await driver.url('http://localhost:3000/login');
   
-  // Wait for page load
-  await driver.$('[data-testid="email"]').waitForDisplayed({ timeout: 15000 });
+  // Wait for page load with extended timeout for BrowserStack
+  await driver.$('[data-testid="email"]').waitForDisplayed({ timeout: 30000 });
   
-  // Login with completed onboarding user (use existing test user)
-  await driver.$('[data-testid="email"]').setValue('emma.newcomer@student.devstudio.com');
-  await driver.$('[data-testid="password"]').setValue('testpass123');
+  // Login with test user that definitely exists (from fresh_database_reset.py)
+  await driver.$('[data-testid="email"]').setValue('alex.johnson@student.devstudio.com');
+  await driver.$('[data-testid="password"]').setValue('student123');
   await driver.$('[data-testid="login-button"]').click();
   
   // Wait for successful login - check URL instead of heading due to multiple h1 elements
@@ -111,7 +111,7 @@ async function testLoginAndAccess(driver, device) {
     const url = await driver.getUrl();
     return url.includes('/student');
   }, {
-    timeout: 15000,
+    timeout: 30000,
     timeoutMsg: 'Failed to redirect to student area after login'
   });
   
@@ -126,8 +126,8 @@ async function testSessionBooking(driver, device) {
   // Navigate to sessions
   await driver.url('http://localhost:3000/student/sessions');
   
-  // Wait for sessions to load
-  await driver.$('[data-testid="session-list"]').waitForDisplayed({ timeout: 10000 });
+  // Wait for sessions to load with extended timeout
+  await driver.$('[data-testid="session-list"]').waitForDisplayed({ timeout: 20000 });
   
   // Check if sessions are displayed
   const sessions = await driver.$$('[data-testid="session-card"]');
