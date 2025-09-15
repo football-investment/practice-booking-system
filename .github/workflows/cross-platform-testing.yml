@@ -179,7 +179,13 @@ jobs:
           # Serve frontend build
           cd frontend
           npx serve -s build -l 3000 &
-          sleep 10
+          
+          # Wait for services to be ready
+          sleep 15
+          echo "Testing backend health..."
+          curl -f http://localhost:8000/health || exit 1
+          echo "Testing frontend availability..."
+          curl -f http://localhost:3000 || exit 1
 
       - name: 🧪 Run Playwright E2E Tests
         run: |
@@ -222,12 +228,12 @@ jobs:
 
       - name: 🔧 Install BrowserStack Dependencies
         run: |
-          npm install browserstack-local
+          npm install -g browserstack-local
           npm install webdriverio
 
       - name: 🚀 Start BrowserStack Local Tunnel
         run: |
-          ./node_modules/.bin/BrowserStackLocal --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
+          BrowserStackLocal --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
           sleep 15
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
