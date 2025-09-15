@@ -101,6 +101,21 @@ jobs:
     needs: [backend-tests, frontend-tests]
     if: always()
     
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: test_practice_booking
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     strategy:
       matrix:
         browser: [chromium, firefox, webkit]
@@ -124,6 +139,23 @@ jobs:
         with:
           node-version: '18'
 
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🗃️ Setup Test Database
+        run: |
+          export DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking"
+          export TESTING=true
+          python scripts/fresh_database_reset.py
+          python scripts/comprehensive_test_seed.py
+
       - name: 📥 Download Frontend Build
         uses: actions/download-artifact@v4
         with:
@@ -134,7 +166,7 @@ jobs:
         run: |
           cd e2e-tests
           npm install
-          npx playwright install
+          npx playwright install --with-deps
           cd ..
 
       - name: 🚀 Start Test Environment
@@ -195,7 +227,7 @@ jobs:
 
       - name: 🚀 Start BrowserStack Local Tunnel
         run: |
-          npx browserstack-local --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --daemon start --local-identifier github-actions-${{ github.run_id }}
+          ./node_modules/.bin/BrowserStackLocal --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
           sleep 15
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
@@ -219,9 +251,41 @@ jobs:
     needs: [cross-browser-testing]
     if: always()
     
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: test_practice_booking
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🗃️ Setup Test Database
+        run: |
+          export DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking"
+          export TESTING=true
+          python scripts/fresh_database_reset.py
+          python scripts/comprehensive_test_seed.py
 
       - name: 🔧 Setup Lighthouse CI
         run: |
