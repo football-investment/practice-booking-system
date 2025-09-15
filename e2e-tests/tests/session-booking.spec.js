@@ -25,8 +25,8 @@ test.describe('🏃 Session Booking System', () => {
     // Navigate to sessions page
     await page.goto('/student/sessions');
     
-    // Ensure page is fully loaded
-    await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
+    // Ensure page is fully loaded - use specific locator to avoid strict mode violation
+    await expect(page.locator('h1').filter({ hasText: 'All Sessions' })).toBeVisible({ timeout: 10000 });
   });
 
   test('📅 Browse available sessions', async ({ page }) => {

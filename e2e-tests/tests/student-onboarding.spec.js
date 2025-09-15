@@ -27,7 +27,7 @@ test.describe('🧑‍🎓 Student Onboarding Flow', () => {
     
     // Should redirect to onboarding for fresh students
     await expect(page).toHaveURL(/.*onboarding/);
-    await expect(page.locator('h1')).toContainText('Welcome');
+    await expect(page.locator('h1').filter({ hasText: 'Welcome' })).toBeVisible();
   });
 
   test('📝 Complete onboarding form - Core Flow', async ({ page }) => {

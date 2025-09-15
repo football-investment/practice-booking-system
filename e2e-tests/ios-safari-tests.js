@@ -101,23 +101,21 @@ async function testLoginAndAccess(driver, device) {
   // Wait for page load
   await driver.$('[data-testid="email"]').waitForDisplayed({ timeout: 15000 });
   
-  // Login with completed onboarding user
-  await driver.$('[data-testid="email"]').setValue('emma.fresh@student.com');
-  await driver.$('[data-testid="password"]').setValue('student123');
+  // Login with completed onboarding user (use existing test user)
+  await driver.$('[data-testid="email"]').setValue('emma.newcomer@student.devstudio.com');
+  await driver.$('[data-testid="password"]').setValue('testpass123');
   await driver.$('[data-testid="login-button"]').click();
   
-  // Should redirect to dashboard (since onboarding is complete)
-  await driver.$('h1').waitForDisplayed({ timeout: 15000 });
-  const heading = await driver.$('h1').getText();
-  
-  if (!heading.includes('Dashboard') && !heading.includes('Welcome')) {
-    console.log(`Found heading: ${heading}`);
-    // Check if we're on sessions page instead
+  // Wait for successful login - check URL instead of heading due to multiple h1 elements
+  await driver.waitUntil(async () => {
     const url = await driver.getUrl();
-    if (!url.includes('/student')) {
-      throw new Error('Not redirected to student area after login');
-    }
-  }
+    return url.includes('/student');
+  }, {
+    timeout: 15000,
+    timeoutMsg: 'Failed to redirect to student area after login'
+  });
+  
+  console.log('✅ Successfully logged in and redirected to student area');
   
   console.log(`✅ Login and access test passed on ${device}`);
 }
