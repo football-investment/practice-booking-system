@@ -95,7 +95,7 @@ const SessionCard = ({ session, onViewDetails, onBook, isBooking = false }) => {
   const levelColor = getLevelIntensity(safeSession.level, sportColors);
   
   return (
-    <div className="session-card-improved">
+    <div className="session-card-improved" data-testid="session-card">
       {/* Header with sport type and level */}
       <div 
         className="session-header"
@@ -165,6 +165,7 @@ const SessionCard = ({ session, onViewDetails, onBook, isBooking = false }) => {
       <div className="session-footer">
         <button 
           className="view-details-btn-improved"
+          data-testid="book-button"
           onClick={() => {
             if (safeSession.is_full || new Date(safeSession.date_start) <= new Date()) {
               onViewDetails(safeSession);

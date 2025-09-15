@@ -167,7 +167,7 @@ const AllSessions = () => {
             <p>Try adjusting your filters or search terms</p>
           </div>
         ) : (
-          <div className="sessions-grid">
+          <div className="sessions-grid" data-testid="session-list">
             {filteredSessions.map(session => (
               <SessionCard
                 key={session.id}
