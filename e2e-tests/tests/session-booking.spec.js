@@ -19,8 +19,19 @@ test.describe('🏃 Session Booking System', () => {
   });
 
   test('📅 Browse available sessions', async ({ page }) => {
+    // Wait longer for page to load and debug what we see
+    console.log('🔍 Waiting for sessions page to load...');
+    
+    // Check if loading state is present first
+    const loadingState = page.locator('.loading-state');
+    if (await loadingState.isVisible()) {
+      console.log('📝 Found loading state, waiting for it to disappear...');
+      await expect(loadingState).not.toBeVisible({ timeout: 15000 });
+    }
+    
     // Should load session list (either with data or empty state)
-    await expect(page.locator('[data-testid="session-list"]')).toBeVisible();
+    console.log('🔍 Looking for session-list...');
+    await expect(page.locator('[data-testid="session-list"]')).toBeVisible({ timeout: 10000 });
     
     // Check if we have sessions or empty state
     const sessionCards = page.locator('[data-testid="session-card"]');

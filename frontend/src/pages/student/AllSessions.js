@@ -160,7 +160,7 @@ const AllSessions = () => {
       {/* Sessions List */}
       <div className="sessions-container">
         {loading ? (
-          <div className="loading-state">Loading sessions...</div>
+          <div className="loading-state" data-testid="loading-sessions">Loading sessions...</div>
         ) : filteredSessions.length === 0 ? (
           <div className="empty-state" data-testid="session-list">
             <h3>No sessions found</h3>
