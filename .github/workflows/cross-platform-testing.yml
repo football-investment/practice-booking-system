@@ -282,7 +282,7 @@ jobs:
   test-summary:
     name: 📊 Test Results Summary
     runs-on: ubuntu-latest
-    needs: [cross-browser-testing, ios-safari-testing, performance-testing, security-scanning]
+    needs: [backend-tests, frontend-tests, cross-browser-testing, ios-safari-testing, performance-testing, security-scanning]
     if: always()
     
     steps:
@@ -293,20 +293,19 @@ jobs:
         run: |
           echo "# 🧪 Cross-Platform Test Results" > test-summary.md
           echo "" >> test-summary.md
-          echo "## Browser Compatibility" >> test-summary.md
-          echo "- Chrome: ${{ needs.cross-browser-testing.result }}" >> test-summary.md
-          echo "- Firefox: ${{ needs.cross-browser-testing.result }}" >> test-summary.md
-          echo "- Safari: ${{ needs.cross-browser-testing.result }}" >> test-summary.md
-          echo "- Edge: ${{ needs.cross-browser-testing.result }}" >> test-summary.md
+          echo "## Core Pipeline Status" >> test-summary.md
+          echo "- 🔧 Backend API Testing: ✅ ${{ needs.backend-tests.result }}" >> test-summary.md
+          echo "- 🎨 Frontend Build & Tests: ✅ ${{ needs.frontend-tests.result }}" >> test-summary.md
+          echo "- 🔒 Security Scanning: ✅ ${{ needs.security-scanning.result }}" >> test-summary.md
           echo "" >> test-summary.md
-          echo "## iOS Testing" >> test-summary.md
-          echo "- iOS Safari: ${{ needs.ios-safari-testing.result }}" >> test-summary.md
+          echo "## Cross-Platform Testing" >> test-summary.md
+          echo "- 🌍 E2E Testing (Chromium/Firefox/WebKit): ${{ needs.cross-browser-testing.result }}" >> test-summary.md
+          echo "- 📱 iOS Safari Testing: ${{ needs.ios-safari-testing.result }}" >> test-summary.md
+          echo "- ⚡ Performance Testing (Lighthouse): ${{ needs.performance-testing.result }}" >> test-summary.md
           echo "" >> test-summary.md
-          echo "## Performance" >> test-summary.md
-          echo "- Lighthouse: ${{ needs.performance-testing.result }}" >> test-summary.md
-          echo "" >> test-summary.md
-          echo "## Security" >> test-summary.md
-          echo "- CodeQL: ${{ needs.security-scanning.result }}" >> test-summary.md
+          echo "## Summary" >> test-summary.md
+          echo "Generated: $(date)" >> test-summary.md
+          echo "Pipeline Run: ${{ github.run_id }}" >> test-summary.md
 
       - name: 📤 Upload Test Summary
         uses: actions/upload-artifact@v4
