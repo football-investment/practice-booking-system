@@ -30,10 +30,11 @@ export const ThemeProvider = ({ children }) => {
     console.log('🎨 ThemeContext: Applying theme:', { theme, colorScheme });
 
     if (theme === 'auto') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      // Safe check for test environment and browser compatibility
+      const mediaQuery = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
       
       const applyAutoTheme = () => {
-        const prefersDark = mediaQuery.matches;
+        const prefersDark = mediaQuery && mediaQuery.matches;
         root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
         root.setAttribute('data-color', colorScheme);
         console.log('🌗 Auto theme applied:', prefersDark ? 'dark' : 'light');
@@ -42,14 +43,18 @@ export const ThemeProvider = ({ children }) => {
       // Apply initial theme
       applyAutoTheme();
       
-      // Listen for system theme changes
-      const listener = applyAutoTheme;
-      mediaQuery.addListener(listener);
+      // Listen for system theme changes (if available)
+      if (mediaQuery && typeof mediaQuery.addListener === 'function') {
+        const listener = applyAutoTheme;
+        mediaQuery.addListener(listener);
 
-      // Cleanup listener on unmount or theme change
-      return () => {
-        mediaQuery.removeListener(listener);
-      };
+        // Cleanup listener on unmount or theme change
+        return () => {
+          if (mediaQuery && typeof mediaQuery.removeListener === 'function') {
+            mediaQuery.removeListener(listener);
+          }
+        };
+      }
     } else {
       // Manual theme selection
       root.setAttribute('data-theme', theme);
