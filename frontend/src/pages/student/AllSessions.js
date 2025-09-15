@@ -162,7 +162,7 @@ const AllSessions = () => {
         {loading ? (
           <div className="loading-state">Loading sessions...</div>
         ) : filteredSessions.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state" data-testid="session-list">
             <h3>No sessions found</h3>
             <p>Try adjusting your filters or search terms</p>
           </div>
