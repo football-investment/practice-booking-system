@@ -1,6 +1,7 @@
 import logging
 import time
 import json
+import os
 from typing import Callable
 from uuid import uuid4
 from contextvars import ContextVar
@@ -13,14 +14,21 @@ from starlette.responses import StreamingResponse
 # Context variable for request ID tracking
 request_id_var: ContextVar[str] = ContextVar('request_id', default='')
 
+# Create logs directory if it doesn't exist
+log_dir = 'logs'
+os.makedirs(log_dir, exist_ok=True)
+
 # Configure structured logging
+handlers = [logging.StreamHandler()]
+
+# Only add file handler if not in test environment
+if not os.getenv('TESTING', '').lower() == 'true':
+    handlers.append(logging.FileHandler(os.path.join(log_dir, 'app.log'), mode='a'))
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('logs/app.log', mode='a')
-    ]
+    handlers=handlers
 )
 
 logger = logging.getLogger(__name__)
