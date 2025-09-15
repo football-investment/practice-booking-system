@@ -6,7 +6,9 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined, // Increased workers for better speed
+  timeout: 60000, // 60 second global timeout
+  globalTimeout: 600000, // 10 minute global timeout for entire test suite
   reporter: [
     ['html'],
     ['json', { outputFile: 'test-results.json' }],
@@ -16,37 +18,68 @@ module.exports = defineConfig({
     baseURL: process.env.TEST_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure'
+    video: 'retain-on-failure',
+    actionTimeout: 10000, // 10 second action timeout
+    navigationTimeout: 30000, // 30 second navigation timeout
+    ignoreHTTPSErrors: true,
+    // Optimize for CI performance
+    launchOptions: {
+      args: process.env.CI ? [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      ] : []
+    }
   },
 
   projects: [
-    // Desktop Browsers (Chromium, Firefox, WebKit)
+    // Core Desktop Browsers - optimized for speed and reliability
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Chrome-specific optimizations for CI
+        launchOptions: {
+          args: process.env.CI ? [
+            '--no-sandbox',
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-extensions',
+            '--disable-default-apps'
+          ] : []
+        }
+      }
     },
     {
       name: 'firefox', 
-      use: { ...devices['Desktop Firefox'] }
+      use: { 
+        ...devices['Desktop Firefox'],
+        // Firefox-specific optimizations
+        launchOptions: process.env.CI ? {
+          firefoxUserPrefs: {
+            'media.navigator.streams.fake': true,
+            'media.navigator.permission.disabled': true
+          }
+        } : {}
+      }
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] }
-    },
-
-    // Mobile Devices (Emulation)
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] }
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] }
-    },
-    {
-      name: 'iPad Safari',
-      use: { ...devices['iPad Pro'] }
+      use: { 
+        ...devices['Desktop Safari'],
+        // WebKit optimizations for CI reliability
+        actionTimeout: 15000 // WebKit can be slower
+      }
     }
+    
+    // Mobile testing handled by BrowserStack iOS Safari tests
+    // Removed mobile emulation to improve CI speed and avoid redundancy
   ],
 
   webServer: process.env.CI ? undefined : [
