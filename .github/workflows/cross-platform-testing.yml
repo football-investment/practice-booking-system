@@ -233,7 +233,7 @@ jobs:
 
       - name: 🚀 Start BrowserStack Local Tunnel
         run: |
-          BrowserStackLocal --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
+          npx browserstack-local --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
           sleep 15
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
