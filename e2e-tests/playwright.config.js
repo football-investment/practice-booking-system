@@ -21,18 +21,8 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 10000, // 10 second action timeout
     navigationTimeout: 30000, // 30 second navigation timeout
-    ignoreHTTPSErrors: true,
-    // Optimize for CI performance
-    launchOptions: {
-      args: process.env.CI ? [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding'
-      ] : []
-    }
+    ignoreHTTPSErrors: true
+    // Removed global launchOptions - now handled per-browser for compatibility
   },
 
   projects: [
@@ -74,7 +64,12 @@ module.exports = defineConfig({
       use: { 
         ...devices['Desktop Safari'],
         // WebKit optimizations for CI reliability
-        actionTimeout: 15000 // WebKit can be slower
+        actionTimeout: 15000, // WebKit can be slower
+        // WebKit-specific launch options (no sandbox flags for WebKit)
+        launchOptions: process.env.CI ? {
+          // WebKit doesn't support Chrome flags like --no-sandbox
+          // Use WebKit-specific options instead
+        } : {}
       }
     }
     
