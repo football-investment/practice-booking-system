@@ -314,7 +314,7 @@ jobs:
     name: ⚡ Performance Testing
     runs-on: ubuntu-latest
     needs: [backend-testing, frontend-testing]
-    if: always() && (needs.backend-testing.result == 'success' && needs.frontend-testing.result == 'success')
+    if: always() && needs.backend-testing.result == 'success' && needs.frontend-testing.result == 'success'
     
     services:
       postgres:
