@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear User Cache</title>
+</head>
+<body>
+    <h1>🔧 Cache Cleaner Tool</h1>
+    <p>This tool helps fix persistent onboarding issues by clearing old cached user data.</p>
+    
+    <button onclick="clearUserCache()">Clear User Cache</button>
+    <button onclick="showCurrentCache()">Show Current Cache</button>
+    
+    <div id="output" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; min-height: 100px; white-space: pre-wrap;"></div>
+
+    <script>
+        function showCurrentCache() {
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+            
+            if (user) {
+                const parsedUser = JSON.parse(user);
+                output.innerHTML += '📋 Current cached user data:\n';
+                output.innerHTML += JSON.stringify(parsedUser, null, 2);
+                output.innerHTML += '\n\n';
+                output.innerHTML += `🔍 onboarding_completed: ${parsedUser.onboarding_completed}\n`;
+                output.innerHTML += `📱 phone: ${parsedUser.phone}\n`;
+                output.innerHTML += `🚨 emergency_contact: ${parsedUser.emergency_contact}\n`;
+                output.innerHTML += `🔑 has token: ${!!token}\n`;
+            } else {
+                output.innerHTML = '❌ No user data in cache';
+            }
+        }
+        
+        function clearUserCache() {
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            
+            const output = document.getElementById('output');
+            output.innerHTML = '✅ Cache cleared successfully!\n\nUser must log in again to get fresh data from API.';
+        }
+        
+        // Show cache on page load
+        showCurrentCache();
+    </script>
+</body>
+</html>

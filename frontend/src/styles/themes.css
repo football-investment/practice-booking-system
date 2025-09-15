@@ -1,0 +1,215 @@
+/* ===========================================
+   ENHANCED THEME SYSTEM - 2025 UNIFIED COLORS
+   Automatic contrast and consistency
+   ========================================== */
+
+@import './design-tokens.css';
+@import './unified-color-system.css';
+
+/* ================ ENHANCED LIGHT THEME ================ */
+/* Inherits from unified-color-system.css for consistency */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  
+  /* Legacy aliases for backward compatibility */
+  --bg-card: var(--surface-primary);
+  --bg-card-hover: var(--surface-hover);
+  --bg-card-secondary: var(--surface-secondary);
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  
+  --border-color: var(--border-primary);
+  --border-light: var(--border-secondary);
+  
+  --text-header: var(--text-primary);
+  --text-muted: var(--text-quaternary);
+  
+  /* Interactive states */
+  --state-hover: var(--surface-hover);
+  --state-active: var(--surface-active);
+  --state-disabled: var(--text-disabled);
+  
+  /* Enhanced gradients and shadows */
+  --shadow-primary: rgba(0, 0, 0, 0.08);
+  --shadow-hover: rgba(0, 0, 0, 0.12);
+  --shadow-secondary: rgba(0, 0, 0, 0.05);
+}
+
+/* ================ ENHANCED DARK THEME ================ */
+/* Inherits from unified-color-system.css for consistency */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  
+  /* Legacy aliases for backward compatibility */
+  --bg-card: var(--surface-primary);
+  --bg-card-hover: var(--surface-hover);
+  --bg-card-secondary: var(--surface-secondary);
+  --bg-glass: rgba(255, 255, 255, 0.05);
+  
+  --border-color: var(--border-primary);
+  --border-light: var(--border-secondary);
+  
+  --text-header: var(--text-primary);
+  --text-muted: var(--text-quaternary);
+  
+  /* Interactive states */
+  --state-hover: var(--surface-hover);
+  --state-active: var(--surface-active);
+  --state-disabled: var(--text-disabled);
+  
+  /* Enhanced gradients and shadows for dark mode */
+  --shadow-primary: rgba(0, 0, 0, 0.3);
+  --shadow-hover: rgba(0, 0, 0, 0.4);
+  --shadow-secondary: rgba(0, 0, 0, 0.2);
+}
+
+/* ================ COLOR SCHEME VARIANTS ================ */
+
+/* Purple Theme (Default) */
+:root[data-color="purple"] {
+  --color-primary: var(--brand-purple-500);
+  --color-primary-hover: var(--brand-purple-600);
+  --color-primary-light: var(--brand-purple-100);
+  --bg-gradient: linear-gradient(135deg, var(--brand-purple-500) 0%, var(--brand-purple-600) 100%);
+  --gradient-primary: linear-gradient(135deg, var(--brand-purple-500) 0%, var(--brand-purple-600) 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: var(--brand-purple-600);
+  --btn-secondary-hover: #5A3D7F;
+}
+
+/* Blue Theme - Trust & Professional */
+:root[data-color="blue"] {
+  --color-primary: #0084FF;
+  --color-primary-hover: #0066CC;
+  --color-primary-light: #E6F3FF;
+  --bg-gradient: linear-gradient(135deg, #0084FF 0%, #0066CC 100%);
+  --gradient-primary: linear-gradient(135deg, #0084FF 0%, #0066CC 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #0066CC;
+  --btn-secondary-hover: #0052A3;
+}
+
+/* Green Theme - Bio & Fresh */
+:root[data-color="green"] {
+  --color-primary: #00D25B;
+  --color-primary-hover: #00A847;
+  --color-primary-light: #E6FFF2;
+  --bg-gradient: linear-gradient(135deg, #00D25B 0%, #00A847 100%);
+  --gradient-primary: linear-gradient(135deg, #00D25B 0%, #00A847 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #00A847;
+  --btn-secondary-hover: #008637;
+}
+
+/* Red Theme - Energy & Alert */
+:root[data-color="red"] {
+  --color-primary: #FF3B30;
+  --color-primary-hover: #D70015;
+  --color-primary-light: #FFE6E6;
+  --bg-gradient: linear-gradient(135deg, #FF3B30 0%, #D70015 100%);
+  --gradient-primary: linear-gradient(135deg, #FF3B30 0%, #D70015 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #D70015;
+  --btn-secondary-hover: #B50010;
+}
+
+/* Orange Theme - Energy & CTA */
+:root[data-color="orange"] {
+  --color-primary: #FF9500;
+  --color-primary-hover: #E6760D;
+  --color-primary-light: #FFF2E6;
+  --bg-gradient: linear-gradient(135deg, #FF9500 0%, #E6760D 100%);
+  --gradient-primary: linear-gradient(135deg, #FF9500 0%, #E6760D 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #E6760D;
+  --btn-secondary-hover: #CC5F08;
+}
+
+/* ================ NEW 2025 THEMES ================ */
+
+/* Cyber Sports Theme */
+:root[data-color="cyber"] {
+  --color-primary: #00FF88;
+  --color-primary-hover: #00CC6A;
+  --color-secondary: #FF10F0;
+  --color-secondary-hover: #CC0DC1;
+  --bg-gradient: linear-gradient(135deg, #00FF88 0%, #FF10F0 100%);
+  --gradient-primary: linear-gradient(135deg, #00FF88 0%, #FF10F0 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #FF10F0;
+  --btn-secondary-hover: #E00AD6;
+}
+
+/* Ocean Breeze Theme */
+:root[data-color="ocean"] {
+  --color-primary: #0084FF;
+  --color-primary-hover: #0066CC;
+  --color-secondary: #40E0D0;
+  --color-secondary-hover: #33B8A8;
+  --bg-gradient: linear-gradient(135deg, #0084FF 0%, #40E0D0 100%);
+  --gradient-primary: linear-gradient(135deg, #0084FF 0%, #40E0D0 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #40E0D0;
+  --btn-secondary-hover: #36C7B7;
+}
+
+/* Sunset Athletic Theme */
+:root[data-color="sunset"] {
+  --color-primary: #FF6B35;
+  --color-primary-hover: #E6521A;
+  --color-secondary: #FF9500;
+  --color-secondary-hover: #E6760D;
+  --bg-gradient: linear-gradient(135deg, #FF6B35 0%, #FF9500 100%);
+  --gradient-primary: linear-gradient(135deg, #FF6B35 0%, #FF9500 100%);
+  
+  /* Card backgrounds - ensuring contrast */
+  --bg-card: #ffffff;
+  --bg-card-hover: rgba(248, 250, 252, 0.95);
+  --bg-card-secondary: rgba(255, 255, 255, 0.85);
+  
+  /* Button theme colors */
+  --btn-secondary-bg: #FF9500;
+  --btn-secondary-hover: #E6760D;
+}

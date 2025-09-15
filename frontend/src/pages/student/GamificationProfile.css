@@ -1,0 +1,650 @@
+/* Gamification Profile Styles */
+.gamification-profile {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: var(--bg-primary);
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  transition: background 0.3s ease;
+}
+
+/* Header */
+.profile-header {
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-color);
+  color: var(--text-header);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.back-button:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.profile-title h1 {
+  color: var(--text-header);
+  font-size: var(--text-4xl);
+  margin: 0;
+  text-shadow: 2px 2px 4px var(--shadow-primary);
+  transition: color 0.3s ease;
+}
+
+.profile-title p {
+  color: var(--text-header);
+  font-size: var(--text-lg);
+  margin: 0.5rem 0 0 0;
+  transition: color 0.3s ease;
+}
+
+/* Player Card */
+.player-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 40px var(--shadow-primary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  transition: all 0.3s ease;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.player-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-3xl);
+  font-weight: bold;
+  color: var(--text-accent);
+  box-shadow: 0 8px 16px var(--shadow-secondary);
+}
+
+.player-details h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-3xl);
+  transition: color 0.3s ease;
+}
+
+.player-email {
+  color: var(--text-secondary);
+  margin: 0.5rem 0;
+  transition: color 0.3s ease;
+}
+
+.veteran-status {
+  margin-top: 0.5rem;
+}
+
+.veteran-badge {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  font-size: var(--text-sm);
+  font-weight: bold;
+  display: inline-block;
+  animation: shimmer 2s infinite;
+  box-shadow: 0 4px 8px rgba(240, 147, 251, 0.3);
+}
+
+@keyframes shimmer {
+  0% { box-shadow: 0 4px 8px rgba(240, 147, 251, 0.3); }
+  50% { box-shadow: 0 6px 12px rgba(240, 147, 251, 0.5); }
+  100% { box-shadow: 0 4px 8px rgba(240, 147, 251, 0.3); }
+}
+
+.player-stats {
+  flex: 1;
+  max-width: 300px;
+}
+
+.level-section {
+  background: var(--gradient-primary);
+  padding: 1.5rem;
+  border-radius: 15px;
+  color: var(--text-accent);
+}
+
+.level-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.level-label {
+  font-size: var(--text-base);
+  opacity: 0.9;
+}
+
+.level-number {
+  font-size: var(--text-4xl);
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.xp-progress {
+  width: 100%;
+}
+
+.xp-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: 0.5rem;
+  opacity: 0.9;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 5px;
+  overflow: hidden;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--bg-gradient, linear-gradient(135deg, #8b5fbf, #667eea));
+  border-radius: 4px;
+  transition: width 0.3s ease, background 0.3s ease;
+  box-shadow: 0 0 12px var(--color-primary, #8b5fbf);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border-radius: 15px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 10px 20px var(--shadow-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px var(--shadow-hover);
+}
+
+.stat-icon {
+  font-size: var(--text-4xl);
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-primary);
+  border-radius: 50%;
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: var(--text-3xl);
+  font-weight: bold;
+  color: var(--text-primary);
+  margin: 0;
+  transition: color 0.3s ease;
+}
+
+.stat-label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-top: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+/* Timeline */
+.timeline-section {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 40px var(--shadow-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.timeline-section h3 {
+  margin-top: 0;
+  color: var(--text-primary);
+  font-size: var(--text-3xl);
+  margin-bottom: 2rem;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.timeline-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.semester-index {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  background: linear-gradient(135deg, var(--bg-card-secondary) 0%, var(--bg-card) 100%);
+  padding: 0.25rem 0.625rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-primary-alpha);
+  box-shadow: 0 2px 8px var(--shadow-light);
+  transition: all 0.3s ease;
+  text-align: center;
+  min-width: 75px;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.semester-index:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--shadow-primary);
+  background: linear-gradient(135deg, var(--color-primary-alpha) 0%, var(--bg-card-secondary) 100%);
+}
+
+.timeline-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 15px;
+  min-width: 120px;
+  transition: all 0.3s ease;
+}
+
+.timeline-item.completed {
+  background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%);
+  color: white;
+}
+
+.timeline-item.current {
+  background: linear-gradient(135deg, #2196F3 0%, #21CBF3 100%);
+  color: white;
+  border: 2px solid #1976D2;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+}
+
+.timeline-item.upcoming {
+  background: var(--bg-card-secondary);
+  border: 2px dashed var(--border-color);
+  color: var(--text-secondary);
+}
+
+.timeline-marker {
+  font-size: var(--text-3xl);
+  margin-bottom: 0.5rem;
+}
+
+.timeline-content h4 {
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.timeline-content p {
+  margin: 0.25rem 0 0 0;
+  font-size: var(--text-sm);
+  opacity: 0.8;
+}
+
+/* Achievements */
+.achievements-section,
+.upcoming-section {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 40px var(--shadow-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.achievements-section h3,
+.upcoming-section h3 {
+  margin-top: 0;
+  color: var(--text-primary);
+  font-size: var(--text-3xl);
+  margin-bottom: 2rem;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.achievement-card {
+  border-radius: 15px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.achievement-card.earned {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: white;
+  box-shadow: 0 10px 20px rgba(255, 215, 0, 0.3);
+}
+
+/* Special styling for new first-time achievements */
+.achievement-card[data-type="first_time"] {
+  border-left: 4px solid #4CAF50;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+}
+
+.achievement-card[data-type="combo"] {
+  border-left: 4px solid #FF9800;
+  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+}
+
+.achievement-card[data-type="welcome"] {
+  border-left: 4px solid #9C27B0;
+  background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+}
+
+.achievement-card.upcoming {
+  background: var(--bg-card-secondary);
+  border: 2px dashed var(--border-color);
+  color: var(--text-secondary);
+}
+
+.achievement-card:hover {
+  transform: translateY(-3px);
+}
+
+.achievement-icon {
+  font-size: var(--text-5xl);
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.achievement-icon.locked {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.achievement-info {
+  flex: 1;
+}
+
+.achievement-info h4 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.achievement-info p {
+  margin: 0.5rem 0;
+  opacity: 0.9;
+}
+
+.achievement-date {
+  font-size: var(--text-xs);
+  opacity: 0.8;
+  margin-top: 0.5rem;
+}
+
+.achievement-requirement {
+  font-size: var(--text-sm);
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-top: 0.5rem;
+}
+
+.no-achievements {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+/* Tips Section */
+.tips-section {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px var(--shadow-primary);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.tips-section h3 {
+  margin-top: 0;
+  color: var(--text-primary);
+  font-size: var(--text-3xl);
+  margin-bottom: 2rem;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.tip-card {
+  background: var(--gradient-primary);
+  color: var(--text-accent);
+  border-radius: 15px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.tip-card:hover {
+  transform: translateY(-3px);
+}
+
+.tip-icon {
+  font-size: var(--text-3xl);
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-glass);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tip-content h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: var(--text-base);
+}
+
+.tip-content p {
+  margin: 0;
+  opacity: 0.9;
+  line-height: var(--leading-normal);
+}
+
+/* Loading and Error States */
+.loading, .error, .no-data {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-header);
+  font-size: var(--text-lg);
+  transition: color 0.3s ease;
+}
+
+.error {
+  color: var(--error-color, #ff6b6b);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .gamification-profile {
+    padding: 1rem;
+  }
+  
+  .player-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+  
+  .timeline {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tips-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode explicit overrides */
+:root[data-theme="dark"] .profile-title h1,
+:root[data-theme="dark"] .profile-title p,
+:root[data-theme="dark"] .timeline-section h3,
+:root[data-theme="dark"] .achievements-section h3,
+:root[data-theme="dark"] .upcoming-section h3,
+:root[data-theme="dark"] .tips-section h3,
+:root[data-theme="dark"] .loading,
+:root[data-theme="dark"] .no-data {
+  color: var(--text-header) !important;
+}
+
+:root[data-theme="dark"] .player-card,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .timeline-section,
+:root[data-theme="dark"] .achievements-section,
+:root[data-theme="dark"] .upcoming-section,
+:root[data-theme="dark"] .tips-section {
+  background: var(--bg-card) !important;
+}
+
+/* Dark mode progress bar enhancements */
+:root[data-theme="dark"] .progress-bar {
+  background: var(--surface-tertiary, rgba(64, 64, 64, 0.8)) !important;
+  border-color: var(--border-primary, #525252) !important;
+}
+
+:root[data-theme="dark"] .progress-fill {
+  background: var(--bg-gradient, linear-gradient(135deg, #8b5fbf, #667eea)) !important;
+  box-shadow: 0 0 15px var(--color-primary, #8b5fbf) !important;
+}
+
+/* Auto mode dark override */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .profile-title h1,
+  :root[data-theme="auto"] .profile-title p,
+  :root[data-theme="auto"] .timeline-section h3,
+  :root[data-theme="auto"] .achievements-section h3,
+  :root[data-theme="auto"] .upcoming-section h3,
+  :root[data-theme="auto"] .tips-section h3,
+  :root[data-theme="auto"] .loading,
+  :root[data-theme="auto"] .no-data {
+    color: var(--text-header) !important;
+  }
+
+  :root[data-theme="auto"] .player-card,
+  :root[data-theme="auto"] .stat-card,
+  :root[data-theme="auto"] .timeline-section,
+  :root[data-theme="auto"] .achievements-section,
+  :root[data-theme="auto"] .upcoming-section,
+  :root[data-theme="auto"] .tips-section {
+    background: var(--bg-card) !important;
+  }
+  
+  /* Auto mode dark progress bar enhancements */
+  :root[data-theme="auto"] .progress-bar {
+    background: var(--surface-tertiary, rgba(64, 64, 64, 0.8)) !important;
+    border-color: var(--border-primary, #525252) !important;
+  }
+
+  :root[data-theme="auto"] .progress-fill {
+    background: var(--bg-gradient, linear-gradient(135deg, #8b5fbf, #667eea)) !important;
+    box-shadow: 0 0 15px var(--color-primary, #8b5fbf) !important;
+  }
+}
