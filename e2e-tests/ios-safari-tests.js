@@ -70,7 +70,8 @@ async function runIOSSafariTests() {
       ...config,
       'bstack:options': {
         ...config['bstack:options'],
-        local: true // Enable BrowserStack Local for localhost testing
+        local: true, // Enable BrowserStack Local for localhost testing
+        localIdentifier: process.env.BROWSERSTACK_LOCAL_IDENTIFIER || `github-actions-${process.env.GITHUB_RUN_ID || 'local'}`
       }
     }
   });

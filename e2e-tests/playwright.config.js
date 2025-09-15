@@ -22,15 +22,15 @@ module.exports = defineConfig({
   projects: [
     // Desktop Browsers (Chromium, Firefox, WebKit)
     {
-      name: 'Chromium Desktop',
+      name: 'chromium',
       use: { ...devices['Desktop Chrome'] }
     },
     {
-      name: 'Firefox Desktop', 
+      name: 'firefox', 
       use: { ...devices['Desktop Firefox'] }
     },
     {
-      name: 'WebKit Desktop',
+      name: 'webkit',
       use: { ...devices['Desktop Safari'] }
     },
 

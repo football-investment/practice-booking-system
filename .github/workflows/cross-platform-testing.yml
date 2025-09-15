@@ -152,7 +152,7 @@ jobs:
       - name: 🧪 Run Playwright E2E Tests
         run: |
           cd e2e-tests
-          npx playwright test --browser=${{ matrix.browser }} --reporter=html
+          npx playwright test --project="${{ matrix.browser }}" --reporter=html
           cd ..
         env:
           TEST_URL: http://localhost:3000
@@ -195,8 +195,8 @@ jobs:
 
       - name: 🚀 Start BrowserStack Local Tunnel
         run: |
-          ./node_modules/.bin/BrowserStackLocal --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} &
-          sleep 10
+          npx browserstack-local --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --daemon start --local-identifier github-actions-${{ github.run_id }}
+          sleep 15
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
@@ -207,6 +207,8 @@ jobs:
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_LOCAL_IDENTIFIER: github-actions-${{ github.run_id }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
           DEVICE: ${{ matrix.device.device }}
           OS_VERSION: ${{ matrix.device.os_version }}
 
@@ -225,6 +227,12 @@ jobs:
         run: |
           npm install -g @lhci/cli@0.12.x
 
+      - name: 📥 Download Frontend Build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+
       - name: 🚀 Start Test Environment
         run: |
           # Start both backend and frontend
@@ -235,7 +243,7 @@ jobs:
 
       - name: 🏃‍♂️ Run Lighthouse CI
         run: |
-          lhci autorun
+          lhci autorun --config=./lighthouserc.js
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
