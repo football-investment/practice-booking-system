@@ -68,7 +68,7 @@ def test_student():
 
 def test_login_fresh_student(setup_test_db, test_student):
     """Test login with fresh student account"""
-    response = client.post("/api/v1/auth/login", data={
+    response = client.post("/api/v1/auth/login/form", data={
         "username": "test.newcomer@student.com",
         "password": "testpass123"
     })
@@ -81,7 +81,7 @@ def test_login_fresh_student(setup_test_db, test_student):
 def test_get_user_profile_fresh_student(setup_test_db, test_student):
     """Test getting fresh student profile"""
     # Login first
-    login_response = client.post("/api/v1/auth/login", data={
+    login_response = client.post("/api/v1/auth/login/form", data={
         "username": "test.newcomer@student.com", 
         "password": "testpass123"
     })
@@ -100,7 +100,7 @@ def test_get_user_profile_fresh_student(setup_test_db, test_student):
 def test_update_user_profile_onboarding(setup_test_db, test_student):
     """Test the critical onboarding PATCH endpoint (with JSON interests fix)"""
     # Login first
-    login_response = client.post("/api/v1/auth/login", data={
+    login_response = client.post("/api/v1/auth/login/form", data={
         "username": "test.newcomer@student.com",
         "password": "testpass123"
     })
@@ -130,7 +130,7 @@ def test_update_user_profile_onboarding(setup_test_db, test_student):
 def test_interests_validation_edge_cases(setup_test_db, test_student):
     """Test interests field with different data types"""
     # Login
-    login_response = client.post("/api/v1/auth/login", data={
+    login_response = client.post("/api/v1/auth/login/form", data={
         "username": "test.newcomer@student.com",
         "password": "testpass123"
     })
@@ -152,7 +152,7 @@ def test_interests_validation_edge_cases(setup_test_db, test_student):
 def test_onboarding_flow_complete(setup_test_db, test_student):
     """Test complete onboarding flow end-to-end"""
     # 1. Login fresh student
-    login_response = client.post("/api/v1/auth/login", data={
+    login_response = client.post("/api/v1/auth/login/form", data={
         "username": "test.newcomer@student.com",
         "password": "testpass123"
     })
