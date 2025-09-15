@@ -10,6 +10,9 @@ const MyBookings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellingBooking, setCancellingBooking] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(null); // bookingId to cancel
+  const [cancelMessage, setCancelMessage] = useState('');
+  const [cancelMessageType, setCancelMessageType] = useState(''); // 'success' or 'error'
   const [checkingInBooking, setCheckingInBooking] = useState(null);
   const [filter, setFilter] = useState('all');
   const [theme, setTheme] = useState(() =>
@@ -153,18 +156,37 @@ const MyBookings = () => {
   };
 
   const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) {
-      return;
-    }
+    setShowCancelConfirm(bookingId);
+  };
+  
+  const confirmCancelBooking = async () => {
+    if (!showCancelConfirm) return;
     
-    setCancellingBooking(bookingId);
+    setCancellingBooking(showCancelConfirm);
+    setShowCancelConfirm(null);
+    setCancelMessage('');
+    
     try {
-      await apiService.cancelBooking(bookingId);
-      alert('Booking cancelled successfully');
+      await apiService.cancelBooking(showCancelConfirm);
+      setCancelMessage('Booking cancelled successfully');
+      setCancelMessageType('success');
       loadBookings(); // Refresh list
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setCancelMessage('');
+        setCancelMessageType('');
+      }, 5000);
     } catch (err) {
       console.error('Cancel failed:', err);
-      alert(`Failed to cancel booking: ${err.message}`);
+      setCancelMessage(`Failed to cancel booking: ${err.message}`);
+      setCancelMessageType('error');
+      
+      // Auto-hide error message after 8 seconds
+      setTimeout(() => {
+        setCancelMessage('');
+        setCancelMessageType('');
+      }, 8000);
     } finally {
       setCancellingBooking(null);
     }
@@ -227,6 +249,41 @@ const MyBookings = () => {
         </div>
         <button onClick={() => logout()} className="logout-btn">Logout</button>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Cancel Booking</h3>
+            <p>Are you sure you want to cancel this booking?</p>
+            <div className="modal-actions">
+              <button 
+                onClick={() => setShowCancelConfirm(null)}
+                className="btn btn-secondary"
+              >
+                Keep Booking
+              </button>
+              <button 
+                onClick={confirmCancelBooking}
+                className="btn btn-danger"
+                data-testid="confirm-cancel"
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Status Messages */}
+      {cancelMessage && (
+        <div 
+          className={`booking-message ${cancelMessageType}`}
+          data-testid={cancelMessageType === 'success' ? 'booking-success' : 'booking-error'}
+        >
+          {cancelMessageType === 'success' ? '✅' : '❌'} {cancelMessage}
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="filter-tabs">
