@@ -22,6 +22,20 @@ const DEVICE_CONFIG = {
       sessionName: 'iOS Safari - iPhone 14'
     }
   },
+  'iPhone 13': {
+    'bstack:options': {
+      deviceName: 'iPhone 13',
+      osVersion: '15',
+      browserName: 'Safari',
+      realMobile: true,
+      local: true,
+      networkLogs: true,
+      debug: true,
+      consoleLogs: 'info',
+      buildName: 'Cross-Platform-Testing',
+      sessionName: 'iOS Safari - iPhone 13'
+    }
+  },
   'iPad Pro 12.9 2022': {
     'bstack:options': {
       deviceName: 'iPad Pro 12.9 2022', 

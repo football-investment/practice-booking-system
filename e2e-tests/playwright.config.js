@@ -20,9 +20,9 @@ module.exports = defineConfig({
   },
 
   projects: [
-    // Desktop Browsers
+    // Desktop Browsers (Chromium, Firefox, WebKit)
     {
-      name: 'Chrome Desktop',
+      name: 'Chromium Desktop',
       use: { ...devices['Desktop Chrome'] }
     },
     {
@@ -30,12 +30,8 @@ module.exports = defineConfig({
       use: { ...devices['Desktop Firefox'] }
     },
     {
-      name: 'Safari Desktop',
+      name: 'WebKit Desktop',
       use: { ...devices['Desktop Safari'] }
-    },
-    {
-      name: 'Edge Desktop',
-      use: { ...devices['Desktop Edge'] }
     },
 
     // Mobile Devices (Emulation)

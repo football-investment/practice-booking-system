@@ -103,19 +103,16 @@ jobs:
     
     strategy:
       matrix:
-        browser: [chrome, firefox, safari, edge]
+        browser: [chromium, firefox, webkit]
         include:
-          - browser: chrome
+          - browser: chromium
             browserstack_browser: "Chrome"
             browserstack_version: "latest"
           - browser: firefox
-            browserstack_browser: "Firefox"
+            browserstack_browser: "Firefox" 
             browserstack_version: "latest"
-          - browser: safari
+          - browser: webkit
             browserstack_browser: "Safari"
-            browserstack_version: "latest"
-          - browser: edge
-            browserstack_browser: "Edge"
             browserstack_version: "latest"
 
     steps:
