@@ -74,36 +74,49 @@ class FreshDatabaseReset:
             )
             self.db.add(instructor)
             
-        # Fresh newcomer students (NO onboarding completed)
-        newcomer_students = [
+        # Test students with different onboarding states
+        test_students = [
             {
                 "name": "Alex Newcomer",
                 "email": "alex.newcomer@student.com",
-                "password": "student123"
+                "password": "student123",
+                "onboarding_completed": False,  # Fresh newcomer
+                "phone": None,
+                "emergency_contact": None,
+                "nickname": None
             },
             {
                 "name": "Emma Fresh",
                 "email": "emma.fresh@student.com", 
-                "password": "student123"
+                "password": "student123",
+                "onboarding_completed": True,   # ✅ Completed onboarding for E2E tests
+                "phone": "+36301234567",
+                "emergency_contact": "John Fresh (+36301234568)",
+                "nickname": "emma_f"
             },
             {
                 "name": "Mike Starter",
                 "email": "mike.starter@student.com",
-                "password": "student123" 
+                "password": "student123",
+                "onboarding_completed": False,  # Fresh newcomer
+                "phone": None,
+                "emergency_contact": None,
+                "nickname": None
             }
         ]
         
-        for student_data in newcomer_students:
+        for student_data in test_students:
             student = User(
                 name=student_data["name"],
                 email=student_data["email"],
                 password_hash=get_password_hash(student_data["password"]),
                 role=UserRole.STUDENT,
                 is_active=True,
-                onboarding_completed=False,  # 🎯 KEY: Fresh newcomers
-                phone=None,
-                emergency_contact=None,
-                interests=None  # Empty profile
+                onboarding_completed=student_data["onboarding_completed"],
+                phone=student_data["phone"],
+                emergency_contact=student_data["emergency_contact"],
+                nickname=student_data["nickname"],
+                interests=None  # Empty interests for testing
             )
             self.db.add(student)
             
@@ -220,9 +233,9 @@ class FreshDatabaseReset:
             print("\n📋 TEST ACCOUNTS:")
             print("Admin: admin@devstudio.com / admin123")
             print("Instructor: sarah.johnson@instructor.com / instructor123") 
-            print("Fresh Student: alex.newcomer@student.com / student123")
-            print("Fresh Student: emma.fresh@student.com / student123")
-            print("Fresh Student: mike.starter@student.com / student123")
+            print("Fresh Student (no onboarding): alex.newcomer@student.com / student123")
+            print("E2E Test Student (onboarding complete): emma.fresh@student.com / student123")
+            print("Fresh Student (no onboarding): mike.starter@student.com / student123")
             print("\n✅ Ready for clean testing!")
             
         except Exception as e:
