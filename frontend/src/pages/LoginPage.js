@@ -63,6 +63,7 @@ const LoginPage = () => {
             <label htmlFor="email" className="form-label">Email Address</label>
             <input
               id="email"
+              data-testid="email"
               type="email"
               placeholder="Enter your email"
               value={credentials.email}
@@ -78,6 +79,7 @@ const LoginPage = () => {
             <label htmlFor="password" className="form-label">Password</label>
             <input
               id="password"
+              data-testid="password"
               type="password"
               placeholder="Enter your password"
               value={credentials.password}
@@ -91,6 +93,7 @@ const LoginPage = () => {
           
           <button 
             type="submit" 
+            data-testid="login-button"
             disabled={loading || !credentials.email || !credentials.password}
             className="login-button"
           >

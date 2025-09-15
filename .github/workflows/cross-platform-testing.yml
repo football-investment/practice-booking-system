@@ -228,12 +228,15 @@ jobs:
 
       - name: 🔧 Install BrowserStack Dependencies
         run: |
-          npm install -g browserstack-local
           npm install webdriverio
+          # Download BrowserStack Local binary directly
+          wget -q https://www.browserstack.com/browserstack-local/BrowserStackLocal-linux-x64.zip
+          unzip BrowserStackLocal-linux-x64.zip
+          chmod +x BrowserStackLocal
 
       - name: 🚀 Start BrowserStack Local Tunnel
         run: |
-          npx browserstack-local --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
+          ./BrowserStackLocal --key ${{ secrets.BROWSERSTACK_ACCESS_KEY }} --local-identifier github-actions-${{ github.run_id }} --daemon start
           sleep 15
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
