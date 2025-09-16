@@ -172,9 +172,7 @@ jobs:
       - name: 🚀 Start Test Environment
         run: |
           # Start backend with test database
-          export DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking"
-          export TESTING=true
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           
           # Serve frontend build
           cd frontend
@@ -275,9 +273,7 @@ jobs:
       - name: 🚀 Start Test Environment
         run: |
           # Start backend with test database
-          export DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking"
-          export TESTING=true
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           
           # Serve frontend build
           cd frontend
@@ -365,8 +361,7 @@ jobs:
       - name: 🚀 Start Test Environment
         run: |
           # Start both backend and frontend
-          export DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking"
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           cd frontend && npx serve -s build -l 3000 &
           sleep 15
 
