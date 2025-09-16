@@ -70,7 +70,6 @@ class TestSessionFilterService:
             instructor_id=test_instructor.id,
             semester_id=test_semester.id,
             max_participants=20,
-            current_participants=0,
             status="active"
         )
         db_session.add(project)
@@ -159,7 +158,6 @@ class TestSessionFilterService:
             instructor_id=test_instructor.id,
             semester_id=test_semester.id,
             max_participants=15,
-            current_participants=0,
             status="active"
         )
         project2 = Project(
@@ -168,7 +166,6 @@ class TestSessionFilterService:
             instructor_id=test_instructor.id,
             semester_id=test_semester.id,
             max_participants=15,
-            current_participants=0,
             status="active"
         )
         db_session.add_all([project1, project2])

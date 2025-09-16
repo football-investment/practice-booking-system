@@ -186,4 +186,4 @@ class TestGamificationService:
         assert isinstance(data, dict)
         assert 'stats' in data
         assert 'achievements' in data
-        assert 'progress' in data
+        assert 'next_level' in data
