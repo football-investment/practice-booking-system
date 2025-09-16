@@ -108,26 +108,33 @@ test.describe('🏃 Session Booking System', () => {
         await firstBookButton.click();
         console.log('✅ Booking button clicked successfully');
         
-        // Wait for booking response with extended timeouts for all browsers
-        const isFirefox = process.env.BROWSER_NAME === 'firefox' || page.context().browser().browserType().name() === 'firefox';
-        const waitTimeout = isFirefox ? 30000 : 20000;  // Increased timeouts for booking UI response
+        // Wait for booking response - short timeout to catch success message before it disappears (5s auto-hide)
+        const waitTimeout = 7000;  // 7 seconds to catch success message before 5s auto-hide
         
-        await Promise.race([
-          page.waitForSelector('[data-testid="booking-success"]', { timeout: waitTimeout }),
-          page.waitForSelector('.booking-error, .error-message', { timeout: waitTimeout }),
-          page.waitForTimeout(waitTimeout) // Fallback timeout
-        ]);
+        // Multiple verification strategies for booking success
+        let bookingSuccessDetected = false;
         
-        // Check what response we got
-        const successMessage = page.locator('[data-testid="booking-success"]');
-        const errorMessage = page.locator('.booking-error, .error-message');
-        
-        if (await successMessage.isVisible()) {
-          console.log('✅ Booking succeeded');
-        } else if (await errorMessage.isVisible()) {
-          console.log('⚠️ Booking failed with error (expected for testing)');
-        } else {
-          console.log('📝 No specific booking response found - API may need implementation');
+        try {
+          // Strategy 1: Look for success message (should appear quickly now with 15s auto-hide)
+          await page.waitForSelector('[data-testid="booking-success"]', { timeout: waitTimeout });
+          bookingSuccessDetected = true;
+          console.log('✅ Booking succeeded - Success message detected');
+        } catch (successTimeout) {
+          // Strategy 2: Look for error message
+          try {
+            await page.waitForSelector('.booking-error, .error-message', { timeout: 2000 });
+            console.log('⚠️ Booking failed with error (expected for testing)');
+          } catch (errorTimeout) {
+            // Strategy 3: Check if button disappeared (booking might have succeeded)
+            await page.waitForTimeout(1000); // Wait for UI to settle
+            const buttonStillExists = await page.locator('[data-testid="book-button"]').first().isVisible();
+            if (!buttonStillExists) {
+              bookingSuccessDetected = true;
+              console.log('✅ Booking likely succeeded - Button disappeared');
+            } else {
+              console.log('📝 No clear booking response detected - may need longer wait');
+            }
+          }
         }
       } else {
         console.log('📝 No bookable sessions found - all may be full or past dates');

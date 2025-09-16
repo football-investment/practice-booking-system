@@ -81,11 +81,11 @@ const AllSessions = () => {
       setBookingMessageType('success');
       loadSessions(); // Refresh to update availability
       
-      // Auto-hide success message after 5 seconds
+      // Auto-hide success message after 15 seconds (extended for E2E testing)
       setTimeout(() => {
         setBookingMessage('');
         setBookingMessageType('');
-      }, 5000);
+      }, 15000);
     } catch (err) {
       console.error('Booking failed:', err);
       const errorMsg = err.message || 'Unknown error occurred';

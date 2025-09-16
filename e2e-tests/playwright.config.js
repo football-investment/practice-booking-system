@@ -68,12 +68,12 @@ module.exports = defineConfig({
       use: { 
         ...devices['Desktop Firefox'],
         // Advanced Firefox-specific optimizations for booking flow stability
-        actionTimeout: 25000, // Extended for Firefox rendering delays
-        navigationTimeout: 50000, // Extended for Firefox navigation issues
+        actionTimeout: 15000, // Optimized for Firefox rendering delays
+        navigationTimeout: 30000, // Optimized for Firefox navigation issues
         expect: {
-          timeout: 20000, // Extended expect timeout for Firefox DOM updates
-          toHaveURL: { timeout: 25000 }, // Specific URL navigation timeout
-          toBeVisible: { timeout: 18000 } // Element visibility timeout
+          timeout: 10000, // Optimized expect timeout for Firefox DOM updates
+          toHaveURL: { timeout: 15000 }, // Specific URL navigation timeout
+          toBeVisible: { timeout: 8000 } // Element visibility timeout - optimized for success message
         },
         launchOptions: {
           firefoxUserPrefs: {
@@ -145,8 +145,8 @@ module.exports = defineConfig({
         
         // Extended timeouts for WebKit element detection
         expect: {
-          timeout: 20000, // Extended expect timeout for WebKit DOM updates
-          toBeVisible: { timeout: 15000 } // Element visibility timeout
+          timeout: 12000, // Optimized expect timeout for WebKit DOM updates
+          toBeVisible: { timeout: 10000 } // Element visibility timeout - optimized for success message
         },
         
         // WebKit-specific launch options (no sandbox flags for WebKit)
