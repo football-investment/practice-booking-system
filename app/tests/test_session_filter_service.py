@@ -13,12 +13,12 @@ class TestSessionFilterService:
     """Test suite for SessionFilterService"""
 
     @pytest.fixture
-    def filter_service(self, test_db: Session):
+    def filter_service(self, db_session: Session):
         """Create SessionFilterService instance with test database"""
-        return SessionFilterService(test_db)
+        return SessionFilterService(db_session)
 
     @pytest.fixture
-    def test_student(self, test_db: Session):
+    def test_student(self, db_session: Session):
         """Create a test student user"""
         user = User(
             name="Test Student",
@@ -27,13 +27,13 @@ class TestSessionFilterService:
             role=UserRole.STUDENT,
             is_active=True
         )
-        test_db.add(user)
-        test_db.commit()
-        test_db.refresh(user)
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
         return user
 
     @pytest.fixture
-    def test_instructor(self, test_db: Session):
+    def test_instructor(self, db_session: Session):
         """Create a test instructor user"""
         user = User(
             name="Test Instructor",
@@ -42,26 +42,26 @@ class TestSessionFilterService:
             role=UserRole.INSTRUCTOR,
             is_active=True
         )
-        test_db.add(user)
-        test_db.commit()
-        test_db.refresh(user)
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
         return user
 
     @pytest.fixture
-    def test_semester(self, test_db: Session):
+    def test_semester(self, db_session: Session):
         """Create a test semester"""
         semester = Semester(
             name="Test Semester",
             start_date=datetime.now(timezone.utc) - timedelta(days=30),
             end_date=datetime.now(timezone.utc) + timedelta(days=60)
         )
-        test_db.add(semester)
-        test_db.commit()
-        test_db.refresh(semester)
+        db_session.add(semester)
+        db_session.commit()
+        db_session.refresh(semester)
         return semester
 
     @pytest.fixture
-    def test_project(self, test_db: Session, test_instructor, test_semester):
+    def test_project(self, db_session: Session, test_instructor, test_semester):
         """Create a test project"""
         project = Project(
             title="Test Project",
@@ -72,13 +72,13 @@ class TestSessionFilterService:
             current_participants=0,
             status="active"
         )
-        test_db.add(project)
-        test_db.commit()
-        test_db.refresh(project)
+        db_session.add(project)
+        db_session.commit()
+        db_session.refresh(project)
         return project
 
     @pytest.fixture
-    def test_session(self, test_db: Session, test_instructor, test_semester):
+    def test_session(self, db_session: Session, test_instructor, test_semester):
         """Create a test session"""
         session = SessionModel(
             title="Test Session",
@@ -90,9 +90,9 @@ class TestSessionFilterService:
             capacity=20,
             location="Test Location"
         )
-        test_db.add(session)
-        test_db.commit()
-        test_db.refresh(session)
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
         return session
 
     def test_filter_service_initialization(self, filter_service):
@@ -129,7 +129,7 @@ class TestSessionFilterService:
         assert specialization1 == specialization2
         assert test_student.id in filter_service._user_specialization_cache
 
-    def test_get_user_specialization_with_project(self, filter_service, test_student, test_project, test_db):
+    def test_get_user_specialization_with_project(self, filter_service, test_student, test_project, db_session):
         """Test specialization detection for student with project enrollment"""
         # Enroll student in project
         enrollment = ProjectEnrollment(
@@ -137,8 +137,8 @@ class TestSessionFilterService:
             project_id=test_project.id,
             status=ProjectEnrollmentStatus.ACTIVE
         )
-        test_db.add(enrollment)
-        test_db.commit()
+        db_session.add(enrollment)
+        db_session.commit()
 
         # Clear cache first
         if test_student.id in filter_service._user_specialization_cache:
@@ -149,7 +149,7 @@ class TestSessionFilterService:
         assert specialization in [UserSpecialization.COACH, UserSpecialization.PLAYER, 
                                 UserSpecialization.GENERAL, UserSpecialization.MIXED]
 
-    def test_filter_service_with_multiple_projects(self, filter_service, test_student, test_instructor, test_semester, test_db):
+    def test_filter_service_with_multiple_projects(self, filter_service, test_student, test_instructor, test_semester, db_session):
         """Test filter service with multiple project enrollments"""
         # Create multiple projects
         project1 = Project(
@@ -170,8 +170,8 @@ class TestSessionFilterService:
             current_participants=0,
             status="active"
         )
-        test_db.add_all([project1, project2])
-        test_db.commit()
+        db_session.add_all([project1, project2])
+        db_session.commit()
 
         # Enroll student in both projects
         enrollment1 = ProjectEnrollment(
@@ -184,8 +184,8 @@ class TestSessionFilterService:
             project_id=project2.id,
             status=ProjectEnrollmentStatus.ACTIVE
         )
-        test_db.add_all([enrollment1, enrollment2])
-        test_db.commit()
+        db_session.add_all([enrollment1, enrollment2])
+        db_session.commit()
 
         # Clear cache
         if test_student.id in filter_service._user_specialization_cache:
