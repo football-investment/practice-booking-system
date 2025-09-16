@@ -51,6 +51,7 @@ class TestSessionFilterService:
     def test_semester(self, db_session: Session):
         """Create a test semester"""
         semester = Semester(
+            code="TEST/2025",
             name="Test Semester",
             start_date=datetime.now(timezone.utc) - timedelta(days=30),
             end_date=datetime.now(timezone.utc) + timedelta(days=60)

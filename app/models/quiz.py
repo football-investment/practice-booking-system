@@ -10,6 +10,7 @@ class QuestionType(enum.Enum):
     FILL_IN_BLANK = "fill_in_blank"
 
 class QuizCategory(enum.Enum):
+    GENERAL = "general"
     MARKETING = "marketing"
     ECONOMICS = "economics"
     INFORMATICS = "informatics"

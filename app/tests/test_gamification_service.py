@@ -39,6 +39,7 @@ class TestGamificationService:
     def test_semester(self, db_session: Session):
         """Create a test semester"""
         semester = Semester(
+            code="TEST/2025",
             name="Test Semester",
             start_date=datetime.now(timezone.utc) - timedelta(days=90),
             end_date=datetime.now(timezone.utc) + timedelta(days=90)
@@ -137,6 +138,7 @@ class TestGamificationService:
         """Test semester achievement checking"""
         # Create multiple semesters and bookings
         semester2 = Semester(
+            code="TEST/2024",
             name="Test Semester 2",
             start_date=datetime.now(timezone.utc) - timedelta(days=180),
             end_date=datetime.now(timezone.utc) - timedelta(days=90)
