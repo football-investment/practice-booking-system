@@ -16,12 +16,12 @@ class TestGamificationService:
     """Test suite for GamificationService"""
 
     @pytest.fixture
-    def gamification_service(self, test_db: Session):
+    def gamification_service(self, db_session: Session):
         """Create GamificationService instance with test database"""
-        return GamificationService(test_db)
+        return GamificationService(db_session)
 
     @pytest.fixture
-    def test_user(self, test_db: Session):
+    def test_user(self, db_session: Session):
         """Create a test user"""
         user = User(
             name="Test User",
@@ -30,26 +30,26 @@ class TestGamificationService:
             role=UserRole.STUDENT,
             is_active=True
         )
-        test_db.add(user)
-        test_db.commit()
-        test_db.refresh(user)
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
         return user
 
     @pytest.fixture
-    def test_semester(self, test_db: Session):
+    def test_semester(self, db_session: Session):
         """Create a test semester"""
         semester = Semester(
             name="Test Semester",
             start_date=datetime.now(timezone.utc) - timedelta(days=90),
             end_date=datetime.now(timezone.utc) + timedelta(days=90)
         )
-        test_db.add(semester)
-        test_db.commit()
-        test_db.refresh(semester)
+        db_session.add(semester)
+        db_session.commit()
+        db_session.refresh(semester)
         return semester
 
     @pytest.fixture
-    def test_session(self, test_db: Session, test_user, test_semester):
+    def test_session(self, db_session: Session, test_user, test_semester):
         """Create a test session"""
         session = SessionModel(
             title="Test Session",
@@ -61,9 +61,9 @@ class TestGamificationService:
             capacity=10,
             location="Test Location"
         )
-        test_db.add(session)
-        test_db.commit()
-        test_db.refresh(session)
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
         return session
 
     def test_get_or_create_user_stats_new_user(self, gamification_service, test_user):
@@ -73,15 +73,15 @@ class TestGamificationService:
         assert stats is not None
         assert stats.user_id == test_user.id
 
-    def test_get_or_create_user_stats_existing_user(self, gamification_service, test_user, test_db):
+    def test_get_or_create_user_stats_existing_user(self, gamification_service, test_user, db_session):
         """Test retrieving existing user stats"""
         # Create existing stats
         existing_stats = UserStats(
             user_id=test_user.id,
             total_xp=100
         )
-        test_db.add(existing_stats)
-        test_db.commit()
+        db_session.add(existing_stats)
+        db_session.commit()
 
         stats = gamification_service.get_or_create_user_stats(test_user.id)
         
@@ -97,7 +97,7 @@ class TestGamificationService:
         assert hasattr(stats, 'total_xp')
         assert hasattr(stats, 'level')
 
-    def test_award_achievement_new(self, gamification_service, test_user, test_db):
+    def test_award_achievement_new(self, gamification_service, test_user, db_session):
         """Test awarding a new achievement"""
         achievement = gamification_service.award_achievement(
             user_id=test_user.id,
@@ -111,7 +111,7 @@ class TestGamificationService:
         assert achievement.user_id == test_user.id
         assert achievement.title == "Test Achievement"
 
-    def test_award_achievement_existing(self, gamification_service, test_user, test_db):
+    def test_award_achievement_existing(self, gamification_service, test_user, db_session):
         """Test awarding an existing achievement returns the existing one"""
         # Award first time
         achievement1 = gamification_service.award_achievement(
@@ -133,7 +133,7 @@ class TestGamificationService:
         
         assert achievement1.id == achievement2.id
 
-    def test_check_and_award_semester_achievements(self, gamification_service, test_user, test_session, test_db):
+    def test_check_and_award_semester_achievements(self, gamification_service, test_user, test_session, db_session):
         """Test semester achievement checking"""
         # Create multiple semesters and bookings
         semester2 = Semester(
@@ -141,8 +141,8 @@ class TestGamificationService:
             start_date=datetime.now(timezone.utc) - timedelta(days=180),
             end_date=datetime.now(timezone.utc) - timedelta(days=90)
         )
-        test_db.add(semester2)
-        test_db.commit()
+        db_session.add(semester2)
+        db_session.commit()
 
         session2 = SessionModel(
             title="Test Session 2",
@@ -154,8 +154,8 @@ class TestGamificationService:
             capacity=10,
             location="Test Location 2"
         )
-        test_db.add(session2)
-        test_db.commit()
+        db_session.add(session2)
+        db_session.commit()
 
         # Create bookings in both semesters
         booking1 = Booking(
@@ -168,8 +168,8 @@ class TestGamificationService:
             session_id=session2.id,
             status=BookingStatus.CONFIRMED
         )
-        test_db.add_all([booking1, booking2])
-        test_db.commit()
+        db_session.add_all([booking1, booking2])
+        db_session.commit()
 
         achievements = gamification_service.check_and_award_semester_achievements(test_user.id)
         
