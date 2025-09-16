@@ -117,6 +117,7 @@ jobs:
           - 5432:5432
     
     strategy:
+      fail-fast: false  # Allow all browsers to run even if one fails
       matrix:
         browser: [chromium, firefox, webkit]
         include:
