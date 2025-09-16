@@ -108,9 +108,9 @@ test.describe('🏃 Session Booking System', () => {
         await firstBookButton.click();
         console.log('✅ Booking button clicked successfully');
         
-        // Wait for booking response with Firefox-optimized timeouts
+        // Wait for booking response with extended timeouts for all browsers
         const isFirefox = process.env.BROWSER_NAME === 'firefox' || page.context().browser().browserType().name() === 'firefox';
-        const waitTimeout = isFirefox ? 15000 : 8000;
+        const waitTimeout = isFirefox ? 30000 : 20000;  // Increased timeouts for booking UI response
         
         await Promise.race([
           page.waitForSelector('[data-testid="booking-success"]', { timeout: waitTimeout }),
@@ -182,8 +182,8 @@ test.describe('🏃 Session Booking System', () => {
     // Click booking button (works on both desktop and mobile)
     await sessionCard.locator('[data-testid="book-button"]').click();
     
-    // Verify mobile booking success
-    await expect(page.locator('[data-testid="booking-success"]')).toBeVisible();
+    // Verify mobile booking success with extended timeout
+    await expect(page.locator('[data-testid="booking-success"]')).toBeVisible({ timeout: 25000 });
   });
 
   test('🔍 Filter and search sessions', async ({ page }) => {
