@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiService } from '../../services/apiService';
+import ParallelSpecializationSelector from '../../components/onboarding/ParallelSpecializationSelector';
+import CurrentSpecializationStatus from '../../components/onboarding/CurrentSpecializationStatus';
 import './StudentOnboarding.css';
 
 const StudentOnboarding = () => {
@@ -17,7 +19,7 @@ const StudentOnboarding = () => {
   
   // Form data for different steps
   const [formData, setFormData] = useState({
-    selectedSemester: null,
+    selectedSpecialization: null,
     ndaAccepted: false,
     profileData: {
       nickname: '',
@@ -30,8 +32,7 @@ const StudentOnboarding = () => {
     }
   });
 
-  // Available semesters and other data
-  const [semesters, setSemesters] = useState([]);
+  // Other data
   const [nicknameError, setNicknameError] = useState('');
   const [nicknameChecking, setNicknameChecking] = useState(false);
   const [availableInterests] = useState([
@@ -39,47 +40,92 @@ const StudentOnboarding = () => {
     'Fitness', 'Yoga', 'Martial Arts', 'Dance', 'Cycling'
   ]);
 
-  const totalSteps = 5;
+  const totalSteps = 6;
+
+  // iOS/Safari detection utility
+  const isIOSSafari = useCallback(() => {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|Edge/.test(ua);
+    return isIOS || isSafari;
+  }, []);
+
+  // iPhone Chrome detection utility
+  const isIPhoneChrome = useCallback(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isIPhone = /iphone/.test(ua);
+    const isChrome = ua.includes('chrome') && !ua.includes('edg');
+    return isIPhone && isChrome;
+  }, []);
+
 
   // Load initial data
   useEffect(() => {
-    // iPad/Safari specific error handling
-    const handleIPadErrors = () => {
-      if (window.iosBrowserCompatibility && window.iosBrowserCompatibility.isIPadOrSafari()) {
-        console.log('🔧 iPad/Safari detected - applying compatibility fixes...');
-        
-        // Add error recovery for script errors
-        window.addEventListener('error', (event) => {
-          if (event.message === 'Script error.' || event.filename === '') {
-            console.warn('🔧 Script error detected on iPad - attempting recovery...');
-            setError('Kapcsolódási probléma iPad-en. Újrapróbálkozás...');
-            
-            // Attempt to reload after a short delay
-            setTimeout(() => {
-              setError('');
-            }, 3000);
+    const initializeOnboarding = async () => {
+      try {
+        // iOS/Safari specific optimizations
+        if (isIOSSafari()) {
+          console.log('🔧 iOS/Safari detected - applying onboarding optimizations...');
+          
+          // Set iOS-specific attributes for better error handling
+          document.body.setAttribute('data-ios-onboarding', 'true');
+          
+          // Add viewport optimization for iOS
+          const viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport && !viewport.content.includes('user-scalable=no')) {
+            viewport.content = viewport.content + ', user-scalable=no';
           }
-        });
+        }
+        
+        // iPhone Chrome specific optimizations
+        if (isIPhoneChrome()) {
+          console.log('📱 iPhone Chrome detected - applying iPhone-specific optimizations...');
+          
+          // Set iPhone Chrome-specific attributes
+          document.body.setAttribute('data-ios-onboarding', 'true');
+          document.body.classList.add('iphone-chrome-onboarding');
+          
+          // iPhone Chrome viewport optimization
+          const viewport = document.querySelector('meta[name="viewport"]');
+          if (viewport) {
+            // Enhanced viewport for iPhone Chrome scrolling
+            viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+          }
+          
+          // Enable smooth scrolling for iPhone Chrome
+          document.documentElement.style.scrollBehavior = 'smooth';
+          document.body.style.webkitOverflowScrolling = 'touch';
+          
+          // Prevent viewport shifts on input focus
+          window.addEventListener('resize', () => {
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+              window.scrollTo(0, 0);
+              document.body.scrollTop = 0;
+            }
+          });
+        }
+        
+      } catch (error) {
+        console.error('Onboarding initialization error:', error);
+        setError('Betöltésben hiba történt. Kérlek, próbáld újra.');
+        
+        // Note: No semester loading needed in onboarding anymore
       }
     };
 
-    handleIPadErrors();
-    loadSemesters();
-  }, []);
+    initializeOnboarding();
 
-  const loadSemesters = async () => {
-    try {
-      const response = await apiService.getSemesters();
-      // Handle both direct array and wrapped response formats
-      const semesterList = Array.isArray(response) ? response : response.semesters || [];
-      setSemesters(semesterList.filter(sem => sem.is_active));
-    } catch (err) {
-      console.error('Failed to load semesters:', err);
-    }
-  };
+    // Cleanup function
+    return () => {
+      if (isIOSSafari() || isIPhoneChrome()) {
+        document.body.removeAttribute('data-ios-onboarding');
+        document.body.classList.remove('iphone-chrome-onboarding');
+      }
+    };
+  }, [isIOSSafari, isIPhoneChrome]);
 
-  // Debounced nickname validation
-  const checkNickname = async (nickname) => {
+  // Enhanced nickname validation with iOS/Safari optimization
+  const checkNickname = useCallback(async (nickname) => {
     if (!nickname || nickname.length < 3) {
       setNicknameError('');
       return;
@@ -87,42 +133,78 @@ const StudentOnboarding = () => {
 
     try {
       setNicknameChecking(true);
-      const response = await apiService.request(`/api/v1/users/check-nickname/${encodeURIComponent(nickname)}`);
+      
+      // iOS/Safari optimization: shorter timeout
+      const timeoutDuration = isIOSSafari() ? 5000 : 10000;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+      
+      const response = await apiService.request(
+        `/api/v1/users/check-nickname/${encodeURIComponent(nickname)}`,
+        { signal: controller.signal }
+      );
+      
+      clearTimeout(timeoutId);
       
       if (response.available) {
         setNicknameError('');
       } else {
         setNicknameError(response.message);
       }
+      
     } catch (err) {
       console.error('Nickname check failed:', err);
-      setNicknameError('Nem sikerült ellenőrizni a becenevet');
+      
+      if (err.name === 'AbortError') {
+        setNicknameError('Becenév ellenőrzés időtúllépés');
+      } else if (isIOSSafari() && err.message.includes('fetch')) {
+        setNicknameError('Hálózati hiba iOS/Safari-ban');
+      } else {
+        setNicknameError('Nem sikerült ellenőrizni a becenevet');
+      }
     } finally {
       setNicknameChecking(false);
     }
-  };
+  }, [isIOSSafari]);
 
-  // Debounce nickname checking
+  // Debounce nickname checking with iOS/Safari optimization
   useEffect(() => {
+    // Longer debounce for iOS/Safari to reduce API calls
+    const debounceTime = isIOSSafari() ? 1000 : 500;
+    
     const timer = setTimeout(() => {
       if (formData.profileData.nickname) {
         checkNickname(formData.profileData.nickname);
       }
-    }, 500);
+    }, debounceTime);
 
     return () => clearTimeout(timer);
-  }, [formData.profileData.nickname]);
+  }, [formData.profileData.nickname, checkNickname, isIOSSafari]);
 
-  // Step navigation
+  // iPhone Chrome scroll helper - DISABLED to fix scroll bug
+  // eslint-disable-next-line no-unused-vars
+  const scrollToTop = useCallback(() => {
+    // ✅ DISABLED: Preventing automatic scroll that was causing UX issues
+    console.log('scrollToTop called but disabled to prevent scroll interference');
+    return; // Early return - do nothing
+  }, []);
+
+  // ===== SCROLL BUG FIX =====
+  // These functions were causing automatic scroll-to-top behavior
+  // that made the dashboard unusable. setTimeout calls removed.
+  // ===========================
+  
   const nextStep = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
+      // ✅ FIXED: Removed automatic scroll-to-top
     }
   };
 
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+      // ✅ FIXED: Removed automatic scroll-to-top
     }
   };
 
@@ -158,7 +240,7 @@ const StudentOnboarding = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 1: return true; // Welcome screen
-      case 2: return formData.selectedSemester !== null;
+      case 2: return formData.selectedSpecialization !== null;
       case 3: return formData.ndaAccepted;
       case 4: {
         // Check required fields
@@ -211,8 +293,11 @@ const StudentOnboarding = () => {
       // 4. Update local user data with complete response from server
       updateUserProfile(updatedUser);
 
-      // 5. Navigate to dashboard
-      navigate('/student/dashboard', { replace: true });
+      // 5. Navigate to semester selection
+      navigate('/student/semester-selection', { 
+        replace: true,
+        state: { fromOnboarding: true }
+      });
 
     } catch (err) {
       setError('Failed to complete onboarding: ' + err.message);
@@ -263,60 +348,33 @@ const StudentOnboarding = () => {
     </div>
   );
 
-  const renderSemesterStep = () => (
-    <div className="onboarding-step semester-step">
-      <div className="step-icon">🎯</div>
-      <h2>Válassz szemesztert</h2>
+  const renderCurrentStatusStep = () => (
+    <div className="onboarding-step current-status-step">
+      <div className="step-icon">📊</div>
+      <h2>Az Ön jelenlegi állapota</h2>
       <p className="step-description">
-        Válaszd ki a jelenlegi aktív szemesztert, amelyben részt szeretnél venni.
+        Az alábbi összeállítás megmutatja az Ön jelenlegi specializációit, 
+        licencszintjeit és eddig elvégzett szemesztereit.
       </p>
+      
+      <CurrentSpecializationStatus 
+        onNext={nextStep}
+        hideNavigation={true}
+      />
+    </div>
+  );
 
-      <div className="semester-options">
-        {semesters.length > 0 ? semesters.map(semester => (
-          <div 
-            key={semester.id} 
-            className={`semester-card ${formData.selectedSemester?.id === semester.id ? 'selected' : ''}`}
-            onClick={() => handleInputChange('selectedSemester', semester)}
-          >
-            <div className="semester-header">
-              <h4>{semester.name}</h4>
-              <span className="semester-status active">Aktív</span>
-            </div>
-            <div className="semester-dates">
-              📅 {(() => {
-                try {
-                  const startDate = new Date(semester.start_date);
-                  const endDate = new Date(semester.end_date);
-                  
-                  // Safari-safe date formatting
-                  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                    return `${semester.start_date} - ${semester.end_date}`;
-                  }
-                  
-                  return `${startDate.toLocaleDateString('hu-HU')} - ${endDate.toLocaleDateString('hu-HU')}`;
-                } catch (error) {
-                  console.warn('Date formatting error on iPad/Safari:', error);
-                  return `${semester.start_date} - ${semester.end_date}`;
-                }
-              })()}
-            </div>
-            {semester.description && (
-              <p className="semester-description">{semester.description}</p>
-            )}
-          </div>
-        )) : (
-          <div className="no-semesters">
-            <p>⚠️ Jelenleg nincsenek aktív szemeszterek elérhető.</p>
-            <p>Később is kiválaszthatod a szemesztert a beállításokban.</p>
-          </div>
-        )}
-      </div>
-
-      {formData.selectedSemester && (
-        <div className="selection-confirmation">
-          ✅ Kiválasztva: <strong>{formData.selectedSemester.name}</strong>
-        </div>
-      )}
+  const renderSpecializationStep = () => (
+    <div className="onboarding-step specialization-step">
+      <ParallelSpecializationSelector
+        onSelectionUpdate={(selectedSpecs) => {
+          // Handle multiple specializations - for now use first one for compatibility
+          const primarySpec = selectedSpecs[0] || null;
+          handleInputChange('selectedSpecialization', primarySpec);
+        }}
+        hideNavigation={true}
+        showProgressionInfo={true}
+      />
     </div>
   );
 
@@ -366,15 +424,32 @@ const StudentOnboarding = () => {
         </div>
 
         <div className="nda-acceptance">
-          <label className="checkbox-label">
+          <label 
+            className="checkbox-label"
+            onClick={(e) => {
+              // Manual checkbox toggle for iOS compatibility
+              if (e.target.tagName !== 'INPUT') {
+                console.log('📋 NDA label clicked, toggling checkbox');
+                handleInputChange('ndaAccepted', !formData.ndaAccepted);
+                e.preventDefault();
+              }
+            }}
+          >
             <input
               type="checkbox"
               checked={formData.ndaAccepted}
-              onChange={(e) => handleInputChange('ndaAccepted', e.target.checked)}
+              onChange={(e) => {
+                console.log('📋 NDA checkbox changed:', e.target.checked);
+                handleInputChange('ndaAccepted', e.target.checked);
+              }}
+              id="nda-checkbox"
             />
-            <span className="checkmark"></span>
             Elolvastam és elfogadom a titoktartási nyilatkozatot
           </label>
+          {/* Debug info */}
+          <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>
+            Debug: ndaAccepted = {JSON.stringify(formData.ndaAccepted)}
+          </div>
         </div>
       </div>
     </div>
@@ -600,7 +675,7 @@ const StudentOnboarding = () => {
 
   // Main render
   return (
-    <div className={`student-onboarding theme-${theme} color-${colorScheme}`}>
+    <div className={`student-onboarding theme-${theme} color-${colorScheme} chrome-ios-optimized`}>
       <div className="onboarding-container">
         {/* Progress bar */}
         <div className="progress-header">
@@ -622,7 +697,7 @@ const StudentOnboarding = () => {
               <div className="step-number">{step}</div>
               <div className="step-label">
                 {step === 1 && 'Üdvözlés'}
-                {step === 2 && 'Szemeszter'}
+                {step === 2 && 'Szakirány'}
                 {step === 3 && 'NDA'}
                 {step === 4 && 'Profil'}
                 {step === 5 && 'Áttekintés'}
@@ -634,10 +709,11 @@ const StudentOnboarding = () => {
         {/* Step content */}
         <div className="step-content">
           {currentStep === 1 && renderWelcomeStep()}
-          {currentStep === 2 && renderSemesterStep()}
-          {currentStep === 3 && renderNDAStep()}
-          {currentStep === 4 && renderProfileStep()}
-          {currentStep === 5 && renderSystemOverviewStep()}
+          {currentStep === 2 && renderCurrentStatusStep()}
+          {currentStep === 3 && renderSpecializationStep()}
+          {currentStep === 4 && renderNDAStep()}
+          {currentStep === 5 && renderProfileStep()}
+          {currentStep === 6 && renderSystemOverviewStep()}
         </div>
 
         {/* Error display */}
@@ -659,6 +735,17 @@ const StudentOnboarding = () => {
               ← Előző
             </button>
           )}
+          
+          {/* Skip button - always visible */}
+          <button
+            type="button"
+            onClick={() => navigate('/student/dashboard')}
+            className="btn-skip"
+            disabled={loading}
+            title="Onboarding kihagyása és dashboard-ra ugrás"
+          >
+            ⏭️ Kihagyás
+          </button>
           
           <div className="nav-spacer"></div>
           
