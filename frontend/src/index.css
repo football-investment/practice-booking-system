@@ -1,16 +1,338 @@
-/* Base design tokens import */
-@import './styles/design-tokens.css';
+/* 🚀 COMPREHENSIVE FRONTEND SYSTEM */
+@import './styles/main.css';
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* 🚨 EMERGENCY PURPLE BACKGROUND FIX - HIGHEST PRIORITY! */
+html, body, #root, .lfa-dashboard {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+/* Force all theme backgrounds to be proper */
+[data-color="purple"], 
+:root[data-color="purple"], 
+:root[data-theme="light"][data-color="purple"] {
+  --bg-primary: #ffffff !important;
+  --bg-secondary: #f8fafc !important;
 }
+
+/* Nuclear override for any purple gradients */
+* {
+  background: initial !important;
+}
+
+/* 🚨 DEBUG MODE - OVERFLOW DETECTION WITH COLORED BORDERS */
+.lfa-dashboard * {
+  border: 1px solid rgba(255, 0, 0, 0.3) !important;
+  box-sizing: border-box !important;
+}
+
+/* Specific component debugging colors */
+.welcome-header {
+  border: 3px solid #FF0000 !important; /* RED - Welcome Header */
+}
+
+.welcome-header * {
+  border: 1px solid #FF6666 !important; /* Light RED - Welcome Header children */
+}
+
+.xp-level-container {
+  border: 3px solid #00FF00 !important; /* GREEN - XP Container */
+}
+
+.xp-level-container * {
+  border: 1px solid #66FF66 !important; /* Light GREEN - XP children */
+}
+
+.next-session-card {
+  border: 3px solid #0000FF !important; /* BLUE - Next Session */
+}
+
+.next-session-card * {
+  border: 1px solid #6666FF !important; /* Light BLUE - Next Session children */
+}
+
+.ai-suggestions {
+  border: 3px solid #FF9900 !important; /* ORANGE - AI Suggestions */
+}
+
+.ai-suggestions * {
+  border: 1px solid #FFCC66 !important; /* Light ORANGE - AI children */
+}
+
+.recent-feedback {
+  border: 3px solid #9900FF !important; /* PURPLE - Recent Feedback */
+}
+
+.recent-feedback * {
+  border: 1px solid #CC66FF !important; /* Light PURPLE - Feedback children */
+}
+
+.progress-card {
+  border: 3px solid #00FFFF !important; /* CYAN - Progress Card */
+}
+
+.progress-card * {
+  border: 1px solid #66FFFF !important; /* Light CYAN - Progress children */
+}
+
+.quick-actions {
+  border: 3px solid #FFFF00 !important; /* YELLOW - Quick Actions */
+}
+
+.quick-actions * {
+  border: 1px solid #FFFF99 !important; /* Light YELLOW - Actions children */
+}
+
+.achievement-badges {
+  border: 3px solid #FF0099 !important; /* PINK - Achievement Badges */
+}
+
+.achievement-badges * {
+  border: 1px solid #FF66CC !important; /* Light PINK - Achievement children */
+}
+
+/* Dashboard layout containers */
+.dashboard {
+  border: 5px solid #000000 !important; /* BLACK - Main Dashboard */
+}
+
+.dashboard-content {
+  border: 4px solid #333333 !important; /* DARK GREY - Dashboard Content */
+}
+
+.left-column {
+  border: 3px solid #666666 !important; /* GREY - Left Column */
+}
+
+.right-column {
+  border: 3px solid #999999 !important; /* LIGHT GREY - Right Column */
+}
+
+/* Overflow detection - highlight overflow elements */
+.lfa-dashboard *::-webkit-scrollbar {
+  background: #FF0000 !important;
+  width: 10px !important;
+}
+
+.lfa-dashboard *::-webkit-scrollbar-thumb {
+  background: #00FF00 !important;
+}
+
+/* Mark elements that are causing overflow - DISABLED FOR PRODUCTION */
+/* 
+.lfa-dashboard * {
+  outline: 1px dashed rgba(255, 0, 0, 0.5) !important;
+}
+*/
+
+/* Special overflow markers */
+.overflow-x {
+  border: 5px solid #FF0000 !important;
+  background: rgba(255, 0, 0, 0.2) !important;
+}
+
+.overflow-y {
+  border: 5px solid #00FF00 !important;
+  background: rgba(0, 255, 0, 0.2) !important;
+}
+
+/* 🚨 EMERGENCY TEXT OVERFLOW FIX */
+.lfa-dashboard * {
+  white-space: normal !important;      /* 🚨 ALLOW LINE BREAKS */
+  overflow: visible !important;
+  text-overflow: clip !important;      /* 🚨 NO ELLIPSIS */
+  word-wrap: break-word !important;    /* 🚨 BREAK LONG WORDS */
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* 🚨 NUCLEAR FIXES FOR SESSION TEXT */
+.session-date,
+.location-badge,
+.instructor-info {
+  white-space: pre-line !important;     /* 🚨 RESPECT \n BREAKS */
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+  max-width: 100% !important;
+  width: 100% !important;               /* 🚨 FORCE FULL WIDTH */
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;       /* 🚨 NO ELLIPSIS */
+  font-size: 0.75rem !important;        /* 🚨 FORCE SMALL SIZE */
+  line-height: 1.2 !important;         /* 🚨 TIGHT LINE HEIGHT */
+  display: block !important;            /* 🚨 BLOCK DISPLAY */
+}
+
+/* 🚨 EMERGENCY SESSION DATE OVERRIDE */
+.session-date {
+  max-width: 60px !important;           /* 🚨 TINY MAX WIDTH */
+  font-size: 0.7rem !important;         /* 🚨 EXTRA SMALL */
+}
+
+/* 🚨 FORCE CONTAINER CONSTRAINTS - ALLOW VERTICAL GROWTH */
+.next-session-card,
+.session-content,
+.session-details {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;      /* 🚨 ONLY HORIZONTAL OVERFLOW HIDDEN */
+  overflow-y: visible !important;     /* 🚨 ALLOW VERTICAL EXPANSION */
+  word-wrap: break-word !important;
+  height: auto !important;            /* 🚨 AUTO HEIGHT */
+  min-height: auto !important;        /* 🚨 NO MIN HEIGHT CONSTRAINTS */
+}
+
+/* 🚨 EXTREME OVERFLOW DEBUG - ADD TO ANY ELEMENT THAT OVERFLOWS */
+.debug-overflow {
+  border: 10px solid #FF0000 !important;
+  background: rgba(255, 0, 0, 0.5) !important;
+  color: #FFFFFF !important;
+  font-weight: bold !important;
+  position: relative !important;
+}
+
+.debug-overflow::before {
+  content: "OVERFLOW DETECTED!" !important;
+  position: absolute !important;
+  top: -30px !important;
+  left: 0 !important;
+  background: #FF0000 !important;
+  color: #FFFFFF !important;
+  padding: 5px !important;
+  font-size: 12px !important;
+  z-index: 9999 !important;
+}
+
+/* Element size information overlay */
+.size-info::after {
+  content: attr(data-size) !important;
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  padding: 2px 5px !important;
+  font-size: 10px !important;
+  z-index: 9999 !important;
+}
+
+/* Only allow specific components to have backgrounds */
+.welcome-header {
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%) !important;
+  color: white !important;
+}
+
+.xp-level-container,
+.next-session-card,
+.ai-suggestions,
+.recent-feedback,
+.progress-card,
+.quick-actions,
+.achievement-badges {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* EMERGENCY CSS FIXES - Force proper text layout */
+.nav-label,
+.sidebar .label,
+[class*="label"],
+[class*="nav-"] {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+  word-break: normal !important;
+  letter-spacing: normal !important;
+}
+
+/* Force proper sidebar layout */
+.navigation-sidebar,
+.sidebar,
+[class*="sidebar"] {
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+}
+
+/* Fix card overlapping */
+.card-container,
+[class*="card"],
+.widget,
+[class*="progress"] {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.progress-stats,
+[class*="stats"] {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+}
+
+/* 🚨 ULTRA-CRITICAL UI FIXES - HIGHEST PRIORITY */
+body *, html *, #root *, 
+[class*="dashboard"] *, 
+[class*="sidebar"] *, 
+[class*="nav"] *,
+[class*="card"] *,
+[class*="widget"] *,
+[class*="status"] *,
+[class*="overview"] * {
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+  text-orientation: mixed !important;
+  word-break: normal !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  word-spacing: normal !important;
+}
+
+/* 🚨 EMERGENCY TEXT FIX FOR CARDS */
+.status-stat-card *, 
+.status-overview *,
+[class*="stat"] *,
+[class*="metric"] *,
+h1, h2, h3, h4, h5, h6, p, span, div, label {
+  letter-spacing: 0 !important;
+  word-spacing: 0 !important;
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+}
+
+/* 🚨 FORCE ALL TEXT TO BE READABLE */
+.nav-label, .sidebar .label, [class*="label"], [class*="nav-"],
+.card-title, .card-content, .widget-content, .progress-label,
+.dashboard-text, .header-text, .menu-text,
+.status-stat-card__label, .status-overview__title {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+  vertical-align: middle !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal !important;
+}
+
+/* 🚨 MATERIAL ICONS EMERGENCY FIX */
+.material-icons, .material-icons-outlined,
+[class*="icon"], .nav-icon, .header-icon {
+  display: inline-flex !important;
+  vertical-align: middle !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  font-family: 'Material Icons', 'Material Icons Outlined' !important;
+}
+
+/* Legacy compatibility - these are now included in main.css */
+/* Keeping for backward compatibility but main.css takes precedence */
