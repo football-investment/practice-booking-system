@@ -149,15 +149,23 @@ def submit_quiz_attempt(
         )
 
     try:
+        # Submit quiz and get results
         attempt = quiz_service.submit_quiz_attempt(current_user.id, submission)
 
         # ==========================================
         # 🆕 HOOK 1: AUTOMATIC COMPETENCY ASSESSMENT
         # ==========================================
+        # Use SEPARATE session to avoid transaction conflicts
+        from ....database import SessionLocal
+        hook_db = None
+
         try:
-            # Initialize services
-            comp_service = CompetencyService(db)
-            adapt_service = AdaptiveLearningService(db)
+            # Create new session for hooks
+            hook_db = SessionLocal()
+
+            # Initialize services with separate session
+            comp_service = CompetencyService(hook_db)
+            adapt_service = AdaptiveLearningService(hook_db)
 
             # Get quiz details for competency assessment
             quiz = quiz_service.get_quiz_by_id(attempt.quiz_id)
@@ -181,14 +189,22 @@ def submit_quiz_attempt(
                     refresh=True
                 )
 
-            db.commit()
+            # Commit hook transaction
+            hook_db.commit()
 
         except Exception as e:
             # Log error but don't fail quiz submission
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error in post-quiz hooks for user {current_user.id}: {e}")
+            if hook_db:
+                hook_db.rollback()
             # Continue with quiz result response
+
+        finally:
+            # Always close the hook session
+            if hook_db:
+                hook_db.close()
 
         return attempt
     except ValueError as e:

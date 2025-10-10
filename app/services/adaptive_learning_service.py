@@ -105,7 +105,8 @@ class AdaptiveLearningService:
             "avg_time": avg_time,
             "preferred_content": preferred_content
         })
-        self.db.commit()
+        # NOTE: Don't commit here - let caller handle transaction commit
+        # This allows proper transaction isolation when called from hooks
 
         logger.info(f"Profile updated: pace={pace_category}, quiz_avg={quiz_avg:.1f}%, lessons={lessons_completed}")
 
@@ -150,7 +151,7 @@ class AdaptiveLearningService:
                 AND qa.completed_at >= NOW() - INTERVAL '30 days'
             WHERE ulp.user_id = :user_id
                 AND ulp.completed_at >= NOW() - INTERVAL '30 days'
-                AND ulp.completed = true
+                AND ulp.completed_at IS NOT NULL
         """), {"user_id": user_id}).fetchone()
 
         if not result or result.lessons_completed == 0:
@@ -356,7 +357,7 @@ class AdaptiveLearningService:
             WHERE l.specialization_id = :spec
                 AND l.level_id = :level
                 AND l.is_published = true
-                AND (ulp.completed IS NULL OR ulp.completed = false)
+                AND ulp.completed_at IS NULL
             ORDER BY l.display_order ASC
             LIMIT 1
         """), {"user_id": user_id, "spec": specialization, "level": level}).fetchone()
@@ -463,7 +464,8 @@ class AdaptiveLearningService:
                 "metadata": str(rec["metadata"])
             })
 
-        self.db.commit()
+        # NOTE: Don't commit here - let caller handle transaction commit
+        # This allows proper transaction isolation when called from hooks
 
     def _format_recommendation(self, row) -> Dict:
         """Format database row to recommendation dict"""
