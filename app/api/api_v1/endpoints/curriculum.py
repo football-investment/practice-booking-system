@@ -713,13 +713,14 @@ def grade_exercise_submission(
 
     # Get submission
     submission = db.execute(text("""
-        SELECT es.*, e.max_points, e.passing_score, e.xp_reward, e.lesson_id,
-               l.specialization_id, u.id as student_id
-        FROM exercise_submissions es
-        JOIN exercises e ON e.id = es.exercise_id
+        SELECT ues.*, e.max_points, e.passing_score, e.xp_reward, e.lesson_id,
+               ct.specialization_id, u.id as student_id
+        FROM user_exercise_submissions ues
+        JOIN exercises e ON e.id = ues.exercise_id
         JOIN lessons l ON l.id = e.lesson_id
-        JOIN users u ON u.id = es.user_id
-        WHERE es.id = :submission_id
+        JOIN curriculum_tracks ct ON ct.id = l.curriculum_track_id
+        JOIN users u ON u.id = ues.user_id
+        WHERE ues.id = :submission_id
     """), {"submission_id": submission_id}).fetchone()
 
     if not submission:
@@ -744,7 +745,7 @@ def grade_exercise_submission(
 
     # Update submission
     db.execute(text("""
-        UPDATE exercise_submissions
+        UPDATE user_exercise_submissions
         SET
             status = :status,
             score = :score,
@@ -778,9 +779,17 @@ def grade_exercise_submission(
     # ==========================================
     # 🆕 HOOK 2: AUTOMATIC COMPETENCY ASSESSMENT
     # ==========================================
+    # Use SEPARATE session to avoid transaction conflicts
+    from ....database import SessionLocal
+    hook_db = None
+
     try:
-        comp_service = CompetencyService(db)
-        adapt_service = AdaptiveLearningService(db)
+        # Create new session for hooks
+        hook_db = SessionLocal()
+
+        # Initialize services with separate session
+        comp_service = CompetencyService(hook_db)
+        adapt_service = AdaptiveLearningService(hook_db)
 
         # Assess competency from exercise (automatic based on exercise type/lesson)
         comp_service.assess_from_exercise(
@@ -792,13 +801,21 @@ def grade_exercise_submission(
         # Update adaptive learning profile
         adapt_service.update_profile_metrics(submission.student_id)
 
-        db.commit()
+        # Commit hook transaction
+        hook_db.commit()
 
     except Exception as e:
         # Log error but don't fail grading
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error in exercise grading hooks for submission {submission_id}: {e}")
+        if hook_db:
+            hook_db.rollback()
+
+    finally:
+        # Always close the hook session
+        if hook_db:
+            hook_db.close()
 
     return {
         "status": "success",
