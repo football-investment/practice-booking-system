@@ -96,7 +96,7 @@ class CompetencyService:
             skills = self.db.execute(text("""
                 SELECT id, name
                 FROM competency_skills
-                WHERE category_id = :cat_id
+                WHERE competency_category_id = :cat_id
             """), {"cat_id": category_id}).fetchall()
 
             if not skills:
@@ -182,7 +182,7 @@ class CompetencyService:
             skills = self.db.execute(text("""
                 SELECT id
                 FROM competency_skills
-                WHERE category_id = :cat_id
+                WHERE competency_category_id = :cat_id
             """), {"cat_id": category_id}).fetchall()
 
             # Update skills
@@ -268,7 +268,7 @@ class CompetencyService:
         # Insert assessment record
         self.db.execute(text("""
             INSERT INTO competency_assessments (
-                user_id, category_id, score, source_type, source_id, assessed_at
+                user_id, competency_category_id, score, source_type, source_id, assessed_at
             )
             VALUES (
                 :user_id, :category_id, :score, :source_type, :source_id, NOW()
@@ -285,7 +285,7 @@ class CompetencyService:
         assessments = self.db.execute(text("""
             SELECT score
             FROM competency_assessments
-            WHERE user_id = :user_id AND category_id = :category_id
+            WHERE user_id = :user_id AND competency_category_id = :category_id
             ORDER BY assessed_at DESC
             LIMIT 5
         """), {"user_id": user_id, "category_id": category_id}).fetchall()
@@ -453,7 +453,7 @@ class CompetencyService:
         # Get user's category score
         category_score = self.db.execute(text("""
             SELECT * FROM user_competency_scores
-            WHERE user_id = :user_id AND category_id = :cat_id
+            WHERE user_id = :user_id AND competency_category_id = :cat_id
         """), {"user_id": user_id, "cat_id": category_id}).fetchone()
 
         # Get skills
@@ -468,7 +468,7 @@ class CompetencyService:
                 uss.last_assessed_at
             FROM competency_skills cs
             LEFT JOIN user_skill_scores uss ON uss.skill_id = cs.id AND uss.user_id = :user_id
-            WHERE cs.category_id = :cat_id
+            WHERE cs.competency_category_id = :cat_id
             ORDER BY cs.display_order
         """), {"user_id": user_id, "cat_id": category_id}).fetchall()
 
