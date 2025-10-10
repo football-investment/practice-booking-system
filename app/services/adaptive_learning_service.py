@@ -191,7 +191,7 @@ class AdaptiveLearningService:
         result = self.db.execute(text("""
             SELECT COUNT(*) as count
             FROM user_lesson_progress
-            WHERE user_id = :user_id AND completed = true
+            WHERE user_id = :user_id AND completed_at IS NOT NULL
         """), {"user_id": user_id}).fetchone()
 
         return result.count if result else 0
@@ -202,7 +202,7 @@ class AdaptiveLearningService:
             SELECT AVG(time_spent_minutes) as avg_time
             FROM user_lesson_progress
             WHERE user_id = :user_id
-                AND completed = true
+                AND completed_at IS NOT NULL
                 AND time_spent_minutes IS NOT NULL
                 AND time_spent_minutes > 0
         """), {"user_id": user_id}).fetchone()
@@ -504,7 +504,7 @@ class AdaptiveLearningService:
             SELECT COUNT(*) as count
             FROM user_lesson_progress
             WHERE user_id = :user_id
-                AND completed = true
+                AND completed_at IS NOT NULL
                 AND completed_at >= CURRENT_DATE
         """), {"user_id": user_id}).fetchone().count or 0
 
