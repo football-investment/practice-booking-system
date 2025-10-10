@@ -207,16 +207,16 @@ class CompetencyService:
         # Insert assessment record
         self.db.execute(text("""
             INSERT INTO competency_assessments (
-                user_id, competency_skill_id, score, source_type, source_id, assessed_at
+                user_id, competency_skill_id, score, assessment_type, source_id, assessed_at
             )
             VALUES (
-                :user_id, :skill_id, :score, :source_type, :source_id, NOW()
+                :user_id, :skill_id, :score, :assessment_type, :source_id, NOW()
             )
         """), {
             "user_id": user_id,
             "skill_id": skill_id,
             "score": score,
-            "source_type": source_type,
+            "assessment_type": source_type,
             "source_id": source_id
         })
 
@@ -240,22 +240,21 @@ class CompetencyService:
         # Upsert user_skill_scores
         self.db.execute(text("""
             INSERT INTO user_skill_scores (
-                user_id, skill_id, current_score, current_level, total_assessments, last_assessed_at
+                user_id, competency_skill_id, current_score, percentage, last_assessed
             )
             VALUES (
-                :user_id, :skill_id, :score, :level, 1, NOW()
+                :user_id, :skill_id, :score, :score, NOW()
             )
-            ON CONFLICT (user_id, skill_id) DO UPDATE
+            ON CONFLICT (user_id, competency_skill_id) DO UPDATE
             SET
                 current_score = :score,
-                current_level = :level,
-                total_assessments = user_skill_scores.total_assessments + 1,
-                last_assessed_at = NOW()
+                percentage = :score,
+                last_assessed = NOW(),
+                updated_at = NOW()
         """), {
             "user_id": user_id,
             "skill_id": skill_id,
-            "score": weighted_avg,
-            "level": level
+            "score": weighted_avg
         })
 
         self.db.commit()
@@ -268,16 +267,16 @@ class CompetencyService:
         # Insert assessment record
         self.db.execute(text("""
             INSERT INTO competency_assessments (
-                user_id, competency_category_id, score, source_type, source_id, assessed_at
+                user_id, competency_category_id, score, assessment_type, source_id, assessed_at
             )
             VALUES (
-                :user_id, :category_id, :score, :source_type, :source_id, NOW()
+                :user_id, :category_id, :score, :assessment_type, :source_id, NOW()
             )
         """), {
             "user_id": user_id,
             "category_id": category_id,
             "score": score,
-            "source_type": source_type,
+            "assessment_type": source_type,
             "source_id": source_id
         })
 
@@ -301,17 +300,18 @@ class CompetencyService:
         # Upsert user_competency_scores
         self.db.execute(text("""
             INSERT INTO user_competency_scores (
-                user_id, category_id, current_score, current_level, total_assessments, last_assessed_at
+                user_id, competency_category_id, current_score, percentage, competency_level, last_assessed
             )
             VALUES (
-                :user_id, :category_id, :score, :level, 1, NOW()
+                :user_id, :category_id, :score, :score, :level, NOW()
             )
-            ON CONFLICT (user_id, category_id) DO UPDATE
+            ON CONFLICT (user_id, competency_category_id) DO UPDATE
             SET
                 current_score = :score,
-                current_level = :level,
-                total_assessments = user_competency_scores.total_assessments + 1,
-                last_assessed_at = NOW()
+                percentage = :score,
+                competency_level = :level,
+                last_assessed = NOW(),
+                updated_at = NOW()
         """), {
             "user_id": user_id,
             "category_id": category_id,
@@ -321,18 +321,18 @@ class CompetencyService:
 
         self.db.commit()
 
-    def _score_to_level(self, score: float) -> str:
-        """Convert numeric score to competency level"""
+    def _score_to_level(self, score: float) -> int:
+        """Convert numeric score to competency level (1-5)"""
         if score >= 90:
-            return "Expert"
+            return 5  # Expert
         elif score >= 75:
-            return "Proficient"
+            return 4  # Proficient
         elif score >= 60:
-            return "Competent"
+            return 3  # Competent
         elif score >= 40:
-            return "Developing"
+            return 2  # Developing
         else:
-            return "Beginner"
+            return 1  # Beginner
 
     def _check_milestones(self, user_id: int, specialization_id: str):
         """Check and award milestone achievements"""
