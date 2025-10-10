@@ -207,7 +207,7 @@ class CompetencyService:
         # Insert assessment record
         self.db.execute(text("""
             INSERT INTO competency_assessments (
-                user_id, skill_id, score, source_type, source_id, assessed_at
+                user_id, competency_skill_id, score, source_type, source_id, assessed_at
             )
             VALUES (
                 :user_id, :skill_id, :score, :source_type, :source_id, NOW()
@@ -224,7 +224,7 @@ class CompetencyService:
         assessments = self.db.execute(text("""
             SELECT score
             FROM competency_assessments
-            WHERE user_id = :user_id AND skill_id = :skill_id
+            WHERE user_id = :user_id AND competency_skill_id = :skill_id
             ORDER BY assessed_at DESC
             LIMIT 5
         """), {"user_id": user_id, "skill_id": skill_id}).fetchall()
