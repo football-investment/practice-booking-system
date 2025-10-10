@@ -16,7 +16,18 @@ from .endpoints import (
     projects,
     notifications,
     messages,
-    debug
+    debug,
+    adaptive_learning,
+    specializations,  # 🎓 NEW: Add specializations import
+    payment_verification,  # 💰 NEW: Add payment verification import
+    licenses,  # 🏮 NEW: Add GānCuju™️©️ license system
+    parallel_specializations,  # 🎓🔀 NEW: Add parallel specialization system
+    progression,  # 📈 NEW: Add progression tracking system
+    tracks,  # 🎯 NEW: Add track-based education system
+    certificates,  # 🏆 NEW: Add certificate management system
+    students,  # 🎓 NEW: Add student dashboard endpoints
+    curriculum,  # 📚 NEW: Add curriculum system endpoints
+    curriculum_adaptive  # 🧠 NEW: Add curriculum-based adaptive learning
 )
 
 api_router = APIRouter()
@@ -37,3 +48,74 @@ api_router.include_router(projects.router, prefix="/projects", tags=["projects"]
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
 api_router.include_router(debug.router, prefix="/debug", tags=["debug"])
+api_router.include_router(adaptive_learning.router, prefix="/adaptive-learning", tags=["adaptive-learning"])
+
+# 🎓 NEW: Add specialization routes
+api_router.include_router(
+    specializations.router, 
+    prefix="/specializations", 
+    tags=["specializations"]
+)
+
+# 💰 NEW: Add payment verification routes
+api_router.include_router(
+    payment_verification.router, 
+    prefix="/payment-verification", 
+    tags=["payment-verification"]
+)
+
+# 🏮 NEW: Add GānCuju™️©️ license system routes
+api_router.include_router(
+    licenses.router, 
+    prefix="/licenses", 
+    tags=["licenses"]
+)
+
+# 🎓🔀 NEW: Add parallel specialization system routes
+api_router.include_router(
+    parallel_specializations.router, 
+    prefix="/parallel-specializations", 
+    tags=["parallel-specializations"]
+)
+
+# 📈 NEW: Add progression tracking system routes
+api_router.include_router(
+    progression.router, 
+    prefix="/progression", 
+    tags=["progression"]
+)
+
+# 🎯 NEW: Add track-based education system routes
+api_router.include_router(
+    tracks.router, 
+    prefix="/tracks", 
+    tags=["tracks"]
+)
+
+# 🏆 NEW: Add certificate management system routes
+api_router.include_router(
+    certificates.router, 
+    prefix="/certificates", 
+    tags=["certificates"]
+)
+
+# 🎓 NEW: Add student dashboard routes
+api_router.include_router(
+    students.router,
+    prefix="/students",
+    tags=["students"]
+)
+
+# 📚 NEW: Add curriculum system routes
+api_router.include_router(
+    curriculum.router,
+    prefix="/curriculum",
+    tags=["curriculum"]
+)
+
+# 🧠 NEW: Add curriculum-based adaptive learning routes
+api_router.include_router(
+    curriculum_adaptive.router,
+    prefix="/curriculum-adaptive",
+    tags=["curriculum-adaptive-learning"]
+)
