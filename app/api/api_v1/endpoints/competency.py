@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.database import get_db
-from app.api.deps import get_current_user
+from ....dependencies import get_current_user
 from app.models.user import User
 from app.services.competency_service import CompetencyService
 from app.schemas.competency import (
