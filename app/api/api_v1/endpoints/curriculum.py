@@ -586,7 +586,7 @@ def submit_exercise(
         raise HTTPException(status_code=404, detail="Exercise not found")
 
     # Create submission
-    db.execute(text("""
+    result = db.execute(text("""
         INSERT INTO user_exercise_submissions
             (user_id, exercise_id, submission_type, submission_url, submission_text,
              submission_data, status, submitted_at)
@@ -594,6 +594,7 @@ def submit_exercise(
             (:user_id, :exercise_id, :submission_type, :submission_url, :submission_text,
              :submission_data, :status,
              CASE WHEN :status = 'SUBMITTED' THEN NOW() ELSE NULL END)
+        RETURNING id
     """), {
         "user_id": current_user.id,
         "exercise_id": exercise_id,
@@ -601,12 +602,17 @@ def submit_exercise(
         "submission_url": payload.get("submission_url"),
         "submission_text": payload.get("submission_text"),
         "submission_data": json.dumps(payload.get("submission_data")) if payload.get("submission_data") else None,
-        "status": payload.get("status", "DRAFT")
+        "status": payload.get("status", "SUBMITTED")  # Changed default to SUBMITTED
     })
 
+    submission_id = result.fetchone().id
     db.commit()
 
-    return {"status": "success", "message": "Submission created"}
+    return {
+        "status": "success",
+        "message": "Submission created",
+        "submission_id": submission_id
+    }
 
 
 @router.put("/exercise/submission/{submission_id}")
