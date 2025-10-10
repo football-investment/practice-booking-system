@@ -138,11 +138,12 @@ class CompetencyService:
 
         # Get exercise metadata
         exercise_data = self.db.execute(text("""
-            SELECT e.lesson_id, e.type, l.specialization_id
-            FROM exercise_submissions es
-            JOIN exercises e ON e.id = es.exercise_id
+            SELECT e.lesson_id, e.exercise_type, ct.specialization_id
+            FROM user_exercise_submissions ues
+            JOIN exercises e ON e.id = ues.exercise_id
             JOIN lessons l ON l.id = e.lesson_id
-            WHERE es.id = :submission_id
+            JOIN curriculum_tracks ct ON ct.id = l.curriculum_track_id
+            WHERE ues.id = :submission_id
         """), {"submission_id": exercise_submission_id}).fetchone()
 
         if not exercise_data:
@@ -150,14 +151,15 @@ class CompetencyService:
             return
 
         specialization_id = exercise_data.specialization_id
-        exercise_type = exercise_data.type
+        exercise_type = exercise_data.exercise_type
 
         # Map exercise type to competency categories
         type_mapping = {
-            'CODING': 'Digital Competency',
-            'PRACTICAL': 'Technical Skills',
-            'VIDEO': 'Professional Skills',
-            'PRESENTATION': 'Communication'
+            'VIDEO_UPLOAD': 'Technical Skills',  # Ganball videos → Technical
+            'DOCUMENT': 'Professional Skills',    # Documentation → Professional
+            'PROJECT': 'Tactical Understanding',  # Challenge system → Tactical
+            'CODING': 'Digital Competency',       # Future: coding exercises
+            'PRESENTATION': 'Communication'       # Future: presentations
         }
 
         target_category = type_mapping.get(exercise_type, None)
