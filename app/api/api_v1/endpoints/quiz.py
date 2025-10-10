@@ -7,6 +7,8 @@ from ....dependencies import get_current_user
 from ....models.user import User, UserRole
 from ....models.quiz import QuizCategory, QuizDifficulty
 from ....services.quiz_service import QuizService
+from ....services.competency_service import CompetencyService
+from ....services.adaptive_learning_service import AdaptiveLearningService
 from ....schemas.quiz import (
     QuizCreate, QuizUpdate, QuizResponse, QuizListItem, QuizPublic,
     QuizAttemptStart, QuizAttemptSubmit, QuizAttemptResponse, QuizAttemptSummary,
@@ -136,7 +138,8 @@ def start_quiz_attempt(
 def submit_quiz_attempt(
     submission: QuizAttemptSubmit,
     current_user: User = Depends(get_current_user),
-    quiz_service: QuizService = Depends(get_quiz_service)
+    quiz_service: QuizService = Depends(get_quiz_service),
+    db: Session = Depends(get_db)
 ):
     """Submit quiz attempt with answers"""
     if current_user.role != UserRole.STUDENT:
@@ -144,9 +147,49 @@ def submit_quiz_attempt(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only students can take quizzes"
         )
-    
+
     try:
         attempt = quiz_service.submit_quiz_attempt(current_user.id, submission)
+
+        # ==========================================
+        # 🆕 HOOK 1: AUTOMATIC COMPETENCY ASSESSMENT
+        # ==========================================
+        try:
+            # Initialize services
+            comp_service = CompetencyService(db)
+            adapt_service = AdaptiveLearningService(db)
+
+            # Get quiz details for competency assessment
+            quiz = quiz_service.get_quiz_by_id(attempt.quiz_id)
+
+            # Assess competency from quiz (automatic based on quiz category/metadata)
+            if quiz and attempt.score is not None:
+                comp_service.assess_from_quiz(
+                    user_id=current_user.id,
+                    quiz_id=quiz.id,
+                    quiz_attempt_id=attempt.id,
+                    score=float(attempt.score)
+                )
+
+            # Update adaptive learning profile
+            adapt_service.update_profile_metrics(current_user.id)
+
+            # Generate new recommendations if score is low (struggling student)
+            if attempt.score and attempt.score < 70:
+                adapt_service.generate_recommendations(
+                    user_id=current_user.id,
+                    refresh=True
+                )
+
+            db.commit()
+
+        except Exception as e:
+            # Log error but don't fail quiz submission
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in post-quiz hooks for user {current_user.id}: {e}")
+            # Continue with quiz result response
+
         return attempt
     except ValueError as e:
         raise HTTPException(
