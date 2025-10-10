@@ -1,0 +1,456 @@
+/* 🚀 MASTER CSS - COMPREHENSIVE FRONTEND SYSTEM */
+
+/* Critical: Import Order MUST be maintained */
+
+/* 1. CSS Reset & Base Styles */
+@import './base/reset.css';
+@import './base/typography.css';
+@import './base/utilities.css';
+
+/* 2. Layout System */
+@import './layouts/containers.css';
+
+/* 3. Component Library */
+@import './components/cards.css';
+
+/* 4. Existing Design System Integration */
+@import './design-tokens.css';
+@import './unified-color-system.css';
+@import './themes.css';
+@import './accessible-themes.css';
+
+/* 5. Responsive & Cross-platform */
+@import './ios-responsive.css';
+@import './chrome-ios-optimizations.css';
+
+/* Global Critical Fixes */
+:root {
+  /* Performance optimizations */
+  --font-display: swap;
+  
+  /* Layout stability */
+  --scrollbar-width: 0px;
+  
+  /* Color system extensions */
+  --success-50: #f0fdf4;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --warning-50: #fffbeb;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --error-50: #fef2f2;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  --info-50: #eff6ff;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+  
+  /* Motion */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+  --transition-bounce: 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Critical: Body-level fixes */
+body {
+  /* Prevent horizontal scroll */
+  overflow-x: hidden;
+  
+  /* Improve font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  
+  /* Optimize scrolling */
+  scroll-behavior: smooth;
+  
+  /* Touch optimization */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Critical: Global text overflow prevention */
+* {
+  text-overflow: clip !important;
+  -webkit-text-overflow: clip !important;
+  -moz-text-overflow: clip !important;
+  -ms-text-overflow: clip !important;
+}
+
+/* 🚨 EMERGENCY: ONBOARDING PAGE VISIBILITY RESTORE */
+.semester-centric-onboarding,
+.onboarding-container,
+.specialization-preview-enhanced {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  margin: 0 auto !important;
+}
+
+/* 🎯 NUCLEAR CENTERING OPTION */
+.semester-centric-onboarding {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100vw !important;
+  min-height: 100vh !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+.onboarding-container {
+  display: block !important;
+  margin: 0 auto !important;
+  max-width: 1200px !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+/* 🎯 NUCLEAR ABSOLUTE CENTERING FOR ALL ONBOARDING CONTENT */
+.step-content,
+.lfa-context,
+.context-card,
+.onboarding-step,
+.lfa-welcome-step {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  display: block !important;
+  text-align: center !important;
+}
+
+/* 🚨 SPECIAL FIX FOR CONTEXT CARDS */
+.context-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+  display: block !important;
+  position: static !important;
+  z-index: auto !important;
+  left: 0 !important;
+  right: 0 !important;
+  text-align: left !important;
+}
+
+/* 🚨 NUCLEAR FIX: FORCE NORMAL DOCUMENT FLOW */
+.specialization-preview-enhanced,
+.spec-preview-card,
+.spec-track-info,
+.spec-card-header,
+.spec-card-content,
+.player-track,
+.coach-track,
+.internship-track {
+  position: static !important;
+  z-index: 1 !important;
+  float: none !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+/* Ensure proper box-sizing everywhere */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-auto {
+  will-change: auto;
+}
+
+.gpu-acceleration {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Layout stability */
+img,
+video,
+iframe {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Focus management */
+:focus {
+  outline: 2px solid var(--info-500);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Loading states */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Touch targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  * {
+    border-color: currentColor !important;
+  }
+}
+
+/* Print optimizations */
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+  
+  abbr[title]:after {
+    content: " (" attr(title) ")";
+  }
+  
+  pre,
+  blockquote {
+    border: 1px solid #999;
+    page-break-inside: avoid;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tr,
+  img {
+    page-break-inside: avoid;
+  }
+  
+  p,
+  h2,
+  h3 {
+    orphans: 3;
+    widows: 3;
+  }
+  
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}
+
+/* Error states */
+.error-boundary {
+  padding: var(--space-8);
+  text-align: center;
+  background: var(--error-50);
+  border: 1px solid var(--error-200);
+  border-radius: var(--radius-lg);
+  color: var(--error-600);
+}
+
+/* Empty states */
+.empty-state {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--gray-500);
+}
+
+/* Notification system */
+.notification {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: var(--z-toast);
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-4);
+  max-width: 400px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification.success {
+  border-left: 4px solid var(--success-500);
+}
+
+.notification.warning {
+  border-left: 4px solid var(--warning-500);
+}
+
+.notification.error {
+  border-left: 4px solid var(--error-500);
+}
+
+.notification.info {
+  border-left: 4px solid var(--info-500);
+}
+
+/* Critical: Specialization component fixes */
+.specialization-preview-enhanced {
+  /* Full width utilization */
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  
+  /* Perfect center alignment */
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: var(--space-6) !important;
+  justify-content: center !important;
+  
+  /* Ensure proper container behavior */
+  padding: var(--space-6) !important;
+  box-sizing: border-box !important;
+  
+  /* Remove any potential overflow issues */
+  overflow: visible !important;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .specialization-preview-enhanced {
+    grid-template-columns: 1fr !important;
+    padding: var(--space-4) !important;
+    gap: var(--space-4) !important;
+  }
+}
+
+/* Browser-specific fixes */
+@supports (-webkit-appearance: none) {
+  /* Safari-specific optimizations */
+  .safari-fix {
+    -webkit-transform: translateZ(0);
+  }
+}
+
+@supports (-moz-appearance: none) {
+  /* Firefox-specific optimizations */
+  .firefox-fix {
+    -moz-transform: translateZ(0);
+  }
+}
+
+/* Critical: Form element improvements */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Utility for development */
+.dev-outline {
+  outline: 2px solid #ff0000 !important;
+}
+
+.dev-outline-blue {
+  outline: 2px solid #0000ff !important;
+}
+
+.dev-outline-green {
+  outline: 2px solid #00ff00 !important;
+}
+
+/* Performance monitoring */
+.layout-shift-detection {
+  contain: layout style paint;
+}
+
+/* Final critical overrides */
+.no-ellipsis-global {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+}

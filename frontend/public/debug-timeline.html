@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Debug - CSS Version Check</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-info { background: #f0f0f0; padding: 20px; margin: 10px 0; border-radius: 5px; }
+        .version-info { background: #e8f5e8; padding: 10px; margin: 5px 0; }
+        .error { background: #ffe8e8; color: red; }
+        .success { background: #e8f5e8; color: green; }
+        pre { background: #f9f9f9; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Timeline CSS Debug Page</h1>
+    
+    <div class="debug-info">
+        <h2>📊 Version Information</h2>
+        <div class="version-info">
+            <strong>Page Load Time:</strong> <span id="loadTime"></span><br>
+            <strong>User Agent:</strong> <span id="userAgent"></span><br>
+            <strong>URL:</strong> <span id="currentUrl"></span>
+        </div>
+    </div>
+
+    <div class="debug-info">
+        <h2>🎯 CSS Rules Check</h2>
+        <div id="cssCheck">Checking...</div>
+    </div>
+
+    <div class="debug-info">
+        <h2>🔍 Mock Timeline Element</h2>
+        <div class="semester-timeline timeline-fixed-grid" id="testTimeline" style="border: 2px solid red; padding: 10px;">
+            <div class="timeline-item" style="border: 1px solid blue; padding: 5px;">Item 1</div>
+            <div class="timeline-item" style="border: 1px solid blue; padding: 5px;">Item 2</div> 
+            <div class="timeline-item" style="border: 1px solid blue; padding: 5px;">Item 3</div>
+        </div>
+        <div id="timelineCheck">Checking timeline element...</div>
+    </div>
+
+    <div class="debug-info">
+        <h2>📄 CSS File Content Check</h2>
+        <div id="cssContent">Loading...</div>
+    </div>
+
+    <script>
+        // Initialize page info
+        document.getElementById('loadTime').textContent = new Date().toLocaleString();
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('currentUrl').textContent = window.location.href;
+
+        // Check CSS rules
+        function checkCSS() {
+            const timeline = document.getElementById('testTimeline');
+            if (!timeline) {
+                document.getElementById('cssCheck').innerHTML = '<div class="error">❌ Test timeline element not found</div>';
+                return;
+            }
+
+            const computedStyle = window.getComputedStyle(timeline);
+            const display = computedStyle.display;
+            const gridColumns = computedStyle.gridTemplateColumns;
+            
+            let result = `
+                <div class="${display === 'grid' ? 'success' : 'error'}">
+                    <strong>Display:</strong> ${display} ${display === 'grid' ? '✅' : '❌ Expected: grid'}
+                </div>
+                <div class="version-info">
+                    <strong>Grid Template Columns:</strong> ${gridColumns || 'none'}
+                </div>
+                <div class="version-info">
+                    <strong>Width:</strong> ${computedStyle.width}
+                </div>
+            `;
+
+            // Check for timeline-fixed-grid class
+            const hasClass = timeline.classList.contains('timeline-fixed-grid');
+            result += `
+                <div class="${hasClass ? 'success' : 'error'}">
+                    <strong>timeline-fixed-grid class:</strong> ${hasClass ? '✅ Present' : '❌ Missing'}
+                </div>
+            `;
+
+            document.getElementById('cssCheck').innerHTML = result;
+        }
+
+        // Check timeline element dimensions
+        function checkTimelineElement() {
+            const timeline = document.getElementById('testTimeline');
+            const items = timeline.querySelectorAll('.timeline-item');
+            
+            let result = `<div class="version-info"><strong>Timeline Items Found:</strong> ${items.length}</div>`;
+            
+            items.forEach((item, index) => {
+                const rect = item.getBoundingClientRect();
+                result += `
+                    <div class="version-info">
+                        <strong>Item ${index + 1} Width:</strong> ${rect.width.toFixed(2)}px
+                    </div>
+                `;
+            });
+
+            document.getElementById('timelineCheck').innerHTML = result;
+        }
+
+        // Check if CSS file contains our rules
+        async function checkCSSFile() {
+            try {
+                // Try to fetch the CSS file (may not work due to CORS)
+                const response = await fetch('/static/css/main.css');
+                if (response.ok) {
+                    const cssText = await response.text();
+                    const hasGridRule = cssText.includes('timeline-fixed-grid');
+                    const hasDisplayGrid = cssText.includes('display: grid !important');
+                    
+                    document.getElementById('cssContent').innerHTML = `
+                        <div class="${hasGridRule ? 'success' : 'error'}">
+                            <strong>timeline-fixed-grid rule:</strong> ${hasGridRule ? '✅ Found' : '❌ Not found'}
+                        </div>
+                        <div class="${hasDisplayGrid ? 'success' : 'error'}">
+                            <strong>display: grid !important rule:</strong> ${hasDisplayGrid ? '✅ Found' : '❌ Not found'}
+                        </div>
+                        <div class="version-info">
+                            <strong>CSS File Size:</strong> ${cssText.length} characters
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('cssContent').innerHTML = '<div class="error">❌ Could not fetch CSS file</div>';
+                }
+            } catch (error) {
+                document.getElementById('cssContent').innerHTML = `
+                    <div class="error">❌ CSS fetch error: ${error.message}</div>
+                    <div class="version-info">This is normal in development mode - CSS is injected by React</div>
+                `;
+            }
+        }
+
+        // Run all checks after page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkCSS();
+                checkTimelineElement();
+                checkCSSFile();
+            }, 1000);
+        });
+
+        // Add a button to re-run checks
+        setTimeout(() => {
+            const button = document.createElement('button');
+            button.textContent = '🔄 Re-run Checks';
+            button.style.padding = '10px 20px';
+            button.style.margin = '10px 0';
+            button.style.fontSize = '16px';
+            button.onclick = () => {
+                checkCSS();
+                checkTimelineElement();
+                checkCSSFile();
+            };
+            document.body.appendChild(button);
+        }, 500);
+    </script>
+</body>
+</html>

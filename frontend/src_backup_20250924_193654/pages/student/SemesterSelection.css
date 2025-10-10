@@ -1,0 +1,307 @@
+/* Semester Selection Page Styles */
+.semester-selection {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.semester-selection-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 900px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Header Styles */
+.semester-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.step-icon {
+  font-size: 3em;
+  margin-bottom: 16px;
+}
+
+.semester-header h1 {
+  color: #2d3748;
+  font-size: 2.5em;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.step-description {
+  color: #4a5568;
+  font-size: 1.1em;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Error Banner */
+.error-banner {
+  background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+  border: 1px solid #fc8181;
+  color: #742a2a;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Semester Grid */
+.semester-content {
+  margin-bottom: 32px;
+}
+
+.semester-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.semester-card {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.semester-card:hover:not(.disabled) {
+  border-color: #4299e1;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(66, 153, 225, 0.15);
+}
+
+.semester-card.selected {
+  border-color: #3182ce;
+  background: linear-gradient(135deg, #bee3f8 0%, #90cdf4 100%);
+  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
+}
+
+.semester-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(50%);
+}
+
+.semester-card .semester-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.semester-card h3 {
+  color: #2d3748;
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.semester-status {
+  background: #48bb78;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.semester-dates {
+  color: #4a5568;
+  font-size: 0.95em;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.semester-description {
+  color: #718096;
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.selected-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #38a169;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.payment-required-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+/* No Semesters State */
+.no-semesters {
+  text-align: center;
+  padding: 40px 20px;
+  color: #4a5568;
+}
+
+.no-semesters-icon {
+  font-size: 4em;
+  margin-bottom: 16px;
+}
+
+.no-semesters h3 {
+  color: #2d3748;
+  font-size: 1.5em;
+  margin-bottom: 12px;
+}
+
+.no-semesters p {
+  font-size: 1em;
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Action Buttons */
+.semester-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.skip-btn, .submit-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  min-width: 160px;
+}
+
+.skip-btn {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.skip-btn:hover {
+  background: #cbd5e0;
+}
+
+.submit-btn.primary {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+}
+
+.submit-btn.primary:hover {
+  background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+  transform: translateY(-1px);
+}
+
+.submit-btn.disabled {
+  background: #a0aec0;
+  color: #718096;
+  cursor: not-allowed;
+}
+
+/* Loading State */
+.semester-selection-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: white;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .semester-selection-container {
+    padding: 24px;
+    margin: 16px;
+  }
+  
+  .semester-header h1 {
+    font-size: 2em;
+  }
+  
+  .semester-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .semester-card {
+    padding: 20px;
+  }
+  
+  .semester-actions {
+    flex-direction: column;
+  }
+  
+  .skip-btn, .submit-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .semester-selection-container {
+    padding: 20px;
+    margin: 12px;
+  }
+  
+  .step-icon {
+    font-size: 2.5em;
+  }
+  
+  .semester-header h1 {
+    font-size: 1.8em;
+  }
+  
+  .step-description {
+    font-size: 1em;
+  }
+}

@@ -1,0 +1,136 @@
+/* LongAnswerQuestion.css */
+.long-answer-question {
+  width: 100%;
+  margin: 20px 0;
+}
+
+.long-answer-container {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid var(--border-primary);
+}
+
+.requirements-display {
+  background: var(--info-bg);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.requirements-display h4 {
+  color: var(--info-color);
+  margin: 0 0 12px 0;
+}
+
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.requirement.met {
+  color: var(--success-color);
+}
+
+.requirement.unmet {
+  color: var(--warning-color);
+}
+
+.answer-textarea {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid var(--border-secondary);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  resize: vertical;
+  min-height: 200px;
+  transition: all 0.3s ease;
+}
+
+.answer-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.input-stats {
+  margin-top: 8px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+}
+
+.word-count.warning {
+  color: var(--warning-color);
+}
+
+.word-count.error {
+  color: var(--error-color);
+}
+
+.word-progress {
+  height: 4px;
+  background: var(--border-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.word-progress-bar {
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+.answer-guidance,
+.key-points {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.guidance-list,
+.key-points-list {
+  margin: 8px 0 0 16px;
+}
+
+.writing-tools {
+  margin-top: 16px;
+  border-top: 1px solid var(--border-secondary);
+  padding-top: 16px;
+}
+
+.tools-content {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tool-button {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.tool-button:hover {
+  background: var(--accent-hover);
+}

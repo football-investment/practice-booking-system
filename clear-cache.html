@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🧹 Cache & Service Worker Cleaner</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        button { background: #1976d2; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin: 8px; font-size: 14px; }
+        button:hover { background: #1565c0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 6px; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .error { background: #ffebee; color: #c62828; }
+        .warning { background: #fff3e0; color: #e65100; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Emergency Cache & Service Worker Cleaner</h1>
+        <p>Use this to clear cache and service workers that might be causing dashboard issues.</p>
+        
+        <button onclick="clearServiceWorkers()">🗑️ Unregister Service Workers</button>
+        <button onclick="clearAllCache()">💾 Clear All Cache</button>
+        <button onclick="clearLocalStorage()">📦 Clear Local Storage</button>
+        <button onclick="hardRefresh()">🔄 Hard Refresh Dashboard</button>
+        
+        <div id="status"></div>
+        
+        <h3>Debug Information:</h3>
+        <div id="debug"></div>
+    </div>
+
+    <script>
+        const status = document.getElementById('status');
+        const debug = document.getElementById('debug');
+        
+        function log(message, type = 'success') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = message;
+            status.appendChild(div);
+            console.log(message);
+        }
+        
+        async function clearServiceWorkers() {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                log(`Found ${registrations.length} service worker(s)`);
+                
+                for (const registration of registrations) {
+                    await registration.unregister();
+                    log('✅ Service worker unregistered');
+                }
+                
+                if (registrations.length === 0) {
+                    log('No service workers found', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Error clearing service workers: ${error.message}`, 'error');
+            }
+        }
+        
+        async function clearAllCache() {
+            try {
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    log(`Found ${cacheNames.length} cache(s)`);
+                    
+                    for (const name of cacheNames) {
+                        await caches.delete(name);
+                        log(`✅ Cache "${name}" deleted`);
+                    }
+                    
+                    if (cacheNames.length === 0) {
+                        log('No caches found', 'warning');
+                    }
+                } else {
+                    log('Cache API not supported', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Error clearing cache: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearLocalStorage() {
+            try {
+                const itemCount = localStorage.length;
+                localStorage.clear();
+                sessionStorage.clear();
+                log(`✅ Cleared ${itemCount} localStorage items and sessionStorage`);
+            } catch (error) {
+                log(`❌ Error clearing storage: ${error.message}`, 'error');
+            }
+        }
+        
+        function hardRefresh() {
+            log('🔄 Performing hard refresh...');
+            // Wait a moment for the log to show
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3000/student/dashboard?' + new Date().getTime();
+            }, 1000);
+        }
+        
+        // Auto-run debug info
+        function showDebugInfo() {
+            const info = {
+                userAgent: navigator.userAgent,
+                serviceWorkerSupport: 'serviceWorker' in navigator,
+                cacheSupport: 'caches' in window,
+                localStorageItems: localStorage.length,
+                currentTime: new Date().toISOString(),
+                location: window.location.href
+            };
+            
+            debug.innerHTML = `<pre>${JSON.stringify(info, null, 2)}</pre>`;
+        }
+        
+        // Check if React app is running
+        async function checkReactApp() {
+            try {
+                const response = await fetch('http://localhost:3000/static/js/bundle.js', { method: 'HEAD' });
+                if (response.ok) {
+                    log('✅ React dev server is running');
+                } else {
+                    log('⚠️ React bundle not found - server may be down', 'warning');
+                }
+            } catch (error) {
+                log('❌ Cannot reach React dev server', 'error');
+            }
+        }
+        
+        // Run on page load
+        window.addEventListener('load', () => {
+            showDebugInfo();
+            checkReactApp();
+        });
+    </script>
+</body>
+</html>

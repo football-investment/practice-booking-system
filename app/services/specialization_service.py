@@ -235,6 +235,14 @@ class SpecializationService:
         if leveled_up:
             new_level_info = self.get_level_requirements(specialization_id, progress.current_level)
 
+        # 🆕 CHECK AND AWARD SPECIALIZATION ACHIEVEMENTS
+        from app.services.gamification import GamificationService
+        gamification = GamificationService(self.db)
+        new_achievements = gamification.check_and_award_specialization_achievements(
+            user_id=student_id,
+            specialization_id=specialization_id
+        )
+
         return {
             'success': True,
             'new_xp': progress.total_xp,
@@ -242,7 +250,15 @@ class SpecializationService:
             'new_level': progress.current_level,
             'leveled_up': leveled_up,
             'levels_gained': levels_gained,
-            'new_level_info': new_level_info
+            'new_level_info': new_level_info,
+            'achievements_earned': [
+                {
+                    'title': ach.title,
+                    'description': ach.description,
+                    'icon': ach.icon
+                }
+                for ach in new_achievements
+            ]
         }
 
     def get_all_specializations(self) -> list[Dict[str, Any]]:

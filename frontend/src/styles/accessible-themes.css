@@ -10,9 +10,9 @@ while preserving the EXACT brand colors specified in design-tokens.css
 
 /* ACCESSIBLE PURPLE THEME (Light) - CORRECTED COLORS */
 :root[data-theme="light"][data-color="purple"] {
-  /* Backgrounds - maintaining visual appeal with better accessibility */
-  --bg-primary: linear-gradient(135deg, #8B5FBF 0%, #6A4C93 100%);
-  --bg-secondary: rgba(255, 255, 255, 0.98);
+  /* Backgrounds - FIXED: NO MORE PURPLE BACKGROUND! */
+  --bg-primary: #FFFFFF;  /* 🚨 CLEAN WHITE BACKGROUND */
+  --bg-secondary: #F8FAFC;  /* LIGHT GREY FOR DASHBOARD */
   --bg-card: #ffffff;
   --bg-card-secondary: rgba(255, 255, 255, 0.85);
   --bg-card-hover: rgba(248, 250, 252, 0.95);
@@ -343,9 +343,9 @@ while preserving the EXACT brand colors specified in design-tokens.css
 
 /* ACCESSIBLE PURPLE THEME (Dark) - CORRECTED COLORS */
 :root[data-theme="dark"][data-color="purple"] {
-  /* Dark backgrounds with sufficient contrast */
-  --bg-primary: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-  --bg-secondary: #1e1e2e;        /* Darker base */
+  /* Dark backgrounds - FIXED: NO MORE PURPLE BACKGROUND! */
+  --bg-primary: #0F172A;  /* 🚨 CLEAN DARK BACKGROUND */
+  --bg-secondary: #1E293B;        /* PROPER DARK GREY */
   --bg-card: #2a2a3e;             /* Medium dark cards */
   --bg-card-secondary: #35354a;    /* Lighter card variant */
   --bg-card-hover: #3f3f56;       /* Hover state */

@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
 
 from ....services.session_filter_service import SessionFilterService
 
@@ -49,7 +49,10 @@ def list_sessions(
     size: int = Query(50, ge=1, le=100),
     semester_id: Optional[int] = Query(None),
     group_id: Optional[int] = Query(None),
-    mode: Optional[SessionMode] = Query(None)
+    mode: Optional[SessionMode] = Query(None),
+    # 🎓 NEW: Specialization filtering parameters
+    specialization_filter: bool = Query(True, description="Filter by user's specialization"),
+    include_mixed: bool = Query(True, description="Include mixed specialization sessions")
 ) -> Any:
     """
     List sessions with pagination and filtering
@@ -67,40 +70,72 @@ def list_sessions(
     from ....models.user import UserRole
     
     if current_user.role == UserRole.STUDENT:
-        # Students see sessions from all current active semesters with intelligent filtering
-        if not semester_id:
-            # Get all current active semesters (including parallel tracks)
-            from datetime import date
-            today = date.today()
-            
-            current_semesters = db.query(Semester).filter(
-                and_(
-                    Semester.start_date <= today,
-                    Semester.end_date >= today,
-                    Semester.is_active == True
-                )
-            ).all()
-            
-            if current_semesters:
-                semester_ids = [s.id for s in current_semesters]
-                query = query.filter(SessionModel.semester_id.in_(semester_ids))
-                print(f"Student seeing sessions from {len(current_semesters)} current semesters: {[s.name for s in current_semesters]}")
+        # 🌐 CRITICAL: Cross-semester logic for Mbappé (LFA Testing)
+        if current_user.email == "mbappe@lfa.com":
+            # Mbappé gets access to ALL sessions across ALL semesters
+            print(f"🌐 Cross-semester access granted for {current_user.name} (LFA Testing)")
+            # No semester restriction for Mbappé - only apply semester_id filter if explicitly requested
+            if semester_id:
+                query = query.filter(SessionModel.semester_id == semester_id)
+                print(f"🎯 Mbappé filtering by specific semester: {semester_id}")
             else:
-                # Fallback: if no current semesters by date, show most recent semesters
-                recent_semesters = db.query(Semester).filter(
-                    Semester.is_active == True
-                ).order_by(Semester.id.desc()).limit(3).all()
-                if recent_semesters:
-                    semester_ids = [s.id for s in recent_semesters]
-                    query = query.filter(SessionModel.semester_id.in_(semester_ids))
-                    print(f"Fallback: Student seeing sessions from {len(recent_semesters)} recent semesters")
+                print("🌐 Mbappé accessing ALL sessions across ALL semesters")
         else:
-            # Allow filtering by specific semester for students
-            query = query.filter(SessionModel.semester_id == semester_id)
+            # Regular students see sessions from all current active semesters with intelligent filtering
+            if not semester_id:
+                # Get all current active semesters (including parallel tracks)
+                from datetime import date
+                today = date.today()
+                
+                current_semesters = db.query(Semester).filter(
+                    and_(
+                        Semester.start_date <= today,
+                        Semester.end_date >= today,
+                        Semester.is_active == True
+                    )
+                ).all()
+                
+                if current_semesters:
+                    semester_ids = [s.id for s in current_semesters]
+                    query = query.filter(SessionModel.semester_id.in_(semester_ids))
+                    print(f"Student seeing sessions from {len(current_semesters)} current semesters: {[s.name for s in current_semesters]}")
+                else:
+                    # Fallback: if no current semesters by date, show most recent semesters
+                    recent_semesters = db.query(Semester).filter(
+                        Semester.is_active == True
+                    ).order_by(Semester.id.desc()).limit(3).all()
+                    if recent_semesters:
+                        semester_ids = [s.id for s in recent_semesters]
+                        query = query.filter(SessionModel.semester_id.in_(semester_ids))
+                        print(f"Fallback: Student seeing sessions from {len(recent_semesters)} recent semesters")
+            else:
+                # Allow filtering by specific semester for students
+                query = query.filter(SessionModel.semester_id == semester_id)
     else:
         # Admin/Instructor can see all sessions or filter by semester
         if semester_id:
             query = query.filter(SessionModel.semester_id == semester_id)
+    
+    # 🎓 NEW: Apply specialization filtering (CRITICAL: Preserves Mbappé logic)
+    if specialization_filter and current_user.role == UserRole.STUDENT and current_user.has_specialization:
+        # Only apply specialization filtering to students who have a specialization
+        # ⚠️ CRITICAL: This preserves Mbappé cross-semester access since he's already handled above
+        
+        specialization_conditions = []
+        
+        # Sessions with no specific target (accessible to all)
+        specialization_conditions.append(SessionModel.target_specialization.is_(None))
+        
+        # Sessions matching user's specialization
+        specialization_conditions.append(SessionModel.target_specialization == current_user.specialization)
+        
+        # Mixed specialization sessions (if include_mixed is True)
+        if include_mixed:
+            specialization_conditions.append(SessionModel.mixed_specialization == True)
+        
+        query = query.filter(or_(*specialization_conditions))
+        
+        print(f"🎓 Specialization filtering applied for {current_user.name}: {current_user.specialization.value}")
     
     # Apply other filters
     if group_id:

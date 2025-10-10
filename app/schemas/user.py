@@ -35,6 +35,8 @@ class UserUpdateSelf(BaseModel):
     date_of_birth: Optional[datetime] = None
     medical_notes: Optional[str] = None
     interests: Optional[str] = None  # JSON string of interests array
+    position: Optional[str] = None  # Football position
+    specialization: Optional[str] = None  # Player/Coach/Internship
 
 
 class User(UserBase):
@@ -46,6 +48,11 @@ class User(UserBase):
     date_of_birth: Optional[datetime] = None
     medical_notes: Optional[str] = None
     interests: Optional[str] = None  # JSON string of interests array
+    position: Optional[str] = None  # Football position
+    specialization: Optional[str] = None  # Player/Coach/Internship track
+    payment_verified: Optional[bool] = False
+    payment_verified_at: Optional[datetime] = None
+    payment_verified_by: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None

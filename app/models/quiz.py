@@ -1,26 +1,32 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from app.database import Base
 
 class QuestionType(enum.Enum):
-    MULTIPLE_CHOICE = "multiple_choice"
-    TRUE_FALSE = "true_false"
-    FILL_IN_BLANK = "fill_in_blank"
+    MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
+    TRUE_FALSE = "TRUE_FALSE"
+    FILL_IN_BLANK = "FILL_IN_BLANK"
+    MATCHING = "matching"
+    SHORT_ANSWER = "short_answer"
+    LONG_ANSWER = "long_answer"
+    CALCULATION = "calculation"
+    SCENARIO_BASED = "scenario_based"
 
 class QuizCategory(enum.Enum):
-    GENERAL = "general"
-    MARKETING = "marketing"
-    ECONOMICS = "economics"
-    INFORMATICS = "informatics"
-    SPORTS_PHYSIOLOGY = "sports_physiology"
-    NUTRITION = "nutrition"
+    GENERAL = "GENERAL"
+    MARKETING = "MARKETING"
+    ECONOMICS = "ECONOMICS"
+    INFORMATICS = "INFORMATICS"
+    SPORTS_PHYSIOLOGY = "SPORTS_PHYSIOLOGY"
+    NUTRITION = "NUTRITION"
+    LESSON = "LESSON"  # Curriculum lesson-based quizzes
 
 class QuizDifficulty(enum.Enum):
-    EASY = "easy"
-    MEDIUM = "medium"
-    HARD = "hard"
+    EASY = "EASY"
+    MEDIUM = "MEDIUM"
+    HARD = "HARD"
 
 class Quiz(Base):
     __tablename__ = "quizzes"
@@ -105,3 +111,88 @@ class QuizUserAnswer(Base):
     attempt = relationship("QuizAttempt", back_populates="user_answers")
     question = relationship("QuizQuestion", back_populates="user_answers")
     selected_option = relationship("QuizAnswerOption")
+
+
+# ADAPTIVE LEARNING MODELS
+
+class UserQuestionPerformance(Base):
+    """Adaptív tanuláshoz - egyedi kérdések teljesítményének nyomonkövetése"""
+    __tablename__ = "user_question_performance"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id"), nullable=False)
+    
+    # Performance metrics
+    total_attempts = Column(Integer, default=0)
+    correct_attempts = Column(Integer, default=0)
+    last_attempt_correct = Column(Boolean, default=False)
+    last_attempted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Adaptive learning weights
+    difficulty_weight = Column(Float, default=1.0)  # 1.0 = normal, >1.0 = needs more practice
+    next_review_at = Column(DateTime(timezone=True), nullable=True)  # spaced repetition
+    mastery_level = Column(Float, default=0.0)  # 0.0-1.0 scale
+    
+    # Relationships
+    user = relationship("User")
+    question = relationship("QuizQuestion")
+    
+    # Unique constraint
+    __table_args__ = (UniqueConstraint('user_id', 'question_id', name='unique_user_question'),)
+    
+    @property
+    def success_rate(self):
+        return (self.correct_attempts / self.total_attempts) if self.total_attempts > 0 else 0.0
+
+
+class AdaptiveLearningSession(Base):
+    """Adaptív tanulási session nyomonkövetése"""
+    __tablename__ = "adaptive_learning_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    category = Column(SQLEnum(QuizCategory), nullable=False)
+    
+    # Session info
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    questions_presented = Column(Integer, default=0)
+    questions_correct = Column(Integer, default=0)
+    xp_earned = Column(Integer, default=0)
+    
+    # Adaptive algorithm data
+    target_difficulty = Column(Float, default=0.5)  # 0.0-1.0
+    performance_trend = Column(Float, default=0.0)  # -1.0 to 1.0
+    
+    # Session timing
+    session_time_limit_seconds = Column(Integer, default=1800)  # 30 minutes default
+    session_start_time = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    user = relationship("User")
+
+
+class QuestionMetadata(Base):
+    """Kérdések metaadatai az adaptív tanuláshoz"""
+    __tablename__ = "question_metadata"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id"), nullable=False)
+    
+    # Question characteristics
+    estimated_difficulty = Column(Float, default=0.5)  # 0.0-1.0
+    cognitive_load = Column(Float, default=0.5)  # 0.0-1.0
+    concept_tags = Column(String(500), nullable=True)  # JSON array of concepts
+    prerequisite_concepts = Column(String(500), nullable=True)  # JSON array
+    
+    # Learning analytics
+    average_time_seconds = Column(Float, nullable=True)
+    global_success_rate = Column(Float, nullable=True)
+    last_analytics_update = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    question = relationship("QuizQuestion")
+    
+    # Unique constraint
+    __table_args__ = (UniqueConstraint('question_id', name='unique_question_metadata'),)

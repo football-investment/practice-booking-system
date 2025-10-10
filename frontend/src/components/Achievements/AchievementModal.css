@@ -1,0 +1,231 @@
+.achievement-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.achievement-modal__content {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.achievement-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  color: #666;
+  transition: all 0.3s ease;
+  z-index: 1;
+}
+
+.achievement-modal__close:hover {
+  background: rgba(0, 0, 0, 0.2);
+  color: #333;
+  transform: rotate(90deg);
+}
+
+.achievement-modal__header {
+  padding: 40px 24px 24px;
+  text-align: center;
+  border-bottom: 2px solid #f5f5f5;
+}
+
+.achievement-modal__icon {
+  font-size: 80px;
+  margin-bottom: 16px;
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.achievement-modal__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+}
+
+.achievement-modal__body {
+  padding: 24px;
+}
+
+.achievement-modal__hint {
+  margin-top: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  border-radius: 12px;
+  border: 2px solid #e0e0e0;
+}
+
+.achievement-modal__hint h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.achievement-modal__hint p {
+  margin: 0 0 16px 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+.achievement-modal__requirement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #2196F3;
+  border: 1px solid #2196F3;
+}
+
+.achievement-modal__requirement-icon {
+  font-size: 20px;
+}
+
+.achievement-modal__celebration {
+  margin-top: 24px;
+  padding: 24px;
+  background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+  border-radius: 12px;
+  text-align: center;
+  color: #fff;
+}
+
+.achievement-modal__confetti {
+  font-size: 32px;
+  margin-bottom: 12px;
+  letter-spacing: 8px;
+  animation: confetti-shake 1s ease infinite;
+}
+
+@keyframes confetti-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+.achievement-modal__celebration p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .achievement-modal__content {
+    background: #1a1a1a;
+  }
+
+  .achievement-modal__close {
+    background: rgba(255, 255, 255, 0.1);
+    color: #aaa;
+  }
+
+  .achievement-modal__close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+
+  .achievement-modal__header {
+    border-bottom-color: #333;
+  }
+
+  .achievement-modal__title {
+    color: #fff;
+  }
+
+  .achievement-modal__hint {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border-color: #333;
+  }
+
+  .achievement-modal__hint h3 {
+    color: #fff;
+  }
+
+  .achievement-modal__hint p {
+    color: #aaa;
+  }
+
+  .achievement-modal__requirement {
+    background: #1a1a1a;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .achievement-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .achievement-modal__content {
+    max-height: 85vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .achievement-modal__header {
+    padding: 32px 16px 16px;
+  }
+
+  .achievement-modal__icon {
+    font-size: 64px;
+  }
+
+  .achievement-modal__title {
+    font-size: 20px;
+  }
+
+  .achievement-modal__body {
+    padding: 16px;
+  }
+}

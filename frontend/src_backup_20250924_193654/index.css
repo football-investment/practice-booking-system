@@ -1,0 +1,102 @@
+/* 🚀 COMPREHENSIVE FRONTEND SYSTEM */
+@import './styles/main.css';
+
+/* EMERGENCY CSS FIXES - Force proper text layout */
+.nav-label,
+.sidebar .label,
+[class*="label"],
+[class*="nav-"] {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+  word-break: normal !important;
+  letter-spacing: normal !important;
+}
+
+/* Force proper sidebar layout */
+.navigation-sidebar,
+.sidebar,
+[class*="sidebar"] {
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+}
+
+/* Fix card overlapping */
+.card-container,
+[class*="card"],
+.widget,
+[class*="progress"] {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.progress-stats,
+[class*="stats"] {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+}
+
+/* 🚨 ULTRA-CRITICAL UI FIXES - HIGHEST PRIORITY */
+body *, html *, #root *, 
+[class*="dashboard"] *, 
+[class*="sidebar"] *, 
+[class*="nav"] *,
+[class*="card"] *,
+[class*="widget"] *,
+[class*="status"] *,
+[class*="overview"] * {
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+  text-orientation: mixed !important;
+  word-break: normal !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  word-spacing: normal !important;
+}
+
+/* 🚨 EMERGENCY TEXT FIX FOR CARDS */
+.status-stat-card *, 
+.status-overview *,
+[class*="stat"] *,
+[class*="metric"] *,
+h1, h2, h3, h4, h5, h6, p, span, div, label {
+  letter-spacing: 0 !important;
+  word-spacing: 0 !important;
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+}
+
+/* 🚨 FORCE ALL TEXT TO BE READABLE */
+.nav-label, .sidebar .label, [class*="label"], [class*="nav-"],
+.card-title, .card-content, .widget-content, .progress-label,
+.dashboard-text, .header-text, .menu-text,
+.status-stat-card__label, .status-overview__title {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  writing-mode: horizontal-tb !important;
+  direction: ltr !important;
+  vertical-align: middle !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal !important;
+}
+
+/* 🚨 MATERIAL ICONS EMERGENCY FIX */
+.material-icons, .material-icons-outlined,
+[class*="icon"], .nav-icon, .header-icon {
+  display: inline-flex !important;
+  vertical-align: middle !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  font-family: 'Material Icons', 'Material Icons Outlined' !important;
+}
+
+/* Legacy compatibility - these are now included in main.css */
+/* Keeping for backward compatibility but main.css takes precedence */

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/apiService';
-import { detectOverflow } from '../../utils/overflowDetector';
 import { LFAUserService } from '../../utils/userTypeService';
+import ProgressCard from '../../components/SpecializationProgress/ProgressCard';
+import AchievementList from '../../components/Achievements/AchievementList';
 import './StudentDashboard.css';
 
 /**
@@ -33,40 +34,201 @@ const StudentDashboard = () => {
   const [skillCategories, setSkillCategories] = useState([]);
   const [dailyChallenges, setDailyChallenges] = useState([]);
   const [semesterInfo, setSemesterInfo] = useState({});
-  const [aiSuggestions] = useState([
-    {
-      id: 'weak-foot-training',
-      title: 'Improve Weak Foot Training',
-      difficulty: 'Est.',
-      type: 'training',
-      priority: 'high'
-    },
-    {
-      id: 'tactical-positioning', 
-      title: 'Tactical Positioning',
-      difficulty: 'Est.',
-      type: 'tactical',
-      priority: 'medium'
-    }
-  ]);
+  const [achievements, setAchievements] = useState([]);
+
+  // 🆕 SPECIALIZATION STATE
+  const [userSpecialization, setUserSpecialization] = useState(null); // PLAYER, COACH, or INTERNSHIP
+  // NEW: Header and Welcome Section State
+  const [currentQuote, setCurrentQuote] = useState({
+    text: "Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing.",
+    author: "Pelé"
+  });
+  const [greeting, setGreeting] = useState('');
+  const [currentDate, setCurrentDate] = useState('');
+  
+  // NEW: Theme Management State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('lfa-theme');
+    return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  // NEW: Header Interactive State
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // DEBUG: Debug Mode State
+  const [debugMode, setDebugMode] = useState(() => {
+    return localStorage.getItem('lfa-debug-mode') === 'true';
+  });
+  // PRODUCTION MODE: Notifications will come from real backend endpoint when available
+  // For now, start with empty array - no hardcoded data
+  const [notifications, setNotifications] = useState([]);
+
+  // Motivational quotes are now defined inline in refreshQuote function
+
+  // Helper Functions for Header and Welcome
+  const updateGreeting = useCallback(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const userName = user?.name || 'Student';
+    
+    let greetingText = "Good morning";
+    if (hour >= 12 && hour < 17) greetingText = "Good afternoon";
+    else if (hour >= 17) greetingText = "Good evening";
+    
+    const finalGreeting = `${greetingText}, ${userName}!`;
+    console.log('🎯 Setting greeting:', finalGreeting);
+    setGreeting(finalGreeting);
+    
+    const options = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    const finalDate = now.toLocaleDateString('en-US', options);
+    console.log('📅 Setting date:', finalDate);
+    setCurrentDate(finalDate);
+  }, [user?.name]);
+
+  const refreshQuote = useCallback(() => {
+    const quotes = [
+      {
+        text: "Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing.",
+        author: "Pelé"
+      },
+      {
+        text: "Champions aren't made in comfort zones.",
+        author: "John Wooden"
+      },
+      {
+        text: "It is during our darkest moments that we must focus to see the light.",
+        author: "Aristotle"
+      },
+      {
+        text: "You miss 100% of the shots you don't take.",
+        author: "Wayne Gretzky"
+      },
+      {
+        text: "Excellence is not a skill, it's an attitude.",
+        author: "Ralph Marston"
+      },
+      {
+        text: "The harder you work for something, the greater you'll feel when you achieve it.",
+        author: "Anonymous"
+      },
+      {
+        text: "Believe you can and you're halfway there.",
+        author: "Theodore Roosevelt"
+      },
+      {
+        text: "Don't watch the clock; do what it does. Keep going.",
+        author: "Sam Levenson"
+      }
+    ];
+    const randomIndex = Math.floor(Math.random() * quotes.length);
+    setCurrentQuote(quotes[randomIndex]);
+  }, []);
+
+  // Theme Toggle Function
+  const toggleDarkMode = useCallback(() => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    localStorage.setItem('lfa-theme', newDarkMode ? 'dark' : 'light');
+    
+    // Apply theme to multiple elements for maximum compatibility
+    document.documentElement.setAttribute('data-theme', newDarkMode ? 'dark' : 'light');
+    document.body.setAttribute('data-theme', newDarkMode ? 'dark' : 'light');
+    
+    console.log('🎨 Theme switched to:', newDarkMode ? 'DARK' : 'LIGHT');
+    console.log('🎯 HTML data-theme:', document.documentElement.getAttribute('data-theme'));
+    console.log('🎯 Body data-theme:', document.body.getAttribute('data-theme'));
+  }, [isDarkMode]);
+  
+  // DEBUG: Debug Mode Toggle Function
+  const toggleDebugMode = useCallback(() => {
+    const newDebugMode = !debugMode;
+    setDebugMode(newDebugMode);
+    localStorage.setItem('lfa-debug-mode', newDebugMode.toString());
+    
+    console.log('🐛 Debug mode switched to:', newDebugMode ? 'ON' : 'OFF');
+  }, [debugMode]);
+
+  // NEW: Header Button Functions
+  const handleNotificationsToggle = useCallback(() => {
+    setShowNotifications(!showNotifications);
+    setShowProfileMenu(false);
+    setShowSettings(false);
+  }, [showNotifications]);
+
+  const handleProfileMenuToggle = useCallback(() => {
+    setShowProfileMenu(!showProfileMenu);
+    setShowNotifications(false);
+    setShowSettings(false);
+  }, [showProfileMenu]);
+
+  const handleSettingsToggle = useCallback(() => {
+    setShowSettings(!showSettings);
+    setShowNotifications(false);
+    setShowProfileMenu(false);
+  }, [showSettings]);
+
+  const markNotificationAsRead = useCallback((notificationId) => {
+    setNotifications(prevNotifications => 
+      prevNotifications.map(notif => 
+        notif.id === notificationId ? { ...notif, read: true } : notif
+      )
+    );
+  }, []);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    setNotifications(prevNotifications => 
+      prevNotifications.map(notif => ({ ...notif, read: true }))
+    );
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.header-actions')) {
+        setShowNotifications(false);
+        setShowProfileMenu(false);
+        setShowSettings(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Apply theme on mount and change
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+    document.body.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+    console.log('🎨 Theme applied on mount/change:', isDarkMode ? 'DARK' : 'LIGHT');
+  }, [isDarkMode]);
 
   useEffect(() => {
     // 🎯 Initialize user type and business logic first
     initializeUserProfile();
+    updateGreeting();
     
     loadLFADashboardData();
     loadNextSession();
     loadRecentFeedback();
     
-    // 🚨 DEBUG: Auto-detect overflow after data loads
-    setTimeout(() => {
-      detectOverflow();
-    }, 3000);
+    // Automatikus idézet frissítés órákra
+    const quoteInterval = setInterval(refreshQuote, 3600000); // 1 óra
+    
+    // Debug overflow detection removed
+    
+    return () => clearInterval(quoteInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [updateGreeting, refreshQuote]);
 
   // 🎯 NEW: Initialize user profile and business logic
-  const initializeUserProfile = () => {
+  const initializeUserProfile = async () => {
     if (!user) return;
     
     console.log('🎯 LFA: Initializing user profile for:', user.name);
@@ -79,47 +241,94 @@ const StudentDashboard = () => {
     const config = LFAUserService.getUserTypeConfig(detectedUserType);
     setUserConfig(config);
     
-    // Generate skill categories with mock data
-    const skills = LFAUserService.generateSkillCategories(detectedUserType);
-    setSkillCategories(skills);
+    // PRODUCTION MODE: Data will come from real backend endpoints
+    console.log('🚨 PRODUCTION MODE: All data comes from real backend endpoints');
+    // Skills and challenges will be set by loadLFADashboardData from real API
     
-    // Generate daily challenges
-    const challenges = LFAUserService.generateDailyChallenges(detectedUserType, skills);
-    setDailyChallenges(challenges);
+    // PRODUCTION MODE: Get semester data from gamification API (real data)
+    try {
+      const gamificationData = await apiService.getGamificationMe();
+      setSemesterInfo({
+        currentSemester: gamificationData.current_semester || {
+          name: 'Current Semester',
+          start_date: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.log('Using fallback semester info');
+      setSemesterInfo({
+        currentSemester: {
+          name: 'Current Semester',
+          start_date: new Date().toISOString()
+        }
+      });
+    }
     
-    // Get semester information
-    const semesterData = LFAUserService.getSemesterInfo();
-    setSemesterInfo(semesterData);
-    
+    // 🆕 DETECT USER SPECIALIZATION from user object
+    if (user.specialization) {
+      setUserSpecialization(user.specialization);
+      console.log('🎓 User specialization detected:', user.specialization);
+    } else {
+      // Default to PLAYER if not set
+      setUserSpecialization('PLAYER');
+      console.log('🎓 No specialization set, defaulting to PLAYER');
+    }
+
     console.log('🎯 LFA Profile initialized:', {
       userType: detectedUserType,
       config,
-      skills: skills.length,
-      challenges: challenges.length,
-      semester: semesterData.currentSemester.name
+      specialization: user.specialization || 'PLAYER',
+      productionMode: true,
+      mockDataRemoved: true
     });
   };
 
   const loadLFADashboardData = async () => {
     setLoading(true);
     try {
-      // Use the complete LFA dashboard API integration
+      // Use the NEW REAL backend endpoints integration
       const lfaData = await apiService.getLFADashboardData();
       setDashboardData(lfaData);
+
+      // Set specific state from real backend data
+      if (lfaData.semesterProgress) {
+        setSemesterInfo({
+          currentSemester: lfaData.semesterProgress,
+          timeline: lfaData.semesterProgress.timeline || []
+        });
+      }
+
+      if (lfaData.achievements) {
+        setSkillCategories(lfaData.achievements); // Real achievement data
+      }
+
+      if (lfaData.dailyChallenge) {
+        setDailyChallenges([lfaData.dailyChallenge]); // Real daily challenge
+      }
+
+      // LOAD REAL ACHIEVEMENTS FROM BACKEND
+      try {
+        const achievementsData = await apiService.getAchievements();
+        setAchievements(achievementsData.achievements || []);
+        console.log('✅ Real achievements loaded:', achievementsData);
+      } catch (error) {
+        console.warn('Achievements loading failed:', error);
+        setAchievements([]);
+      }
+
     } catch (error) {
-      console.error('LFA Dashboard loading failed:', error);
-      // API service provides fallback data, just set minimal fallback
+      console.error('🚨 CRITICAL: Real dashboard data loading failed:', error);
+      // Fallback with empty real structure - NO MOCK DATA
       setDashboardData({
+        semesterProgress: { current_phase: 'No Active Semester', completion_percentage: 0, timeline: [] },
+        achievements: [],
+        achievementSummary: { total_unlocked: 0 },
+        dailyChallenge: null,
+        aiSuggestions: [],
         nextSession: null,
-        progress: { skills: [], overall_progress: 0 },
-        gamification: { points: 0, level: 1, achievements: [] },
-        specialization: null,
-        recommendations: { recommendations: [] },
-        recentFeedback: { feedback: [] },
-        performance: { overall_score: 0, recent_performance: [] },
-        activeProjects: { projects: [] },
-        pendingQuizzes: { quizzes: [] }
+        activeProjects: { projects: [], total: 0 }
       });
+      setAchievements([]);
     } finally {
       setLoading(false);
     }
@@ -145,29 +354,14 @@ const StudentDashboard = () => {
         upcomingSessions.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
         setNextSession(upcomingSessions[0]);
       } else {
-        // MOCK FALLBACK based on the UI screenshot
-        setNextSession({
-          id: 'mock-1',
-          date_start: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          date_end: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-          location: 'Training Ground A',
-          instructor: { name: 'Coach Martinez' },
-          title: 'Advanced Football Tactics',
-          type: 'training'
-        });
+        // PRODUCTION MODE: No sessions available - set to null
+        console.log('🚨 PRODUCTION MODE: No upcoming sessions found in database');
+        setNextSession(null);
       }
     } catch (error) {
-      console.warn('Failed to load next session, using mock data:', error);
-      // MOCK FALLBACK
-      setNextSession({
-        id: 'mock-1', 
-        date_start: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        date_end: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-        location: 'Training Ground A',
-        instructor: { name: 'Coach Martinez' },
-        title: 'Advanced Football Tactics',
-        type: 'training'
-      });
+      console.error('Failed to load sessions from API:', error);
+      // PRODUCTION MODE: Error state - set to null, no mock data
+      setNextSession(null);
     } finally {
       setSessionsLoading(false);
     }
@@ -178,16 +372,9 @@ const StudentDashboard = () => {
       const feedback = await apiService.getMyFeedback();
       setRecentFeedback(feedback.slice(0, 3)); // Latest 3
     } catch (error) {
-      // FALLBACK based on screenshot
-      setRecentFeedback([
-        {
-          id: 1,
-          coach: 'Coach Martinez',
-          message: 'Great improvement in shooting accuracy this week',
-          rating: 4.5,
-          date: new Date().toISOString()
-        }
-      ]);
+      // PRODUCTION MODE: Error state - no mock feedback data
+      console.error('Failed to load feedback from API:', error);
+      setRecentFeedback([]); // Empty array - no mock data
     }
   };
 
@@ -211,9 +398,6 @@ const StudentDashboard = () => {
     );
   }
 
-  const getInitials = (name) => {
-    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'ST';
-  };
 
   const formatDateTime = (dateString) => {
     if (!dateString) return 'TBD';
@@ -267,64 +451,64 @@ const StudentDashboard = () => {
     );
   };
 
-  // NEW COMPONENT: Quick Actions Grid
+  // NEW COMPONENT: Quick Actions Grid - REAL WEBAPP FUNCTIONS
   const QuickActionsGrid = () => {
     const quickActions = [
       {
-        id: 'schedule-session',
-        title: 'Schedule Session', 
-        description: 'Book a training session',
+        id: 'browse-sessions',
+        title: '📅 Browse Sessions',
+        description: 'View all training sessions',
         color: 'primary',
         onClick: () => window.location.href = '/student/sessions'
       },
       {
-        id: 'view-progress',
-        title: 'View Progress',
-        description: 'Check your improvement',
-        color: 'secondary', 
-        onClick: () => window.location.href = '/student/profile'
+        id: 'my-bookings',
+        title: '🎫 My Bookings',
+        description: 'View your reservations',
+        color: 'secondary',
+        onClick: () => window.location.href = '/student/bookings'
       },
       {
-        id: 'detailed-progress',
-        title: 'Detailed Progress',
-        description: 'In-depth analysis',
+        id: 'projects',
+        title: '📂 Projects',
+        description: 'Browse team projects',
         color: 'tertiary',
-        onClick: () => window.location.href = '/student/profile'
+        onClick: () => window.location.href = '/student/projects'
       },
       {
-        id: 'practice-drills',
-        title: 'Practice Drills',
-        description: 'Solo training exercises',
+        id: 'achievements',
+        title: '🏆 Achievements',
+        description: 'View your badges',
         color: 'primary',
-        onClick: () => window.location.href = '/student/sessions'
+        onClick: () => window.location.href = '/student/gamification'
       },
       {
-        id: 'coach-reviews',
-        title: 'Coach Reviews',
-        description: 'View feedback',
+        id: 'feedback',
+        title: '💬 Feedback',
+        description: 'Coach reviews',
         color: 'secondary',
         onClick: () => window.location.href = '/student/feedback'
       },
       {
-        id: 'achievements',
-        title: 'Achievements',
-        description: 'Your progress badges',
+        id: 'profile',
+        title: '👤 My Profile',
+        description: 'Edit your information',
         color: 'tertiary',
         onClick: () => window.location.href = '/student/profile'
       },
       {
-        id: 'quick-drills',
-        title: 'Quick Drills',
-        description: '5-minute exercises',
+        id: 'messages',
+        title: '✉️ Messages',
+        description: 'Chat with coaches',
         color: 'primary',
-        onClick: () => window.location.href = '/student/sessions'
+        onClick: () => window.location.href = '/student/messages'
       },
       {
-        id: 'progress-insights',
-        title: 'Progress Insights',
-        description: 'AI-powered analytics',
+        id: 'adaptive-learning',
+        title: '🧠 Adaptive Learning',
+        description: 'Personalized training',
         color: 'secondary',
-        onClick: () => window.location.href = '/student/profile'
+        onClick: () => window.location.href = '/student/adaptive-learning'
       }
     ];
 
@@ -348,22 +532,6 @@ const StudentDashboard = () => {
       </div>
     );
   };
-
-  // NEW COMPONENT: AI Suggestions Section
-  const AISuggestionsSection = () => (
-    <div className="ai-suggestions">
-      <h3>AI Suggested</h3>
-      {aiSuggestions.map(suggestion => (
-        <div key={suggestion.id} className="suggestion-card">
-          <div className="suggestion-content">
-            <h4>AI Suggested: {suggestion.title}</h4>
-            <p>Difficulty: {suggestion.difficulty}</p>
-          </div>
-          <button className="start-button">Start</button>
-        </div>
-      ))}
-    </div>
-  );
 
   // NEW COMPONENT: Recent Feedback Section
   const RecentFeedbackSection = () => (
@@ -390,152 +558,281 @@ const StudentDashboard = () => {
   );
 
   return (
-    <div className="lfa-dashboard">
-      
-      {/* WELCOME HEADER SECTION - DYNAMIC BY USER TYPE */}
-      <section className={`welcome-header welcome-header--${userType}`}>
-        <div className="welcome-content">
-          <div className="welcome-text">
-            <h1>Welcome back, {user?.name || 'Student'}!</h1>
-            <p>{userConfig.welcomeMessage || 'Ready to elevate your football skills today? Let\'s achieve greatness together.'}</p>
-            {userType === 'junior' && (
-              <div className="user-type-badge junior">
-                🌟 Junior Academy (Ages 8-14)
-              </div>
-            )}
-            {userType === 'senior' && (
-              <div className="user-type-badge senior">
-                ⚽ Senior Academy (Ages 15-18)
-              </div>
-            )}
-            {userType === 'adult' && (
-              <div className="user-type-badge adult">
-                👍 Adult Programs (18+)
+    <div className={`student-dashboard ${debugMode ? 'debug-mode' : ''}`}>
+      {/* NEW MINIMAL HEADER */}
+      <header className="minimal-header">
+        <div className="header-logo">🏆 LFA</div>
+        
+        <div className="header-actions">
+          <button 
+            className="header-btn theme-toggle-btn" 
+            title={isDarkMode ? "Világos téma" : "Sötét téma"}
+            onClick={toggleDarkMode}
+          >
+            {isDarkMode ? "🌞" : "🌙"}
+          </button>
+          
+          <button 
+            className="header-btn quote-refresh-btn" 
+            title="Új motivációs idézet"
+            onClick={refreshQuote}
+          >
+            🔄
+          </button>
+          
+          <div className="header-dropdown">
+            <button 
+              className={`header-btn notification-btn ${notifications.some(n => !n.read) ? 'has-new' : ''}`}
+              title="Értesítések"
+              onClick={handleNotificationsToggle}
+            >
+              🔔
+              {notifications.some(n => !n.read) && (
+                <span className="notification-badge">
+                  {notifications.filter(n => !n.read).length}
+                </span>
+              )}
+            </button>
+            
+            {showNotifications && (
+              <div className="dropdown-menu notifications-dropdown">
+                <div className="dropdown-header">
+                  <h3>Notifications</h3>
+                  {notifications.some(n => !n.read) && (
+                    <button 
+                      className="mark-all-read"
+                      onClick={markAllNotificationsAsRead}
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="dropdown-content">
+                  {notifications.length > 0 ? notifications.map(notification => (
+                    <div 
+                      key={notification.id}
+                      className={`notification-item ${notification.read ? 'read' : 'unread'}`}
+                      onClick={() => markNotificationAsRead(notification.id)}
+                    >
+                      <div className="notification-icon">
+                        {notification.type === 'session' && '⏰'}
+                        {notification.type === 'profile' && '👤'}
+                        {notification.type === 'achievement' && '🏆'}
+                      </div>
+                      <div className="notification-content">
+                        <h4>{notification.title}</h4>
+                        <p>{notification.message}</p>
+                        <span className="notification-time">{notification.time}</span>
+                      </div>
+                      {!notification.read && <div className="unread-indicator"></div>}
+                    </div>
+                  )) : (
+                    <div className="no-notifications">
+                      <p>No notifications</p>
+                    </div>
+                  )}
+                </div>
+                <div className="dropdown-footer">
+                  <button className="view-all-notifications">
+                    View All Notifications
+                  </button>
+                </div>
               </div>
             )}
           </div>
-          <div className="welcome-stats">
-            {userConfig.gamificationLevel === 'high' && (
-              <>
-                <div className="stat-item">
-                  <div className="stat-value">{dashboardData.gamification?.totalPoints?.toLocaleString() || '2,847'}</div>
-                  <div className="stat-label">XP Points</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{dashboardData.gamification?.level || '12'}</div>
-                  <div className="stat-label">Level</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{dashboardData.progress?.overall_progress || '85'}%</div>
-                  <div className="stat-label">Progress</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">#{dashboardData.gamification?.leaderboardPosition || '47'}</div>
-                  <div className="stat-label">Rank</div>
-                </div>
-              </>
-            )}
-            {userConfig.gamificationLevel === 'medium' && (
-              <>
-                <div className="stat-item">
-                  <div className="stat-value">{skillCategories.length}</div>
-                  <div className="stat-label">Skills Tracking</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{userConfig.sessionFrequency}</div>
-                  <div className="stat-label">Training</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{semesterInfo.currentSemester?.name || 'Current'}</div>
-                  <div className="stat-label">Semester</div>
-                </div>
-              </>
-            )}
-            {userConfig.gamificationLevel === 'low' && (
-              <>
-                <div className="stat-item">
-                  <div className="stat-value">{userConfig.sessionFrequency}</div>
-                  <div className="stat-label">Schedule</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{userConfig.focusAreas?.[0] || 'Fitness'}</div>
-                  <div className="stat-label">Primary Focus</div>
-                </div>
-                <div className="stat-item">
-                  <div className="stat-value">{semesterInfo.currentSemester?.name || 'Current'}</div>
-                  <div className="stat-label">Session</div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* XP AND LEVEL SYSTEM */}
-      <section className="xp-level-container">
-        <div className="xp-header">
-          <h3>Experience Progress</h3>
-          <div className="level-badge">
-            ⭐ Level {dashboardData.gamification?.level || '12'}
-          </div>
-        </div>
-        <div className="xp-progress">
-          <div className="xp-bar">
+          
+          <div className="header-dropdown">
             <div 
-              className="xp-fill" 
-              style={{ width: `${((dashboardData.gamification?.currentLevelXP || 750) / (dashboardData.gamification?.nextLevelXP || 1000)) * 100}%` }}
-            ></div>
+              className="user-profile" 
+              title="Profil menü"
+              onClick={handleProfileMenuToggle}
+            >
+              <img 
+                src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=28&h=28&fit=crop&crop=face"} 
+                alt="Profile" 
+                className="user-avatar"
+              />
+              <span className="user-name">{user?.name || 'User'}</span>
+              <span className="dropdown-arrow">{showProfileMenu ? '▲' : '▼'}</span>
+            </div>
+            
+            {showProfileMenu && (
+              <div className="dropdown-menu profile-dropdown">
+                <div className="dropdown-header">
+                  <div className="profile-info">
+                    <img 
+                      src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"} 
+                      alt="Profile" 
+                      className="profile-avatar-large"
+                    />
+                    <div>
+                      <h3>{user?.name || 'User'}</h3>
+                      <p>{user?.email || 'user@example.com'}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="dropdown-content">
+                  <button className="profile-menu-item" onClick={() => window.location.href = '/student/profile'}>
+                    👤 Profil megtekintése
+                  </button>
+                  <button className="profile-menu-item" onClick={() => window.location.href = '/student/settings'}>
+                    ⚙️ Beállítások
+                  </button>
+                  <button className="profile-menu-item" onClick={() => window.location.href = '/student/achievements'}>
+                    🏆 Eredményeim
+                  </button>
+                  <button className="profile-menu-item" onClick={() => window.location.href = '/student/progress'}>
+                    📊 Haladásom
+                  </button>
+                  <div className="menu-divider"></div>
+                  <button className="profile-menu-item logout" onClick={() => {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                  }}>
+                    🚪 Kijelentkezés
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="xp-text">
-            {dashboardData.gamification?.currentLevelXP || '750'} / {dashboardData.gamification?.nextLevelXP || '1,000'} XP
-          </div>
-        </div>
-      </section>
-
-      {/* HEADER (LEGACY SUPPORT) */}
-      <header className="header">
-        <div className="header-left">
-          <div className="logo">⚽ LFA</div>
-          <div className="greeting">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}!
-          </div>
-        </div>
-        <div className="header-right">
-          <div className="notification-badge">
-            🔔
-            <span className="badge">{dashboardData.gamification?.unread_notifications || 3}</span>
-          </div>
-          <div className="user-avatar">
-            {getInitials(user?.name)}
+          
+          <div className="header-dropdown">
+            <button 
+              className="header-btn settings-btn" 
+              title="Beállítások"
+              onClick={handleSettingsToggle}
+            >
+              ⚙️
+            </button>
+            
+            {showSettings && (
+              <div className="dropdown-menu settings-dropdown">
+                <div className="dropdown-header">
+                  <h3>Gyors beállítások</h3>
+                </div>
+                <div className="dropdown-content">
+                  <div className="settings-item">
+                    <span>🎨 Téma</span>
+                    <button 
+                      className="theme-quick-toggle"
+                      onClick={toggleDarkMode}
+                    >
+                      {isDarkMode ? "🌞 Világos" : "🌙 Sötét"}
+                    </button>
+                  </div>
+                  <div className="settings-item">
+                    <span>🔔 Értesítések</span>
+                    <button className="settings-toggle enabled">
+                      BE
+                    </button>
+                  </div>
+                  <div className="settings-item">
+                    <span>🌍 Nyelv</span>
+                    <select className="language-select">
+                      <option value="hu">Magyar</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                  <div className="menu-divider"></div>
+                  <button 
+                    className="settings-menu-item"
+                    onClick={() => window.location.href = '/student/settings'}
+                  >
+                    ⚙️ Részletes beállítások
+                  </button>
+                  <button className="settings-menu-item">
+                    ❓ Súgó és támogatás
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      {/* QUICK STATUS STRIP */}
-      <div className="status-strip">
-        <div className="status-item">
-          <div className="status-icon"></div>
-          <span><strong>Next Session:</strong> {dashboardData.nextSession ? 'Tomorrow 14:00' : 'None scheduled'}</span>
+      {/* WELCOME SECTION */}
+      <section className="welcome-section">
+        <div className="welcome-content">
+          <h1 className="greeting">{greeting || 'Welcome!'}</h1>
+          <p className="current-date">{currentDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          
+          {/* MOTIVATIONAL QUOTE - Separate container */}
+          <div className="motivation-quote-container">
+            <div className="motivation-quote">
+              <p className="quote-text">{currentQuote.text}</p>
+              <p className="quote-author">— {currentQuote.author}</p>
+            </div>
+          </div>
         </div>
-        <div className="status-item">
-          <div className="status-icon"></div>
-          <span><strong>Progress:</strong> {dashboardData.progress?.overall_progress || 85}%</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon"></div>
-          <span><strong>Points:</strong> {dashboardData.gamification?.totalPoints?.toLocaleString() || '2,847'}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon"></div>
-          <span><strong>Rank:</strong> #{dashboardData.gamification?.leaderboardPosition || '47'}</span>
-        </div>
-      </div>
+      </section>
 
-      {/* MAIN DASHBOARD - NEW TWO-COLUMN LAYOUT */}
+      {/* DASHBOARD CONTENT WRAPPER */}
+      <div className="lfa-dashboard">
+
+        {/* SIMPLIFIED STATS SECTION - REAL BACKEND DATA ONLY */}
+        <section className="dashboard-stats-section">
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon">📊</div>
+              <div className="stat-content">
+                <div className="stat-value">
+                  {dashboardData.semesterProgress?.completion_percentage || '0'}%
+                </div>
+                <div className="stat-label">Semester Progress</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">🎫</div>
+              <div className="stat-content">
+                <div className="stat-value">
+                  {dashboardData.sessions?.length || '0'}
+                </div>
+                <div className="stat-label">Sessions Booked</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">📂</div>
+              <div className="stat-content">
+                <div className="stat-value">
+                  {dashboardData.activeProjects?.total || '0'}
+                </div>
+                <div className="stat-label">Active Projects</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">🏆</div>
+              <div className="stat-content">
+                <div className="stat-value">
+                  {dashboardData.achievements?.length || '0'}
+                </div>
+                <div className="stat-label">Achievements</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+      {/* MAIN DASHBOARD - UNIFIED SINGLE-COLUMN LAYOUT */}
       <main className="dashboard">
         <div className="dashboard-content">
-          {/* LEFT COLUMN - Main Content */}
+          {/* UNIFIED CONTENT - All Cards in Single Flow */}
           <div className="left-column">
+            {/* Quick Actions - FIRST POSITION (Most Important) */}
+            <QuickActionsGrid />
+
+            {/* 🆕 SPECIALIZATION PROGRESS CARD */}
+            {userSpecialization && (
+              <div className="specialization-progress-section">
+                <ProgressCard
+                  specializationId={userSpecialization}
+                  autoRefresh={true}
+                />
+              </div>
+            )}
+
             {/* Next Session Card */}
             <NextSessionCard />
             
@@ -550,40 +847,47 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
-              {/* Skill Categories Progress Bars */}
+              {/* Skill Categories Progress Bars - REAL DATA ONLY */}
               <div className="skill-categories">
-                {skillCategories.map((skill) => (
-                  <div key={skill.id} className="skill-category">
-                    <div className="skill-header">
-                      <div className="skill-info">
-                        <span className="skill-icon">{skill.icon}</span>
-                        <div>
-                          <h4>{skill.name}</h4>
-                          <small>{skill.description}</small>
+                {skillCategories.length > 0 ? (
+                  skillCategories.map((skill) => (
+                    <div key={skill.id} className="skill-category">
+                      <div className="skill-header">
+                        <div className="skill-info">
+                          <span className="skill-icon">{skill.icon}</span>
+                          <div>
+                            <h4>{skill.name}</h4>
+                            <small>{skill.description}</small>
+                          </div>
+                        </div>
+                        <div className="skill-level">
+                          <span className="level-label">{skill.level.label}</span>
+                          <span className="xp-count">{skill.level.currentXP} XP</span>
                         </div>
                       </div>
-                      <div className="skill-level">
-                        <span className="level-label">{skill.level.label}</span>
-                        <span className="xp-count">{skill.level.currentXP} XP</span>
+                      
+                      <div className="skill-progress-bar">
+                        <div className="progress-track">
+                          <div 
+                            className={`progress-fill progress-fill--${skill.id}`}
+                            style={{ width: `${skill.level.progress}%` }}
+                          ></div>
+                        </div>
+                        <div className="progress-info">
+                          <span>{skill.level.progress}%</span>
+                          {skill.level.nextLevelXP > 0 && (
+                            <span>{skill.level.nextLevelXP} XP to next level</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="skill-progress-bar">
-                      <div className="progress-track">
-                        <div 
-                          className={`progress-fill progress-fill--${skill.id}`}
-                          style={{ width: `${skill.level.progress}%` }}
-                        ></div>
-                      </div>
-                      <div className="progress-info">
-                        <span>{skill.level.progress}%</span>
-                        {skill.level.nextLevelXP > 0 && (
-                          <span>{skill.level.nextLevelXP} XP to next level</span>
-                        )}
-                      </div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="no-skills-data">
+                    <p>🎯 No skill data available yet</p>
+                    <small>Start attending sessions to track your progress!</small>
                   </div>
-                ))}
+                )}
               </div>
               
               {/* Overall Progress Summary */}
@@ -611,6 +915,13 @@ const StudentDashboard = () => {
               </div>
             </div>
 
+            {/* 🆕 ACHIEVEMENTS SECTION */}
+            {userSpecialization && (
+              <div className="achievements-section">
+                <AchievementList specializationId={userSpecialization} />
+              </div>
+            )}
+
             {/* Current Semester Overview Widget - MOVED TO LEFT */}
             <div className="card semester-overview">
               <div className="card-header">
@@ -623,62 +934,64 @@ const StudentDashboard = () => {
               </div>
 
               <div className="semester-content">
-                <div className="semester-timeline">
-                  <div className="timeline-item">
-                    <div className="timeline-marker completed"></div>
-                    <div className="timeline-content">
-                      <h4>Semester Started</h4>
-                      <p>{semesterInfo.currentSemester?.start_date || 'September 1, 2025'}</p>
+                <div className="stats-row">
+                  <div className="stat-card" role="group" aria-label="Projects">
+                    <div className="stat-icon" aria-hidden="true">📚</div>
+                    <div className="stat-meta">
+                      <div className="stat-value">
+                        {semesterInfo.completedProjects || 0}/{semesterInfo.totalProjects || 0}
+                      </div>
+                      <div className="stat-label-test">Projects</div>
                     </div>
                   </div>
-                  
-                  <div className="timeline-item">
-                    <div className="timeline-marker current"></div>
-                    <div className="timeline-content">
-                      <h4>Mid-Term Evaluation</h4>
-                      <p>{semesterInfo.midtermDate || 'October 15, 2025'}</p>
-                      <small>{userType === 'junior' ? 'Skill Assessment' : 'Performance Review'}</small>
-                    </div>
-                  </div>
-                  
-                  <div className="timeline-item">
-                    <div className="timeline-marker pending"></div>
-                    <div className="timeline-content">
-                      <h4>Final Evaluation</h4>
-                      <p>{semesterInfo.currentSemester?.end_date || 'December 15, 2025'}</p>
-                      <small>Complete all requirements</small>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="semester-stats">
-                  <div className="semester-stat">
-                    <div className="stat-icon">📚</div>
-                    <div className="stat-details">
-                      <span className="stat-number">
-                        {semesterInfo.completedProjects || 2}/{semesterInfo.totalProjects || 4}
-                      </span>
-                      <span className="stat-text">Projects</span>
+                  <div className="stat-card" role="group" aria-label="Sessions">
+                    <div className="stat-icon" aria-hidden="true">⚽</div>
+                    <div className="stat-meta">
+                      <div className="stat-value">
+                        {semesterInfo.attendedSessions || 0}/{semesterInfo.totalSessions || 0}
+                      </div>
+                      <div className="stat-label-test">Sessions</div>
                     </div>
                   </div>
-                  
-                  <div className="semester-stat">
-                    <div className="stat-icon">⚽</div>
-                    <div className="stat-details">
-                      <span className="stat-number">
-                        {semesterInfo.attendedSessions || 18}/{semesterInfo.totalSessions || 24}
-                      </span>
-                      <span className="stat-text">Sessions</span>
+
+                  <div className="stat-card" role="group" aria-label="Tests">
+                    <div className="stat-icon" aria-hidden="true">📝</div>
+                    <div className="stat-meta">
+                      <div className="stat-value">
+                        {dashboardData.quizzes?.completed || 0}/{dashboardData.quizzes?.total || 0}
+                      </div>
+                      <div className="stat-label-test">Tests</div>
                     </div>
                   </div>
-                  
-                  <div className="semester-stat">
-                    <div className="stat-icon">🏆</div>
-                    <div className="stat-details">
-                      <span className="stat-number">
-                        {semesterInfo.achievementsUnlocked || 7}
-                      </span>
-                      <span className="stat-text">Achievements</span>
+
+                  <div className="stat-card" role="group" aria-label="Adaptive Learning">
+                    <div className="stat-icon" aria-hidden="true">🧠</div>
+                    <div className="stat-meta">
+                      <div className="stat-value">
+                        {dashboardData.adaptiveLearning?.progress || 0}%
+                      </div>
+                      <div className="stat-label-test">Adaptive</div>
+                    </div>
+                  </div>
+
+                  <div className="stat-card" role="group" aria-label="Achievements">
+                    <div className="stat-icon" aria-hidden="true">🏆</div>
+                    <div className="stat-meta">
+                      <div className="stat-value">
+                        {semesterInfo.achievementsUnlocked || 0}
+                      </div>
+                      <div className="stat-label-test">Badges</div>
+                    </div>
+                  </div>
+
+                  <div className="stat-card" role="group" aria-label="Attendance">
+                    <div className="stat-icon" aria-hidden="true">✅</div>
+                    <div className="stat-meta">
+                      <div className="stat-value">
+                        {dashboardData.attendance?.rate || 0}%
+                      </div>
+                      <div className="stat-label-test">Attendance</div>
                     </div>
                   </div>
                 </div>
@@ -725,32 +1038,28 @@ const StudentDashboard = () => {
                 )}
               </div>
             </div>
-          </div>
           
-          {/* RIGHT COLUMN - Sidebar */}
-          <div className="right-column">
-            {/* Enhanced Achievement Badge System */}
+            {/* === FORMER RIGHT COLUMN CONTENT - NOW UNIFIED === */}
+            {/* Enhanced Achievement Badge System - REAL BACKEND DATA */}
             <div className="card enhanced-achievement-system">
               <div className="card-header">
                 <h2 className="card-title">🏆 Achievement Progress</h2>
                 <div className="achievement-summary">
-                  {userConfig.gamificationLevel === 'high' && (
-                    <span className="total-achievements">
-                      {LFAUserService.getUserAchievements(userType, skillCategories).filter(a => a.unlocked).length}/
-                      {LFAUserService.getUserAchievements(userType, skillCategories).length} Unlocked
-                    </span>
-                  )}
+                  <span className="total-achievements">
+                    {achievements.filter(a => a.unlocked).length}/
+                    {achievements.length} Unlocked
+                  </span>
                 </div>
               </div>
 
-              {/* Achievement Categories */}
+              {/* Achievement Categories - REAL DATA */}
               <div className="achievement-categories">
-                {userConfig.gamificationLevel === 'high' && (
+                {achievements.length > 0 && (
                   <>
                     <div className="achievement-category">
                       <h4>🎯 Skill Mastery</h4>
                       <div className="category-achievements">
-                        {LFAUserService.getUserAchievements(userType, skillCategories)
+                        {achievements
                           .filter(achievement => achievement.category === 'skill')
                           .slice(0, 3)
                           .map((achievement, index) => (
@@ -766,7 +1075,7 @@ const StudentDashboard = () => {
                                 <div className="achievement-desc">{achievement.description}</div>
                                 {achievement.unlocked && (
                                   <div className="achievement-date">
-                                    Unlocked: {achievement.unlockedDate || 'Today'}
+                                    Unlocked: {achievement.unlocked_date || 'Today'}
                                   </div>
                                 )}
                                 {!achievement.unlocked && achievement.progress && (
@@ -774,11 +1083,11 @@ const StudentDashboard = () => {
                                     <div className="progress-bar">
                                       <div 
                                         className="progress-fill"
-                                        style={{ width: `${(achievement.progress.current / achievement.progress.required) * 100}%` }}
+                                        style={{ width: `${(achievement.progress.current / achievement.progress.max) * 100}%` }}
                                       ></div>
                                     </div>
                                     <div className="progress-text">
-                                      {achievement.progress.current}/{achievement.progress.required}
+                                      {achievement.progress.current}/{achievement.progress.max}
                                     </div>
                                   </div>
                                 )}
@@ -791,7 +1100,7 @@ const StudentDashboard = () => {
                     <div className="achievement-category">
                       <h4>📈 Progress Milestones</h4>
                       <div className="category-achievements">
-                        {LFAUserService.getUserAchievements(userType, skillCategories)
+                        {achievements
                           .filter(achievement => achievement.category === 'progress')
                           .slice(0, 2)
                           .map((achievement, index) => (
@@ -807,7 +1116,7 @@ const StudentDashboard = () => {
                                 <div className="achievement-desc">{achievement.description}</div>
                                 {achievement.unlocked && (
                                   <div className="achievement-date">
-                                    Unlocked: {achievement.unlockedDate || 'This week'}
+                                    Unlocked: {achievement.unlocked_date || 'This week'}
                                   </div>
                                 )}
                                 {!achievement.unlocked && achievement.progress && (
@@ -815,11 +1124,11 @@ const StudentDashboard = () => {
                                     <div className="progress-bar">
                                       <div 
                                         className="progress-fill"
-                                        style={{ width: `${(achievement.progress.current / achievement.progress.required) * 100}%` }}
+                                        style={{ width: `${(achievement.progress.current / achievement.progress.max) * 100}%` }}
                                       ></div>
                                     </div>
                                     <div className="progress-text">
-                                      {achievement.progress.current}/{achievement.progress.required}
+                                      {achievement.progress.current}/{achievement.progress.max}
                                     </div>
                                   </div>
                                 )}
@@ -831,66 +1140,20 @@ const StudentDashboard = () => {
                   </>
                 )}
 
-                {userConfig.gamificationLevel === 'medium' && (
-                  <div className="simple-achievements">
-                    <h4>🎖️ Recent Accomplishments</h4>
-                    <div className="accomplishment-list">
-                      {LFAUserService.getUserAchievements(userType, skillCategories)
-                        .filter(a => a.unlocked)
-                        .slice(0, 4)
-                        .map((achievement, index) => (
-                          <div key={index} className="accomplishment-item">
-                            <span className="accomplishment-icon">{achievement.icon}</span>
-                            <span className="accomplishment-text">{achievement.name}</span>
-                            <span className="accomplishment-date">{achievement.unlockedDate || 'Recent'}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {userConfig.gamificationLevel === 'low' && (
-                  <div className="minimal-progress">
-                    <h4>✅ Progress Highlights</h4>
-                    <div className="highlight-list">
-                      <div className="highlight-item">
-                        <span className="highlight-icon">📊</span>
-                        <div className="highlight-content">
-                          <div className="highlight-title">Skills Improved</div>
-                          <div className="highlight-value">
-                            {skillCategories.filter(skill => skill.level.progress > 50).length} areas
-                          </div>
-                        </div>
-                      </div>
-                      <div className="highlight-item">
-                        <span className="highlight-icon">⭐</span>
-                        <div className="highlight-content">
-                          <div className="highlight-title">Training Consistency</div>
-                          <div className="highlight-value">
-                            {userConfig.sessionFrequency}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="highlight-item">
-                        <span className="highlight-icon">🎯</span>
-                        <div className="highlight-content">
-                          <div className="highlight-title">Focus Area</div>
-                          <div className="highlight-value">
-                            {userConfig.focusAreas?.[0] || 'General Fitness'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                {achievements.length === 0 && (
+                  <div className="no-achievements">
+                    <p>🎯 Start your journey to unlock achievements!</p>
+                    <p>Book sessions, complete projects, and take tests to earn badges.</p>
                   </div>
                 )}
               </div>
 
-              {/* Next Achievement Preview */}
-              {userConfig.gamificationLevel !== 'low' && (
+              {/* Next Achievement Preview - REAL DATA */}
+              {achievements.length > 0 && (
                 <div className="next-achievement">
                   <h4>🎯 Next Milestone</h4>
                   {(() => {
-                    const nextAchievement = LFAUserService.getUserAchievements(userType, skillCategories)
+                    const nextAchievement = achievements
                       .find(a => !a.unlocked && a.progress);
                     return nextAchievement ? (
                       <div className="next-achievement-card">
@@ -902,12 +1165,12 @@ const StudentDashboard = () => {
                             <div className="progress-bar">
                               <div 
                                 className="progress-fill"
-                                style={{ width: `${(nextAchievement.progress.current / nextAchievement.progress.required) * 100}%` }}
+                                style={{ width: `${(nextAchievement.progress.current / nextAchievement.progress.max) * 100}%` }}
                               ></div>
                             </div>
                             <div className="progress-text">
-                              {nextAchievement.progress.current}/{nextAchievement.progress.required} 
-                              ({Math.round((nextAchievement.progress.current / nextAchievement.progress.required) * 100)}%)
+                              {nextAchievement.progress.current}/{nextAchievement.progress.max} 
+                              ({Math.round((nextAchievement.progress.current / nextAchievement.progress.max) * 100)}%)
                             </div>
                           </div>
                         </div>
@@ -922,10 +1185,7 @@ const StudentDashboard = () => {
               )}
             </div>
 
-            {/* AI Suggestions - MOVED TO SIDEBAR */}
-            <AISuggestionsSection />
-            
-            {/* Recent Feedback - MOVED TO SIDEBAR */}
+            {/* Recent Feedback */}
             <RecentFeedbackSection />
 
             {/* Daily Challenges Panel */}
@@ -944,7 +1204,7 @@ const StudentDashboard = () => {
               <div className="challenges-content">
                 {userConfig.gamificationLevel === 'high' && (
                   <div className="full-challenges">
-                    {dailyChallenges.slice(0, 4).map((challenge, index) => (
+                    {dailyChallenges.slice(0, 4).map((challenge) => (
                       <div 
                         key={challenge.id} 
                         className={`challenge-item ${challenge.completed ? 'completed' : 'active'} ${challenge.difficulty}`}
@@ -968,11 +1228,11 @@ const StudentDashboard = () => {
                             <div className="progress-bar">
                               <div 
                                 className="progress-fill"
-                                style={{ width: `${(challenge.progress.current / challenge.progress.required) * 100}%` }}
+                                style={{ width: `${(challenge.progress.current / challenge.progress.max) * 100}%` }}
                               ></div>
                             </div>
                             <div className="progress-text">
-                              {challenge.progress.current}/{challenge.progress.required}
+                              {challenge.progress.current}/{challenge.progress.max}
                             </div>
                           </div>
                         )}
@@ -992,7 +1252,7 @@ const StudentDashboard = () => {
 
                 {userConfig.gamificationLevel === 'medium' && (
                   <div className="simple-challenges">
-                    {dailyChallenges.slice(0, 3).map((challenge, index) => (
+                    {dailyChallenges.slice(0, 3).map((challenge) => (
                       <div 
                         key={challenge.id} 
                         className={`simple-challenge-item ${challenge.completed ? 'completed' : 'active'}`}
@@ -1004,7 +1264,7 @@ const StudentDashboard = () => {
                           <div className="simple-challenge-title">{challenge.title}</div>
                           {!challenge.completed && challenge.progress && (
                             <div className="simple-progress">
-                              {challenge.progress.current}/{challenge.progress.required}
+                              {challenge.progress.current}/{challenge.progress.max}
                             </div>
                           )}
                           {challenge.completed && (
@@ -1020,7 +1280,7 @@ const StudentDashboard = () => {
                   <div className="minimal-challenges">
                     <h4>Today's Focus</h4>
                     <div className="focus-items">
-                      {dailyChallenges.slice(0, 2).map((challenge, index) => (
+                      {dailyChallenges.slice(0, 2).map((challenge) => (
                         <div key={challenge.id} className="focus-item">
                           <span className="focus-icon">{challenge.icon}</span>
                           <span className="focus-text">{challenge.title}</span>
@@ -1097,13 +1357,39 @@ const StudentDashboard = () => {
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <QuickActionsGrid />
           </div>
         </div>
       </main>
+      </div>
+      
+      {/* DEBUG: Debug Toggle Button */}
+      <button 
+        className={`debug-toggle ${debugMode ? 'active' : ''}`}
+        onClick={toggleDebugMode}
+        title={debugMode ? 'Disable Debug Mode' : 'Enable Debug Mode'}
+      >
+        {debugMode ? '🐛 DEBUG: ON' : '🔍 DEBUG: OFF'}
+      </button>
+      
+      {/* DEBUG: Debug Info Panel */}
+      <div className="debug-info">
+        <h4>🐛 Layout Debug Mode</h4>
+        <ul>
+          <li><span className="debug-color-red">■</span> Header (Red)</li>
+          <li><span className="debug-color-green">■</span> Main Dashboard (Green)</li>
+          <li><span className="debug-color-blue">■</span> Unified Content (Blue)</li>
+          <li><span className="debug-color-orange">■</span> Cards (Orange)</li>
+          <li><span className="debug-color-purple">■</span> Sections (Purple)</li>
+          <li><span className="debug-color-cyan">■</span> Containers (Cyan)</li>
+        </ul>
+        <div style={{marginTop: '10px', fontSize: '10px', opacity: '0.7'}}>
+          Click labels to see component boundaries
+        </div>
+      </div>
     </div>
   );
 };
+
+console.log('🔧 TIMELINE DEBUG: Forced grid layout applied at', new Date());
 
 export default StudentDashboard;

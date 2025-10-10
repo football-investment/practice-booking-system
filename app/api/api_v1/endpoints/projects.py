@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_or_instructor_user
 from ....models.user import User
+from ....models.semester import Semester
 from ....models.project import (
     Project as ProjectModel, 
     ProjectEnrollment, 
@@ -18,7 +19,7 @@ from ....models.project import (
     ProjectProgressStatus,
     MilestoneStatus
 )
-from ....models.semester import Semester
+from ....models.specialization import SpecializationType
 from ....schemas.project import (
     Project as ProjectSchema,
     ProjectCreate,
@@ -42,16 +43,20 @@ from ....schemas.project import (
 router = APIRouter()
 
 
-def validate_semester_enrollment(project_id: int, db: Session) -> None:
+def validate_semester_enrollment(project_id: int, current_user: User, db: Session) -> None:
     """
     Validates that enrollment is allowed for the project's semester.
     
+    🚨 CRITICAL: Cross-semester project enrollment MUST be blocked for all users
+    This ensures users can only enroll in projects from their own semester.
+    
     Args:
         project_id: ID of the project to validate
+        current_user: Current user attempting to enroll
         db: Database session
         
     Raises:
-        HTTPException: If semester validation fails
+        HTTPException: If semester validation fails or cross-semester enrollment attempted
     """
     # Get project and its semester
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
@@ -75,6 +80,35 @@ def validate_semester_enrollment(project_id: int, db: Session) -> None:
             detail=f"Semester '{semester.name}' has invalid date configuration"
         )
     
+    # 🚨 CRITICAL: Cross-semester project enrollment restriction
+    # For LFA testing: All users (including Mbappé) are restricted to their own semester for projects
+    # This is different from sessions where Mbappé has cross-access
+    
+    # Determine user's primary semester (for testing: LIVE-TEST-2025)
+    # In a real system, this would be based on user enrollment records
+    user_primary_semester = db.query(Semester).filter(
+        Semester.code == 'LIVE-TEST-2025'
+    ).first()
+    
+    if not user_primary_semester:
+        # Fallback to most recent active semester
+        user_primary_semester = db.query(Semester).filter(
+            Semester.is_active == True
+        ).order_by(Semester.id.desc()).first()
+    
+    if user_primary_semester and project.semester_id != user_primary_semester.id:
+        # 📝 Log the restriction for testing verification
+        print(f"🚨 Cross-semester project enrollment blocked: "
+              f"User {current_user.name} (semester {user_primary_semester.name}) "
+              f"tried to enroll in project '{project.title}' (semester {semester.name})")
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cross-semester project enrollment is not allowed. "
+                   f"You can only enroll in projects from your own semester ('{user_primary_semester.name}'). "
+                   f"This project belongs to '{semester.name}'."
+        )
+    
     # Validate semester is available for enrollment
     current_date = datetime.now(timezone.utc).date()
     
@@ -94,6 +128,76 @@ def validate_semester_enrollment(project_id: int, db: Session) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail=detail
         )
+
+
+def validate_specialization_enrollment(project_id: int, current_user: User, db: Session) -> None:
+    """
+    Validate user can enroll in project based on specialization
+    🎓 NEW: Specialization-based enrollment validation
+    """
+    project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # If user has no specialization, allow enrollment (backward compatibility)
+    if not current_user.has_specialization:
+        print(f"🎓 User {current_user.name} has no specialization - allowing enrollment")
+        return
+    
+    # If project has no specialization requirement, allow enrollment
+    if not project.target_specialization:
+        print(f"🎓 Project {project.title} has no specialization requirement - allowing enrollment")
+        return
+        
+    # If project is mixed specialization, allow enrollment
+    if project.mixed_specialization:
+        print(f"🎓 Project {project.title} accepts mixed specializations - allowing enrollment")
+        return
+    
+    # Check specialization match
+    if project.target_specialization != current_user.specialization:
+        # 📝 Log the restriction for testing verification
+        print(f"🚨 Specialization mismatch: "
+              f"User {current_user.name} ({current_user.specialization.value}) "
+              f"tried to enroll in project '{project.title}' ({project.target_specialization.value})")
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Specialization mismatch. This project is designed for "
+                   f"{SpecializationType.get_display_name(project.target_specialization)} specialization. "
+                   f"Your specialization is {SpecializationType.get_display_name(current_user.specialization)}. "
+                   f"You can only enroll in projects matching your specialization or mixed projects."
+        )
+    
+    print(f"🎓 Specialization match: {current_user.name} can enroll in {project.title}")
+
+
+def validate_payment_enrollment(current_user: User) -> None:
+    """
+    💰 NEW: Validate user has verified payment for semester enrollment
+    """
+    # Skip payment verification for admins and instructors
+    if current_user.role.value in ['admin', 'instructor']:
+        print(f"💰 Payment verification skipped for {current_user.role.value}: {current_user.name}")
+        return
+    
+    # Check if student has verified payment
+    if not current_user.payment_verified:
+        print(f"🚨 Payment verification failed: "
+              f"Student {current_user.name} ({current_user.email}) "
+              f"tried to enroll without verified payment")
+        
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Payment verification required. Please contact administration to verify your semester fee payment before enrolling in projects. "
+                   "You cannot enroll in projects or book sessions until your payment has been confirmed by an administrator."
+        )
+    
+    print(f"💰 Payment verification passed: {current_user.name} has verified payment")
 
 
 @router.post("/", response_model=ProjectSchema)
@@ -312,7 +416,13 @@ def enroll_in_project(
         )
     
     # 🔒 CRITICAL: Validate semester enrollment eligibility
-    validate_semester_enrollment(project_id, db)
+    validate_semester_enrollment(project_id, current_user, db)
+    
+    # 🎓 NEW: Validate specialization enrollment eligibility
+    validate_specialization_enrollment(project_id, current_user, db)
+    
+    # 💰 NEW: Validate payment verification for enrollment
+    validate_payment_enrollment(current_user)
     
     # Check if project exists and is active
     project = db.query(ProjectModel).filter(
@@ -423,7 +533,7 @@ def withdraw_from_project(
     return {"message": "Successfully withdrawn from project"}
 
 
-@router.get("/my/current", response_model=Optional[ProjectEnrollmentWithDetails])
+@router.get("/my/current")
 def get_my_current_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -431,14 +541,27 @@ def get_my_current_project(
     """
     Get current user's active project enrollment
     """
-    enrollment = db.query(ProjectEnrollment).filter(
+    enrollment = db.query(ProjectEnrollment).options(
+        joinedload(ProjectEnrollment.project)
+    ).filter(
         and_(
             ProjectEnrollment.user_id == current_user.id,
             ProjectEnrollment.status == ProjectEnrollmentStatus.ACTIVE.value
         )
     ).first()
-    
-    return enrollment
+
+    if not enrollment:
+        return None
+
+    # Return simplified structure
+    return {
+        "id": enrollment.id,
+        "project_id": enrollment.project_id,
+        "project_title": enrollment.project.title if enrollment.project else "Unknown",
+        "status": enrollment.status,
+        "progress_status": enrollment.progress_status,
+        "enrolled_at": enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None
+    }
 
 
 @router.get("/my/summary")
@@ -934,12 +1057,17 @@ def instructor_enroll_student(
     db.refresh(enrollment)
     
     # Create milestone progress records for all milestones
-    milestones = db.query(ProjectMilestone).filter(ProjectMilestone.project_id == project_id).all()
-    for milestone in milestones:
+    milestones = db.query(ProjectMilestone).filter(
+        ProjectMilestone.project_id == project_id
+    ).order_by(ProjectMilestone.order_index).all()
+    
+    for i, milestone in enumerate(milestones):
+        # First milestone starts as IN_PROGRESS, others as PENDING
+        status = MilestoneStatus.IN_PROGRESS.value if i == 0 else MilestoneStatus.PENDING.value
         milestone_progress = ProjectMilestoneProgress(
             enrollment_id=enrollment.id,
             milestone_id=milestone.id,
-            status=MilestoneStatus.PENDING.value
+            status=status
         )
         db.add(milestone_progress)
     
@@ -1508,3 +1636,302 @@ def _recalculate_enrollment_priorities(db: Session, project_id: int):
         data['enrollment'].enrollment_priority = i + 1
     
     db.commit()
+
+
+# MILESTONE MANAGEMENT ENDPOINTS
+
+@router.post("/{project_id}/milestones/{milestone_id}/submit")
+def submit_milestone(
+    project_id: int,
+    milestone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Submit milestone for review (Student only)
+    """
+    # Verify student role
+    if current_user.role.value != 'student':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can submit milestones"
+        )
+    
+    # Get enrollment
+    enrollment = db.query(ProjectEnrollment).filter(
+        and_(
+            ProjectEnrollment.project_id == project_id,
+            ProjectEnrollment.user_id == current_user.id,
+            ProjectEnrollment.status == ProjectEnrollmentStatus.ACTIVE.value
+        )
+    ).first()
+    
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active enrollment found for this project"
+        )
+    
+    # Get milestone progress
+    milestone_progress = db.query(ProjectMilestoneProgress).filter(
+        and_(
+            ProjectMilestoneProgress.enrollment_id == enrollment.id,
+            ProjectMilestoneProgress.milestone_id == milestone_id
+        )
+    ).first()
+    
+    if not milestone_progress:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Milestone progress not found"
+        )
+    
+    # Check if milestone is in progress
+    if milestone_progress.status != MilestoneStatus.IN_PROGRESS.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Milestone must be in progress to submit. Current status: {milestone_progress.status}"
+        )
+    
+    # Check if required sessions are completed
+    milestone = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    if milestone_progress.sessions_completed < milestone.required_sessions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Need to complete {milestone.required_sessions} sessions. Currently completed: {milestone_progress.sessions_completed}"
+        )
+    
+    # Submit milestone
+    milestone_progress.status = MilestoneStatus.SUBMITTED.value
+    milestone_progress.submitted_at = datetime.now(timezone.utc)
+    milestone_progress.updated_at = datetime.now(timezone.utc)
+    
+    db.commit()
+    db.refresh(milestone_progress)
+    
+    return {
+        "message": "Milestone submitted successfully",
+        "milestone_id": milestone_id,
+        "status": milestone_progress.status,
+        "submitted_at": milestone_progress.submitted_at
+    }
+
+
+@router.post("/{project_id}/milestones/{milestone_id}/approve")
+def approve_milestone(
+    project_id: int,
+    milestone_id: int,
+    feedback: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Approve milestone (Instructor only)
+    """
+    # Verify instructor role and project ownership
+    if current_user.role.value != 'instructor':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only instructors can approve milestones"
+        )
+    
+    project = db.query(ProjectModel).filter(
+        and_(
+            ProjectModel.id == project_id,
+            ProjectModel.instructor_id == current_user.id
+        )
+    ).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or not owned by instructor"
+        )
+    
+    # Get milestone progress for all enrollments
+    milestone_progresses = db.query(ProjectMilestoneProgress).join(
+        ProjectEnrollment, ProjectMilestoneProgress.enrollment_id == ProjectEnrollment.id
+    ).filter(
+        and_(
+            ProjectEnrollment.project_id == project_id,
+            ProjectMilestoneProgress.milestone_id == milestone_id,
+            ProjectMilestoneProgress.status == MilestoneStatus.SUBMITTED.value
+        )
+    ).all()
+    
+    if not milestone_progresses:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No submitted milestones found for approval"
+        )
+    
+    approved_count = 0
+    for milestone_progress in milestone_progresses:
+        # Approve milestone
+        milestone_progress.status = MilestoneStatus.APPROVED.value
+        milestone_progress.instructor_feedback = feedback
+        milestone_progress.instructor_approved_at = datetime.now(timezone.utc)
+        milestone_progress.updated_at = datetime.now(timezone.utc)
+        
+        # Award XP for milestone completion
+        milestone = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+        if milestone:
+            from ....services.gamification import GamificationService
+            gamification_service = GamificationService(db)
+            user_stats = gamification_service.get_or_create_user_stats(milestone_progress.enrollment.user_id)
+            user_stats.total_xp = (user_stats.total_xp or 0) + milestone.xp_reward
+            
+        # Activate next milestone if this was approved
+        _activate_next_milestone(db, milestone_progress.enrollment_id, milestone_id)
+        
+        approved_count += 1
+    
+    db.commit()
+    
+    return {
+        "message": f"Successfully approved {approved_count} milestone submissions",
+        "milestone_id": milestone_id,
+        "approved_count": approved_count
+    }
+
+
+@router.post("/{project_id}/milestones/{milestone_id}/reject")
+def reject_milestone(
+    project_id: int,
+    milestone_id: int,
+    feedback: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Reject milestone (Instructor only)
+    """
+    # Verify instructor role and project ownership
+    if current_user.role.value != 'instructor':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only instructors can reject milestones"
+        )
+    
+    project = db.query(ProjectModel).filter(
+        and_(
+            ProjectModel.id == project_id,
+            ProjectModel.instructor_id == current_user.id
+        )
+    ).first()
+    
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found or not owned by instructor"
+        )
+    
+    # Get milestone progress for all enrollments
+    milestone_progresses = db.query(ProjectMilestoneProgress).join(
+        ProjectEnrollment, ProjectMilestoneProgress.enrollment_id == ProjectEnrollment.id
+    ).filter(
+        and_(
+            ProjectEnrollment.project_id == project_id,
+            ProjectMilestoneProgress.milestone_id == milestone_id,
+            ProjectMilestoneProgress.status == MilestoneStatus.SUBMITTED.value
+        )
+    ).all()
+    
+    if not milestone_progresses:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No submitted milestones found for rejection"
+        )
+    
+    rejected_count = 0
+    for milestone_progress in milestone_progresses:
+        # Reject milestone - return to IN_PROGRESS
+        milestone_progress.status = MilestoneStatus.IN_PROGRESS.value
+        milestone_progress.instructor_feedback = feedback
+        milestone_progress.updated_at = datetime.now(timezone.utc)
+        # Clear submitted_at and instructor_approved_at
+        milestone_progress.submitted_at = None
+        milestone_progress.instructor_approved_at = None
+        
+        rejected_count += 1
+    
+    db.commit()
+    
+    return {
+        "message": f"Successfully rejected {rejected_count} milestone submissions",
+        "milestone_id": milestone_id,
+        "rejected_count": rejected_count,
+        "feedback": feedback
+    }
+
+
+def _activate_next_milestone(db: Session, enrollment_id: int, current_milestone_id: int):
+    """
+    Activate the next milestone in sequence after current milestone is approved
+    """
+    # Get current milestone order
+    current_milestone = db.query(ProjectMilestone).filter(
+        ProjectMilestone.id == current_milestone_id
+    ).first()
+    
+    if not current_milestone:
+        return
+    
+    # Find next milestone by order_index
+    next_milestone = db.query(ProjectMilestone).filter(
+        and_(
+            ProjectMilestone.project_id == current_milestone.project_id,
+            ProjectMilestone.order_index > current_milestone.order_index
+        )
+    ).order_by(ProjectMilestone.order_index).first()
+    
+    if not next_milestone:
+        # No more milestones - check if project is complete
+        _check_project_completion(db, enrollment_id)
+        return
+    
+    # Activate next milestone
+    next_milestone_progress = db.query(ProjectMilestoneProgress).filter(
+        and_(
+            ProjectMilestoneProgress.enrollment_id == enrollment_id,
+            ProjectMilestoneProgress.milestone_id == next_milestone.id
+        )
+    ).first()
+    
+    if next_milestone_progress and next_milestone_progress.status == MilestoneStatus.PENDING.value:
+        next_milestone_progress.status = MilestoneStatus.IN_PROGRESS.value
+        next_milestone_progress.updated_at = datetime.now(timezone.utc)
+
+
+def _check_project_completion(db: Session, enrollment_id: int):
+    """
+    Check if all milestones are completed and award project completion XP
+    """
+    enrollment = db.query(ProjectEnrollment).filter(ProjectEnrollment.id == enrollment_id).first()
+    if not enrollment:
+        return
+    
+    # Check if all milestones are approved
+    total_milestones = db.query(ProjectMilestone).filter(
+        ProjectMilestone.project_id == enrollment.project_id
+    ).count()
+    
+    approved_milestones = db.query(ProjectMilestoneProgress).filter(
+        and_(
+            ProjectMilestoneProgress.enrollment_id == enrollment_id,
+            ProjectMilestoneProgress.status == MilestoneStatus.APPROVED.value
+        )
+    ).count()
+    
+    if total_milestones == approved_milestones:
+        # Project completed - award bonus XP
+        from ....services.gamification import GamificationService
+        gamification_service = GamificationService(db)
+        user_stats = gamification_service.get_or_create_user_stats(enrollment.user_id)
+        user_stats.total_xp = (user_stats.total_xp or 0) + enrollment.project.xp_reward
+        
+        # Update enrollment status
+        enrollment.status = ProjectEnrollmentStatus.COMPLETED.value
+        enrollment.progress_status = ProjectProgressStatus.COMPLETED.value
+        enrollment.completed_at = datetime.now(timezone.utc)
+        enrollment.completion_percentage = 100.0

@@ -1,0 +1,188 @@
+/* Payment Status Banner Styles */
+.payment-status-banner {
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid;
+  background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.1) 100%);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  /* Prevent auto-scroll issues */
+  scroll-margin: 0;
+  scroll-behavior: smooth;
+}
+
+.payment-status-banner.compact {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+/* Verified status styling */
+.payment-status-banner.verified {
+  background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+  border-color: #68d391;
+  color: #22543d;
+}
+
+.payment-status-banner.verified .banner-icon {
+  color: #22543d;
+  font-size: 1.2em;
+}
+
+/* Unverified status styling */
+.payment-status-banner.unverified {
+  background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+  border-color: #fc8181;
+  color: #742a2a;
+}
+
+.payment-status-banner.unverified .banner-icon {
+  color: #e53e3e;
+  font-size: 1.2em;
+  animation: pulse 2s infinite;
+}
+
+/* Error state */
+.payment-status-banner.error {
+  background: linear-gradient(135deg, #fbb6ce 0%, #f687b3 100%);
+  border-color: #ed64a6;
+  color: #702459;
+}
+
+/* Loading state */
+.payment-status-banner.loading {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+  border-color: #a0aec0;
+  color: #4a5568;
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.banner-icon {
+  flex-shrink: 0;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.banner-info {
+  flex: 1;
+}
+
+.banner-title {
+  font-weight: 600;
+  font-size: 1em;
+  margin-bottom: 2px;
+}
+
+.payment-status-banner.compact .banner-title {
+  font-size: 0.9em;
+  margin-bottom: 0;
+}
+
+.banner-description {
+  font-size: 0.9em;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.verification-date {
+  font-size: 0.85em;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.banner-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.refresh-btn {
+  background: rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9em;
+  color: inherit;
+}
+
+.refresh-btn:hover {
+  background: rgba(255,255,255,0.5);
+  transform: scale(1.05);
+}
+
+.banner-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Pulse animation for unverified icon */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .payment-status-banner {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .payment-status-banner.compact {
+    padding: 6px 10px;
+  }
+  
+  .banner-content {
+    gap: 8px;
+  }
+  
+  .banner-title {
+    font-size: 0.9em;
+  }
+  
+  .banner-description {
+    font-size: 0.85em;
+  }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .payment-status-banner.verified {
+    background: linear-gradient(135deg, #2d5a3d 0%, #38a169 100%);
+    border-color: #48bb78;
+    color: #c6f6d5;
+  }
+  
+  .payment-status-banner.unverified {
+    background: linear-gradient(135deg, #742a2a 0%, #e53e3e 100%);
+    border-color: #fc8181;
+    color: #fed7d7;
+  }
+  
+  .payment-status-banner.error {
+    background: linear-gradient(135deg, #702459 0%, #d53f8c 100%);
+    border-color: #ed64a6;
+    color: #fbb6ce;
+  }
+  
+  .payment-status-banner.loading {
+    background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+    border-color: #a0aec0;
+    color: #e2e8f0;
+  }
+}

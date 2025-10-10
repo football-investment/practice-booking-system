@@ -1,10 +1,15 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import AppHeader from './components/common/AppHeader';
+import CleanDashboardHeader from './components/dashboard/CleanDashboardHeader';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import BrowserWarning from './components/common/BrowserWarning';
 import LoginPage from './pages/LoginPage';
+import './utils/iosOptimizations';
+import './utils/crossOriginErrorHandler';
+import './utils/iosBrowserCompatibility';
+import './utils/testSemesterOnboarding';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -24,12 +29,19 @@ import ProjectProgress from './pages/student/ProjectProgress';
 import ProjectEnrollmentQuiz from './pages/student/ProjectEnrollmentQuiz';
 import StudentMessages from './pages/student/StudentMessages';
 import StudentOnboarding from './pages/student/StudentOnboarding';
+import SemesterCentricOnboarding from './pages/student/SemesterCentricOnboarding';
+import SemesterSelection from './pages/student/SemesterSelection';
+import AdaptiveLearning from './pages/student/AdaptiveLearning';
+import ParallelSpecializationTest from './pages/student/ParallelSpecializationTest';
+import CurrentStatusTest from './pages/student/CurrentStatusTest';
+import CurriculumView from './pages/student/CurriculumView';
+import LessonView from './pages/student/LessonView';
+import ExerciseSubmission from './pages/student/ExerciseSubmission';
 import StudentRouter from './components/student/StudentRouter';
 import ProtectedStudentRoute from './components/student/ProtectedStudentRoute';
 import DebugPage from './pages/DebugPage';
 
 // Instructor Pages
-import InstructorDashboard from './pages/instructor/InstructorDashboard';
 import InstructorSessions from './pages/instructor/InstructorSessions';
 import InstructorSessionDetails from './pages/instructor/InstructorSessionDetails';
 import InstructorProjects from './pages/instructor/InstructorProjects';
@@ -46,7 +58,6 @@ import InstructorAnalytics from './pages/instructor/InstructorAnalytics';
 import InstructorProgressReport from './pages/instructor/InstructorProgressReport';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import SessionManagement from './pages/admin/SessionManagement';
 import SemesterManagement from './pages/admin/SemesterManagement';
@@ -60,6 +71,8 @@ import ProjectManagement from './pages/admin/ProjectManagement';
 import ModalTestPage from './pages/ModalTestPage';
 
 import './App.css';
+import './styles/ios-responsive.css';
+import './styles/chrome-ios-optimizations.css';
 
 function ProtectedRoute({ children, requiredRole }) {
   const { user, loading } = useAuth();
@@ -80,6 +93,30 @@ function ProtectedRoute({ children, requiredRole }) {
   }
   
   return children;
+}
+
+// Unified Header for all authenticated routes
+function UnifiedHeader() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const isLoginPage = location.pathname === '/login';
+  const isDashboardRoute = location.pathname.includes('/dashboard');
+  
+  // Don't show header on login page
+  if (isLoginPage || !user) return null;
+  
+  // Don't show header on dashboard routes (they have their own integrated header)
+  if (isDashboardRoute) return null;
+  
+  return (
+    <CleanDashboardHeader
+      user={user}
+      notifications={[]} // Empty for now, non-dashboard pages don't need notifications
+      onSidebarToggle={() => {}} // No sidebar on regular pages
+      sidebarCollapsed={false}
+      showSidebarToggle={false} // Hide sidebar toggle on non-dashboard pages
+    />
+  );
 }
 
 function AppRoutes() {
@@ -115,6 +152,16 @@ function AppRoutes() {
       <Route path="/student/onboarding" element={
         <ProtectedRoute requiredRole="student">
           <StudentOnboarding />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/semester-onboarding" element={
+        <ProtectedRoute requiredRole="student">
+          <SemesterCentricOnboarding />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/semester-selection" element={
+        <ProtectedRoute requiredRole="student">
+          <SemesterSelection />
         </ProtectedRoute>
       } />
       <Route path="/student/dashboard" element={
@@ -199,11 +246,72 @@ function AppRoutes() {
           <StudentMessages />
         </ProtectedRoute>
       } />
+      <Route path="/student/adaptive-learning" element={
+        <ProtectedRoute requiredRole="student">
+          <AdaptiveLearning />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/parallel-specialization-test" element={
+        <ProtectedRoute requiredRole="student">
+          <ParallelSpecializationTest />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/current-status" element={
+        <ProtectedRoute requiredRole="student">
+          <CurrentStatusTest />
+        </ProtectedRoute>
+      } />
+      
+      {/* LFA Quick Action Routes */}
+      <Route path="/student/mentoring" element={
+        <ProtectedRoute requiredRole="student">
+          <div style={{padding: '2rem', textAlign: 'center'}}>
+            <h2>🤝 Mentoring Hub</h2>
+            <p>Find experienced mentors to guide your football journey</p>
+            <p><em>Coming soon...</em></p>
+          </div>
+        </ProtectedRoute>
+      } />
+      <Route path="/student/portfolio" element={
+        <ProtectedRoute requiredRole="student">
+          <div style={{padding: '2rem', textAlign: 'center'}}>
+            <h2>📁 Portfolio</h2>
+            <p>Track your achievements and showcase your progress</p>
+            <p><em>Coming soon...</em></p>
+          </div>
+        </ProtectedRoute>
+      } />
+      <Route path="/student/learning/:id" element={
+        <ProtectedRoute requiredRole="student">
+          <div style={{padding: '2rem', textAlign: 'center'}}>
+            <h2>🧠 Adaptive Learning Module</h2>
+            <p>Personalized learning based on your performance</p>
+            <p><em>Starting module...</em></p>
+          </div>
+        </ProtectedRoute>
+      } />
+
+      {/* 📚 Curriculum Routes */}
+      <Route path="/student/curriculum/:specializationId" element={
+        <ProtectedRoute requiredRole="student">
+          <CurriculumView />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/curriculum/:specializationId/lesson/:lessonId" element={
+        <ProtectedRoute requiredRole="student">
+          <LessonView />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/curriculum/:specializationId/lesson/:lessonId/exercise/:exerciseId" element={
+        <ProtectedRoute requiredRole="student">
+          <ExerciseSubmission />
+        </ProtectedRoute>
+      } />
       
       {/* Instructor Routes */}
       <Route path="/instructor/dashboard" element={
         <ProtectedRoute requiredRole="instructor">
-          <InstructorDashboard />
+          <div>Instructor Dashboard - Coming Soon</div>
         </ProtectedRoute>
       } />
       <Route path="/instructor/sessions" element={
@@ -280,7 +388,7 @@ function AppRoutes() {
       {/* Admin Routes */}
       <Route path="/admin/dashboard" element={
         <ProtectedRoute requiredRole="admin">
-          <AdminDashboard />
+          <div>Admin Dashboard - Coming Soon</div>
         </ProtectedRoute>
       } />
       <Route path="/admin/users" element={
@@ -341,6 +449,61 @@ function AppRoutes() {
 }
 
 function App() {
+  React.useEffect(() => {
+    // Chrome iOS Detection and Optimization Application
+    const detectAndOptimizeForChrome = () => {
+      const ua = navigator.userAgent.toLowerCase();
+      const isChrome = ua.includes('chrome') && !ua.includes('edg');
+      const isIOS = /ipad|iphone|ipod/.test(ua) && !window.MSStream;
+      const isIPad = /ipad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isIPhone = /iphone/.test(ua);
+      
+      // Apply Chrome iOS optimizations
+      if (isChrome && isIOS) {
+        document.body.classList.add('chrome-ios-optimized');
+        console.log('🌐 Chrome iOS optimizations applied');
+        
+        // Device-specific optimizations
+        if (isIPad) {
+          document.body.classList.add('ipad-chrome-optimized');
+          console.log('📱 iPad Chrome optimizations applied');
+        } else if (isIPhone) {
+          document.body.classList.add('iphone-chrome-optimized');
+          console.log('📱 iPhone Chrome optimizations applied');
+        }
+      }
+      
+      // Warning for non-Chrome browsers on iOS
+      if (isIOS && !isChrome) {
+        console.warn('⚠️ Non-Chrome browser detected on iOS. Chrome is recommended for optimal experience.');
+        const isFirefox = ua.includes('firefox');
+        const isSafari = ua.includes('safari') && !ua.includes('chrome');
+        
+        if (isFirefox) {
+          console.warn('🔥 Firefox detected - known script compatibility issues on iOS');
+        } else if (isSafari) {
+          console.warn('🧭 Safari detected - Chrome recommended for better compatibility');
+        }
+      }
+      
+      // Apply safe area and memory optimizations
+      document.body.classList.add('chrome-ios-safe-area', 'chrome-ios-memory-optimized');
+    };
+    
+    detectAndOptimizeForChrome();
+    
+    // Reapply optimizations on orientation change
+    const handleOrientationChange = () => {
+      setTimeout(detectAndOptimizeForChrome, 100);
+    };
+    
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -350,9 +513,10 @@ function App() {
             v7_relativeSplatPath: true 
           }}>
             <ErrorBoundary>
-              <div className="app">
-                <AppHeader />
-                <main className="app-main">
+              <BrowserWarning />
+              <div className="app chrome-ios-stable">
+                <UnifiedHeader />
+                <main className="app-main chrome-ios-scroll">
                   <ErrorBoundary>
                     <AppRoutes />
                   </ErrorBoundary>

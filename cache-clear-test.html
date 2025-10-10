@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cache Clear Test</title>
+</head>
+<body>
+    <h1>Cache Clear Instructions</h1>
+    <p>1. Open Chrome DevTools (F12)</p>
+    <p>2. Right-click on refresh button</p>
+    <p>3. Select "Empty Cache and Hard Reload"</p>
+    <p>4. Or press Ctrl+Shift+R (Cmd+Shift+R on Mac)</p>
+    
+    <h2>Or use this JavaScript to check:</h2>
+    <button onclick="checkDashboard()">Check Dashboard Component</button>
+    <div id="results"></div>
+    
+    <script>
+        function checkDashboard() {
+            const results = document.getElementById('results');
+            
+            // Check if we can reach the React app
+            fetch('http://localhost:3000/student/dashboard')
+                .then(response => response.text())
+                .then(html => {
+                    results.innerHTML = `
+                        <h3>Dashboard HTML Analysis:</h3>
+                        <p>HTML length: ${html.length} characters</p>
+                        <p>Contains "unified-dashboard": ${html.includes('unified-dashboard') ? '✅' : '❌'}</p>
+                        <p>Contains "student-dashboard": ${html.includes('student-dashboard') ? '✅' : '❌'}</p>
+                        <p>Contains React root: ${html.includes('root') ? '✅' : '❌'}</p>
+                        <textarea style="width:100%;height:200px;">${html.substring(0, 1000)}...</textarea>
+                    `;
+                })
+                .catch(err => {
+                    results.innerHTML = `<p>❌ Error: ${err.message}</p>`;
+                });
+        }
+    </script>
+</body>
+</html>

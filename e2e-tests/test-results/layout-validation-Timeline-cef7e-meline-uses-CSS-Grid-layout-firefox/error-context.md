@@ -1,0 +1,234 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: 🏆 LFA
+      - generic [ref=e8]:
+        - button "🌙" [ref=e9] [cursor=pointer]
+        - button "🔄" [ref=e10] [cursor=pointer]
+        - button "🔔 3" [ref=e12] [cursor=pointer]:
+          - text: 🔔
+          - generic [ref=e13] [cursor=pointer]: "3"
+        - generic "Profil menü" [ref=e15] [cursor=pointer]:
+          - img "Profile" [ref=e16] [cursor=pointer]
+          - generic [ref=e17] [cursor=pointer]: Test Student
+          - generic [ref=e18] [cursor=pointer]: ▼
+        - button "⚙️" [ref=e20] [cursor=pointer]
+    - generic [ref=e22]:
+      - heading "Good morning, Test Student!" [level=1] [ref=e23]
+      - paragraph [ref=e24]: Friday, September 26, 2025
+      - generic [ref=e26]:
+        - paragraph [ref=e27]: Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing.
+        - paragraph [ref=e28]: — Pelé
+    - generic [ref=e29]:
+      - generic [ref=e31]:
+        - paragraph [ref=e33]: Great to see you continuing your football journey! 👍
+        - generic [ref=e34]: 👍 Adult Programs (18+)
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - heading "Experience Progress" [level=3] [ref=e38]
+          - generic [ref=e39]: ⭐ Level 12
+        - generic [ref=e43]: 750 / 1,000 XP
+      - main [ref=e44]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - heading "⚡ Quick Actions" [level=2] [ref=e48]
+            - generic [ref=e49]:
+              - button "Schedule Session Book a training session" [ref=e50] [cursor=pointer]:
+                - generic [ref=e51] [cursor=pointer]:
+                  - heading "Schedule Session" [level=4] [ref=e52] [cursor=pointer]
+                  - paragraph [ref=e53] [cursor=pointer]: Book a training session
+              - button "View Progress Check your improvement" [ref=e54] [cursor=pointer]:
+                - generic [ref=e55] [cursor=pointer]:
+                  - heading "View Progress" [level=4] [ref=e56] [cursor=pointer]
+                  - paragraph [ref=e57] [cursor=pointer]: Check your improvement
+              - button "Detailed Progress In-depth analysis" [ref=e58] [cursor=pointer]:
+                - generic [ref=e59] [cursor=pointer]:
+                  - heading "Detailed Progress" [level=4] [ref=e60] [cursor=pointer]
+                  - paragraph [ref=e61] [cursor=pointer]: In-depth analysis
+              - button "Practice Drills Solo training exercises" [ref=e62] [cursor=pointer]:
+                - generic [ref=e63] [cursor=pointer]:
+                  - heading "Practice Drills" [level=4] [ref=e64] [cursor=pointer]
+                  - paragraph [ref=e65] [cursor=pointer]: Solo training exercises
+              - button "Coach Reviews View feedback" [ref=e66] [cursor=pointer]:
+                - generic [ref=e67] [cursor=pointer]:
+                  - heading "Coach Reviews" [level=4] [ref=e68] [cursor=pointer]
+                  - paragraph [ref=e69] [cursor=pointer]: View feedback
+              - button "Achievements Your progress badges" [ref=e70] [cursor=pointer]:
+                - generic [ref=e71] [cursor=pointer]:
+                  - heading "Achievements" [level=4] [ref=e72] [cursor=pointer]
+                  - paragraph [ref=e73] [cursor=pointer]: Your progress badges
+              - button "Quick Drills 5-minute exercises" [ref=e74] [cursor=pointer]:
+                - generic [ref=e75] [cursor=pointer]:
+                  - heading "Quick Drills" [level=4] [ref=e76] [cursor=pointer]
+                  - paragraph [ref=e77] [cursor=pointer]: 5-minute exercises
+              - button "Progress Insights AI-powered analytics" [ref=e78] [cursor=pointer]:
+                - generic [ref=e79] [cursor=pointer]:
+                  - heading "Progress Insights" [level=4] [ref=e80] [cursor=pointer]
+                  - paragraph [ref=e81] [cursor=pointer]: AI-powered analytics
+          - generic [ref=e82]:
+            - heading "⚽ Next Session" [level=2] [ref=e83]
+            - generic [ref=e84]:
+              - generic [ref=e85]: 09/27 07:27
+              - generic [ref=e86]:
+                - generic [ref=e87]: 📍 Training Ground A
+                - generic [ref=e88]:
+                  - generic [ref=e89]: "🏆 Coach: Coach Martinez"
+                  - generic [ref=e90]: 📝 Advanced Football Tactics
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - heading "📊📊 Skill Development" [level=2] [ref=e93]
+              - generic [ref=e94]: Fall 2025
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - generic [ref=e97]:
+                  - generic [ref=e98]:
+                    - generic [ref=e99]: 🎯
+                    - generic [ref=e100]:
+                      - heading "Mental Game" [level=4] [ref=e101]
+                      - generic [ref=e102]: Focus, confidence, stress management
+                  - generic [ref=e103]:
+                    - generic [ref=e104]: Intermediate
+                    - generic [ref=e105]: 982 XP
+                - generic [ref=e109]:
+                  - generic [ref=e110]: 48%
+                  - generic [ref=e111]: 518 XP to next level
+              - generic [ref=e112]:
+                - generic [ref=e113]:
+                  - generic [ref=e114]:
+                    - generic [ref=e115]: ⚽
+                    - generic [ref=e116]:
+                      - heading "Technical Skills" [level=4] [ref=e117]
+                      - generic [ref=e118]: Ball control, passing, shooting accuracy
+                  - generic [ref=e119]:
+                    - generic [ref=e120]: Intermediate
+                    - generic [ref=e121]: 1196 XP
+                - generic [ref=e125]:
+                  - generic [ref=e126]: 70%
+                  - generic [ref=e127]: 304 XP to next level
+              - generic [ref=e128]:
+                - generic [ref=e129]:
+                  - generic [ref=e130]:
+                    - generic [ref=e131]: 🧠
+                    - generic [ref=e132]:
+                      - heading "Tactical Awareness" [level=4] [ref=e133]
+                      - generic [ref=e134]: Positioning, teamwork, game reading
+                  - generic [ref=e135]:
+                    - generic [ref=e136]: Intermediate
+                    - generic [ref=e137]: 1247 XP
+                - generic [ref=e141]:
+                  - generic [ref=e142]: 75%
+                  - generic [ref=e143]: 253 XP to next level
+              - generic [ref=e144]:
+                - generic [ref=e145]:
+                  - generic [ref=e146]:
+                    - generic [ref=e147]: 💪
+                    - generic [ref=e148]:
+                      - heading "Physical Fitness" [level=4] [ref=e149]
+                      - generic [ref=e150]: Strength, speed, endurance, agility
+                  - generic [ref=e151]:
+                    - generic [ref=e152]: Advanced
+                    - generic [ref=e153]: 1629 XP
+                - generic [ref=e157]:
+                  - generic [ref=e158]: 6%
+                  - generic [ref=e159]: 1871 XP to next level
+          - generic [ref=e165]:
+            - generic [ref=e166]:
+              - heading "📊📅 Current Semester Progress" [level=2] [ref=e167]
+              - generic [ref=e168]: Fall 2025
+            - generic [ref=e169]:
+              - generic [ref=e170]:
+                - generic [ref=e173]:
+                  - heading "Semester Started" [level=4] [ref=e174]
+                  - paragraph [ref=e175]: September 1, 2025
+                - generic [ref=e178]:
+                  - heading "Mid-Term Evaluation" [level=4] [ref=e179]
+                  - paragraph [ref=e180]: October 15, 2025
+                  - generic [ref=e181]: Performance Review
+                - generic [ref=e184]:
+                  - heading "Final Evaluation" [level=4] [ref=e185]
+                  - paragraph [ref=e186]: December 15, 2025
+                  - generic [ref=e187]: Complete all requirements
+              - generic [ref=e188]:
+                - group "Projects" [ref=e189]:
+                  - generic [ref=e190]: 📚
+                  - generic [ref=e192]: Projects
+                - group "Sessions" [ref=e193]:
+                  - generic [ref=e194]: ⚽
+                  - generic [ref=e196]: Sessions
+                - group "Achievements" [ref=e197]:
+                  - generic [ref=e198]: 🏆
+                  - generic [ref=e200]: Achievements
+              - generic [ref=e201]:
+                - heading "🔄 Flexible Schedule" [level=4] [ref=e202]
+                - generic [ref=e203]:
+                  - paragraph [ref=e204]:
+                    - text: "Your preferred training times:"
+                    - strong [ref=e205]: Weekends, Evenings
+                  - paragraph [ref=e206]:
+                    - text: "Next available makeup session:"
+                    - strong [ref=e207]: Oct 2, 7:00 PM
+          - generic [ref=e208]:
+            - heading "📊🏆 Achievement Progress" [level=2] [ref=e210]
+            - generic [ref=e213]:
+              - heading "✅ Progress Highlights" [level=4] [ref=e214]
+              - generic [ref=e215]:
+                - generic [ref=e216]:
+                  - generic [ref=e217]: 📊
+                  - generic [ref=e218]:
+                    - generic [ref=e219]: Skills Improved
+                    - generic [ref=e220]: 2 areas
+                - generic [ref=e221]:
+                  - generic [ref=e222]: ⭐
+                  - generic [ref=e223]:
+                    - generic [ref=e224]: Training Consistency
+                    - generic [ref=e225]: Flexible schedule
+                - generic [ref=e226]:
+                  - generic [ref=e227]: 🎯
+                  - generic [ref=e228]:
+                    - generic [ref=e229]: Focus Area
+                    - generic [ref=e230]: Fitness
+          - generic [ref=e231]:
+            - heading "🤖 AI Suggested" [level=3] [ref=e232]
+            - generic [ref=e233]:
+              - generic [ref=e234]:
+                - 'heading "AI Suggested: Improve Weak Foot Training" [level=4] [ref=e235]'
+                - paragraph [ref=e236]: "Difficulty: Est."
+              - button "Start" [ref=e237] [cursor=pointer]
+            - generic [ref=e238]:
+              - generic [ref=e239]:
+                - 'heading "AI Suggested: Tactical Positioning" [level=4] [ref=e240]'
+                - paragraph [ref=e241]: "Difficulty: Est."
+              - button "Start" [ref=e242] [cursor=pointer]
+          - generic [ref=e243]:
+            - heading "💬 Recent Feedback" [level=2] [ref=e244]
+            - generic [ref=e245]:
+              - generic [ref=e246]:
+                - heading "Coach Martinez" [level=4] [ref=e247]
+                - generic [ref=e248]: ⭐⭐⭐⭐
+              - paragraph [ref=e249]: Great improvement in shooting accuracy this week
+          - generic [ref=e250]:
+            - generic [ref=e251]:
+              - heading "📊🎯 Daily Challenges" [level=2] [ref=e252]
+              - generic [ref=e253]: Fri, Sep 26
+            - generic [ref=e254]:
+              - generic [ref=e255]:
+                - heading "Today's Focus" [level=4] [ref=e256]
+                - generic [ref=e257]:
+                  - generic [ref=e258]:
+                    - generic [ref=e259]: ⚽
+                    - generic [ref=e260]: Skill Refresh
+                    - generic [ref=e261]: Pending
+                  - generic [ref=e262]:
+                    - generic [ref=e263]: 🏋️
+                    - generic [ref=e264]: Fitness Goals
+                    - generic [ref=e265]: Pending
+              - generic [ref=e266]:
+                - generic [ref=e267]: ⚡
+                - generic [ref=e268]:
+                  - strong [ref=e269]: "Motivation:"
+                  - text: Small daily wins lead to lasting fitness improvements!
+    - 'button "🔍 DEBUG: OFF" [ref=e270] [cursor=pointer]'
+```

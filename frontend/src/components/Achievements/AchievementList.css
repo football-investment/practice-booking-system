@@ -1,0 +1,239 @@
+.achievement-list {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.achievement-list--loading {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.achievement-list__loader {
+  text-align: center;
+}
+
+.achievement-list__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #f5f5f5;
+  border-top-color: #2196F3;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.achievement-list__loader p {
+  color: #666;
+  font-size: 14px;
+}
+
+.achievement-list__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.achievement-list__title-section {
+  flex: 1;
+}
+
+.achievement-list__title {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.achievement-list__progress {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.achievement-list__count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2196F3;
+}
+
+.achievement-list__percentage {
+  font-size: 14px;
+  color: #666;
+}
+
+.achievement-list__controls {
+  display: flex;
+  gap: 8px;
+}
+
+.achievement-list__view-btn {
+  background: #f5f5f5;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  color: #666;
+  transition: all 0.3s ease;
+}
+
+.achievement-list__view-btn:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.achievement-list__view-btn--active {
+  background: #2196F3;
+  color: #fff;
+  border-color: #2196F3;
+}
+
+.achievement-list__progress-bar {
+  height: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.achievement-list__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.achievement-list__section {
+  margin-bottom: 32px;
+}
+
+.achievement-list__section:last-child {
+  margin-bottom: 0;
+}
+
+.achievement-list__section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.achievement-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 20px;
+}
+
+.achievement-list__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.achievement-list__empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.achievement-list__empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.achievement-list__empty p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .achievement-list {
+    background: #1a1a1a;
+    border-color: #333;
+  }
+
+  .achievement-list__title {
+    color: #fff;
+  }
+
+  .achievement-list__percentage {
+    color: #aaa;
+  }
+
+  .achievement-list__view-btn {
+    background: #333;
+    color: #aaa;
+  }
+
+  .achievement-list__view-btn:hover {
+    background: #444;
+    color: #fff;
+  }
+
+  .achievement-list__progress-bar {
+    background: #333;
+  }
+
+  .achievement-list__section-title {
+    color: #fff;
+  }
+
+  .achievement-list__loader p {
+    color: #aaa;
+  }
+
+  .achievement-list__spinner {
+    border-color: #333;
+    border-top-color: #2196F3;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .achievement-list {
+    padding: 16px;
+  }
+
+  .achievement-list__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .achievement-list__title {
+    font-size: 20px;
+  }
+
+  .achievement-list__grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 12px;
+  }
+
+  .achievement-list__view-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+}

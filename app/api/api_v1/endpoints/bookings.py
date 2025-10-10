@@ -21,6 +21,30 @@ from ....config import settings
 router = APIRouter()
 
 
+def validate_payment_for_booking(current_user: User) -> None:
+    """
+    💰 NEW: Validate user has verified payment for session booking
+    """
+    # Skip payment verification for admins and instructors
+    if current_user.role.value in ['admin', 'instructor']:
+        print(f"💰 Payment verification skipped for {current_user.role.value}: {current_user.name}")
+        return
+    
+    # Check if student has verified payment
+    if not current_user.payment_verified:
+        print(f"🚨 Payment verification failed: "
+              f"Student {current_user.name} ({current_user.email}) "
+              f"tried to book session without verified payment")
+        
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Payment verification required. Please contact administration to verify your semester fee payment before booking sessions. "
+                   "You cannot book sessions or enroll in projects until your payment has been confirmed by an administrator."
+        )
+    
+    print(f"💰 Payment verification passed: {current_user.name} has verified payment")
+
+
 @router.get("/", response_model=BookingList)
 def get_all_bookings(
     db: Session = Depends(get_db),
@@ -72,6 +96,9 @@ def create_booking(
     """
     Create new booking
     """
+    # 💰 NEW: Validate payment verification for booking
+    validate_payment_for_booking(current_user)
+    
     # Check if session exists
     session = db.query(SessionModel).filter(SessionModel.id == booking_data.session_id).first()
     if not session:

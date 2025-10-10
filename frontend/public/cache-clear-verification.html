@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Cache & CSS Verification Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .section { background: #f0f0f0; padding: 20px; margin: 15px 0; border-radius: 8px; }
+        .success { background: #e8f5e8; color: #2d5a2d; border-left: 5px solid #4caf50; }
+        .warning { background: #fff3cd; color: #856404; border-left: 5px solid #ffc107; }
+        .error { background: #f8d7da; color: #721c24; border-left: 5px solid #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 5px solid #17a2b8; }
+        .button { padding: 12px 20px; margin: 10px 5px; cursor: pointer; border: none; border-radius: 5px; font-size: 14px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; border: 1px solid #dee2e6; border-radius: 4px; }
+        .grid-test { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .grid-item { background: #007bff; color: white; padding: 15px; text-align: center; border-radius: 5px; }
+        #realTimelineTest { border: 3px solid #dc3545; padding: 15px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Timeline Cache & CSS Verification Tool</h1>
+    
+    <div class="info section">
+        <h3>📊 Current Page Load Information</h3>
+        <div id="pageInfo">Loading...</div>
+    </div>
+
+    <div class="section">
+        <h3>🧹 Cache Clearing Actions</h3>
+        <button class="button btn-danger" onclick="clearAllCache()">🗑️ Clear All Cache</button>
+        <button class="button btn-primary" onclick="reloadWithoutCache()">🔄 Hard Reload</button>
+        <button class="button btn-success" onclick="testServiceWorker()">⚙️ Check Service Worker</button>
+        <div id="cacheResult" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="section">
+        <h3>🎯 CSS Grid Test (Reference)</h3>
+        <div class="grid-test">
+            <div class="grid-item">Item 1</div>
+            <div class="grid-item">Item 2</div>
+            <div class="grid-item">Item 3</div>
+        </div>
+        <div id="gridTestResult">Testing grid dimensions...</div>
+    </div>
+
+    <div class="section">
+        <h3>🔍 Real Timeline Element Simulation</h3>
+        <div id="realTimelineTest" class="semester-timeline timeline-fixed-grid">
+            <div class="timeline-item" style="background: #f8f9fa; border: 2px solid #6c757d; padding: 15px; margin: 5px;">
+                <div class="timeline-icon">📅</div>
+                <div class="timeline-content">
+                    <h4>Semester Started</h4>
+                    <p>September 2024</p>
+                </div>
+            </div>
+            <div class="timeline-item" style="background: #f8f9fa; border: 2px solid #6c757d; padding: 15px; margin: 5px;">
+                <div class="timeline-icon">📝</div>
+                <div class="timeline-content">
+                    <h4>Mid-Term Evaluation</h4>
+                    <p>November 2024</p>
+                </div>
+            </div>
+            <div class="timeline-item" style="background: #f8f9fa; border: 2px solid #6c757d; padding: 15px; margin: 5px;">
+                <div class="timeline-icon">🎓</div>
+                <div class="timeline-content">
+                    <h4>Final Evaluation</h4>
+                    <p>December 2024</p>
+                </div>
+            </div>
+        </div>
+        <div id="realTimelineResult">Checking real timeline dimensions...</div>
+    </div>
+
+    <div class="section">
+        <h3>📄 CSS File Loading Check</h3>
+        <button class="button btn-primary" onclick="checkCSSLoading()">🔍 Check CSS Loading</button>
+        <div id="cssLoadResult"></div>
+    </div>
+
+    <div class="section">
+        <h3>🌐 Browser Information</h3>
+        <div id="browserInfo">Loading...</div>
+    </div>
+
+    <script>
+        // Initialize page information
+        function initPageInfo() {
+            document.getElementById('pageInfo').innerHTML = `
+                <strong>Load Time:</strong> ${new Date().toLocaleString()}<br>
+                <strong>User Agent:</strong> ${navigator.userAgent}<br>
+                <strong>URL:</strong> ${window.location.href}<br>
+                <strong>Referrer:</strong> ${document.referrer || 'Direct visit'}
+            `;
+
+            document.getElementById('browserInfo').innerHTML = `
+                <strong>Browser:</strong> ${getBrowserInfo()}<br>
+                <strong>Viewport:</strong> ${window.innerWidth}x${window.innerHeight}<br>
+                <strong>Screen:</strong> ${screen.width}x${screen.height}<br>
+                <strong>Device Pixel Ratio:</strong> ${window.devicePixelRatio}<br>
+                <strong>Connection:</strong> ${navigator.connection ? navigator.connection.effectiveType : 'Unknown'}
+            `;
+        }
+
+        function getBrowserInfo() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Chrome')) return 'Chrome';
+            if (ua.includes('Firefox')) return 'Firefox';
+            if (ua.includes('Safari')) return 'Safari';
+            if (ua.includes('Edge')) return 'Edge';
+            return 'Unknown';
+        }
+
+        // Clear all possible cache
+        async function clearAllCache() {
+            let results = [];
+            
+            try {
+                // Clear service worker cache
+                if ('serviceWorker' in navigator && 'caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    results.push('✅ Service worker cache cleared');
+                }
+
+                // Unregister service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(reg => reg.unregister()));
+                    results.push('✅ Service workers unregistered');
+                }
+
+                // Clear local storage
+                localStorage.clear();
+                results.push('✅ Local storage cleared');
+
+                // Clear session storage
+                sessionStorage.clear();
+                results.push('✅ Session storage cleared');
+
+                document.getElementById('cacheResult').innerHTML = `
+                    <div class="success">${results.join('<br>')}</div>
+                    <div class="warning">⚠️ Browser cache still needs manual clearing (Ctrl+Shift+R or Cmd+Shift+R)</div>
+                `;
+            } catch (error) {
+                document.getElementById('cacheResult').innerHTML = `
+                    <div class="error">❌ Cache clearing error: ${error.message}</div>
+                `;
+            }
+        }
+
+        function reloadWithoutCache() {
+            // Force reload without cache
+            window.location.reload(true);
+        }
+
+        async function testServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    document.getElementById('cacheResult').innerHTML = `
+                        <div class="info">
+                            <strong>Service Workers Found:</strong> ${registrations.length}<br>
+                            ${registrations.map((reg, i) => `SW ${i+1}: ${reg.scope}`).join('<br>')}
+                        </div>
+                    `;
+                } catch (error) {
+                    document.getElementById('cacheResult').innerHTML = `
+                        <div class="error">❌ Service worker check failed: ${error.message}</div>
+                    `;
+                }
+            } else {
+                document.getElementById('cacheResult').innerHTML = `
+                    <div class="warning">⚠️ Service workers not supported</div>
+                `;
+            }
+        }
+
+        function testGridDimensions() {
+            const gridItems = document.querySelectorAll('.grid-test .grid-item');
+            const widths = Array.from(gridItems).map(item => {
+                const rect = item.getBoundingClientRect();
+                return Math.round(rect.width);
+            });
+
+            document.getElementById('gridTestResult').innerHTML = `
+                <div class="info">
+                    <strong>Reference Grid Widths:</strong> ${widths.join('px, ')}px<br>
+                    <strong>Equal Widths:</strong> ${widths.every(w => Math.abs(w - widths[0]) <= 2) ? '✅ YES' : '❌ NO'}
+                </div>
+            `;
+        }
+
+        function testRealTimeline() {
+            const timeline = document.getElementById('realTimelineTest');
+            const timelineItems = timeline.querySelectorAll('.timeline-item');
+            
+            // Check computed styles
+            const computedStyle = window.getComputedStyle(timeline);
+            const display = computedStyle.display;
+            const gridColumns = computedStyle.gridTemplateColumns;
+            
+            const widths = Array.from(timelineItems).map(item => {
+                const rect = item.getBoundingClientRect();
+                return Math.round(rect.width);
+            });
+
+            const heights = Array.from(timelineItems).map(item => {
+                const rect = item.getBoundingClientRect();
+                return Math.round(rect.height);
+            });
+
+            const isDisplayGrid = display === 'grid';
+            const equalWidths = widths.every(w => Math.abs(w - widths[0]) <= 5);
+
+            document.getElementById('realTimelineResult').innerHTML = `
+                <div class="${isDisplayGrid ? 'success' : 'error'}">
+                    <strong>Display Type:</strong> ${display} ${isDisplayGrid ? '✅' : '❌ Should be grid'}
+                </div>
+                <div class="info">
+                    <strong>Grid Template Columns:</strong> ${gridColumns}<br>
+                    <strong>Item Widths:</strong> ${widths.join('px, ')}px<br>
+                    <strong>Item Heights:</strong> ${heights.join('px, ')}px<br>
+                    <strong>Equal Widths:</strong> ${equalWidths ? '✅ YES' : '❌ NO'}<br>
+                    <strong>Timeline Classes:</strong> ${timeline.className}
+                </div>
+            `;
+
+            // Show individual item analysis
+            let itemAnalysis = '<div class="section"><h4>📋 Individual Item Analysis</h4>';
+            timelineItems.forEach((item, index) => {
+                const rect = item.getBoundingClientRect();
+                const itemStyle = window.getComputedStyle(item);
+                itemAnalysis += `
+                    <div class="info" style="margin: 10px 0;">
+                        <strong>Item ${index + 1}:</strong><br>
+                        - Width: ${Math.round(rect.width)}px<br>
+                        - Height: ${Math.round(rect.height)}px<br>
+                        - Overflow: ${itemStyle.overflow}<br>
+                        - Box Sizing: ${itemStyle.boxSizing}<br>
+                        - Max Width: ${itemStyle.maxWidth}
+                    </div>
+                `;
+            });
+            itemAnalysis += '</div>';
+            
+            document.getElementById('realTimelineResult').innerHTML += itemAnalysis;
+        }
+
+        async function checkCSSLoading() {
+            document.getElementById('cssLoadResult').innerHTML = '<div class="info">🔍 Checking CSS loading...</div>';
+            
+            try {
+                // Try to fetch main CSS
+                const response = await fetch('/static/css/main.css', { 
+                    cache: 'no-cache',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (response.ok) {
+                    const cssText = await response.text();
+                    const hasTimelineGrid = cssText.includes('timeline-fixed-grid');
+                    const hasDisplayGrid = cssText.includes('display: grid !important');
+                    
+                    document.getElementById('cssLoadResult').innerHTML = `
+                        <div class="${hasTimelineGrid && hasDisplayGrid ? 'success' : 'error'}">
+                            <strong>CSS File Status:</strong><br>
+                            - Size: ${cssText.length} characters<br>
+                            - timeline-fixed-grid rule: ${hasTimelineGrid ? '✅' : '❌'}<br>
+                            - display: grid !important: ${hasDisplayGrid ? '✅' : '❌'}<br>
+                            - Response headers: ${response.headers.get('cache-control') || 'No cache headers'}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('cssLoadResult').innerHTML = `
+                        <div class="warning">
+                            ⚠️ CSS file not accessible via /static/css/main.css<br>
+                            Status: ${response.status} ${response.statusText}<br>
+                            This is normal in React dev mode - CSS is injected by webpack
+                        </div>
+                    `;
+                    
+                    // Check if styles are applied via style sheets
+                    checkAppliedStyles();
+                }
+            } catch (error) {
+                document.getElementById('cssLoadResult').innerHTML = `
+                    <div class="warning">
+                        ⚠️ CSS fetch failed: ${error.message}<br>
+                        This is normal in React dev mode - checking applied styles instead...
+                    </div>
+                `;
+                
+                checkAppliedStyles();
+            }
+        }
+
+        function checkAppliedStyles() {
+            // Check if timeline styles are in any stylesheet
+            let foundRules = [];
+            
+            try {
+                for (let sheet of document.styleSheets) {
+                    try {
+                        for (let rule of sheet.cssRules || sheet.rules || []) {
+                            if (rule.selectorText && rule.selectorText.includes('timeline-fixed-grid')) {
+                                foundRules.push(`${rule.selectorText}: ${rule.style.cssText}`);
+                            }
+                        }
+                    } catch (e) {
+                        // Cross-origin stylesheet access denied - this is normal
+                    }
+                }
+                
+                if (foundRules.length > 0) {
+                    document.getElementById('cssLoadResult').innerHTML += `
+                        <div class="success">
+                            ✅ Found timeline CSS rules in stylesheets:<br>
+                            <pre>${foundRules.join('\\n')}</pre>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('cssLoadResult').innerHTML += `
+                        <div class="error">
+                            ❌ No timeline-fixed-grid rules found in accessible stylesheets<br>
+                            This indicates the CSS might not be loading properly
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('cssLoadResult').innerHTML += `
+                    <div class="warning">⚠️ Stylesheet analysis failed: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Run all tests on load
+        window.addEventListener('load', () => {
+            initPageInfo();
+            setTimeout(() => {
+                testGridDimensions();
+                testRealTimeline();
+            }, 500);
+        });
+
+        // Add refresh button
+        document.addEventListener('DOMContentLoaded', () => {
+            const refreshBtn = document.createElement('button');
+            refreshBtn.className = 'button btn-success';
+            refreshBtn.textContent = '🔄 Re-run All Tests';
+            refreshBtn.onclick = () => {
+                testGridDimensions();
+                testRealTimeline();
+                checkCSSLoading();
+            };
+            document.querySelector('h1').after(refreshBtn);
+        });
+    </script>
+</body>
+</html>

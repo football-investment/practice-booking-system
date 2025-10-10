@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Mobile Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .iframe-container {
+            position: relative;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .device-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .iframe-frame {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            border: none;
+            display: block;
+        }
+        .mobile { width: 375px; height: 667px; }
+        .tablet { width: 768px; height: 1024px; }
+        .desktop { width: 1200px; height: 800px; }
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .check-list {
+            margin-top: 10px;
+        }
+        .check-list li {
+            margin: 5px 0;
+            color: #555;
+        }
+        .check-list .pass { color: #4caf50; }
+        .check-list .fail { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Dashboard Responsive Test</h1>
+        <p>Testing the dashboard across different screen sizes to verify fixes.</p>
+
+        <div class="iframe-container">
+            <div class="device-label">📱 Mobile (375×667 - iPhone 8)</div>
+            <div class="iframe-frame">
+                <iframe src="http://localhost:3000/student/dashboard" class="mobile"></iframe>
+            </div>
+            <div class="status">Testing: Mobile responsive layout, text wrapping, UI elements</div>
+            <ul class="check-list">
+                <li>✓ No horizontal scrolling</li>
+                <li>✓ Text doesn't overflow containers</li>
+                <li>✓ Buttons are touch-friendly (min 44px)</li>
+                <li>✓ Sidebar collapses appropriately</li>
+            </ul>
+        </div>
+
+        <div class="iframe-container">
+            <div class="device-label">📱 Tablet (768×1024 - iPad)</div>
+            <div class="iframe-frame">
+                <iframe src="http://localhost:3000/student/dashboard" class="tablet"></iframe>
+            </div>
+            <div class="status">Testing: Tablet layout, grid adjustments, navigation</div>
+            <ul class="check-list">
+                <li>✓ Proper grid layout adjustment</li>
+                <li>✓ Sidebar navigation usable</li>
+                <li>✓ Cards scale appropriately</li>
+            </ul>
+        </div>
+
+        <div class="iframe-container">
+            <div class="device-label">🖥️ Desktop (1200×800)</div>
+            <div class="iframe-frame">
+                <iframe src="http://localhost:3000/student/dashboard" class="desktop"></iframe>
+            </div>
+            <div class="status">Testing: Desktop layout, full functionality</div>
+            <ul class="check-list">
+                <li>✓ Full desktop layout</li>
+                <li>✓ Sidebar and content area proper spacing</li>
+                <li>✓ All interactive elements functional</li>
+            </ul>
+        </div>
+
+        <div class="iframe-container">
+            <h3>Manual Test Checklist</h3>
+            <ul>
+                <li><strong>Performance:</strong> Dashboard loads quickly (< 3 seconds)</li>
+                <li><strong>API Integration:</strong> No "Some data may be outdated" errors</li>
+                <li><strong>Responsive:</strong> Layout adapts smoothly across devices</li>
+                <li><strong>UI Elements:</strong> No overlapping text or misaligned components</li>
+                <li><strong>Navigation:</strong> Sidebar menu is organized and usable</li>
+                <li><strong>Touch/Click:</strong> All interactive elements respond properly</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Simple responsive test script
+        function testResponsive() {
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach((iframe, index) => {
+                iframe.onload = function() {
+                    console.log(`iframe ${index + 1} loaded successfully`);
+                    // Check if the iframe content is responsive
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const hasHorizontalScroll = iframeDoc.body.scrollWidth > iframe.offsetWidth;
+                        console.log(`iframe ${index + 1} horizontal scroll: ${hasHorizontalScroll}`);
+                    } catch (e) {
+                        console.log(`iframe ${index + 1} cross-origin, cannot check scroll`);
+                    }
+                };
+            });
+        }
+
+        // Run test when page loads
+        window.addEventListener('load', testResponsive);
+    </script>
+</body>
+</html>

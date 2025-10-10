@@ -59,6 +59,10 @@ def create_attendance(
     db.commit()
     db.refresh(attendance)
     
+    # Update milestone progress if attendance is marked as PRESENT
+    if attendance.status == AttendanceStatus.PRESENT:
+        _update_milestone_sessions_on_attendance(db, attendance.user_id, attendance.session_id)
+    
     return attendance
 
 
@@ -261,3 +265,52 @@ def get_instructor_attendance_overview(
         'page': page,
         'size': size
     }
+
+
+def _update_milestone_sessions_on_attendance(db: Session, user_id: int, session_id: int):
+    """
+    Update milestone progress when a user attends a session
+    """
+    from ....models.project import ProjectEnrollment, ProjectMilestoneProgress, MilestoneStatus
+    from ....models.session import Session as SessionModel
+    from sqlalchemy import and_
+    
+    # Get user's active project enrollments
+    active_enrollments = db.query(ProjectEnrollment).filter(
+        and_(
+            ProjectEnrollment.user_id == user_id,
+            ProjectEnrollment.status == "active"
+        )
+    ).all()
+    
+    if not active_enrollments:
+        return
+    
+    # For each active enrollment, update milestone progress
+    for enrollment in active_enrollments:
+        # Get current IN_PROGRESS milestone
+        current_milestone = db.query(ProjectMilestoneProgress).filter(
+            and_(
+                ProjectMilestoneProgress.enrollment_id == enrollment.id,
+                ProjectMilestoneProgress.status == MilestoneStatus.IN_PROGRESS.value
+            )
+        ).first()
+        
+        if current_milestone:
+            # Increment sessions completed
+            current_milestone.sessions_completed += 1
+            current_milestone.updated_at = datetime.now(timezone.utc)
+            
+            # Check if milestone requirements are met for auto-submission
+            from ....models.project import ProjectMilestone
+            milestone = db.query(ProjectMilestone).filter(
+                ProjectMilestone.id == current_milestone.milestone_id
+            ).first()
+            
+            if milestone and current_milestone.sessions_completed >= milestone.required_sessions:
+                # Optional: Auto-submit milestone when requirements are met
+                # current_milestone.status = MilestoneStatus.SUBMITTED.value
+                # current_milestone.submitted_at = datetime.now(timezone.utc)
+                pass
+    
+    db.commit()

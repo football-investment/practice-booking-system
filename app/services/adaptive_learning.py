@@ -1,0 +1,466 @@
+from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, or_
+from datetime import datetime, timezone, timedelta
+from typing import List, Dict, Optional, Tuple
+import json
+import random
+import math
+
+from ..models.quiz import (
+    Quiz, QuizQuestion, QuizAttempt, QuizUserAnswer,
+    UserQuestionPerformance, AdaptiveLearningSession, 
+    QuestionMetadata, QuizCategory, QuestionType
+)
+from ..models.user import User
+
+
+class AdaptiveLearningService:
+    """Adaptív tanulási algoritmusok és logika"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+        
+    def start_adaptive_session(self, user_id: int, category: QuizCategory, 
+                               session_duration_seconds: int = 180) -> AdaptiveLearningSession:
+        """Új adaptív tanulási session indítása időkorláttal"""
+        session = AdaptiveLearningSession(
+            user_id=user_id,
+            category=category,
+            target_difficulty=self._calculate_target_difficulty(user_id, category),
+            performance_trend=0.0,
+            session_time_limit_seconds=session_duration_seconds,
+            session_start_time=datetime.now(timezone.utc)
+        )
+        
+        self.db.add(session)
+        self.db.commit()
+        self.db.refresh(session)
+        
+        return session
+    
+    def get_next_question(self, user_id: int, session_id: int) -> Optional[Dict]:
+        """Következő kérdés kiválasztása adaptív algoritmussal és időkorlát ellenőrzés"""
+        session = self.db.query(AdaptiveLearningSession).filter(
+            AdaptiveLearningSession.id == session_id
+        ).first()
+        
+        if not session:
+            return None
+            
+        # Check if session time limit has expired
+        if self._is_session_time_expired(session):
+            return {"session_complete": True, "reason": "time_expired"}
+            
+        # Get user's performance data
+        performance_data = self._get_user_performance_data(user_id, session.category)
+        
+        # Select question based on adaptive algorithm
+        candidate_questions = self._get_candidate_questions(session.category, session.target_difficulty)
+        
+        if not candidate_questions:
+            return None
+            
+        # Filter out questions already answered recently by this user
+        recent_questions = self.db.query(UserQuestionPerformance).filter(
+            UserQuestionPerformance.user_id == user_id,
+            UserQuestionPerformance.last_attempted_at > datetime.now(timezone.utc) - timedelta(hours=1)
+        ).all()
+        
+        recent_question_ids = {perf.question_id for perf in recent_questions}
+        available_questions = [q for q in candidate_questions if q.id not in recent_question_ids]
+        
+        # If all questions were recently answered, use all candidates anyway
+        if not available_questions:
+            available_questions = candidate_questions
+            
+        # Apply adaptive selection algorithm
+        selected_question = self._select_adaptive_question(
+            available_questions, 
+            performance_data, 
+            session
+        )
+        
+        if not selected_question:
+            return {"session_complete": True, "reason": "no_questions"}
+        
+        # Return question with session info
+        return {
+            "id": selected_question.id,
+            "text": selected_question.question_text,
+            "options": [{"id": opt.id, "text": opt.option_text} for opt in selected_question.answer_options],
+            "type": selected_question.question_type.value if selected_question.question_type else "multiple_choice",
+            "difficulty": self._get_question_difficulty(selected_question.id),
+            "session_time_remaining": self._get_session_time_remaining(session)
+        }
+    
+    def record_answer(self, user_id: int, session_id: int, question_id: int, 
+                     is_correct: bool, time_spent_seconds: float) -> Dict:
+        """Válasz rögzítése és adaptív súlyok frissítése"""
+        
+        # Update session
+        session = self.db.query(AdaptiveLearningSession).filter(
+            AdaptiveLearningSession.id == session_id
+        ).first()
+        
+        if session:
+            session.questions_presented += 1
+            if is_correct:
+                session.questions_correct += 1
+                
+            # Update performance trend
+            session.performance_trend = self._calculate_performance_trend(session)
+            
+            # Adjust target difficulty
+            session.target_difficulty = self._adjust_target_difficulty(
+                session.target_difficulty, 
+                is_correct, 
+                session.performance_trend
+            )
+        
+        # Update user question performance
+        self._update_user_question_performance(user_id, question_id, is_correct, time_spent_seconds)
+        
+        # Update question metadata
+        self._update_question_metadata(question_id, is_correct, time_spent_seconds)
+        
+        self.db.commit()
+        
+        # Calculate XP reward based on difficulty and performance
+        xp_reward = self._calculate_adaptive_xp(question_id, is_correct, time_spent_seconds)
+        
+        if session:
+            session.xp_earned = (session.xp_earned or 0) + xp_reward
+            self.db.commit()
+        
+        return {
+            "xp_earned": xp_reward,
+            "new_target_difficulty": session.target_difficulty if session else None,
+            "performance_trend": session.performance_trend if session else None,
+            "mastery_update": self._get_mastery_update(user_id, question_id)
+        }
+    
+    def end_session(self, session_id: int) -> Dict:
+        """Session befejezése és eredmények összegzése"""
+        session = self.db.query(AdaptiveLearningSession).filter(
+            AdaptiveLearningSession.id == session_id
+        ).first()
+        
+        if not session:
+            return {}
+            
+        session.ended_at = datetime.now(timezone.utc)
+        
+        # Calculate session statistics
+        success_rate = (session.questions_correct / session.questions_presented) if session.questions_presented > 0 else 0
+        
+        # Update user gamification stats
+        from .gamification import GamificationService
+        gamification_service = GamificationService(self.db)
+        user_stats = gamification_service.get_or_create_user_stats(session.user_id)
+        user_stats.total_xp += (session.xp_earned or 0)
+        
+        self.db.commit()
+        
+        return {
+            "questions_answered": session.questions_presented,
+            "correct_answers": session.questions_correct,
+            "success_rate": success_rate,
+            "xp_earned": session.xp_earned,
+            "performance_trend": session.performance_trend,
+            "final_difficulty": session.target_difficulty
+        }
+    
+    def get_user_learning_analytics(self, user_id: int, category: QuizCategory = None) -> Dict:
+        """Felhasználói tanulási analitika"""
+        
+        # Get overall performance
+        query = self.db.query(UserQuestionPerformance).filter(
+            UserQuestionPerformance.user_id == user_id
+        )
+        
+        if category:
+            # Join with questions to filter by category
+            query = query.join(QuizQuestion).join(Quiz).filter(Quiz.category == category)
+        
+        performances = query.all()
+        
+        if not performances:
+            return {
+                "total_questions_attempted": 0,
+                "overall_success_rate": 0.0,
+                "mastery_level": 0.0,
+                "learning_velocity": 0.0,
+                "recommended_difficulty": 0.5
+            }
+        
+        # Calculate statistics
+        total_attempts = sum(p.total_attempts for p in performances)
+        total_correct = sum(p.correct_attempts for p in performances)
+        overall_success_rate = total_correct / total_attempts if total_attempts > 0 else 0.0
+        
+        average_mastery = sum(p.mastery_level for p in performances) / len(performances)
+        
+        # Calculate learning velocity (improvement over time)
+        recent_performances = [p for p in performances if p.last_attempted_at and 
+                             p.last_attempted_at > datetime.now(timezone.utc) - timedelta(days=7)]
+        
+        learning_velocity = 0.0
+        if len(recent_performances) > 0:
+            recent_success_rate = sum(p.success_rate for p in recent_performances) / len(recent_performances)
+            learning_velocity = recent_success_rate - overall_success_rate
+        
+        return {
+            "total_questions_attempted": len(performances),
+            "total_attempts": total_attempts,
+            "overall_success_rate": overall_success_rate,
+            "mastery_level": average_mastery,
+            "learning_velocity": learning_velocity,
+            "recommended_difficulty": 0.5  # Default difficulty, will be calculated separately
+        }
+    
+    # Private helper methods
+    
+    def _calculate_target_difficulty(self, user_id: int, category: QuizCategory) -> float:
+        """Célnehézség számítása felhasználói teljesítmény alapján"""
+        analytics = self.get_user_learning_analytics(user_id, category)
+        
+        base_difficulty = 0.5  # Default medium difficulty
+        
+        # Adjust based on success rate
+        if analytics["overall_success_rate"] > 0.8:
+            base_difficulty += 0.2  # Increase difficulty for high performers
+        elif analytics["overall_success_rate"] < 0.6:
+            base_difficulty -= 0.2  # Decrease difficulty for struggling learners
+            
+        # Adjust based on learning velocity
+        base_difficulty += analytics["learning_velocity"] * 0.1
+        
+        # Clamp between 0.1 and 0.9
+        return max(0.1, min(0.9, base_difficulty))
+    
+    def _get_user_performance_data(self, user_id: int, category: QuizCategory) -> Dict:
+        """Felhasználói teljesítményadatok összegyűjtése"""
+        performances = self.db.query(UserQuestionPerformance).join(QuizQuestion).join(Quiz).filter(
+            and_(
+                UserQuestionPerformance.user_id == user_id,
+                Quiz.category == category
+            )
+        ).all()
+        
+        return {
+            "weak_concepts": [p for p in performances if p.mastery_level < 0.6],
+            "strong_concepts": [p for p in performances if p.mastery_level > 0.8],
+            "due_for_review": [p for p in performances if p.next_review_at and 
+                             p.next_review_at <= datetime.now(timezone.utc)]
+        }
+    
+    def _get_candidate_questions(self, category: QuizCategory, target_difficulty: float) -> List[QuizQuestion]:
+        """Jelölt kérdések kiválasztása kategória és nehézség alapján"""
+        difficulty_range = 0.2  # ±0.2 range around target
+        
+        # First try to find questions within difficulty range
+        questions = self.db.query(QuizQuestion).join(Quiz).join(QuestionMetadata).filter(
+            and_(
+                Quiz.category == category,
+                QuestionMetadata.estimated_difficulty >= target_difficulty - difficulty_range,
+                QuestionMetadata.estimated_difficulty <= target_difficulty + difficulty_range
+            )
+        ).all()
+        
+        # If no questions found in range, fall back to any questions in the category
+        if not questions:
+            questions = self.db.query(QuizQuestion).join(Quiz).join(QuestionMetadata).filter(
+                Quiz.category == category
+            ).all()
+        
+        return questions
+    
+    def _select_adaptive_question(self, candidate_questions: List[QuizQuestion], 
+                                performance_data: Dict, session: AdaptiveLearningSession) -> QuizQuestion:
+        """Adaptív kérdésválasztó algoritmus"""
+        
+        # Prioritize questions due for review
+        due_questions = [q for q in candidate_questions 
+                        if any(p.question_id == q.id for p in performance_data["due_for_review"])]
+        
+        if due_questions:
+            return random.choice(due_questions)
+            
+        # Focus on weak concepts
+        weak_concept_questions = [q for q in candidate_questions 
+                                if any(p.question_id == q.id for p in performance_data["weak_concepts"])]
+        
+        if weak_concept_questions and random.random() < 0.7:  # 70% chance to focus on weak areas
+            return random.choice(weak_concept_questions)
+        
+        # Otherwise, random selection from candidates
+        return random.choice(candidate_questions)
+    
+    def _calculate_performance_trend(self, session: AdaptiveLearningSession) -> float:
+        """Teljesítménytrend számítása"""
+        if session.questions_presented < 3:
+            return session.performance_trend
+            
+        recent_success_rate = session.questions_correct / session.questions_presented
+        
+        # Simple trend calculation: positive if doing well, negative if struggling
+        if recent_success_rate > 0.7:
+            return min(1.0, session.performance_trend + 0.1)
+        elif recent_success_rate < 0.5:
+            return max(-1.0, session.performance_trend - 0.1)
+        else:
+            return session.performance_trend * 0.9  # Decay towards neutral
+    
+    def _adjust_target_difficulty(self, current_difficulty: float, is_correct: bool, trend: float) -> float:
+        """Célnehézség dinamikus állítása"""
+        adjustment = 0.05
+        
+        if is_correct and trend > 0.5:
+            # Performing well, increase difficulty
+            return min(0.9, current_difficulty + adjustment)
+        elif not is_correct and trend < -0.5:
+            # Struggling, decrease difficulty
+            return max(0.1, current_difficulty - adjustment)
+        else:
+            # Small adjustments
+            return current_difficulty + (adjustment if is_correct else -adjustment) * 0.5
+    
+    def _update_user_question_performance(self, user_id: int, question_id: int, 
+                                        is_correct: bool, time_spent: float):
+        """Felhasználói kérdésteljesítmény frissítése"""
+        performance = self.db.query(UserQuestionPerformance).filter(
+            and_(
+                UserQuestionPerformance.user_id == user_id,
+                UserQuestionPerformance.question_id == question_id
+            )
+        ).first()
+        
+        if not performance:
+            performance = UserQuestionPerformance(
+                user_id=user_id,
+                question_id=question_id,
+                total_attempts=0,
+                correct_attempts=0,
+                mastery_level=0.0,
+                difficulty_weight=1.0
+            )
+            self.db.add(performance)
+        
+        performance.total_attempts = (performance.total_attempts or 0) + 1
+        if is_correct:
+            performance.correct_attempts = (performance.correct_attempts or 0) + 1
+            
+        performance.last_attempt_correct = is_correct
+        performance.last_attempted_at = datetime.now(timezone.utc)
+        
+        # Update mastery level using exponential moving average
+        new_mastery = 1.0 if is_correct else 0.0
+        performance.mastery_level = (performance.mastery_level or 0.0) * 0.8 + new_mastery * 0.2
+        
+        # Schedule next review using spaced repetition
+        if is_correct:
+            # Longer intervals for correct answers
+            interval_days = min(30, math.pow(2, performance.mastery_level * 5))
+        else:
+            # Shorter intervals for incorrect answers
+            interval_days = max(1, 3 * performance.mastery_level)
+            
+        performance.next_review_at = datetime.now(timezone.utc) + timedelta(days=interval_days)
+        
+        # Update difficulty weight
+        performance.difficulty_weight = max(0.5, 2.0 - performance.mastery_level)
+    
+    def _update_question_metadata(self, question_id: int, is_correct: bool, time_spent: float):
+        """Kérdés metaadatok frissítése globális statisztikákkal"""
+        metadata = self.db.query(QuestionMetadata).filter(
+            QuestionMetadata.question_id == question_id
+        ).first()
+        
+        if not metadata:
+            metadata = QuestionMetadata(question_id=question_id)
+            self.db.add(metadata)
+        
+        # Update global success rate (simple moving average)
+        current_rate = metadata.global_success_rate or 0.5
+        new_rate = 1.0 if is_correct else 0.0
+        metadata.global_success_rate = current_rate * 0.95 + new_rate * 0.05
+        
+        # Update average time
+        current_time = metadata.average_time_seconds or 60.0
+        metadata.average_time_seconds = current_time * 0.95 + time_spent * 0.05
+        
+        # Adjust difficulty estimate based on performance
+        if metadata.global_success_rate > 0.8:
+            metadata.estimated_difficulty = max(0.1, metadata.estimated_difficulty - 0.01)
+        elif metadata.global_success_rate < 0.4:
+            metadata.estimated_difficulty = min(0.9, metadata.estimated_difficulty + 0.01)
+            
+        metadata.last_analytics_update = datetime.now(timezone.utc)
+    
+    def _calculate_adaptive_xp(self, question_id: int, is_correct: bool, time_spent: float) -> int:
+        """Adaptív XP számítása"""
+        if not is_correct:
+            return 5  # Consolation XP for attempt
+            
+        # Base XP
+        base_xp = 25
+        
+        # Difficulty bonus
+        metadata = self.db.query(QuestionMetadata).filter(
+            QuestionMetadata.question_id == question_id
+        ).first()
+        
+        if metadata:
+            difficulty_bonus = int(metadata.estimated_difficulty * 20)  # 0-20 bonus
+            base_xp += difficulty_bonus
+        
+        # Time bonus (faster = more XP, up to 50% bonus)
+        if metadata and metadata.average_time_seconds:
+            time_ratio = metadata.average_time_seconds / time_spent
+            time_bonus = min(0.5, max(0, (time_ratio - 1) * 0.25))
+            base_xp = int(base_xp * (1 + time_bonus))
+        
+        return base_xp
+    
+    def _get_mastery_update(self, user_id: int, question_id: int) -> Dict:
+        """Aktuális mastery szint lekérdezése"""
+        performance = self.db.query(UserQuestionPerformance).filter(
+            and_(
+                UserQuestionPerformance.user_id == user_id,
+                UserQuestionPerformance.question_id == question_id
+            )
+        ).first()
+        
+        if performance:
+            return {
+                "mastery_level": performance.mastery_level,
+                "success_rate": performance.success_rate,
+                "next_review": performance.next_review_at.isoformat() if performance.next_review_at else None
+            }
+        
+        return {"mastery_level": 0.0, "success_rate": 0.0, "next_review": None}
+    
+    def _is_session_time_expired(self, session: AdaptiveLearningSession) -> bool:
+        """Ellenőrzi, hogy lejárt-e a session időkorlátja"""
+        if not session.session_start_time or not session.session_time_limit_seconds:
+            return False
+            
+        elapsed_seconds = (datetime.now(timezone.utc) - session.session_start_time).total_seconds()
+        return elapsed_seconds >= session.session_time_limit_seconds
+    
+    def _get_session_time_remaining(self, session: AdaptiveLearningSession) -> int:
+        """Visszaadja a session fennmaradó idejét másodpercben"""
+        if not session.session_start_time or not session.session_time_limit_seconds:
+            return 0
+            
+        elapsed_seconds = (datetime.now(timezone.utc) - session.session_start_time).total_seconds()
+        remaining = session.session_time_limit_seconds - elapsed_seconds
+        return max(0, int(remaining))
+    
+    def _get_question_difficulty(self, question_id: int) -> float:
+        """Kérdés nehézségi szintjének lekérdezése"""
+        metadata = self.db.query(QuestionMetadata).filter(
+            QuestionMetadata.question_id == question_id
+        ).first()
+        
+        return metadata.estimated_difficulty if metadata else 0.5

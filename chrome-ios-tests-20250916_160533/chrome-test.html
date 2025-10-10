@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Chrome iOS Compatibility Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .test-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .test-result {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .pass { background: #4CAF50; }
+        .fail { background: #F44336; }
+        .warning { background: #FF9800; }
+        
+        /* iOS Chrome specific optimizations */
+        input, textarea, select, button {
+            -webkit-appearance: none;
+            border-radius: 8px;
+            font-size: 16px !important; /* Prevent zoom on focus */
+            min-height: 44px; /* iOS touch target */
+            touch-action: manipulation;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #0056CC;
+            transform: scale(1.05);
+        }
+        
+        .checkbox-test {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .checkbox-test:hover {
+            border-color: #007AFF;
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .checkbox-test input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #007AFF;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Chrome iOS Compatibility Test</h1>
+    <p>Eszköz: <span id="device-info">Detecting...</span></p>
+    <p>Böngésző: <span id="browser-info">Detecting...</span></p>
+    <p>Viewport: <span id="viewport-info">Detecting...</span></p>
+    
+    <div class="test-section">
+        <h3>📱 Eszköz Észlelés</h3>
+        <div id="device-tests"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🌐 JavaScript Features</h3>
+        <div id="js-tests"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📡 Network Tests</h3>
+        <div id="network-tests"></div>
+        <button onclick="testNetworkConnection()">Test Network</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>🎯 Touch & Interaction Tests</h3>
+        <div class="checkbox-test" onclick="toggleCheckbox()">
+            <input type="checkbox" id="test-checkbox"> 
+            <span>Test Checkbox (click anywhere on this area)</span>
+        </div>
+        <button onclick="testTouchFeatures()">Test Touch Features</button>
+        <div id="touch-tests"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>🔄 API Connectivity</h3>
+        <div id="api-tests"></div>
+        <button onclick="testAPIConnection()">Test API</button>
+    </div>
+
+    <script>
+        // Chrome iOS Compatibility Testing
+        
+        class ChromeIOSTester {
+            constructor() {
+                this.results = {};
+                this.init();
+            }
+            
+            init() {
+                this.detectDevice();
+                this.detectBrowser();
+                this.updateViewportInfo();
+                this.runJavaScriptTests();
+                
+                // Auto-run basic tests
+                setTimeout(() => {
+                    this.testNetworkConnection();
+                    this.testAPIConnection();
+                }, 1000);
+            }
+            
+            detectDevice() {
+                const ua = navigator.userAgent;
+                const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+                const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const isIPhone = /iPhone/.test(ua);
+                
+                let deviceType = 'Unknown';
+                if (isIPad) deviceType = 'iPad';
+                else if (isIPhone) deviceType = 'iPhone';
+                else if (isIOS) deviceType = 'iOS Device';
+                
+                document.getElementById('device-info').textContent = deviceType;
+                
+                const tests = [];
+                tests.push(this.createTestResult('iOS Detection', isIOS, 'iOS eszköz észlelve'));
+                tests.push(this.createTestResult('iPad Detection', isIPad, 'iPad specifikus észlelés'));
+                tests.push(this.createTestResult('iPhone Detection', isIPhone, 'iPhone specifikus észlelés'));
+                tests.push(this.createTestResult('Touch Support', 'ontouchstart' in window, 'Érintés támogatás'));
+                
+                document.getElementById('device-tests').innerHTML = tests.join('');
+            }
+            
+            detectBrowser() {
+                const ua = navigator.userAgent.toLowerCase();
+                const isChrome = ua.includes('chrome') && !ua.includes('edg');
+                const isSafari = ua.includes('safari') && !ua.includes('chrome');
+                const isFirefox = ua.includes('firefox');
+                
+                let browserName = 'Unknown';
+                if (isChrome) browserName = 'Chrome ✅';
+                else if (isSafari) browserName = 'Safari ⚠️';
+                else if (isFirefox) browserName = 'Firefox ❌';
+                
+                document.getElementById('browser-info').textContent = browserName;
+                
+                return { isChrome, isSafari, isFirefox };
+            }
+            
+            updateViewportInfo() {
+                const viewport = {
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    devicePixelRatio: window.devicePixelRatio || 1,
+                    orientation: screen.orientation ? screen.orientation.angle : 'unknown'
+                };
+                
+                document.getElementById('viewport-info').textContent = 
+                    `${viewport.width}x${viewport.height} (${viewport.devicePixelRatio}x, ${viewport.orientation}°)`;
+            }
+            
+            runJavaScriptTests() {
+                const tests = [];
+                
+                // ES6+ Features
+                tests.push(this.testFeature('Arrow Functions', () => (() => true)()));
+                tests.push(this.testFeature('Template Literals', () => `test` === 'test'));
+                tests.push(this.testFeature('Destructuring', () => {
+                    const {test} = {test: true};
+                    return test;
+                }));
+                tests.push(this.testFeature('Async/Await', () => typeof async function(){} === 'function'));
+                
+                // Modern APIs
+                tests.push(this.testFeature('Fetch API', () => typeof fetch !== 'undefined'));
+                tests.push(this.testFeature('Promise', () => typeof Promise !== 'undefined'));
+                tests.push(this.testFeature('LocalStorage', () => typeof localStorage !== 'undefined'));
+                tests.push(this.testFeature('SessionStorage', () => typeof sessionStorage !== 'undefined'));
+                
+                // Chrome specific
+                tests.push(this.testFeature('Chrome Object', () => typeof chrome !== 'undefined'));
+                tests.push(this.testFeature('WebGL', () => {
+                    const canvas = document.createElement('canvas');
+                    return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+                }));
+                
+                document.getElementById('js-tests').innerHTML = tests.join('');
+            }
+            
+            testFeature(name, testFn) {
+                try {
+                    const result = testFn();
+                    return this.createTestResult(name, result, result ? 'Supported' : 'Not supported');
+                } catch (error) {
+                    return this.createTestResult(name, false, `Error: ${error.message}`);
+                }
+            }
+            
+            async testNetworkConnection() {
+                const tests = [];
+                const testUrls = [
+                    { name: 'Frontend Health', url: 'http://192.168.1.129:3000/' },
+                    { name: 'Backend Health', url: 'http://192.168.1.129:8000/api/v1/debug/health' },
+                    { name: 'API Endpoint', url: 'http://192.168.1.129:8000/api/v1/auth/me' }
+                ];
+                
+                for (const test of testUrls) {
+                    try {
+                        const startTime = performance.now();
+                        const response = await fetch(test.url, {
+                            method: 'HEAD',
+                            mode: 'cors',
+                            cache: 'no-cache'
+                        });
+                        const endTime = performance.now();
+                        const responseTime = Math.round(endTime - startTime);
+                        
+                        const success = response.ok || response.status < 500;
+                        tests.push(this.createTestResult(
+                            test.name, 
+                            success, 
+                            `${response.status} (${responseTime}ms)`
+                        ));
+                    } catch (error) {
+                        tests.push(this.createTestResult(test.name, false, `Network Error: ${error.message}`));
+                    }
+                }
+                
+                document.getElementById('network-tests').innerHTML = tests.join('');
+            }
+            
+            testTouchFeatures() {
+                const tests = [];
+                
+                // Touch events
+                tests.push(this.createTestResult('Touch Events', 'ontouchstart' in window, 'Touch events supported'));
+                tests.push(this.createTestResult('Multi-touch', navigator.maxTouchPoints > 1, `Max ${navigator.maxTouchPoints} touches`));
+                
+                // Gesture detection
+                const gestureSupported = 'ongesturestart' in window;
+                tests.push(this.createTestResult('Gesture Events', gestureSupported, gestureSupported ? 'Gestures supported' : 'No gesture support'));
+                
+                // Device motion
+                const motionSupported = 'DeviceMotionEvent' in window;
+                tests.push(this.createTestResult('Device Motion', motionSupported, motionSupported ? 'Motion events supported' : 'No motion support'));
+                
+                document.getElementById('touch-tests').innerHTML = tests.join('');
+            }
+            
+            async testAPIConnection() {
+                const tests = [];
+                const apiTests = [
+                    { name: 'Health Check', endpoint: '/api/v1/debug/health', method: 'GET' },
+                    { name: 'CORS Preflight', endpoint: '/api/v1/auth/me', method: 'OPTIONS' }
+                ];
+                
+                for (const test of apiTests) {
+                    try {
+                        const response = await fetch(`http://192.168.1.129:8000${test.endpoint}`, {
+                            method: test.method,
+                            mode: 'cors',
+                            credentials: 'include',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const success = response.ok || response.status === 401; // 401 is OK for auth endpoints
+                        tests.push(this.createTestResult(
+                            test.name, 
+                            success, 
+                            `HTTP ${response.status}`
+                        ));
+                    } catch (error) {
+                        tests.push(this.createTestResult(test.name, false, `API Error: ${error.message}`));
+                    }
+                }
+                
+                document.getElementById('api-tests').innerHTML = tests.join('');
+            }
+            
+            createTestResult(name, passed, details) {
+                const className = passed ? 'pass' : 'fail';
+                const icon = passed ? '✅' : '❌';
+                return `<div class="test-result ${className}">${icon} ${name}: ${details}</div>`;
+            }
+        }
+        
+        // Global functions for buttons
+        function toggleCheckbox() {
+            const checkbox = document.getElementById('test-checkbox');
+            checkbox.checked = !checkbox.checked;
+            console.log('Checkbox toggled:', checkbox.checked);
+        }
+        
+        function testTouchFeatures() {
+            window.tester.testTouchFeatures();
+        }
+        
+        function testNetworkConnection() {
+            window.tester.testNetworkConnection();
+        }
+        
+        function testAPIConnection() {
+            window.tester.testAPIConnection();
+        }
+        
+        // Initialize tester
+        window.tester = new ChromeIOSTester();
+        
+        // Update viewport info on orientation change
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => window.tester.updateViewportInfo(), 100);
+        });
+        
+        // Log all errors for debugging
+        window.addEventListener('error', (event) => {
+            console.error('Chrome iOS Test Error:', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
+            });
+        });
+        
+        console.log('🔍 Chrome iOS Compatibility Tester loaded successfully');
+    </script>
+</body>
+</html>

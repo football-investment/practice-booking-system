@@ -95,31 +95,45 @@ class GamificationService:
         
         return stats
         
-    def award_achievement(self, user_id: int, badge_type: BadgeType, title: str, 
-                         description: str, icon: str, semester_count: Optional[int] = None) -> UserAchievement:
-        """Award an achievement to a user"""
+    def award_achievement(self, user_id: int, badge_type: BadgeType, title: str,
+                         description: str, icon: str, semester_count: Optional[int] = None,
+                         specialization_id: Optional[str] = None) -> UserAchievement:
+        """
+        Award an achievement to a user
+
+        Args:
+            user_id: User ID
+            badge_type: Type of badge
+            title: Achievement title
+            description: Achievement description
+            icon: Achievement icon (emoji)
+            semester_count: Optional semester count
+            specialization_id: Optional specialization (PLAYER/COACH/INTERNSHIP) for spec-specific achievements
+        """
         # Check if user already has this achievement
         existing = self.db.query(UserAchievement).filter(
             UserAchievement.user_id == user_id,
-            UserAchievement.badge_type == badge_type.value
+            UserAchievement.badge_type == badge_type.value,
+            UserAchievement.specialization_id == specialization_id  # Include spec in uniqueness check
         ).first()
-        
+
         if existing:
             return existing
-            
+
         achievement = UserAchievement(
             user_id=user_id,
             badge_type=badge_type.value,
             title=title,
             description=description,
             icon=icon,
-            semester_count=semester_count
+            semester_count=semester_count,
+            specialization_id=specialization_id  # NEW: Add specialization
         )
-        
+
         self.db.add(achievement)
         self.db.commit()
         self.db.refresh(achievement)
-        
+
         return achievement
         
     def check_and_award_semester_achievements(self, user_id: int) -> List[UserAchievement]:
@@ -275,7 +289,7 @@ class GamificationService:
         stats = self.get_or_create_user_stats(user_id)
         
         # Add XP to existing total
-        stats.total_xp += xp_amount
+        stats.total_xp = (stats.total_xp or 0) + xp_amount
         
         # Recalculate level
         new_level = max(1, stats.total_xp // 1000)
@@ -430,5 +444,205 @@ class GamificationService:
                 # Award bonus XP
                 self.award_xp(user_id, 50, "Welcome newcomer")
                 print(f"🎉 User {user_id} earned Welcome Newcomer achievement!")
-        
+
+        return achievements
+
+    # ============================================
+    # 🆕 SPECIALIZATION-AWARE ACHIEVEMENTS
+    # ============================================
+
+    def check_and_award_specialization_achievements(
+        self,
+        user_id: int,
+        specialization_id: str
+    ) -> List[UserAchievement]:
+        """
+        Check and award specialization-specific achievements based on user's progress
+
+        Args:
+            user_id: User ID
+            specialization_id: PLAYER, COACH, or INTERNSHIP
+
+        Returns:
+            List of newly awarded achievements
+        """
+        from ..models.user_progress import SpecializationProgress
+
+        # Get user's progress in this specialization
+        progress = self.db.query(SpecializationProgress).filter(
+            SpecializationProgress.student_id == user_id,
+            SpecializationProgress.specialization_id == specialization_id
+        ).first()
+
+        if not progress:
+            return []
+
+        achievements = []
+
+        # PLAYER-specific achievements
+        if specialization_id == 'PLAYER':
+            # Level-based achievements
+            if progress.current_level >= 2:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.FIRST_LEVEL_UP,
+                    title="⚽ First Belt Promotion",
+                    description=f"Reached {progress.current_level} level as GanCuju Player!",
+                    icon="⚽",
+                    specialization_id='PLAYER'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 3:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.SKILL_MILESTONE,
+                    title="🥋 Yellow Belt Warrior",
+                    description="Achieved Rugalmas Nád level!",
+                    icon="🥋",
+                    specialization_id='PLAYER'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 5:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.ADVANCED_SKILL,
+                    title="🏆 Technical Excellence",
+                    description="Reached Erős Gyökér level!",
+                    icon="🏆",
+                    specialization_id='PLAYER'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 8:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.MASTER_LEVEL,
+                    title="🐉 Sárkány Bölcsesség Master",
+                    description="Achieved the highest GanCuju Player level!",
+                    icon="🐉",
+                    specialization_id='PLAYER'
+                )
+                achievements.append(ach)
+
+            # Session-based achievements
+            if progress.completed_sessions >= 5:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.PLAYER_DEDICATION,
+                    title="⚡ Player Development",
+                    description=f"Completed {progress.completed_sessions} player sessions!",
+                    icon="⚡",
+                    specialization_id='PLAYER'
+                )
+                achievements.append(ach)
+
+        # COACH-specific achievements
+        elif specialization_id == 'COACH':
+            # Level-based achievements
+            if progress.current_level >= 2:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.FIRST_LEVEL_UP,
+                    title="👨‍🏫 First Coaching License",
+                    description=f"Reached level {progress.current_level} as Coach!",
+                    icon="👨‍🏫",
+                    specialization_id='COACH'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 3:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.SKILL_MILESTONE,
+                    title="🧠 Leadership Basics",
+                    description="Achieved Youth Football Asszisztens level!",
+                    icon="🧠",
+                    specialization_id='COACH'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 5:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.ADVANCED_SKILL,
+                    title="📋 Tactical Mind",
+                    description="Reached Amateur Football Asszisztens level!",
+                    icon="📋",
+                    specialization_id='COACH'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 8:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.MASTER_LEVEL,
+                    title="🏅 PRO Football Coach Master",
+                    description="Achieved the highest coaching license!",
+                    icon="🏅",
+                    specialization_id='COACH'
+                )
+                achievements.append(ach)
+
+            # Session-based achievements
+            if progress.completed_sessions >= 5:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.COACH_DEDICATION,
+                    title="♟️ Coach Development",
+                    description=f"Completed {progress.completed_sessions} coaching sessions!",
+                    icon="♟️",
+                    specialization_id='COACH'
+                )
+                achievements.append(ach)
+
+        # INTERNSHIP-specific achievements
+        elif specialization_id == 'INTERNSHIP':
+            # Level-based achievements
+            if progress.current_level >= 2:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.FIRST_LEVEL_UP,
+                    title="🚀 Startup Spirit",
+                    description="Reached Growth Hacker level!",
+                    icon="🚀",
+                    specialization_id='INTERNSHIP'
+                )
+                achievements.append(ach)
+
+            if progress.current_level >= 3:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.MASTER_LEVEL,
+                    title="🎯 Startup Leader",
+                    description="Achieved the highest internship level!",
+                    icon="🎯",
+                    specialization_id='INTERNSHIP'
+                )
+                achievements.append(ach)
+
+            # Session/Project-based achievements
+            if progress.completed_sessions >= 3:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.INTERNSHIP_DEDICATION,
+                    title="💼 Professional Growth",
+                    description=f"Completed {progress.completed_sessions} internship sessions!",
+                    icon="💼",
+                    specialization_id='INTERNSHIP'
+                )
+                achievements.append(ach)
+
+            if progress.completed_projects >= 1:
+                ach = self.award_achievement(
+                    user_id=user_id,
+                    badge_type=BadgeType.PROJECT_COMPLETE,
+                    title="🌟 Real World Experience",
+                    description="Completed your first internship project!",
+                    icon="🌟",
+                    specialization_id='INTERNSHIP'
+                )
+                achievements.append(ach)
+
         return achievements

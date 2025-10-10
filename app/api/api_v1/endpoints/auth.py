@@ -25,9 +25,24 @@ def login(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
+    print(f"🔍 LOGIN ATTEMPT - Email: {user_credentials.email}")
+    print(f"🔍 Password received: '{user_credentials.password}' (length: {len(user_credentials.password)})")
+    
     user = db.query(User).filter(User.email == user_credentials.email).first()
+    print(f"🔍 User found: {user is not None}")
+    
+    if user:
+        print(f"🔍 User active: {user.is_active}")
+        password_check = verify_password(user_credentials.password, user.password_hash)
+        print(f"🔍 Password valid: {password_check}")
+        print(f"🔍 Password hash: {user.password_hash[:30]}...")
+        
+        # Test with expected password
+        expected_check = verify_password("password123", user.password_hash)
+        print(f"🔍 Expected password123 works: {expected_check}")
     
     if not user or not verify_password(user_credentials.password, user.password_hash):
+        print(f"❌ LOGIN FAILED - User: {user is not None}, Password: {verify_password(user_credentials.password, user.password_hash) if user else False}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

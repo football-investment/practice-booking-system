@@ -10,9 +10,16 @@ from .message import Message, MessagePriority
 from .gamification import UserAchievement, UserStats, BadgeType, configure_relationships
 from .quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, QuizUserAnswer, QuestionType, QuizCategory, QuizDifficulty
 from .project import Project, ProjectEnrollment, ProjectMilestone, ProjectMilestoneProgress, ProjectSession, ProjectStatus, ProjectEnrollmentStatus, ProjectProgressStatus, MilestoneStatus
+from .license import LicenseMetadata, UserLicense, LicenseProgression, LicenseType, LicenseLevel, LicenseSystemHelper, configure_license_relationships
 
-# Configure gamification relationships after all models are imported
+# 🎓 New Track-Based Modular Education System
+from .track import Track, Module, ModuleComponent
+from .certificate import CertificateTemplate, IssuedCertificate
+from .user_progress import UserTrackProgress, UserModuleProgress, TrackProgressStatus, ModuleProgressStatus
+
+# Configure relationships after all models are imported
 configure_relationships()
+configure_license_relationships()
 
 __all__ = [
     "User",
@@ -51,4 +58,10 @@ __all__ = [
     "ProjectEnrollmentStatus",
     "ProjectProgressStatus",
     "MilestoneStatus",
+    "LicenseMetadata",
+    "UserLicense", 
+    "LicenseProgression",
+    "LicenseType",
+    "LicenseLevel",
+    "LicenseSystemHelper",
 ]
