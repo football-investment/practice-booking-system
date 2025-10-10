@@ -27,7 +27,8 @@ from .endpoints import (
     certificates,  # 🏆 NEW: Add certificate management system
     students,  # 🎓 NEW: Add student dashboard endpoints
     curriculum,  # 📚 NEW: Add curriculum system endpoints
-    curriculum_adaptive  # 🧠 NEW: Add curriculum-based adaptive learning
+    curriculum_adaptive,  # 🧠 NEW: Add curriculum-based adaptive learning
+    competency  # 🎯 NEW: Add competency tracking system
 )
 
 api_router = APIRouter()
@@ -118,4 +119,11 @@ api_router.include_router(
     curriculum_adaptive.router,
     prefix="/curriculum-adaptive",
     tags=["curriculum-adaptive-learning"]
+)
+
+# 🎯 NEW: Add competency tracking system routes
+api_router.include_router(
+    competency.router,
+    prefix="/competency",
+    tags=["competency"]
 )
