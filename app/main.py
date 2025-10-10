@@ -12,8 +12,8 @@ from .core.init_admin import create_initial_admin
 from .core.health import HealthChecker
 from .middleware.logging import LoggingMiddleware
 from .middleware.security import (
-    RateLimitMiddleware, 
-    SecurityHeadersMiddleware, 
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
     RequestSizeLimitMiddleware
 )
 from .core.exceptions import (
@@ -26,14 +26,44 @@ from .core.exceptions import (
     business_logic_exception_handler,
     BusinessLogicError
 )
+from .tasks.scheduler import start_scheduler
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events
+    """
     # Startup
+    logger.info("🚀 Application startup initiated")
     create_initial_admin()
+
+    # Start background scheduler for periodic tasks
+    scheduler = None
+    try:
+        scheduler = start_scheduler()
+        logger.info("✅ Background scheduler started successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to start background scheduler: {e}")
+        # Continue without scheduler (non-critical)
+
+    logger.info("✅ Application startup complete")
+
     yield
-    # Shutdown (if needed)
+
+    # Shutdown
+    logger.info("🔄 Application shutdown initiated")
+    if scheduler:
+        try:
+            scheduler.shutdown()
+            logger.info("✅ Background scheduler stopped")
+        except Exception as e:
+            logger.error(f"❌ Error stopping scheduler: {e}")
+
+    logger.info("✅ Application shutdown complete")
 
 
 app = FastAPI(
