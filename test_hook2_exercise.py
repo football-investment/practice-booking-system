@@ -60,8 +60,8 @@ def create_test_users():
         student_password = bcrypt.hashpw(b"TestPass123!", bcrypt.gensalt()).decode('utf-8')
 
         student_result = db.execute(text("""
-            INSERT INTO users (email, password_hash, first_name, last_name, role, specialization_id, is_active)
-            VALUES (:email, :password, 'Hook2', 'Student', 'STUDENT', 'PLAYER', true)
+            INSERT INTO users (email, password_hash, name, role, specialization, is_active, payment_verified)
+            VALUES (:email, :password, 'Hook2 Student', 'STUDENT', 'PLAYER', true, true)
             RETURNING id, email
         """), {"email": student_email, "password": student_password}).fetchone()
 
@@ -70,8 +70,8 @@ def create_test_users():
         instructor_password = bcrypt.hashpw(b"InstructorPass123!", bcrypt.gensalt()).decode('utf-8')
 
         instructor_result = db.execute(text("""
-            INSERT INTO users (email, password_hash, first_name, last_name, role, is_active)
-            VALUES (:email, :password, 'Hook2', 'Instructor', 'INSTRUCTOR', true)
+            INSERT INTO users (email, password_hash, name, role, is_active, payment_verified)
+            VALUES (:email, :password, 'Hook2 Instructor', 'INSTRUCTOR', true, true)
             RETURNING id, email
         """), {"email": instructor_email, "password": instructor_password}).fetchone()
 

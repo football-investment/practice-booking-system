@@ -773,12 +773,13 @@ def grade_exercise_submission(
     })
 
     # Award XP to student if passed
-    if xp_awarded > 0:
-        db.execute(text("""
-            UPDATE users
-            SET total_xp = total_xp + :xp
-            WHERE id = :user_id
-        """), {"xp": xp_awarded, "user_id": submission.student_id})
+    # TODO: Implement XP tracking system
+    # if xp_awarded > 0:
+    #     db.execute(text("""
+    #         UPDATE users
+    #         SET total_xp = total_xp + :xp
+    #         WHERE id = :user_id
+    #     """), {"xp": xp_awarded, "user_id": submission.student_id})
 
     db.commit()
 
