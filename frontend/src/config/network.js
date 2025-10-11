@@ -14,19 +14,27 @@ export const NETWORK_CONFIG = {
 
 // Get the appropriate API URL based on how the frontend is accessed
 export const getApiUrl = () => {
+  let baseUrl;
+
   if (process.env.NODE_ENV === 'production') {
-    return process.env.REACT_APP_API_URL || 'http://localhost:8000';
+    baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  } else {
+    const hostname = window.location.hostname;
+
+    // If accessing via localhost, use localhost for backend too
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      baseUrl = `http://localhost:${NETWORK_CONFIG.BACKEND_PORT}`;
+    } else {
+      // If accessing via local network IP, use the Mac's IP for backend
+      baseUrl = `http://${NETWORK_CONFIG.LOCAL_NETWORK_IP}:${NETWORK_CONFIG.BACKEND_PORT}`;
+    }
   }
-  
-  const hostname = window.location.hostname;
-  
-  // If accessing via localhost, use localhost for backend too
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return `http://localhost:${NETWORK_CONFIG.BACKEND_PORT}`;
+
+  // Add /api/v1 prefix if not already present
+  if (!baseUrl.endsWith('/api/v1')) {
+    return `${baseUrl}/api/v1`;
   }
-  
-  // If accessing via local network IP, use the Mac's IP for backend
-  return `http://${NETWORK_CONFIG.LOCAL_NETWORK_IP}:${NETWORK_CONFIG.BACKEND_PORT}`;
+  return baseUrl;
 };
 
 // Instructions for iPad testing:
