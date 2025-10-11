@@ -369,8 +369,10 @@ const StudentDashboard = () => {
 
   const loadRecentFeedback = async () => {
     try {
-      const feedback = await apiService.getMyFeedback();
-      setRecentFeedback(feedback.slice(0, 3)); // Latest 3
+      const response = await apiService.getMyFeedback();
+      // API returns { feedbacks: [...], total, page, size }
+      const feedbackArray = Array.isArray(response) ? response : (response.feedbacks || response.feedback || []);
+      setRecentFeedback(feedbackArray.slice(0, 3)); // Latest 3
     } catch (error) {
       // PRODUCTION MODE: Error state - no mock feedback data
       console.error('Failed to load feedback from API:', error);
