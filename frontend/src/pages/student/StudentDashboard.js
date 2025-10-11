@@ -529,17 +529,21 @@ const StudentDashboard = () => {
     ];
 
     return (
-      <div className="quick-actions">
-        <h2>Quick Actions</h2>
-        <div className="actions-grid">
+      <div className="quick-actions-card">
+        <div className="card-header">
+          <h2 className="card-title">⚡ Quick Actions</h2>
+          <p className="card-subtitle">Get started with your training</p>
+        </div>
+        <div className="quick-actions-grid">
           {quickActions.map(action => (
-            <button 
+            <button
               key={action.id}
-              className={`action-button ${action.color}`}
+              className={`quick-action-btn ${action.color}`}
               onClick={action.onClick}
             >
+              <div className="action-icon">{action.title.split(' ')[0]}</div>
               <div className="action-content">
-                <h4>{action.title}</h4>
+                <h4>{action.title.substring(action.title.indexOf(' ') + 1)}</h4>
                 <p>{action.description}</p>
               </div>
             </button>
@@ -831,26 +835,30 @@ const StudentDashboard = () => {
         </section>
 
 
-      {/* MAIN DASHBOARD - UNIFIED SINGLE-COLUMN LAYOUT */}
+      {/* MAIN DASHBOARD - IMPROVED GRID LAYOUT */}
       <main className="dashboard">
-        <div className="dashboard-content">
-          {/* UNIFIED CONTENT - All Cards in Single Flow */}
-          <div className="left-column">
-            {/* Quick Actions - FIRST POSITION (Most Important) */}
+        <div className="dashboard-grid">
+          {/* PRIMARY SECTION - Hero Actions */}
+          <section className="hero-section">
             <QuickActionsGrid />
+          </section>
 
+          {/* SECONDARY SECTION - Next Session (High Priority) */}
+          <section className="session-section">
+            <NextSessionCard />
+          </section>
+
+          {/* TERTIARY SECTION - Progress & Skills */}
+          <section className="progress-section">
             {/* 🆕 SPECIALIZATION PROGRESS CARD */}
             {userSpecialization && (
-              <div className="specialization-progress-section">
+              <div className="specialization-progress-card">
                 <ProgressCard
                   specializationId={userSpecialization}
                   autoRefresh={true}
                 />
               </div>
             )}
-
-            {/* Next Session Card */}
-            <NextSessionCard />
             
             {/* Multi-Category Skill Progress - MAIN FEATURE */}
             <div className="card multi-skill-progress">
@@ -899,9 +907,13 @@ const StudentDashboard = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="no-skills-data">
-                    <p>🎯 No skill data available yet</p>
-                    <small>Start attending sessions to track your progress!</small>
+                  <div className="empty-state">
+                    <div className="empty-state-icon">🎯</div>
+                    <h3>Ready to start your journey?</h3>
+                    <p>Attend your first session to begin tracking your progress!</p>
+                    <button className="cta-button" onClick={() => window.location.href = '/student/schedule'}>
+                      Book Your First Session
+                    </button>
                   </div>
                 )}
               </div>

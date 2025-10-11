@@ -2285,36 +2285,295 @@ html, body {
   color: var(--text-tertiary);
 }
 
-/* ================ QUICK ACTIONS GRID ================ */
-.quick-actions {
-  background: var(--bg-primary);
+/* ================ IMPROVED DASHBOARD GRID LAYOUT ================ */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-xl);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+/* Hero Section - Primary Actions */
+.hero-section {
+  grid-column: 1;
+}
+
+/* Session Section - High Priority */
+.session-section {
+  grid-column: 1;
+}
+
+/* Progress Section */
+.progress-section {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* ================ QUICK ACTIONS CARD - REDESIGNED ================ */
+
+.quick-actions-card {
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-xl);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.quick-actions-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(30%, -30%);
+  pointer-events: none;
+}
+
+.quick-actions-card .card-header {
+  margin-bottom: var(--spacing-lg);
+  position: relative;
+  z-index: 1;
+}
+
+.quick-actions-card .card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 var(--spacing-xs) 0;
+  color: white;
+}
+
+.quick-actions-card .card-subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  font-weight: 400;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-md);
+  position: relative;
+  z-index: 1;
+}
+
+/* Quick Action Buttons with Hover Effects */
+.quick-action-btn {
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--bg-tertiary);
-}
-
-.quick-actions h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0 0 var(--spacing-md) 0;
-  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
+  flex-direction: column;
   align-items: center;
+  text-align: center;
   gap: var(--spacing-sm);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.quick-actions h2::before {
-  content: '⚡';
+.quick-action-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.quick-action-btn:hover::before {
+  opacity: 0.1;
+}
+
+.quick-action-btn:active {
+  transform: translateY(-2px);
+}
+
+.quick-action-btn .action-icon {
+  font-size: 2rem;
+  margin-bottom: var(--spacing-xs);
+  position: relative;
+  z-index: 1;
+}
+
+.quick-action-btn .action-content {
+  position: relative;
+  z-index: 1;
+}
+
+.quick-action-btn h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.quick-action-btn p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Color variants */
+.quick-action-btn.primary:hover::before {
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  opacity: 0.15;
+}
+
+.quick-action-btn.secondary:hover::before {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  opacity: 0.15;
+}
+
+.quick-action-btn.tertiary:hover::before {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  opacity: 0.15;
+}
+
+/* ================ EMPTY STATES - FRIENDLY & ENCOURAGING ================ */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  text-align: center;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-md);
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.empty-state h3 {
   font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm) 0;
 }
 
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-md);
+.empty-state p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-lg) 0;
+  max-width: 400px;
 }
 
+.cta-button {
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+}
+
+.cta-button:active {
+  transform: translateY(0);
+}
+
+/* ================ RESPONSIVE DESIGN ================ */
+
+/* Tablet and below */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    padding: var(--spacing-md);
+    gap: var(--spacing-lg);
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quick-actions-card {
+    padding: var(--spacing-lg);
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .dashboard-grid {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-md);
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .quick-action-btn {
+    padding: var(--spacing-md);
+  }
+
+  .quick-action-btn .action-icon {
+    font-size: 1.5rem;
+  }
+
+  .quick-action-btn h4 {
+    font-size: 0.875rem;
+  }
+
+  .quick-action-btn p {
+    font-size: 0.625rem;
+  }
+
+  .quick-actions-card .card-title {
+    font-size: 1.25rem;
+  }
+
+  .quick-actions-card::before {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+/* Old action button styles (deprecated) */
 .action-button {
   background: var(--bg-tertiary);
   border: 1px solid var(--bg-tertiary);
