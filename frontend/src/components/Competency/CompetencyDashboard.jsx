@@ -9,7 +9,7 @@ import {
   StarOutlined,
   RiseOutlined
 } from '@ant-design/icons';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosInstance';
 import CompetencyRadarChart from './CompetencyRadarChart';
 import './CompetencyDashboard.css';
 
@@ -30,28 +30,23 @@ const CompetencyDashboard = ({ specializationId }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
-      const headers = { Authorization: `Bearer ${token}` };
 
       // Fetch competencies
-      const compRes = await axios.get(
-        `/api/v1/competency/my-competencies?specialization_id=${specializationId}`,
-        { headers }
-      );
+      const compRes = await axiosInstance.get('/competency/my-competencies', {
+        params: { specialization_id: specializationId }
+      });
       setCompetencies(compRes.data);
 
       // Fetch milestones
-      const milestonesRes = await axios.get(
-        `/api/v1/competency/milestones?specialization_id=${specializationId}`,
-        { headers }
-      );
+      const milestonesRes = await axiosInstance.get('/competency/milestones', {
+        params: { specialization_id: specializationId }
+      });
       setMilestones(milestonesRes.data);
 
       // Fetch recent assessment history
-      const historyRes = await axios.get(
-        '/api/v1/competency/assessment-history?limit=10',
-        { headers }
-      );
+      const historyRes = await axiosInstance.get('/competency/assessment-history', {
+        params: { limit: 10 }
+      });
       setAssessmentHistory(historyRes.data);
 
       setError(null);
@@ -65,11 +60,7 @@ const CompetencyDashboard = ({ specializationId }) => {
 
   const fetchBreakdown = async (categoryId) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await axios.get(
-        `/api/v1/competency/breakdown/${categoryId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await axiosInstance.get(`/competency/breakdown/${categoryId}`);
       setBreakdownModal({ visible: true, categoryId, data: response.data });
     } catch (err) {
       console.error('Error fetching breakdown:', err);
