@@ -64,7 +64,7 @@ const AdaptiveLearning = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await apiService.request('/api/v1/adaptive-learning/categories');
+      const response = await apiService.request('/adaptive-learning/categories');
       // Backend returns objects with value and name properties
       const categoryValues = response && Array.isArray(response) 
         ? response.map(cat => cat.value || cat) 
@@ -82,7 +82,7 @@ const AdaptiveLearning = () => {
         category: selectedCategory,
         timeframe: 'week'
       });
-      const response = await apiService.request(`/api/v1/adaptive-learning/leaderboard?${queryParams}`);
+      const response = await apiService.request(`/adaptive-learning/leaderboard?${queryParams}`);
       setLeaderboard(response.leaderboard || []);
     } catch (error) {
       console.error('Failed to load leaderboard:', error);
@@ -94,7 +94,7 @@ const AdaptiveLearning = () => {
       setLoading(true);
       setError('');
       
-      const response = await apiService.request('/api/v1/adaptive-learning/start-session', {
+      const response = await apiService.request('/adaptive-learning/start-session', {
         method: 'POST',
         body: JSON.stringify({
           category: selectedCategory
@@ -127,7 +127,7 @@ const AdaptiveLearning = () => {
     
     try {
       setQuestionLoading(true);
-      const response = await apiService.request(`/api/v1/adaptive-learning/sessions/${sessionIdParam}/next-question`, {
+      const response = await apiService.request(`/adaptive-learning/sessions/${sessionIdParam}/next-question`, {
         method: 'POST'
       });
       
@@ -169,7 +169,7 @@ const AdaptiveLearning = () => {
       
       const timeSpent = questionStartTime ? (Date.now() - questionStartTime) / 1000 : 0;
       
-      const response = await apiService.request(`/api/v1/adaptive-learning/sessions/${sessionId}/answer`, {
+      const response = await apiService.request(`/adaptive-learning/sessions/${sessionId}/answer`, {
         method: 'POST',
         body: JSON.stringify({
           question_id: currentQuestion.id,
@@ -229,7 +229,7 @@ const AdaptiveLearning = () => {
     if (!sessionId) return;
     
     try {
-      const response = await apiService.request(`/api/v1/adaptive-learning/sessions/${sessionId}/end`, {
+      const response = await apiService.request(`/adaptive-learning/sessions/${sessionId}/end`, {
         method: 'POST'
       });
       
