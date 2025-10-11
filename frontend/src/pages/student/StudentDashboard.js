@@ -1384,6 +1384,7 @@ const StudentDashboard = () => {
                 )}
               </div>
             </div>
+          </section>
 
           </div>
         </div>
