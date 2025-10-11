@@ -511,6 +511,20 @@ const StudentDashboard = () => {
         description: 'Personalized training',
         color: 'secondary',
         onClick: () => window.location.href = '/student/adaptive-learning'
+      },
+      {
+        id: 'learning-profile',
+        title: '🔥 Learning Profile',
+        description: 'View your learning stats',
+        color: 'primary',
+        onClick: () => window.location.href = '/student/learning-profile'
+      },
+      {
+        id: 'competency',
+        title: '🎯 Competency Dashboard',
+        description: 'Track your skills',
+        color: 'tertiary',
+        onClick: () => window.location.href = '/student/competency'
       }
     ];
 
