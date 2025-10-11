@@ -53,7 +53,7 @@ class User(UserBase):
     payment_verified: Optional[bool] = False
     payment_verified_at: Optional[datetime] = None
     payment_verified_by: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None  # Make optional for legacy data
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None
 
