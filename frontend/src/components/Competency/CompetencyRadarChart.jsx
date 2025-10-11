@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Spin, Alert, Empty } from 'antd';
 import { Radar } from '@ant-design/plots';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosInstance';
 
 const CompetencyRadarChart = ({ specializationId, height = 400 }) => {
   const [loading, setLoading] = useState(true);
@@ -15,11 +15,9 @@ const CompetencyRadarChart = ({ specializationId, height = 400 }) => {
   const fetchRadarData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
-      const response = await axios.get(
-        `/api/v1/competency/radar-chart-data?specialization_id=${specializationId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await axiosInstance.get('/competency/radar-chart-data', {
+        params: { specialization_id: specializationId }
+      });
 
       const radarData = response.data;
 
