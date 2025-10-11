@@ -59,10 +59,23 @@ const CleanDashboardHeader = ({
             ☰
           </button>
         )}
-        
+
         <div className="header-logo">
           <span className="logo-icon">⚽</span>
           <span className="logo-text">LFA</span>
+        </div>
+      </div>
+
+      {/* CENTER: Search Bar */}
+      <div className="header-center">
+        <div className="search-container">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search..."
+            aria-label="Search"
+          />
+          <span className="search-icon">🔍</span>
         </div>
       </div>
 
