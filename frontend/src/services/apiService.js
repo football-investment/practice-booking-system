@@ -153,7 +153,7 @@ class ApiService {
       hasPassword: !!credentials.password,
       baseURL: this.baseURL
     });
-    
+
     // CRITICAL: Don't send Authorization header for login requests
     // Clear any existing token before login attempt
     const oldToken = localStorage.getItem('token');
@@ -162,8 +162,8 @@ class ApiService {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
-    
-    const response = await this.request('/api/v1/auth/login', {
+
+    const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
       headers: {
@@ -171,21 +171,21 @@ class ApiService {
         'Content-Type': 'application/json'
       }
     });
-    
+
     console.log('✅ ApiService login successful:', {
       hasToken: !!response.access_token,
       tokenType: response.token_type
     });
-    
+
     return response;
   }
 
   async logout() {
-    return this.request('/api/v1/auth/logout', { method: 'POST' });
+    return this.request('/auth/logout', { method: 'POST' });
   }
 
   async changePassword(passwordData) {
-    return this.request('/api/v1/auth/change-password', {
+    return this.request('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(passwordData),
     });
@@ -193,11 +193,11 @@ class ApiService {
 
   // USER ENDPOINTS
   async getCurrentUser() {
-    return this.request('/api/v1/users/me');
+    return this.request('/users/me');
   }
 
   async updateProfile(profileData) {
-    return this.request('/api/v1/users/me', {
+    return this.request('/users/me', {
       method: 'PATCH',
       body: JSON.stringify(profileData),
     });
@@ -209,7 +209,7 @@ class ApiService {
     const formData = new FormData();
     formData.append('file', imageFile);
     
-    return this.request('/api/v1/users/me/avatar', {
+    return this.request('/users/me/avatar', {
       method: 'POST',
       headers: {
         // Don't set Content-Type header for FormData, browser sets it automatically
@@ -219,25 +219,25 @@ class ApiService {
   }
 
   async getUsers() {
-    return this.request('/api/v1/users/');
+    return this.request('/users/');
   }
 
   async createUser(userData) {
-    return this.request('/api/v1/users/', {
+    return this.request('/users/', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
   }
 
   async updateUser(userId, userData) {
-    return this.request(`/api/v1/users/${userId}`, {
+    return this.request(`/users/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify(userData),
     });
   }
 
   async deleteUser(userId) {
-    return this.request(`/api/v1/users/${userId}`, {
+    return this.request(`/users/${userId}`, {
       method: 'DELETE',
     });
   }
@@ -245,7 +245,7 @@ class ApiService {
   // SESSION ENDPOINTS
   async getSessions() {
     try {
-      const response = await this.request('/api/v1/sessions/');
+      const response = await this.request('/sessions/');
       // API response received
       return response;
     } catch (error) {
@@ -255,12 +255,12 @@ class ApiService {
   }
 
   async getSession(sessionId) {
-    return this.request(`/api/v1/sessions/${sessionId}`);
+    return this.request(`/sessions/${sessionId}`);
   }
 
   async getMySessions() {
     try {
-      return await this.request('/api/v1/sessions/');
+      return await this.request('/sessions/');
     } catch (error) {
       console.warn('getMySessions API failed, using fallback:', error);
       // FALLBACK - return empty array for sessions
@@ -272,7 +272,7 @@ class ApiService {
 
   // BOOKING ENDPOINTS
   async createBooking(bookingData) {
-    return this.request('/api/v1/bookings/', {
+    return this.request('/bookings/', {
       method: 'POST',
       body: JSON.stringify(bookingData),
     });
@@ -280,7 +280,7 @@ class ApiService {
 
   async getMyBookings() {
     try {
-        const response = await this.request('/api/v1/bookings/me');
+        const response = await this.request('/bookings/me');
         // Enhanced booking data received
         
         // Ensure we get the enhanced booking data with attendance info
@@ -305,105 +305,105 @@ class ApiService {
   }
 
   async getAllBookings() {
-    return this.request('/api/v1/bookings/');
+    return this.request('/bookings/');
   }
 
   async cancelBooking(bookingId) {
-    return this.request(`/api/v1/bookings/${bookingId}`, {
+    return this.request(`/bookings/${bookingId}`, {
       method: 'DELETE',
     });
   }
 
   // GROUP ENDPOINTS
   async getGroups() {
-    return this.request('/api/v1/groups/');
+    return this.request('/groups/');
   }
 
   async getGroup(groupId) {
-    return this.request(`/api/v1/groups/${groupId}`);
+    return this.request(`/groups/${groupId}`);
   }
 
   async createGroup(groupData) {
-    return this.request('/api/v1/groups/', {
+    return this.request('/groups/', {
       method: 'POST',
       body: JSON.stringify(groupData),
     });
   }
 
   async updateGroup(groupId, groupData) {
-    return this.request(`/api/v1/groups/${groupId}`, {
+    return this.request(`/groups/${groupId}`, {
       method: 'PATCH',
       body: JSON.stringify(groupData),
     });
   }
 
   async deleteGroup(groupId) {
-    return this.request(`/api/v1/groups/${groupId}`, {
+    return this.request(`/groups/${groupId}`, {
       method: 'DELETE',
     });
   }
 
   // SEMESTER ENDPOINTS
   async getSemesters() {
-    return this.request('/api/v1/semesters/');
+    return this.request('/semesters/');
   }
 
   async createSemester(semesterData) {
-    return this.request('/api/v1/semesters/', {
+    return this.request('/semesters/', {
       method: 'POST',
       body: JSON.stringify(semesterData),
     });
   }
 
   async updateSemester(semesterId, semesterData) {
-    return this.request(`/api/v1/semesters/${semesterId}`, {
+    return this.request(`/semesters/${semesterId}`, {
       method: 'PATCH',
       body: JSON.stringify(semesterData),
     });
   }
 
   async deleteSemester(semesterId) {
-    return this.request(`/api/v1/semesters/${semesterId}`, {
+    return this.request(`/semesters/${semesterId}`, {
       method: 'DELETE',
     });
   }
 
   // FEEDBACK ENDPOINTS
   async submitFeedback(feedbackData) {
-    return this.request('/api/v1/feedback/', {
+    return this.request('/feedback/', {
       method: 'POST',
       body: JSON.stringify(feedbackData),
     });
   }
 
   async getMyFeedback() {
-    return this.request('/api/v1/feedback/me');
+    return this.request('/feedback/me');
   }
 
   async getAllFeedback() {
-    return this.request('/api/v1/feedback/');
+    return this.request('/feedback/');
   }
 
   async updateFeedback(feedbackId, feedbackData) {
-    return this.request(`/api/v1/feedback/${feedbackId}`, {
+    return this.request(`/feedback/${feedbackId}`, {
       method: 'PATCH',
       body: JSON.stringify(feedbackData),
     });
   }
 
   async deleteFeedback(feedbackId) {
-    return this.request(`/api/v1/feedback/${feedbackId}`, {
+    return this.request(`/feedback/${feedbackId}`, {
       method: 'DELETE',
     });
   }
 
   // ATTENDANCE ENDPOINTS
   async getAttendance() {
-    return this.request('/api/v1/attendance/');
+    return this.request('/attendance/');
   }
 
   async checkIn(bookingId, notes = null) {
-    return this.request(`/api/v1/attendance/${bookingId}/checkin`, {
+    return this.request(`/attendance/${bookingId}/checkin`, {
       method: 'POST',
       body: JSON.stringify({ notes }),
     });
@@ -414,7 +414,7 @@ class ApiService {
   // GAMIFICATION ENDPOINTS
   async getMyGamificationData() {
     try {
-      return await this.request('/api/v1/gamification/me');
+      return await this.request('/gamification/me');
     } catch (error) {
       console.warn('Gamification API failed, using fallback:', error);
       // FALLBACK - return data matching UI structure
@@ -444,26 +444,26 @@ class ApiService {
 
   // QUIZ ENDPOINTS
   async getAvailableQuizzes() {
-    return this.request('/api/v1/quizzes/available');
+    return this.request('/quizzes/available');
   }
 
   async getQuizzesByCategory(category) {
-    return this.request(`/api/v1/quizzes/category/${category}`);
+    return this.request(`/quizzes/category/${category}`);
   }
 
   async getQuizForTaking(quizId) {
-    return this.request(`/api/v1/quizzes/${quizId}`);
+    return this.request(`/quizzes/${quizId}`);
   }
 
   async startQuizAttempt(quizId) {
-    return this.request('/api/v1/quizzes/start', {
+    return this.request('/quizzes/start', {
       method: 'POST',
       body: JSON.stringify({ quiz_id: quizId }),
     });
   }
 
   async submitQuizAttempt(attemptId, answers) {
-    return this.request('/api/v1/quizzes/submit', {
+    return this.request('/quizzes/submit', {
       method: 'POST',
       body: JSON.stringify({ 
         attempt_id: attemptId, 
@@ -473,52 +473,52 @@ class ApiService {
   }
 
   async getMyQuizAttempts() {
-    return this.request('/api/v1/quizzes/attempts/my');
+    return this.request('/quizzes/attempts/my');
   }
 
   async getMyQuizStatistics() {
-    return this.request('/api/v1/quizzes/statistics/my');
+    return this.request('/quizzes/statistics/my');
   }
 
   async getQuizDashboardOverview() {
-    return this.request('/api/v1/quizzes/dashboard/overview');
+    return this.request('/quizzes/dashboard/overview');
   }
 
   // Admin/Instructor quiz endpoints
   async createQuiz(quizData) {
-    return this.request('/api/v1/quizzes/', {
+    return this.request('/quizzes/', {
       method: 'POST',
       body: JSON.stringify(quizData),
     });
   }
 
   async getAllQuizzesAdmin() {
-    return this.request('/api/v1/quizzes/admin/all');
+    return this.request('/quizzes/admin/all');
   }
 
   async getQuizAdmin(quizId) {
-    return this.request(`/api/v1/quizzes/admin/${quizId}`);
+    return this.request(`/quizzes/admin/${quizId}`);
   }
 
   async getQuizStatistics(quizId) {
-    return this.request(`/api/v1/quizzes/statistics/${quizId}`);
+    return this.request(`/quizzes/statistics/${quizId}`);
   }
 
   async getQuizLeaderboard(quizId) {
-    return this.request(`/api/v1/quizzes/leaderboard/${quizId}`);
+    return this.request(`/quizzes/leaderboard/${quizId}`);
   }
 
   // PROJECT ENDPOINTS
   async getProjects(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/projects/${queryString ? `?${queryString}` : ''}`;
+    const url = `/projects/${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
   async getMyProjects(params = {}) {
     try {
       // Use the correct endpoint: /projects/my/summary for dashboard
-      return await this.request('/api/v1/projects/my/summary');
+      return await this.request('/projects/my/summary');
     } catch (error) {
       console.warn('getMyProjects API failed, using fallback:', error);
       // FALLBACK - return empty structure for projects
@@ -527,49 +527,49 @@ class ApiService {
   }
 
   async getProject(projectId) {
-    return this.request(`/api/v1/projects/${projectId}`);
+    return this.request(`/projects/${projectId}`);
   }
 
   async enrollInProject(projectId) {
-    return this.request(`/api/v1/projects/${projectId}/enroll`, {
+    return this.request(`/projects/${projectId}/enroll`, {
       method: 'POST',
     });
   }
 
   async withdrawFromProject(projectId) {
-    return this.request(`/api/v1/projects/${projectId}/enroll`, {
+    return this.request(`/projects/${projectId}/enroll`, {
       method: 'DELETE',
     });
   }
 
   async getMyCurrentProject() {
-    return this.request('/api/v1/projects/my/current');
+    return this.request('/projects/my/current');
   }
 
   async getMyProjectSummary() {
-    return this.request('/api/v1/projects/my/summary');
+    return this.request('/projects/my/summary');
   }
 
   async getProjectProgress(projectId) {
-    return this.request(`/api/v1/projects/${projectId}/progress`);
+    return this.request(`/projects/${projectId}/progress`);
   }
 
   // Milestone management endpoints
   async submitMilestone(projectId, milestoneId) {
-    return this.request(`/api/v1/projects/${projectId}/milestones/${milestoneId}/submit`, {
+    return this.request(`/projects/${projectId}/milestones/${milestoneId}/submit`, {
       method: 'POST'
     });
   }
 
   async approveMilestone(projectId, milestoneId, feedback = null) {
-    return this.request(`/api/v1/projects/${projectId}/milestones/${milestoneId}/approve`, {
+    return this.request(`/projects/${projectId}/milestones/${milestoneId}/approve`, {
       method: 'POST',
       body: JSON.stringify({ feedback })
     });
   }
 
   async rejectMilestone(projectId, milestoneId, feedback) {
-    return this.request(`/api/v1/projects/${projectId}/milestones/${milestoneId}/reject`, {
+    return this.request(`/projects/${projectId}/milestones/${milestoneId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ feedback })
     });
@@ -579,120 +579,120 @@ class ApiService {
 
   // INSTRUCTOR ENDPOINTS
   async getInstructorSessions() {
-    return this.request('/api/v1/sessions/instructor/my');
+    return this.request('/sessions/instructor/my');
   }
 
   async getInstructorProjects() {
-    return this.request('/api/v1/projects/instructor/my');
+    return this.request('/projects/instructor/my');
   }
 
   // PROJECT CRUD OPERATIONS
   async createProject(projectData) {
-    return this.request('/api/v1/projects/', {
+    return this.request('/projects/', {
       method: 'POST',
       body: JSON.stringify(projectData),
     });
   }
 
   async updateProject(projectId, projectData) {
-    return this.request(`/api/v1/projects/${projectId}`, {
+    return this.request(`/projects/${projectId}`, {
       method: 'PUT',
       body: JSON.stringify(projectData),
     });
   }
 
   async deleteProject(projectId) {
-    return this.request(`/api/v1/projects/${projectId}`, {
+    return this.request(`/projects/${projectId}`, {
       method: 'DELETE',
     });
   }
 
   async getProjectDetails(projectId) {
-    return this.request(`/api/v1/projects/${projectId}`);
+    return this.request(`/projects/${projectId}`);
   }
 
   async getInstructorStudents() {
-    return this.request('/api/v1/users/instructor/students');
+    return this.request('/users/instructor/students');
   }
 
   async getInstructorStudentDetails(studentId) {
-    return this.request(`/api/v1/users/instructor/students/${studentId}`);
+    return this.request(`/users/instructor/students/${studentId}`);
   }
 
   async getInstructorStudentProgress(studentId) {
-    return this.request(`/api/v1/users/instructor/students/${studentId}/progress`);
+    return this.request(`/users/instructor/students/${studentId}/progress`);
   }
 
   async getInstructorFeedback() {
-    return this.request('/api/v1/feedback/instructor/my');
+    return this.request('/feedback/instructor/my');
   }
 
   async getInstructorAttendance() {
-    return this.request('/api/v1/attendance/instructor/overview');
+    return this.request('/attendance/instructor/overview');
   }
 
   async getProjectStudents(projectId) {
-    return this.request(`/api/v1/projects/${projectId}/students`);
+    return this.request(`/projects/${projectId}/students`);
   }
 
   async enrollStudentInProject(projectId, studentId) {
-    return this.request(`/api/v1/projects/${projectId}/instructor/enroll/${studentId}`, {
+    return this.request(`/projects/${projectId}/instructor/enroll/${studentId}`, {
       method: 'POST',
     });
   }
 
   async removeStudentFromProject(projectId, studentId) {
-    return this.request(`/api/v1/projects/${projectId}/instructor/enroll/${studentId}`, {
+    return this.request(`/projects/${projectId}/instructor/enroll/${studentId}`, {
       method: 'DELETE',
     });
   }
 
   // SESSION CRUD OPERATIONS
   async createSession(sessionData) {
-    return this.request('/api/v1/sessions/', {
+    return this.request('/sessions/', {
       method: 'POST',
       body: JSON.stringify(sessionData),
     });
   }
 
   async updateSession(sessionId, sessionData) {
-    return this.request(`/api/v1/sessions/${sessionId}`, {
+    return this.request(`/sessions/${sessionId}`, {
       method: 'PUT',
       body: JSON.stringify(sessionData),
     });
   }
 
   async deleteSession(sessionId) {
-    return this.request(`/api/v1/sessions/${sessionId}`, {
+    return this.request(`/sessions/${sessionId}`, {
       method: 'DELETE',
     });
   }
 
   async getSessionDetails(sessionId) {
-    return this.request(`/api/v1/sessions/${sessionId}`);
+    return this.request(`/sessions/${sessionId}`);
   }
 
   async getSessionBookings(sessionId) {
-    return this.request(`/api/v1/sessions/${sessionId}/bookings`);
+    return this.request(`/sessions/${sessionId}/bookings`);
   }
 
   async addSessionNote(sessionId, note) {
-    return this.request(`/api/v1/sessions/${sessionId}/notes`, {
+    return this.request(`/sessions/${sessionId}/notes`, {
       method: 'POST',
       body: JSON.stringify({ note }),
     });
   }
 
   async getSessionNotes(sessionId) {
-    return this.request(`/api/v1/sessions/${sessionId}/notes`);
+    return this.request(`/sessions/${sessionId}/notes`);
   }
 
   async getSessionAttendance(sessionId) {
-    return this.request(`/api/v1/sessions/${sessionId}/attendance`);
+    return this.request(`/sessions/${sessionId}/attendance`);
   }
 
   async markAttendance(sessionId, userId, attended) {
-    return this.request(`/api/v1/sessions/${sessionId}/attendance`, {
+    return this.request(`/sessions/${sessionId}/attendance`, {
       method: 'POST',
       body: JSON.stringify({
         user_id: userId,
@@ -708,11 +708,11 @@ class ApiService {
       size: size.toString(),
       unread_only: unreadOnly.toString()
     });
-    return this.request(`/api/v1/notifications/me?${params}`);
+    return this.request(`/notifications/me?${params}`);
   }
 
   async markNotificationsAsRead(notificationIds) {
-    return this.request('/api/v1/notifications/mark-read', {
+    return this.request('/notifications/mark-read', {
       method: 'PUT',
       body: JSON.stringify({
         notification_ids: notificationIds
@@ -721,20 +721,20 @@ class ApiService {
   }
 
   async markAllNotificationsAsRead() {
-    return this.request('/api/v1/notifications/mark-all-read', {
+    return this.request('/notifications/mark-all-read', {
       method: 'PUT'
     });
   }
 
   async createNotification(notificationData) {
-    return this.request('/api/v1/notifications/', {
+    return this.request('/notifications/', {
       method: 'POST',
       body: JSON.stringify(notificationData)
     });
   }
 
   async deleteNotification(notificationId) {
-    return this.request(`/api/v1/notifications/${notificationId}`, {
+    return this.request(`/notifications/${notificationId}`, {
       method: 'DELETE'
     });
   }
@@ -751,7 +751,7 @@ class ApiService {
       size: size.toString(),
       unread_only: unreadOnly.toString()
     });
-    return this.request(`/api/v1/messages/inbox?${params}`);
+    return this.request(`/messages/inbox?${params}`);
   }
 
   async getSentMessages(page = 1, size = 50) {
@@ -759,46 +759,46 @@ class ApiService {
       page: page.toString(),
       size: size.toString()
     });
-    return this.request(`/api/v1/messages/sent?${params}`);
+    return this.request(`/messages/sent?${params}`);
   }
 
   async getMessage(messageId) {
-    return this.request(`/api/v1/messages/${messageId}`);
+    return this.request(`/messages/${messageId}`);
   }
 
   async sendMessage(messageData) {
-    return this.request('/api/v1/messages/', {
+    return this.request('/messages/', {
       method: 'POST',
       body: JSON.stringify(messageData),
     });
   }
 
   async sendMessageByNickname(messageData) {
-    return this.request('/api/v1/messages/by-nickname', {
+    return this.request('/messages/by-nickname', {
       method: 'POST',
       body: JSON.stringify(messageData),
     });
   }
 
   async markMessageAsRead(messageId) {
-    return this.request(`/api/v1/messages/${messageId}`, {
+    return this.request(`/messages/${messageId}`, {
       method: 'PUT',
       body: JSON.stringify({ is_read: true }),
     });
   }
 
   async getAvailableUsers() {
-    return this.request('/api/v1/messages/users/available');
+    return this.request('/messages/users/available');
   }
 
   async deleteMessage(messageId) {
-    return this.request(`/api/v1/messages/${messageId}`, {
+    return this.request(`/messages/${messageId}`, {
       method: 'DELETE',
     });
   }
 
   async editMessage(messageId, newContent) {
-    return this.request(`/api/v1/messages/${messageId}`, {
+    return this.request(`/messages/${messageId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -810,94 +810,94 @@ class ApiService {
   }
 
   async deleteConversation(userId) {
-    return this.request(`/api/v1/messages/conversation/${userId}`, {
+    return this.request(`/messages/conversation/${userId}`, {
       method: 'DELETE',
     });
   }
 
   // 💰 PAYMENT VERIFICATION ENDPOINTS
   async getStudentsPaymentStatus() {
-    return this.request('/api/v1/payment-verification/students');
+    return this.request('/payment-verification/students');
   }
 
   async verifyStudentPayment(studentId) {
-    return this.request(`/api/v1/payment-verification/students/${studentId}/verify`, {
+    return this.request(`/payment-verification/students/${studentId}/verify`, {
       method: 'POST',
     });
   }
 
   async unverifyStudentPayment(studentId) {
-    return this.request(`/api/v1/payment-verification/students/${studentId}/unverify`, {
+    return this.request(`/payment-verification/students/${studentId}/unverify`, {
       method: 'POST',
     });
   }
 
   async getStudentPaymentStatus(studentId) {
-    return this.request(`/api/v1/payment-verification/students/${studentId}/status`);
+    return this.request(`/payment-verification/students/${studentId}/status`);
   }
 
   // 🎓🔀 PARALLEL SPECIALIZATION ENDPOINTS
   async getMySpecializations() {
-    return this.request('/api/v1/parallel-specializations/my-specializations');
+    return this.request('/parallel-specializations/my-specializations');
   }
 
   async getAvailableSpecializations() {
-    return this.request('/api/v1/parallel-specializations/available');
+    return this.request('/parallel-specializations/available');
   }
 
   async getSpecializationDashboard() {
-    return this.request('/api/v1/parallel-specializations/dashboard');
+    return this.request('/parallel-specializations/dashboard');
   }
 
   async startNewSpecialization(specialization) {
-    return this.request('/api/v1/parallel-specializations/start', {
+    return this.request('/parallel-specializations/start', {
       method: 'POST',
       body: JSON.stringify({ specialization }),
     });
   }
 
   async validateSpecializationAddition(specialization) {
-    return this.request(`/api/v1/parallel-specializations/validate/${specialization}`);
+    return this.request(`/parallel-specializations/validate/${specialization}`);
   }
 
   async getSpecializationCombinations() {
-    return this.request('/api/v1/parallel-specializations/combinations');
+    return this.request('/parallel-specializations/combinations');
   }
 
   async getSemesterSpecializationInfo(semester) {
-    return this.request(`/api/v1/parallel-specializations/semester-info/${semester}`);
+    return this.request(`/parallel-specializations/semester-info/${semester}`);
   }
 
   async getProgressionRules() {
-    return this.request('/api/v1/parallel-specializations/progression-rules');
+    return this.request('/parallel-specializations/progression-rules');
   }
 
   // 🏮 GANCUJU LICENSE SYSTEM ENDPOINTS
   async getLicenseMetadata(specialization = null) {
     const url = specialization 
-      ? `/api/v1/licenses/metadata?specialization=${specialization}`
-      : '/api/v1/licenses/metadata';
+      ? `/licenses/metadata?specialization=${specialization}`
+      : '/licenses/metadata';
     return this.request(url);
   }
 
   async getLicenseLevelMetadata(specialization, level) {
-    return this.request(`/api/v1/licenses/metadata/${specialization}/${level}`);
+    return this.request(`/licenses/metadata/${specialization}/${level}`);
   }
 
   async getSpecializationProgression(specialization) {
-    return this.request(`/api/v1/licenses/progression/${specialization}`);
+    return this.request(`/licenses/progression/${specialization}`);
   }
 
   async getMyLicenses() {
-    return this.request('/api/v1/licenses/my-licenses');
+    return this.request('/licenses/my-licenses');
   }
 
   async getLicenseDashboard() {
-    return this.request('/api/v1/licenses/dashboard');
+    return this.request('/licenses/dashboard');
   }
 
   async requestLicenseAdvancement(specialization, targetLevel, reason = '') {
-    return this.request('/api/v1/licenses/advance', {
+    return this.request('/licenses/advance', {
       method: 'POST',
       body: JSON.stringify({
         specialization,
@@ -908,20 +908,20 @@ class ApiService {
   }
 
   async checkAdvancementRequirements(specialization, level) {
-    return this.request(`/api/v1/licenses/requirements/${specialization}/${level}`);
+    return this.request(`/licenses/requirements/${specialization}/${level}`);
   }
 
   async getLicenseMarketingContent(specialization, level = null) {
     const url = level 
-      ? `/api/v1/licenses/marketing/${specialization}?level=${level}`
-      : `/api/v1/licenses/marketing/${specialization}`;
+      ? `/licenses/marketing/${specialization}?level=${level}`
+      : `/licenses/marketing/${specialization}`;
     return this.request(url);
   }
 
   // Gamification Profile API
   async getGamificationProfile() {
     try {
-      return await this.request('/api/v1/gamification/profile');
+      return await this.request('/gamification/profile');
     } catch (error) {
       console.warn('Gamification profile unavailable:', error.message);
       // Return fallback data structure
@@ -1052,7 +1052,7 @@ class ApiService {
 
   async getPerformanceAnalytics() {
     try {
-      return await this.request('/api/v1/analytics/performance');
+      return await this.request('/analytics/performance');
     } catch (error) {
       console.warn('Performance analytics not available:', error);
       return null;
@@ -1062,7 +1062,7 @@ class ApiService {
   async getPendingQuizzes(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/quizzes/pending${queryString ? `?${queryString}` : ''}`;
+      const url = `/quizzes/pending${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Pending quizzes not available:', error);
@@ -1073,7 +1073,7 @@ class ApiService {
   async getActiveProjects(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/projects/active${queryString ? `?${queryString}` : ''}`;
+      const url = `/projects/active${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Active projects not available:', error);
@@ -1082,7 +1082,7 @@ class ApiService {
   }
 
   async startAdaptiveLesson(recommendationId) {
-    return await this.request(`/api/v1/adaptive-learning/start/${recommendationId}`, {
+    return await this.request(`/adaptive-learning/start/${recommendationId}`, {
       method: 'POST'
     });
   }
@@ -1090,7 +1090,7 @@ class ApiService {
   async getNotifications(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/notifications${queryString ? `?${queryString}` : ''}`;
+      const url = `/notifications${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Notifications not available:', error);
@@ -1104,7 +1104,7 @@ class ApiService {
   async getNextSession(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/sessions/next${queryString ? `?${queryString}` : ''}`;
+      const url = `/sessions/next${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Next session not available:', error);
@@ -1116,7 +1116,7 @@ class ApiService {
   async getProgressOverview(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/progress/overview${queryString ? `?${queryString}` : ''}`;
+      const url = `/progress/overview${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Progress overview not available:', error);
@@ -1128,7 +1128,7 @@ class ApiService {
   async getGamificationMe(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/gamification/me${queryString ? `?${queryString}` : ''}`;
+      const url = `/gamification/me${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Gamification data not available:', error);
@@ -1139,7 +1139,7 @@ class ApiService {
   // Achievements API - REAL BACKEND DATA
   async getAchievements() {
     try {
-      return await this.request('/api/v1/students/dashboard/achievements');
+      return await this.request('/students/dashboard/achievements');
     } catch (error) {
       console.warn('Achievements data not available:', error);
       return {
@@ -1159,7 +1159,7 @@ class ApiService {
   async getCurrentSpecialization(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/specializations/current${queryString ? `?${queryString}` : ''}`;
+      const url = `/specializations/current${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Current specialization not available:', error);
@@ -1169,7 +1169,7 @@ class ApiService {
 
   async getSpecializationOptions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/specializations/options${queryString ? `?${queryString}` : ''}`;
+    const url = `/specializations/options${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
@@ -1177,7 +1177,7 @@ class ApiService {
   async getAdaptiveLearningRecommendations(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/adaptive-learning/recommendations${queryString ? `?${queryString}` : ''}`;
+      const url = `/adaptive-learning/recommendations${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Adaptive learning recommendations not available:', error);
@@ -1186,7 +1186,7 @@ class ApiService {
   }
 
   async startAdaptiveLearningModule(recommendationId, data = {}) {
-    return this.request(`/api/v1/adaptive-learning/start/${recommendationId}`, {
+    return this.request(`/adaptive-learning/start/${recommendationId}`, {
       method: 'POST',
       body: JSON.stringify(data)
     });
@@ -1196,7 +1196,7 @@ class ApiService {
   async getRecentFeedback(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/feedback/recent${queryString ? `?${queryString}` : ''}`;
+      const url = `/feedback/recent${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Recent feedback not available:', error);
@@ -1206,7 +1206,7 @@ class ApiService {
 
   async getFeedbackHub(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/feedback/hub${queryString ? `?${queryString}` : ''}`;
+    const url = `/feedback/hub${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
@@ -1214,7 +1214,7 @@ class ApiService {
   async getPerformanceSummary(params = {}) {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = `/api/v1/analytics/performance-summary${queryString ? `?${queryString}` : ''}`;
+      const url = `/analytics/performance-summary${queryString ? `?${queryString}` : ''}`;
       return await this.request(url);
     } catch (error) {
       console.warn('Performance summary not available:', error);
@@ -1224,26 +1224,26 @@ class ApiService {
 
   async getDetailedAnalytics(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/analytics/detailed${queryString ? `?${queryString}` : ''}`;
+    const url = `/analytics/detailed${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
   // Quizzes API
   async getQuizzesAll(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/quizzes/${queryString ? `?${queryString}` : ''}`;
+    const url = `/quizzes/${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
   // Mentoring API
   async getMentors(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/mentoring/mentors${queryString ? `?${queryString}` : ''}`;
+    const url = `/mentoring/mentors${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
   async requestMentor(mentorId, data = {}) {
-    return this.request(`/api/v1/mentoring/request/${mentorId}`, {
+    return this.request(`/mentoring/request/${mentorId}`, {
       method: 'POST',
       body: JSON.stringify(data)
     });
@@ -1252,12 +1252,12 @@ class ApiService {
   // Portfolio API
   async getPortfolio(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    const url = `/api/v1/portfolio/${queryString ? `?${queryString}` : ''}`;
+    const url = `/portfolio/${queryString ? `?${queryString}` : ''}`;
     return this.request(url);
   }
 
   async updatePortfolio(data = {}) {
-    return this.request('/api/v1/portfolio/', {
+    return this.request('/portfolio/', {
       method: 'PUT',
       body: JSON.stringify(data)
     });
@@ -1276,9 +1276,9 @@ class ApiService {
         sessionsResponse,
         projectsResponse
       ] = await Promise.allSettled([
-        this.request('/api/v1/students/dashboard/semester-progress'),
-        this.request('/api/v1/students/dashboard/achievements'),
-        this.request('/api/v1/students/dashboard/daily-challenge'),
+        this.request('/students/dashboard/semester-progress'),
+        this.request('/students/dashboard/achievements'),
+        this.request('/students/dashboard/daily-challenge'),
         this.getMySessions(),
         this.getMyProjects()
       ]);
