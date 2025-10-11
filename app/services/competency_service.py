@@ -403,16 +403,22 @@ class CompetencyService:
             SELECT
                 ucs.id,
                 ucs.user_id,
-                ucs.category_id,
+                ucs.competency_category_id as category_id,
                 cc.name as category_name,
                 cc.icon as category_icon,
                 cc.specialization_id,
-                ucs.current_score,
-                ucs.current_level,
-                ucs.total_assessments,
-                ucs.last_assessed_at
+                COALESCE(ucs.percentage, 0) as current_score,
+                CASE
+                    WHEN COALESCE(ucs.percentage, 0) >= 90 THEN 'Expert'
+                    WHEN COALESCE(ucs.percentage, 0) >= 75 THEN 'Proficient'
+                    WHEN COALESCE(ucs.percentage, 0) >= 60 THEN 'Competent'
+                    WHEN COALESCE(ucs.percentage, 0) >= 40 THEN 'Developing'
+                    ELSE 'Beginner'
+                END as current_level,
+                COALESCE(ucs.assessment_count, 0) as total_assessments,
+                ucs.last_assessed as last_assessed_at
             FROM user_competency_scores ucs
-            JOIN competency_categories cc ON cc.id = ucs.category_id
+            JOIN competency_categories cc ON cc.id = ucs.competency_category_id
             WHERE ucs.user_id = :user_id
         """
 
@@ -498,17 +504,17 @@ class CompetencyService:
             SELECT
                 ca.id,
                 ca.user_id,
-                ca.category_id,
-                ca.skill_id,
+                ca.competency_category_id as category_id,
+                ca.competency_skill_id as skill_id,
                 cc.name as category_name,
                 cs.name as skill_name,
                 ca.score,
-                ca.source_type,
+                ca.assessment_type as source_type,
                 ca.source_id,
                 ca.assessed_at
             FROM competency_assessments ca
-            LEFT JOIN competency_categories cc ON cc.id = ca.category_id
-            LEFT JOIN competency_skills cs ON cs.id = ca.skill_id
+            LEFT JOIN competency_categories cc ON cc.id = ca.competency_category_id
+            LEFT JOIN competency_skills cs ON cs.id = ca.competency_skill_id
             WHERE ca.user_id = :user_id
             ORDER BY ca.assessed_at DESC
             LIMIT :limit
@@ -530,22 +536,23 @@ class CompetencyService:
             SELECT
                 ucm.id,
                 ucm.user_id,
-                ucm.milestone_id,
-                cm.name as milestone_name,
+                ucm.competency_milestone_id as milestone_id,
+                cm.level_name as milestone_name,
                 cm.description,
-                cm.icon,
+                cm.badge_icon as icon,
                 cm.xp_reward,
-                cm.specialization_id,
+                cc.specialization_id,
                 ucm.achieved_at
             FROM user_competency_milestones ucm
-            JOIN competency_milestones cm ON cm.id = ucm.milestone_id
+            JOIN competency_milestones cm ON cm.id = ucm.competency_milestone_id
+            JOIN competency_categories cc ON cc.id = cm.competency_category_id
             WHERE ucm.user_id = :user_id
         """
 
         params = {"user_id": user_id}
 
         if specialization_id:
-            query += " AND cm.specialization_id = :spec_id"
+            query += " AND cc.specialization_id = :spec_id"
             params["spec_id"] = specialization_id
 
         query += " ORDER BY ucm.achieved_at DESC"
