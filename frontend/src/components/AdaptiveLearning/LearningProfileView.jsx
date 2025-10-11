@@ -1,137 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Statistic, Progress, Button, Space, Spin, Alert, Tag, Divider } from 'antd';
+import {
+  Card, Row, Col, Statistic, Progress, Tag, Space,
+  Button, Spin, message, Typography, Alert
+} from 'antd';
 import {
   TrophyOutlined,
-  FireOutlined,
-  BookOutlined,
   ClockCircleOutlined,
+  RiseOutlined,
+  CheckCircleOutlined,
   ReloadOutlined,
+  FireOutlined,
   ThunderboltOutlined,
-  VideoCameraOutlined,
-  FileTextOutlined,
-  ExperimentOutlined
+  BookOutlined
 } from '@ant-design/icons';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosInstance';
+import { API_ENDPOINTS } from '../../config/api';
 import RecommendationCard from './RecommendationCard';
 import './LearningProfileView.css';
 
+const { Title, Text } = Typography;
+
 const LearningProfileView = () => {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch profile and recommendations
-  const fetchData = async (forceRefresh = false) => {
-    try {
-      if (forceRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      const token = localStorage.getItem('access_token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      // Fetch profile
-      const profileRes = await axios.get(
-        '/api/v1/curriculum-adaptive/profile',
-        { headers }
-      );
-      setProfile(profileRes.data);
-
-      // Fetch recommendations
-      const recsRes = await axios.get(
-        `/api/v1/curriculum-adaptive/recommendations?refresh=${forceRefresh}`,
-        { headers }
-      );
-      setRecommendations(recsRes.data);
-
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching adaptive learning data:', err);
-      setError(err.response?.data?.detail || 'Failed to load learning profile');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
+    loadProfile();
+    loadRecommendations();
   }, []);
 
-  // Refresh profile metrics
-  const handleUpdateProfile = async () => {
+  const loadProfile = async () => {
     try {
-      setRefreshing(true);
-      const token = localStorage.getItem('access_token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      await axios.post('/api/v1/curriculum-adaptive/profile/update', {}, { headers });
-      await fetchData(true); // Refresh all data
-    } catch (err) {
-      console.error('Error updating profile:', err);
-      setError('Failed to update profile');
-      setRefreshing(false);
+      setLoading(true);
+      setError(null);
+      const response = await axiosInstance.get(API_ENDPOINTS.ADAPTIVE.PROFILE);
+      setProfile(response.data);
+    } catch (error) {
+      console.error('Failed to load learning profile:', error);
+      setError('Failed to load learning profile. Please try again.');
+      message.error('Failed to load learning profile');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Dismiss recommendation
-  const handleDismissRecommendation = async (recId) => {
+  const loadRecommendations = async (refresh = false) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      await axios.post(
-        `/api/v1/curriculum-adaptive/recommendations/${recId}/dismiss`,
-        {},
-        { headers }
-      );
-
-      // Remove from local state
-      setRecommendations(recommendations.filter(r => r.id !== recId));
-    } catch (err) {
-      console.error('Error dismissing recommendation:', err);
+      if (refresh) setRefreshing(true);
+      const response = await axiosInstance.get(API_ENDPOINTS.ADAPTIVE.RECOMMENDATIONS, {
+        params: { refresh }
+      });
+      setRecommendations(response.data);
+      if (refresh) {
+        message.success('Recommendations refreshed!');
+      }
+    } catch (error) {
+      console.error('Failed to load recommendations:', error);
+      if (refresh) {
+        message.error('Failed to refresh recommendations');
+      }
+    } finally {
+      if (refresh) setRefreshing(false);
     }
   };
 
-  // Get pace color
+  const handleDismiss = async (recommendationId) => {
+    try {
+      await axiosInstance.post(API_ENDPOINTS.ADAPTIVE.DISMISS_RECOMMENDATION(recommendationId));
+      message.success('Recommendation dismissed');
+      loadRecommendations();
+    } catch (error) {
+      console.error('Failed to dismiss recommendation:', error);
+      message.error('Failed to dismiss recommendation');
+    }
+  };
+
   const getPaceColor = (pace) => {
-    switch (pace) {
-      case 'ACCELERATED': return '#52c41a';
-      case 'FAST': return '#1890ff';
-      case 'MEDIUM': return '#faad14';
-      case 'SLOW': return '#ff4d4f';
-      default: return '#d9d9d9';
-    }
+    const colors = {
+      'ACCELERATED': 'purple',
+      'FAST': 'green',
+      'MEDIUM': 'blue',
+      'SLOW': 'orange'
+    };
+    return colors[pace] || 'default';
   };
 
-  // Get pace icon
   const getPaceIcon = (pace) => {
-    switch (pace) {
-      case 'ACCELERATED': return '🚀';
-      case 'FAST': return '⚡';
-      case 'MEDIUM': return '🚶';
-      case 'SLOW': return '🐢';
-      default: return '📊';
-    }
-  };
-
-  // Get content type icon
-  const getContentIcon = (type) => {
-    switch (type) {
-      case 'VIDEO': return <VideoCameraOutlined />;
-      case 'TEXT': return <FileTextOutlined />;
-      case 'PRACTICE': return <ExperimentOutlined />;
-      default: return <BookOutlined />;
-    }
+    if (pace === 'ACCELERATED' || pace === 'FAST') return <ThunderboltOutlined />;
+    if (pace === 'SLOW') return <ClockCircleOutlined />;
+    return <RiseOutlined />;
   };
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+      <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" tip="Loading your learning profile..." />
       </div>
     );
@@ -139,144 +104,173 @@ const LearningProfileView = () => {
 
   if (error) {
     return (
-      <Alert
-        message="Error"
-        description={error}
-        type="error"
-        showIcon
-        style={{ margin: '20px' }}
-      />
+      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+        <Alert
+          message="Error Loading Profile"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button onClick={loadProfile} type="primary">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+        <Alert
+          message="No Profile Data"
+          description="Complete some lessons and quizzes to build your learning profile!"
+          type="info"
+          showIcon
+          icon={<BookOutlined />}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="learning-profile-view" style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>
-            🧠 Your Learning Profile
-          </h2>
-          <p style={{ margin: '8px 0 0 0', color: '#8c8c8c' }}>
-            AI-powered personalized learning insights
-          </p>
-        </div>
-        <Button
-          icon={<ReloadOutlined spin={refreshing} />}
-          onClick={handleUpdateProfile}
-          loading={refreshing}
-          size="large"
-        >
-          Update Metrics
-        </Button>
-      </div>
+    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+      <Title level={2}>
+        <FireOutlined style={{ color: '#ff4d4f' }} /> Your Learning Profile
+      </Title>
 
-      {/* Stats Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        {/* Learning Pace */}
+      {/* Statistics Row */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
-          <Card bordered={false} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
-            <Statistic
-              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>Learning Pace</span>}
-              value={profile.learning_pace}
-              prefix={getPaceIcon(profile.learning_pace)}
-              valueStyle={{ color: 'white', fontSize: '24px', fontWeight: 700 }}
-            />
-            <Progress
-              percent={profile.pace_score}
-              strokeColor="#ffffff"
-              trailColor="rgba(255,255,255,0.3)"
-              showInfo={false}
-              style={{ marginTop: '12px' }}
-            />
-          </Card>
-        </Col>
-
-        {/* Quiz Average */}
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+          <Card>
             <Statistic
               title="Quiz Average"
-              value={profile.quiz_average_score.toFixed(1)}
+              value={profile.quiz_average_score || 0}
               suffix="%"
-              prefix={<TrophyOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: profile.quiz_average_score >= 70 ? '#52c41a' : '#ff4d4f' }}
+              prefix={<TrophyOutlined />}
+              valueStyle={{
+                color: profile.quiz_average_score >= 70 ? '#3f8600' : '#cf1322'
+              }}
             />
           </Card>
         </Col>
-
-        {/* Lessons Completed */}
         <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+          <Card>
             <Statistic
-              title="Lessons Completed"
-              value={profile.lessons_completed_count}
-              prefix={<BookOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              title="Lessons Progress"
+              value={profile.lesson_completion_rate || 0}
+              suffix="%"
+              prefix={<CheckCircleOutlined />}
             />
           </Card>
         </Col>
-
-        {/* Avg Time per Lesson */}
         <Col xs={24} sm={12} md={6}>
-          <Card bordered={false}>
+          <Card>
             <Statistic
-              title="Avg Time per Lesson"
-              value={profile.avg_time_per_lesson_minutes.toFixed(0)}
-              suffix="min"
-              prefix={<ClockCircleOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1' }}
+              title="Study Time"
+              value={Math.floor((profile.total_study_time_minutes || 0) / 60)}
+              suffix="hours"
+              prefix={<ClockCircleOutlined />}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {(profile.total_study_time_minutes || 0) % 60} minutes
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card>
+            <Statistic
+              title="Days Active"
+              value={profile.days_active || 0}
+              prefix={<RiseOutlined />}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Preferred Content Type */}
+      {/* Learning Pace Card */}
       <Card
-        bordered={false}
-        style={{ marginBottom: '24px', background: '#fafafa' }}
-        bodyStyle={{ padding: '16px 24px' }}
+        title={
+          <Space>
+            {getPaceIcon(profile.learning_pace)}
+            <span>Learning Pace</span>
+          </Space>
+        }
+        style={{ marginBottom: 24 }}
       >
-        <Space size="large">
-          <span style={{ fontSize: '16px', fontWeight: 600 }}>
-            {getContentIcon(profile.preferred_content_type)}
-            Preferred Content Type:
-          </span>
-          <Tag color={profile.preferred_content_type === 'VIDEO' ? 'red' : profile.preferred_content_type === 'TEXT' ? 'blue' : 'green'} style={{ fontSize: '14px', padding: '4px 12px' }}>
-            {profile.preferred_content_type}
-          </Tag>
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Space>
+            <Text strong>Current Pace:</Text>
+            <Tag
+              color={getPaceColor(profile.learning_pace)}
+              style={{ fontSize: 16, padding: '4px 12px' }}
+            >
+              {profile.learning_pace || 'MEDIUM'}
+            </Tag>
+          </Space>
+          <div>
+            <Text type="secondary">Pace Score</Text>
+            <Progress
+              percent={Math.round(profile.pace_score || 50)}
+              strokeColor={{
+                '0%': '#108ee9',
+                '50%': '#87d068',
+                '100%': '#52c41a',
+              }}
+              status="active"
+            />
+          </div>
+          {profile.pace_score >= 80 && (
+            <Text type="success">
+              <ThunderboltOutlined /> You're learning faster than average! Keep it up!
+            </Text>
+          )}
+          {profile.pace_score < 40 && (
+            <Text type="warning">
+              Take your time to fully understand each concept. Quality over speed!
+            </Text>
+          )}
         </Space>
       </Card>
 
-      <Divider orientation="left" style={{ fontSize: '20px', fontWeight: 600 }}>
-        <ThunderboltOutlined /> AI Recommendations
-      </Divider>
-
-      {/* Recommendations */}
-      {recommendations.length > 0 ? (
-        <div>
-          {recommendations.map(rec => (
-            <RecommendationCard
-              key={rec.id}
-              recommendation={rec}
-              onDismiss={handleDismissRecommendation}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card bordered={false} style={{ textAlign: 'center', padding: '40px' }}>
-          <FireOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#262626' }}>
-            You're doing great!
-          </h3>
-          <p style={{ color: '#8c8c8c', marginTop: '8px' }}>
-            No urgent recommendations at the moment. Keep up the excellent work!
-          </p>
-          <Button type="primary" onClick={() => fetchData(true)} style={{ marginTop: '16px' }}>
-            Check for New Recommendations
+      {/* Recommendations Card */}
+      <Card
+        title={
+          <Space>
+            <FireOutlined style={{ color: '#ff4d4f' }} />
+            <span>Personalized Recommendations</span>
+          </Space>
+        }
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => loadRecommendations(true)}
+            loading={refreshing}
+            type="primary"
+          >
+            Refresh
           </Button>
-        </Card>
-      )}
+        }
+      >
+        {recommendations.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Text type="secondary">
+              No recommendations at this time. Keep up the good work! 🎉
+            </Text>
+          </div>
+        ) : (
+          <div>
+            {recommendations.map(rec => (
+              <RecommendationCard
+                key={rec.id}
+                recommendation={rec}
+                onDismiss={handleDismiss}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
