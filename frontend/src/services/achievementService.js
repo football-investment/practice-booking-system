@@ -199,14 +199,19 @@ const achievementService = {
    */
   categorizeAchievements: (earnedAchievements, specializationId) => {
     const allPossible = achievementService.getAvailableAchievements(specializationId);
+
+    // ✨ FIX: Filter out level-type items (they belong in ProgressCard, not Achievement list)
+    // Only show activity-based achievements (sessions, projects, etc.)
+    const actualAchievements = allPossible.filter(a => a.type === 'activity');
+
     const earnedIds = new Set(
       earnedAchievements
         .filter(a => a.specialization_id === specializationId)
         .map(a => a.badge_type)
     );
 
-    const unlocked = allPossible.filter(a => earnedIds.has(a.id));
-    const locked = allPossible.filter(a => !earnedIds.has(a.id));
+    const unlocked = actualAchievements.filter(a => earnedIds.has(a.id));
+    const locked = actualAchievements.filter(a => !earnedIds.has(a.id));
 
     return { unlocked, locked };
   },
@@ -218,12 +223,16 @@ const achievementService = {
    */
   getCompletionPercentage: (earnedAchievements, specializationId) => {
     const allPossible = achievementService.getAvailableAchievements(specializationId);
+
+    // ✨ FIX: Only count activity-based achievements (not level milestones)
+    const actualAchievements = allPossible.filter(a => a.type === 'activity');
+
     const earnedCount = earnedAchievements.filter(
       a => a.specialization_id === specializationId
     ).length;
 
-    if (allPossible.length === 0) return 0;
-    return Math.round((earnedCount / allPossible.length) * 100);
+    if (actualAchievements.length === 0) return 0;
+    return Math.round((earnedCount / actualAchievements.length) * 100);
   },
 
   /**

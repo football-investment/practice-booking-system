@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import './CleanDashboardHeader.css';
 
 /**
  * CLEAN Dashboard Header - MINIMAL DESIGN
- * ONLY: Sidebar toggle, Logo, Notifications, Profile
- * NO: Welcome message, search, date, unnecessary text
+ * ONLY: Sidebar toggle, Logo, Theme toggle, Notifications, Profile
+ * NO: Welcome message, date, unnecessary text
  */
 const CleanDashboardHeader = ({
   user,
@@ -16,6 +17,7 @@ const CleanDashboardHeader = ({
   showSidebarToggle = true
 }) => {
   const { logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -79,8 +81,18 @@ const CleanDashboardHeader = ({
         </div>
       </div>
 
-      {/* RIGHT: Notifications + Profile ONLY */}
+      {/* RIGHT: Theme Toggle + Notifications + Profile */}
       <div className="header-right">
+        {/* Theme Toggle Button */}
+        <button
+          className="action-btn theme-toggle-btn"
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
         {/* Notifications Button */}
         <button
           className="action-btn notification-btn"

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     TESTING: bool = is_testing()
     
     # Database
-    DATABASE_URL: str = "postgresql://username:password@localhost:5432/practice_booking_system"
+    DATABASE_URL: str = "postgresql://username:password@localhost:5432/gancuju_education_center"
     
     # JWT
     SECRET_KEY: str = "super-secret-jwt-key-change-this"
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # App
-    APP_NAME: str = "Practice Booking System"
+    APP_NAME: str = "GānCuju™© Education Center"
     DEBUG: bool = True
     API_V1_STR: str = "/api/v1"
     

@@ -5,6 +5,7 @@ import { LFAUserService } from '../../utils/userTypeService';
 import ProgressCard from '../../components/SpecializationProgress/ProgressCard';
 import AchievementList from '../../components/Achievements/AchievementList';
 import './StudentDashboard.css';
+import './StudentDashboard.cleanup.css';
 
 /**
  * LFA EDUCATION CENTER - COMPLETE DASHBOARD
@@ -266,8 +267,12 @@ const StudentDashboard = () => {
     
     // 🆕 DETECT USER SPECIALIZATION from user object
     if (user.specialization) {
-      setUserSpecialization(user.specialization);
-      console.log('🎓 User specialization detected:', user.specialization);
+      // Handle both string and object formats
+      const specializationValue = typeof user.specialization === 'string'
+        ? user.specialization
+        : user.specialization.value || user.specialization;
+      setUserSpecialization(specializationValue);
+      console.log('🎓 User specialization detected:', specializationValue, 'Raw:', user.specialization);
     } else {
       // Default to PLAYER if not set
       setUserSpecialization('PLAYER');
@@ -843,11 +848,6 @@ const StudentDashboard = () => {
             <QuickActionsGrid />
           </section>
 
-          {/* SECONDARY SECTION - Next Session (High Priority) */}
-          <section className="session-section">
-            <NextSessionCard />
-          </section>
-
           {/* TERTIARY SECTION - Progress & Skills */}
           <section className="progress-section">
             {/* 🆕 SPECIALIZATION PROGRESS CARD */}
@@ -885,21 +885,21 @@ const StudentDashboard = () => {
                           </div>
                         </div>
                         <div className="skill-level">
-                          <span className="level-label">{skill.level.label}</span>
-                          <span className="xp-count">{skill.level.currentXP} XP</span>
+                          <span className="level-label">{skill.level?.label || 'Beginner'}</span>
+                          <span className="xp-count">{skill.level?.currentXP || 0} XP</span>
                         </div>
                       </div>
-                      
+
                       <div className="skill-progress-bar">
                         <div className="progress-track">
-                          <div 
+                          <div
                             className={`progress-fill progress-fill--${skill.id}`}
-                            style={{ width: `${skill.level.progress}%` }}
+                            style={{ width: `${skill.level?.progress || 0}%` }}
                           ></div>
                         </div>
                         <div className="progress-info">
-                          <span>{skill.level.progress}%</span>
-                          {skill.level.nextLevelXP > 0 && (
+                          <span>{skill.level?.progress || 0}%</span>
+                          {(skill.level?.nextLevelXP || 0) > 0 && (
                             <span>{skill.level.nextLevelXP} XP to next level</span>
                           )}
                         </div>
@@ -923,7 +923,7 @@ const StudentDashboard = () => {
                 <div className="summary-stats">
                   <div className="stat">
                     <span className="stat-value">
-                      {Math.round(skillCategories.reduce((sum, skill) => sum + skill.level.progress, 0) / skillCategories.length || 0)}%
+                      {Math.round(skillCategories.reduce((sum, skill) => sum + (skill.level?.progress || 0), 0) / skillCategories.length || 0)}%
                     </span>
                     <span className="stat-label">Average Progress</span>
                   </div>
@@ -935,7 +935,7 @@ const StudentDashboard = () => {
                   </div>
                   <div className="stat">
                     <span className="stat-value">
-                      {skillCategories.filter(skill => skill.level.level !== 'beginner').length}/{skillCategories.length}
+                      {skillCategories.filter(skill => skill.level?.level && skill.level.level !== 'beginner').length}/{skillCategories.length}
                     </span>
                     <span className="stat-label">Advanced Skills</span>
                   </div>
@@ -950,269 +950,7 @@ const StudentDashboard = () => {
               </div>
             )}
 
-            {/* Current Semester Overview Widget - MOVED TO LEFT */}
-            <div className="card semester-overview">
-              <div className="card-header">
-                <h2 className="card-title">
-                  📅 Current Semester Progress
-                </h2>
-                <div className="semester-badge">
-                  {semesterInfo.currentSemester?.name || 'Fall 2025'}
-                </div>
-              </div>
-
-              <div className="semester-content">
-                <div className="stats-row">
-                  <div className="stat-card" role="group" aria-label="Projects">
-                    <div className="stat-icon" aria-hidden="true">📚</div>
-                    <div className="stat-meta">
-                      <div className="stat-value">
-                        {semesterInfo.completedProjects || 0}/{semesterInfo.totalProjects || 0}
-                      </div>
-                      <div className="stat-label-test">Projects</div>
-                    </div>
-                  </div>
-
-                  <div className="stat-card" role="group" aria-label="Sessions">
-                    <div className="stat-icon" aria-hidden="true">⚽</div>
-                    <div className="stat-meta">
-                      <div className="stat-value">
-                        {semesterInfo.attendedSessions || 0}/{semesterInfo.totalSessions || 0}
-                      </div>
-                      <div className="stat-label-test">Sessions</div>
-                    </div>
-                  </div>
-
-                  <div className="stat-card" role="group" aria-label="Tests">
-                    <div className="stat-icon" aria-hidden="true">📝</div>
-                    <div className="stat-meta">
-                      <div className="stat-value">
-                        {dashboardData.quizzes?.completed || 0}/{dashboardData.quizzes?.total || 0}
-                      </div>
-                      <div className="stat-label-test">Tests</div>
-                    </div>
-                  </div>
-
-                  <div className="stat-card" role="group" aria-label="Adaptive Learning">
-                    <div className="stat-icon" aria-hidden="true">🧠</div>
-                    <div className="stat-meta">
-                      <div className="stat-value">
-                        {dashboardData.adaptiveLearning?.progress || 0}%
-                      </div>
-                      <div className="stat-label-test">Adaptive</div>
-                    </div>
-                  </div>
-
-                  <div className="stat-card" role="group" aria-label="Achievements">
-                    <div className="stat-icon" aria-hidden="true">🏆</div>
-                    <div className="stat-meta">
-                      <div className="stat-value">
-                        {semesterInfo.achievementsUnlocked || 0}
-                      </div>
-                      <div className="stat-label-test">Badges</div>
-                    </div>
-                  </div>
-
-                  <div className="stat-card" role="group" aria-label="Attendance">
-                    <div className="stat-icon" aria-hidden="true">✅</div>
-                    <div className="stat-meta">
-                      <div className="stat-value">
-                        {dashboardData.attendance?.rate || 0}%
-                      </div>
-                      <div className="stat-label-test">Attendance</div>
-                    </div>
-                  </div>
-                </div>
-
-                {userType === 'junior' && (
-                  <div className="parent-communication">
-                    <h4>📧 Parent Updates</h4>
-                    <div className="parent-report-summary">
-                      <div className="report-item">
-                        <span className="report-date">Last Report: Sept 20</span>
-                        <span className="report-status positive">Excellent Progress</span>
-                      </div>
-                      <div className="next-report">
-                        Next Report: Oct 5 • <button className="preview-link" onClick={() => console.log('Preview Draft clicked')}>Preview Draft</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {userType === 'senior' && (
-                  <div className="college-prep">
-                    <h4>🎓 College Preparation</h4>
-                    <div className="prep-items">
-                      <div className="prep-item">
-                        <span className="prep-icon">📹</span>
-                        <span>Highlight Reel: 85% Complete</span>
-                      </div>
-                      <div className="prep-item">
-                        <span className="prep-icon">📊</span>
-                        <span>Performance Analytics Ready</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {userType === 'adult' && (
-                  <div className="flexible-learning">
-                    <h4>🔄 Flexible Schedule</h4>
-                    <div className="schedule-info">
-                      <p>Your preferred training times: <strong>{userConfig.preferredTimes || 'Weekends, Evenings'}</strong></p>
-                      <p>Next available makeup session: <strong>Oct 2, 7:00 PM</strong></p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           
-            {/* === FORMER RIGHT COLUMN CONTENT - NOW UNIFIED === */}
-            {/* Enhanced Achievement Badge System - REAL BACKEND DATA */}
-            <div className="card enhanced-achievement-system">
-              <div className="card-header">
-                <h2 className="card-title">🏆 Achievement Progress</h2>
-                <div className="achievement-summary">
-                  <span className="total-achievements">
-                    {achievements.filter(a => a.unlocked).length}/
-                    {achievements.length} Unlocked
-                  </span>
-                </div>
-              </div>
-
-              {/* Achievement Categories - REAL DATA */}
-              <div className="achievement-categories">
-                {achievements.length > 0 && (
-                  <>
-                    <div className="achievement-category">
-                      <h4>🎯 Skill Mastery</h4>
-                      <div className="category-achievements">
-                        {achievements
-                          .filter(achievement => achievement.category === 'skill')
-                          .slice(0, 3)
-                          .map((achievement, index) => (
-                            <div 
-                              key={index} 
-                              className={`achievement-item ${achievement.tier} ${achievement.unlocked ? 'unlocked' : 'locked'}`}
-                            >
-                              <div className="achievement-icon">
-                                {achievement.unlocked ? achievement.icon : '🔒'}
-                              </div>
-                              <div className="achievement-text">
-                                <div className="achievement-name">{achievement.name}</div>
-                                <div className="achievement-desc">{achievement.description}</div>
-                                {achievement.unlocked && (
-                                  <div className="achievement-date">
-                                    Unlocked: {achievement.unlocked_date || 'Today'}
-                                  </div>
-                                )}
-                                {!achievement.unlocked && achievement.progress && (
-                                  <div className="achievement-progress">
-                                    <div className="progress-bar">
-                                      <div 
-                                        className="progress-fill"
-                                        style={{ width: `${(achievement.progress.current / achievement.progress.max) * 100}%` }}
-                                      ></div>
-                                    </div>
-                                    <div className="progress-text">
-                                      {achievement.progress.current}/{achievement.progress.max}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-
-                    <div className="achievement-category">
-                      <h4>📈 Progress Milestones</h4>
-                      <div className="category-achievements">
-                        {achievements
-                          .filter(achievement => achievement.category === 'progress')
-                          .slice(0, 2)
-                          .map((achievement, index) => (
-                            <div 
-                              key={index} 
-                              className={`achievement-item ${achievement.tier} ${achievement.unlocked ? 'unlocked' : 'locked'}`}
-                            >
-                              <div className="achievement-icon">
-                                {achievement.unlocked ? achievement.icon : '🔒'}
-                              </div>
-                              <div className="achievement-text">
-                                <div className="achievement-name">{achievement.name}</div>
-                                <div className="achievement-desc">{achievement.description}</div>
-                                {achievement.unlocked && (
-                                  <div className="achievement-date">
-                                    Unlocked: {achievement.unlocked_date || 'This week'}
-                                  </div>
-                                )}
-                                {!achievement.unlocked && achievement.progress && (
-                                  <div className="achievement-progress">
-                                    <div className="progress-bar">
-                                      <div 
-                                        className="progress-fill"
-                                        style={{ width: `${(achievement.progress.current / achievement.progress.max) * 100}%` }}
-                                      ></div>
-                                    </div>
-                                    <div className="progress-text">
-                                      {achievement.progress.current}/{achievement.progress.max}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {achievements.length === 0 && (
-                  <div className="no-achievements">
-                    <p>🎯 Start your journey to unlock achievements!</p>
-                    <p>Book sessions, complete projects, and take tests to earn badges.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Next Achievement Preview - REAL DATA */}
-              {achievements.length > 0 && (
-                <div className="next-achievement">
-                  <h4>🎯 Next Milestone</h4>
-                  {(() => {
-                    const nextAchievement = achievements
-                      .find(a => !a.unlocked && a.progress);
-                    return nextAchievement ? (
-                      <div className="next-achievement-card">
-                        <div className="next-icon">🔒</div>
-                        <div className="next-content">
-                          <div className="next-name">{nextAchievement.name}</div>
-                          <div className="next-desc">{nextAchievement.description}</div>
-                          <div className="next-progress">
-                            <div className="progress-bar">
-                              <div 
-                                className="progress-fill"
-                                style={{ width: `${(nextAchievement.progress.current / nextAchievement.progress.max) * 100}%` }}
-                              ></div>
-                            </div>
-                            <div className="progress-text">
-                              {nextAchievement.progress.current}/{nextAchievement.progress.max} 
-                              ({Math.round((nextAchievement.progress.current / nextAchievement.progress.max) * 100)}%)
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="no-next-achievement">
-                        <span>🌟 You're doing great! Keep up the excellent work!</span>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-
             {/* Recent Feedback */}
             <RecentFeedbackSection />
 
@@ -1385,8 +1123,6 @@ const StudentDashboard = () => {
               </div>
             </div>
           </section>
-
-          </div>
         </div>
       </main>
       </div>
@@ -1422,3 +1158,4 @@ const StudentDashboard = () => {
 console.log('🔧 TIMELINE DEBUG: Forced grid layout applied at', new Date());
 
 export default StudentDashboard;
+

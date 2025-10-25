@@ -30,15 +30,22 @@ const ProgressCard = ({ specializationId, autoRefresh = false }) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await specializationService.getMyProgress(specializationId);
 
-      if (response.success && response.data) {
-        setProgressData(response.data);
+      console.log('🔍 ProgressCard: Fetching progress for specialization:', specializationId);
+      const response = await specializationService.getMyProgress(specializationId);
+      console.log('✅ ProgressCard: API Response:', response);
+
+      // The response is the progress data object directly (not wrapped in { success, data })
+      // because specializationService already extracts response.data
+      if (response && response.student_id) {
+        console.log('✅ ProgressCard: Progress data loaded:', response);
+        setProgressData(response);
       } else {
+        console.warn('⚠️ ProgressCard: Invalid response structure:', response);
         setError('No progress data available');
       }
     } catch (err) {
-      console.error('Error fetching progress:', err);
+      console.error('❌ ProgressCard: Error fetching progress:', err);
       setError('Failed to load progress data');
     } finally {
       setLoading(false);
@@ -70,8 +77,30 @@ const ProgressCard = ({ specializationId, autoRefresh = false }) => {
     );
   }
 
-  const { current_level, next_level, total_xp, completed_sessions, completed_projects, progress_percentage } = progressData;
+  const {
+    current_level,
+    next_level,
+    total_xp,
+    completed_sessions,
+    completed_projects,
+    progress_percentage,
+    theory_hours_completed = 0,
+    practice_hours_completed = 0,
+    theory_hours_needed = 0,
+    practice_hours_needed = 0
+  } = progressData;
+
   const levelColor = specializationService.getLevelColor(specializationId, current_level.level);
+
+  // COACH-specific: Extract theory/practice hours requirements
+  const theoryHoursRequired = current_level?.theory_hours || 0;
+  const practiceHoursRequired = current_level?.practice_hours || 0;
+
+  console.log('🎨 ProgressCard: Level color for', specializationId, 'Level', current_level.level, '=', levelColor);
+  console.log('📚 ProgressCard: COACH hours -', {
+    theory: `${theory_hours_completed}/${theoryHoursRequired}`,
+    practice: `${practice_hours_completed}/${practiceHoursRequired}`
+  });
 
   return (
     <div
@@ -112,34 +141,73 @@ const ProgressCard = ({ specializationId, autoRefresh = false }) => {
         />
       )}
 
-      {/* Stats Grid */}
+      {/* Stats - Simple Text Only */}
       <div className="progress-card__stats">
         <div className="progress-card__stat">
-          <div className="progress-card__stat-icon">⚡</div>
-          <div className="progress-card__stat-content">
-            <div className="progress-card__stat-value">{total_xp.toLocaleString()}</div>
-            <div className="progress-card__stat-label">Total XP</div>
-          </div>
+          <span className="progress-card__stat-icon">⚡</span>
+          <span className="progress-card__stat-value">{total_xp.toLocaleString()}</span>
+          <span className="progress-card__stat-label">Total XP</span>
         </div>
 
         <div className="progress-card__stat">
-          <div className="progress-card__stat-icon">📚</div>
-          <div className="progress-card__stat-content">
-            <div className="progress-card__stat-value">{completed_sessions}</div>
-            <div className="progress-card__stat-label">Sessions</div>
-          </div>
+          <span className="progress-card__stat-icon">📚</span>
+          <span className="progress-card__stat-value">{completed_sessions}</span>
+          <span className="progress-card__stat-label">Sessions</span>
         </div>
 
         {specializationId === 'INTERNSHIP' && (
           <div className="progress-card__stat">
-            <div className="progress-card__stat-icon">🚀</div>
-            <div className="progress-card__stat-content">
-              <div className="progress-card__stat-value">{completed_projects}</div>
-              <div className="progress-card__stat-label">Projects</div>
-            </div>
+            <span className="progress-card__stat-icon">🚀</span>
+            <span className="progress-card__stat-value">{completed_projects}</span>
+            <span className="progress-card__stat-label">Projects</span>
           </div>
         )}
       </div>
+
+      {/* COACH-Specific: Theory/Practice Hours */}
+      {specializationId === 'COACH' && theoryHoursRequired > 0 && practiceHoursRequired > 0 && (
+        <div className="progress-card__hours-section">
+          <h3 className="progress-card__hours-title">📖 Képzési Órák</h3>
+
+          {/* Theory Hours */}
+          <div className="progress-card__hours-item">
+            <div className="progress-card__hours-header">
+              <span className="progress-card__hours-icon">📚</span>
+              <span className="progress-card__hours-label">Elméleti Képzés</span>
+              <span className="progress-card__hours-value">
+                {theory_hours_completed} / {theoryHoursRequired} óra
+              </span>
+            </div>
+            <div className="progress-card__hours-bar">
+              <div
+                className="progress-card__hours-fill progress-card__hours-fill--theory"
+                style={{
+                  width: `${Math.min(100, (theory_hours_completed / theoryHoursRequired) * 100)}%`
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Practice Hours */}
+          <div className="progress-card__hours-item">
+            <div className="progress-card__hours-header">
+              <span className="progress-card__hours-icon">⚽</span>
+              <span className="progress-card__hours-label">Gyakorlati Képzés</span>
+              <span className="progress-card__hours-value">
+                {practice_hours_completed} / {practiceHoursRequired} óra
+              </span>
+            </div>
+            <div className="progress-card__hours-bar">
+              <div
+                className="progress-card__hours-fill progress-card__hours-fill--practice"
+                style={{
+                  width: `${Math.min(100, (practice_hours_completed / practiceHoursRequired) * 100)}%`
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Next Level Info */}
       <NextLevelInfo

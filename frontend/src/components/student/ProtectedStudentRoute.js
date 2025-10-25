@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const ProtectedStudentRoute = ({ children }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [onboardingStatus, setOnboardingStatus] = useState({
     suggested: false,
@@ -13,39 +15,42 @@ const ProtectedStudentRoute = ({ children }) => {
   const checkOnboardingStatus = useCallback(async () => {
     try {
       // Check essential onboarding data
+      const onboardingCompleted = user?.onboarding_completed === true;
       const hasNickname = user?.nickname && user?.nickname.trim().length > 0;
       const hasProfileData = user?.phone && user?.emergency_contact;
-      const onboardingCompleted = user?.onboarding_completed === true;
       const hasBasicData = hasNickname && hasProfileData;
-      
-      // Set onboarding status for dashboard display (but don't block access)
-      setOnboardingStatus({
-        suggested: !onboardingCompleted && !hasBasicData, // Only suggest if really incomplete
-        hasBasicData: hasBasicData,
-        isCompleted: onboardingCompleted
-      });
-      
-      console.log('🔍 Non-blocking onboarding check:', {
-        hasNickname,
-        hasProfileData, 
+
+      console.log('🔍 BLOCKING onboarding check:', {
         onboardingCompleted,
-        suggested: !onboardingCompleted && !hasBasicData,
+        hasNickname,
+        hasProfileData,
         user: user?.email
       });
-      
+
+      // BLOCK access if onboarding is NOT completed
+      // NOTE: We don't check hasSpecialization because parallel specializations
+      // are stored in user_licenses table, not in users.specialization field
+      if (!onboardingCompleted) {
+        console.log('❌ Onboarding INCOMPLETE - redirecting to /student/onboarding');
+        navigate('/student/onboarding', { replace: true });
+        return;
+      }
+
+      // Set onboarding status for dashboard display
+      setOnboardingStatus({
+        suggested: false,
+        hasBasicData: hasBasicData,
+        isCompleted: true
+      });
+
     } catch (err) {
       console.error('Failed to check onboarding status:', err);
-      // On error, allow access but suggest onboarding
-      const hasBasicData = user?.phone && user?.emergency_contact && user?.nickname;
-      setOnboardingStatus({
-        suggested: !hasBasicData,
-        hasBasicData: hasBasicData,
-        isCompleted: false
-      });
+      // On error, redirect to onboarding for safety
+      navigate('/student/onboarding', { replace: true });
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, navigate]);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -67,10 +72,9 @@ const ProtectedStudentRoute = ({ children }) => {
     );
   }
 
-  // Always render children - no more blocking redirects!
-  // Pass onboarding status to children for dashboard notifications
-  return React.cloneElement(children, { 
-    onboardingStatus 
+  // Only render children if onboarding is completed
+  return React.cloneElement(children, {
+    onboardingStatus
   });
 };
 

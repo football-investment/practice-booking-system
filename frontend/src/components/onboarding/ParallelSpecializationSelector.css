@@ -538,19 +538,19 @@
 
 /* Enhanced Specialization Options */
 .specialization-options-enhanced {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 25px;
     margin-top: 25px;
-    max-width: 1200px;
+    max-width: 900px;
     margin-left: auto;
     margin-right: auto;
 }
 
 @media (max-width: 1024px) {
     .specialization-options-enhanced {
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        max-width: none;
+        max-width: 100%;
+        padding: 0 15px;
     }
 }
 
@@ -568,6 +568,8 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .enhanced-specialization-card::before {
@@ -941,7 +943,6 @@
     
     .specialization-options,
     .specialization-options-enhanced {
-        grid-template-columns: 1fr;
         gap: 15px;
     }
     

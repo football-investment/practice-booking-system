@@ -52,8 +52,9 @@ export const AuthProvider = ({ children }) => {
               date_of_birth: freshUserData?.date_of_birth || null,
               medical_notes: freshUserData?.medical_notes || null,
               interests: freshUserData?.interests || [],
+              specialization: freshUserData?.specialization || null,  // 🆕 ADD SPECIALIZATION
             };
-            
+
             localStorage.setItem('user', JSON.stringify(updatedUser));
             setUser(updatedUser);
             console.log('✅ User data refreshed from API:', updatedUser);
@@ -108,6 +109,7 @@ export const AuthProvider = ({ children }) => {
         date_of_birth: userResponse?.date_of_birth || null,
         medical_notes: userResponse?.medical_notes || null,
         interests: userResponse?.interests || [],
+        specialization: userResponse?.specialization || null,  // 🆕 ADD SPECIALIZATION
         raw_user_data: userResponse
       };
 

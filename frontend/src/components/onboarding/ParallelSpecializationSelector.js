@@ -35,12 +35,12 @@ const ParallelSpecializationSelector = ({
             setLoading(true);
             
             // Get comprehensive dashboard data
-            const dashboard = await apiService.get('/api/v1/parallel-specializations/dashboard');
+            const dashboard = await apiService.get('/parallel-specializations/dashboard');
             setDashboardData(dashboard);
             setActiveSpecializations(dashboard.active_specializations || []);
             
             // Get license metadata for proper titles
-            const licenseMetadata = await apiService.get('/api/v1/licenses/metadata');
+            const licenseMetadata = await apiService.get('/licenses/metadata');
             
             // Enrich available specializations with proper license metadata
             const enrichedAvailable = (dashboard.available_specializations || []).map(spec => {
@@ -101,7 +101,7 @@ const ParallelSpecializationSelector = ({
             
             // Validate addition
             try {
-                const validation = await apiService.get(`/api/v1/parallel-specializations/validate/${specCode}`);
+                const validation = await apiService.get(`/parallel-specializations/validate/${specCode}`);
                 if (!validation.valid) {
                     setError(`${specCode}: ${validation.reason}`);
                     return;
@@ -152,7 +152,7 @@ const ParallelSpecializationSelector = ({
         try {
             const results = [];
             for (const spec of newSpecializations) {
-                const result = await apiService.post('/api/v1/parallel-specializations/start', {
+                const result = await apiService.post('/parallel-specializations/start', {
                     specialization: spec
                 });
                 results.push(result);

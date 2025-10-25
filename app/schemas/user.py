@@ -1,7 +1,8 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_serializer
 from typing import Optional, List
 from datetime import datetime
 from ..models.user import UserRole
+from ..models.specialization import SpecializationType
 
 
 class UserBase(BaseModel):
@@ -14,6 +15,14 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    phone: Optional[str] = None
+    emergency_contact: Optional[str] = None
+    emergency_phone: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    medical_notes: Optional[str] = None
+    position: Optional[str] = None
+    specialization: Optional[str] = None
+    onboarding_completed: Optional[bool] = False
 
 
 class UserUpdate(BaseModel):
@@ -37,6 +46,8 @@ class UserUpdateSelf(BaseModel):
     interests: Optional[str] = None  # JSON string of interests array
     position: Optional[str] = None  # Football position
     specialization: Optional[str] = None  # Player/Coach/Internship
+    nda_accepted: Optional[bool] = None
+    nda_ip_address: Optional[str] = None
 
 
 class User(UserBase):
@@ -53,11 +64,23 @@ class User(UserBase):
     payment_verified: Optional[bool] = False
     payment_verified_at: Optional[datetime] = None
     payment_verified_by: Optional[int] = None
+    nda_accepted: Optional[bool] = False
+    nda_accepted_at: Optional[datetime] = None
+    nda_ip_address: Optional[str] = None
     created_at: Optional[datetime] = None  # Make optional for legacy data
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer('specialization')
+    def serialize_specialization(self, value, _info):
+        """Convert SpecializationType enum to string"""
+        if value is None:
+            return None
+        if isinstance(value, SpecializationType):
+            return value.value
+        return value
 
 
 class UserWithStats(User):

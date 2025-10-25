@@ -1,6 +1,6 @@
-# 🏈 Practice Booking System
+# 🏮 GānCuju™© Education Center
 
-**Automated Cross-Platform Practice Booking System with Comprehensive CI/CD Testing**
+**Comprehensive Football Education Platform featuring 8-Level GānCuju™© Player System, LFA Coach Training, and Parallel Specialization Tracks**
 
 [![CI/CD Pipeline](https://github.com/footballinvestment/practice-booking-system/actions/workflows/cross-platform-testing.yml/badge.svg)](https://github.com/footballinvestment/practice-booking-system/actions/workflows/cross-platform-testing.yml)
 [![iOS Safari Compatible](https://img.shields.io/badge/iOS%20Safari-Compatible-brightgreen.svg)](https://github.com/footballinvestment/practice-booking-system)
@@ -16,8 +16,8 @@
 
 ### Installation
 ```bash
-git clone https://github.com/footballinvestment/practice-booking-system.git
-cd practice-booking-system
+git clone https://github.com/footballinvestment/gancuju-education-center.git
+cd gancuju-education-center
 
 # Backend setup
 pip install -r requirements.txt

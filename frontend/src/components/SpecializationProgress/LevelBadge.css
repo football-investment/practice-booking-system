@@ -3,7 +3,7 @@
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  /* Background is set via inline style in JSX (hexToRgba function) */
   border-radius: 12px;
   border: 2px solid var(--badge-color, #9E9E9E);
   transition: all 0.3s ease;
@@ -55,31 +55,32 @@
 
 .level-badge__level-text {
   font-size: 14px;
-  color: #666;
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 4px;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .level-badge__name {
   font-size: 20px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 800;
+  color: var(--text-primary);
   line-height: 1.2;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Dark mode support */
+/* Dark mode support - minimal overrides with CSS variables */
 @media (prefers-color-scheme: dark) {
   .level-badge {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
   }
 
-  .level-badge__level-text {
-    color: #aaa;
-  }
-
-  .level-badge__name {
-    color: #fff;
+  .level-badge__level-number {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+    border-color: var(--badge-color, #9E9E9E);
   }
 }
 

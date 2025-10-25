@@ -3,9 +3,8 @@
 Marketing-oriented license progression system with cultural narratives
 """
 import enum
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
@@ -79,10 +78,10 @@ class LicenseMetadata(Base):
     image_url = Column(String(500))                          # Optional image asset
     
     # Requirements
-    advancement_criteria = Column(JSONB)                      # JSON structure of requirements
+    advancement_criteria = Column(JSON)                      # JSON structure of requirements
     time_requirement_hours = Column(Integer)                  # Minimum time requirement
-    project_requirements = Column(JSONB)                      # Project-based requirements
-    evaluation_criteria = Column(JSONB)                       # Evaluation criteria
+    project_requirements = Column(JSON)                      # Project-based requirements
+    evaluation_criteria = Column(JSON)                       # Evaluation criteria
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), 

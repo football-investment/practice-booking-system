@@ -9,7 +9,7 @@ import './StudentOnboarding.css';
 
 const StudentOnboarding = () => {
   const { user, updateUserProfile } = useAuth();
-  const { theme, colorScheme } = useTheme();
+  const { theme, colorScheme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   
   // State management
@@ -21,10 +21,10 @@ const StudentOnboarding = () => {
   const [formData, setFormData] = useState({
     selectedSpecialization: null,
     ndaAccepted: false,
+    paymentVerified: false,
     profileData: {
       nickname: '',
       phone: '',
-      dateOfBirth: '',
       emergencyContact: '',
       emergencyPhone: '',
       medicalNotes: '',
@@ -40,7 +40,7 @@ const StudentOnboarding = () => {
     'Fitness', 'Yoga', 'Martial Arts', 'Dance', 'Cycling'
   ]);
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   // iOS/Safari detection utility
   const isIOSSafari = useCallback(() => {
@@ -238,28 +238,43 @@ const StudentOnboarding = () => {
 
   // Step validation
   const canProceed = () => {
-    switch (currentStep) {
-      case 1: return true; // Welcome screen
-      case 2: return formData.selectedSpecialization !== null;
-      case 3: return formData.ndaAccepted;
-      case 4: {
-        // Check required fields
-        if (!formData.profileData.nickname || !formData.profileData.phone || !formData.profileData.emergencyContact) {
-          return false;
+    const result = (() => {
+      switch (currentStep) {
+        case 1: return true; // Welcome screen
+        case 2: return true; // Current Status - always allow proceed
+        case 3: return formData.selectedSpecialization !== null; // Specialization
+        case 4: return formData.ndaAccepted; // NDA
+        case 5: {
+          // Profile - Check required fields
+          if (!formData.profileData.nickname || !formData.profileData.phone || !formData.profileData.emergencyContact) {
+            console.log('❌ Profile validation failed - missing fields:', {
+              nickname: formData.profileData.nickname,
+              phone: formData.profileData.phone,
+              emergencyContact: formData.profileData.emergencyContact
+            });
+            return false;
+          }
+          // Check nickname errors
+          if (nicknameError || nicknameChecking) {
+            console.log('❌ Profile validation failed - nickname issue:', { nicknameError, nicknameChecking });
+            return false;
+          }
+          // Check phone numbers are different
+          if (formData.profileData.phone === formData.profileData.emergencyPhone && formData.profileData.emergencyPhone) {
+            console.log('❌ Profile validation failed - phone numbers must be different');
+            return false;
+          }
+          console.log('✅ Profile validation passed');
+          return true;
         }
-        // Check nickname errors
-        if (nicknameError || nicknameChecking) {
-          return false;
-        }
-        // Check phone numbers are different
-        if (formData.profileData.phone === formData.profileData.emergencyPhone && formData.profileData.emergencyPhone) {
-          return false;
-        }
-        return true;
+        case 6: return formData.paymentVerified; // Payment verification
+        case 7: return true; // System overview
+        default: return false;
       }
-      case 5: return true; // System overview
-      default: return false;
-    }
+    })();
+
+    console.log(`🔍 canProceed (step ${currentStep}):`, result);
+    return result;
   };
 
   // Complete onboarding
@@ -268,39 +283,37 @@ const StudentOnboarding = () => {
     setError('');
 
     try {
-      // 1. Update user profile
+      // 1. Update user profile with all onboarding data
       const updatedUser = await apiService.updateProfile({
         nickname: formData.profileData.nickname,
         phone: formData.profileData.phone,
-        date_of_birth: formData.profileData.dateOfBirth,
         emergency_contact: formData.profileData.emergencyContact,
         emergency_phone: formData.profileData.emergencyPhone,
         medical_notes: formData.profileData.medicalNotes,
         interests: JSON.stringify(formData.profileData.interests),
+        specialization: formData.selectedSpecialization,
+        payment_verified: formData.paymentVerified,
         onboarding_completed: true
       });
 
-      // 2. Join selected semester (if any API exists for this)
-      if (formData.selectedSemester) {
-        // This would be a semester join API call
-        // await apiService.joinSemester(formData.selectedSemester.id);
-        console.log('Selected semester:', formData.selectedSemester);
-      }
+      console.log('✅ Onboarding completed:', {
+        specialization: formData.selectedSpecialization,
+        paymentVerified: formData.paymentVerified,
+        ndaAccepted: formData.ndaAccepted
+      });
 
-      // 3. Record NDA acceptance
-      // await apiService.acceptNDA();
-
-      // 4. Update local user data with complete response from server
+      // 2. Update local user data with complete response from server
       updateUserProfile(updatedUser);
 
-      // 5. Navigate to semester selection
-      navigate('/student/semester-selection', { 
+      // 3. Navigate to dashboard
+      navigate('/student/dashboard', {
         replace: true,
         state: { fromOnboarding: true }
       });
 
     } catch (err) {
       setError('Failed to complete onboarding: ' + err.message);
+      console.error('❌ Onboarding error:', err);
     } finally {
       setLoading(false);
     }
@@ -353,13 +366,13 @@ const StudentOnboarding = () => {
       <div className="step-icon">📊</div>
       <h2>Az Ön jelenlegi állapota</h2>
       <p className="step-description">
-        Az alábbi összeállítás megmutatja az Ön jelenlegi specializációit, 
+        Az alábbi összeállítás megmutatja az Ön jelenlegi specializációit,
         licencszintjeit és eddig elvégzett szemesztereit.
       </p>
-      
-      <CurrentSpecializationStatus 
+
+      <CurrentSpecializationStatus
         onNext={nextStep}
-        hideNavigation={true}
+        hideNavigation={false}
       />
     </div>
   );
@@ -372,7 +385,8 @@ const StudentOnboarding = () => {
           const primarySpec = selectedSpecs[0] || null;
           handleInputChange('selectedSpecialization', primarySpec);
         }}
-        hideNavigation={true}
+        onNext={nextStep}
+        hideNavigation={false}
         showProgressionInfo={true}
       />
     </div>
@@ -510,15 +524,6 @@ const StudentOnboarding = () => {
                 required
               />
             </div>
-            
-            <div className="form-group">
-              <label>Születési dátum</label>
-              <input
-                type="date"
-                value={formData.profileData.dateOfBirth}
-                onChange={(e) => handleInputChange('profileData.dateOfBirth', e.target.value)}
-              />
-            </div>
           </div>
         </div>
 
@@ -592,82 +597,200 @@ const StudentOnboarding = () => {
     </div>
   );
 
+  const renderPaymentVerificationStep = () => (
+    <div className="onboarding-step payment-step">
+      <div className="step-icon">💳</div>
+      <h2>Fizetés megerősítése</h2>
+      <p className="step-description">
+        Az LFA Academy programban való teljes körű részvételhez regisztrációs díj szükséges.
+      </p>
+
+      <div className="payment-info">
+        <div className="pricing-card">
+          <div className="price-header">
+            <h3>Szemeszter díj</h3>
+            <div className="price-amount">
+              <span className="currency">HUF</span>
+              <span className="amount">150,000</span>
+              <span className="period">/ szemeszter</span>
+            </div>
+          </div>
+
+          <div className="price-features">
+            <h4>Mit tartalmaz:</h4>
+            <ul>
+              <li>✅ Korlátlan hozzáférés az edzésekhez</li>
+              <li>✅ Specializációs képzés (PLAYER/COACH/INTERNSHIP)</li>
+              <li>✅ Adaptive Learning kvíz rendszer</li>
+              <li>✅ Competency assessment és fejlesztés</li>
+              <li>✅ Module-based progression tracking</li>
+              <li>✅ Gamification és achievement system</li>
+              <li>✅ Személyre szabott ajánlások</li>
+              <li>✅ Tanácsadás szakmai coachchal</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="payment-methods">
+          <h4>Fizetési módok:</h4>
+          <div className="method-list">
+            <div className="payment-method">
+              <span className="method-icon">🏦</span>
+              <span className="method-name">Banki átutalás</span>
+            </div>
+            <div className="payment-method">
+              <span className="method-icon">💳</span>
+              <span className="method-name">Bankkártya (Stripe)</span>
+            </div>
+            <div className="payment-method">
+              <span className="method-icon">📱</span>
+              <span className="method-name">Online fizetés (SimplePay)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="payment-confirmation">
+          <div className="confirmation-box">
+            <p className="info-text">
+              <strong>Demo célokra:</strong> Jelenleg demo módban vagy. Valós fizetés nem szükséges.
+              Kattints az alábbi gombra a fizetés szimulálásához.
+            </p>
+
+            {!formData.paymentVerified ? (
+              <button
+                className="verify-payment-btn"
+                onClick={() => handleInputChange('paymentVerified', true)}
+              >
+                ✅ Fizetés megerősítése (DEMO)
+              </button>
+            ) : (
+              <div className="verified-status">
+                <span className="verified-icon">✅</span>
+                <span className="verified-text">Fizetés megerősítve!</span>
+              </div>
+            )}
+          </div>
+
+          <p className="help-text">
+            Kérdésed van a fizetéssel kapcsolatban? Írj nekünk: <a href="mailto:billing@lfa.com">billing@lfa.com</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderSystemOverviewStep = () => (
     <div className="onboarding-step overview-step">
       <div className="step-icon">🚀</div>
       <h2>Rendszer áttekintése</h2>
       <p className="step-description">
-        Ismerkedj meg a rendszer főbb funkcióival és lehetőségeivel!
+        Ismerkedj meg az LFA Academy főbb funkcióival és lehetőségeivel!
       </p>
 
       <div className="system-features">
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">📅</span>
-            <h4>Edzések és foglalások</h4>
+            <h4>Sessions (Edzések) és Bookings (Foglalások)</h4>
           </div>
           <ul>
-            <li>Böngészd az elérhető edzéseket</li>
-            <li>Foglalj időpontot egyszerűen</li>
-            <li>Követheted a foglalásaidat</li>
-            <li>Check-in funkció az edzéseken</li>
+            <li><strong>Böngészd az edzéseket:</strong> Specializáció szerint szűrt sessions</li>
+            <li><strong>Foglalj időpontot:</strong> Egyszerű booking rendszer</li>
+            <li><strong>Követés:</strong> Upcoming, past és cancelled bookings</li>
+            <li><strong>Check-in:</strong> QR kóddal vagy manuális jelenlét rögzítés</li>
+            <li><strong>Instructor értékelés:</strong> Feedback a coachoknak</li>
+          </ul>
+        </div>
+
+        <div className="feature-section">
+          <div className="feature-header">
+            <span className="feature-icon">🧠</span>
+            <h4>Adaptive Learning (Intelligens kvíz rendszer)</h4>
+          </div>
+          <ul>
+            <li><strong>Személyre szabott kvízek:</strong> Nehézség a tudásszintedhez igazodik</li>
+            <li><strong>Difficulty scaling:</strong> EASY → MEDIUM → HARD → EXPERT</li>
+            <li><strong>Real-time feedback:</strong> Azonnali magyarázat minden válaszhoz</li>
+            <li><strong>XP és rewards:</strong> Pontszerzés helyes válaszokért</li>
+            <li><strong>Leaderboard:</strong> Versenyezz társaiddal</li>
+          </ul>
+        </div>
+
+        <div className="feature-section">
+          <div className="feature-header">
+            <span className="feature-icon">📊</span>
+            <h4>Competency Framework (Kompetencia értékelés)</h4>
+          </div>
+          <ul>
+            <li><strong>Skill assessment:</strong> 15+ kompetencia mérése specializációnként</li>
+            <li><strong>Radar chart:</strong> Vizuális feedback a fejlődésedről</li>
+            <li><strong>Progress tracking:</strong> Milestone-ok és level-up rendszer</li>
+            <li><strong>Recommendations:</strong> Személyre szabott fejlesztési javaslatok</li>
+            <li><strong>Hook integration:</strong> Automatikus skill frissítés quiz/booking után</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">📚</span>
-            <h4>Projektek és tanulás</h4>
+            <h4>Module System (Moduláris tanulás)</h4>
           </div>
           <ul>
-            <li>Csatlakozz szemeszter projektekhez</li>
-            <li>Töltsd ki a kvízeket és szerezz XP-t</li>
-            <li>Kövesd a haladásodat</li>
-            <li>Kommunikálj az oktatókkal</li>
+            <li><strong>Structured progression:</strong> Modul → Téma → Lecke struktúra</li>
+            <li><strong>Prerequisites:</strong> Előfeltételek modul megnyitáshoz</li>
+            <li><strong>Completion tracking:</strong> Haladás követés modulonként</li>
+            <li><strong>Specialization-specific:</strong> PLAYER, COACH, INTERNSHIP modulok</li>
+            <li><strong>Certificates:</strong> Elismerés a befejezett modulokért</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">🏆</span>
-            <h4>Gamification és fejlődés</h4>
+            <h4>Gamification és Achievement System</h4>
           </div>
           <ul>
-            <li>Szerezz XP pontokat aktivitásaidért</li>
-            <li>Oldj meg achievementeket</li>
-            <li>Lépj szinteket és gyűjts badge-eket</li>
-            <li>Versenyezz társaiddal</li>
+            <li><strong>XP points:</strong> Szerezz pontokat minden aktivitásért</li>
+            <li><strong>Levels:</strong> Lépj szinteket és unlock special features</li>
+            <li><strong>Achievements:</strong> 50+ achievement kategória (quiz, session, skill)</li>
+            <li><strong>Badges:</strong> Gyűjts digitális badge-eket</li>
+            <li><strong>Streaks:</strong> Napi bejelentkezési és aktivitási sorozatok</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">💬</span>
-            <h4>Kommunikáció és visszajelzés</h4>
+            <h4>Kommunikáció és Feedback</h4>
           </div>
           <ul>
-            <li>Üzenetek az oktatókkal</li>
-            <li>Értékeld az edzéseket</li>
-            <li>Adj visszajelzést</li>
-            <li>Kapj értesítéseket</li>
+            <li><strong>Üzenetek:</strong> Chat az oktatókkal és coachokkal</li>
+            <li><strong>Session értékelés:</strong> 5 csillagos rating + szöveges feedback</li>
+            <li><strong>Notifikációk:</strong> Email és push értesítések</li>
+            <li><strong>Progress reports:</strong> Havi összefoglaló jelentések</li>
           </ul>
         </div>
       </div>
 
       <div className="getting-started">
-        <h4>🎯 Következő lépések:</h4>
+        <h4>🎯 Következő lépések az onboarding után:</h4>
         <ol>
-          <li>Böngészd meg a dashboard-ot</li>
-          <li>Nézd meg az elérhető edzéseket</li>
-          <li>Csatlakozz egy projekthez</li>
-          <li>Töltsd ki az első kvízt</li>
+          <li><strong>Dashboard:</strong> Tekintsd meg a főoldalt és a statisztikáidat</li>
+          <li><strong>Sessions:</strong> Foglalj le az első edzésedet</li>
+          <li><strong>Adaptive Quiz:</strong> Teszteld a tudásodat egy kvízben</li>
+          <li><strong>Competency:</strong> Végezz el egy kompetencia felmérést</li>
+          <li><strong>Modules:</strong> Kezdj el egy tanulási modult</li>
         </ol>
       </div>
 
       <div className="completion-note">
         <p>
-          🎉 <strong>Gratulálunk!</strong> Sikeresen beállítottad a fiókodat. 
-          Most már készen állsz a SportMax rendszer teljes funkcionalitásának felfedezésére!
+          🎉 <strong>Gratulálunk!</strong> Sikeresen beállítottad a fiókodat.
+          Most már készen állsz az LFA Academy rendszer teljes funkcionalitásának felfedezésére!
+        </p>
+        <p className="tech-note">
+          💡 <strong>Technikai infó:</strong> A rendszer FastAPI backend-del és React frontend-del működik,
+          PostgreSQL adatbázissal, JWT autentikációval és real-time WebSocket supporttal.
         </p>
       </div>
     </div>
@@ -675,13 +798,32 @@ const StudentOnboarding = () => {
 
   // Main render
   return (
-    <div className={`student-onboarding theme-${theme} color-${colorScheme} chrome-ios-optimized`}>
-      <div className="onboarding-container">
+    <div
+      className={`student-onboarding theme-${theme} color-${colorScheme} chrome-ios-optimized`}
+      data-theme={theme}
+    >
+        <div className="onboarding-container">
+        {/* Header with theme toggle */}
+        <div className="onboarding-header">
+          <div className="header-left">
+            <span className="logo-icon">⚽</span>
+            <span className="logo-text">LFA Onboarding</span>
+          </div>
+          <button
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
+
         {/* Progress bar */}
         <div className="progress-header">
           <div className="progress-bar">
-            <div 
-              className="progress-fill" 
+            <div
+              className="progress-fill"
               style={{ width: `${(currentStep / totalSteps) * 100}%` }}
             ></div>
           </div>
@@ -692,15 +834,17 @@ const StudentOnboarding = () => {
 
         {/* Step indicators */}
         <div className="step-indicators">
-          {[1, 2, 3, 4, 5].map(step => (
+          {[1, 2, 3, 4, 5, 6, 7].map(step => (
             <div key={step} className={`step-indicator ${currentStep >= step ? 'active' : ''} ${currentStep === step ? 'current' : ''}`}>
               <div className="step-number">{step}</div>
               <div className="step-label">
                 {step === 1 && 'Üdvözlés'}
-                {step === 2 && 'Szakirány'}
-                {step === 3 && 'NDA'}
-                {step === 4 && 'Profil'}
-                {step === 5 && 'Áttekintés'}
+                {step === 2 && 'Státusz'}
+                {step === 3 && 'Szakirány'}
+                {step === 4 && 'NDA'}
+                {step === 5 && 'Profil'}
+                {step === 6 && 'Fizetés'}
+                {step === 7 && 'Áttekintés'}
               </div>
             </div>
           ))}
@@ -713,7 +857,8 @@ const StudentOnboarding = () => {
           {currentStep === 3 && renderSpecializationStep()}
           {currentStep === 4 && renderNDAStep()}
           {currentStep === 5 && renderProfileStep()}
-          {currentStep === 6 && renderSystemOverviewStep()}
+          {currentStep === 6 && renderPaymentVerificationStep()}
+          {currentStep === 7 && renderSystemOverviewStep()}
         </div>
 
         {/* Error display */}

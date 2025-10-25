@@ -14,21 +14,21 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
     const fetchStatusData = async () => {
         try {
             setLoading(true);
-            
+
             // Get comprehensive dashboard data
-            const dashboard = await apiService.get('/api/v1/parallel-specializations/dashboard');
-            
+            const dashboard = await apiService.get('/parallel-specializations/dashboard');
+
             // Also get available specializations for current user
             try {
-                const available = await apiService.get('/api/v1/parallel-specializations/available');
+                const available = await apiService.get('/parallel-specializations/available');
                 dashboard.available_specializations = available;
             } catch (availError) {
                 console.warn('Could not fetch available specializations:', availError);
                 dashboard.available_specializations = [];
             }
-            
+
             setDashboardData(dashboard);
-            
+
         } catch (error) {
             console.error('Error fetching status data:', error);
             setError('Nem sikerült betölteni az állapot adatokat');
@@ -226,9 +226,17 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                     <p className="section-description">
                         Az alábbi specializációkat választhatod a jelenlegi szemeszterben:
                     </p>
-                    <div className="specializations-grid">
+                    <div className="specializations-list-wrapper">
                         {dashboardData.available_specializations.map(spec => (
-                            <div key={spec.specialization_type} className={`specialization-availability-card ${spec.can_start ? 'available' : 'restricted'}`}>
+                            <div
+                                key={spec.specialization_type}
+                                className={`specialization-availability-card ${spec.can_start ? 'available' : 'restricted'}`}
+                                style={{
+                                    display: 'block',
+                                    width: '100%',
+                                    marginBottom: '25px'
+                                }}
+                            >
                                 <div className="spec-header">
                                     <span className="spec-icon">
                                         {spec.specialization_type === 'PLAYER' ? '⚽' : 
@@ -242,9 +250,9 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                 </div>
                                 
                                 <div className="spec-status">
-                                    <div className={`status-indicator ${spec.can_start ? 'available' : 'restricted'}`}>
+                                    <p className="simple-status-text">
                                         {spec.can_start ? '✅ Elérhető' : '❌ Nem elérhető'}
-                                    </div>
+                                    </p>
                                     <p className="status-reason">{spec.reason}</p>
                                     
                                     {/* Age Requirements */}
@@ -306,53 +314,94 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
             {/* Dynamic Semester Progress */}
             {dashboardData && (
                 <div className="semester-progress-info">
-                    <h3>📈 Félév és Fejlődési Útmutató</h3>
-                    
-                    {/* Current Status Summary */}
+                    <h3>📈 A Te Fejlődési Útmutatód</h3>
+
+                    {/* Personalized Current Status */}
                     <div className="current-semester-overview">
                         <div className="semester-indicator">
                             <span className="semester-number">{dashboardData.current_semester || 1}</span>
                             <div className="semester-info">
-                                <h4>Jelenlegi szemeszter</h4>
+                                <h4>
+                                    {dashboardData.parallel_progress?.total_active === 0 && "Kezdd el az utazásod!"}
+                                    {dashboardData.parallel_progress?.total_active === 1 && "Remekül haladsz!"}
+                                    {dashboardData.parallel_progress?.total_active === 2 && "Kiváló tempó!"}
+                                    {dashboardData.parallel_progress?.total_active >= 3 && "Professzionális szinten!"}
+                                </h4>
                                 <p className="semester-description">
-                                    {dashboardData.current_semester === 1 && "Alapoktatás - első lépések a specializációkban"}
-                                    {dashboardData.current_semester === 2 && "Fejlett tudás - specializációk mélyítése"}
-                                    {dashboardData.current_semester >= 3 && "Szakértői szint - összes specializáció elérhető"}
+                                    {dashboardData.parallel_progress?.total_active === 0 && "Válaszd ki az első specializációdat és indulj el a fejlődési útvonalon!"}
+                                    {dashboardData.parallel_progress?.total_active === 1 && dashboardData.current_semester >= 2
+                                        ? "Készen állsz egy második specializáció hozzáadására!"
+                                        : "Mélyítsd a tudásod az első specializációdban!"}
+                                    {dashboardData.parallel_progress?.total_active === 2 && dashboardData.current_semester >= 3
+                                        ? "Most már mind a 3 specializációt választhatod!"
+                                        : "Két specializációban is fejlődsz párhuzamosan - fantasztikus!"}
+                                    {dashboardData.parallel_progress?.total_active >= 3 && "Minden specializációban aktívan haladsz - lenyűgöző elkötelezettség!"}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Semester Roadmap */}
-                    <div className="semester-roadmap">
-                        <div className="roadmap-step-wrapper">
-                            <div className={`roadmap-step ${dashboardData.current_semester >= 1 ? 'completed' : 'pending'}`}>
-                                <div className="step-marker">1</div>
-                                <div className="step-content">
-                                    <h5>🌱 Első szemeszter</h5>
-                                    <p>Válassz 1 specializációt a háromból</p>
-                                    <div className="step-options">Player • Coach • Internship</div>
+                    {/* Personalized Next Steps */}
+                    <div className="next-steps-section">
+                        <h4>🎯 A Te Következő Lépéseid</h4>
+
+                        {/* If no specializations */}
+                        {dashboardData.parallel_progress?.total_active === 0 && (
+                            <div className="next-step-card highlight">
+                                <div className="step-icon">🚀</div>
+                                <div className="step-details">
+                                    <h5>Válaszd ki az első specializációdat!</h5>
+                                    <p>Lépj a "Szakirány" fülre és kezdj el bármelyik specializációval: Player, Coach vagy Internship</p>
+                                    <div className="step-benefit">✨ Ez a kezdet - építsd fel a karriered alapjait!</div>
                                 </div>
                             </div>
-                            
-                            <div className={`roadmap-step ${dashboardData.current_semester >= 2 ? 'completed' : dashboardData.current_semester === 1 ? 'current' : 'pending'}`}>
-                                <div className="step-marker">2</div>
-                                <div className="step-content">
-                                    <h5>🚀 Második szemeszter</h5>
-                                    <p>Maximum 2 specializáció párhuzamosan</p>
-                                    <div className="step-options">Player + Coach VAGY Player + Internship</div>
+                        )}
+
+                        {/* If 1 specialization and semester >= 2 */}
+                        {dashboardData.parallel_progress?.total_active === 1 && dashboardData.current_semester >= 2 && (
+                            <div className="next-step-card highlight">
+                                <div className="step-icon">⚡</div>
+                                <div className="step-details">
+                                    <h5>Adj hozzá egy második specializációt!</h5>
+                                    <p>A 2. szemesztertől párhuzamosan 2 specializációban fejlődhetsz. Nézd meg az elérhető specializációkat alább!</p>
+                                    <div className="step-benefit">✨ Bővítsd a tudásod és növeld a lehetőségeidet!</div>
                                 </div>
                             </div>
-                            
-                            <div className={`roadmap-step ${dashboardData.current_semester >= 3 ? 'completed' : dashboardData.current_semester === 2 ? 'current' : 'pending'}`}>
-                                <div className="step-marker">3+</div>
-                                <div className="step-content">
-                                    <h5>⭐ Harmadik szemeszter+</h5>
-                                    <p>Mind a 3 specializáció egyszerre lehetséges</p>
-                                    <div className="step-options">Player + Coach + Internship</div>
+                        )}
+
+                        {/* If 2 specializations and semester >= 3 */}
+                        {dashboardData.parallel_progress?.total_active === 2 && dashboardData.current_semester >= 3 && (
+                            <div className="next-step-card highlight">
+                                <div className="step-icon">🏆</div>
+                                <div className="step-details">
+                                    <h5>Harmadik specializáció elérhető!</h5>
+                                    <p>A 3. szemesztertől mind a 3 specializációt viheted egyszerre. Görgess le és nézd meg a harmadik opciót!</p>
+                                    <div className="step-benefit">✨ Légy teljes körű szakember - Player + Coach + Internship!</div>
                                 </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Current active specializations progress */}
+                        {dashboardData.active_specializations && dashboardData.active_specializations.length > 0 && (
+                            <div className="active-progress-summary">
+                                <h5>📊 Jelenlegi Előrehaladásod</h5>
+                                {dashboardData.active_specializations.map(spec => (
+                                    <div key={spec.specialization_type} className="progress-item">
+                                        <span className="spec-name">
+                                            {spec.current_level_metadata?.icon_emoji} {spec.specialization_type}
+                                        </span>
+                                        <span className="spec-progress">
+                                            Level {spec.current_level}/8 ({Math.round((spec.current_level / 8) * 100)}%)
+                                        </span>
+                                        {spec.current_level < 8 && (
+                                            <span className="next-level-hint">
+                                                💪 Következő: Level {spec.current_level + 1}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Quick Stats */}

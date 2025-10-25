@@ -131,12 +131,12 @@ class SpecializationService:
         if next_level_req:
             sessions_needed = max(0, next_level_req['required_sessions'] - progress.completed_sessions)
 
-        return {
+        # Format response to match frontend expectations
+        response = {
             'student_id': student_id,
             'specialization_id': specialization_id,
-            'current_level': progress.current_level,
-            'current_level_info': current_level_req,
-            'next_level_info': next_level_req,
+            'current_level': current_level_req,  # Frontend expects full level object
+            'next_level': next_level_req,  # Frontend expects 'next_level', not 'next_level_info'
             'total_xp': progress.total_xp,
             'xp_needed': xp_needed,
             'completed_sessions': progress.completed_sessions,
@@ -147,6 +147,20 @@ class SpecializationService:
             'last_activity': progress.last_activity,
             'is_max_level': next_level_req is None
         }
+
+        # Add COACH-specific hours tracking
+        if specialization_id == 'COACH':
+            response['theory_hours_completed'] = progress.theory_hours_completed
+            response['practice_hours_completed'] = progress.practice_hours_completed
+
+            # Calculate hours needed for next level
+            if next_level_req:
+                response['theory_hours_needed'] = max(0,
+                    next_level_req['theory_hours'] - progress.theory_hours_completed)
+                response['practice_hours_needed'] = max(0,
+                    next_level_req['practice_hours'] - progress.practice_hours_completed)
+
+        return response
 
     def can_level_up(self, progress) -> bool:
         """
@@ -166,10 +180,20 @@ class SpecializationService:
         if not next_level_req:
             return False  # Nincs több szint
 
-        return (
+        # Basic requirements (all specializations)
+        can_level = (
             progress.total_xp >= next_level_req['required_xp'] and
             progress.completed_sessions >= next_level_req['required_sessions']
         )
+
+        # COACH specialization: also check theory/practice hours
+        if progress.specialization_id == 'COACH':
+            can_level = can_level and (
+                progress.theory_hours_completed >= next_level_req.get('theory_hours', 0) and
+                progress.practice_hours_completed >= next_level_req.get('practice_hours', 0)
+            )
+
+        return can_level
 
     def update_progress(
         self,

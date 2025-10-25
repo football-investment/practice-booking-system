@@ -42,21 +42,39 @@ class User(Base):
     
     # 💰 NEW: Payment verification fields
     payment_verified = Column(
-        Boolean, 
-        nullable=False, 
+        Boolean,
+        nullable=False,
         default=False,
         comment="Whether student has paid semester fees"
     )
     payment_verified_at = Column(
-        DateTime, 
+        DateTime,
         nullable=True,
         comment="Timestamp when payment was verified"
     )
     payment_verified_by = Column(
-        Integer, 
-        ForeignKey("users.id"), 
+        Integer,
+        ForeignKey("users.id"),
         nullable=True,
         comment="Admin who verified the payment"
+    )
+
+    # 📄 NEW: NDA acceptance fields
+    nda_accepted = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether student has accepted the NDA"
+    )
+    nda_accepted_at = Column(
+        DateTime,
+        nullable=True,
+        comment="Timestamp when NDA was accepted"
+    )
+    nda_ip_address = Column(
+        String,
+        nullable=True,
+        comment="IP address from which NDA was accepted"
     )
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

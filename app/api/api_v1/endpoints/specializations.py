@@ -306,3 +306,72 @@ async def get_level_info(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch level info: {str(e)}")
+
+
+# ========================================
+# COACH-SPECIFIC: Theory/Practice Hours Tracking
+# ========================================
+
+class UpdateHoursRequest(BaseModel):
+    theory_hours_increment: int = 0
+    practice_hours_increment: int = 0
+
+@router.post("/update-hours")
+async def update_coach_hours(
+    request: UpdateHoursRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update theory/practice hours for COACH specialization
+
+    Args:
+        theory_hours_increment: Hours to add to theory_hours_completed
+        practice_hours_increment: Hours to add to practice_hours_completed
+
+    Returns:
+        Updated progress data
+    """
+    from ....models.user_progress import SpecializationProgress
+    from ....services.specialization_service import SpecializationService
+    from sqlalchemy import and_
+    from datetime import datetime
+
+    try:
+        # Find COACH progress
+        progress = db.query(SpecializationProgress).filter(
+            and_(
+                SpecializationProgress.student_id == current_user.id,
+                SpecializationProgress.specialization_id == 'COACH'
+            )
+        ).first()
+
+        if not progress:
+            raise HTTPException(
+                status_code=404,
+                detail="COACH progress not found. Please complete onboarding first."
+            )
+
+        # Update hours
+        progress.theory_hours_completed += request.theory_hours_increment
+        progress.practice_hours_completed += request.practice_hours_increment
+        progress.last_activity = datetime.utcnow()
+        progress.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(progress)
+
+        # Get updated progress with level requirements
+        service = SpecializationService(db)
+        updated_progress = service.get_student_progress(current_user.id, 'COACH')
+
+        return {
+            'success': True,
+            'message': 'Hours updated successfully',
+            'data': updated_progress
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update hours: {str(e)}")

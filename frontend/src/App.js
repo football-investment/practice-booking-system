@@ -29,6 +29,7 @@ import ProjectProgress from './pages/student/ProjectProgress';
 import ProjectEnrollmentQuiz from './pages/student/ProjectEnrollmentQuiz';
 import StudentMessages from './pages/student/StudentMessages';
 import StudentOnboarding from './pages/student/StudentOnboarding';
+import StudentOnboardingNew from './pages/student/StudentOnboardingNew';
 import SemesterCentricOnboarding from './pages/student/SemesterCentricOnboarding';
 import SemesterSelection from './pages/student/SemesterSelection';
 import AdaptiveLearning from './pages/student/AdaptiveLearning';
@@ -105,13 +106,17 @@ function UnifiedHeader() {
   const { user } = useAuth();
   const isLoginPage = location.pathname === '/login';
   const isDashboardRoute = location.pathname.includes('/dashboard');
-  
+  const isOnboardingRoute = location.pathname.includes('/onboarding');
+
   // Don't show header on login page
   if (isLoginPage || !user) return null;
-  
+
   // Don't show header on dashboard routes (they have their own integrated header)
   if (isDashboardRoute) return null;
-  
+
+  // Don't show header on onboarding routes (they have their own header with theme toggle)
+  if (isOnboardingRoute) return null;
+
   return (
     <CleanDashboardHeader
       user={user}
@@ -154,6 +159,11 @@ function AppRoutes() {
       
       {/* Student Routes */}
       <Route path="/student/onboarding" element={
+        <ProtectedRoute requiredRole="student">
+          <StudentOnboardingNew />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/onboarding-old" element={
         <ProtectedRoute requiredRole="student">
           <StudentOnboarding />
         </ProtectedRoute>

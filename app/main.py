@@ -68,8 +68,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Practice Booking System API",
-    version="1.0.0",
+    description="GānCuju™© Education Center - Comprehensive Football Education Platform featuring 8-Level GānCuju™© Player System (4000-year Chinese tradition), 8-Level LFA Coach Training, Internship Programs, and Gamification with Parallel Specialization Tracks",
+    version="2.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )

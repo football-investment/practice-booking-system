@@ -29,8 +29,22 @@ const LevelBadge = ({ specializationId, level, levelName, color }) => {
     return icons[specializationId] || '⭐';
   };
 
+  // Convert hex color to rgba with 20% opacity for background
+  const hexToRgba = (hex, alpha = 0.2) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   return (
-    <div className="level-badge" style={{ '--badge-color': color }}>
+    <div
+      className="level-badge"
+      style={{
+        '--badge-color': color,
+        backgroundColor: hexToRgba(color, 0.2)
+      }}
+    >
       <div className="level-badge__icon">
         <span className="level-badge__emoji">{getSpecializationIcon()}</span>
         <div className="level-badge__level-number">{level}</div>

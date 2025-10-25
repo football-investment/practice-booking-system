@@ -38,19 +38,41 @@ def create_user(
         )
     
     # Create new user
+    from ....models.specialization import SpecializationType
+
+    # Convert specialization string to enum if provided
+    specialization_enum = None
+    if user_data.specialization:
+        try:
+            specialization_enum = SpecializationType[user_data.specialization]
+        except KeyError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid specialization: {user_data.specialization}"
+            )
+
     user = User(
         name=user_data.name,
         email=user_data.email,
+        nickname=user_data.nickname,
         password_hash=get_password_hash(user_data.password),
         role=user_data.role,
         is_active=user_data.is_active,
+        phone=user_data.phone,
+        emergency_contact=user_data.emergency_contact,
+        emergency_phone=user_data.emergency_phone,
+        date_of_birth=user_data.date_of_birth,
+        medical_notes=user_data.medical_notes,
+        position=user_data.position,
+        specialization=specialization_enum,
+        onboarding_completed=user_data.onboarding_completed if hasattr(user_data, 'onboarding_completed') else False,
         created_by=current_user.id
     )
-    
+
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     return user
 
 
@@ -127,18 +149,23 @@ def update_own_profile(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User with this email already exists"
             )
-    
+
     # Validate that emergency phone is different from user phone
     update_data = user_update.model_dump(exclude_unset=True)
     user_phone = update_data.get('phone', current_user.phone)
     emergency_phone = update_data.get('emergency_phone', current_user.emergency_phone)
-    
+
     if user_phone and emergency_phone and user_phone == emergency_phone:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A vészhelyzeti telefonszám nem lehet ugyanaz, mint a saját telefonszámod"
         )
-    
+
+    # Handle NDA acceptance with timestamp
+    if 'nda_accepted' in update_data and update_data['nda_accepted']:
+        from datetime import datetime, timezone
+        setattr(current_user, 'nda_accepted_at', datetime.now(timezone.utc))
+
     # Update fields
     for field, value in update_data.items():
         if field == 'interests' and isinstance(value, list):
@@ -147,16 +174,16 @@ def update_own_profile(
             setattr(current_user, field, json.dumps(value))
         else:
             setattr(current_user, field, value)
-    
+
     db.commit()
     db.refresh(current_user)
-    
+
     # Keep interests as JSON string for schema compatibility
     user_data = current_user.__dict__.copy()
     # Ensure interests is a string (not parsed to list)
     if user_data.get('interests') is None:
         user_data['interests'] = None
-    
+
     return user_data
 
 

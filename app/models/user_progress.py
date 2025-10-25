@@ -88,6 +88,8 @@ class SpecializationProgress(Base):
     total_xp = Column(Integer, default=0)
     completed_sessions = Column(Integer, default=0)
     completed_projects = Column(Integer, default=0)
+    theory_hours_completed = Column(Integer, default=0)  # For COACH specialization
+    practice_hours_completed = Column(Integer, default=0)  # For COACH specialization
     last_activity = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

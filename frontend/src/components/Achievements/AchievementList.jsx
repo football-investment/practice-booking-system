@@ -170,8 +170,9 @@ const AchievementList = ({ specializationId }) => {
       {/* Locked Achievements */}
       {lockedList.length > 0 && (
         <div className="achievement-list__section">
-          <h3 className="achievement-list__section-title">
-            🔒 Locked ({lockedList.length})
+          <h3 className="achievement-list__section-title" style={{ marginBottom: '56px' }}>
+            <span className="achievement-list__section-icon" style={{ position: 'relative', top: '2px', lineHeight: '1' }}>🔒</span>
+            <span>Locked ({lockedList.length})</span>
           </h3>
 
           {viewMode === 'grid' ? (
