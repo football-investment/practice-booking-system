@@ -1,7 +1,7 @@
 {
-  "name": "gancuju-education-center-frontend",
+  "name": "lfa-education-center-frontend",
   "version": "2.0.0",
-  "description": "GānCuju™© Education Center - Frontend featuring 8-Level GānCuju™© Player System and LFA Coach Training",
+  "description": "LFA Education Center - Professional Football Training and Coach Development Platform",
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
