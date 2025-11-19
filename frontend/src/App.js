@@ -161,6 +161,7 @@ function AppRoutes() {
           </ProtectedStudentRoute>
         </ProtectedRoute>
       } />
+      {/* DISABLED: Non-core features
       <Route path="/student/sessions" element={
         <ProtectedRoute requiredRole="student">
           <AllSessions />
@@ -176,21 +177,25 @@ function AppRoutes() {
           <MyBookings />
         </ProtectedRoute>
       } />
+      */}
       <Route path="/student/profile" element={
         <ProtectedRoute requiredRole="student">
           <StudentProfile />
         </ProtectedRoute>
       } />
+      {/* DISABLED: Feedback feature
       <Route path="/student/feedback" element={
         <ProtectedRoute requiredRole="student">
           <FeedbackPage />
         </ProtectedRoute>
       } />
+      */}
       <Route path="/student/gamification" element={
         <ProtectedRoute requiredRole="student">
           <GamificationProfile />
         </ProtectedRoute>
       } />
+      {/* DISABLED: Quiz, Projects, Adaptive Learning features
       <Route path="/student/quiz" element={
         <ProtectedRoute requiredRole="student">
           <QuizDashboard />
@@ -236,24 +241,27 @@ function AppRoutes() {
           <AdaptiveLearning />
         </ProtectedRoute>
       } />
+      */}
       {/* NEW: Learning Profile & Competency Routes */}
       <Route path="/student/learning-profile" element={
         <ProtectedRoute requiredRole="student">
           <LearningProfileView />
         </ProtectedRoute>
       } />
+      {/* DISABLED: Competency Dashboard (will simplify later)
       <Route path="/student/competency" element={
         <ProtectedRoute requiredRole="student">
           <CompetencyDashboard />
         </ProtectedRoute>
       } />
+      */}
       <Route path="/student/specialization-select" element={
         <ProtectedRoute requiredRole="student">
           <ParallelSpecializationSelector hideNavigation={false} />
         </ProtectedRoute>
       } />
 
-      {/* 📚 Curriculum Routes */}
+      {/* DISABLED: Curriculum & Exercise Routes
       <Route path="/student/curriculum/:specializationId" element={
         <ProtectedRoute requiredRole="student">
           <CurriculumView />
@@ -269,8 +277,9 @@ function AppRoutes() {
           <ExerciseSubmission />
         </ProtectedRoute>
       } />
-      
-      {/* Instructor Routes */}
+      */}
+
+      {/* DISABLED: All Instructor Routes (code preserved for later)
       <Route path="/instructor/dashboard" element={
         <ProtectedRoute requiredRole="instructor">
           <div>Instructor Dashboard - Coming Soon</div>
@@ -341,7 +350,8 @@ function AppRoutes() {
           <InstructorProgressReport />
         </ProtectedRoute>
       } />
-      
+      */}
+
       {/* Admin Routes */}
       <Route path="/admin/dashboard" element={
         <ProtectedRoute requiredRole="admin">
@@ -358,6 +368,7 @@ function AppRoutes() {
           <UserManagement />
         </ProtectedRoute>
       } />
+      {/* DISABLED: Admin non-essential features (code preserved)
       <Route path="/admin/sessions" element={
         <ProtectedRoute requiredRole="admin">
           <SessionManagement />
@@ -393,6 +404,7 @@ function AppRoutes() {
           <ProjectManagement />
         </ProtectedRoute>
       } />
+      */}
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

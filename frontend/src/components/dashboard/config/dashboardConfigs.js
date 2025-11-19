@@ -54,35 +54,10 @@ const studentConfig = {
       path: '/student/gamification'
     },
     {
-      id: 'learning',
-      label: 'My Learning',
-      icon: 'menu_book',
-      path: '/student/learning',
-      submenu: [
-        { id: 'tracks', label: 'My Tracks', path: '/student/tracks' },
-        { id: 'sessions', label: 'Sessions', path: '/student/sessions' },
-        { id: 'quizzes', label: 'Quizzes', path: '/student/quizzes' },
-        { id: 'certificates', label: 'Certificates', path: '/student/certificates' }
-      ]
-    },
-    {
-      id: 'progress',
-      label: 'Progress',
-      icon: 'trending_up',
-      path: '/student/progress',
-      submenu: [
-        { id: 'analytics', label: 'My Analytics', path: '/student/analytics' },
-        { id: 'achievements', label: 'Achievements', path: '/student/achievements' }
-      ]
-    },
-    {
-      id: 'connect',
-      label: 'Connect',
-      icon: 'forum',
-      path: '/student/connect',
-      submenu: [
-        { id: 'feedback', label: 'Feedback', path: '/student/feedback' }
-      ]
+      id: 'profile',
+      label: 'Profile',
+      icon: 'person',
+      path: '/student/profile'
     }
   ],
   widgets: [
@@ -314,34 +289,13 @@ const adminConfig = {
       id: 'users',
       label: 'User Management',
       icon: 'people',
-      path: '/admin/users',
-      submenu: [
-        { id: 'all_users', label: 'All Users', path: '/admin/users' },
-        { id: 'instructors', label: 'Instructors', path: '/admin/users/instructors' },
-        { id: 'students', label: 'Students', path: '/admin/users/students' }
-      ]
+      path: '/admin/users'
     },
     {
-      id: 'content',
-      label: 'Content Management',
-      icon: 'library_books',
-      path: '/admin/content',
-      submenu: [
-        { id: 'tracks', label: 'Tracks', path: '/admin/tracks' },
-        { id: 'sessions', label: 'Sessions', path: '/admin/sessions' },
-        { id: 'projects', label: 'Projects', path: '/admin/projects' }
-      ]
-    },
-    {
-      id: 'system',
-      label: 'System',
-      icon: 'settings',
-      path: '/admin/system',
-      submenu: [
-        { id: 'configuration', label: 'Configuration', path: '/admin/config' },
-        { id: 'monitoring', label: 'Monitoring', path: '/admin/monitoring' },
-        { id: 'reports', label: 'Reports', path: '/admin/reports' }
-      ]
+      id: 'health',
+      label: 'System Health',
+      icon: 'monitor_heart',
+      path: '/admin/health'
     }
   ],
   widgets: [
