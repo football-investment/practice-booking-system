@@ -28,8 +28,6 @@ import ProjectProgress from './pages/student/ProjectProgress';
 import ProjectEnrollmentQuiz from './pages/student/ProjectEnrollmentQuiz';
 import StudentMessages from './pages/student/StudentMessages';
 import StudentOnboarding from './pages/student/StudentOnboarding';
-import SemesterCentricOnboarding from './pages/student/SemesterCentricOnboarding';
-import SemesterSelection from './pages/student/SemesterSelection';
 import AdaptiveLearning from './pages/student/AdaptiveLearning';
 import CurriculumView from './pages/student/CurriculumView';
 import LessonView from './pages/student/LessonView';
@@ -155,16 +153,6 @@ function AppRoutes() {
       <Route path="/student/onboarding" element={
         <ProtectedRoute requiredRole="student">
           <StudentOnboarding />
-        </ProtectedRoute>
-      } />
-      <Route path="/student/semester-onboarding" element={
-        <ProtectedRoute requiredRole="student">
-          <SemesterCentricOnboarding />
-        </ProtectedRoute>
-      } />
-      <Route path="/student/semester-selection" element={
-        <ProtectedRoute requiredRole="student">
-          <SemesterSelection />
         </ProtectedRoute>
       } />
       <Route path="/student/dashboard" element={
