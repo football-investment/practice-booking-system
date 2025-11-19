@@ -36,9 +36,27 @@ const studentConfig = {
       path: '/student/dashboard'
     },
     {
+      id: 'specialization',
+      label: 'Specialization',
+      icon: 'school',
+      path: '/student/specialization-select'
+    },
+    {
+      id: 'learning-profile',
+      label: 'Learning Profile',
+      icon: 'account_circle',
+      path: '/student/learning-profile'
+    },
+    {
+      id: 'achievements',
+      label: 'Achievements',
+      icon: 'emoji_events',
+      path: '/student/gamification'
+    },
+    {
       id: 'learning',
       label: 'My Learning',
-      icon: 'school',
+      icon: 'menu_book',
       path: '/student/learning',
       submenu: [
         { id: 'tracks', label: 'My Tracks', path: '/student/tracks' },

@@ -38,6 +38,7 @@ import ProtectedStudentRoute from './components/student/ProtectedStudentRoute';
 // NEW: Adaptive Learning & Competency Components
 import LearningProfileView from './components/AdaptiveLearning/LearningProfileView';
 import CompetencyDashboard from './components/Competency/CompetencyDashboard';
+import ParallelSpecializationSelector from './components/onboarding/ParallelSpecializationSelector';
 
 // Instructor Pages
 import InstructorSessions from './pages/instructor/InstructorSessions';
@@ -251,6 +252,11 @@ function AppRoutes() {
       <Route path="/student/competency" element={
         <ProtectedRoute requiredRole="student">
           <CompetencyDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/student/specialization-select" element={
+        <ProtectedRoute requiredRole="student">
+          <ParallelSpecializationSelector hideNavigation={false} />
         </ProtectedRoute>
       } />
 
