@@ -12,7 +12,7 @@ const BrowserWarning = () => {
       const isChrome = ua.includes('chrome') && !ua.includes('edg');
       const isFirefox = ua.includes('firefox');
       const isSafari = ua.includes('safari') && !ua.includes('chrome');
-      
+
       const info = {
         isIOS,
         isChrome,
@@ -20,9 +20,9 @@ const BrowserWarning = () => {
         isSafari,
         userAgent: navigator.userAgent
       };
-      
+
       setBrowserInfo(info);
-      
+
       // Show warning for non-Chrome browsers on iOS
       if (isIOS && !isChrome) {
         setShowWarning(true);
@@ -50,7 +50,7 @@ const BrowserWarning = () => {
       const dismissedTime = parseInt(dismissed);
       const now = Date.now();
       const hoursSinceDismissal = (now - dismissedTime) / (1000 * 60 * 60);
-      
+
       if (hoursSinceDismissal < 24) {
         setShowWarning(false);
       }
@@ -68,17 +68,17 @@ const BrowserWarning = () => {
   const getBrowserName = () => {
     if (browserInfo.isFirefox) return 'Firefox';
     if (browserInfo.isSafari) return 'Safari';
-    return 'ismeretlen böngésző';
+    return 'Unknown Browser';
   };
 
   const getWarningMessage = () => {
     if (browserInfo.isFirefox) {
-      return 'A Firefox böngésző használata során script hibák léphetnek fel iOS eszközökön. A legjobb felhasználói élmény érdekében javasoljuk a Chrome böngésző használatát.';
+      return 'Using Firefox browser may cause script errors on iOS devices. For the best user experience, we recommend using Chrome browser.';
     }
     if (browserInfo.isSafari) {
-      return 'A Safari böngésző támogatott, de a Chrome böngésző használatával még jobb teljesítményt érhet el.';
+      return 'Safari browser is supported, but you can achieve even better performance using Chrome browser.';
     }
-    return 'Az optimális működés érdekében javasoljuk a Chrome böngésző használatát iOS eszközökön.';
+    return 'For optimal performance, we recommend using Chrome browser on iOS devices.';
   };
 
   const getSeverityLevel = () => {
@@ -92,37 +92,37 @@ const BrowserWarning = () => {
       <div className="browser-warning-content">
         <div className="browser-warning-header">
           <span className="browser-icon">{getBrowserIcon()}</span>
-          <h4>Böngésző figyelmeztetés</h4>
-          <button 
+          <h4>Browser Warning</h4>
+          <button
             className="browser-warning-close"
             onClick={handleIgnore}
-            aria-label="Bezárás"
+            aria-label="Close"
           >
             ×
           </button>
         </div>
-        
+
         <div className="browser-warning-body">
           <p>
-            <strong>Jelenlegi böngésző:</strong> {getBrowserName()}
+            <strong>Current Browser:</strong> {getBrowserName()}
           </p>
           <p>{getWarningMessage()}</p>
-          
+
           {browserInfo.isFirefox && (
             <div className="firefox-issues">
-              <h5>🔍 Ismert Firefox problémák iOS-en:</h5>
+              <h5>🔍 Known Firefox Issues on iOS:</h5>
               <ul>
-                <li>Script betöltési hibák</li>
-                <li>Checkbox kezelési problémák</li>
-                <li>Hálózati kérések időtúllépése</li>
-                <li>Onboarding folyamat megszakadása</li>
+                <li>Script loading errors</li>
+                <li>Checkbox handling problems</li>
+                <li>Network request timeouts</li>
+                <li>Onboarding process interruptions</li>
               </ul>
             </div>
           )}
         </div>
-        
+
         <div className="browser-warning-actions">
-          <button 
+          <button
             className="btn-primary"
             onClick={() => {
               // Try to open in Chrome (if available)
@@ -131,27 +131,27 @@ const BrowserWarning = () => {
               window.open(chromeUrl, '_self');
             }}
           >
-            📱 Megnyitás Chrome-ban
+            📱 Open in Chrome
           </button>
-          
-          <button 
+
+          <button
             className="btn-secondary"
             onClick={handleIgnore}
           >
-            Folytatás jelenlegi böngészővel
+            Continue with Current Browser
           </button>
-          
-          <button 
+
+          <button
             className="btn-tertiary"
             onClick={handleDismiss}
           >
-            Ne jelenjen meg 24 órán át
+            Don't Show for 24 Hours
           </button>
         </div>
-        
+
         <div className="browser-warning-footer">
           <small>
-            💡 <strong>Ajánlás:</strong> Chrome letöltése az App Store-ból az optimális élményért
+            💡 <strong>Recommendation:</strong> Download Chrome from the App Store for optimal experience
           </small>
         </div>
       </div>

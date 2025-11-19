@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/apiService';
 import { LFAUserService } from '../../utils/userTypeService';
-import ProgressCard from '../../components/SpecializationProgress/ProgressCard';
+// DELETED component: import ProgressCard from '../../components/SpecializationProgress/ProgressCard';
 import AchievementList from '../../components/Achievements/AchievementList';
 import './StudentDashboard.css';
 
@@ -218,8 +218,8 @@ const StudentDashboard = () => {
     loadNextSession();
     loadRecentFeedback();
     
-    // Automatikus idézet frissítés órákra
-    const quoteInterval = setInterval(refreshQuote, 3600000); // 1 óra
+    // Automatic quote refresh every hour
+    const quoteInterval = setInterval(refreshQuote, 3600000); // 1 hour
     
     // Debug overflow detection removed
     
@@ -590,7 +590,7 @@ const StudentDashboard = () => {
         <div className="header-actions">
           <button 
             className="header-btn theme-toggle-btn" 
-            title={isDarkMode ? "Világos téma" : "Sötét téma"}
+            title={isDarkMode ? "Light Theme" : "Dark Theme"}
             onClick={toggleDarkMode}
           >
             {isDarkMode ? "🌞" : "🌙"}
@@ -598,7 +598,7 @@ const StudentDashboard = () => {
           
           <button 
             className="header-btn quote-refresh-btn" 
-            title="Új motivációs idézet"
+            title="New Motivational Quote"
             onClick={refreshQuote}
           >
             🔄
@@ -607,7 +607,7 @@ const StudentDashboard = () => {
           <div className="header-dropdown">
             <button 
               className={`header-btn notification-btn ${notifications.some(n => !n.read) ? 'has-new' : ''}`}
-              title="Értesítések"
+              title="Notifications"
               onClick={handleNotificationsToggle}
             >
               🔔
@@ -668,7 +668,7 @@ const StudentDashboard = () => {
           <div className="header-dropdown">
             <div 
               className="user-profile" 
-              title="Profil menü"
+              title="Profile Menu"
               onClick={handleProfileMenuToggle}
             >
               <img 
@@ -697,23 +697,23 @@ const StudentDashboard = () => {
                 </div>
                 <div className="dropdown-content">
                   <button className="profile-menu-item" onClick={() => window.location.href = '/student/profile'}>
-                    👤 Profil megtekintése
+                    👤 View Profile
                   </button>
                   <button className="profile-menu-item" onClick={() => window.location.href = '/student/settings'}>
-                    ⚙️ Beállítások
+                    ⚙️ Settings
                   </button>
                   <button className="profile-menu-item" onClick={() => window.location.href = '/student/achievements'}>
-                    🏆 Eredményeim
+                    🏆 My Achievements
                   </button>
                   <button className="profile-menu-item" onClick={() => window.location.href = '/student/progress'}>
-                    📊 Haladásom
+                    📊 My Progress
                   </button>
                   <div className="menu-divider"></div>
                   <button className="profile-menu-item logout" onClick={() => {
                     localStorage.removeItem('token');
                     window.location.href = '/login';
                   }}>
-                    🚪 Kijelentkezés
+                    🚪 Logout
                   </button>
                 </div>
               </div>
@@ -723,7 +723,7 @@ const StudentDashboard = () => {
           <div className="header-dropdown">
             <button 
               className="header-btn settings-btn" 
-              title="Beállítások"
+              title="Settings"
               onClick={handleSettingsToggle}
             >
               ⚙️
@@ -732,20 +732,20 @@ const StudentDashboard = () => {
             {showSettings && (
               <div className="dropdown-menu settings-dropdown">
                 <div className="dropdown-header">
-                  <h3>Gyors beállítások</h3>
+                  <h3>Quick Settings</h3>
                 </div>
                 <div className="dropdown-content">
                   <div className="settings-item">
-                    <span>🎨 Téma</span>
+                    <span>🎨 Theme</span>
                     <button 
                       className="theme-quick-toggle"
                       onClick={toggleDarkMode}
                     >
-                      {isDarkMode ? "🌞 Világos" : "🌙 Sötét"}
+                      {isDarkMode ? "🌞 Light" : "🌙 Dark"}
                     </button>
                   </div>
                   <div className="settings-item">
-                    <span>🔔 Értesítések</span>
+                    <span>🔔 Notifications</span>
                     <button className="settings-toggle enabled">
                       BE
                     </button>
@@ -762,10 +762,10 @@ const StudentDashboard = () => {
                     className="settings-menu-item"
                     onClick={() => window.location.href = '/student/settings'}
                   >
-                    ⚙️ Részletes beállítások
+                    ⚙️ Detailed Settings
                   </button>
                   <button className="settings-menu-item">
-                    ❓ Súgó és támogatás
+                    ❓ Help and Support
                   </button>
                 </div>
               </div>
@@ -849,7 +849,7 @@ const StudentDashboard = () => {
 
           {/* TERTIARY SECTION - Progress & Skills */}
           <section className="progress-section">
-            {/* 🆕 SPECIALIZATION PROGRESS CARD */}
+            {/* DISABLED: SPECIALIZATION PROGRESS CARD (component deleted)
             {userSpecialization && (
               <div className="specialization-progress-card">
                 <ProgressCard
@@ -858,6 +858,7 @@ const StudentDashboard = () => {
                 />
               </div>
             )}
+            */}
             
             {/* Multi-Category Skill Progress - MAIN FEATURE */}
             <div className="card multi-skill-progress">

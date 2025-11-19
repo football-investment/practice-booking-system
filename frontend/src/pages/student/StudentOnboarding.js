@@ -107,7 +107,7 @@ const StudentOnboarding = () => {
         
       } catch (error) {
         console.error('Onboarding initialization error:', error);
-        setError('Betöltésben hiba történt. Kérlek, próbáld újra.');
+        setError('Failed to load. Please try again.');
         
         // Note: No semester loading needed in onboarding anymore
       }
@@ -156,11 +156,11 @@ const StudentOnboarding = () => {
       console.error('Nickname check failed:', err);
       
       if (err.name === 'AbortError') {
-        setNicknameError('Becenév ellenőrzés időtúllépés');
+        setNicknameError('Nickname verification timeout');
       } else if (isIOSSafari() && err.message.includes('fetch')) {
-        setNicknameError('Hálózati hiba iOS/Safari-ban');
+        setNicknameError('Network error on iOS/Safari');
       } else {
-        setNicknameError('Nem sikerült ellenőrizni a becenevet');
+        setNicknameError('Failed to verify nickname');
       }
     } finally {
       setNicknameChecking(false);
@@ -323,26 +323,25 @@ const StudentOnboarding = () => {
   const renderWelcomeStep = () => (
     <div className="onboarding-step welcome-step">
       <div className="step-icon">🎓</div>
-      <h2>Üdvözlünk a rendszerben, {user?.name}!</h2>
+      <h2>Welcome to the system, {user?.name}!</h2>
       <p className="step-description">
-        Örülünk, hogy csatlakozol hozzánk! Az alábbi lépéseken keresztül 
-        segítünk beállítani a fiókodat és megismerkedni a rendszerrel.
+        We're glad you're joining us! Through the following steps, we'll help you set up your account and get familiar with the system.
       </p>
       
       <div className="welcome-features">
         <div className="feature-item">
           <span className="feature-icon">📅</span>
           <div className="feature-content">
-            <h4>Edzések és események</h4>
-            <p>Böngészd és jelentkezz edzésekre, eseményekre</p>
+            <h4>Sessions and Events</h4>
+            <p>Browse and sign up for sessions and events</p>
           </div>
         </div>
         
         <div className="feature-item">
           <span className="feature-icon">📚</span>
           <div className="feature-content">
-            <h4>Projektek és quizek</h4>
-            <p>Csatlakozz projektekhez és tesztelj tudásod</p>
+            <h4>Projects and Quizzes</h4>
+            <p>Join projects and test your knowledge</p>
           </div>
         </div>
         
@@ -350,13 +349,13 @@ const StudentOnboarding = () => {
           <span className="feature-icon">🏆</span>
           <div className="feature-content">
             <h4>Gamification</h4>
-            <p>Szerezz XP-t, érd el az achievementeket</p>
+            <p>Earn XP, unlock achievements</p>
           </div>
         </div>
       </div>
 
       <p className="step-note">
-        <strong>Ez a folyamat körülbelül 3-5 percet vesz igénybe.</strong>
+        <strong>This process takes approximately 3-5 minutes.</strong>
       </p>
     </div>
   );
@@ -364,10 +363,9 @@ const StudentOnboarding = () => {
   const renderCurrentStatusStep = () => (
     <div className="onboarding-step current-status-step">
       <div className="step-icon">📊</div>
-      <h2>Az Ön jelenlegi állapota</h2>
+      <h2>Your Current Status</h2>
       <p className="step-description">
-        Az alábbi összeállítás megmutatja az Ön jelenlegi specializációit,
-        licencszintjeit és eddig elvégzett szemesztereit.
+        The following overview shows your current specializations, license levels and completed semesters.
       </p>
 
       <CurrentSpecializationStatus
@@ -395,44 +393,40 @@ const StudentOnboarding = () => {
   const renderNDAStep = () => (
     <div className="onboarding-step nda-step">
       <div className="step-icon">📜</div>
-      <h2>Titoktartási nyilatkozat</h2>
+      <h2>Non-Disclosure Agreement</h2>
       <p className="step-description">
-        A folytatás előtt kérjük, olvasd el és fogadd el a titoktartási nyilatkozatot.
+        Before continuing, please read and accept the non-disclosure agreement.
       </p>
 
       <div className="nda-content">
         <div className="nda-document">
-          <h4>Titoktartási és Adatvédelmi Megállapodás</h4>
+          <h4>Non-Disclosure and Data Protection Agreement</h4>
           
           <div className="nda-section">
-            <h5>1. Alapelvek</h5>
+            <h5>1. Principles</h5>
             <p>
-              A SportMax Practice Booking System használatával hozzáférhetsz 
-              különböző edzési anyagokhoz, személyes adatokhoz és belső információkhoz.
+              By using the SportMax Practice Booking System, you gain access to various training materials, personal data, and internal information.
             </p>
           </div>
 
           <div className="nda-section">
-            <h5>2. Titoktartási kötelezettség</h5>
+            <h5>2. Confidentiality Obligation</h5>
             <p>
-              Kötelezed magad arra, hogy minden, a rendszer használata során megismert 
-              információt bizalmasan kezelsz, és harmadik félnek nem adod át.
+              You commit to handling all information learned while using the system confidentially and not disclosing it to third parties.
             </p>
           </div>
 
           <div className="nda-section">
-            <h5>3. Adatvédelem</h5>
+            <h5>3. Data Protection</h5>
             <p>
-              Személyes adataidat a GDPR előírásainak megfelelően kezeljük. 
-              Adataid csak a szolgáltatás nyújtásához szükséges mértékben kerülnek felhasználásra.
+              Your personal data is processed in accordance with GDPR regulations. Your data is only used to the extent necessary to provide the service.
             </p>
           </div>
 
           <div className="nda-section">
-            <h5>4. Felelősség</h5>
+            <h5>4. Liability</h5>
             <p>
-              A nyilatkozat megszegése esetén vállalos a károkat megtéríteni 
-              és felelősséget vállalsz a jogsértésért.
+              In case of violation of this agreement, you agree to compensate damages and accept liability for the infringement.
             </p>
           </div>
         </div>
@@ -458,7 +452,7 @@ const StudentOnboarding = () => {
               }}
               id="nda-checkbox"
             />
-            Elolvastam és elfogadom a titoktartási nyilatkozatot
+            I have read and accept the non-disclosure agreement
           </label>
           {/* Debug info */}
           <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>
@@ -472,30 +466,30 @@ const StudentOnboarding = () => {
   const renderProfileStep = () => (
     <div className="onboarding-step profile-step">
       <div className="step-icon">👤</div>
-      <h2>Profil kiegészítése</h2>
+      <h2>Complete Your Profile</h2>
       <p className="step-description">
-        Add meg az alábbi adatokat a teljes profil létrehozásához.
+        Provide the following information to create your complete profile.
       </p>
 
       <div className="profile-form">
         <div className="form-section">
-          <h4>Alapvető adatok</h4>
+          <h4>Basic Information</h4>
           
           <div className="form-row">
             <div className="form-group">
-              <label>Becenév (nickname) *</label>
+              <label>Nickname *</label>
               <input
                 type="text"
                 value={formData.profileData.nickname}
                 onChange={(e) => handleInputChange('profileData.nickname', e.target.value)}
-                placeholder="Pl. SportsPro, FutballFan stb."
+                placeholder="E.g. SportsPro, FootballFan, etc."
                 required
                 maxLength="30"
                 className={nicknameError ? 'error' : ''}
               />
               {nicknameChecking && (
                 <div className="field-hint">
-                  <span>⏳</span> Ellenőrzés...
+                  <span>⏳</span> Verifying...
                 </div>
               )}
               {!nicknameChecking && nicknameError && (
@@ -506,16 +500,16 @@ const StudentOnboarding = () => {
               )}
               {!nicknameChecking && !nicknameError && formData.profileData.nickname.length >= 3 && (
                 <div className="field-success">
-                  <span>✅</span> Remek! Ez a becenév elérhető.
+                  <span>✅</span> Great! This nickname is available.
                 </div>
               )}
               <div className="field-hint">
-                <span>🔒</span> Ez jelenik meg mások számára a listákban az adatvédelem érdekében
+                <span>🔒</span> This will be displayed to others in lists for privacy purposes
               </div>
             </div>
             
             <div className="form-group">
-              <label>Telefonszám *</label>
+              <label>Phone Number *</label>
               <input
                 type="tel"
                 value={formData.profileData.phone}
@@ -528,22 +522,22 @@ const StudentOnboarding = () => {
         </div>
 
         <div className="form-section">
-          <h4>Vészhelyzeti kontakt</h4>
+          <h4>Emergency Contact</h4>
           
           <div className="form-row">
             <div className="form-group">
-              <label>Vészhelyzeti kapcsolattartó neve *</label>
+              <label>Emergency Contact Name *</label>
               <input
                 type="text"
                 value={formData.profileData.emergencyContact}
                 onChange={(e) => handleInputChange('profileData.emergencyContact', e.target.value)}
-                placeholder="Pl. Kovács János (apa)"
+                placeholder="E.g. John Smith (father)"
                 required
               />
             </div>
             
             <div className="form-group">
-              <label>Vészhelyzeti telefonszám</label>
+              <label>Emergency Phone Number</label>
               <input
                 type="tel"
                 value={formData.profileData.emergencyPhone}
@@ -555,7 +549,7 @@ const StudentOnboarding = () => {
                 <div className="field-error animated-error">
                   <span className="error-icon">🚨</span>
                   <span className="error-text">
-                    Hoppá! A vészhelyzeti telefonszám nem lehet ugyanaz, mint a sajátod
+                    Oops! The emergency phone number cannot be the same as yours
                   </span>
                   <span className="error-emoji">🤔</span>
                 </div>
@@ -565,20 +559,20 @@ const StudentOnboarding = () => {
         </div>
 
         <div className="form-section">
-          <h4>További információk</h4>
+          <h4>Additional Information</h4>
           
           <div className="form-group">
-            <label>Egészségügyi megjegyzések</label>
+            <label>Medical Notes</label>
             <textarea
               value={formData.profileData.medicalNotes}
               onChange={(e) => handleInputChange('profileData.medicalNotes', e.target.value)}
-              placeholder="Allergiák, gyógyszerek, korlátok stb. (opcionális)"
+              placeholder="Allergies, medications, limitations, etc. (optional)"
               rows={3}
             />
           </div>
 
           <div className="form-group">
-            <label>Érdeklődési területek</label>
+            <label>Areas of Interest</label>
             <div className="interests-grid">
               {availableInterests.map(interest => (
                 <button
@@ -600,51 +594,51 @@ const StudentOnboarding = () => {
   const renderPaymentVerificationStep = () => (
     <div className="onboarding-step payment-step">
       <div className="step-icon">💳</div>
-      <h2>Fizetés megerősítése</h2>
+      <h2>Payment Verification</h2>
       <p className="step-description">
-        Az LFA Academy programban való teljes körű részvételhez regisztrációs díj szükséges.
+        Full participation in the LFA Academy program requires a registration fee.
       </p>
 
       <div className="payment-info">
         <div className="pricing-card">
           <div className="price-header">
-            <h3>Szemeszter díj</h3>
+            <h3>Semester Fee</h3>
             <div className="price-amount">
               <span className="currency">HUF</span>
               <span className="amount">150,000</span>
-              <span className="period">/ szemeszter</span>
+              <span className="period">/ semester</span>
             </div>
           </div>
 
           <div className="price-features">
-            <h4>Mit tartalmaz:</h4>
+            <h4>What's Included:</h4>
             <ul>
-              <li>✅ Korlátlan hozzáférés az edzésekhez</li>
-              <li>✅ Specializációs képzés (PLAYER/COACH/INTERNSHIP)</li>
-              <li>✅ Adaptive Learning kvíz rendszer</li>
-              <li>✅ Competency assessment és fejlesztés</li>
+              <li>✅ Unlimited access to sessions</li>
+              <li>✅ Specialization training (PLAYER/COACH/INTERNSHIP)</li>
+              <li>✅ Adaptive Learning quiz system</li>
+              <li>✅ Competency assessment and development</li>
               <li>✅ Module-based progression tracking</li>
-              <li>✅ Gamification és achievement system</li>
-              <li>✅ Személyre szabott ajánlások</li>
-              <li>✅ Tanácsadás szakmai coachchal</li>
+              <li>✅ Gamification and achievement system</li>
+              <li>✅ Personalized recommendations</li>
+              <li>✅ Consulting with professional coach</li>
             </ul>
           </div>
         </div>
 
         <div className="payment-methods">
-          <h4>Fizetési módok:</h4>
+          <h4>Payment Methods:</h4>
           <div className="method-list">
             <div className="payment-method">
               <span className="method-icon">🏦</span>
-              <span className="method-name">Banki átutalás</span>
+              <span className="method-name">Bank Transfer</span>
             </div>
             <div className="payment-method">
               <span className="method-icon">💳</span>
-              <span className="method-name">Bankkártya (Stripe)</span>
+              <span className="method-name">Credit Card (Stripe)</span>
             </div>
             <div className="payment-method">
               <span className="method-icon">📱</span>
-              <span className="method-name">Online fizetés (SimplePay)</span>
+              <span className="method-name">Online Payment (SimplePay)</span>
             </div>
           </div>
         </div>
@@ -652,8 +646,7 @@ const StudentOnboarding = () => {
         <div className="payment-confirmation">
           <div className="confirmation-box">
             <p className="info-text">
-              <strong>Demo célokra:</strong> Jelenleg demo módban vagy. Valós fizetés nem szükséges.
-              Kattints az alábbi gombra a fizetés szimulálásához.
+              <strong>For Demo Purposes:</strong> You are currently in demo mode. No actual payment required. Click the button below to simulate payment.
             </p>
 
             {!formData.paymentVerified ? (
@@ -661,18 +654,18 @@ const StudentOnboarding = () => {
                 className="verify-payment-btn"
                 onClick={() => handleInputChange('paymentVerified', true)}
               >
-                ✅ Fizetés megerősítése (DEMO)
+                ✅ Payment Verification (DEMO)
               </button>
             ) : (
               <div className="verified-status">
                 <span className="verified-icon">✅</span>
-                <span className="verified-text">Fizetés megerősítve!</span>
+                <span className="verified-text">Payment Verified!</span>
               </div>
             )}
           </div>
 
           <p className="help-text">
-            Kérdésed van a fizetéssel kapcsolatban? Írj nekünk: <a href="mailto:billing@lfa.com">billing@lfa.com</a>
+            Questions about payment? Write to us: <a href="mailto:billing@lfa.com">billing@lfa.com</a>
           </p>
         </div>
       </div>
@@ -682,115 +675,114 @@ const StudentOnboarding = () => {
   const renderSystemOverviewStep = () => (
     <div className="onboarding-step overview-step">
       <div className="step-icon">🚀</div>
-      <h2>Rendszer áttekintése</h2>
+      <h2>System Overview</h2>
       <p className="step-description">
-        Ismerkedj meg az LFA Academy főbb funkcióival és lehetőségeivel!
+        Get familiar with the main features and capabilities of LFA Academy!
       </p>
 
       <div className="system-features">
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">📅</span>
-            <h4>Sessions (Edzések) és Bookings (Foglalások)</h4>
+            <h4>Sessions and Bookings</h4>
           </div>
           <ul>
-            <li><strong>Böngészd az edzéseket:</strong> Specializáció szerint szűrt sessions</li>
-            <li><strong>Foglalj időpontot:</strong> Egyszerű booking rendszer</li>
-            <li><strong>Követés:</strong> Upcoming, past és cancelled bookings</li>
-            <li><strong>Check-in:</strong> QR kóddal vagy manuális jelenlét rögzítés</li>
-            <li><strong>Instructor értékelés:</strong> Feedback a coachoknak</li>
+            <li><strong>Browse Sessions:</strong> Sessions filtered by specialization</li>
+            <li><strong>Book a Session:</strong> Simple booking system</li>
+            <li><strong>Tracking:</strong> Upcoming, past and cancelled bookings</li>
+            <li><strong>Check-in:</strong> QR code or manual attendance recording</li>
+            <li><strong>Instructor Rating:</strong> Feedback for coaches</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">🧠</span>
-            <h4>Adaptive Learning (Intelligens kvíz rendszer)</h4>
+            <h4>Adaptive Learning (Intelligent Quiz System)</h4>
           </div>
           <ul>
-            <li><strong>Személyre szabott kvízek:</strong> Nehézség a tudásszintedhez igazodik</li>
+            <li><strong>Personalized Quizzes:</strong> Difficulty adjusts to your knowledge level</li>
             <li><strong>Difficulty scaling:</strong> EASY → MEDIUM → HARD → EXPERT</li>
-            <li><strong>Real-time feedback:</strong> Azonnali magyarázat minden válaszhoz</li>
-            <li><strong>XP és rewards:</strong> Pontszerzés helyes válaszokért</li>
-            <li><strong>Leaderboard:</strong> Versenyezz társaiddal</li>
+            <li><strong>Real-time feedback:</strong> Instant explanation for every answer</li>
+            <li><strong>XP and rewards:</strong> Points for correct answers</li>
+            <li><strong>Leaderboard:</strong> Compete with peers</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">📊</span>
-            <h4>Competency Framework (Kompetencia értékelés)</h4>
+            <h4>Competency Framework (Competency Assessment)</h4>
           </div>
           <ul>
-            <li><strong>Skill assessment:</strong> 15+ kompetencia mérése specializációnként</li>
-            <li><strong>Radar chart:</strong> Vizuális feedback a fejlődésedről</li>
-            <li><strong>Progress tracking:</strong> Milestone-ok és level-up rendszer</li>
-            <li><strong>Recommendations:</strong> Személyre szabott fejlesztési javaslatok</li>
-            <li><strong>Hook integration:</strong> Automatikus skill frissítés quiz/booking után</li>
+            <li><strong>Skill Assessment:</strong> 15+ competencies measured per specialization</li>
+            <li><strong>Radar Chart:</strong> Visual feedback on your progress</li>
+            <li><strong>Progress Tracking:</strong> Milestones and level-up system</li>
+            <li><strong>Recommendations:</strong> Personalized development suggestions</li>
+            <li><strong>Hook Integration:</strong> Automatic skill update after quiz/booking</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">📚</span>
-            <h4>Module System (Moduláris tanulás)</h4>
+            <h4>Module System (Modular Learning)</h4>
           </div>
           <ul>
-            <li><strong>Structured progression:</strong> Modul → Téma → Lecke struktúra</li>
-            <li><strong>Prerequisites:</strong> Előfeltételek modul megnyitáshoz</li>
-            <li><strong>Completion tracking:</strong> Haladás követés modulonként</li>
-            <li><strong>Specialization-specific:</strong> PLAYER, COACH, INTERNSHIP modulok</li>
-            <li><strong>Certificates:</strong> Elismerés a befejezett modulokért</li>
+            <li><strong>Structured Progression:</strong> Module → Topic → Lesson structure</li>
+            <li><strong>Prerequisites:</strong> Prerequisites for module access</li>
+            <li><strong>Completion Tracking:</strong> Progress tracking per module</li>
+            <li><strong>Specialization-Specific:</strong> PLAYER, COACH, INTERNSHIP modulok</li>
+            <li><strong>Certificates:</strong> Recognition for completed modules</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">🏆</span>
-            <h4>Gamification és Achievement System</h4>
+            <h4>Gamification and Achievement System</h4>
           </div>
           <ul>
-            <li><strong>XP points:</strong> Szerezz pontokat minden aktivitásért</li>
-            <li><strong>Levels:</strong> Lépj szinteket és unlock special features</li>
-            <li><strong>Achievements:</strong> 50+ achievement kategória (quiz, session, skill)</li>
-            <li><strong>Badges:</strong> Gyűjts digitális badge-eket</li>
-            <li><strong>Streaks:</strong> Napi bejelentkezési és aktivitási sorozatok</li>
+            <li><strong>XP Points:</strong> Earn points for every activity</li>
+            <li><strong>Levels:</strong> Level up and unlock special features</li>
+            <li><strong>Achievements:</strong> 50+ achievement categories (quiz, session, skill)</li>
+            <li><strong>Badges:</strong> Collect digital badges</li>
+            <li><strong>Streaks:</strong> Daily login and activity streaks</li>
           </ul>
         </div>
 
         <div className="feature-section">
           <div className="feature-header">
             <span className="feature-icon">💬</span>
-            <h4>Kommunikáció és Feedback</h4>
+            <h4>Communication and Feedback</h4>
           </div>
           <ul>
-            <li><strong>Üzenetek:</strong> Chat az oktatókkal és coachokkal</li>
-            <li><strong>Session értékelés:</strong> 5 csillagos rating + szöveges feedback</li>
-            <li><strong>Notifikációk:</strong> Email és push értesítések</li>
-            <li><strong>Progress reports:</strong> Havi összefoglaló jelentések</li>
+            <li><strong>Messages:</strong> Chat with instructors and coaches</li>
+            <li><strong>Session Rating:</strong> 5-star rating + text feedback</li>
+            <li><strong>Notifications:</strong> Email and push notifications</li>
+            <li><strong>Progress Reports:</strong> Monthly summary reports</li>
           </ul>
         </div>
       </div>
 
       <div className="getting-started">
-        <h4>🎯 Következő lépések az onboarding után:</h4>
+        <h4>🎯 Next Steps After Onboarding:</h4>
         <ol>
-          <li><strong>Dashboard:</strong> Tekintsd meg a főoldalt és a statisztikáidat</li>
-          <li><strong>Sessions:</strong> Foglalj le az első edzésedet</li>
-          <li><strong>Adaptive Quiz:</strong> Teszteld a tudásodat egy kvízben</li>
-          <li><strong>Competency:</strong> Végezz el egy kompetencia felmérést</li>
-          <li><strong>Modules:</strong> Kezdj el egy tanulási modult</li>
+          <li><strong>Dashboard:</strong> View the main page and your statistics</li>
+          <li><strong>Sessions:</strong> Book your first session</li>
+          <li><strong>Adaptive Quiz:</strong> Test your knowledge in a quiz</li>
+          <li><strong>Competency:</strong> Complete a competency assessment</li>
+          <li><strong>Modules:</strong> Start a learning module</li>
         </ol>
       </div>
 
       <div className="completion-note">
         <p>
-          🎉 <strong>Gratulálunk!</strong> Sikeresen beállítottad a fiókodat.
-          Most már készen állsz az LFA Academy rendszer teljes funkcionalitásának felfedezésére!
+          🎉 <strong>Congratulations!</strong> You've successfully set up your account.
+          You're now ready to explore the full functionality of the LFA Academy system!
         </p>
         <p className="tech-note">
-          💡 <strong>Technikai infó:</strong> A rendszer FastAPI backend-del és React frontend-del működik,
-          PostgreSQL adatbázissal, JWT autentikációval és real-time WebSocket supporttal.
+          💡 <strong>Technical Info:</strong> The system runs with FastAPI backend and React frontend, PostgreSQL database, JWT authentication, and real-time WebSocket support.
         </p>
       </div>
     </div>
@@ -828,7 +820,7 @@ const StudentOnboarding = () => {
             ></div>
           </div>
           <div className="progress-text">
-            {currentStep} / {totalSteps} lépés
+            {currentStep} / {totalSteps} steps
           </div>
         </div>
 
@@ -838,13 +830,13 @@ const StudentOnboarding = () => {
             <div key={step} className={`step-indicator ${currentStep >= step ? 'active' : ''} ${currentStep === step ? 'current' : ''}`}>
               <div className="step-number">{step}</div>
               <div className="step-label">
-                {step === 1 && 'Üdvözlés'}
-                {step === 2 && 'Státusz'}
-                {step === 3 && 'Szakirány'}
+                {step === 1 && 'Welcome'}
+                {step === 2 && 'Status'}
+                {step === 3 && 'Specialization'}
                 {step === 4 && 'NDA'}
-                {step === 5 && 'Profil'}
-                {step === 6 && 'Fizetés'}
-                {step === 7 && 'Áttekintés'}
+                {step === 5 && 'Profile'}
+                {step === 6 && 'Payment'}
+                {step === 7 && 'Overview'}
               </div>
             </div>
           ))}
@@ -877,7 +869,7 @@ const StudentOnboarding = () => {
               className="btn-secondary"
               disabled={loading}
             >
-              ← Előző
+              ← Previous
             </button>
           )}
           
@@ -887,9 +879,9 @@ const StudentOnboarding = () => {
             onClick={() => navigate('/student/dashboard')}
             className="btn-skip"
             disabled={loading}
-            title="Onboarding kihagyása és dashboard-ra ugrás"
+            title="Skip onboarding and go to dashboard"
           >
-            ⏭️ Kihagyás
+            ⏭️ Skip
           </button>
           
           <div className="nav-spacer"></div>
@@ -901,7 +893,7 @@ const StudentOnboarding = () => {
               className={`btn-primary ${!canProceed() ? 'disabled' : ''}`}
               disabled={!canProceed() || loading}
             >
-              Következő →
+              Next →
             </button>
           ) : (
             <button
@@ -910,7 +902,7 @@ const StudentOnboarding = () => {
               className="btn-primary complete-btn"
               disabled={loading}
             >
-              {loading ? '⏳ Befejezés...' : '🎯 Befejezés és indulás!'}
+              {loading ? '⏳ Completing...' : '🎯 Complete and Start!'}
             </button>
           )}
         </div>

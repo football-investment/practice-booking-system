@@ -12,47 +12,40 @@ import './utils/iosBrowserCompatibility';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
-import AllSessions from './pages/student/AllSessions';
-import MyBookings from './pages/student/MyBookings';
+// DISABLED imports (routes commented out below)
+// import AllSessions from './pages/student/AllSessions';
+// import MyBookings from './pages/student/MyBookings';
+// import FeedbackPage from './pages/student/FeedbackPage';
+// import SessionDetails from './pages/student/SessionDetails';
 import StudentProfile from './pages/student/StudentProfile';
-import FeedbackPage from './pages/student/FeedbackPage';
-import SessionDetails from './pages/student/SessionDetails';
 import GamificationProfile from './pages/student/GamificationProfile';
-import QuizDashboard from './pages/student/QuizDashboard';
-import QuizTaking from './pages/student/QuizTaking';
-import QuizResult from './pages/student/QuizResult';
-import Projects from './pages/student/Projects';
-import MyProjects from './pages/student/MyProjects';
-import ProjectDetails from './pages/student/ProjectDetails';
-import ProjectProgress from './pages/student/ProjectProgress';
-import ProjectEnrollmentQuiz from './pages/student/ProjectEnrollmentQuiz';
+// DISABLED quiz/projects imports
+// import QuizDashboard from './pages/student/QuizDashboard';
+// import QuizTaking from './pages/student/QuizTaking';
+// import QuizResult from './pages/student/QuizResult';
+// import Projects from './pages/student/Projects';
 import StudentOnboarding from './pages/student/StudentOnboarding';
-import AdaptiveLearning from './pages/student/AdaptiveLearning';
-import CurriculumView from './pages/student/CurriculumView';
-import LessonView from './pages/student/LessonView';
-import ExerciseSubmission from './pages/student/ExerciseSubmission';
 import StudentRouter from './components/student/StudentRouter';
-import ProtectedStudentRoute from './components/student/ProtectedStudentRoute';
 
 // NEW: Adaptive Learning & Competency Components
 import LearningProfileView from './components/AdaptiveLearning/LearningProfileView';
 import CompetencyDashboard from './components/Competency/CompetencyDashboard';
 import ParallelSpecializationSelector from './components/onboarding/ParallelSpecializationSelector';
 
-// Instructor Pages
-import InstructorSessions from './pages/instructor/InstructorSessions';
-import InstructorSessionDetails from './pages/instructor/InstructorSessionDetails';
-import InstructorProjects from './pages/instructor/InstructorProjects';
-import InstructorProjectDetails from './pages/instructor/InstructorProjectDetails';
-import InstructorProjectStudents from './pages/instructor/InstructorProjectStudents';
-import InstructorStudents from './pages/instructor/InstructorStudents';
-import InstructorStudentDetails from './pages/instructor/InstructorStudentDetails';
-import InstructorStudentProgress from './pages/instructor/InstructorStudentProgress';
-import InstructorFeedback from './pages/instructor/InstructorFeedback';
-import InstructorAttendance from './pages/instructor/InstructorAttendance';
-import InstructorProfile from './pages/instructor/InstructorProfile';
-import InstructorAnalytics from './pages/instructor/InstructorAnalytics';
-import InstructorProgressReport from './pages/instructor/InstructorProgressReport';
+// Instructor Pages - ALL DISABLED (routes commented out below)
+// import InstructorSessions from './pages/instructor/InstructorSessions';
+// import InstructorSessionDetails from './pages/instructor/InstructorSessionDetails';
+// import InstructorProjects from './pages/instructor/InstructorProjects';
+// import InstructorProjectDetails from './pages/instructor/InstructorProjectDetails';
+// import InstructorProjectStudents from './pages/instructor/InstructorProjectStudents';
+// import InstructorStudents from './pages/instructor/InstructorStudents';
+// import InstructorStudentDetails from './pages/instructor/InstructorStudentDetails';
+// import InstructorStudentProgress from './pages/instructor/InstructorStudentProgress';
+// import InstructorFeedback from './pages/instructor/InstructorFeedback';
+// import InstructorAttendance from './pages/instructor/InstructorAttendance';
+// import InstructorProfile from './pages/instructor/InstructorProfile';
+// import InstructorAnalytics from './pages/instructor/InstructorAnalytics';
+// import InstructorProgressReport from './pages/instructor/InstructorProgressReport';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -63,7 +56,7 @@ import GroupManagement from './pages/admin/GroupManagement';
 import BookingManagement from './pages/admin/BookingManagement';
 import AttendanceTracking from './pages/admin/AttendanceTracking';
 import FeedbackOverview from './pages/admin/FeedbackOverview';
-import ProjectManagement from './pages/admin/ProjectManagement';
+// DELETED: import ProjectManagement from './pages/admin/ProjectManagement';
 import HealthDashboard from './components/admin/HealthDashboard';
 
 import './App.css';
@@ -156,9 +149,7 @@ function AppRoutes() {
       } />
       <Route path="/student/dashboard" element={
         <ProtectedRoute requiredRole="student">
-          <ProtectedStudentRoute>
-            <StudentDashboard />
-          </ProtectedStudentRoute>
+          <StudentDashboard />
         </ProtectedRoute>
       } />
       {/* DISABLED: Non-core features

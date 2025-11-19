@@ -31,7 +31,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
 
         } catch (error) {
             console.error('Error fetching status data:', error);
-            setError('Nem sikerült betölteni az állapot adatokat');
+            setError('Failed to load status data');
         } finally {
             setLoading(false);
         }
@@ -41,7 +41,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
         return (
             <div className="status-loading">
                 <div className="loading-spinner"></div>
-                <p>Állapot adatok betöltése...</p>
+                <p>Loading status data...</p>
             </div>
         );
     }
@@ -51,7 +51,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
             <div className="status-error">
                 <p>{error}</p>
                 <button onClick={fetchStatusData} className="retry-button">
-                    Újrapróbálás
+                    Retry
                 </button>
             </div>
         );
@@ -60,9 +60,9 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
     return (
         <div className="current-specialization-status">
             <div className="status-header">
-                <h2>📋 Jelenlegi Állapot</h2>
+                <h2>📋 Current Status</h2>
                 <p className="status-intro">
-                    Itt áttekintheted a specializációid aktuális állását és fejlődési útvonaladat.
+                    Here you can overview the current status of your specializations and development path.
                 </p>
             </div>
 
@@ -70,10 +70,10 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
             {dashboardData && (
                 <div className="user-overview">
                     <div className="overview-card">
-                        <h3>👤 Felhasználói Információk</h3>
+                        <h3>👤 User Information</h3>
                         <div className="info-grid">
                             <div className="info-item">
-                                <span className="info-label">Név:</span>
+                                <span className="info-label">Name:</span>
                                 <span className="info-value">{dashboardData.user?.name || 'N/A'}</span>
                             </div>
                             <div className="info-item">
@@ -81,7 +81,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                 <span className="info-value">{dashboardData.user?.email || 'N/A'}</span>
                             </div>
                             <div className="info-item">
-                                <span className="info-label">Jelenlegi szemeszter:</span>
+                                <span className="info-label">Current Semester:</span>
                                 <span className="info-value semester-badge">{dashboardData.current_semester || 1}</span>
                             </div>
                         </div>
@@ -92,7 +92,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
             {/* Active Specializations */}
             {dashboardData && dashboardData.active_specializations && dashboardData.active_specializations.length > 0 && (
                 <div className="active-specializations-section">
-                    <h3>✅ Aktív Specializációk</h3>
+                    <h3>✅ Active Specializations</h3>
                     <div className="specializations-grid">
                         {dashboardData.active_specializations.map(spec => (
                             <div key={spec.specialization_type} className="specialization-status-card">
@@ -102,7 +102,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                     </span>
                                     <div className="spec-title">
                                         <h4>{spec.current_level_metadata?.title || spec.specialization_type}</h4>
-                                        <p className="spec-subtitle">{spec.current_level_metadata?.subtitle || 'Specializáció'}</p>
+                                        <p className="spec-subtitle">{spec.current_level_metadata?.subtitle || 'Specialization'}</p>
                                     </div>
                                 </div>
                                 
@@ -112,18 +112,18 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                         <div className="level-badge-container">
                                             <div className="current-level-badge">
                                                 <span className="level-number">{spec.current_level}</span>
-                                                <span className="level-text">SZINT</span>
+                                                <span className="level-text">LEVEL</span>
                                             </div>
                                             <div className="level-progress-info">
                                                 <div className="level-status">
-                                                    <span className="status-text">Jelenlegi track állapot</span>
+                                                    <span className="status-text">Current track status</span>
                                                     <span className="track-position">
-                                                        {spec.current_level}/8 szint teljesítve
+                                                        {spec.current_level}/8 levels completed
                                                     </span>
                                                 </div>
                                                 <div className="achievement-info">
                                                     <span className="achievement-badge">
-                                                        🏆 Max elért: Level {spec.max_achieved_level}
+                                                        🏆 Max Achieved: Level {spec.max_achieved_level}
                                                     </span>
                                                 </div>
                                             </div>
@@ -133,12 +133,12 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                     {/* Visual Progress Indicator */}
                                     <div className="visual-progress-container">
                                         <div className="progress-labels">
-                                            <span className="progress-start">Kezdő</span>
+                                            <span className="progress-start">Beginner</span>
                                             <span className="progress-current">
-                                                {spec.current_level < 3 ? 'Alapszint' : 
-                                                 spec.current_level < 6 ? 'Haladó' : 'Szakértő'}
+                                                {spec.current_level < 3 ? 'Intermediate' : 
+                                                 spec.current_level < 6 ? 'Advanced' : 'Expert'}
                                             </span>
-                                            <span className="progress-end">Mester</span>
+                                            <span className="progress-end">Master</span>
                                         </div>
                                         <div className="progress-track">
                                             <div 
@@ -167,13 +167,13 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                     <div className="track-details">
                                         <div className="track-metadata">
                                             <div className="track-info-item">
-                                                <span className="track-label">🏁 Track specializáció:</span>
+                                                <span className="track-label">🏁 Track Specialization:</span>
                                                 <span className="track-value">{spec.specialization_type}</span>
                                             </div>
                                             <div className="track-info-item">
-                                                <span className="track-label">🎯 Jelenlegi fókusz:</span>
+                                                <span className="track-label">🎯 Current Focus:</span>
                                                 <span className="track-value">
-                                                    {spec.current_level_metadata?.description || 'Szakmai fejlődés'}
+                                                    {spec.current_level_metadata?.description || 'Professional Development'}
                                                 </span>
                                             </div>
                                         </div>
@@ -182,7 +182,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                             <div className="timeline-item start">
                                                 <span className="timeline-icon">🚀</span>
                                                 <div className="timeline-content">
-                                                    <span className="timeline-label">Track kezdés</span>
+                                                    <span className="timeline-label">Track Start</span>
                                                     <span className="timeline-date">
                                                         {new Date(spec.started_at).toLocaleDateString('hu-HU')}
                                                     </span>
@@ -192,7 +192,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                                 <div className="timeline-item advance">
                                                     <span className="timeline-icon">⬆️</span>
                                                     <div className="timeline-content">
-                                                        <span className="timeline-label">Utolsó szintlépés</span>
+                                                        <span className="timeline-label">Last Level Up</span>
                                                         <span className="timeline-date">
                                                             {new Date(spec.last_advanced_at).toLocaleDateString('hu-HU')}
                                                         </span>
@@ -213,8 +213,8 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                 <div className="no-specializations">
                     <div className="empty-state">
                         <span className="empty-icon">📚</span>
-                        <h3>Még nincsenek aktív specializációid</h3>
-                        <p>A következő lépésben választhatsz specializációkat a képzési útvonalad elindításához.</p>
+                        <h3>You don't have any active specializations yet</h3>
+                        <p>In the next step you can choose specializations to start your training path.</p>
                     </div>
                 </div>
             )}
@@ -222,9 +222,9 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
             {/* Available Specializations */}
             {dashboardData && dashboardData.available_specializations && dashboardData.available_specializations.length > 0 && (
                 <div className="available-specializations-section">
-                    <h3>🎯 Elérhető Specializációk</h3>
+                    <h3>🎯 Available Specializations</h3>
                     <p className="section-description">
-                        Az alábbi specializációkat választhatod a jelenlegi szemeszterben:
+                        You can choose from the following specializations in the current semester:
                     </p>
                     <div className="specializations-list-wrapper">
                         {dashboardData.available_specializations.map(spec => (
@@ -245,13 +245,13 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                     </span>
                                     <div className="spec-title">
                                         <h4>{spec.title || spec.specialization_type}</h4>
-                                        <p className="spec-subtitle">{spec.subtitle || 'Specializáció'}</p>
+                                        <p className="spec-subtitle">{spec.subtitle || 'Specialization'}</p>
                                     </div>
                                 </div>
                                 
                                 <div className="spec-status">
                                     <p className="simple-status-text">
-                                        {spec.can_start ? '✅ Elérhető' : '❌ Nem elérhető'}
+                                        {spec.can_start ? '✅ Available' : '❌ Not Available'}
                                     </p>
                                     <p className="status-reason">{spec.reason}</p>
                                     
@@ -260,20 +260,20 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                         <div className="age-requirement-details">
                                             <div className="requirement-status">
                                                 <span className={`requirement-badge ${spec.age_requirement.meets_requirement ? 'meets' : 'not-meets'}`}>
-                                                    {spec.age_requirement.meets_requirement ? '✅' : '❌'} Korhatár
+                                                    {spec.age_requirement.meets_requirement ? '✅' : '❌'} Age Requirement
                                                 </span>
                                             </div>
                                             <div className="requirement-info">
                                                 <span className="current-age">
-                                                    👤 Jelenlegi kor: <strong>{spec.age_requirement.user_age} év</strong>
+                                                    👤 Current Age: <strong>{spec.age_requirement.user_age} years</strong>
                                                 </span>
                                                 <span className="required-age">
-                                                    📋 Minimum kor: <strong>{spec.age_requirement.required_age} év</strong>
+                                                    📋 Minimum Age: <strong>{spec.age_requirement.required_age} years</strong>
                                                 </span>
                                             </div>
                                             {!spec.age_requirement.meets_requirement && (
                                                 <div className="requirement-warning">
-                                                    ⚠️ További {spec.age_requirement.required_age - spec.age_requirement.user_age} év szükséges
+                                                    ⚠️ Additional years required
                                                 </div>
                                             )}
                                         </div>
@@ -284,22 +284,22 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                         <div className="payment-requirement-details">
                                             <div className="requirement-status">
                                                 <span className={`requirement-badge ${spec.payment_requirement.payment_verified ? 'meets' : 'not-meets'}`}>
-                                                    {spec.payment_requirement.payment_verified ? '✅' : '❌'} Befizetés
+                                                    {spec.payment_requirement.payment_verified ? '✅' : '❌'} Payment
                                                 </span>
                                             </div>
                                             <div className="requirement-info">
                                                 <span className="payment-status">
-                                                    💳 Státusz: <strong>{spec.payment_requirement.payment_status_display}</strong>
+                                                    💳 Status: <strong>{spec.payment_requirement.payment_status_display}</strong>
                                                 </span>
                                                 {spec.payment_requirement.verified_at && (
                                                     <span className="verified-date">
-                                                        📅 Ellenőrizve: <strong>{new Date(spec.payment_requirement.verified_at).toLocaleDateString('hu-HU')}</strong>
+                                                        📅 Verified: <strong>{new Date(spec.payment_requirement.verified_at).toLocaleDateString('hu-HU')}</strong>
                                                     </span>
                                                 )}
                                             </div>
                                             {!spec.payment_requirement.payment_verified && (
                                                 <div className="requirement-warning">
-                                                    ⚠️ Kérjük, vegye fel a kapcsolatot az adminisztrátorral a befizetés ellenőrzéséhez
+                                                    ⚠️ Please contact the administrator to verify payment
                                                 </div>
                                             )}
                                         </div>
@@ -314,7 +314,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
             {/* Dynamic Semester Progress */}
             {dashboardData && (
                 <div className="semester-progress-info">
-                    <h3>📈 A Te Fejlődési Útmutatód</h3>
+                    <h3>📈 Your Development Guide</h3>
 
                     {/* Personalized Current Status */}
                     <div className="current-semester-overview">
@@ -322,20 +322,20 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                             <span className="semester-number">{dashboardData.current_semester || 1}</span>
                             <div className="semester-info">
                                 <h4>
-                                    {dashboardData.parallel_progress?.total_active === 0 && "Kezdd el az utazásod!"}
-                                    {dashboardData.parallel_progress?.total_active === 1 && "Remekül haladsz!"}
-                                    {dashboardData.parallel_progress?.total_active === 2 && "Kiváló tempó!"}
-                                    {dashboardData.parallel_progress?.total_active >= 3 && "Professzionális szinten!"}
+                                    {dashboardData.parallel_progress?.total_active === 0 && "Start your journey!"}
+                                    {dashboardData.parallel_progress?.total_active === 1 && "Great progress!"}
+                                    {dashboardData.parallel_progress?.total_active === 2 && "Excellent pace!"}
+                                    {dashboardData.parallel_progress?.total_active >= 3 && "Professional level!"}
                                 </h4>
                                 <p className="semester-description">
-                                    {dashboardData.parallel_progress?.total_active === 0 && "Válaszd ki az első specializációdat és indulj el a fejlődési útvonalon!"}
+                                    {dashboardData.parallel_progress?.total_active === 0 && "Choose your first specialization and start your development path!"}
                                     {dashboardData.parallel_progress?.total_active === 1 && dashboardData.current_semester >= 2
-                                        ? "Készen állsz egy második specializáció hozzáadására!"
-                                        : "Mélyítsd a tudásod az első specializációdban!"}
+                                        ? "Ready to add a second specialization!"
+                                        : "Deepen your knowledge in your first specialization!"}
                                     {dashboardData.parallel_progress?.total_active === 2 && dashboardData.current_semester >= 3
-                                        ? "Most már mind a 3 specializációt választhatod!"
-                                        : "Két specializációban is fejlődsz párhuzamosan - fantasztikus!"}
-                                    {dashboardData.parallel_progress?.total_active >= 3 && "Minden specializációban aktívan haladsz - lenyűgöző elkötelezettség!"}
+                                        ? "Now you can choose all 3 specializations!"
+                                        : "You're developing in two specializations in parallel - fantastic!"}
+                                    {dashboardData.parallel_progress?.total_active >= 3 && "You're actively progressing in all specializations - impressive commitment!"}
                                 </p>
                             </div>
                         </div>
@@ -343,16 +343,16 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
 
                     {/* Personalized Next Steps */}
                     <div className="next-steps-section">
-                        <h4>🎯 A Te Következő Lépéseid</h4>
+                        <h4>🎯 Your Next Steps</h4>
 
                         {/* If no specializations */}
                         {dashboardData.parallel_progress?.total_active === 0 && (
                             <div className="next-step-card highlight">
                                 <div className="step-icon">🚀</div>
                                 <div className="step-details">
-                                    <h5>Válaszd ki az első specializációdat!</h5>
-                                    <p>Lépj a "Szakirány" fülre és kezdj el bármelyik specializációval: Player, Coach vagy Internship</p>
-                                    <div className="step-benefit">✨ Ez a kezdet - építsd fel a karriered alapjait!</div>
+                                    <h5>Choose your first specialization!</h5>
+                                    <p>Go to the 'Specialization' tab and start with any specialization: Player, Coach or Internship</p>
+                                    <div className="step-benefit">✨ This is the beginning - build the foundation of your career!</div>
                                 </div>
                             </div>
                         )}
@@ -362,9 +362,9 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                             <div className="next-step-card highlight">
                                 <div className="step-icon">⚡</div>
                                 <div className="step-details">
-                                    <h5>Adj hozzá egy második specializációt!</h5>
-                                    <p>A 2. szemesztertől párhuzamosan 2 specializációban fejlődhetsz. Nézd meg az elérhető specializációkat alább!</p>
-                                    <div className="step-benefit">✨ Bővítsd a tudásod és növeld a lehetőségeidet!</div>
+                                    <h5>Add a second specialization!</h5>
+                                    <p>From the 2nd semester you can develop in 2 specializations in parallel. Check the available specializations below!</p>
+                                    <div className="step-benefit">✨ Expand your knowledge and increase your opportunities!</div>
                                 </div>
                             </div>
                         )}
@@ -374,9 +374,9 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                             <div className="next-step-card highlight">
                                 <div className="step-icon">🏆</div>
                                 <div className="step-details">
-                                    <h5>Harmadik specializáció elérhető!</h5>
-                                    <p>A 3. szemesztertől mind a 3 specializációt viheted egyszerre. Görgess le és nézd meg a harmadik opciót!</p>
-                                    <div className="step-benefit">✨ Légy teljes körű szakember - Player + Coach + Internship!</div>
+                                    <h5>Third specialization available!</h5>
+                                    <p>From the 3rd semester you can take all 3 specializations at once. Scroll down and check the third option!</p>
+                                    <div className="step-benefit">✨ Become a complete professional - Player + Coach + Internship!</div>
                                 </div>
                             </div>
                         )}
@@ -384,7 +384,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                         {/* Current active specializations progress */}
                         {dashboardData.active_specializations && dashboardData.active_specializations.length > 0 && (
                             <div className="active-progress-summary">
-                                <h5>📊 Jelenlegi Előrehaladásod</h5>
+                                <h5>📊 Your Current Progress</h5>
                                 {dashboardData.active_specializations.map(spec => (
                                     <div key={spec.specialization_type} className="progress-item">
                                         <span className="spec-name">
@@ -395,7 +395,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                                         </span>
                                         {spec.current_level < 8 && (
                                             <span className="next-level-hint">
-                                                💪 Következő: Level {spec.current_level + 1}
+                                                💪 Next: Level {spec.current_level + 1}
                                             </span>
                                         )}
                                     </div>
@@ -408,20 +408,20 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                     <div className="progress-stats">
                         <div className="stat-item">
                             <span className="stat-value">{dashboardData.parallel_progress?.total_active || 0}</span>
-                            <span className="stat-label">Aktív specializációk</span>
+                            <span className="stat-label">Active Specializations</span>
                         </div>
                         <div className="stat-item">
                             <span className="stat-value">
                                 {dashboardData.current_semester === 1 ? 1 : 
                                  dashboardData.current_semester === 2 ? 2 : 3}
                             </span>
-                            <span className="stat-label">Maximum választható</span>
+                            <span className="stat-label">Maximum Selectable</span>
                         </div>
                         <div className="stat-item">
                             <span className="stat-value">
                                 {dashboardData.parallel_progress?.can_add_more ? 'Igen' : 'Nem'}
                             </span>
-                            <span className="stat-label">Új specializáció hozzáadható</span>
+                            <span className="stat-label">New Specialization Can Be Added</span>
                         </div>
                     </div>
                 </div>
@@ -434,7 +434,7 @@ const CurrentSpecializationStatus = ({ onNext, hideNavigation = false }) => {
                         onClick={onNext}
                         className="action-button primary forward-only"
                     >
-                        Tovább a Specializáció Választáshoz →
+                        Continue to Specialization Selection →
                     </button>
                 </div>
             )}
