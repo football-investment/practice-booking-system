@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import './NavigationSidebar.css';
 
 /**
@@ -16,6 +17,7 @@ const NavigationSidebar = ({
   console.log('🔧 NavigationSidebar loading with config:', config);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
   const [expandedItems, setExpandedItems] = useState(new Set());
 
   // Determine active navigation item based on current path
@@ -74,6 +76,13 @@ const NavigationSidebar = ({
       onSectionChange(subItem.id);
     }
   }, [navigate, onSectionChange]);
+
+  // Handle logout
+  const handleLogout = useCallback(() => {
+    console.log('🚪 Logging out...');
+    logout();
+    navigate('/login');
+  }, [logout, navigate]);
 
   // Auto-expand active parent menu
   React.useEffect(() => {
@@ -194,7 +203,19 @@ const NavigationSidebar = ({
               </div>
             </div>
           )}
-          
+
+          {/* Logout Button */}
+          <div className="logout-section">
+            <button
+              className="logout-button"
+              onClick={handleLogout}
+              title={collapsed ? 'Logout' : undefined}
+            >
+              {renderIcon('logout')}
+              {!collapsed && <span className="logout-label">Logout</span>}
+            </button>
+          </div>
+
           {/* Help & Support */}
           <div className="help-section">
             <button

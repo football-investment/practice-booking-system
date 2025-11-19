@@ -392,6 +392,45 @@
   background-color: var(--bg-hover, #f0f0f0);
 }
 
+/* Logout Section */
+.logout-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #dc2626; /* Red color for logout */
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.navigation-sidebar.collapsed .logout-button {
+  justify-content: center;
+}
+
+.logout-button:hover {
+  color: #b91c1c; /* Darker red on hover */
+  background-color: rgba(220, 38, 38, 0.1); /* Light red background */
+}
+
+.logout-button .material-icons {
+  font-size: 1.25rem;
+}
+
+.logout-label {
+  white-space: nowrap;
+}
+
 /* Resize Handle */
 .sidebar-resize-handle {
   position: absolute;
