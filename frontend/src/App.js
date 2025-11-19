@@ -26,7 +26,6 @@ import MyProjects from './pages/student/MyProjects';
 import ProjectDetails from './pages/student/ProjectDetails';
 import ProjectProgress from './pages/student/ProjectProgress';
 import ProjectEnrollmentQuiz from './pages/student/ProjectEnrollmentQuiz';
-import StudentMessages from './pages/student/StudentMessages';
 import StudentOnboarding from './pages/student/StudentOnboarding';
 import AdaptiveLearning from './pages/student/AdaptiveLearning';
 import CurriculumView from './pages/student/CurriculumView';
@@ -49,7 +48,6 @@ import InstructorProjectStudents from './pages/instructor/InstructorProjectStude
 import InstructorStudents from './pages/instructor/InstructorStudents';
 import InstructorStudentDetails from './pages/instructor/InstructorStudentDetails';
 import InstructorStudentProgress from './pages/instructor/InstructorStudentProgress';
-import InstructorMessages from './pages/instructor/InstructorMessages';
 import InstructorFeedback from './pages/instructor/InstructorFeedback';
 import InstructorAttendance from './pages/instructor/InstructorAttendance';
 import InstructorProfile from './pages/instructor/InstructorProfile';
@@ -233,11 +231,6 @@ function AppRoutes() {
           <ProjectEnrollmentQuiz />
         </ProtectedRoute>
       } />
-      <Route path="/student/messages" element={
-        <ProtectedRoute requiredRole="student">
-          <StudentMessages />
-        </ProtectedRoute>
-      } />
       <Route path="/student/adaptive-learning" element={
         <ProtectedRoute requiredRole="student">
           <AdaptiveLearning />
@@ -321,11 +314,6 @@ function AppRoutes() {
       <Route path="/instructor/students/:studentId/progress" element={
         <ProtectedRoute requiredRole="instructor">
           <InstructorStudentProgress />
-        </ProtectedRoute>
-      } />
-      <Route path="/instructor/messages" element={
-        <ProtectedRoute requiredRole="instructor">
-          <InstructorMessages />
         </ProtectedRoute>
       } />
       <Route path="/instructor/feedback" element={

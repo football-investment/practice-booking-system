@@ -81,7 +81,6 @@ const studentConfig = {
       icon: 'forum',
       path: '/student/connect',
       submenu: [
-        { id: 'messages', label: 'Messages', path: '/student/messages' },
         { id: 'feedback', label: 'Feedback', path: '/student/feedback' }
       ]
     }
@@ -152,15 +151,6 @@ const studentConfig = {
       action: 'navigate',
       target: '/student/progress',
       color: 'info'
-    },
-    {
-      id: 'messages',
-      label: 'Messages',
-      icon: 'mail',
-      action: 'navigate',
-      target: '/student/messages',
-      color: 'warning',
-      badge: true
     }
   ],
   statusOverview: {
@@ -215,8 +205,7 @@ const instructorConfig = {
       path: '/instructor/tools',
       submenu: [
         { id: 'attendance', label: 'Attendance', path: '/instructor/attendance' },
-        { id: 'feedback', label: 'Feedback', path: '/instructor/feedback' },
-        { id: 'messages', label: 'Messages', path: '/instructor/messages' }
+        { id: 'feedback', label: 'Feedback', path: '/instructor/feedback' }
       ]
     }
   ],
