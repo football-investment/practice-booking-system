@@ -1,276 +1,171 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Card, Row, Col, Statistic, Progress, Tag, Space,
-  Button, Spin, message, Typography, Alert
-} from 'antd';
-import {
-  TrophyOutlined,
-  ClockCircleOutlined,
-  RiseOutlined,
-  CheckCircleOutlined,
-  ReloadOutlined,
-  FireOutlined,
-  ThunderboltOutlined,
-  BookOutlined
-} from '@ant-design/icons';
-import axiosInstance from '../../utils/axiosInstance';
-import { API_ENDPOINTS } from '../../config/api';
-import RecommendationCard from './RecommendationCard';
+import { apiService } from '../../services/apiService';
 import './LearningProfileView.css';
 
-const { Title, Text } = Typography;
-
 const LearningProfileView = () => {
-  const [profile, setProfile] = useState(null);
-  const [recommendations, setRecommendations] = useState([]);
+  const [licenses, setLicenses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadProfile();
-    loadRecommendations();
+    loadLicenses();
   }, []);
 
-  const loadProfile = async () => {
+  const loadLicenses = async () => {
     try {
       setLoading(true);
+      const response = await apiService.get('/licenses/my-licenses');
+      setLicenses(response || []);
       setError(null);
-      const response = await axiosInstance.get(API_ENDPOINTS.ADAPTIVE.PROFILE);
-      setProfile(response.data);
-    } catch (error) {
-      console.error('Failed to load learning profile:', error);
-      setError('Failed to load learning profile. Please try again.');
-      message.error('Failed to load learning profile');
+    } catch (err) {
+      console.error('Failed to load licenses:', err);
+      setError('Failed to load your learning profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadRecommendations = async (refresh = false) => {
-    try {
-      if (refresh) setRefreshing(true);
-      const response = await axiosInstance.get(API_ENDPOINTS.ADAPTIVE.RECOMMENDATIONS, {
-        params: { refresh }
-      });
-      setRecommendations(response.data);
-      if (refresh) {
-        message.success('Recommendations refreshed!');
-      }
-    } catch (error) {
-      console.error('Failed to load recommendations:', error);
-      if (refresh) {
-        message.error('Failed to refresh recommendations');
-      }
-    } finally {
-      if (refresh) setRefreshing(false);
-    }
-  };
-
-  const handleDismiss = async (recommendationId) => {
-    try {
-      await axiosInstance.post(API_ENDPOINTS.ADAPTIVE.DISMISS_RECOMMENDATION(recommendationId));
-      message.success('Recommendation dismissed');
-      loadRecommendations();
-    } catch (error) {
-      console.error('Failed to dismiss recommendation:', error);
-      message.error('Failed to dismiss recommendation');
-    }
-  };
-
-  const getPaceColor = (pace) => {
-    const colors = {
-      'ACCELERATED': 'purple',
-      'FAST': 'green',
-      'MEDIUM': 'blue',
-      'SLOW': 'orange'
+  const getSpecializationTitle = (type) => {
+    const titles = {
+      GANCUJU_PLAYER: 'GānCuju Player',
+      LFA_FOOTBALL_PLAYER: 'LFA Football Player',
+      LFA_COACH: 'LFA Coach',
+      INTERNSHIP: 'Internship Program'
     };
-    return colors[pace] || 'default';
+    return titles[type] || type;
   };
 
-  const getPaceIcon = (pace) => {
-    if (pace === 'ACCELERATED' || pace === 'FAST') return <ThunderboltOutlined />;
-    if (pace === 'SLOW') return <ClockCircleOutlined />;
-    return <RiseOutlined />;
+  const getSpecializationIcon = (type) => {
+    const icons = {
+      GANCUJU_PLAYER: '⚽',
+      LFA_FOOTBALL_PLAYER: '🏃',
+      LFA_COACH: '👨‍🏫',
+      INTERNSHIP: '💼'
+    };
+    return icons[type] || '🎓';
+  };
+
+  const calculateXPProgress = (currentXP, xpRequired) => {
+    if (!xpRequired || xpRequired === 0) return 0;
+    return Math.min(100, Math.round((currentXP / xpRequired) * 100));
   };
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
-        <Spin size="large" tip="Loading your learning profile..." />
+      <div className="learning-profile-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading your learning profile...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-        <Alert
-          message="Error Loading Profile"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button onClick={loadProfile} type="primary">
-              Retry
-            </Button>
-          }
-        />
+      <div className="learning-profile-container">
+        <div className="error-state">
+          <span className="error-icon">⚠️</span>
+          <p>{error}</p>
+          <button onClick={loadLicenses} className="retry-button">
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
-  if (!profile) {
+  if (licenses.length === 0) {
     return (
-      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-        <Alert
-          message="No Profile Data"
-          description="Complete some lessons and quizzes to build your learning profile!"
-          type="info"
-          showIcon
-          icon={<BookOutlined />}
-        />
+      <div className="learning-profile-container">
+        <div className="empty-state">
+          <h2>🎓 Your Learning Profile</h2>
+          <p>You don't have any active specializations yet.</p>
+          <p>Start a specialization to begin your learning journey!</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-      <Title level={2}>
-        <FireOutlined style={{ color: '#ff4d4f' }} /> Your Learning Profile
-      </Title>
+    <div className="learning-profile-container">
+      <div className="profile-header">
+        <h1>🎓 Your Learning Profile</h1>
+        <p className="subtitle">Track your progress across all specializations</p>
+      </div>
 
-      {/* Statistics Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Quiz Average"
-              value={profile.quiz_average_score || 0}
-              suffix="%"
-              prefix={<TrophyOutlined />}
-              valueStyle={{
-                color: profile.quiz_average_score >= 70 ? '#3f8600' : '#cf1322'
-              }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Lessons Progress"
-              value={profile.lesson_completion_rate || 0}
-              suffix="%"
-              prefix={<CheckCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Study Time"
-              value={Math.floor((profile.total_study_time_minutes || 0) / 60)}
-              suffix="hours"
-              prefix={<ClockCircleOutlined />}
-            />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {(profile.total_study_time_minutes || 0) % 60} minutes
-            </Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Days Active"
-              value={profile.days_active || 0}
-              prefix={<RiseOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <div className="licenses-grid">
+        {licenses.map((license) => (
+          <div key={license.id} className="license-card">
+            <div className="license-header">
+              <span className="license-icon">
+                {getSpecializationIcon(license.specialization_type)}
+              </span>
+              <div className="license-title">
+                <h3>{getSpecializationTitle(license.specialization_type)}</h3>
+                <span className="level-badge">Level {license.level}</span>
+              </div>
+            </div>
 
-      {/* Learning Pace Card */}
-      <Card
-        title={
-          <Space>
-            {getPaceIcon(profile.learning_pace)}
-            <span>Learning Pace</span>
-          </Space>
-        }
-        style={{ marginBottom: 24 }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Space>
-            <Text strong>Current Pace:</Text>
-            <Tag
-              color={getPaceColor(profile.learning_pace)}
-              style={{ fontSize: 16, padding: '4px 12px' }}
-            >
-              {profile.learning_pace || 'MEDIUM'}
-            </Tag>
-          </Space>
-          <div>
-            <Text type="secondary">Pace Score</Text>
-            <Progress
-              percent={Math.round(profile.pace_score || 50)}
-              strokeColor={{
-                '0%': '#108ee9',
-                '50%': '#87d068',
-                '100%': '#52c41a',
-              }}
-              status="active"
-            />
-          </div>
-          {profile.pace_score >= 80 && (
-            <Text type="success">
-              <ThunderboltOutlined /> You're learning faster than average! Keep it up!
-            </Text>
-          )}
-          {profile.pace_score < 40 && (
-            <Text type="warning">
-              Take your time to fully understand each concept. Quality over speed!
-            </Text>
-          )}
-        </Space>
-      </Card>
+            <div className="license-details">
+              <div className="detail-row">
+                <span className="label">License Number:</span>
+                <span className="value">{license.license_number || 'N/A'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Issue Date:</span>
+                <span className="value">
+                  {license.issue_date
+                    ? new Date(license.issue_date).toLocaleDateString('en-US')
+                    : 'N/A'}
+                </span>
+              </div>
+              {license.expiry_date && (
+                <div className="detail-row">
+                  <span className="label">Expiry Date:</span>
+                  <span className="value">
+                    {new Date(license.expiry_date).toLocaleDateString('en-US')}
+                  </span>
+                </div>
+              )}
+              <div className="detail-row">
+                <span className="label">Status:</span>
+                <span className={`status-badge ${license.status?.toLowerCase()}`}>
+                  {license.status || 'ACTIVE'}
+                </span>
+              </div>
+            </div>
 
-      {/* Recommendations Card */}
-      <Card
-        title={
-          <Space>
-            <FireOutlined style={{ color: '#ff4d4f' }} />
-            <span>Personalized Recommendations</span>
-          </Space>
-        }
-        extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => loadRecommendations(true)}
-            loading={refreshing}
-            type="primary"
-          >
-            Refresh
-          </Button>
-        }
-      >
-        {recommendations.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Text type="secondary">
-              No recommendations at this time. Keep up the good work! 🎉
-            </Text>
+            {license.current_xp !== undefined && license.xp_required_for_next_level !== undefined && (
+              <div className="xp-progress-section">
+                <div className="xp-header">
+                  <span className="xp-label">Progress to Next Level</span>
+                  <span className="xp-value">
+                    {license.current_xp} / {license.xp_required_for_next_level} XP
+                  </span>
+                </div>
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${calculateXPProgress(license.current_xp, license.xp_required_for_next_level)}%`
+                    }}
+                  ></div>
+                </div>
+                <div className="progress-percentage">
+                  {calculateXPProgress(license.current_xp, license.xp_required_for_next_level)}% Complete
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div>
-            {recommendations.map(rec => (
-              <RecommendationCard
-                key={rec.id}
-                recommendation={rec}
-                onDismiss={handleDismiss}
-              />
-            ))}
-          </div>
-        )}
-      </Card>
+        ))}
+      </div>
+
+      <div className="profile-footer">
+        <button onClick={loadLicenses} className="refresh-button">
+          🔄 Refresh
+        </button>
+      </div>
     </div>
   );
 };
