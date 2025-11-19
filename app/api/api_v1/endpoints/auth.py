@@ -13,6 +13,8 @@ from ....models.user import User
 from ....schemas.auth import Login, Token, RefreshToken, ChangePassword
 from ....schemas.user import User as UserSchema
 from ....config import settings
+from ....services.audit_service import AuditService
+from ....models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -43,6 +45,18 @@ def login(
     
     if not user or not verify_password(user_credentials.password, user.password_hash):
         print(f"❌ LOGIN FAILED - User: {user is not None}, Password: {verify_password(user_credentials.password, user.password_hash) if user else False}")
+
+        # 🔍 AUDIT: Log failed login
+        audit_service = AuditService(db)
+        audit_service.log(
+            action=AuditAction.LOGIN_FAILED,
+            user_id=user.id if user else None,
+            details={
+                "email": user_credentials.email,
+                "reason": "invalid_password" if user else "user_not_found"
+            }
+        )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -61,7 +75,33 @@ def login(
     refresh_token = create_refresh_token(
         data={"sub": user.email}, expires_delta=refresh_token_expires
     )
-    
+
+    # 🔍 AUDIT: Log successful login
+    audit_service = AuditService(db)
+    audit_service.log(
+        action=AuditAction.LOGIN,
+        user_id=user.id,
+        details={
+            "email": user.email,
+            "role": user.role.value if user.role else None,
+            "success": True
+        }
+    )
+
+    # 🏆 GAMIFICATION: Check for achievement unlocks
+    from app.services.gamification import GamificationService
+    gamification_service = GamificationService(db)
+    try:
+        unlocked = gamification_service.check_and_unlock_achievements(
+            user_id=user.id,
+            trigger_action="login"
+        )
+        if unlocked:
+            print(f"🎉 Unlocked {len(unlocked)} achievement(s) for user {user.id}")
+    except Exception as e:
+        # Don't fail login if achievement check fails
+        print(f"⚠️  Achievement check failed: {e}")
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,

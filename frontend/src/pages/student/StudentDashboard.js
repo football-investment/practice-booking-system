@@ -5,7 +5,6 @@ import { LFAUserService } from '../../utils/userTypeService';
 import ProgressCard from '../../components/SpecializationProgress/ProgressCard';
 import AchievementList from '../../components/Achievements/AchievementList';
 import './StudentDashboard.css';
-import './StudentDashboard.cleanup.css';
 
 /**
  * LFA EDUCATION CENTER - COMPLETE DASHBOARD

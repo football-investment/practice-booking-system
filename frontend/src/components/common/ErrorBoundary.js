@@ -30,18 +30,7 @@ class ErrorBoundary extends React.Component {
       errorInfo: errorInfo
     });
 
-    // Log to our enhanced error diagnostics if available
-    if (window.errorDiagnostics) {
-      window.errorDiagnostics.errors.push({
-        timestamp: new Date().toISOString(),
-        type: 'react_error_boundary',
-        message: error.message,
-        stack: error.stack,
-        componentStack: errorInfo.componentStack,
-        userAgent: navigator.userAgent,
-        url: window.location.href
-      });
-    }
+    // Error logged above - no additional diagnostics needed
 
     // Attempt to send to backend for logging
     this.logErrorToBackend(error, errorInfo);

@@ -1,0 +1,172 @@
+{
+  "id": "LFA_FOOTBALL_PLAYER",
+  "name": "LFA Football Player",
+  "description": "Korosztályhoz kötött LFA Football játékos szakirány - 4 korosztály, 8 szint",
+  "min_age": 5,
+  "color_theme": "#1E90FF",
+  "icon": "⚽",
+  "age_groups": [
+    {
+      "name": "Pre Football",
+      "min_age": 5,
+      "max_age": 8,
+      "levels": [1, 2]
+    },
+    {
+      "name": "Youth Football",
+      "min_age": 9,
+      "max_age": 14,
+      "levels": [3, 4]
+    },
+    {
+      "name": "Amateur Football",
+      "min_age": 14,
+      "max_age": null,
+      "levels": [5, 6]
+    },
+    {
+      "name": "Pro Football",
+      "min_age": 16,
+      "max_age": null,
+      "levels": [7, 8]
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "LFA Pre Football Player",
+      "age_group": "Pre Football",
+      "license_color": "#FFB6C1",
+      "description": "Alapozó szint - játékos fejlődés kezdete (5-8 év)",
+      "xp_required": 0,
+      "xp_max": 999,
+      "required_sessions": 0,
+      "required_projects": 0,
+      "requirements": {
+        "theory_hours": 0,
+        "practice_hours": 30,
+        "min_age": 5,
+        "skills": ["Labdaérzékelés", "Koordináció", "Játékkedv"]
+      }
+    },
+    {
+      "level": 2,
+      "name": "LFA Pre Football Advanced Player",
+      "age_group": "Pre Football",
+      "license_color": "#FFA07A",
+      "description": "Haladó alapozás - fejlett játékkészség (5-8 év)",
+      "xp_required": 1000,
+      "xp_max": 2499,
+      "required_sessions": 10,
+      "required_projects": 0,
+      "requirements": {
+        "theory_hours": 5,
+        "practice_hours": 50,
+        "min_age": 5,
+        "skills": ["Alappasszok", "Dribling alapok", "Csapatjáték alapok"]
+      }
+    },
+    {
+      "level": 3,
+      "name": "LFA Youth Football Player",
+      "age_group": "Youth Football",
+      "license_color": "#87CEEB",
+      "description": "Ifjúsági szint - tudatos fejlődés (9-14 év)",
+      "xp_required": 2500,
+      "xp_max": 4999,
+      "required_sessions": 20,
+      "required_projects": 1,
+      "requirements": {
+        "theory_hours": 10,
+        "practice_hours": 70,
+        "min_age": 9,
+        "skills": ["Taktikai alapok", "Pozíciójáték", "Fizikai felkészülés"]
+      }
+    },
+    {
+      "level": 4,
+      "name": "LFA Youth Football Advanced Player",
+      "age_group": "Youth Football",
+      "license_color": "#4682B4",
+      "description": "Haladó ifjúsági - versenyképes játék (9-14 év)",
+      "xp_required": 5000,
+      "xp_max": 9999,
+      "required_sessions": 40,
+      "required_projects": 2,
+      "requirements": {
+        "theory_hours": 20,
+        "practice_hours": 100,
+        "min_age": 9,
+        "skills": ["Komplex taktikák", "Gyorsaság", "Csapatmunka"]
+      }
+    },
+    {
+      "level": 5,
+      "name": "LFA Amateur Football Player",
+      "age_group": "Amateur Football",
+      "license_color": "#32CD32",
+      "description": "Amatőr szint - komoly képzés (14+ év, nincs felső határ)",
+      "xp_required": 10000,
+      "xp_max": 19999,
+      "required_sessions": 60,
+      "required_projects": 3,
+      "requirements": {
+        "theory_hours": 30,
+        "practice_hours": 120,
+        "min_age": 14,
+        "skills": ["Profi mentalitás", "Versenyzés", "Önfejlesztés"]
+      }
+    },
+    {
+      "level": 6,
+      "name": "LFA Amateur Football Advanced Player",
+      "age_group": "Amateur Football",
+      "license_color": "#228B22",
+      "description": "Haladó amatőr - kiváló játékos (14+ év, nincs felső határ)",
+      "xp_required": 20000,
+      "xp_max": 39999,
+      "required_sessions": 90,
+      "required_projects": 5,
+      "requirements": {
+        "theory_hours": 40,
+        "practice_hours": 150,
+        "min_age": 14,
+        "skills": ["Vezetés", "Stratégiai játék", "Mentorlás"]
+      }
+    },
+    {
+      "level": 7,
+      "name": "LFA Pro Football Player",
+      "age_group": "Pro Football",
+      "license_color": "#FFD700",
+      "description": "Profi szint - professzionális játékos (16+ év, nincs felső határ)",
+      "xp_required": 40000,
+      "xp_max": 79999,
+      "required_sessions": 120,
+      "required_projects": 7,
+      "requirements": {
+        "theory_hours": 50,
+        "practice_hours": 200,
+        "min_age": 16,
+        "skills": ["Professzionalizmus", "Csapatvezetés", "Élsport"]
+      }
+    },
+    {
+      "level": 8,
+      "name": "LFA Pro Football Elite Player",
+      "age_group": "Pro Football",
+      "license_color": "#FF4500",
+      "description": "Elit profi - legmagasabb szint (16+ év, nincs felső határ)",
+      "xp_required": 80000,
+      "xp_max": 999999,
+      "required_sessions": 150,
+      "required_projects": 10,
+      "requirements": {
+        "theory_hours": 60,
+        "practice_hours": 250,
+        "min_age": 16,
+        "skills": ["Elit szint", "Nemzetközi tapasztalat", "Iskola reprezentálás"]
+      }
+    }
+  ]
+}

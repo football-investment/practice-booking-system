@@ -62,7 +62,7 @@ class LicenseService:
             license_data['current_level_metadata'] = current_meta
             
             # Add next level metadata if available
-            max_level = LicenseSystemHelper.get_specialization_max_level(license.specialization_type)
+            max_level = LicenseSystemHelper.get_specialization_max_level(license.specialization_type, self.db)
             if license.current_level < max_level:
                 next_meta = self.get_license_metadata_by_level(
                     license.specialization_type,
@@ -119,8 +119,8 @@ class LicenseService:
         # Get or create user license
         license = self.get_or_create_user_license(user_id, specialization)
         
-        # Validate advancement
-        max_level = LicenseSystemHelper.get_specialization_max_level(specialization)
+        # Validate advancement (P0 FIX: pass db session)
+        max_level = LicenseSystemHelper.get_specialization_max_level(specialization, self.db)
         is_valid, message = LicenseSystemHelper.validate_advancement(
             license.current_level, target_level, max_level
         )
@@ -143,19 +143,45 @@ class LicenseService:
         )
         
         # Update license
+        old_level = license.current_level
         license.current_level = target_level
         license.max_achieved_level = max(license.max_achieved_level, target_level)
         license.last_advanced_at = datetime.now(timezone.utc)
-        
+
         self.db.add(progression)
         self.db.commit()
         self.db.refresh(license)
-        
+
+        # 🔄 P1: AUTO-SYNC License → Progress after advancement
+        sync_result = None
+        level_changed = (old_level != target_level)
+        if level_changed:
+            try:
+                from app.services.progress_license_sync_service import ProgressLicenseSyncService
+                sync_service = ProgressLicenseSyncService(self.db)
+                sync_result = sync_service.sync_license_to_progress(
+                    user_id=user_id,
+                    specialization=specialization
+                )
+                if not sync_result.get('success'):
+                    # Log warning but don't fail the advancement
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Auto-sync (License→Progress) failed for user {user_id}, {specialization}: {sync_result.get('message')}"
+                    )
+            except Exception as e:
+                # Log error but don't fail the license advancement
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Auto-sync exception for user {user_id}: {str(e)}")
+
         return {
             "success": True,
             "message": f"Successfully advanced to level {target_level}",
             "license": license.to_dict(),
-            "progression": progression.to_dict()
+            "progression": progression.to_dict(),
+            "sync_result": sync_result  # Include sync result for transparency
         }
 
     def get_specialization_progression_path(self, specialization: str) -> List[Dict[str, Any]]:
@@ -186,13 +212,13 @@ class LicenseService:
                 available_specializations.append({
                     "type": spec_name,
                     "display_name": self._get_specialization_display_name(spec_name),
-                    "max_level": LicenseSystemHelper.get_specialization_max_level(spec_name),
+                    "max_level": LicenseSystemHelper.get_specialization_max_level(spec_name, self.db),
                     "levels": metadata
                 })
         
         # Calculate overall progress
         total_possible_levels = sum(
-            LicenseSystemHelper.get_specialization_max_level(spec.value) 
+            LicenseSystemHelper.get_specialization_max_level(spec.value, self.db) 
             for spec in LicenseType
         )
         
@@ -265,7 +291,7 @@ class LicenseService:
             return {"error": "Target level not found"}
         
         # Validate advancement possibility
-        max_level = LicenseSystemHelper.get_specialization_max_level(specialization)
+        max_level = LicenseSystemHelper.get_specialization_max_level(specialization, self.db)
         is_valid, message = LicenseSystemHelper.validate_advancement(
             license.current_level, target_level, max_level
         )

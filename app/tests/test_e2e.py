@@ -77,7 +77,8 @@ class TestCompleteWorkflow:
                 "name": f"Hallgató {i+1}",
                 "email": f"student{i+1}@test.com",
                 "password": "student123",
-                "role": "student"
+                "role": "student",
+                "payment_verified": True  # Required for booking sessions
             }
             student_response = client.post(
                 "/api/v1/users/",
@@ -338,7 +339,8 @@ class TestCompleteWorkflow:
                 "name": f"Edge Student {i+1}",
                 "email": f"edge_student{i+1}@test.com",
                 "password": "student123",
-                "role": "student"
+                "role": "student",
+                "payment_verified": True  # Required for booking sessions
             }
             student = client.post("/api/v1/users/", headers=admin_headers, json=student_data).json()
             students.append(student)

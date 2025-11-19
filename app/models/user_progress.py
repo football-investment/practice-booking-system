@@ -13,19 +13,32 @@ from ..database import Base
 # ========================================
 
 class Specialization(Base):
-    """Master table for specializations (PLAYER, COACH, INTERNSHIP)"""
+    """
+    Master table for specializations - MINIMAL HYBRID ARCHITECTURE
+
+    HYBRID ARCHITECTURE:
+    - DB: Maintains ONLY referential integrity (FK constraints)
+    - JSON: Source of Truth for content (name, description, icon, levels)
+    - Service: Bridge between DB validation and JSON content
+
+    Columns:
+    - id (PK): Unique identifier matching SpecializationType enum
+    - is_active: Availability flag (can be toggled without code changes)
+    - created_at: Audit trail
+
+    ❌ NO CONTENT COLUMNS - use JSON configs via SpecializationConfigLoader
+    """
     __tablename__ = "specializations"
 
-    id = Column(String(50), primary_key=True)
-    name = Column(String(100), nullable=False)
-    icon = Column(String(10))
-    description = Column(Text)
-    max_levels = Column(Integer, nullable=False)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id = Column(String(50), primary_key=True,
+                comment='Matches SpecializationType enum values')
+    is_active = Column(Boolean, nullable=False, default=True,
+                      comment='Controls availability without code changes')
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow,
+                       comment='Audit trail for when specialization was created')
 
     def __repr__(self):
-        return f"<Specialization {self.name}>"
+        return f"<Specialization {self.id} (active={self.is_active})>"
 
 
 class PlayerLevel(Base):
@@ -129,7 +142,7 @@ class UserTrackProgress(Base):
     __tablename__ = "user_track_progresses"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Fixed: Integer to match users.id
     track_id = Column(UUID(as_uuid=True), ForeignKey("tracks.id"), nullable=False)
     enrollment_date = Column(DateTime, default=datetime.utcnow)
     current_semester = Column(Integer, default=1)

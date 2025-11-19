@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import './utils/errorDiagnostics'; // Enhanced error diagnostics
 import './utils/iosBrowserCompatibility'; // iOS/Firefox compatibility checks
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

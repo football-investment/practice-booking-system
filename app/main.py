@@ -16,6 +16,7 @@ from .middleware.security import (
     SecurityHeadersMiddleware,
     RequestSizeLimitMiddleware
 )
+from .middleware.audit_middleware import AuditMiddleware
 from .core.exceptions import (
     http_exception_handler,
     starlette_http_exception_handler,
@@ -26,7 +27,7 @@ from .core.exceptions import (
     business_logic_exception_handler,
     BusinessLogicError
 )
-from .tasks.scheduler import start_scheduler
+from .background.scheduler import start_scheduler, stop_scheduler
 import logging
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ async def lifespan(app: FastAPI):
     logger.info("🔄 Application shutdown initiated")
     if scheduler:
         try:
-            scheduler.shutdown()
+            stop_scheduler()  # Use stop_scheduler function
             logger.info("✅ Background scheduler stopped")
         except Exception as e:
             logger.error(f"❌ Error stopping scheduler: {e}")
@@ -90,6 +91,9 @@ if settings.ENABLE_RATE_LIMITING:
 
 if settings.ENABLE_STRUCTURED_LOGGING:
     app.add_middleware(LoggingMiddleware)  # Should be after rate limiting for accurate logs
+
+# Add audit middleware (logs all important actions)
+app.add_middleware(AuditMiddleware)
 
 # Set up CORS middleware
 app.add_middleware(

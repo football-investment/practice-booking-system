@@ -165,11 +165,30 @@ def validate_specialization_enrollment(project_id: int, current_user: User, db: 
               f"User {current_user.name} ({current_user.specialization.value}) "
               f"tried to enroll in project '{project.title}' ({project.target_specialization.value})")
         
+        # Get specialization names from JSON (HYBRID)
+        from app.services.specialization_config_loader import SpecializationConfigLoader
+        loader = SpecializationConfigLoader()
+
+        project_spec_name = str(project.target_specialization.value)
+        user_spec_name = str(current_user.specialization.value)
+
+        try:
+            project_info = loader.get_display_info(project.target_specialization)
+            project_spec_name = project_info.get('name', project_spec_name)
+        except Exception:
+            pass
+
+        try:
+            user_info = loader.get_display_info(current_user.specialization)
+            user_spec_name = user_info.get('name', user_spec_name)
+        except Exception:
+            pass
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Specialization mismatch. This project is designed for "
-                   f"{SpecializationType.get_display_name(project.target_specialization)} specialization. "
-                   f"Your specialization is {SpecializationType.get_display_name(current_user.specialization)}. "
+                   f"{project_spec_name} specialization. "
+                   f"Your specialization is {user_spec_name}. "
                    f"You can only enroll in projects matching your specialization or mixed projects."
         )
     

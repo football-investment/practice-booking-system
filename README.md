@@ -6,6 +6,17 @@
 [![iOS Safari Compatible](https://img.shields.io/badge/iOS%20Safari-Compatible-brightgreen.svg)](https://github.com/footballinvestment/practice-booking-system)
 [![Cross Browser](https://img.shields.io/badge/Cross%20Browser-Chrome%20|%20Firefox%20|%20Safari%20|%20Edge-blue.svg)](https://github.com/footballinvestment/practice-booking-system)
 
+## ⚠️ **IMPORTANT: Deprecation Notice**
+
+**Specialization IDs are changing! Update your code before May 18, 2026.**
+
+- `PLAYER` → `GANCUJU_PLAYER` (deprecated)
+- `COACH` → `LFA_COACH` (deprecated)
+
+Old IDs still work (with warnings) until the deadline. See [DEPRECATION_NOTICE.md](DEPRECATION_NOTICE.md) for migration guide.
+
+---
+
 ## 🚀 **Quick Start**
 
 ### Prerequisites

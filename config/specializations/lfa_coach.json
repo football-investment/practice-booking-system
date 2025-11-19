@@ -1,0 +1,201 @@
+{
+  "id": "LFA_COACH",
+  "name": "LFA Coach",
+  "description": "LFA saját Coach licensz rendszer - 4 korosztály, 8 szint. EGYEDI: 14 éves kortól belépés!",
+  "min_age": 14,
+  "color_theme": "#DC143C",
+  "icon": "👨‍🏫",
+  "parental_consent_required_under_18": true,
+  "age_groups": [
+    {
+      "name": "Pre Football Coach",
+      "min_age": 14,
+      "max_age": null,
+      "levels": [1, 2],
+      "description": "5-8 éves korosztály edzése"
+    },
+    {
+      "name": "Youth Football Coach",
+      "min_age": 14,
+      "max_age": null,
+      "levels": [3, 4],
+      "description": "9-14 éves korosztály edzése"
+    },
+    {
+      "name": "Amateur Football Coach",
+      "min_age": 14,
+      "max_age": null,
+      "levels": [5, 6],
+      "description": "14+ amatőr korosztály edzése"
+    },
+    {
+      "name": "Pro Football Coach",
+      "min_age": 14,
+      "max_age": null,
+      "levels": [7, 8],
+      "description": "16+ profi korosztály edzése"
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "LFA Pre Football Asszisztens Edző",
+      "age_group": "Pre Football Coach",
+      "license_color": "#FFE4E1",
+      "description": "Kezdő edzői szint - 5-8 évesek foglalkoztatása (14+ belépés)",
+      "xp_required": 0,
+      "xp_max": 999,
+      "required_sessions": 0,
+      "required_projects": 0,
+      "requirements": {
+        "theory_hours": 60,
+        "practice_hours": 90,
+        "mentoring_months": 3,
+        "min_age": 14,
+        "exam_pass_percentage": 60,
+        "skills": ["Ganball™ módszertan", "Játékos fejlesztés", "Biztonság"],
+        "mandatory_courses": ["Első segély", "Gyermekvédelem", "Pedagógia alapok"]
+      }
+    },
+    {
+      "level": 2,
+      "name": "LFA Pre Football Vezetőedző",
+      "age_group": "Pre Football Coach",
+      "license_color": "#FFC0CB",
+      "description": "Vezető edzői szint - Pre Football önálló irányítás",
+      "xp_required": 1000,
+      "xp_max": 2499,
+      "required_sessions": 15,
+      "required_projects": 1,
+      "requirements": {
+        "theory_hours": 80,
+        "practice_hours": 120,
+        "mentoring_months": 6,
+        "min_age": 14,
+        "exam_pass_percentage": 70,
+        "skills": ["Edzésterv készítés", "Csapatvezetés", "Szülőkommunikáció"],
+        "mandatory_courses": ["Gyermekpszichológia", "Táplálkozás", "Mozgásfejlődés"]
+      }
+    },
+    {
+      "level": 3,
+      "name": "LFA Youth Football Asszisztens Edző",
+      "age_group": "Youth Football Coach",
+      "license_color": "#87CEFA",
+      "description": "Ifjúsági asszisztens - 9-14 évesek fejlesztése",
+      "xp_required": 2500,
+      "xp_max": 4999,
+      "required_sessions": 30,
+      "required_projects": 2,
+      "requirements": {
+        "theory_hours": 100,
+        "practice_hours": 150,
+        "mentoring_months": 6,
+        "min_age": 14,
+        "exam_pass_percentage": 65,
+        "skills": ["Taktikai képzés", "Fizikai felkészítés", "Versenyzés"],
+        "mandatory_courses": ["Taktika", "Sportfiziológia", "Sérülésmegelőzés"]
+      }
+    },
+    {
+      "level": 4,
+      "name": "LFA Youth Football Vezetőedző",
+      "age_group": "Youth Football Coach",
+      "license_color": "#4169E1",
+      "description": "Ifjúsági vezetőedző - Youth Football teljes felelősség",
+      "xp_required": 5000,
+      "xp_max": 9999,
+      "required_sessions": 50,
+      "required_projects": 3,
+      "requirements": {
+        "theory_hours": 120,
+        "practice_hours": 180,
+        "mentoring_months": 9,
+        "min_age": 14,
+        "exam_pass_percentage": 75,
+        "skills": ["Játékrendszer építés", "Tehetségazonosítás", "Versenyfelkészítés"],
+        "mandatory_courses": ["Tehetséggondozás", "Sportlélektan", "Versenyszabályok"]
+      }
+    },
+    {
+      "level": 5,
+      "name": "LFA Amateur Football Asszisztens Edző",
+      "age_group": "Amateur Football Coach",
+      "license_color": "#90EE90",
+      "description": "Amatőr asszisztens - 14+ amatőr szint",
+      "xp_required": 10000,
+      "xp_max": 19999,
+      "required_sessions": 75,
+      "required_projects": 4,
+      "requirements": {
+        "theory_hours": 140,
+        "practice_hours": 200,
+        "mentoring_months": 12,
+        "min_age": 14,
+        "exam_pass_percentage": 70,
+        "skills": ["Komplex taktikák", "Csapatmenedzsment", "Analízis"],
+        "mandatory_courses": ["Video analízis", "Adatelemzés", "Kommunikáció"]
+      }
+    },
+    {
+      "level": 6,
+      "name": "LFA Amateur Football Vezetőedző",
+      "age_group": "Amateur Football Coach",
+      "license_color": "#32CD32",
+      "description": "Amatőr vezetőedző - Amateur Football teljes irányítás",
+      "xp_required": 20000,
+      "xp_max": 39999,
+      "required_sessions": 100,
+      "required_projects": 6,
+      "requirements": {
+        "theory_hours": 160,
+        "practice_hours": 250,
+        "mentoring_months": 15,
+        "min_age": 14,
+        "exam_pass_percentage": 75,
+        "skills": ["Stratégiai tervezés", "Csapatépítés", "Vezetés"],
+        "mandatory_courses": ["Menedzsment", "Pszichológia", "Vezetői készségek"]
+      }
+    },
+    {
+      "level": 7,
+      "name": "LFA PRO Football Asszisztens Edző",
+      "age_group": "Pro Football Coach",
+      "license_color": "#FFD700",
+      "description": "Profi asszisztens - 16+ profi szint támogatás",
+      "xp_required": 40000,
+      "xp_max": 79999,
+      "required_sessions": 130,
+      "required_projects": 8,
+      "requirements": {
+        "theory_hours": 180,
+        "practice_hours": 300,
+        "mentoring_months": 18,
+        "min_age": 14,
+        "exam_pass_percentage": 80,
+        "skills": ["Profi mentalitás", "Élsport felkészítés", "Nemzetközi tapasztalat"],
+        "mandatory_courses": ["Profi menedzsment", "Sporttudomány", "Nemzetközi szabályok"]
+      }
+    },
+    {
+      "level": 8,
+      "name": "LFA PRO Football Vezetőedző",
+      "age_group": "Pro Football Coach",
+      "license_color": "#FF4500",
+      "description": "Profi vezetőedző - legmagasabb edzői szint, akadémia vezetés",
+      "xp_required": 80000,
+      "xp_max": 999999,
+      "required_sessions": 200,
+      "required_projects": 12,
+      "requirements": {
+        "theory_hours": 200,
+        "practice_hours": 400,
+        "mentoring_months": 24,
+        "min_age": 14,
+        "exam_pass_percentage": 85,
+        "skills": ["Akadémia vezetés", "Filozófia", "Nemzetközi hálózat"],
+        "mandatory_courses": ["Akadémia menedzsment", "Kutatásmódszertan", "Innováció"]
+      }
+    }
+  ]
+}

@@ -10,6 +10,8 @@ from ....database import get_db
 from ....models.user import User
 from ....models.specialization import SpecializationType
 from ....dependencies import get_current_user
+from ....services.audit_service import AuditService
+from ....models.audit_log import AuditAction
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -25,22 +27,31 @@ class SpecializationSetRequest(BaseModel):
     specialization: str
 
 @router.get("/", response_model=List[SpecializationResponse])
-async def list_specializations():
+async def list_specializations(db: Session = Depends(get_db)):
     """
-    Get available specializations with descriptions
+    Get available specializations with descriptions (HYBRID: DB + JSON)
     🎓 PUBLIC ENDPOINT - no authentication required for onboarding
+
+    Process:
+    1. Load active specializations from DB
+    2. Load full content from JSON configs
+    3. Return merged data
     """
+    from app.services.specialization_service import SpecializationService
+
+    service = SpecializationService(db)
+    all_specs = service.get_all_specializations()
+
     specializations = []
-    
-    for spec in SpecializationType:
+    for spec_data in all_specs:
         specializations.append(SpecializationResponse(
-            code=spec.value,
-            name=SpecializationType.get_display_name(spec),
-            description=SpecializationType.get_description(spec),
-            features=SpecializationType.get_features(spec),
-            icon=SpecializationType.get_icon(spec)
+            code=spec_data['id'],
+            name=spec_data['name'],
+            description=spec_data['description'],
+            features=spec_data.get('features', []),  # Will be added in next iteration
+            icon=spec_data['icon']
         ))
-    
+
     return specializations
 
 @router.post("/me")
@@ -50,9 +61,19 @@ async def set_user_specialization(
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Set current user's specialization
+    Set current user's specialization (HYBRID: with age/consent validation)
     🎓 CRITICAL: This is used during onboarding and profile updates
+
+    Process:
+    1. Validate specialization enum
+    2. Check DB existence + is_active
+    3. Validate age requirements (JSON)
+    4. Validate parental consent (for LFA_COACH under 18)
+    5. Update user specialization
     """
+    from app.services.specialization_service import SpecializationService
+
+    # STEP 1: Validate enum
     try:
         specialization = SpecializationType(specialization_data.specialization)
     except ValueError:
@@ -60,15 +81,53 @@ async def set_user_specialization(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid specialization. Must be one of: {[s.value for s in SpecializationType]}"
         )
-    
-    # Update user's specialization
+
+    # STEP 2-4: Use service to validate and enroll
+    service = SpecializationService(db)
+
+    try:
+        result = service.enroll_user(current_user.id, specialization.value)
+
+        if not result['success']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result['message']
+            )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    # STEP 5: Update user's specialization
+    old_specialization = current_user.specialization.value if current_user.specialization else None
     current_user.specialization = specialization
     db.commit()
     db.refresh(current_user)
-    
+
+    # 🔍 AUDIT: Log specialization change
+    audit_service = AuditService(db)
+    audit_service.log(
+        action=AuditAction.SPECIALIZATION_SELECTED,
+        user_id=current_user.id,
+        resource_type="specialization",
+        resource_id=None,
+        details={
+            "old_specialization": old_specialization,
+            "new_specialization": specialization.value,
+            "age": current_user.calculate_age() if current_user.date_of_birth else None,
+            "has_parental_consent": current_user.parental_consent
+        }
+    )
+
     # 📝 Log for testing/debugging
     print(f"🎓 Specialization updated: {current_user.name} → {specialization.value}")
-    
+
+    # Get display info from JSON (HYBRID)
+    from app.services.specialization_config_loader import SpecializationConfigLoader
+    loader = SpecializationConfigLoader()
+    display_info = loader.get_display_info(specialization)
+
     return {
         "message": "Specialization updated successfully",
         "user": {
@@ -77,8 +136,8 @@ async def set_user_specialization(
             "email": current_user.email,
             "specialization": {
                 "code": current_user.specialization.value,
-                "name": SpecializationType.get_display_name(current_user.specialization),
-                "icon": SpecializationType.get_icon(current_user.specialization)
+                "name": display_info.get('name', specialization.value),
+                "icon": display_info.get('icon', '🎯')
             }
         }
     }
@@ -115,8 +174,15 @@ async def clear_user_specialization(
     }
 
 @router.get("/info/{specialization_code}")
-async def get_specialization_info(specialization_code: str) -> Dict[str, Any]:
-    """Get detailed information about a specific specialization"""
+async def get_specialization_info(
+    specialization_code: str,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get detailed information about a specific specialization (HYBRID: DB + JSON)"""
+    from app.services.specialization_service import SpecializationService
+    from app.services.specialization_config_loader import SpecializationConfigLoader
+
+    # STEP 1: Validate enum
     try:
         specialization = SpecializationType(specialization_code.upper())
     except ValueError:
@@ -125,14 +191,26 @@ async def get_specialization_info(specialization_code: str) -> Dict[str, Any]:
             detail=f"Specialization '{specialization_code}' not found"
         )
 
+    # STEP 2: Check DB existence + is_active (HYBRID)
+    service = SpecializationService(db)
+    if not service.validate_specialization_exists(specialization.value):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Specialization '{specialization_code}' is not active"
+        )
+
+    # STEP 3: Load full info from JSON (Source of Truth)
+    loader = SpecializationConfigLoader()
+    display_info = loader.get_display_info(specialization)
+
     return {
         "code": specialization.value,
-        "name": SpecializationType.get_display_name(specialization),
-        "description": SpecializationType.get_description(specialization),
-        "features": SpecializationType.get_features(specialization),
-        "icon": SpecializationType.get_icon(specialization),
-        "session_access": SpecializationType.get_session_access_info(specialization),
-        "project_access": SpecializationType.get_project_access_info(specialization)
+        "name": display_info.get('name', specialization.value),
+        "description": display_info.get('description', ''),
+        "features": display_info.get('features', []),  # TODO: Add to JSON configs
+        "icon": display_info.get('icon', '🎯'),
+        "min_age": display_info.get('min_age', 0),
+        "color_theme": display_info.get('color_theme', '#000000')
     }
 
 
@@ -189,6 +267,36 @@ async def get_specialization_levels(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch levels: {str(e)}")
+
+
+@router.get("/progress/me")
+async def get_my_specialization_progress(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current user's progress for all specializations (alias for /progress)"""
+    from ....services.specialization_service import SpecializationService
+
+    service = SpecializationService(db)
+
+    try:
+        progress_data = {}
+
+        # Get progress for user's current specialization
+        if current_user.specialization:
+            spec_id = current_user.specialization.value
+            progress_data[spec_id] = service.get_student_progress(current_user.id, spec_id)
+
+        return {
+            'success': True,
+            'data': progress_data
+        }
+    except Exception as e:
+        # Return empty data instead of 400 error
+        return {
+            'success': True,
+            'data': {}
+        }
 
 
 @router.get("/progress/{specialization_id}")

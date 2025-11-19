@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Boolean, DateTime, JSON, ForeignKey
+from sqlalchemy import Column, String, Text, Integer, Boolean, DateTime, JSON, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -37,7 +37,7 @@ class IssuedCertificate(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     certificate_template_id = Column(UUID(as_uuid=True), ForeignKey("certificate_templates.id"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Fixed: Integer to match users.id
     unique_identifier = Column(String(100), nullable=False, unique=True)  # LFA-COACH-2024-A7B9C2
     issue_date = Column(DateTime, default=datetime.utcnow)
     completion_date = Column(DateTime)

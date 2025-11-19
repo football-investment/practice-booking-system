@@ -193,16 +193,43 @@ def configure_license_relationships():
 
 class LicenseSystemHelper:
     """Helper class for license system operations"""
-    
+
     @staticmethod
-    def get_specialization_max_level(specialization: str) -> int:
-        """Get maximum level for a specialization"""
-        max_levels = {
+    def get_specialization_max_level(specialization: str, db = None) -> int:
+        """
+        Get maximum level for a specialization - DB is source of truth.
+
+        P0 FIX: Changed from hardcoded dict to dynamic DB query.
+        Fallback to defaults only if DB unavailable.
+
+        Args:
+            specialization: PLAYER, COACH, or INTERNSHIP
+            db: Optional SQLAlchemy session for DB query
+
+        Returns:
+            Maximum level count from DB or fallback default
+        """
+        # Try DB first (source of truth)
+        if db:
+            try:
+                from app.models.user_progress import Specialization
+                spec = db.query(Specialization).filter(
+                    Specialization.id == specialization.upper()
+                ).first()
+
+                if spec and spec.max_levels:
+                    return spec.max_levels
+            except Exception:
+                # Fallback if DB query fails
+                pass
+
+        # Fallback defaults (should match DB migration seed)
+        max_levels_fallback = {
             "COACH": 8,
             "PLAYER": 8,
-            "INTERNSHIP": 5
+            "INTERNSHIP": 3  # FIXED: Was 5, now 3 (DB source of truth)
         }
-        return max_levels.get(specialization, 1)
+        return max_levels_fallback.get(specialization.upper(), 1)
     
     @staticmethod
     def get_level_metadata(specialization: str, level: int) -> Optional[str]:

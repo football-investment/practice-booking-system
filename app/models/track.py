@@ -49,7 +49,7 @@ class Module(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     track_id = Column(UUID(as_uuid=True), ForeignKey("tracks.id"), nullable=False)
-    semester_id = Column(UUID(as_uuid=True), ForeignKey("semesters.id"))
+    semester_id = Column(Integer, ForeignKey("semesters.id"))  # Fixed: Integer type to match semesters.id
     name = Column(String(255), nullable=False)
     description = Column(Text)
     order_in_track = Column(Integer, default=0)

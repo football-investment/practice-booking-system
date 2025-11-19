@@ -76,7 +76,25 @@ class User(Base):
         nullable=True,
         comment="IP address from which NDA was accepted"
     )
-    
+
+    # 👨‍👩‍👧 NEW: Parental consent fields (required for LFA_COACH under 18)
+    parental_consent = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether parental consent has been given (required for users under 18 in LFA_COACH)"
+    )
+    parental_consent_at = Column(
+        DateTime,
+        nullable=True,
+        comment="Timestamp when parental consent was given"
+    )
+    parental_consent_by = Column(
+        String,
+        nullable=True,
+        comment="Name of parent/guardian who gave consent"
+    )
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -108,13 +126,31 @@ class User(Base):
     # 🎓 NEW: Specialization helper properties and methods
     @property
     def specialization_display(self) -> str:
-        """Get user-friendly specialization display name"""
-        return SpecializationType.get_display_name(self.specialization)
-    
+        """Get user-friendly specialization display name (HYBRID: loads from JSON)"""
+        if not self.specialization:
+            return "Nincs kiválasztva"
+
+        from app.services.specialization_config_loader import SpecializationConfigLoader
+        loader = SpecializationConfigLoader()
+        try:
+            display_info = loader.get_display_info(self.specialization)
+            return display_info.get('name', str(self.specialization.value))
+        except Exception:
+            return str(self.specialization.value)
+
     @property
     def specialization_icon(self) -> str:
-        """Get specialization emoji icon"""
-        return SpecializationType.get_icon(self.specialization)
+        """Get specialization emoji icon (HYBRID: loads from JSON)"""
+        if not self.specialization:
+            return "❓"
+
+        from app.services.specialization_config_loader import SpecializationConfigLoader
+        loader = SpecializationConfigLoader()
+        try:
+            display_info = loader.get_display_info(self.specialization)
+            return display_info.get('icon', '🎯')
+        except Exception:
+            return "🎯"
     
     @property
     def has_specialization(self) -> bool:
@@ -193,3 +229,41 @@ class User(Base):
         self.payment_verified = False
         self.payment_verified_at = None
         self.payment_verified_by = None
+
+    # 👨‍👩‍👧 NEW: Parental consent helper methods
+    @property
+    def age(self) -> Optional[int]:
+        """Calculate user's age in years"""
+        if not self.date_of_birth:
+            return None
+        today = datetime.now(timezone.utc).date()
+        dob = self.date_of_birth.date() if isinstance(self.date_of_birth, datetime) else self.date_of_birth
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        return age
+
+    @property
+    def is_minor(self) -> bool:
+        """Check if user is under 18 years old"""
+        age = self.age
+        return age is not None and age < 18
+
+    @property
+    def needs_parental_consent(self) -> bool:
+        """Check if user needs parental consent for LFA_COACH specialization"""
+        # Only needed for LFA_COACH specialization
+        if self.specialization != SpecializationType.LFA_COACH:
+            return False
+        # And only if user is under 18
+        return self.is_minor
+
+    def give_parental_consent(self, parent_name: str) -> None:
+        """Record parental consent"""
+        self.parental_consent = True
+        self.parental_consent_at = datetime.now(timezone.utc)
+        self.parental_consent_by = parent_name
+
+    def revoke_parental_consent(self) -> None:
+        """Revoke parental consent"""
+        self.parental_consent = False
+        self.parental_consent_at = None
+        self.parental_consent_by = None

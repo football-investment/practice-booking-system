@@ -44,6 +44,7 @@ class UserAchievement(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    achievement_id = Column(Integer, ForeignKey("achievements.id"), nullable=True)  # 🆕 NEW: Link to achievement definition
     badge_type = Column(String, nullable=False)  # BadgeType enum values
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
@@ -54,6 +55,7 @@ class UserAchievement(Base):
 
     # Relationships
     user = relationship("User", back_populates="achievements")
+    achievement = relationship("Achievement", back_populates="user_achievements")
 
 
 class UserStats(Base):

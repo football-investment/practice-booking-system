@@ -106,7 +106,7 @@ const AdminDashboard = () => {
             <Link to="/admin/users" className="stat-action">Manage Users →</Link>
           </div>
         </div>
-        
+
         <div className="admin-stat-card sessions">
           <div className="stat-icon">📅</div>
           <div className="stat-content">
@@ -115,7 +115,7 @@ const AdminDashboard = () => {
             <Link to="/admin/sessions" className="stat-action">Manage Sessions →</Link>
           </div>
         </div>
-        
+
         <div className="admin-stat-card bookings">
           <div className="stat-icon">📋</div>
           <div className="stat-content">
@@ -124,7 +124,7 @@ const AdminDashboard = () => {
             <Link to="/admin/bookings" className="stat-action">Manage Bookings →</Link>
           </div>
         </div>
-        
+
         <div className="admin-stat-card feedback">
           <div className="stat-icon">⭐</div>
           <div className="stat-content">
@@ -133,6 +133,15 @@ const AdminDashboard = () => {
             <Link to="/admin/feedback" className="stat-action">View Feedback →</Link>
           </div>
         </div>
+
+        <Link to="/admin/health" className="admin-stat-card health">
+          <div className="stat-icon">🏥</div>
+          <div className="stat-content">
+            <h3>System Health</h3>
+            <div className="stat-number">Monitor</div>
+            <span className="stat-action">View Health Dashboard →</span>
+          </div>
+        </Link>
       </div>
 
       {/* Management Grid */}
@@ -186,6 +195,13 @@ const AdminDashboard = () => {
             <h3>Feedback Overview</h3>
             <p>View all student feedback and ratings</p>
             <div className="card-stats">{stats.totalFeedback} reviews</div>
+          </Link>
+
+          <Link to="/admin/health" className="management-card health">
+            <div className="card-icon">🏥</div>
+            <h3>System Health Monitor</h3>
+            <p>Progress-License consistency monitoring</p>
+            <div className="card-stats">Real-time tracking</div>
           </Link>
 
           <div className="management-card system">

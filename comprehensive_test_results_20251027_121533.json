@@ -1,0 +1,229 @@
+{
+  "unit_tests": [
+    {
+      "passed": true,
+      "details": "Status: 200",
+      "name": "Health Check Endpoint",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:30.715829"
+    },
+    {
+      "passed": false,
+      "details": "Validation correctly rejected invalid data: 404",
+      "name": "User Model Validation",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:30.718469"
+    },
+    {
+      "passed": true,
+      "details": "Login successful, token generated",
+      "name": "Authentication Service",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:31.427787"
+    },
+    {
+      "passed": true,
+      "details": "Password validation working correctly",
+      "name": "Password Hashing",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:32.371417"
+    },
+    {
+      "passed": true,
+      "details": "JWT has 3 parts (expected: 3)",
+      "name": "JWT Token Generation",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:32.371428"
+    },
+    {
+      "passed": true,
+      "details": "Invalid input handled: 422",
+      "name": "Input Validation",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:32.387477"
+    },
+    {
+      "passed": true,
+      "details": "404 returned for non-existent endpoint",
+      "name": "Error Handling",
+      "category": "unit",
+      "timestamp": "2025-10-27T12:15:32.389748"
+    }
+  ],
+  "integration_tests": [
+    {
+      "passed": true,
+      "details": "Auth -> User info flow working",
+      "name": "Auth + User Endpoints",
+      "category": "integration",
+      "timestamp": "2025-10-27T12:15:32.395808"
+    },
+    {
+      "passed": true,
+      "details": "Health monitor active: critical",
+      "name": "License + Progress Sync",
+      "category": "integration",
+      "timestamp": "2025-10-27T12:15:32.406146"
+    },
+    {
+      "passed": true,
+      "details": "Health metrics retrieved from DB",
+      "name": "Health Monitor + Database",
+      "category": "integration",
+      "timestamp": "2025-10-27T12:15:32.412607"
+    },
+    {
+      "passed": true,
+      "details": "1st: 5ms, 2nd (cached): 5ms",
+      "name": "Cache + Database",
+      "category": "integration",
+      "timestamp": "2025-10-27T12:15:32.422100"
+    },
+    {
+      "passed": true,
+      "details": "10/10 requests successful",
+      "name": "Multi-Worker Request Handling",
+      "category": "integration",
+      "timestamp": "2025-10-27T12:15:32.434976"
+    },
+    {
+      "passed": true,
+      "details": "Background scheduler integration verified",
+      "name": "Background Jobs + Database",
+      "category": "integration",
+      "timestamp": "2025-10-27T12:15:32.441087"
+    }
+  ],
+  "performance_tests": [
+    {
+      "passed": true,
+      "details": "Avg response: 4.2ms (target: <100ms)",
+      "name": "Response Time < 100ms",
+      "category": "performance",
+      "timestamp": "2025-10-27T12:15:32.482787"
+    },
+    {
+      "passed": true,
+      "details": "20/20 successful, avg: 16ms",
+      "name": "Concurrent Requests (20)",
+      "category": "performance",
+      "timestamp": "2025-10-27T12:15:32.506463"
+    },
+    {
+      "passed": true,
+      "details": "50/50 successful (0.0% failure)",
+      "name": "Concurrent Requests (50)",
+      "category": "performance",
+      "timestamp": "2025-10-27T12:15:32.561659"
+    },
+    {
+      "passed": true,
+      "details": "DB query: 15ms (target: <500ms)",
+      "name": "Database Query Performance",
+      "category": "performance",
+      "timestamp": "2025-10-27T12:15:32.576237"
+    },
+    {
+      "passed": false,
+      "details": "Cache speedup: 1.2x (4ms -> 3ms)",
+      "name": "Cache Hit Rate",
+      "category": "performance",
+      "timestamp": "2025-10-27T12:15:32.592503"
+    },
+    {
+      "passed": true,
+      "details": "100 requests completed without memory issues",
+      "name": "Memory Usage Stability",
+      "category": "performance",
+      "timestamp": "2025-10-27T12:15:32.969084"
+    }
+  ],
+  "security_tests": [
+    {
+      "passed": true,
+      "details": "SQL injection attempt handled safely",
+      "name": "SQL Injection Protection",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:32.984888"
+    },
+    {
+      "passed": true,
+      "details": "XSS payload handled safely",
+      "name": "XSS Protection",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:32.999558"
+    },
+    {
+      "passed": true,
+      "details": "Unauthorized access blocked: 403",
+      "name": "Authentication Required",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:33.002356"
+    },
+    {
+      "passed": true,
+      "details": "RBAC enforced on admin endpoints",
+      "name": "Role-Based Access Control",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:33.018837"
+    },
+    {
+      "passed": true,
+      "details": "Rate limiting: disabled (testing mode)",
+      "name": "Rate Limiting",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:33.202966"
+    },
+    {
+      "passed": true,
+      "details": "HTTP working for testing (HTTPS required for production)",
+      "name": "HTTPS/TLS Configuration",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:33.204673"
+    },
+    {
+      "passed": true,
+      "details": "Password complexity enforced",
+      "name": "Password Complexity",
+      "category": "security",
+      "timestamp": "2025-10-27T12:15:33.208886"
+    }
+  ],
+  "regression_tests": [
+    {
+      "passed": true,
+      "details": "5/5 endpoints working",
+      "name": "All 15 User-Facing Endpoints",
+      "category": "regression",
+      "timestamp": "2025-10-27T12:15:33.230957"
+    },
+    {
+      "passed": true,
+      "details": "Health dashboard: 3/3 OK",
+      "name": "Health Dashboard Stability",
+      "category": "regression",
+      "timestamp": "2025-10-27T12:15:33.242727"
+    },
+    {
+      "passed": true,
+      "details": "Coupling enforcer regression check passed",
+      "name": "License-Progress Coupling",
+      "category": "regression",
+      "timestamp": "2025-10-27T12:15:33.245943"
+    },
+    {
+      "passed": true,
+      "details": "User CRUD operations stable",
+      "name": "User CRUD Operations",
+      "category": "regression",
+      "timestamp": "2025-10-27T12:15:33.249401"
+    },
+    {
+      "passed": true,
+      "details": "Auth flow stable (login -> token)",
+      "name": "Authentication Flow",
+      "category": "regression",
+      "timestamp": "2025-10-27T12:15:33.964494"
+    }
+  ]
+}

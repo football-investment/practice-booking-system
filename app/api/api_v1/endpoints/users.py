@@ -66,6 +66,9 @@ def create_user(
         position=user_data.position,
         specialization=specialization_enum,
         onboarding_completed=user_data.onboarding_completed if hasattr(user_data, 'onboarding_completed') else False,
+        payment_verified=user_data.payment_verified if hasattr(user_data, 'payment_verified') else False,
+        parental_consent=user_data.parental_consent if hasattr(user_data, 'parental_consent') else False,
+        parental_consent_by=user_data.parental_consent_by if hasattr(user_data, 'parental_consent_by') else None,
         created_by=current_user.id
     )
 
@@ -80,17 +83,23 @@ def create_user(
 def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user),
-    page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=100),
+    skip: Optional[int] = Query(default=None, ge=0),  # Backward compatibility
+    limit: Optional[int] = Query(default=None, ge=1, le=100),  # Backward compatibility
     role: Optional[UserRole] = None,
     is_active: Optional[bool] = None,
     search: Optional[str] = None
 ) -> Any:
     """
     List users with pagination and filtering (Admin only)
+
+    Supports two pagination modes:
+    - page/size: ?page=1&size=50
+    - skip/limit: ?skip=0&limit=10 (backward compatibility)
     """
     query = db.query(User)
-    
+
     # Apply filters
     if role:
         query = query.filter(User.role == role)
@@ -100,19 +109,29 @@ def list_users(
         query = query.filter(
             User.name.contains(search) | User.email.contains(search)
         )
-    
+
     # Get total count
     total = query.count()
-    
-    # Apply pagination
-    offset = (page - 1) * size
-    users = query.offset(offset).limit(size).all()
-    
+
+    # Apply pagination (support both modes)
+    if skip is not None and limit is not None:
+        # Backward compatibility: use skip/limit
+        offset = skip
+        page_size = limit
+        current_page = (skip // limit) + 1 if limit > 0 else 1
+    else:
+        # Standard: use page/size
+        offset = (page - 1) * size
+        page_size = size
+        current_page = page
+
+    users = query.offset(offset).limit(page_size).all()
+
     return UserList(
         users=users,
         total=total,
-        page=page,
-        size=size
+        page=current_page,
+        size=page_size
     )
 
 

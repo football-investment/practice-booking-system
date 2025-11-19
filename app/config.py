@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     TESTING: bool = is_testing()
     
     # Database
-    DATABASE_URL: str = "postgresql://username:password@localhost:5432/gancuju_education_center"
+    DATABASE_URL: str = "postgresql://lovas.zoltan@localhost:5432/gancuju_education_center_prod"
     
     # JWT
     SECRET_KEY: str = "super-secret-jwt-key-change-this"
@@ -58,3 +58,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    """Get settings instance (for dependency injection)"""
+    return settings

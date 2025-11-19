@@ -10,6 +10,9 @@ from ..models.session import Session as SessionModel
 from ..models.semester import Semester
 from ..models.attendance import Attendance
 from ..models.feedback import Feedback
+from ..models.achievement import Achievement, AchievementCategory
+from ..models.audit_log import AuditLog, AuditAction
+from ..models.license import UserLicense
 
 
 class GamificationService:
@@ -646,3 +649,197 @@ class GamificationService:
                 achievements.append(ach)
 
         return achievements
+
+    # ============================================
+    # 🆕 NEW ACHIEVEMENT SYSTEM (from achievements table)
+    # ============================================
+
+    def check_and_unlock_achievements(
+        self,
+        user_id: int,
+        trigger_action: str,
+        context: dict = None
+    ) -> List[Achievement]:
+        """
+        Check and unlock achievements based on user action.
+
+        This is the NEW achievement system that uses the achievements table.
+
+        Args:
+            user_id: User ID
+            trigger_action: Action that triggered check (e.g., "login", "complete_quiz")
+            context: Additional context (e.g., {"score": 100, "level": 2})
+
+        Returns:
+            List of newly unlocked Achievement objects
+
+        Example:
+            service.check_and_unlock_achievements(
+                user_id=1,
+                trigger_action="login"
+            )
+        """
+        unlocked_achievements = []
+
+        # Get all active achievements
+        all_achievements = self.db.query(Achievement).filter(
+            Achievement.is_active == True
+        ).all()
+
+        # Get user's existing achievements
+        user_achievements = self.db.query(UserAchievement).filter(
+            UserAchievement.user_id == user_id,
+            UserAchievement.achievement_id.isnot(None)  # Only check new-style achievements
+        ).all()
+
+        existing_achievement_ids = {ua.achievement_id for ua in user_achievements}
+
+        # Check each achievement
+        for achievement in all_achievements:
+            # Skip if already unlocked
+            if achievement.id in existing_achievement_ids:
+                continue
+
+            # Check if requirements met
+            if self._check_achievement_requirements(
+                user_id, achievement, trigger_action, context or {}
+            ):
+                # Unlock achievement
+                user_achievement = UserAchievement(
+                    user_id=user_id,
+                    achievement_id=achievement.id,
+                    badge_type=achievement.code,  # Use code as badge_type for compatibility
+                    title=achievement.name,
+                    description=achievement.description,
+                    icon=achievement.icon,
+                    earned_at=datetime.now(timezone.utc)
+                )
+                self.db.add(user_achievement)
+
+                # Award XP
+                if achievement.xp_reward > 0:
+                    self.award_xp(
+                        user_id,
+                        achievement.xp_reward,
+                        f"Achievement: {achievement.name}"
+                    )
+
+                unlocked_achievements.append(achievement)
+
+        # Commit if we unlocked anything
+        if unlocked_achievements:
+            self.db.commit()
+
+            # Refresh to get relationships
+            for achievement in unlocked_achievements:
+                self.db.refresh(achievement)
+
+        return unlocked_achievements
+
+    def _check_achievement_requirements(
+        self,
+        user_id: int,
+        achievement: Achievement,
+        trigger_action: str,
+        context: dict
+    ) -> bool:
+        """
+        Check if achievement requirements are met.
+
+        Args:
+            user_id: User ID
+            achievement: Achievement to check
+            trigger_action: Action that triggered check
+            context: Additional context data
+
+        Returns:
+            True if requirements met, False otherwise
+        """
+        requirements = achievement.requirements or {}
+        required_action = requirements.get("action")
+
+        # Action doesn't match requirement
+        if required_action and required_action != trigger_action:
+            return False
+
+        # Check count-based requirements (e.g., "complete 5 quizzes")
+        if "count" in requirements:
+            required_count = requirements["count"]
+            actual_count = self._get_user_action_count(user_id, trigger_action)
+
+            return actual_count >= required_count
+
+        # Check level-based requirements (e.g., "reach level 5")
+        if "level" in requirements:
+            required_level = requirements["level"]
+
+            # Check from context first (just-in-time level change)
+            if context.get("level") == required_level:
+                return True
+
+            # Query user's maximum level across all specializations
+            max_level = self.db.query(
+                func.max(UserLicense.current_level)
+            ).filter(
+                UserLicense.user_id == user_id
+            ).scalar()
+
+            return max_level >= required_level if max_level else False
+
+        # Check score-based requirements (e.g., "perfect score")
+        if "min_score" in requirements:
+            required_score = requirements["min_score"]
+            actual_score = context.get("score", 0)
+
+            return actual_score >= required_score
+
+        # Check specialization count (e.g., "have 2+ specializations")
+        if "specialization_count" in requirements:
+            required_count = requirements["specialization_count"]
+
+            specialization_count = self.db.query(
+                func.count(func.distinct(UserLicense.specialization_type))
+            ).filter(
+                UserLicense.user_id == user_id
+            ).scalar()
+
+            return specialization_count >= required_count if specialization_count else False
+
+        # Default: if no specific requirements, consider met
+        return True
+
+    def _get_user_action_count(self, user_id: int, action: str) -> int:
+        """
+        Get count of specific action for user from audit logs.
+
+        Args:
+            user_id: User ID
+            action: Action to count (e.g., "login", "complete_quiz")
+
+        Returns:
+            Count of times user performed this action
+        """
+        # Map achievement action to audit log action
+        action_mapping = {
+            "login": AuditAction.LOGIN,
+            "complete_quiz": AuditAction.QUIZ_SUBMITTED,
+            "select_specialization": AuditAction.SPECIALIZATION_SELECTED,
+            "license_earned": AuditAction.LICENSE_ISSUED,
+            "project_enroll": AuditAction.PROJECT_ENROLLED,
+            "project_complete": AuditAction.PROJECT_MILESTONE_COMPLETED,
+            "quiz_perfect_score": AuditAction.QUIZ_SUBMITTED  # Will check score in context
+        }
+
+        audit_action = action_mapping.get(action)
+
+        # If no mapping found, return 0
+        if not audit_action:
+            return 0
+
+        # Count occurrences in audit log
+        count = self.db.query(AuditLog).filter(
+            AuditLog.user_id == user_id,
+            AuditLog.action == audit_action
+        ).count()
+
+        return count

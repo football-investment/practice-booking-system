@@ -97,11 +97,17 @@ class Project(Base):
     # 🎓 NEW: Specialization helper properties
     @property
     def specialization_info(self) -> str:
-        """Get user-friendly specialization information"""
+        """Get user-friendly specialization information (HYBRID: loads from JSON)"""
         if self.mixed_specialization:
             return "Vegyes (Player + Coach)"
         elif self.target_specialization:
-            return SpecializationType.get_display_name(self.target_specialization)
+            from app.services.specialization_config_loader import SpecializationConfigLoader
+            loader = SpecializationConfigLoader()
+            try:
+                display_info = loader.get_display_info(self.target_specialization)
+                return display_info.get('name', str(self.target_specialization.value))
+            except Exception:
+                return str(self.target_specialization.value)
         return "Minden szakirány"
     
     @property

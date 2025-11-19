@@ -8,6 +8,7 @@ from .feedback import Feedback
 from .notification import Notification, NotificationType
 from .message import Message, MessagePriority
 from .gamification import UserAchievement, UserStats, BadgeType, configure_relationships
+from .achievement import Achievement, AchievementCategory
 from .quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, QuizUserAnswer, QuestionType, QuizCategory, QuizDifficulty
 from .project import Project, ProjectEnrollment, ProjectMilestone, ProjectMilestoneProgress, ProjectSession, ProjectStatus, ProjectEnrollmentStatus, ProjectProgressStatus, MilestoneStatus
 from .license import LicenseMetadata, UserLicense, LicenseProgression, LicenseType, LicenseLevel, LicenseSystemHelper, configure_license_relationships
@@ -41,6 +42,8 @@ __all__ = [
     "UserAchievement",
     "UserStats",
     "BadgeType",
+    "Achievement",
+    "AchievementCategory",
     "Quiz",
     "QuizQuestion",
     "QuizAnswerOption",
@@ -59,7 +62,7 @@ __all__ = [
     "ProjectProgressStatus",
     "MilestoneStatus",
     "LicenseMetadata",
-    "UserLicense", 
+    "UserLicense",
     "LicenseProgression",
     "LicenseType",
     "LicenseLevel",

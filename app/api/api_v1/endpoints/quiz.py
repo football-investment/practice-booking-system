@@ -206,6 +206,33 @@ def submit_quiz_attempt(
             if hook_db:
                 hook_db.close()
 
+        # ==========================================
+        # 🏆 GAMIFICATION: Check for achievement unlocks
+        # ==========================================
+        from ....services.gamification import GamificationService
+        gamification_service = GamificationService(db)
+        try:
+            # Check for quiz completion achievement
+            unlocked = gamification_service.check_and_unlock_achievements(
+                user_id=current_user.id,
+                trigger_action="complete_quiz"
+            )
+
+            # Check for perfect score achievement if score is 100%
+            if attempt.score and attempt.score >= 100:
+                perfect_score_unlocked = gamification_service.check_and_unlock_achievements(
+                    user_id=current_user.id,
+                    trigger_action="quiz_perfect_score",
+                    context={"score": attempt.score}
+                )
+                unlocked.extend(perfect_score_unlocked)
+
+            if unlocked:
+                print(f"🎉 Unlocked {len(unlocked)} achievement(s) for user {current_user.id}")
+        except Exception as e:
+            # Don't fail quiz submission if achievement check fails
+            print(f"⚠️  Achievement check failed: {e}")
+
         return attempt
     except ValueError as e:
         raise HTTPException(

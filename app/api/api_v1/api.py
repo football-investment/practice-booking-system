@@ -28,7 +28,10 @@ from .endpoints import (
     students,  # 🎓 NEW: Add student dashboard endpoints
     curriculum,  # 📚 NEW: Add curriculum system endpoints
     curriculum_adaptive,  # 🧠 NEW: Add curriculum-based adaptive learning
-    competency  # 🎯 NEW: Add competency tracking system
+    competency,  # 🎯 NEW: Add competency tracking system
+    health,  # 🏥 P2: Add health monitoring endpoints
+    admin,  # 👑 NEW: Add admin dashboard endpoints
+    audit  # 🔍 P0: Add audit log system
 )
 
 api_router = APIRouter()
@@ -126,4 +129,25 @@ api_router.include_router(
     competency.router,
     prefix="/competency",
     tags=["competency"]
+)
+
+# 🏥 P2: Add health monitoring routes (admin only)
+api_router.include_router(
+    health.router,
+    prefix="/health",
+    tags=["health-monitoring"]
+)
+
+# 👑 NEW: Add admin dashboard routes
+api_router.include_router(
+    admin.router,
+    prefix="/admin",
+    tags=["admin-dashboard"]
+)
+
+# 🔍 P0: Add audit log system routes
+api_router.include_router(
+    audit.router,
+    prefix="/audit",
+    tags=["audit-logs"]
 )

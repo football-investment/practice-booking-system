@@ -23,6 +23,9 @@ class UserCreate(UserBase):
     position: Optional[str] = None
     specialization: Optional[str] = None
     onboarding_completed: Optional[bool] = False
+    payment_verified: Optional[bool] = False
+    parental_consent: Optional[bool] = False
+    parental_consent_by: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -48,6 +51,8 @@ class UserUpdateSelf(BaseModel):
     specialization: Optional[str] = None  # Player/Coach/Internship
     nda_accepted: Optional[bool] = None
     nda_ip_address: Optional[str] = None
+    parental_consent: Optional[bool] = None
+    parental_consent_by: Optional[str] = None
 
 
 class User(UserBase):
@@ -67,6 +72,9 @@ class User(UserBase):
     nda_accepted: Optional[bool] = False
     nda_accepted_at: Optional[datetime] = None
     nda_ip_address: Optional[str] = None
+    parental_consent: Optional[bool] = False
+    parental_consent_at: Optional[datetime] = None
+    parental_consent_by: Optional[str] = None
     created_at: Optional[datetime] = None  # Make optional for legacy data
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None

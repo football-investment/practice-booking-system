@@ -1357,6 +1357,61 @@ class ApiService {
       };
     }
   }
+
+  // ============================================
+  // P2 Health Monitoring API Methods
+  // ============================================
+
+  /**
+   * Get current health status summary
+   * @returns {Promise<Object>} Health status with consistency rate and violations
+   */
+  async getHealthStatus() {
+    return this.request('/api/v1/health/status', {
+      method: 'GET'
+    });
+  }
+
+  /**
+   * Get aggregated health metrics for dashboard
+   * @returns {Promise<Object>} System metrics
+   */
+  async getHealthMetrics() {
+    return this.request('/api/v1/health/metrics', {
+      method: 'GET'
+    });
+  }
+
+  /**
+   * Get list of current consistency violations
+   * @returns {Promise<Array>} Array of violation objects
+   */
+  async getHealthViolations() {
+    return this.request('/api/v1/health/violations', {
+      method: 'GET'
+    });
+  }
+
+  /**
+   * Get the most recent health check report
+   * @returns {Promise<Object>} Full health check report
+   */
+  async getLatestHealthReport() {
+    return this.request('/api/v1/health/latest-report', {
+      method: 'GET'
+    });
+  }
+
+  /**
+   * Manually trigger health check
+   * @param {boolean} dryRun - If true, only check without logging violations
+   * @returns {Promise<Object>} Health check result
+   */
+  async triggerHealthCheck(dryRun = false) {
+    return this.request(`/api/v1/health/check-now?dry_run=${dryRun}`, {
+      method: 'POST'
+    });
+  }
 }
 
 export const apiService = new ApiService();

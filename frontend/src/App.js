@@ -9,7 +9,6 @@ import LoginPage from './pages/LoginPage';
 import './utils/iosOptimizations';
 import './utils/crossOriginErrorHandler';
 import './utils/iosBrowserCompatibility';
-import './utils/testSemesterOnboarding';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -29,18 +28,14 @@ import ProjectProgress from './pages/student/ProjectProgress';
 import ProjectEnrollmentQuiz from './pages/student/ProjectEnrollmentQuiz';
 import StudentMessages from './pages/student/StudentMessages';
 import StudentOnboarding from './pages/student/StudentOnboarding';
-import StudentOnboardingNew from './pages/student/StudentOnboardingNew';
 import SemesterCentricOnboarding from './pages/student/SemesterCentricOnboarding';
 import SemesterSelection from './pages/student/SemesterSelection';
 import AdaptiveLearning from './pages/student/AdaptiveLearning';
-import ParallelSpecializationTest from './pages/student/ParallelSpecializationTest';
-import CurrentStatusTest from './pages/student/CurrentStatusTest';
 import CurriculumView from './pages/student/CurriculumView';
 import LessonView from './pages/student/LessonView';
 import ExerciseSubmission from './pages/student/ExerciseSubmission';
 import StudentRouter from './components/student/StudentRouter';
 import ProtectedStudentRoute from './components/student/ProtectedStudentRoute';
-import DebugPage from './pages/DebugPage';
 
 // NEW: Adaptive Learning & Competency Components
 import LearningProfileView from './components/AdaptiveLearning/LearningProfileView';
@@ -63,6 +58,7 @@ import InstructorAnalytics from './pages/instructor/InstructorAnalytics';
 import InstructorProgressReport from './pages/instructor/InstructorProgressReport';
 
 // Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import SessionManagement from './pages/admin/SessionManagement';
 import SemesterManagement from './pages/admin/SemesterManagement';
@@ -71,9 +67,7 @@ import BookingManagement from './pages/admin/BookingManagement';
 import AttendanceTracking from './pages/admin/AttendanceTracking';
 import FeedbackOverview from './pages/admin/FeedbackOverview';
 import ProjectManagement from './pages/admin/ProjectManagement';
-
-// Test Pages
-import ModalTestPage from './pages/ModalTestPage';
+import HealthDashboard from './components/admin/HealthDashboard';
 
 import './App.css';
 import './styles/ios-responsive.css';
@@ -159,11 +153,6 @@ function AppRoutes() {
       
       {/* Student Routes */}
       <Route path="/student/onboarding" element={
-        <ProtectedRoute requiredRole="student">
-          <StudentOnboardingNew />
-        </ProtectedRoute>
-      } />
-      <Route path="/student/onboarding-old" element={
         <ProtectedRoute requiredRole="student">
           <StudentOnboarding />
         </ProtectedRoute>
@@ -276,45 +265,6 @@ function AppRoutes() {
           <CompetencyDashboard />
         </ProtectedRoute>
       } />
-      <Route path="/student/parallel-specialization-test" element={
-        <ProtectedRoute requiredRole="student">
-          <ParallelSpecializationTest />
-        </ProtectedRoute>
-      } />
-      <Route path="/student/current-status" element={
-        <ProtectedRoute requiredRole="student">
-          <CurrentStatusTest />
-        </ProtectedRoute>
-      } />
-      
-      {/* LFA Quick Action Routes */}
-      <Route path="/student/mentoring" element={
-        <ProtectedRoute requiredRole="student">
-          <div style={{padding: '2rem', textAlign: 'center'}}>
-            <h2>🤝 Mentoring Hub</h2>
-            <p>Find experienced mentors to guide your football journey</p>
-            <p><em>Coming soon...</em></p>
-          </div>
-        </ProtectedRoute>
-      } />
-      <Route path="/student/portfolio" element={
-        <ProtectedRoute requiredRole="student">
-          <div style={{padding: '2rem', textAlign: 'center'}}>
-            <h2>📁 Portfolio</h2>
-            <p>Track your achievements and showcase your progress</p>
-            <p><em>Coming soon...</em></p>
-          </div>
-        </ProtectedRoute>
-      } />
-      <Route path="/student/learning/:id" element={
-        <ProtectedRoute requiredRole="student">
-          <div style={{padding: '2rem', textAlign: 'center'}}>
-            <h2>🧠 Adaptive Learning Module</h2>
-            <p>Personalized learning based on your performance</p>
-            <p><em>Starting module...</em></p>
-          </div>
-        </ProtectedRoute>
-      } />
 
       {/* 📚 Curriculum Routes */}
       <Route path="/student/curriculum/:specializationId" element={
@@ -413,7 +363,12 @@ function AppRoutes() {
       {/* Admin Routes */}
       <Route path="/admin/dashboard" element={
         <ProtectedRoute requiredRole="admin">
-          <div>Admin Dashboard - Coming Soon</div>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/health" element={
+        <ProtectedRoute requiredRole="admin">
+          <HealthDashboard />
         </ProtectedRoute>
       } />
       <Route path="/admin/users" element={
@@ -456,17 +411,7 @@ function AppRoutes() {
           <ProjectManagement />
         </ProtectedRoute>
       } />
-      
-      {/* Test Routes - accessible to all authenticated users */}
-      <Route path="/test/modal" element={
-        <ProtectedRoute>
-          <ModalTestPage />
-        </ProtectedRoute>
-      } />
-      
-      {/* Debug Route - accessible to everyone for debugging */}
-      <Route path="/debug" element={<DebugPage />} />
-      
+
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
