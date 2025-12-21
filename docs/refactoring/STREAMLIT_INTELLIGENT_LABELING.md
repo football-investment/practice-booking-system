@@ -109,6 +109,21 @@ Dinamikus címkék:
 - Messages: "Generated 3 seasons" vs "Generated 5 semesters"
 - Spinner: "Generating seasons..." vs "Generating semesters..."
 
+### ✅ semester_management.py
+**Frissítve**: 2025-12-21
+
+Dinamikus címkék:
+- Header: "Manage Existing Periods" (generic)
+- List Header: "📅 Seasons (5)" vs "📅 Semesters (10)" (when spec filtered)
+- Filter Messages: "No seasons match" vs "No semesters match"
+- Success Messages: "Season activated!" vs "Semester activated!"
+- Delete Messages: "Season deleted!" vs "Semester deleted!"
+
+**Logic**:
+- When user filters by specific specialization → Shows correct label (Season/Semester)
+- When viewing "All" specializations → Shows generic "Periods"
+- Individual actions use the semester's own specialization_type for labels
+
 ### 🔄 semester_overview.py (Helper készült)
 **Helper fájl**: `semester_overview_intelligent.py`
 
@@ -116,9 +131,6 @@ Functions:
 - `get_semester_count_label(count, spec)` - "3 seasons" vs "5 semesters"
 - `get_expander_label_for_spec(spec, count)` - Full expander labels
 - `get_no_periods_message(spec)` - "No seasons" vs "No semesters"
-
-### ⏳ semester_management.py (Pending)
-**TODO**: Frissíteni kell ugyanazokkal a pattern-ekkel
 
 ## Példa Kimenet
 
@@ -166,6 +178,69 @@ This will generate 2 semesters for 2026/INTERNSHIP/ALL at Budapest
   ...
 ```
 
+---
+
+## Management UI Examples
+
+### LFA_PLAYER Management (Filtered):
+```
+🎯 Manage Existing Periods
+
+🔍 Filters
+📍 Location: All
+📅 Year: 2026
+⚽ Specialization: LFA_PLAYER  ← User selected this
+👥 Age Group: PRE
+
+📅 Seasons (4)  ← Dynamic label based on filter!
+
+✅ 2026/LFA_PRE/SEASON_1 - LFA Player PRE Season 1 [ACTIVE]
+  ID: 123
+  Start: 2026-01-06
+  Sessions: 12
+
+  [Button: 🔄 Deactivate]  [Button: 🗑️ Delete]
+
+  ✅ Season deactivated!  ← Dynamic success message
+```
+
+### INTERNSHIP Management (Filtered):
+```
+🎯 Manage Existing Periods
+
+🔍 Filters
+📍 Location: Budapest
+📅 Year: 2026
+⚽ Specialization: INTERNSHIP  ← User selected this
+👥 Age Group: All
+
+📅 Semesters (2)  ← Dynamic label based on filter!
+
+✅ 2026/INT/SEM_1 - LFA Internship Semester 1 [ACTIVE]
+  ID: 456
+  Start: 2026-02-01
+  Sessions: 20
+
+  [Button: 🔄 Deactivate]  [Button: 🗑️ Delete]
+
+  ✅ Semester deleted!  ← Dynamic success message
+```
+
+### All Specializations (No Filter):
+```
+🎯 Manage Existing Periods
+
+🔍 Filters
+⚽ Specialization: All  ← No specific spec selected
+
+📅 Periods (15)  ← Generic label when viewing all
+
+Mixed content (LFA_PLAYER + INTERNSHIP + COACH + GANCUJU)
+Individual action messages still use correct label per semester
+```
+
+---
+
 ## Tesztelés
 
 ### Teszt esetek:
@@ -179,7 +254,7 @@ This will generate 2 semesters for 2026/INTERNSHIP/ALL at Budapest
 ## Következő Lépések
 
 ### Kötelező:
-- [ ] Frissíteni `semester_management.py`-t az intelligens címkézéssel
+- [x] ✅ Frissíteni `semester_management.py`-t az intelligens címkézéssel
 - [ ] Frissíteni `semester_overview.py`-t (vagy integrálni az intelligent wrapper-t)
 - [ ] Teljes UI teszt minden specialization-nel
 
@@ -196,6 +271,7 @@ This will generate 2 semesters for 2026/INTERNSHIP/ALL at Budapest
 
 **Fájlok módosítva**:
 1. `streamlit_app/components/semesters/semester_generation.py` - Full intelligent labeling
+2. `streamlit_app/components/semesters/semester_management.py` - Full intelligent labeling
 
 ## Konklúzió
 
