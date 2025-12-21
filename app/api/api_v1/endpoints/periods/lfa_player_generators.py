@@ -143,6 +143,9 @@ def generate_lfa_player_pre_season(
         semester.end_date = end_date
         semester.theme = month_theme["theme"]
         semester.focus_description = month_theme["focus"]
+        semester.location_city = location.city
+        semester.location_venue = location.venue
+        semester.location_address = location.address
     else:
         semester = Semester(
             code=code,
@@ -155,7 +158,9 @@ def generate_lfa_player_pre_season(
             focus_description=month_theme["focus"],
             is_active=True,
             status=SemesterStatus.DRAFT,
-            location_id=request.location_id
+            location_city=location.city,
+            location_venue=location.venue,
+            location_address=location.address
         )
         db.add(semester)
 
@@ -244,6 +249,9 @@ def generate_lfa_player_youth_season(
         semester.end_date = end_date
         semester.theme = quarter_theme["theme"]
         semester.focus_description = quarter_theme["focus"]
+        semester.location_city = location.city
+        semester.location_venue = location.venue
+        semester.location_address = location.address
     else:
         semester = Semester(
             code=code,
@@ -256,7 +264,9 @@ def generate_lfa_player_youth_season(
             focus_description=quarter_theme["focus"],
             is_active=True,
             status=SemesterStatus.DRAFT,
-            location_id=request.location_id
+            location_city=location.city,
+            location_venue=location.venue,
+            location_address=location.address
         )
         db.add(semester)
 
@@ -339,6 +349,9 @@ def generate_lfa_player_amateur_season(
         semester.end_date = end_date
         semester.theme = season_theme["theme"]
         semester.focus_description = season_theme["focus"]
+        semester.location_city = location.city
+        semester.location_venue = location.venue
+        semester.location_address = location.address
     else:
         semester = Semester(
             code=code,
@@ -351,7 +364,9 @@ def generate_lfa_player_amateur_season(
             focus_description=season_theme["focus"],
             is_active=True,
             status=SemesterStatus.DRAFT,
-            location_id=request.location_id
+            location_city=location.city,
+            location_venue=location.venue,
+            location_address=location.address
         )
         db.add(semester)
 
@@ -433,6 +448,9 @@ def generate_lfa_player_pro_season(
         semester.end_date = end_date
         semester.theme = season_theme["theme"]
         semester.focus_description = season_theme["focus"]
+        semester.location_city = location.city
+        semester.location_venue = location.venue
+        semester.location_address = location.address
     else:
         semester = Semester(
             code=code,
@@ -445,7 +463,9 @@ def generate_lfa_player_pro_season(
             focus_description=season_theme["focus"],
             is_active=True,
             status=SemesterStatus.DRAFT,
-            location_id=request.location_id
+            location_city=location.city,
+            location_venue=location.venue,
+            location_address=location.address
         )
         db.add(semester)
 
