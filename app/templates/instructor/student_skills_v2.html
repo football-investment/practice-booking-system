@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Assess Student Football Skills - Instructor Panel{% endblock %}
+
+{% block content %}
+<style>
+.skill-editor {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.skill-item {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid {{ specialization_color or '#f1c40f' }};
+}
+
+.skill-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.skill-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.current-average {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: {{ specialization_color or '#f1c40f' }};
+}
+
+.assessment-history {
+    background: white;
+    padding: 0.8rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.points-input-group {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.points-input {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.points-input label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.points-input input {
+    padding: 0.8rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.preview {
+    flex: 1;
+    background: #e8f4f8;
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.preview-label {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.3rem;
+}
+
+.preview-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: {{ specialization_color or '#f1c40f' }};
+}
+
+.new-average-preview {
+    background: #fff3cd;
+    padding: 0.8rem;
+    border-radius: 6px;
+    border: 2px dashed #ffc107;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #856404;
+    margin-top: 0.8rem;
+}
+
+.btn-save {
+    background: {{ specialization_color or '#27ae60' }};
+    color: white;
+    padding: 1.2rem 2.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.progress-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: {{ specialization_color or '#f1c40f' }};
+    transition: width 0.3s ease;
+}
+</style>
+
+<div class="skill-editor">
+    <div style="background: {{ specialization_color or '#f1c40f' }}; color: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+        <h1 style="margin: 0 0 0.5rem 0;">⚽ Assess Football Skills</h1>
+        <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">Student: {{ student.name }} ({{ student.email }})</p>
+        <p style="margin: 0.3rem 0 0 0; opacity: 0.9;">Specialization: {{ specialization_display }}</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>❌ Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success">
+        <strong>✅ Success:</strong> All skills assessed successfully! Averages recalculated.
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/instructor/students/{{ student.id }}/skills-v2/{{ license_id }}" id="assessment-form">
+        <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+            <h2 style="color: #2c3e50; margin-bottom: 1.5rem;">📊 Assess 6 Core Skills</h2>
+            <p style="color: #666; margin-bottom: 2rem; font-size: 0.95rem;">
+                Enter points earned out of total points for each skill. The system will calculate percentages and update the student's average automatically.
+            </p>
+
+            {% set skills = [
+                {'name': 'heading', 'emoji': '🎯', 'label': 'Heading'},
+                {'name': 'shooting', 'emoji': '🥅', 'label': 'Shooting'},
+                {'name': 'crossing', 'emoji': '↗️', 'label': 'Crossing'},
+                {'name': 'passing', 'emoji': '🎯', 'label': 'Passing'},
+                {'name': 'dribbling', 'emoji': '🏃', 'label': 'Dribbling'},
+                {'name': 'ball_control', 'emoji': '⚽', 'label': 'Ball Control'}
+            ] %}
+
+            {% for skill in skills %}
+            <div class="skill-item">
+                <div class="skill-header">
+                    <span class="skill-name">{{ skill.emoji }} {{ skill.label }}</span>
+                    <span class="current-average">
+                        Current: {{ assessment_averages.get(skill.name, 0.0) }}%
+                        ({{ assessment_counts.get(skill.name, 0) }} assessments)
+                    </span>
+                </div>
+
+                {% if assessment_history.get(skill.name) %}
+                <div class="assessment-history">
+                    <strong>Recent assessments:</strong>
+                    {% for assessment in assessment_history.get(skill.name, [])[:3] %}
+                        {{ assessment.points_earned }}/{{ assessment.points_total }} ({{ assessment.percentage }}%) - {{ assessment.assessed_at.strftime('%Y-%m-%d') }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="points-input-group">
+                    <div class="points-input">
+                        <label for="{{ skill.name }}_earned">Points Earned</label>
+                        <input type="number" name="{{ skill.name }}_earned" id="{{ skill.name }}_earned"
+                               min="0" max="10" step="1" value="5" required
+                               oninput="updatePreview('{{ skill.name }}')">
+                    </div>
+
+                    <div style="font-size: 2rem; color: #ccc; font-weight: 300;">/</div>
+
+                    <div class="points-input">
+                        <label for="{{ skill.name }}_total">Total Points</label>
+                        <input type="number" name="{{ skill.name }}_total" id="{{ skill.name }}_total"
+                               min="1" max="10" step="1" value="10" required
+                               oninput="updatePreview('{{ skill.name }}')">
+                    </div>
+
+                    <div class="preview">
+                        <div class="preview-label">This Assessment</div>
+                        <div class="preview-value" id="{{ skill.name }}_preview">50%</div>
+                    </div>
+                </div>
+
+                <div class="new-average-preview" id="{{ skill.name }}_new_avg">
+                    New average will be: <strong>{{ assessment_averages.get(skill.name, 0.0) }}%</strong>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="{{ skill.name }}_progress"
+                         style="width: {{ assessment_averages.get(skill.name, 0.0) }}%;"></div>
+                </div>
+
+                <!-- Optional notes per skill -->
+                <div style="margin-top: 1rem;">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: #555;">Notes (optional)</label>
+                    <input type="text" name="{{ skill.name }}_notes"
+                           style="width: 100%; padding: 0.6rem; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 0.9rem;"
+                           placeholder="Any notes about this specific assessment...">
+                </div>
+            </div>
+            {% endfor %}
+
+            <button type="submit" class="btn-save">
+                💾 Submit All Assessments
+            </button>
+        </div>
+    </form>
+
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="/instructor/enrollments" style="color: #3498db; text-decoration: none; font-weight: 600;">
+            ← Back to Enrollments
+        </a>
+    </div>
+</div>
+
+<script>
+// Store current averages and counts for calculating new averages
+const currentAverages = {{ assessment_averages | tojson }};
+const assessmentCounts = {{ assessment_counts | tojson }};
+
+function updatePreview(skillName) {
+    const earnedInput = document.getElementById(skillName + '_earned');
+    const totalInput = document.getElementById(skillName + '_total');
+    const previewDiv = document.getElementById(skillName + '_preview');
+    const newAvgDiv = document.getElementById(skillName + '_new_avg');
+    const progressBar = document.getElementById(skillName + '_progress');
+
+    const earned = parseFloat(earnedInput.value) || 0;
+    const total = parseFloat(totalInput.value) || 1;
+
+    // Calculate this assessment's percentage
+    const percentage = total > 0 ? ((earned / total) * 100) : 0;
+    const roundedPercentage = Math.round(percentage * 10) / 10;
+
+    previewDiv.textContent = roundedPercentage + '%';
+
+    // Calculate new average
+    const currentAvg = currentAverages[skillName] || 0;
+    const currentCount = assessmentCounts[skillName] || 0;
+
+    // New average = (old_avg * old_count + new_percentage) / (old_count + 1)
+    const newAverage = currentCount > 0
+        ? ((currentAvg * currentCount) + roundedPercentage) / (currentCount + 1)
+        : roundedPercentage;
+    const roundedNewAvg = Math.round(newAverage * 10) / 10;
+
+    newAvgDiv.innerHTML = `New average will be: <strong>${roundedNewAvg}%</strong> (after ${currentCount + 1} assessments)`;
+
+    // Update progress bar preview
+    progressBar.style.width = roundedNewAvg + '%';
+}
+
+// Initialize all previews on page load
+document.addEventListener('DOMContentLoaded', function() {
+    ['heading', 'shooting', 'crossing', 'passing', 'dribbling', 'ball_control'].forEach(function(skill) {
+        updatePreview(skill);
+    });
+});
+</script>
+{% endblock %}

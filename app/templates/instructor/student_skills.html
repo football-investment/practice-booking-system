@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Student Football Skills - Instructor Panel{% endblock %}
+
+{% block content %}
+<style>
+.skill-editor {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.skill-item {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 4px solid {{ specialization_color or '#f1c40f' }};
+}
+
+.skill-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.skill-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.skill-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: {{ specialization_color or '#f1c40f' }};
+}
+
+.skill-slider {
+    width: 100%;
+    height: 12px;
+    border-radius: 6px;
+    background: #e0e0e0;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.skill-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: {{ specialization_color or '#f1c40f' }};
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.skill-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: {{ specialization_color or '#f1c40f' }};
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.progress-visual {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: {{ specialization_color or '#f1c40f' }};
+    transition: width 0.3s ease;
+}
+
+.btn-save {
+    background: {{ specialization_color or '#27ae60' }};
+    color: white;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+</style>
+
+<div class="skill-editor">
+    <div style="background: {{ specialization_color or '#f1c40f' }}; color: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+        <h1 style="margin: 0 0 0.5rem 0;">⚽ Edit Football Skills</h1>
+        <p style="margin: 0; opacity: 0.9;">Student: {{ student.name }} ({{ student.email }})</p>
+        <p style="margin: 0.3rem 0 0 0; opacity: 0.9;">Specialization: {{ specialization_display }}</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>❌ Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="alert alert-success">
+        <strong>✅ Success:</strong> Skills updated successfully!
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/instructor/students/{{ student.id }}/skills/{{ license_id }}">
+        <div style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+            <h2 style="color: #2c3e50; margin-bottom: 1.5rem;">📊 6 Core Football Skills</h2>
+
+            <!-- Heading -->
+            <div class="skill-item">
+                <div class="skill-label">
+                    <span class="skill-name">🎯 Heading</span>
+                    <span class="skill-value" id="heading-value">{{ current_skills.heading if current_skills else 50.0 }}%</span>
+                </div>
+                <input type="range" name="heading" class="skill-slider" min="0" max="100" step="0.1"
+                       value="{{ current_skills.heading if current_skills else 50.0 }}"
+                       oninput="updateSkill('heading', this.value)">
+                <div class="progress-visual">
+                    <div class="progress-fill" id="heading-progress" style="width: {{ current_skills.heading if current_skills else 50.0 }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Shooting -->
+            <div class="skill-item">
+                <div class="skill-label">
+                    <span class="skill-name">🥅 Shooting</span>
+                    <span class="skill-value" id="shooting-value">{{ current_skills.shooting if current_skills else 50.0 }}%</span>
+                </div>
+                <input type="range" name="shooting" class="skill-slider" min="0" max="100" step="0.1"
+                       value="{{ current_skills.shooting if current_skills else 50.0 }}"
+                       oninput="updateSkill('shooting', this.value)">
+                <div class="progress-visual">
+                    <div class="progress-fill" id="shooting-progress" style="width: {{ current_skills.shooting if current_skills else 50.0 }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Crossing -->
+            <div class="skill-item">
+                <div class="skill-label">
+                    <span class="skill-name">↗️ Crossing</span>
+                    <span class="skill-value" id="crossing-value">{{ current_skills.crossing if current_skills else 50.0 }}%</span>
+                </div>
+                <input type="range" name="crossing" class="skill-slider" min="0" max="100" step="0.1"
+                       value="{{ current_skills.crossing if current_skills else 50.0 }}"
+                       oninput="updateSkill('crossing', this.value)">
+                <div class="progress-visual">
+                    <div class="progress-fill" id="crossing-progress" style="width: {{ current_skills.crossing if current_skills else 50.0 }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Passing -->
+            <div class="skill-item">
+                <div class="skill-label">
+                    <span class="skill-name">🎯 Passing</span>
+                    <span class="skill-value" id="passing-value">{{ current_skills.passing if current_skills else 50.0 }}%</span>
+                </div>
+                <input type="range" name="passing" class="skill-slider" min="0" max="100" step="0.1"
+                       value="{{ current_skills.passing if current_skills else 50.0 }}"
+                       oninput="updateSkill('passing', this.value)">
+                <div class="progress-visual">
+                    <div class="progress-fill" id="passing-progress" style="width: {{ current_skills.passing if current_skills else 50.0 }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Dribbling -->
+            <div class="skill-item">
+                <div class="skill-label">
+                    <span class="skill-name">🏃 Dribbling</span>
+                    <span class="skill-value" id="dribbling-value">{{ current_skills.dribbling if current_skills else 50.0 }}%</span>
+                </div>
+                <input type="range" name="dribbling" class="skill-slider" min="0" max="100" step="0.1"
+                       value="{{ current_skills.dribbling if current_skills else 50.0 }}"
+                       oninput="updateSkill('dribbling', this.value)">
+                <div class="progress-visual">
+                    <div class="progress-fill" id="dribbling-progress" style="width: {{ current_skills.dribbling if current_skills else 50.0 }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Ball Control -->
+            <div class="skill-item">
+                <div class="skill-label">
+                    <span class="skill-name">⚽ Ball Control</span>
+                    <span class="skill-value" id="ball_control-value">{{ current_skills.ball_control if current_skills else 50.0 }}%</span>
+                </div>
+                <input type="range" name="ball_control" class="skill-slider" min="0" max="100" step="0.1"
+                       value="{{ current_skills.ball_control if current_skills else 50.0 }}"
+                       oninput="updateSkill('ball_control', this.value)">
+                <div class="progress-visual">
+                    <div class="progress-fill" id="ball_control-progress" style="width: {{ current_skills.ball_control if current_skills else 50.0 }}%;"></div>
+                </div>
+            </div>
+
+            <!-- Instructor Notes -->
+            <div style="margin-top: 2rem;">
+                <label style="display: block; font-weight: 600; color: #2c3e50; margin-bottom: 0.5rem;">
+                    📝 Instructor Notes (Optional)
+                </label>
+                <textarea name="instructor_notes" rows="4"
+                          style="width: 100%; padding: 0.8rem; border: 2px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 1rem;"
+                          placeholder="Add any notes about the skill assessment...">{{ license.instructor_notes if license else '' }}</textarea>
+            </div>
+
+            <button type="submit" class="btn-save">
+                💾 Save Skills Assessment
+            </button>
+        </div>
+    </form>
+
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="/instructor/enrollments" style="color: #3498db; text-decoration: none; font-weight: 600;">
+            ← Back to Enrollments
+        </a>
+    </div>
+</div>
+
+<script>
+function updateSkill(skillName, value) {
+    // Update value display
+    const roundedValue = Math.round(value * 10) / 10;
+    document.getElementById(skillName + '-value').textContent = roundedValue + '%';
+
+    // Update progress bar
+    document.getElementById(skillName + '-progress').style.width = value + '%';
+}
+</script>
+{% endblock %}

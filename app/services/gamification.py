@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from ..models.user import User
 from ..models.gamification import UserAchievement, UserStats, BadgeType
 from ..models.booking import Booking
-from ..models.session import Session as SessionModel
+from ..models.session import Session as SessionTypel
 from ..models.semester import Semester
 from ..models.attendance import Attendance
 from ..models.feedback import Feedback
@@ -30,6 +30,124 @@ class GamificationService:
             self.db.commit()
             self.db.refresh(stats)
         return stats
+
+    def award_attendance_xp(self, attendance_id: int, quiz_score_percent: float = None) -> int:
+        """
+        Award XP based on session type, instructor evaluation, and quiz performance
+
+        🔒 RULE #6: INTELLIGENT XP CALCULATION
+        ======================================
+
+        XP Calculation Strategy:
+        1. Base XP (50 XP) - For attendance (check-in)
+        2. Instructor Evaluation XP (0-50 XP) - Based on 1-5 rating (10 XP per star)
+        3. Quiz XP (0-150 XP) - Only for HYBRID/VIRTUAL sessions
+           - Excellent (>90%): +150 XP
+           - Pass (70-90%): +75 XP
+           - Fail (<70%): +0 XP
+
+        Session Type Maximums:
+        - ONSITE: 50 (base) + 50 (instructor) = 100 XP max
+        - HYBRID: 50 (base) + 50 (instructor) + 150 (quiz) = 250 XP max
+        - VIRTUAL: 50 (base) + 50 (instructor) + 150 (quiz) = 250 XP max
+
+        Args:
+            attendance_id: Attendance record ID
+            quiz_score_percent: Quiz score percentage (0-100), None if no quiz
+
+        Returns:
+            int: Total XP awarded
+        """
+        # Get attendance with session info
+        attendance = self.db.query(Attendance).filter(Attendance.id == attendance_id).first()
+        if not attendance:
+            return 0
+
+        session = self.db.query(SessionTypel).filter(SessionTypel.id == attendance.session_id).first()
+        if not session:
+            return 0
+
+        # Check if XP already awarded
+        if attendance.xp_earned > 0:
+            return attendance.xp_earned
+
+        # 🔒 RULE #6: INTELLIGENT XP CALCULATION
+        # =======================================
+
+        # STEP 1: Base XP (50 XP for attendance/check-in)
+        base_xp = 50
+
+        # STEP 2: Instructor Evaluation XP (0-50 XP)
+        instructor_xp = 0
+        from ..models.feedback import Feedback
+        instructor_feedback = self.db.query(Feedback).filter(
+            Feedback.session_id == session.id,
+            Feedback.user_id == attendance.user_id
+        ).first()
+
+        if instructor_feedback and hasattr(instructor_feedback, 'performance_rating'):
+            # Rating: 1-5 stars → 10-50 XP (10 XP per star)
+            instructor_xp = instructor_feedback.performance_rating * 10
+        elif instructor_feedback and hasattr(instructor_feedback, 'rating'):
+            # Fallback to general rating if performance_rating doesn't exist
+            instructor_xp = instructor_feedback.rating * 10
+
+        # STEP 3: Quiz XP (0-150 XP) - Only for HYBRID/VIRTUAL sessions
+        quiz_xp = 0
+        session_type = session.sport_type.upper() if hasattr(session.sport_type, 'upper') else str(session.sport_type).upper()
+
+        if session_type in ["HYBRID", "VIRTUAL"]:
+            # Check if session has required quiz
+            from ..models.quiz import SessionQuiz, QuizAttempt
+            session_quiz = self.db.query(SessionQuiz).filter(
+                SessionQuiz.session_id == session.id,
+                SessionQuiz.is_required == True
+            ).first()
+
+            if session_quiz:
+                # Look up best quiz attempt
+                if quiz_score_percent is None:
+                    best_attempt = self.db.query(QuizAttempt).filter(
+                        QuizAttempt.user_id == attendance.user_id,
+                        QuizAttempt.quiz_id == session_quiz.quiz_id,
+                        QuizAttempt.completed_at.isnot(None)
+                    ).order_by(QuizAttempt.score.desc()).first()
+
+                    if best_attempt:
+                        quiz_score_percent = best_attempt.score
+
+                # Calculate quiz XP based on performance
+                if quiz_score_percent is not None:
+                    if quiz_score_percent >= 90:
+                        quiz_xp = 150  # Excellent
+                    elif quiz_score_percent >= 70:
+                        quiz_xp = 75   # Pass
+                    else:
+                        quiz_xp = 0    # Fail - no quiz XP
+
+        # STEP 4: Calculate total XP
+        xp_earned = base_xp + instructor_xp + quiz_xp
+
+        print(f"🎯 Session: {session.title} | Type: {session_type}")
+        print(f"   Base XP: {base_xp} | Instructor XP: {instructor_xp} | Quiz XP: {quiz_xp}")
+        print(f"   Total Earned: {xp_earned} XP")
+
+        # Save XP to attendance record
+        attendance.xp_earned = xp_earned
+
+        # Add XP to user stats
+        stats = self.get_or_create_user_stats(attendance.user_id)
+        stats.total_xp += xp_earned
+
+        # Update level: Level = floor(Total_XP / 500) + 1
+        stats.level = max(1, (stats.total_xp // 500) + 1)
+
+        stats.updated_at = datetime.now(timezone.utc)
+        self.db.commit()
+
+        print(f"   Total XP: {stats.total_xp}, Level: {stats.level}")
+
+        return xp_earned
         
     def calculate_user_stats(self, user_id: int) -> UserStats:
         """Calculate and update comprehensive user statistics"""
@@ -37,11 +155,11 @@ class GamificationService:
         
         # Get all user bookings with session and semester info
         bookings_query = self.db.query(
-            Booking, SessionModel, Semester
+            Booking, SessionTypel, Semester
         ).join(
-            SessionModel, Booking.session_id == SessionModel.id
+            SessionTypel, Booking.session_id == SessionTypel.id
         ).join(
-            Semester, SessionModel.semester_id == Semester.id
+            Semester, SessionTypel.semester_id == Semester.id
         ).filter(
             Booking.user_id == user_id
         ).all()
@@ -64,11 +182,16 @@ class GamificationService:
         # Calculate attendance from attendance table
         attendances = self.db.query(Attendance).filter(Attendance.user_id == user_id).count()
         total_attended = attendances
-        
+
         # Calculate feedback given
         feedback_count = self.db.query(Feedback).filter(Feedback.user_id == user_id).count()
         avg_rating = self.db.query(func.avg(Feedback.rating)).filter(Feedback.user_id == user_id).scalar() or 0.0
-        
+
+        # Calculate XP from attendance records (NEW: Session-based XP)
+        attendance_xp = self.db.query(func.sum(Attendance.xp_earned)).filter(
+            Attendance.user_id == user_id
+        ).scalar() or 0
+
         # Update statistics
         stats.semesters_participated = len(unique_semesters)
         stats.first_semester_date = min(semester_dates) if semester_dates else None
@@ -78,20 +201,16 @@ class GamificationService:
         stats.attendance_rate = (total_attended / total_bookings * 100) if total_bookings > 0 else 0.0
         stats.feedback_given = feedback_count
         stats.average_rating_given = float(avg_rating)
-        
-        # Calculate XP and level based on activity
-        # Calculate XP from activities (but don't overwrite existing total_xp)
-        activity_xp = (
-            stats.semesters_participated * 500 +  # 500 XP per semester
-            stats.total_attended * 50 +           # 50 XP per attendance
-            stats.feedback_given * 25              # 25 XP per feedback
-        )
-        
-        # Only update total_xp if it's less than activity_xp (preserves quiz XP and other sources)
-        if stats.total_xp < activity_xp:
-            stats.total_xp = activity_xp
-            
-        stats.level = max(1, stats.total_xp // 1000)  # Level up every 1000 XP
+
+        # NEW XP System: Use actual XP earned from attendance
+        # Preserve any existing XP (e.g., from quizzes, achievements)
+        if attendance_xp > 0:
+            # Set total_xp to attendance XP (attendance XP is the main source)
+            # This will be the baseline, quiz/achievement bonuses add on top
+            stats.total_xp = max(stats.total_xp, attendance_xp)
+
+        # Update level: Level = floor(Total_XP / 500) + 1
+        stats.level = max(1, (stats.total_xp // 500) + 1)
         
         stats.updated_at = datetime.now(timezone.utc)
         self.db.commit()
@@ -216,9 +335,9 @@ class GamificationService:
         # Get semester information for the user
         from ..models.booking import Booking
         user_semesters = self.db.query(Semester).join(
-            SessionModel, Semester.id == SessionModel.semester_id
+            SessionTypel, Semester.id == SessionTypel.semester_id
         ).join(
-            Booking, SessionModel.id == Booking.session_id
+            Booking, SessionTypel.id == Booking.session_id
         ).filter(Booking.user_id == user_id).distinct().order_by(Semester.start_date).all()
         
         # Get current semester (the latest one)

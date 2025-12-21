@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime, date
+from ..models.semester import SemesterStatus
 
 
 class SemesterBase(BaseModel):
@@ -8,7 +9,16 @@ class SemesterBase(BaseModel):
     name: str
     start_date: date
     end_date: date
+    status: SemesterStatus = SemesterStatus.DRAFT
     is_active: bool = True
+    master_instructor_id: Optional[int] = None
+    specialization_type: Optional[str] = None
+    age_group: Optional[str] = None
+    theme: Optional[str] = None
+    focus_description: Optional[str] = None
+    location_city: Optional[str] = None
+    location_venue: Optional[str] = None
+    location_address: Optional[str] = None
 
 
 class SemesterCreate(SemesterBase):
@@ -20,7 +30,9 @@ class SemesterUpdate(BaseModel):
     name: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    status: Optional[SemesterStatus] = None
     is_active: Optional[bool] = None
+    master_instructor_id: Optional[int] = None
 
 
 class Semester(SemesterBase):

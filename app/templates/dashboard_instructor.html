@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Instructor Dashboard - LFA Education Center{% endblock %}
+
+{% block content %}
+
+<style>
+    /* Instructor-specific customizations only */
+</style>
+
+<div class="welcome-section welcome-section-instructor">
+    <h1>Welcome, {{ user.name }}!</h1>
+    <p>{{ user.email }}</p>
+    <span class="badge badge-instructor" style="color: white;">👨‍🏫 INSTRUCTOR</span>
+</div>
+
+<!-- ========================================== -->
+<!-- INSTRUCTOR DASHBOARD                       -->
+<!-- ========================================== -->
+<div class="cards-grid">
+    <!-- Teaching Qualifications Card - TOGGLE ACTIVE/INACTIVE -->
+    <div class="modern-card modern-card-blue">
+        <h2>👨‍🏫 Teaching Qualifications</h2>
+        <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 1rem;">Manage your teaching specializations:</p>
+        {% if all_teaching_specializations %}
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            {% for spec_data in all_teaching_specializations %}
+                {% set spec = spec_data.specialization %}
+                {% set is_active = spec_data.is_active %}
+
+                {% if spec == 'GANCUJU_PLAYER' %}
+                    <div style="padding: 0.75rem; background-color: {{ 'rgba(52, 152, 219, 0.1)' if is_active else 'rgba(189, 195, 199, 0.1)' }}; border-radius: 6px; border-left: 3px solid {{ '#3498db' if is_active else '#bdc3c7' }}; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>🥋 GānCuju Player</strong>
+                            {% if is_active %}
+                                <span style="color: #3498db; font-size: 0.85rem;"> ● ACTIVE</span>
+                            {% else %}
+                                <span style="color: #95a5a6; font-size: 0.85rem;"> ○ INACTIVE</span>
+                            {% endif %}
+                            <p style="color: #7f8c8d; font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">4000-year-old Cuju tradition</p>
+                        </div>
+                        {% if is_active %}
+                            <button onclick="toggleSpecialization('GANCUJU_PLAYER', false)" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #95a5a6;">Deactivate</button>
+                        {% else %}
+                            <button onclick="toggleSpecialization('GANCUJU_PLAYER', true)" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Activate</button>
+                        {% endif %}
+                    </div>
+                {% elif spec == 'LFA_FOOTBALL_PLAYER' %}
+                    <div style="padding: 0.75rem; background-color: {{ 'rgba(52, 152, 219, 0.1)' if is_active else 'rgba(189, 195, 199, 0.1)' }}; border-radius: 6px; border-left: 3px solid {{ '#3498db' if is_active else '#bdc3c7' }}; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>⚽ LFA Football Player</strong>
+                            {% if is_active %}
+                                <span style="color: #3498db; font-size: 0.85rem;"> ● ACTIVE</span>
+                            {% else %}
+                                <span style="color: #95a5a6; font-size: 0.85rem;"> ○ INACTIVE</span>
+                            {% endif %}
+                            <p style="color: #7f8c8d; font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">Modern football training</p>
+                        </div>
+                        {% if is_active %}
+                            <button onclick="toggleSpecialization('LFA_FOOTBALL_PLAYER', false)" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #95a5a6;">Deactivate</button>
+                        {% else %}
+                            <button onclick="toggleSpecialization('LFA_FOOTBALL_PLAYER', true)" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Activate</button>
+                        {% endif %}
+                    </div>
+                {% elif spec == 'LFA_COACH' %}
+                    <div style="padding: 0.75rem; background-color: {{ 'rgba(52, 152, 219, 0.1)' if is_active else 'rgba(189, 195, 199, 0.1)' }}; border-radius: 6px; border-left: 3px solid {{ '#3498db' if is_active else '#bdc3c7' }}; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>👨‍🏫 LFA Coach</strong>
+                            {% if is_active %}
+                                <span style="color: #3498db; font-size: 0.85rem;"> ● ACTIVE</span>
+                            {% else %}
+                                <span style="color: #95a5a6; font-size: 0.85rem;"> ○ INACTIVE</span>
+                            {% endif %}
+                            <p style="color: #7f8c8d; font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">Coaching certification program</p>
+                        </div>
+                        {% if is_active %}
+                            <button onclick="toggleSpecialization('LFA_COACH', false)" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #95a5a6;">Deactivate</button>
+                        {% else %}
+                            <button onclick="toggleSpecialization('LFA_COACH', true)" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Activate</button>
+                        {% endif %}
+                    </div>
+                {% elif spec == 'INTERNSHIP' %}
+                    <div style="padding: 0.75rem; background-color: {{ 'rgba(52, 152, 219, 0.1)' if is_active else 'rgba(189, 195, 199, 0.1)' }}; border-radius: 6px; border-left: 3px solid {{ '#3498db' if is_active else '#bdc3c7' }}; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>💼 Internship</strong>
+                            {% if is_active %}
+                                <span style="color: #3498db; font-size: 0.85rem;"> ● ACTIVE</span>
+                            {% else %}
+                                <span style="color: #95a5a6; font-size: 0.85rem;"> ○ INACTIVE</span>
+                            {% endif %}
+                            <p style="color: #7f8c8d; font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">Startup experience program</p>
+                        </div>
+                        {% if is_active %}
+                            <button onclick="toggleSpecialization('INTERNSHIP', false)" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #95a5a6;">Deactivate</button>
+                        {% else %}
+                            <button onclick="toggleSpecialization('INTERNSHIP', true)" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Activate</button>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: #e74c3c;">❌ No teaching qualifications found</p>
+            <p style="font-size: 0.85rem; color: #7f8c8d;">Contact admin to add qualifications</p>
+        {% endif %}
+    </div>
+
+    <script>
+    async function toggleSpecialization(spec, activate) {
+        try {
+            const response = await fetch('/instructor/specialization/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    specialization: spec,
+                    is_active: activate
+                })
+            });
+
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to toggle specialization');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error toggling specialization');
+        }
+    }
+    </script>
+
+    <!-- My Teaching Sessions Card -->
+    <div class="modern-card modern-card-blue">
+        <h2>📅 My Teaching Sessions</h2>
+        <p style="color: #7f8c8d;">No upcoming sessions</p>
+        <a href="/sessions" class="btn btn-primary mt-2">
+            View All Sessions
+        </a>
+    </div>
+</div>
+
+<!-- Instructor Quick Actions -->
+<div class="mt-3">
+    <h2>Quick Actions</h2>
+    <div class="cards-grid">
+        <a href="/instructor/enrollments" class="card" style="text-decoration: none; color: inherit; border-left: 4px solid #f39c12;">
+            <h3>🥋 Enrollment Requests</h3>
+            <p>Approve enrollment requests for your semesters</p>
+        </a>
+
+        <a href="/sessions/create" class="card" style="text-decoration: none; color: inherit; border-left: 4px solid #3498db;">
+            <h3>➕ Create Session</h3>
+            <p>Schedule a new training session</p>
+        </a>
+
+        <a href="/profile" class="card" style="text-decoration: none; color: inherit;">
+            <h3>👤 View Profile</h3>
+            <p>See your instructor profile</p>
+        </a>
+
+        <a href="/sessions" class="card" style="text-decoration: none; color: inherit;">
+            <h3>📚 My Sessions</h3>
+            <p>Manage your teaching sessions</p>
+        </a>
+    </div>
+</div>
+
+{% endblock %}

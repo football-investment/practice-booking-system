@@ -8,10 +8,11 @@ from ..database import Base
 from .specialization import SpecializationType
 
 
-class SessionMode(enum.Enum):
-    ONLINE = "online"
-    OFFLINE = "offline"
-    HYBRID = "hybrid"
+class SessionType(enum.Enum):
+    """Professional session type classification for edtech/sporttech platforms"""
+    on_site = "on_site"    # Physical presence required at venue
+    virtual = "virtual"    # Remote attendance via online platform
+    hybrid = "hybrid"      # Both on-site and virtual attendance options available
 
 
 class Session(Base):
@@ -22,10 +23,10 @@ class Session(Base):
     description = Column(Text, nullable=True)
     date_start = Column(DateTime, nullable=False)
     date_end = Column(DateTime, nullable=False)
-    mode = Column(Enum(SessionMode), default=SessionMode.OFFLINE)
+    session_type = Column(Enum(SessionType), default=SessionType.on_site, nullable=False)
     capacity = Column(Integer, default=20)
-    location = Column(String, nullable=True)  # for offline sessions
-    meeting_link = Column(String, nullable=True)  # for online sessions
+    location = Column(String, nullable=True)  # for on-site sessions
+    meeting_link = Column(String, nullable=True)  # for virtual sessions
     sport_type = Column(String, default='General')  # Enhanced field for UI
     level = Column(String, default='All Levels')  # Enhanced field for UI
     instructor_name = Column(String, nullable=True)  # Enhanced field for UI
@@ -45,7 +46,46 @@ class Session(Base):
         default=False,
         comment="Whether this session is open to all specializations"
     )
-    
+
+    # ⏱️ Session Timer/Tracker fields (On-Site & Hybrid only)
+    actual_start_time = Column(
+        DateTime,
+        nullable=True,
+        comment="Actual start time when instructor starts the session"
+    )
+    actual_end_time = Column(
+        DateTime,
+        nullable=True,
+        comment="Actual end time when instructor stops the session"
+    )
+    session_status = Column(
+        String(20),
+        default="scheduled",
+        comment="Session status: scheduled, in_progress, completed"
+    )
+
+    # 🔓 Quiz Access Control (HYBRID sessions only)
+    quiz_unlocked = Column(
+        Boolean,
+        default=False,
+        comment="Whether the quiz is unlocked for students (HYBRID sessions)"
+    )
+
+    # 🎯 XP/Gamification
+    base_xp = Column(
+        Integer,
+        default=50,
+        comment="Base XP awarded for completing this session (HYBRID=100, ON-SITE=75, VIRTUAL=50)"
+    )
+
+    # 💳 Credit System
+    credit_cost = Column(
+        Integer,
+        default=1,
+        nullable=False,
+        comment="Number of credits required to book this session (default: 1, workshops may cost more)"
+    )
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -58,6 +98,10 @@ class Session(Base):
     feedbacks = relationship("Feedback", back_populates="session")
     notifications = relationship("Notification", back_populates="related_session")
     project_sessions = relationship("ProjectSession", back_populates="session")
+
+    # Performance review relationships (On-Site sessions only)
+    student_reviews = relationship("StudentPerformanceReview", back_populates="session")
+    instructor_reviews = relationship("InstructorSessionReview", back_populates="session")
 
     @property
     def related_projects(self):
@@ -102,3 +146,33 @@ class Session(Base):
     def is_accessible_to_all(self) -> bool:
         """Check if session is accessible to all specializations"""
         return self.mixed_specialization or self.target_specialization is None
+
+    @property
+    def type_display(self) -> str:
+        """Get user-friendly session type display name"""
+        type_map = {
+            SessionType.on_site: "On-Site",
+            SessionType.virtual: "Virtual",
+            SessionType.hybrid: "Hybrid"
+        }
+        return type_map.get(self.session_type, "On-Site")
+
+    @property
+    def type_icon(self) -> str:
+        """Get session type icon"""
+        icon_map = {
+            SessionType.on_site: "🏟️",
+            SessionType.virtual: "💻",
+            SessionType.hybrid: "🔄"
+        }
+        return icon_map.get(self.session_type, "🏟️")
+
+    @property
+    def type_badge_color(self) -> str:
+        """Get session type badge color for UI"""
+        color_map = {
+            SessionType.on_site: "#3498db",  # Blue
+            SessionType.virtual: "#9b59b6",  # Purple
+            SessionType.hybrid: "#e67e22"    # Orange
+        }
+        return color_map.get(self.session_type, "#3498db")

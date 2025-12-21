@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Available Semesters - LFA Education Center{% endblock %}
+
+{% block content %}
+
+<style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .credit-badge {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-banner {
+            background: #e6f7ff;
+            border-left: 4px solid #1890ff;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .info-banner p {
+            color: #0050b3;
+            margin: 0;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .spec-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .spec-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        .spec-card.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .spec-card.locked:hover {
+            transform: none;
+        }
+
+        .spec-card.unlocked {
+            border: 3px solid #52c41a;
+        }
+
+        .spec-icon {
+            font-size: 4rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .spec-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .spec-age {
+            text-align: center;
+            color: #718096;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .spec-description {
+            color: #4a5568;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .spec-action {
+            text-align: center;
+        }
+
+        .unlock-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .unlock-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .unlock-btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        .unlock-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .unlocked-badge {
+            background: #52c41a;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .locked-badge {
+            background: #ff4d4f;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+            font-size: 0.9rem;
+        }
+
+        .age-locked-badge {
+            background: #faad14;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+            font-size: 0.9rem;
+        }
+
+        .cost-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: #ffd700;
+            color: #2d3748;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .footer-links {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 1rem;
+            font-weight: 600;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+<!-- Header (SAME AS ABOUT-SPECIALIZATIONS) -->
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>Welcome, {{ user.name }}! 👋</h1>
+            <p>{{ user.email }} · Age: {{ user_age }} years</p>
+        </div>
+        <div class="header-actions">
+            {% if user.role.value == 'STUDENT' %}
+            <div class="credit-badge">
+                💰 {{ user.credit_balance }} credits
+            </div>
+            <a href="/credits" class="btn btn-primary">💳 Purchase Credits</a>
+            {% endif %}
+            <a href="/dashboard" class="btn btn-secondary">🏠 Dashboard</a>
+            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container">
+<div class="credits-container">
+        <h2 class="page-title">⚽ Available Training Semesters</h2>
+        <p class="page-subtitle">Enroll in semesters to access training sessions and progress through your football development path.</p>
+
+        {% if available_semesters|length == 0 %}
+        <div class="info-banner" style="background: #fff7e6; border-color: #faad14;">
+            <p style="color: #ad6800;">⚠️ <strong>No semesters available for your age group yet.</strong><br>
+            You can update your age in your <a href="/profile" style="color: #ad6800; text-decoration: underline;">profile settings</a> if needed.</p>
+        </div>
+        {% else %}
+        <div class="info-banner">
+            <p><strong>💡 Available Semesters for {{ age_category_name }} ({{ age_range }})</strong><br>
+            {{ age_description }} - {{ available_semesters|length }} semesters available</p>
+        </div>
+        {% endif %}
+
+        <!-- Semester Cards -->
+        <div class="cards-grid">
+            {% for semester in available_semesters %}
+            <div class="spec-card">
+                <div class="cost-badge">💰 {{ semester.enrollment_cost }} Credits</div>
+
+                <div class="spec-icon">⚽</div>
+                <h3 class="spec-title">{{ semester.name }}</h3>
+                <p class="spec-age">📅 {{ semester.start_date.strftime('%Y-%m-%d') }} - {{ semester.end_date.strftime('%Y-%m-%d') }}</p>
+                <p class="spec-description">
+                    <strong>Code:</strong> {{ semester.code }}<br>
+                    <strong>Location:</strong> {{ 'BUDA' if 'BUDA' in semester.code else 'PEST' if 'PEST' in semester.code else 'N/A' }}<br>
+                    <strong>Status:</strong> {{ 'Active ✅' if semester.is_active else 'Inactive ❌' }}
+                </p>
+
+                <div class="spec-action">
+                    {% if user.credit_balance < semester.enrollment_cost %}
+                        <button class="unlock-btn" disabled>
+                            ❌ Insufficient Credits (Need {{ semester.enrollment_cost }})
+                        </button>
+                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #718096;">
+                            <a href="/credits" style="color: #667eea; font-weight: 600;">Purchase credits →</a>
+                        </p>
+                    {% else %}
+                        <form method="POST" action="/semester/enroll">
+                            <input type="hidden" name="semester_id" value="{{ semester.id }}">
+                            <button type="submit" class="unlock-btn">
+                                🎓 Enroll Now ({{ semester.enrollment_cost }} credits)
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Footer -->
+        <div class="footer-links">
+            <a href="/dashboard">🏠 Back to Dashboard</a>
+            <a href="/credits">💳 Manage Credits</a>
+            <a href="/profile">👤 Edit Profile</a>
+        </div>
+</div>
+</div>
+
+{% endblock %}

@@ -1,141 +1,69 @@
 #!/bin/bash
+##############################################################################
+# 🚀 Backend API Server - Indító Script
+##############################################################################
 
-# 🚀 PRACTICE BOOKING SYSTEM - BACKEND INDÍTÁS
-# Egyszerű backend server indítás ellenőrzésekkel
-
-echo "🚀 PRACTICE BOOKING SYSTEM - BACKEND STARTUP"
-echo "============================================="
-
-# Színes output
+# Színek
 GREEN='\033[0;32m'
-RED='\033[0;31m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-log_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-log_info() {
-    echo -e "${BLUE}ℹ️ $1${NC}"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠️ $1${NC}"
-}
-
-# Ellenőrzések
+echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║          🚀  Backend API Server Indítása  🚀          ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "🔍 ELŐZETES ELLENŐRZÉSEK"
-echo "======================="
 
-# 1. Projekt könyvtár ellenőrzése
-if [ ! -f "app/main.py" ]; then
-    log_error "Nem vagyunk a practice_booking_system könyvtárban!"
-    echo "   Navigálj a projekt root könyvtárába és futtasd újra."
-    exit 1
-fi
-log_success "Projekt könyvtár OK"
+# Projekt gyökér
+PROJECT_ROOT="/Users/lovas.zoltan/Seafile/Football Investment/Projects/Football Investment Internship/practice_booking_system"
+cd "$PROJECT_ROOT" || exit 1
 
-# 2. Python ellenőrzés
-if ! command -v python3 &> /dev/null; then
-    log_error "Python3 nincs telepítve!"
-    exit 1
-fi
-log_success "Python3 telepítve: $(python3 --version)"
-
-# 3. Virtual environment ellenőrzés
-if [ ! -d "venv" ]; then
-    log_warning "Virtual environment nem található"
-    log_info "Létrehozás: python3 -m venv venv"
-    
-    read -p "Létrehozzam most? (y/n): " create_venv
-    if [ "$create_venv" = "y" ]; then
-        python3 -m venv venv
-        log_success "Virtual environment létrehozva"
-    else
-        log_error "Virtual environment szükséges a futáshoz"
-        exit 1
-    fi
-fi
-
-# 4. Virtual environment aktiválás
-if [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-    log_success "Virtual environment aktiválva"
+# 1. PostgreSQL ellenőrzés
+echo -e "${YELLOW}🔍 PostgreSQL ellenőrzése...${NC}"
+if psql -U postgres -d lfa_intern_system -c "SELECT 1" > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ PostgreSQL fut és az adatbázis elérhető${NC}"
 else
-    log_error "Virtual environment aktiválás sikertelen"
-    exit 1
-fi
+    echo -e "${RED}❌ PostgreSQL nem elérhető!${NC}"
+    echo -e "${YELLOW}📝 PostgreSQL indítása...${NC}"
+    brew services start postgresql@14
+    sleep 3
 
-# 5. Dependencies ellenőrzés
-if ! python -c "import fastapi" &> /dev/null; then
-    log_warning "Dependencies hiányoznak"
-    log_info "Telepítés: pip install -r requirements.txt"
-    
-    read -p "Telepítsem most? (y/n): " install_deps
-    if [ "$install_deps" = "y" ]; then
-        pip install -r requirements.txt
-        log_success "Dependencies telepítve"
+    if psql -U postgres -d lfa_intern_system -c "SELECT 1" > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ PostgreSQL most már fut${NC}"
     else
-        log_error "Dependencies szükségesek a futáshoz"
+        echo -e "${RED}❌ PostgreSQL hiba! Kérlek indítsd el manuálisan:${NC}"
+        echo -e "  ${GREEN}brew services start postgresql@14${NC}"
         exit 1
     fi
 fi
 
-# 6. Port ellenőrzés
-if lsof -i :8000 &> /dev/null; then
-    log_warning "Port 8000 már használatban"
-    log_info "Leállítom a meglévő folyamatot..."
-    
-    PID=$(lsof -ti :8000)
-    kill -9 $PID 2>/dev/null
-    sleep 2
-    
-    if lsof -i :8000 &> /dev/null; then
-        log_error "Nem sikerült felszabadítani a 8000-es portot"
-        exit 1
-    fi
-    log_success "Port felszabadítva"
-fi
+# 2. Python környezet aktiválás
+echo -e "${YELLOW}🐍 Python környezet aktiválása...${NC}"
+source implementation/venv/bin/activate
+echo -e "${GREEN}✅ Virtual environment aktiválva${NC}"
 
-# 7. Database ellenőrzés
-log_info "Database kapcsolat tesztelése..."
-if python -c "
-from app.database import engine
-try:
-    with engine.connect() as conn:
-        print('Database connection OK')
-except Exception as e:
-    print(f'Database error: {e}')
-    exit(1)
-" 2>/dev/null; then
-    log_success "Database kapcsolat OK"
-else
-    log_error "Database kapcsolat sikertelen"
-    log_info "Ellenőrizd a PostgreSQL státuszát és a .env fájlt"
-    exit 1
-fi
+# 3. Adatbázis URL beállítása
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/lfa_intern_system"
+echo -e "${GREEN}✅ DATABASE_URL beállítva${NC}"
 
-# SERVER INDÍTÁS
+# 4. Backend indítása
+echo -e "${GREEN}🚀 FastAPI backend indítása...${NC}"
 echo ""
-echo "🎯 SERVER INDÍTÁS"
-echo "================"
-
-log_info "Backend server indítása a http://localhost:8000 címen..."
-log_info "API dokumentáció: http://localhost:8000/docs"
-log_info ""
-log_warning "A server leállításához nyomd meg Ctrl+C"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  🌐 API URL:      http://localhost:8000${NC}"
+echo -e "${GREEN}  📚 SwaggerUI:    http://localhost:8000/docs${NC}"
+echo -e "${GREEN}  📖 ReDoc:        http://localhost:8000/redoc${NC}"
+echo -e "${GREEN}  📋 OpenAPI JSON: http://localhost:8000/openapi.json${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${YELLOW}💡 Használati tippek:${NC}"
+echo -e "  • SwaggerUI-ban tesztelheted az összes endpoint-ot"
+echo -e "  • Interaktív dashboard: ./start_interactive_testing.sh"
+echo -e "  • CTRL+C a kilépéshez"
+echo ""
+echo -e "${YELLOW}📊 Backend indítása...${NC}"
 echo ""
 
-# Indítás verbose móddal
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Ha ide eljutunk, a server leállt
-echo ""
-log_info "Backend server leállt"
+# Uvicorn indítása
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

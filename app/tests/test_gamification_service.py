@@ -6,7 +6,7 @@ from app.services.gamification import GamificationService
 from app.models.user import User, UserRole
 from app.models.gamification import UserStats, UserAchievement, BadgeType
 from app.models.booking import Booking, BookingStatus
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionTypel
 from app.models.semester import Semester
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.feedback import Feedback
@@ -52,7 +52,7 @@ class TestGamificationService:
     @pytest.fixture
     def test_session(self, db_session: Session, test_user, test_semester):
         """Create a test session"""
-        session = SessionModel(
+        session = SessionTypel(
             title="Test Session",
             description="Test Description",
             instructor_id=test_user.id,
@@ -146,7 +146,7 @@ class TestGamificationService:
         db_session.add(semester2)
         db_session.commit()
 
-        session2 = SessionModel(
+        session2 = SessionTypel(
             title="Test Session 2",
             description="Test Description 2",
             instructor_id=test_user.id,

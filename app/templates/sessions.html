@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Sessions - LFA Education Center{% endblock %}
+
+{% block content %}
+
+<style>
+/* Specialization colors */
+.spec-badge-GANCUJU_PLAYER { background-color: #e74c3c; color: white; }
+.spec-badge-LFA_FOOTBALL_PLAYER { background-color: #27ae60; color: white; }
+.spec-badge-LFA_COACH { background-color: #3498db; color: white; }
+.spec-badge-INTERNSHIP { background-color: #f39c12; color: white; }
+
+.spec-border-GANCUJU_PLAYER { border-left: 4px solid #e74c3c !important; }
+.spec-border-LFA_FOOTBALL_PLAYER { border-left: 4px solid #27ae60 !important; }
+.spec-border-LFA_COACH { border-left: 4px solid #3498db !important; }
+.spec-border-INTERNSHIP { border-left: 4px solid #f39c12 !important; }
+
+.filter-btn { padding: 0.5rem 1rem; margin: 0.25rem; border: 2px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+.filter-btn:hover { transform: translateY(-2px); }
+.filter-btn.active { border-width: 2px; font-weight: bold; }
+.filter-btn-GANCUJU_PLAYER.active { background-color: #e74c3c; color: white; border-color: #c0392b; }
+.filter-btn-LFA_FOOTBALL_PLAYER.active { background-color: #27ae60; color: white; border-color: #229954; }
+.filter-btn-LFA_COACH.active { background-color: #3498db; color: white; border-color: #2980b9; }
+.filter-btn-INTERNSHIP.active { background-color: #f39c12; color: white; border-color: #d68910; }
+.session-card.hidden { display: none; }
+.student-session-card.hidden { display: none; }
+
+/* Pulse animation for IN PROGRESS badge */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+</style>
+
+<div class="welcome-section">
+    <h1>📅 Training Sessions</h1>
+    {% if is_instructor %}
+        <p>Manage your teaching sessions</p>
+    {% else %}
+        <p>Browse and book your training sessions</p>
+    {% endif %}
+</div>
+
+<!-- Success/Error Messages -->
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('success') === 'booked') {
+    alert('✅ Session booked successfully!');
+    window.history.replaceState({}, document.title, "/sessions");
+} else if (urlParams.get('success') === 'cancelled') {
+    alert('✅ Booking cancelled successfully!');
+    window.history.replaceState({}, document.title, "/sessions");
+} else if (urlParams.get('info') === 'already_booked') {
+    alert('ℹ️ You have already booked this session.');
+    window.history.replaceState({}, document.title, "/sessions");
+} else if (urlParams.get('error')) {
+    alert('❌ Error: ' + urlParams.get('error'));
+    window.history.replaceState({}, document.title, "/sessions");
+}
+</script>
+
+{% if is_instructor %}
+    <!-- ========================================== -->
+    <!-- INSTRUCTOR VIEW                            -->
+    <!-- ========================================== -->
+
+    <!-- Filters -->
+    <div class="mt-3" style="background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="margin-top: 0; margin-bottom: 0.75rem;">📋 Filter Sessions</h3>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            <button class="filter-btn active" onclick="filterSpecialization('ALL')">
+                All Specializations
+            </button>
+            <button class="filter-btn filter-btn-GANCUJU_PLAYER" onclick="filterSpecialization('GANCUJU_PLAYER')">
+                🥋 GānCuju Player
+            </button>
+            <button class="filter-btn filter-btn-LFA_FOOTBALL_PLAYER" onclick="filterSpecialization('LFA_FOOTBALL_PLAYER')">
+                ⚽ LFA Football Player
+            </button>
+            <button class="filter-btn filter-btn-LFA_COACH" onclick="filterSpecialization('LFA_COACH')">
+                👨‍🏫 LFA Coach
+            </button>
+            <button class="filter-btn filter-btn-INTERNSHIP" onclick="filterSpecialization('INTERNSHIP')">
+                💼 Internship
+            </button>
+        </div>
+
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+            <strong>📅 Date Range:</strong>
+            <select id="dateFilter" onchange="filterDate()" style="margin-left: 0.5rem; padding: 0.4rem; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="all">All Sessions</option>
+                <option value="upcoming">Upcoming Only</option>
+                <option value="past">Past Only</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- My Teaching Sessions -->
+    <div class="mt-3">
+        <h2>My Teaching Sessions</h2>
+        {% if my_teaching_sessions %}
+        <div class="cards-grid mt-2">
+            {% for session in my_teaching_sessions %}
+            <div class="card session-card {% if session.target_specialization %}spec-border-{{ session.target_specialization.value }}{% endif %}"
+                 data-specialization="{{ session.target_specialization.value if session.target_specialization else 'NONE' }}"
+                 data-date="{{ session.date_start.strftime('%Y-%m-%d') }}"
+                 data-datetime="{{ session.date_end.strftime('%Y-%m-%d %H:%M:%S') }}">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">{{ session.title }}</h3>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <!-- Session Type Badge -->
+                        <span class="badge" style="
+                            {% if session.session_type.value == 'on_site' %}background-color: #27ae60;
+                            {% elif session.session_type.value == 'hybrid' %}background-color: #3498db;
+                            {% elif session.session_type.value == 'virtual' %}background-color: #9b59b6;
+                            {% endif %}
+                            color: white;">
+                            {% if session.session_type.value == 'on_site' %}🏢 On-Site
+                            {% elif session.session_type.value == 'hybrid' %}🔀 Hybrid
+                            {% elif session.session_type.value == 'virtual' %}💻 Virtual
+                            {% endif %}
+                        </span>
+                        <span class="badge badge-info">{{ session.mode }}</span>
+                    </div>
+                </div>
+
+                {% if session.target_specialization %}
+                <div style="margin-bottom: 0.5rem;">
+                    <span class="badge spec-badge-{{ session.target_specialization.value }}">
+                        {% if session.target_specialization.value == 'GANCUJU_PLAYER' %}🥋 GānCuju Player
+                        {% elif session.target_specialization.value == 'LFA_FOOTBALL_PLAYER' %}⚽ LFA Football Player
+                        {% elif session.target_specialization.value == 'LFA_COACH' %}👨‍🏫 LFA Coach
+                        {% elif session.target_specialization.value == 'INTERNSHIP' %}💼 Internship
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+
+                {% if session.description %}
+                <p style="color: #7f8c8d; margin-bottom: 1rem;">{{ session.description[:100] }}{% if session.description|length > 100 %}...{% endif %}</p>
+                {% endif %}
+
+                {% if session.session_type.value == 'virtual' %}
+                    {# VIRTUAL: Show full date range (can span multiple days) #}
+                    <div style="margin-top: 1rem; padding: 0.75rem; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>📅 Available From:</strong>
+                            <p style="margin: 0; font-size: 0.95rem;">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
+                        </div>
+                        <div>
+                            <strong>⏰ Until:</strong>
+                            <p style="margin: 0; font-size: 0.95rem;">{{ session.date_end.strftime('%b %d, %Y at %H:%M') }}</p>
+                        </div>
+                        <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #7f8c8d; font-style: italic;">
+                            Multiple attempts available during this period
+                        </p>
+                    </div>
+                {% else %}
+                    {# ON-SITE / HYBRID: Show single day time slot #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
+                        <div>
+                            <strong>📅 Date:</strong>
+                            <p style="margin: 0;">{{ session.date_start.strftime('%b %d, %Y') }}</p>
+                        </div>
+                        <div>
+                            <strong>🕐 Time:</strong>
+                            <p style="margin: 0;">{{ session.date_start.strftime('%H:%M') }} - {{ session.date_end.strftime('%H:%M') }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if session.location %}
+                <div style="margin-top: 0.5rem;">
+                    <strong>📍 Location:</strong>
+                    <p style="margin: 0;">{{ session.location }}</p>
+                </div>
+                {% endif %}
+
+                {% if session.capacity %}
+                <div style="margin-top: 1rem;">
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Enrolled Students</span>
+                            <span>{{ session.enrolled_count or 0 }}/{{ session.capacity }}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ ((session.enrolled_count or 0) / session.capacity * 100) if session.capacity > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Student Reviews (if any) -->
+                {% if session.student_reviews %}
+                <div style="margin-top: 1rem; padding: 1rem; background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <strong style="color: #16a34a;">💬 Student Feedback</strong>
+                        <span style="font-size: 0.9rem; color: #7f8c8d;">
+                            {{ session.student_reviews|length }} review{{ 's' if session.student_reviews|length > 1 else '' }}
+                        </span>
+                    </div>
+                    {% set total_rating = namespace(sum=0, count=0) %}
+                    {% for review in session.student_reviews %}
+                        {% set avg = (review.instructor_clarity + review.support_approachability + review.session_structure + review.relevance + review.environment + review.engagement_feeling + review.feedback_quality + review.satisfaction) / 8.0 %}
+                        {% set total_rating.sum = total_rating.sum + avg %}
+                        {% set total_rating.count = total_rating.count + 1 %}
+                    {% endfor %}
+                    <div style="font-size: 1rem; color: #16a34a; font-weight: bold;">
+                        ⭐ {{ "%.1f"|format(total_rating.sum / total_rating.count if total_rating.count > 0 else 0) }}/5.0 Average
+                    </div>
+                </div>
+                {% endif %}
+
+                <div style="margin-top: 1rem;">
+                    <a href="/sessions/{{ session.id }}" class="btn btn-secondary" style="width: 100%; display: inline-block; text-align: center;">View Details</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card text-center" style="padding: 3rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
+            <h3>No Teaching Sessions</h3>
+            <p style="color: #7f8c8d;">Create your first session to start teaching</p>
+            <a href="/sessions/create" class="btn btn-primary mt-2">Create Session</a>
+        </div>
+        {% endif %}
+    </div>
+
+{% else %}
+    <!-- ========================================== -->
+    <!-- STUDENT VIEW                               -->
+    <!-- ========================================== -->
+
+    <!-- Filters for Students -->
+    <div class="mt-3" style="background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="margin-top: 0; margin-bottom: 0.75rem;">📋 Filter Sessions</h3>
+
+        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <strong>📅 Date Range:</strong>
+                <select id="studentDateFilter" onchange="filterStudentSessions()" style="padding: 0.4rem; border-radius: 4px; border: 1px solid #ddd;">
+                    <option value="all">All Sessions</option>
+                    <option value="upcoming">Upcoming Only</option>
+                    <option value="past">Past Only</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <strong>🎯 Session Type:</strong>
+                <select id="studentTypeFilter" onchange="filterStudentSessions()" style="padding: 0.4rem; border-radius: 4px; border: 1px solid #ddd;">
+                    <option value="all">All Types</option>
+                    <option value="on_site">🏢 On-Site</option>
+                    <option value="hybrid">🔄 Hybrid</option>
+                    <option value="virtual">💻 Virtual</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Sessions -->
+    <div class="mt-3">
+        <h2>All Sessions</h2>
+    {% if upcoming_sessions %}
+    <div class="cards-grid mt-2">
+        {% for session in upcoming_sessions %}
+        <div class="card student-session-card"
+             data-date="{{ session.date_start.strftime('%Y-%m-%d') }}"
+             data-datetime="{{ session.date_end.strftime('%Y-%m-%d %H:%M:%S') }}"
+             data-session-type="{{ session.session_type.value }}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">{{ session.title }}</h3>
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <!-- Session Type Badge -->
+                    <span class="badge" style="
+                        {% if session.session_type.value == 'on_site' %}background-color: #27ae60;
+                        {% elif session.session_type.value == 'hybrid' %}background-color: #3498db;
+                        {% elif session.session_type.value == 'virtual' %}background-color: #9b59b6;
+                        {% endif %}
+                        color: white;">
+                        {% if session.session_type.value == 'on_site' %}🏢 On-Site
+                        {% elif session.session_type.value == 'hybrid' %}🔀 Hybrid
+                        {% elif session.session_type.value == 'virtual' %}💻 Virtual
+                        {% endif %}
+                    </span>
+
+                    <span class="badge badge-info">{{ session.mode }}</span>
+
+                    <!-- Session Status Badge (On-Site & Hybrid only) -->
+                    {% if session.session_type.value in ['on_site', 'hybrid'] %}
+                        {% if session.actual_start_time and not session.actual_end_time %}
+                            <!-- Session in progress -->
+                            <span class="badge" style="background-color: #f39c12; color: white; animation: pulse 2s infinite;">
+                                ⏳ IN PROGRESS
+                            </span>
+                        {% elif session.actual_end_time %}
+                            <!-- Session completed - only show if student attended (not absent) -->
+                            {% if session.my_attendance and session.my_attendance.status.value != 'absent' %}
+                                <span class="badge" style="background-color: #27ae60; color: white;">
+                                    ✅ COMPLETED
+                                </span>
+                            {% endif %}
+                        {% elif session.session_type.value == 'virtual' and session.quiz_completed %}
+                            <!-- VIRTUAL session completed (quiz passed) -->
+                            <span class="badge" style="background-color: #27ae60; color: white;">
+                                ✅ COMPLETED
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if session.description %}
+            <p style="color: #7f8c8d; margin-bottom: 1rem;">{{ session.description[:100] }}{% if session.description|length > 100 %}...{% endif %}</p>
+            {% endif %}
+
+            {% if session.session_type.value == 'virtual' %}
+                {# VIRTUAL: Show full date range (can span multiple days) #}
+                <div style="margin-top: 1rem; padding: 0.75rem; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong>📅 Available From:</strong>
+                        <p style="margin: 0; font-size: 0.95rem;">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
+                    </div>
+                    <div>
+                        <strong>⏰ Until:</strong>
+                        <p style="margin: 0; font-size: 0.95rem;">{{ session.date_end.strftime('%b %d, %Y at %H:%M') }}</p>
+                    </div>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #7f8c8d; font-style: italic;">
+                        Multiple attempts available during this period
+                    </p>
+                </div>
+            {% else %}
+                {# ON-SITE / HYBRID: Show single day time slot #}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem;">
+                    <div>
+                        <strong>📅 Date:</strong>
+                        <p style="margin: 0;">{{ session.date_start.strftime('%b %d, %Y') }}</p>
+                    </div>
+                    <div>
+                        <strong>🕐 Time:</strong>
+                        <p style="margin: 0;">{{ session.date_start.strftime('%H:%M') }} - {{ session.date_end.strftime('%H:%M') }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if session.location %}
+            <div style="margin-top: 0.5rem;">
+                <strong>📍 Location:</strong>
+                <p style="margin: 0;">{{ session.location }}</p>
+            </div>
+            {% endif %}
+
+            {% if session.instructor_name %}
+            <div style="margin-top: 0.5rem;">
+                <strong>👨‍🏫 Instructor:</strong>
+                <p style="margin: 0;">{{ session.instructor_name }}</p>
+            </div>
+            {% endif %}
+
+            {% if session.capacity %}
+            <div style="margin-top: 1rem;">
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Capacity</span>
+                        <span>{{ session.enrolled_count or 0 }}/{{ session.capacity }}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ ((session.enrolled_count or 0) / session.capacity * 100) if session.capacity > 0 else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Instructor Performance Review (if exists) -->
+            {% if session.performance_review %}
+            <div style="margin-top: 1rem; padding: 1rem; background-color: #f0f8ff; border-left: 4px solid #3498db; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <strong style="color: #2980b9;">📊 Instructor Evaluation</strong>
+                    <span style="font-size: 0.9rem; color: #7f8c8d;">
+                        ⭐ {{ "%.1f"|format((session.performance_review.punctuality + session.performance_review.engagement + session.performance_review.focus + session.performance_review.collaboration + session.performance_review.attitude) / 5.0) }}/5.0
+                    </span>
+                </div>
+                <div style="font-size: 0.85rem; color: #555; line-height: 1.4;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem;">
+                        <span>⏰ Punctuality: {{ session.performance_review.punctuality }}/5</span>
+                        <span>🎯 Engagement: {{ session.performance_review.engagement }}/5</span>
+                        <span>🎓 Focus: {{ session.performance_review.focus }}/5</span>
+                        <span>🤝 Collaboration: {{ session.performance_review.collaboration }}/5</span>
+                        <span style="grid-column: span 2;">😊 Attitude: {{ session.performance_review.attitude }}/5</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div style="margin-top: 1rem;">
+                <a href="/sessions/{{ session.id }}" class="btn btn-secondary" style="width: 100%; display: inline-block; text-align: center; margin-bottom: 0.5rem;">View Details</a>
+                {% if session.is_enrolled %}
+                    {% if session.can_cancel %}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-success" style="flex: 1;" disabled>✓ Booked</button>
+                            <form method="POST" action="/sessions/cancel/{{ session.id }}" style="margin: 0; flex: 1;">
+                                <button type="submit" class="btn btn-secondary" style="width: 100%; background-color: #e74c3c; border-color: #c0392b;"
+                                        onclick="return confirm('Are you sure you want to cancel this booking?')">Cancel</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <button class="btn btn-success" style="width: 100%;" disabled>✓ Booked</button>
+                    {% endif %}
+                {% else %}
+                    {% if session.can_book %}
+                        <form method="POST" action="/sessions/book/{{ session.id }}" style="margin: 0;">
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Book Session</button>
+                        </form>
+                    {% else %}
+                        <button class="btn btn-secondary" style="width: 100%;" disabled>⏰ Booking Closed</button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card text-center" style="padding: 3rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
+        <h3>No Upcoming Sessions</h3>
+        <p style="color: #7f8c8d;">Check back later for new training sessions</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- My Enrolled Sessions -->
+<div class="mt-3">
+    <h2>My Enrolled Sessions</h2>
+    {% if enrolled_sessions %}
+    <div class="cards-grid mt-2">
+        {% for session in enrolled_sessions %}
+        <div class="card" style="border-left: 4px solid var(--success-color);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">{{ session.title }}</h3>
+                <span class="badge badge-success">✓ Enrolled</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <div>
+                    <strong>📅 Date:</strong>
+                    <p style="margin: 0;">{{ session.date_start.strftime('%b %d, %Y') }}</p>
+                </div>
+                <div>
+                    <strong>🕐 Time:</strong>
+                    <p style="margin: 0;">{{ session.date_start.strftime('%H:%M') }}</p>
+                </div>
+            </div>
+
+            {% if session.meeting_link %}
+            <div style="margin-top: 1rem;">
+                <a href="{{ session.meeting_link }}" class="btn btn-primary" style="width: 100%;" target="_blank">
+                    Join Meeting
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card text-center" style="padding: 2rem;">
+        <p style="color: #7f8c8d;">You haven't enrolled in any sessions yet</p>
+        <p style="color: #7f8c8d; font-size: 0.9rem;">Browse upcoming sessions above to get started!</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Past Sessions -->
+{% if past_sessions %}
+<div class="mt-3">
+    <h2>Past Sessions</h2>
+    <div class="cards-grid mt-2">
+        {% for session in past_sessions %}
+        <div class="card" style="opacity: 0.8;">
+            <h3>{{ session.title }}</h3>
+            <p style="color: #7f8c8d;">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
+            <span class="badge" style="background-color: #95a5a6; color: white;">Completed</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}  <!-- End STUDENT VIEW -->
+
+<script>
+// Filter by specialization
+let currentSpecFilter = 'ALL';
+let currentDateFilter = 'all';
+
+function filterSpecialization(spec) {
+    currentSpecFilter = spec;
+
+    // Update button states
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Apply filters
+    applyFilters();
+}
+
+function filterDate() {
+    currentDateFilter = document.getElementById('dateFilter').value;
+    applyFilters();
+}
+
+function applyFilters() {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const monthLater = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    document.querySelectorAll('.session-card').forEach(card => {
+        const cardSpec = card.getAttribute('data-specialization');
+        const cardDate = new Date(card.getAttribute('data-date'));
+        cardDate.setHours(0, 0, 0, 0);
+
+        // For upcoming filter, use session END time (data-datetime)
+        const cardEndTime = new Date(card.getAttribute('data-datetime'));
+
+        // Check specialization filter
+        let specMatch = (currentSpecFilter === 'ALL' || cardSpec === currentSpecFilter);
+
+        // Check date filter
+        let dateMatch = true;
+        if (currentDateFilter === 'upcoming') {
+            // Session is upcoming if END time is in the future
+            dateMatch = cardEndTime > now;
+        } else if (currentDateFilter === 'past') {
+            // Session is past if END time is in the past
+            dateMatch = cardEndTime <= now;
+        } else if (currentDateFilter === 'week') {
+            dateMatch = cardDate >= today && cardDate <= weekLater && cardEndTime > now;
+        } else if (currentDateFilter === 'month') {
+            dateMatch = cardDate >= today && cardDate <= monthLater && cardEndTime > now;
+        }
+
+        // Show/hide card
+        if (specMatch && dateMatch) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+
+    // Update count
+    const visibleCount = document.querySelectorAll('.session-card:not(.hidden)').length;
+    console.log(`Showing ${visibleCount} sessions`);
+}
+
+// Student filter function - combines date AND session type filters
+function filterStudentSessions() {
+    const dateFilterValue = document.getElementById('studentDateFilter').value;
+    const typeFilterValue = document.getElementById('studentTypeFilter').value;
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const monthLater = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    document.querySelectorAll('.student-session-card').forEach(card => {
+        const cardDate = new Date(card.getAttribute('data-date'));
+        cardDate.setHours(0, 0, 0, 0);
+
+        // For upcoming filter, use session END time (data-datetime)
+        const cardEndTime = new Date(card.getAttribute('data-datetime'));
+        const cardSessionType = card.getAttribute('data-session-type');
+
+        // Check date filter
+        let dateMatch = true;
+        if (dateFilterValue === 'upcoming') {
+            // Session is upcoming if END time is in the future
+            dateMatch = cardEndTime > now;
+        } else if (dateFilterValue === 'past') {
+            // Session is past if END time is in the past
+            dateMatch = cardEndTime <= now;
+        } else if (dateFilterValue === 'week') {
+            dateMatch = cardDate >= today && cardDate <= weekLater && cardEndTime > now;
+        } else if (dateFilterValue === 'month') {
+            dateMatch = cardDate >= today && cardDate <= monthLater && cardEndTime > now;
+        }
+
+        // Check session type filter
+        let typeMatch = (typeFilterValue === 'all' || cardSessionType === typeFilterValue);
+
+        // Show/hide card - both filters must match
+        if (dateMatch && typeMatch) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+
+    // Update count
+    const visibleCount = document.querySelectorAll('.student-session-card:not(.hidden)').length;
+    console.log(`Showing ${visibleCount} student sessions`);
+}
+</script>
+
+{% endblock %}

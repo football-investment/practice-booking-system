@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LFA Player Onboarding | LFA Practice Booking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.3);
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: white;
+            transition: width 0.3s ease;
+            width: 33.33%;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-title {
+            font-size: 1.5rem;
+            color: #1a1a2e;
+            margin-bottom: 1rem;
+        }
+
+        .step-description {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        /* Position Selection */
+        .position-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .position-card {
+            border: 3px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .position-card:hover {
+            border-color: #667eea;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .position-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .position-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .position-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #1a1a2e;
+            margin-bottom: 0.25rem;
+        }
+
+        .position-description {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Skills Assessment */
+        .skill-item {
+            margin-bottom: 2rem;
+        }
+
+        .skill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .skill-name {
+            font-weight: 600;
+            color: #1a1a2e;
+            font-size: 1.1rem;
+        }
+
+        .skill-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .skill-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .skill-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .skill-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .skill-description {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        /* Motivation */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ Welcome to LFA Football Player</h1>
+            <p>Let's get to know you better!</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+
+        <div class="content">
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
+
+            <form id="onboardingForm" action="/specialization/lfa-player/onboarding-submit" method="POST">
+                <!-- STEP 1: Position Selection -->
+                <div class="step active" data-step="1">
+                    <h2 class="step-title">1️⃣ What's your preferred playing position?</h2>
+                    <p class="step-description">Select the position you feel most comfortable playing.</p>
+
+                    <div class="position-grid">
+                        <div class="position-card" data-position="STRIKER">
+                            <div class="position-icon">⚡</div>
+                            <div class="position-name">Striker</div>
+                            <div class="position-description">Score goals and lead attacks</div>
+                        </div>
+
+                        <div class="position-card" data-position="MIDFIELDER">
+                            <div class="position-icon">🎯</div>
+                            <div class="position-name">Midfielder</div>
+                            <div class="position-description">Control the game's tempo</div>
+                        </div>
+
+                        <div class="position-card" data-position="DEFENDER">
+                            <div class="position-icon">🛡️</div>
+                            <div class="position-name">Defender</div>
+                            <div class="position-description">Protect and build from back</div>
+                        </div>
+
+                        <div class="position-card" data-position="GOALKEEPER">
+                            <div class="position-icon">🧤</div>
+                            <div class="position-name">Goalkeeper</div>
+                            <div class="position-description">Guard the goal</div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="position" id="positionInput" required>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" id="step1Next" disabled>Next →</button>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Self-Assessment -->
+                <div class="step" data-step="2">
+                    <h2 class="step-title">2️⃣ Rate your current skill levels</h2>
+                    <p class="step-description">Be honest! This helps us understand your starting point and track your progress.</p>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">⚽ Heading</span>
+                            <span class="skill-value" id="heading-value">5</span>
+                        </div>
+                        <input type="range" name="skill_heading" class="skill-slider" min="0" max="10" value="5" data-skill="heading">
+                        <div class="skill-description">Ability to control and direct the ball with your head</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">🎯 Shooting</span>
+                            <span class="skill-value" id="shooting-value">5</span>
+                        </div>
+                        <input type="range" name="skill_shooting" class="skill-slider" min="0" max="10" value="5" data-skill="shooting">
+                        <div class="skill-description">Power, accuracy, and technique when shooting at goal</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">🎪 Passing</span>
+                            <span class="skill-value" id="passing-value">5</span>
+                        </div>
+                        <input type="range" name="skill_passing" class="skill-slider" min="0" max="10" value="5" data-skill="passing">
+                        <div class="skill-description">Accuracy and vision when distributing the ball</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">⚡ Dribbling</span>
+                            <span class="skill-value" id="dribbling-value">5</span>
+                        </div>
+                        <input type="range" name="skill_dribbling" class="skill-slider" min="0" max="10" value="5" data-skill="dribbling">
+                        <div class="skill-description">Ball control and ability to beat opponents</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">🛡️ Defending</span>
+                            <span class="skill-value" id="defending-value">5</span>
+                        </div>
+                        <input type="range" name="skill_defending" class="skill-slider" min="0" max="10" value="5" data-skill="defending">
+                        <div class="skill-description">Tackling, positioning, and defensive awareness</div>
+                    </div>
+
+                    <div class="skill-item">
+                        <div class="skill-header">
+                            <span class="skill-name">💪 Physical</span>
+                            <span class="skill-value" id="physical-value">5</span>
+                        </div>
+                        <input type="range" name="skill_physical" class="skill-slider" min="0" max="10" value="5" data-skill="physical">
+                        <div class="skill-description">Strength, stamina, speed, and athletic ability</div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+                        <button type="button" class="btn btn-primary" onclick="goToStep(3)">Next →</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: Motivation & Goals -->
+                <div class="step" data-step="3">
+                    <h2 class="step-title">3️⃣ Tell us about your football journey</h2>
+                    <p class="step-description">Share your motivation and what you hope to achieve.</p>
+
+                    <div class="form-group">
+                        <label for="motivation">Why do you want to become an LFA Football Player?</label>
+                        <textarea name="motivation" id="motivation" placeholder="Share your passion for football, what drives you, and why you chose this path..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goals">What are your football goals?</label>
+                        <select name="goals" id="goals" required style="width: 100%; padding: 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; font-family: inherit;">
+                            <option value="">Select your primary goal...</option>
+                            <option value="improve_skills">Improve my technical skills</option>
+                            <option value="play_higher_level">Play at a higher competitive level</option>
+                            <option value="become_professional">Become a professional player</option>
+                            <option value="team_football">Join a football team</option>
+                            <option value="fitness_health">Stay fit and healthy through football</option>
+                            <option value="enjoy_game">Simply enjoy playing the game</option>
+                        </select>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="cancelOnboarding()">✖️ Cancel & Refund</button>
+                        <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+                        <button type="submit" class="btn btn-primary">🎉 Complete Onboarding</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let selectedPosition = null;
+
+        // Position selection
+        document.querySelectorAll('.position-card').forEach(card => {
+            card.addEventListener('click', () => {
+                // Deselect all
+                document.querySelectorAll('.position-card').forEach(c => c.classList.remove('selected'));
+
+                // Select this one
+                card.classList.add('selected');
+                selectedPosition = card.dataset.position;
+                document.getElementById('positionInput').value = selectedPosition;
+                document.getElementById('step1Next').disabled = false;
+            });
+        });
+
+        document.getElementById('step1Next').addEventListener('click', () => {
+            if (selectedPosition) {
+                goToStep(2);
+            }
+        });
+
+        // Skill sliders
+        document.querySelectorAll('.skill-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const skillName = e.target.dataset.skill;
+                const value = e.target.value;
+                document.getElementById(`${skillName}-value`).textContent = value;
+            });
+        });
+
+        // Step navigation
+        function goToStep(step) {
+            currentStep = step;
+
+            // Hide all steps
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+
+            // Show target step
+            document.querySelector(`.step[data-step="${step}"]`).classList.add('active');
+
+            // Update progress bar
+            const progress = (step / 3) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        // Form submission
+        document.getElementById('onboardingForm').addEventListener('submit', (e) => {
+            if (!selectedPosition) {
+                e.preventDefault();
+                alert('Please select your playing position');
+                goToStep(1);
+                return;
+            }
+        });
+
+        // Cancel onboarding with refund
+        function cancelOnboarding() {
+            if (confirm('Are you sure you want to cancel? Your 100 credits will be refunded.')) {
+                window.location.href = '/specialization/lfa-player/onboarding-cancel';
+            }
+        }
+    </script>
+</body>
+</html>

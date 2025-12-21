@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}Session Calendar - LFA Education Center{% endblock %}
+<!-- Version: 1.1 - Instructor filter support -->
+
+{% block extra_head %}
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+<style>
+    .calendar-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .calendar-header {
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .calendar-header h2 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .calendar-filters {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #f8f9fa;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-checkbox:hover {
+        background: #e9ecef;
+    }
+
+    .filter-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .filter-checkbox label {
+        cursor: pointer;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Color indicators */
+    .color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .color-dot.hybrid {
+        background-color: #3788d8;
+    }
+
+    .color-dot.virtual {
+        background-color: #22c55e;
+    }
+
+    .color-dot.on-site {
+        background-color: #f97316;
+    }
+
+    /* FullCalendar customization */
+    .fc {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    .fc-event {
+        cursor: pointer;
+        border: none;
+        padding: 2px 4px;
+    }
+
+    .fc-event.hybrid {
+        background-color: #3788d8;
+    }
+
+    .fc-event.virtual {
+        background-color: #22c55e;
+    }
+
+    .fc-event.on-site {
+        background-color: #f97316;
+    }
+
+    .fc-daygrid-event {
+        white-space: normal;
+    }
+
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 2rem;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.5rem;
+    }
+
+    .close {
+        color: #aaa;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: #000;
+    }
+
+    .modal-body {
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-info {
+        margin-bottom: 1rem;
+    }
+
+    .modal-info strong {
+        color: #495057;
+        display: inline-block;
+        min-width: 120px;
+    }
+
+    .session-type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .session-type-badge.hybrid {
+        background-color: #3788d8;
+        color: white;
+    }
+
+    .session-type-badge.virtual {
+        background-color: #22c55e;
+        color: white;
+    }
+
+    .session-type-badge.on-site {
+        background-color: #f97316;
+        color: white;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background-color: #3788d8;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #2c6cb8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(55, 136, 216, 0.3);
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .calendar-container {
+            padding: 0.5rem;
+            margin: 1rem 0.5rem;
+        }
+
+        .calendar-filters {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .modal-content {
+            width: 95%;
+            margin: 20% auto;
+            padding: 1.5rem;
+        }
+
+        .modal-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <div class="calendar-header">
+        <h2>📅 Session Calendar</h2>
+        <p>View and book your training sessions</p>
+    </div>
+
+    <div class="calendar-filters">
+        <div class="filter-checkbox">
+            <input type="checkbox" id="filter-hybrid" checked>
+            <label for="filter-hybrid">
+                <span class="color-dot hybrid"></span>
+                HYBRID Sessions
+            </label>
+        </div>
+        <div class="filter-checkbox">
+            <input type="checkbox" id="filter-virtual" checked>
+            <label for="filter-virtual">
+                <span class="color-dot virtual"></span>
+                VIRTUAL Sessions
+            </label>
+        </div>
+        <div class="filter-checkbox">
+            <input type="checkbox" id="filter-onsite" checked>
+            <label for="filter-onsite">
+                <span class="color-dot on-site"></span>
+                ON-SITE Sessions
+            </label>
+        </div>
+    </div>
+
+    <div id="calendar"></div>
+</div>
+
+<!-- Session Detail Modal -->
+<div id="sessionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle"></h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="modal-info">
+                <strong>Type:</strong> <span id="modalType" class="session-type-badge"></span>
+            </div>
+            <div class="modal-info">
+                <strong>Time:</strong> <span id="modalTime"></span>
+            </div>
+            <div class="modal-info">
+                <strong>Location:</strong> <span id="modalLocation"></span>
+            </div>
+            <div class="modal-info">
+                <strong>Capacity:</strong> <span id="modalCapacity"></span>
+            </div>
+            <div class="modal-info">
+                <strong>Description:</strong>
+                <p id="modalDescription" style="margin-top: 0.5rem; color: #6c757d;"></p>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary close-btn">Close</button>
+            <button class="btn btn-primary" id="viewDetailsBtn">View Full Details</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📅 Calendar page loaded - initializing...');
+    const calendarEl = document.getElementById('calendar');
+    let allEvents = [];
+
+    // Check if FullCalendar is loaded
+    if (typeof FullCalendar === 'undefined') {
+        console.error('❌ FullCalendar library not loaded!');
+        return;
+    }
+    console.log('✅ FullCalendar library loaded');
+
+    // Initialize FullCalendar
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+        },
+        height: 'auto',
+        eventClick: function(info) {
+            showSessionModal(info.event);
+        },
+        eventDidMount: function(info) {
+            // Add custom styling based on session type
+            const sessionType = info.event.extendedProps.session_type;
+            info.el.classList.add(sessionType.replace('_', '-'));
+        },
+        events: function(fetchInfo, successCallback, failureCallback) {
+            // Fetch sessions from API
+            console.log('🔄 Fetching sessions from /api/sessions/calendar...');
+            fetch('/api/sessions/calendar')
+                .then(response => {
+                    console.log('📡 Response received:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ Sessions loaded:', data.length, 'sessions');
+                    allEvents = data.map(session => ({
+                        id: session.id,
+                        title: session.title,
+                        start: session.date_start,
+                        end: session.date_end,
+                        extendedProps: {
+                            session_type: session.session_type,
+                            location: session.location,
+                            capacity: session.capacity,
+                            description: session.description
+                        }
+                    }));
+                    successCallback(filterEvents());
+                })
+                .catch(error => {
+                    console.error('Error fetching sessions:', error);
+                    failureCallback(error);
+                });
+        }
+    });
+
+    calendar.render();
+
+    // Filter functionality
+    const filterHybrid = document.getElementById('filter-hybrid');
+    const filterVirtual = document.getElementById('filter-virtual');
+    const filterOnsite = document.getElementById('filter-onsite');
+
+    function filterEvents() {
+        return allEvents.filter(event => {
+            const type = event.extendedProps.session_type;
+            if (type === 'hybrid' && !filterHybrid.checked) return false;
+            if (type === 'virtual' && !filterVirtual.checked) return false;
+            if (type === 'on_site' && !filterOnsite.checked) return false;
+            return true;
+        });
+    }
+
+    function refreshCalendar() {
+        calendar.removeAllEvents();
+        calendar.addEventSource(filterEvents());
+    }
+
+    filterHybrid.addEventListener('change', refreshCalendar);
+    filterVirtual.addEventListener('change', refreshCalendar);
+    filterOnsite.addEventListener('change', refreshCalendar);
+
+    // Modal functionality
+    const modal = document.getElementById('sessionModal');
+    const closeButtons = document.querySelectorAll('.close, .close-btn');
+    const viewDetailsBtn = document.getElementById('viewDetailsBtn');
+    let currentSessionId = null;
+
+    function showSessionModal(event) {
+        currentSessionId = event.id;
+        const props = event.extendedProps;
+
+        document.getElementById('modalTitle').textContent = event.title;
+
+        const typeSpan = document.getElementById('modalType');
+        typeSpan.textContent = props.session_type.replace('_', '-').toUpperCase();
+        typeSpan.className = 'session-type-badge ' + props.session_type.replace('_', '-');
+
+        const startTime = new Date(event.start);
+        const endTime = new Date(event.end);
+        document.getElementById('modalTime').textContent =
+            startTime.toLocaleString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) + ' - ' +
+            endTime.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+        document.getElementById('modalLocation').textContent = props.location;
+        document.getElementById('modalCapacity').textContent = props.capacity + ' students';
+        document.getElementById('modalDescription').textContent = props.description;
+
+        modal.style.display = 'block';
+    }
+
+    closeButtons.forEach(btn => {
+        btn.onclick = function() {
+            modal.style.display = 'none';
+        };
+    });
+
+    viewDetailsBtn.onclick = function() {
+        window.location.href = '/sessions/' + currentSessionId;
+    };
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    };
+});
+</script>
+{% endblock %}

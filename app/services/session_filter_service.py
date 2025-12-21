@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import and_, or_
 
 from ..models.user import User, UserRole
-from ..models.session import Session as SessionModel
+from ..models.session import Session as SessionTypel
 from ..models.project import Project, ProjectEnrollment
 from ..models.semester import Semester
 
@@ -96,7 +96,7 @@ class SessionFilterService:
         self._user_specialization_cache[user.id] = specialization
         return specialization
     
-    def get_session_target_groups(self, session: SessionModel) -> List[str]:
+    def get_session_target_groups(self, session: SessionTypel) -> List[str]:
         """
         Determine which user groups a session is targeted for
         Enhanced to handle parallel semesters and shared sessions
@@ -142,7 +142,7 @@ class SessionFilterService:
             
         return target_groups
     
-    def get_relevant_sessions_for_user(self, user: User, base_query, limit: int = None) -> List[SessionModel]:
+    def get_relevant_sessions_for_user(self, user: User, base_query, limit: int = None) -> List[SessionTypel]:
         """
         Filter sessions based on user specialization and relevance
         Optimized for performance with optional result limiting
@@ -178,7 +178,7 @@ class SessionFilterService:
     
     def _calculate_session_relevance(
         self, 
-        session: SessionModel, 
+        session: SessionTypel, 
         user: User, 
         user_specialization: str
     ) -> float:

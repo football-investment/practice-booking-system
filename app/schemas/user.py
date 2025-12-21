@@ -5,6 +5,17 @@ from ..models.user import UserRole
 from ..models.specialization import SpecializationType
 
 
+# Simple UserLicense schema for embedding in User response
+class UserLicenseSimple(BaseModel):
+    """Simplified license info for User API responses"""
+    id: int
+    specialization_type: str
+    is_active: bool
+    payment_verified: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserBase(BaseModel):
     name: str
     nickname: Optional[str] = None
@@ -34,6 +45,10 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    nationality: Optional[str] = None
+    gender: Optional[str] = None
 
 
 class UserUpdateSelf(BaseModel):
@@ -62,10 +77,12 @@ class User(UserBase):
     emergency_contact: Optional[str] = None
     emergency_phone: Optional[str] = None
     date_of_birth: Optional[datetime] = None
+    nationality: Optional[str] = None
+    gender: Optional[str] = None
     medical_notes: Optional[str] = None
     interests: Optional[str] = None  # JSON string of interests array
     position: Optional[str] = None  # Football position
-    specialization: Optional[str] = None  # Player/Coach/Internship track
+    specialization: Optional[str] = None  # Player/Coach/Internship track (DEPRECATED)
     payment_verified: Optional[bool] = False
     payment_verified_at: Optional[datetime] = None
     payment_verified_by: Optional[int] = None
@@ -78,6 +95,12 @@ class User(UserBase):
     created_at: Optional[datetime] = None  # Make optional for legacy data
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None
+    # 💳 Credit system fields
+    credit_balance: Optional[int] = 0
+    credit_purchased: Optional[int] = 0
+    credit_payment_reference: Optional[str] = None
+    # 📜 User licenses (NEW - replaces deprecated specialization field)
+    licenses: List[UserLicenseSimple] = []
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Management - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .admin-badge {
+            background: rgba(255,255,255,0.3);
+            border: 2px solid white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #dc3545;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-left: 4px solid #3498db;
+        }
+
+        .stat-card h3 {
+            color: #718096;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-description {
+            color: #a0aec0;
+            font-size: 0.85rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .section-card h2 {
+            font-size: 1.8rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-subtitle {
+            color: #718096;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f7fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-verified {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .payment-ref {
+            background: #e3f2fd;
+            color: #0d47a1;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0 0.25rem;
+        }
+
+        .btn-verify {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-verify:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .btn-cancel {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .btn-unverify {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-unverify:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .footer {
+            background: #2d3748;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            table {
+                font-size: 0.85rem;
+            }
+
+            th, td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="user-info">
+                <h1>💳 Payment Management</h1>
+                <p>Welcome, {{ user.name }}</p>
+            </div>
+            <div class="header-actions">
+                <div class="admin-badge">👑 ADMIN</div>
+                <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
+                <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
+                <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
+                <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
+                <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
+                <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+                <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <h2 class="page-title">💳 Payment Management</h2>
+        <p class="page-subtitle">Manage invoice requests and payment verification</p>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: #ffc107;">
+                <h3>📄 PENDING INVOICES</h3>
+                <div class="stat-value">{{ invoice_requests|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                <p class="stat-description">Awaiting verification</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #28a745;">
+                <h3>✅ VERIFIED</h3>
+                <div class="stat-value">{{ invoice_requests|selectattr('status', 'equalto', 'verified')|list|length }}</div>
+                <p class="stat-description">Payment confirmed</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #dc3545;">
+                <h3>❌ CANCELLED</h3>
+                <div class="stat-value">{{ invoice_requests|selectattr('status', 'equalto', 'cancelled')|list|length }}</div>
+                <p class="stat-description">Cancelled requests</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #3498db;">
+                <h3>💰 TOTAL INVOICES</h3>
+                <div class="stat-value">{{ invoice_requests|length }}</div>
+                <p class="stat-description">All time requests</p>
+            </div>
+        </div>
+
+        <!-- Invoice Requests Table -->
+        <div class="section-card">
+            <h2>📄 Invoice Requests</h2>
+            <p class="section-subtitle">Review and verify student payment requests</p>
+
+            {% if invoice_requests %}
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Amount</th>
+                            <th>Payment Reference</th>
+                            <th>Coupon</th>
+                            <th>Requested</th>
+                            <th style="text-align: center;">Status</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoice_requests %}
+                        <tr id="invoice-row-{{ invoice.id }}">
+                            <td>
+                                <strong>{{ invoice.user.name }}</strong><br>
+                                <span style="color: #718096; font-size: 0.85rem;">{{ invoice.user.email }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ invoice.credit_amount }} credits</strong><br>
+                                <span style="color: #28a745; font-size: 0.9rem;">{{ invoice.amount_eur }} €</span>
+                            </td>
+                            <td>
+                                <span class="payment-ref">{{ invoice.payment_reference }}</span>
+                            </td>
+                            <td>
+                                {% if invoice.coupon_code %}
+                                <span style="background: #d4edda; color: #155724; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600;">
+                                    🎟️ {{ invoice.coupon_code }}
+                                </span>
+                                {% else %}
+                                <span style="color: #a0aec0;">-</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size: 0.9rem; color: #4a5568;">
+                                {{ invoice.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td style="text-align: center;">
+                                {% if invoice.status == 'pending' %}
+                                <span class="status-badge status-pending">⏳ Pending</span>
+                                {% elif invoice.status == 'verified' %}
+                                <span class="status-badge status-verified">✅ Verified</span>
+                                {% elif invoice.status == 'cancelled' %}
+                                <span class="status-badge status-cancelled">❌ Cancelled</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                {% if invoice.status == 'pending' %}
+                                <button onclick="verifyInvoice({{ invoice.id }})" class="action-btn btn-verify">
+                                    ✅ Verify
+                                </button>
+                                <button onclick="cancelInvoice({{ invoice.id }})" class="action-btn btn-cancel">
+                                    ❌ Cancel
+                                </button>
+                                {% elif invoice.status == 'verified' %}
+                                <button onclick="unverifyInvoice({{ invoice.id }})" class="action-btn btn-unverify">
+                                    🔄 Unverify
+                                </button>
+                                {% else %}
+                                <span style="color: #a0aec0;">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📄</div>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">No invoice requests yet</p>
+                <p style="font-size: 0.9rem;">Invoice requests will appear here when students purchase credits</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+    async function verifyInvoice(invoiceId) {
+        if (!confirm('Are you sure you want to verify this payment and add credits to the student account?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/v1/invoices/${invoiceId}/verify`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`✅ Payment verified!\n\nAdded ${data.credits_added} credits to ${data.student_name}\nNew balance: ${data.new_balance} credits`);
+                location.reload();
+            } else {
+                alert(`❌ Error: ${data.detail || 'Failed to verify payment'}`);
+            }
+        } catch (error) {
+            alert('❌ Error verifying payment: ' + error.message);
+        }
+    }
+
+    async function cancelInvoice(invoiceId) {
+        const reason = prompt('Enter cancellation reason:');
+        if (!reason) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/v1/invoices/${invoiceId}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ reason })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`✅ Invoice cancelled\nReason: ${reason}`);
+                location.reload();
+            } else {
+                alert(`❌ Error: ${data.detail || 'Failed to cancel invoice'}`);
+            }
+        } catch (error) {
+            alert('❌ Error cancelling invoice: ' + error.message);
+        }
+    }
+
+    async function unverifyInvoice(invoiceId) {
+        if (!confirm('Are you sure you want to UNVERIFY this payment? This will remove credits from the student account.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/v1/invoices/${invoiceId}/unverify`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`✅ Payment unverified!\n\nRemoved ${data.credits_removed} credits from ${data.student_name}\nNew balance: ${data.new_balance} credits`);
+                location.reload();
+            } else {
+                alert(`❌ Error: ${data.detail || 'Failed to unverify payment'}`);
+            }
+        } catch (error) {
+            alert('❌ Error unverifying payment: ' + error.message);
+        }
+    }
+    </script>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2025 LFA Education Center. All rights reserved.</p>
+    </div>
+</body>
+</html>

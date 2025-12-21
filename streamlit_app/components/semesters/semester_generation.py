@@ -201,28 +201,14 @@ def render_semester_generation(token: str):
                     else:
                         st.error(f"❌ Failed: {error}")
 
-        # AMATEUR: 2 semi-annual seasons (Fall or Spring)
+        # AMATEUR: 1 annual season (Jul-Jun)
         elif gen_age_group == "AMATEUR":
-            seasons = {
-                "fall": "Fall Season (Sep-Feb)",
-                "spring": "Spring Season (Mar-Aug)"
-            }
-            selected_season = st.selectbox(
-                f"Select Season (generates 1 {period_label_lower})",
-                list(seasons.keys()),
-                format_func=lambda x: seasons[x]
-            )
+            st.caption(f"📊 This will generate **1 annual {period_label_lower}** for **{gen_year}/{gen_year+1} LFA_PLAYER/AMATEUR** (Jul {gen_year} - Jun {gen_year+1}) at **{selected_location_label}**")
 
-            # Show year wrap-around info for Fall
-            if selected_season == "fall":
-                st.caption(f"📊 This will generate **Fall {period_label}** for **{gen_year}/LFA_PLAYER/AMATEUR** (Sep {gen_year} - Feb {gen_year+1}) at **{selected_location_label}**")
-            else:
-                st.caption(f"📊 This will generate **Spring {period_label}** for **{gen_year}/LFA_PLAYER/AMATEUR** (Mar {gen_year} - Aug {gen_year}) at **{selected_location_label}**")
-
-            if st.button(f"🚀 Generate {selected_season.capitalize()} {period_label}", type="primary", use_container_width=True):
+            if st.button(f"🚀 Generate Annual {period_label}", type="primary", use_container_width=True):
                 with st.spinner(f"Generating {period_label_lower}..."):
                     success, error, result = generate_lfa_player_amateur_season(
-                        token, gen_year, selected_season, gen_location_id
+                        token, gen_year, gen_location_id
                     )
 
                     if success:

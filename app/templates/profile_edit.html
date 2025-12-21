@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - LFA Education Center{% endblock %}
+
+{% block content %}
+<style>
+    .edit-profile-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 16px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .profile-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .profile-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.95;
+        font-size: 1.1rem;
+    }
+
+    .edit-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        margin-bottom: 2rem;
+    }
+
+    .edit-card h2 {
+        margin: 0 0 1.5rem 0;
+        color: #2c3e50;
+        font-size: 1.5rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.9rem 1rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.4rem;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+
+    .age-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 1.2rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .age-warning-icon {
+        font-size: 2rem;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn-save {
+        flex: 1;
+        padding: 1rem 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .btn-cancel {
+        padding: 1rem 2rem;
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn-cancel:hover {
+        background: #f8f9fa;
+    }
+
+    .error-message {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+
+    .success-message {
+        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+
+    .current-age-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-left: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .button-group {
+            flex-direction: column;
+        }
+
+        .profile-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<div class="edit-profile-container">
+    <div class="profile-header">
+        <h1>✏️ Edit Profile</h1>
+        <p>Update your personal information and preferences</p>
+    </div>
+
+    {% if error %}
+    <div class="error-message">
+        ❌ {{ error }}
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="success-message">
+        ✅ {{ success }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/profile/edit">
+        <div class="edit-card">
+            <h2>👤 Personal Information</h2>
+
+            <div class="form-group">
+                <label for="name">Full Name *</label>
+                <input type="text" id="name" name="name" value="{{ user.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="nickname">Nickname (Optional)</label>
+                <input type="text" id="nickname" name="nickname" value="{{ user.nickname or '' }}">
+                <small>How would you like others to address you?</small>
+            </div>
+
+            <div class="form-group">
+                <label for="date_of_birth">
+                    Date of Birth *
+                    {% if user_age %}
+                    <span class="current-age-badge">Current age: {{ user_age }} years</span>
+                    {% endif %}
+                </label>
+                <input type="date" id="date_of_birth" name="date_of_birth"
+                       value="{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '' }}"
+                       required>
+                <small>⚠️ Changing your age may affect which specializations are available to you</small>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="nationality">🌍 Nationality</label>
+                <input type="text" id="nationality" name="nationality" value="{{ user.nationality or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="gender">⚧ Gender</label>
+                <select id="gender" name="gender">
+                    <option value="">Prefer not to say</option>
+                    <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
+                    <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
+                    <option value="Non-binary" {% if user.gender == 'Non-binary' %}selected{% endif %}>Non-binary</option>
+                    <option value="Other" {% if user.gender == 'Other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="current_location">📍 Current Location</label>
+                <input type="text" id="current_location" name="current_location"
+                       value="{{ user.current_location or '' }}"
+                       placeholder="City, Country">
+            </div>
+        </div>
+
+        <div class="edit-card">
+            <h2>🚨 Emergency Contact</h2>
+
+            <div class="form-group">
+                <label for="emergency_contact">Contact Name</label>
+                <input type="text" id="emergency_contact" name="emergency_contact"
+                       value="{{ user.emergency_contact or '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="emergency_phone">Contact Phone</label>
+                <input type="tel" id="emergency_phone" name="emergency_phone"
+                       value="{{ user.emergency_phone or '' }}">
+            </div>
+        </div>
+
+        <div class="edit-card">
+            <h2>📋 Additional Information</h2>
+
+            <div class="form-group">
+                <label for="medical_notes">🏥 Medical Notes</label>
+                <textarea id="medical_notes" name="medical_notes">{{ user.medical_notes or '' }}</textarea>
+                <small>Any medical conditions, allergies, or important health information</small>
+            </div>
+
+            <div class="form-group">
+                <label for="interests">🎯 Interests & Hobbies</label>
+                <textarea id="interests" name="interests">{{ user.interests or '' }}</textarea>
+                <small>Tell us about your interests outside of your specialization</small>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button type="submit" class="btn-save">💾 Save Changes</button>
+            <a href="/profile" class="btn-cancel">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dobInput = document.getElementById('date_of_birth');
+
+    // Set max date to today (can't be born in the future)
+    const today = new Date().toISOString().split('T')[0];
+    dobInput.setAttribute('max', today);
+
+    // Set min date to 120 years ago
+    const minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 120);
+    dobInput.setAttribute('min', minDate.toISOString().split('T')[0]);
+
+    // Show age warning if date changes
+    dobInput.addEventListener('change', function() {
+        const currentValue = "{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '' }}";
+        if (this.value !== currentValue) {
+            if (!document.querySelector('.age-warning')) {
+                const warning = document.createElement('div');
+                warning.className = 'age-warning';
+                warning.innerHTML = `
+                    <div class="age-warning-icon">⚠️</div>
+                    <div>
+                        <strong>Age Change Detected</strong><br>
+                        Changing your date of birth may unlock new specializations or restrict access to others based on age requirements.
+                    </div>
+                `;
+                dobInput.closest('.form-group').insertAdjacentElement('afterend', warning);
+            }
+        } else {
+            const warning = document.querySelector('.age-warning');
+            if (warning) warning.remove();
+        }
+    });
+});
+</script>
+{% endblock %}

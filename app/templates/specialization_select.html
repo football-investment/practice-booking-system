@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Select Specialization - LFA Education Center{% endblock %}
+
+{% block content %}
+<div class="welcome-section text-center">
+    <h1>Choose Your Path</h1>
+    <p>Select your specialization to begin your journey</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error mb-3" style="background-color: #e74c3c; color: white; padding: 1rem; border-radius: 8px; margin: 2rem auto; max-width: 600px;">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="specialization-grid">
+    <!-- 1. Internship -->
+    {% set is_active_internship = 'INTERNSHIP' in user_specialization_types %}
+    <div class="specialization-card {% if not is_active_internship %}specialization-card-locked{% endif %}"
+         {% if is_active_internship %}onclick="selectSpecialization('INTERNSHIP')"{% endif %}>
+        <div class="specialization-icon">💼</div>
+        <h2>Internship</h2>
+        <p>Build your startup career from zero to co-founder</p>
+        {% if is_active_internship %}
+            <div class="specialization-active-badge">✓ ACTIVE</div>
+        {% else %}
+            <div class="specialization-locked-badge">🔒 LOCKED</div>
+        {% endif %}
+    </div>
+
+    <!-- 2. GānCuju Player -->
+    {% set is_active_gancuju = 'GANCUJU_PLAYER' in user_specialization_types %}
+    <div class="specialization-card {% if not is_active_gancuju %}specialization-card-locked{% endif %}"
+         {% if is_active_gancuju %}onclick="selectSpecialization('GANCUJU_PLAYER')"{% endif %}>
+        <div class="specialization-icon">🥋</div>
+        <h2>GānCuju Player</h2>
+        <p>Master the 4000-year-old Chinese football art with authentic Ganball™ equipment</p>
+        {% if is_active_gancuju %}
+            <div class="specialization-active-badge">✓ ACTIVE</div>
+        {% else %}
+            <div class="specialization-locked-badge">🔒 LOCKED</div>
+        {% endif %}
+    </div>
+
+    <!-- 3. LFA Football Player -->
+    {% set is_active_lfa = 'LFA_FOOTBALL_PLAYER' in user_specialization_types %}
+    <div class="specialization-card {% if not is_active_lfa %}specialization-card-locked{% endif %}"
+         {% if is_active_lfa %}onclick="selectSpecialization('LFA_FOOTBALL_PLAYER')"{% endif %}>
+        <div class="specialization-icon">⚽</div>
+        <h2>LFA Football Player</h2>
+        <p>Modern football training and professional player development</p>
+        {% if is_active_lfa %}
+            <div class="specialization-active-badge">✓ ACTIVE</div>
+        {% else %}
+            <div class="specialization-locked-badge">🔒 LOCKED</div>
+        {% endif %}
+    </div>
+
+    <!-- 4. LFA Coach -->
+    {% set is_active_coach = 'LFA_COACH' in user_specialization_types %}
+    <div class="specialization-card {% if not is_active_coach %}specialization-card-locked{% endif %}"
+         {% if is_active_coach %}onclick="selectSpecialization('LFA_COACH')"{% endif %}>
+        <div class="specialization-icon">👨‍🏫</div>
+        <h2>LFA Coach</h2>
+        <p>Become a certified football coach with LFA methodology</p>
+        {% if is_active_coach %}
+            <div class="specialization-active-badge">✓ ACTIVE</div>
+        {% else %}
+            <div class="specialization-locked-badge">🔒 LOCKED</div>
+        {% endif %}
+    </div>
+</div>
+
+<form id="specializationForm" method="POST" action="/specialization/select" style="display: none;">
+    <input type="hidden" name="specialization" id="specializationInput">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectSpecialization(type) {
+    document.getElementById('specializationInput').value = type;
+    document.getElementById('specializationForm').submit();
+}
+</script>
+{% endblock %}

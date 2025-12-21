@@ -1,0 +1,577 @@
+"""
+🎓 Semester Enrollment Management API Endpoints (Admin only)
+
+Manages student enrollments per semester with payment verification
+"""
+from typing import Any, List, Dict, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_, or_, desc
+from pydantic import BaseModel, Field
+from datetime import datetime
+import json
+
+from ....database import get_db
+from ....dependencies import get_current_admin_user_web, get_current_user_web
+from ....models.user import User, UserRole
+from ....models.semester import Semester
+from ....models.license import UserLicense
+from ....models.semester_enrollment import SemesterEnrollment
+
+router = APIRouter(tags=["semester-enrollments"])
+
+
+# ==================== SCHEMAS ====================
+
+class EnrollmentCreate(BaseModel):
+    """Request to create a new semester enrollment"""
+    user_id: int = Field(..., description="Student user ID")
+    semester_id: int = Field(..., description="Semester ID")
+    user_license_id: int = Field(..., description="UserLicense ID (specialization)")
+
+
+class EnrollmentUpdate(BaseModel):
+    """Request to update enrollment"""
+    payment_verified: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class EnrollmentResponse(BaseModel):
+    """Enrollment response with related data"""
+    id: int
+    user_id: int
+    user_email: str
+    user_name: str
+    semester_id: int
+    semester_code: str
+    semester_name: str
+    specialization_type: str
+    user_license_id: int
+    payment_verified: bool
+    payment_verified_at: Optional[datetime]
+    is_active: bool
+    enrolled_at: datetime
+
+
+# ==================== ENDPOINTS ====================
+
+@router.get("/semesters/{semester_id}/enrollments")
+async def get_semester_enrollments(
+    request: Request,
+    semester_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> List[EnrollmentResponse]:
+    """
+    Get all enrollments for a specific semester (Admin only)
+    Returns enriched data with user and semester information
+    """
+    enrollments = (
+        db.query(SemesterEnrollment)
+        .options(
+            joinedload(SemesterEnrollment.user),
+            joinedload(SemesterEnrollment.semester),
+            joinedload(SemesterEnrollment.user_license)
+        )
+        .filter(SemesterEnrollment.semester_id == semester_id)
+        .order_by(SemesterEnrollment.user_id, SemesterEnrollment.enrolled_at.desc())
+        .all()
+    )
+
+    return [
+        EnrollmentResponse(
+            id=e.id,
+            user_id=e.user_id,
+            user_email=e.user.email,
+            user_name=e.user.name,
+            semester_id=e.semester_id,
+            semester_code=e.semester.code,
+            semester_name=e.semester.name,
+            specialization_type=e.user_license.specialization_type,
+            user_license_id=e.user_license_id,
+            payment_verified=e.payment_verified,
+            payment_verified_at=e.payment_verified_at,
+            is_active=e.is_active,
+            enrolled_at=e.enrolled_at
+        )
+        for e in enrollments
+    ]
+
+
+@router.get("/students/{student_id}/enrollments")
+async def get_student_enrollments(
+    request: Request,
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> List[EnrollmentResponse]:
+    """
+    Get all enrollments for a specific student across all semesters (Admin only)
+    """
+    enrollments = (
+        db.query(SemesterEnrollment)
+        .options(
+            joinedload(SemesterEnrollment.user),
+            joinedload(SemesterEnrollment.semester),
+            joinedload(SemesterEnrollment.user_license)
+        )
+        .filter(SemesterEnrollment.user_id == student_id)
+        .order_by(SemesterEnrollment.semester_id.desc(), SemesterEnrollment.enrolled_at.desc())
+        .all()
+    )
+
+    return [
+        EnrollmentResponse(
+            id=e.id,
+            user_id=e.user_id,
+            user_email=e.user.email,
+            user_name=e.user.name,
+            semester_id=e.semester_id,
+            semester_code=e.semester.code,
+            semester_name=e.semester.name,
+            specialization_type=e.user_license.specialization_type,
+            user_license_id=e.user_license_id,
+            payment_verified=e.payment_verified,
+            payment_verified_at=e.payment_verified_at,
+            is_active=e.is_active,
+            enrolled_at=e.enrolled_at
+        )
+        for e in enrollments
+    ]
+
+
+@router.post("/enroll")
+async def create_enrollment(
+    request: Request,
+    enrollment: EnrollmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> Dict[str, Any]:
+    """
+    Enroll a student in a specialization for a specific semester (Admin only)
+    """
+    # Validate student exists
+    student = db.query(User).filter(User.id == enrollment.user_id, User.role == UserRole.STUDENT).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Validate semester exists
+    semester = db.query(Semester).filter(Semester.id == enrollment.semester_id).first()
+    if not semester:
+        raise HTTPException(status_code=404, detail="Semester not found")
+
+    # Validate user_license exists and belongs to student
+    user_license = db.query(UserLicense).filter(
+        UserLicense.id == enrollment.user_license_id,
+        UserLicense.user_id == enrollment.user_id
+    ).first()
+    if not user_license:
+        raise HTTPException(status_code=404, detail="UserLicense not found or does not belong to student")
+
+    # Check if enrollment already exists
+    existing = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.user_id == enrollment.user_id,
+        SemesterEnrollment.semester_id == enrollment.semester_id,
+        SemesterEnrollment.user_license_id == enrollment.user_license_id
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Student is already enrolled in this specialization for this semester")
+
+    # Create enrollment
+    new_enrollment = SemesterEnrollment(
+        user_id=enrollment.user_id,
+        semester_id=enrollment.semester_id,
+        user_license_id=enrollment.user_license_id,
+        payment_verified=False,
+        is_active=True,
+        enrolled_at=datetime.utcnow()
+    )
+
+    db.add(new_enrollment)
+    db.commit()
+    db.refresh(new_enrollment)
+
+    return {
+        "success": True,
+        "message": f"Enrolled {student.name} in {user_license.specialization_type} for {semester.code}",
+        "enrollment_id": new_enrollment.id
+    }
+
+
+@router.post("/{enrollment_id}/verify-payment")
+async def verify_enrollment_payment(
+    request: Request,
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> Dict[str, Any]:
+    """
+    Verify payment for a specific enrollment (Admin only)
+    """
+    enrollment = db.query(SemesterEnrollment).filter(SemesterEnrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    enrollment.verify_payment(current_user.id)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Payment verified successfully"
+    }
+
+
+@router.post("/{enrollment_id}/unverify-payment")
+async def unverify_enrollment_payment(
+    request: Request,
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> Dict[str, Any]:
+    """
+    Unverify payment for a specific enrollment (Admin only)
+    """
+    enrollment = db.query(SemesterEnrollment).filter(SemesterEnrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    enrollment.unverify_payment()
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Payment unverified successfully"
+    }
+
+
+@router.delete("/{enrollment_id}")
+async def delete_enrollment(
+    request: Request,
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> Dict[str, Any]:
+    """
+    Delete an enrollment (Admin only)
+    Warning: This does NOT delete the UserLicense (progress is preserved)
+    """
+    enrollment = db.query(SemesterEnrollment).filter(SemesterEnrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    db.delete(enrollment)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Enrollment deleted successfully (UserLicense progress preserved)"
+    }
+
+
+@router.post("/{enrollment_id}/toggle-active")
+async def toggle_enrollment_active(
+    request: Request,
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user_web)
+) -> Dict[str, Any]:
+    """
+    Toggle enrollment active status (Admin only)
+    """
+    enrollment = db.query(SemesterEnrollment).filter(SemesterEnrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    if enrollment.is_active:
+        enrollment.deactivate()
+        message = "Enrollment deactivated"
+    else:
+        enrollment.reactivate()
+        message = "Enrollment reactivated"
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": message,
+        "is_active": enrollment.is_active
+    }
+
+
+# ==================== ENROLLMENT REQUEST WORKFLOW ====================
+
+class EnrollmentRejection(BaseModel):
+    """Request to reject an enrollment with optional reason"""
+    reason: Optional[str] = Field(None, description="Rejection reason")
+
+
+@router.post("/{enrollment_id}/approve")
+async def approve_enrollment_request(
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_web)
+):
+    """
+    ✅ Admin or Master Instructor approves a PENDING enrollment request
+
+    **Who can approve:**
+    - 🥋 Master Instructor of the semester
+    - 👑 Admin (can override)
+
+    Changes:
+    - request_status: PENDING → APPROVED
+    - is_active: False → True
+    - approved_at: set to now
+    - approved_by: set to current_user.id
+    """
+    from ....models.semester_enrollment import EnrollmentStatus
+    from ....models.user import UserRole
+    from ....models.semester import Semester
+    from sqlalchemy.orm import joinedload
+    from datetime import timezone
+
+    # Get enrollment with semester info
+    enrollment = (
+        db.query(SemesterEnrollment)
+        .options(joinedload(SemesterEnrollment.semester))
+        .filter(SemesterEnrollment.id == enrollment_id)
+        .first()
+    )
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    if enrollment.request_status != EnrollmentStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot approve enrollment with status {enrollment.request_status.value}"
+        )
+
+    # 🔐 Permission check: Admin OR Master Instructor of this semester
+    is_admin = current_user.role == UserRole.ADMIN
+    is_master_instructor = (
+        current_user.role == UserRole.INSTRUCTOR and
+        enrollment.semester.master_instructor_id == current_user.id
+    )
+
+    if not (is_admin or is_master_instructor):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the master instructor of this semester or admin can approve enrollments"
+        )
+
+    # Use model method
+    enrollment.approve(current_user.id)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Enrollment approved for {enrollment.user.name}",
+        "enrollment_id": enrollment.id,
+        "request_status": enrollment.request_status.value,
+        "approved_by": "Master Instructor" if is_master_instructor else "Admin"
+    }
+
+
+@router.post("/{enrollment_id}/reject")
+async def reject_enrollment_request(
+    enrollment_id: int,
+    rejection: EnrollmentRejection,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_web)
+):
+    """
+    ❌ Admin or Master Instructor rejects a PENDING enrollment request
+
+    **Who can reject:**
+    - 🥋 Master Instructor of the semester
+    - 👑 Admin (can override)
+
+    Changes:
+    - request_status: PENDING → REJECTED
+    - is_active: False (remains)
+    - approved_at: set to now
+    - approved_by: set to current_user.id
+    - rejection_reason: set to provided reason
+    """
+    from ....models.semester_enrollment import EnrollmentStatus
+    from ....models.user import UserRole
+
+    enrollment = (
+        db.query(SemesterEnrollment)
+        .options(
+            joinedload(SemesterEnrollment.user),
+            joinedload(SemesterEnrollment.semester)
+        )
+        .filter(SemesterEnrollment.id == enrollment_id)
+        .first()
+    )
+
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    if enrollment.request_status != EnrollmentStatus.PENDING:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reject enrollment with status {enrollment.request_status.value}"
+        )
+
+    # 🔐 Permission check: Admin OR Master Instructor of this semester
+    is_admin = current_user.role == UserRole.ADMIN
+    is_master_instructor = (
+        current_user.role == UserRole.INSTRUCTOR and
+        enrollment.semester.master_instructor_id == current_user.id
+    )
+
+    if not (is_admin or is_master_instructor):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the master instructor of this semester or admin can reject enrollments"
+        )
+
+    # Use model method
+    enrollment.reject(current_user.id, rejection.reason or "No reason provided")
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Enrollment rejected for {enrollment.user.name}",
+        "enrollment_id": enrollment.id,
+        "request_status": enrollment.request_status.value,
+        "rejection_reason": enrollment.rejection_reason
+    }
+
+
+# ==================== PAYMENT REFERENCE CODE ENDPOINTS ====================
+
+@router.get("/{enrollment_id}/payment-info")
+async def get_payment_info(
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_web)  # Allow both student and admin
+):
+    """
+    📄 Get payment information for an enrollment (payment code, instructions, etc.)
+
+    Returns:
+    - payment_reference_code: Unique code for bank transfer
+    - bank_details: Bank account information
+    - amount: Payment amount
+    - enrollment_details: Specialization, semester info
+    """
+
+    enrollment = (
+        db.query(SemesterEnrollment)
+        .options(
+            joinedload(SemesterEnrollment.user),
+            joinedload(SemesterEnrollment.semester),
+            joinedload(SemesterEnrollment.user_license)
+        )
+        .filter(SemesterEnrollment.id == enrollment_id)
+        .first()
+    )
+
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Enrollment not found")
+
+    # Security: Only allow students to view their own enrollments, or admins to view any
+    if current_user.role != UserRole.ADMIN and enrollment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this enrollment")
+
+    # Generate payment code if it doesn't exist
+    if not enrollment.payment_reference_code:
+        enrollment.set_payment_code()
+        db.commit()
+        db.refresh(enrollment)
+
+    # Get specialization display name
+    spec_names = {
+        'INTERNSHIP': 'Internship Program',
+        'GANCUJU_PLAYER': 'GānCuju Player',
+        'LFA_FOOTBALL_PLAYER': 'LFA Football Player',
+        'LFA_COACH': 'LFA Coach'
+    }
+
+    response_data = {
+        "payment_reference_code": enrollment.payment_reference_code,
+        "enrollment_id": enrollment.id,
+        "student_name": enrollment.user.name,
+        "student_email": enrollment.user.email,
+        "specialization": spec_names.get(enrollment.specialization_type, enrollment.specialization_type),
+        "specialization_type": enrollment.specialization_type,
+        "semester_name": enrollment.semester.name,
+        "semester_id": enrollment.semester_id,
+        "payment_verified": enrollment.payment_verified,
+        "amount": 50000,  # TODO: Make this configurable per semester/specialization
+        "currency": "HUF",
+        "bank_details": {
+            "account_holder": "LFA Education Center Kft.",
+            "account_number": "12345678-12345678-12345678",
+            "bank_name": "OTP Bank",
+            "swift": "OTPVHUHB",
+            "iban": "HU42 1177 3016 1111 1118 0000 0000"
+        },
+        "instructions": f"Please transfer {50000} HUF to the account above and include this EXACT code in the transaction comment: {enrollment.payment_reference_code}"
+    }
+
+    return JSONResponse(
+        content=response_data,
+        media_type="application/json; charset=utf-8"
+    )
+
+
+@router.post("/verify-by-code")
+async def verify_payment_by_code(
+    payment_code: str,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_current_admin_user_web)
+):
+    """
+    ✅ Admin verifies payment using the payment reference code
+
+    Flow:
+    1. Admin receives bank transfer with payment code in comment
+    2. Admin enters the code here
+    3. System finds the enrollment and marks payment as verified
+    """
+    # Find enrollment by payment code
+    enrollment = (
+        db.query(SemesterEnrollment)
+        .options(
+            joinedload(SemesterEnrollment.user),
+            joinedload(SemesterEnrollment.semester),
+            joinedload(SemesterEnrollment.user_license)
+        )
+        .filter(SemesterEnrollment.payment_reference_code == payment_code.strip().upper())
+        .first()
+    )
+
+    if not enrollment:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No enrollment found with payment code: {payment_code}"
+        )
+
+    if enrollment.payment_verified:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment already verified for this enrollment on {enrollment.payment_verified_at}"
+        )
+
+    # Verify payment
+    enrollment.verify_payment(admin_user.id)
+    db.commit()
+    db.refresh(enrollment)
+
+    return {
+        "success": True,
+        "message": f"Payment verified for {enrollment.user.name}",
+        "enrollment_id": enrollment.id,
+        "student_name": enrollment.user.name,
+        "student_email": enrollment.user.email,
+        "specialization": enrollment.specialization_type,
+        "semester": enrollment.semester.name,
+        "payment_verified_at": enrollment.payment_verified_at,
+        "payment_verified_by": admin_user.id
+    }

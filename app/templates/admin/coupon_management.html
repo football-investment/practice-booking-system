@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block title %}Coupon Management - Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+.coupon-card {
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.coupon-card:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    padding: 1.2rem 1.5rem;
+    color: white;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.stat-badge {
+    background: rgba(255,255,255,0.25);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-block;
+    margin: 0 0.5rem;
+}
+
+.status-badge {
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-active { background: #d4edda; color: #155724; }
+.status-inactive { background: #f8d7da; color: #721c24; }
+.status-expired { background: #d6d8d9; color: #383d41; }
+.status-maxed { background: #fff3cd; color: #856404; }
+
+.type-badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.type-percent { background: #e3f2fd; color: #1565c0; }
+.type-fixed { background: #f3e5f5; color: #6a1b9a; }
+.type-credits { background: #fff3e0; color: #e65100; }
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary { background: #3498db; color: white; }
+.btn-success { background: #27ae60; color: white; }
+.btn-warning { background: #f39c12; color: white; }
+.btn-danger { background: #e74c3c; color: white; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 600px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    animation: slideDown 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover { color: #000; }
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 0.7rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.code-display {
+    background: #fff3cd;
+    color: #856404;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+</style>
+
+<div class="welcome-section">
+    <h1>🎟️ Coupon Management</h1>
+    <p>Create, manage, and track discount coupons for students</p>
+    <button onclick="openCreateModal()" class="btn btn-success" style="margin-top: 0.5rem;">
+        ➕ Create New Coupon
+    </button>
+    <a href="/admin/payments" class="btn btn-primary" style="margin-top: 0.5rem; margin-left: 0.5rem;">
+        💳 Payment Management
+    </a>
+</div>
+
+<!-- Coupons List -->
+<div class="coupon-card">
+    <div class="card-header">
+        <h2 style="color: white; margin: 0; font-size: 1.4rem;">📋 All Coupons</h2>
+        <span class="stat-badge">{{ coupons|length }} Total</span>
+    </div>
+    <div class="card-body">
+        {% if coupons %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: rgba(102, 126, 234, 0.1);">
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Code</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Type</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Discount</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Description</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Usage</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Status</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for coupon in coupons %}
+                    <tr style="border-bottom: 1px solid #ecf0f1;" id="coupon-row-{{ coupon.id }}">
+                        <td style="padding: 0.75rem;">
+                            <span class="code-display">{{ coupon.code }}</span>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <span class="type-badge type-{{ coupon.type.value.lower() }}">
+                                {{ coupon.type.value }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; font-weight: 600;">
+                            {% if coupon.type.value == 'PERCENT' %}
+                                {{ (coupon.discount_value * 100)|int }}%
+                            {% elif coupon.type.value == 'FIXED' %}
+                                {{ coupon.discount_value|int }}€
+                            {% else %}
+                                +{{ coupon.discount_value|int }} credits
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; max-width: 200px;">
+                            {{ coupon.description }}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <strong>{{ coupon.current_uses }}</strong>
+                            {% if coupon.max_uses %}
+                                / {{ coupon.max_uses }}
+                            {% else %}
+                                / ∞
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            {% if not coupon.is_active %}
+                                <span class="status-badge status-inactive">Inactive</span>
+                            {% elif coupon.expires_at and coupon.expires_at < today %}
+                                <span class="status-badge status-expired">Expired</span>
+                            {% elif coupon.max_uses and coupon.current_uses >= coupon.max_uses %}
+                                <span class="status-badge status-maxed">Max Used</span>
+                            {% else %}
+                                <span class="status-badge status-active">Active</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <button onclick="toggleCoupon({{ coupon.id }}, {{ coupon.is_active|lower }})"
+                                    class="btn {{ 'btn-warning' if coupon.is_active else 'btn-success' }}"
+                                    style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin-right: 0.3rem;">
+                                {{ 'Deactivate' if coupon.is_active else 'Activate' }}
+                            </button>
+                            <button onclick="deleteCoupon({{ coupon.id }}, '{{ coupon.code }}')"
+                                    class="btn btn-danger"
+                                    style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="text-align: center; color: #7f8c8d; padding: 2rem;">No coupons created yet. Click "Create New Coupon" to add one.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Coupon Modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2 style="margin-top: 0;">Create New Coupon</h2>
+        <form id="createCouponForm">
+            <div class="form-group">
+                <label for="code">Coupon Code *</label>
+                <input type="text" id="code" name="code" required maxlength="50" placeholder="e.g., SUMMER2024" style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+                <label for="type">Type *</label>
+                <select id="type" name="type" required onchange="updateDiscountLabel()">
+                    <option value="PERCENT">Percentage Discount</option>
+                    <option value="FIXED">Fixed Amount Discount (€)</option>
+                    <option value="CREDITS">Bonus Credits</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="discount_value" id="discountLabel">Discount Value *</label>
+                <input type="number" id="discount_value" name="discount_value" required min="0.01" step="0.01" placeholder="e.g., 10">
+            </div>
+            <div class="form-group">
+                <label for="description">Description *</label>
+                <input type="text" id="description" name="description" required maxlength="200" placeholder="e.g., 10% off your first purchase">
+            </div>
+            <div class="form-group">
+                <label for="max_uses">Max Uses (leave empty for unlimited)</label>
+                <input type="number" id="max_uses" name="max_uses" min="1" placeholder="e.g., 100">
+            </div>
+            <div class="form-group">
+                <label for="expires_at">Expiration Date (leave empty for no expiration)</label>
+                <input type="datetime-local" id="expires_at" name="expires_at">
+            </div>
+            <div style="text-align: right; margin-top: 1.5rem;">
+                <button type="button" onclick="closeModal()" class="btn" style="background: #95a5a6; color: white; margin-right: 0.5rem;">Cancel</button>
+                <button type="submit" class="btn btn-success">Create Coupon</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openCreateModal() {
+    document.getElementById('createModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('createModal').style.display = 'none';
+    document.getElementById('createCouponForm').reset();
+}
+
+function updateDiscountLabel() {
+    const type = document.getElementById('type').value;
+    const label = document.getElementById('discountLabel');
+    const input = document.getElementById('discount_value');
+
+    if (type === 'PERCENT') {
+        label.textContent = 'Percentage (0.1 = 10%) *';
+        input.placeholder = 'e.g., 0.1 for 10%';
+        input.max = '1';
+        input.step = '0.01';
+    } else if (type === 'FIXED') {
+        label.textContent = 'Discount Amount (€) *';
+        input.placeholder = 'e.g., 50';
+        input.max = '';
+        input.step = '1';
+    } else {
+        label.textContent = 'Bonus Credits *';
+        input.placeholder = 'e.g., 100';
+        input.max = '';
+        input.step = '1';
+    }
+}
+
+document.getElementById('createCouponForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        code: document.getElementById('code').value.toUpperCase(),
+        type: document.getElementById('type').value,
+        discount_value: parseFloat(document.getElementById('discount_value').value),
+        description: document.getElementById('description').value,
+        is_active: true,
+        max_uses: document.getElementById('max_uses').value ? parseInt(document.getElementById('max_uses').value) : null,
+        expires_at: document.getElementById('expires_at').value || null
+    };
+
+    try {
+        const response = await fetch('/api/v1/admin/coupons', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Coupon created successfully!');
+            closeModal();
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || 'Failed to create coupon'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+});
+
+async function toggleCoupon(couponId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    if (!confirm(`Are you sure you want to ${action} this coupon?`)) return;
+
+    try {
+        const response = await fetch(`/api/v1/admin/coupons/${couponId}/toggle`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            alert(`✅ Coupon ${action}d successfully!`);
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('❌ Error: ' + (data.detail || `Failed to ${action} coupon`));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+async function deleteCoupon(couponId, code) {
+    if (!confirm(`Are you sure you want to DELETE coupon "${code}"? This action cannot be undone.`)) return;
+
+    try {
+        const response = await fetch(`/api/v1/admin/coupons/${couponId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok || response.status === 204) {
+            alert('✅ Coupon deleted successfully!');
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('❌ Error: ' + (data.detail || 'Failed to delete coupon'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('createModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
+
+{% endblock %}

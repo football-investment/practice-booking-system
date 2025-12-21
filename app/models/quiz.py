@@ -113,6 +113,25 @@ class QuizUserAnswer(Base):
     selected_option = relationship("QuizAnswerOption")
 
 
+class SessionQuiz(Base):
+    """Junction table linking sessions to quizzes (for HYBRID and VIRTUAL sessions)"""
+    __tablename__ = "session_quizzes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
+    quiz_id = Column(Integer, ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False)
+    is_required = Column(Boolean, default=True)
+    max_attempts = Column(Integer, nullable=True)  # NULL = unlimited (for HYBRID), 1-2 for VIRTUAL
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Ensure unique combination
+    __table_args__ = (UniqueConstraint('session_id', 'quiz_id', name='uq_session_quiz'),)
+
+    # Relationships
+    session = relationship("Session", foreign_keys=[session_id])
+    quiz = relationship("Quiz", foreign_keys=[quiz_id])
+
+
 # ADAPTIVE LEARNING MODELS
 
 class UserQuestionPerformance(Base):

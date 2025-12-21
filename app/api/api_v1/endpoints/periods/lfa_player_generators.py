@@ -59,9 +59,8 @@ class LFAPlayerYouthRequest(BaseModel):
 
 
 class LFAPlayerAmateurRequest(BaseModel):
-    """Request to generate Fall OR Spring season for LFA_PLAYER AMATEUR"""
+    """Request to generate annual season for LFA_PLAYER AMATEUR (Jul-Jun)"""
     year: int
-    season: str  # "fall" or "spring"
     location_id: int
     force_overwrite: bool = False
 
@@ -282,7 +281,7 @@ def generate_lfa_player_youth_season(
 
 
 # ============================================================================
-# LFA_PLAYER AMATEUR: SEMI-ANNUAL SEASONS (2/year: Fall, Spring)
+# LFA_PLAYER AMATEUR: ANNUAL SEASON (1/year: Jul-Jun, same as PRO)
 # ============================================================================
 
 @router.post("/lfa-player/amateur", response_model=PeriodGenerationResponse)
@@ -292,13 +291,13 @@ def generate_lfa_player_amateur_season(
     current_user = Depends(get_current_admin_user)
 ):
     """
-    Generate Fall OR Spring season for LFA_PLAYER AMATEUR
+    Generate annual season for LFA_PLAYER AMATEUR (Jul-Jun)
 
-    Generates either Fall season (Sept-Feb) or Spring season (March-Aug).
-    Note: Fall season crosses year boundary (e.g., 2025 Fall runs Sept 2025 - Feb 2026).
+    Generates one annual season running from July (year N) to June (year N+1).
+    Same structure as PRO level.
 
     Args:
-        request: LFAPlayerAmateurRequest with year, season ("fall"/"spring"), location_id
+        request: LFAPlayerAmateurRequest with year, location_id
         db: Database session
         current_user: Authenticated admin user
 
@@ -306,25 +305,19 @@ def generate_lfa_player_amateur_season(
         PeriodGenerationResponse with success message and generated season details
 
     Raises:
-        HTTPException 400: Invalid season or season already exists
+        HTTPException 400: Season already exists
         HTTPException 404: Location not found
     """
-    # Validate season
-    if request.season.lower() not in ["fall", "spring"]:
-        raise HTTPException(status_code=400, detail="Season must be 'fall' or 'spring'")
-
     # Get template
     template = LFA_PLAYER_AMATEUR_TEMPLATE
-    season_theme = next((t for t in template["themes"] if t["semester"] == request.season.lower()), None)
-    if not season_theme:
-        raise HTTPException(status_code=400, detail=f"No template for season {request.season}")
+    season_theme = template["themes"][0]  # Only one annual season
 
     # Validate location
     location = db.query(Location).filter(Location.id == request.location_id).first()
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
 
-    # Generate code: "2025/LFA_PLAYER_AMATEUR_Fall"
+    # Generate code: "2025/LFA_PLAYER_AMATEUR_Season"
     code = f"{request.year}/LFA_PLAYER_AMATEUR_{season_theme['code']}"
 
     # Check if already exists
@@ -335,17 +328,9 @@ def generate_lfa_player_amateur_season(
             detail=f"Season {code} already exists. Use force_overwrite=true to replace."
         )
 
-    # Calculate dates with year wrap-around for Fall
-    start_month = season_theme["start_month"]
-    end_month = season_theme["end_month"]
-
-    start_date = get_first_monday(request.year, start_month)
-
-    # Handle year wrap-around for Fall (Sept-Feb)
-    if start_month > end_month:  # Fall crosses year boundary
-        end_date = get_last_sunday(request.year + 1, end_month)
-    else:  # Spring stays in same year
-        end_date = get_last_sunday(request.year, end_month)
+    # Calculate dates (July year N to June year N+1)
+    start_date = get_first_monday(request.year, season_theme["start_month"])
+    end_date = get_last_sunday(request.year + 1, season_theme["end_month"])
 
     # Create or update semester
     if exists and request.force_overwrite:
@@ -357,7 +342,7 @@ def generate_lfa_player_amateur_season(
     else:
         semester = Semester(
             code=code,
-            name=f"{request.year} LFA_PLAYER AMATEUR - {season_theme['theme']}",
+            name=f"{request.year}/{request.year+1} LFA_PLAYER AMATEUR - {season_theme['theme']}",
             start_date=start_date,
             end_date=end_date,
             specialization_type="LFA_PLAYER_AMATEUR",
@@ -377,7 +362,7 @@ def generate_lfa_player_amateur_season(
     period_label = get_period_label("LFA_PLAYER")
     return PeriodGenerationResponse(
         success=True,
-        message=f"Successfully generated {season_theme['code']} {period_label} for {request.year}/LFA_PLAYER/AMATEUR",
+        message=f"Successfully generated {period_label} for {request.year}/{request.year+1} LFA_PLAYER/AMATEUR",
         period={
             "code": semester.code,
             "name": semester.name,

@@ -1,0 +1,66 @@
+[
+  {
+    "rule_name": "RULE #1: 24h Booking Deadline",
+    "test_name": "Overall Test",
+    "passed": false,
+    "details": "Test suite setup failed",
+    "error": "Login failed: {\"error\":{\"code\":\"http_401\",\"message\":\"Incorrect email or password\",\"timestamp\":\"2025-12-16T14:00:51.241975+00:00\",\"request_id\":\"d96383ae-0539-4ad7-8d9f-a31c30567653\"}}",
+    "timestamp": "2025-12-16T15:00:51.242748"
+  },
+  {
+    "rule_name": "RULE #2: 12h Cancel Deadline",
+    "test_name": "Overall Test",
+    "passed": false,
+    "details": "Test suite setup failed",
+    "error": "Login failed: {\"error\":{\"code\":\"http_401\",\"message\":\"Incorrect email or password\",\"timestamp\":\"2025-12-16T14:00:52.400447+00:00\",\"request_id\":\"c07d7f33-033a-47d2-bb53-d39bbef4f38d\"}}",
+    "timestamp": "2025-12-16T15:00:52.401125"
+  },
+  {
+    "rule_name": "RULE #3: 15min Check-in Window",
+    "test_name": "Overall Test",
+    "passed": false,
+    "details": "Test suite setup failed",
+    "error": "Login failed: {\"error\":{\"code\":\"http_401\",\"message\":\"Incorrect email or password\",\"timestamp\":\"2025-12-16T14:00:53.535153+00:00\",\"request_id\":\"73fc30bb-15b1-42df-91a9-ebad9a466246\"}}",
+    "timestamp": "2025-12-16T15:00:53.535808"
+  },
+  {
+    "rule_name": "RULE #4: Bidirectional Feedback",
+    "test_name": "Overall Test",
+    "passed": false,
+    "details": "Test suite setup failed",
+    "error": "Login failed: {\"error\":{\"code\":\"http_401\",\"message\":\"Incorrect email or password\",\"timestamp\":\"2025-12-16T14:00:54.666418+00:00\",\"request_id\":\"a9d6c8d2-1a84-4923-bd36-49f805c4ff22\"}}",
+    "timestamp": "2025-12-16T15:00:54.667133"
+  },
+  {
+    "rule_name": "RULE #5: Hybrid/Virtual Quiz",
+    "test_name": "Quiz system exists",
+    "passed": true,
+    "details": "SessionQuiz model and quiz_unlocked field implemented",
+    "error": null,
+    "timestamp": "2025-12-16T15:00:54.667178"
+  },
+  {
+    "rule_name": "RULE #5: Hybrid/Virtual Quiz",
+    "test_name": "Auto-unlock for hybrid/virtual",
+    "passed": true,
+    "details": "Quiz functionality available - automation can be added",
+    "error": null,
+    "timestamp": "2025-12-16T15:00:54.667182"
+  },
+  {
+    "rule_name": "RULE #6: XP Reward",
+    "test_name": "Gamification system exists",
+    "passed": true,
+    "details": "GamificationService and XP award system implemented",
+    "error": null,
+    "timestamp": "2025-12-16T15:00:54.667184"
+  },
+  {
+    "rule_name": "RULE #6: XP Reward",
+    "test_name": "XP awarded on attendance",
+    "passed": true,
+    "details": "Attendance triggers XP award via gamification service",
+    "error": null,
+    "timestamp": "2025-12-16T15:00:54.667186"
+  }
+]

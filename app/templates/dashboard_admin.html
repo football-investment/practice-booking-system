@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - LFA Education Center{% endblock %}
+
+{% block content %}
+
+<style>
+    /* Modern Admin Header (same as student) */
+    .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .user-info h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .user-info p {
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .admin-badge {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: white !important;
+    }
+
+    .btn {
+        padding: 0.8rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-primary {
+        background: white;
+        color: #667eea !important;
+    }
+
+    .btn-secondary {
+        background: rgba(255,255,255,0.2);
+        color: white !important;
+        border: 2px solid white;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Modern Admin Dashboard Styles */
+    .admin-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .admin-action-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        border-left: 5px solid transparent;
+    }
+
+    .admin-action-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    }
+
+    .admin-action-card.card-users {
+        border-left-color: #667eea;
+    }
+
+    .admin-action-card.card-enrollment {
+        border-left-color: #2ecc71;
+    }
+
+    .admin-action-card.card-payment {
+        border-left-color: #f39c12;
+    }
+
+    .admin-action-card.card-semester {
+        border-left-color: #e74c3c;
+    }
+
+    .admin-action-card.card-analytics {
+        border-left-color: #3498db;
+    }
+
+    .admin-action-card h2 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #2d3748 !important;
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .admin-action-card p {
+        color: #718096 !important;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+
+    .admin-action-btn {
+        display: inline-block;
+        padding: 0.85rem 1.8rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .admin-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .admin-action-btn.btn-warning {
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+    }
+
+    .admin-action-btn.btn-warning:hover {
+        box-shadow: 0 6px 20px rgba(243, 156, 18, 0.5);
+    }
+
+    .icon-badge {
+        font-size: 1.8rem;
+        display: inline-block;
+    }
+</style>
+
+<!-- Modern Header (same design as student) -->
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>Welcome, {{ user.name }}! 👋</h1>
+            <p>{{ user.email }} · Role: Admin</p>
+        </div>
+        <div class="header-actions">
+            <div class="admin-badge">
+                👑 ADMIN
+            </div>
+            <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
+            <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
+            <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
+            <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
+            <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
+            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Container -->
+<div style="max-width: 1200px; margin: 0 auto; padding: 2rem;">
+
+<!-- Active Semesters Card (ADMIN ONLY) -->
+{% if active_semesters and active_semesters|length > 0 %}
+<div class="modern-card gradient-purple" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; color: white; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+        <h2 style="color: white; margin: 0;">📅 Active Semesters ({{ active_semesters|length }})</h2>
+
+        <!-- Filter Dropdown (Category-based) -->
+        <select id="semester-filter" onchange="filterSemesters()" style="padding: 0.5rem 1rem; border-radius: 6px; border: 2px solid white; background: rgba(255,255,255,0.2); color: white; font-weight: 600; cursor: pointer;">
+            <option value="all" style="color: #2c3e50;">All Categories</option>
+            <option value="LFA_PLAYER" style="color: #2c3e50;">⚽ LFA Player (All Levels)</option>
+            <option value="GANCUJU" style="color: #2c3e50;">🥋 GānCuju Player</option>
+            <option value="LFA_COACH" style="color: #2c3e50;">👨‍🏫 LFA Coach</option>
+            <option value="INTERNSHIP" style="color: #2c3e50;">💼 Internship</option>
+        </select>
+    </div>
+
+    <!-- All semesters in one container -->
+    <div id="semesters-container">
+    {% for semester in active_semesters %}
+    <div class="semester-item" data-spec="{{ semester.specialization_type }}" data-category="{% if semester.specialization_type and 'LFA_PLAYER' in semester.specialization_type %}LFA_PLAYER{% elif semester.specialization_type and 'GANCUJU' in semester.specialization_type %}GANCUJU{% elif semester.specialization_type == 'LFA_COACH' %}LFA_COACH{% elif semester.specialization_type == 'INTERNSHIP' %}INTERNSHIP{% else %}OTHER{% endif %}" style="background: rgba(255,255,255,0.1); padding: 0.8rem; border-radius: 6px; margin-bottom: 0.5rem; {% if loop.index > 4 %}display: none;{% endif %}" data-index="{{ loop.index }}">
+        <p style="color: white; margin: 0; font-size: 0.95rem;">
+            <strong style="color: white;">{{ semester.name }}</strong>
+            {% if semester.specialization_type %}
+                <span style="background: rgba(255,255,255,0.2); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; margin-left: 0.5rem;">
+                    {{ semester.specialization_type.replace('_', ' ').title() }}
+                </span>
+            {% endif %}
+            {% if semester.location_venue %}
+                <span style="background: rgba(255,165,0,0.3); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; margin-left: 0.5rem;">
+                    📍 {{ semester.location_venue }}
+                </span>
+            {% endif %}
+            <br>
+            <span style="color: white; font-size: 0.85rem; opacity: 0.9;">
+                Code: <strong style="color: white;">{{ semester.code }}</strong> |
+                {{ semester.start_date.strftime('%b %d, %Y') }} → {{ semester.end_date.strftime('%b %d, %Y') }}
+                {% if semester.location_address %}
+                    <br>📮 {{ semester.location_address }}
+                {% endif %}
+            </span>
+        </p>
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- Show More/Less Button -->
+    {% if active_semesters|length > 4 %}
+    <button id="toggle-semesters" onclick="toggleSemesters()" style="margin-top: 0.5rem; padding: 0.6rem 1.5rem; background: rgba(255,255,255,0.2); color: white; border: 2px solid white; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; transition: all 0.3s;">
+        ▼ Show More ({{ active_semesters|length - 4 }} more)
+    </button>
+    {% endif %}
+</div>
+
+<script>
+let isExpanded = false;
+
+// Toggle Show More/Less
+function toggleSemesters() {
+    isExpanded = !isExpanded;
+    updateDisplay();
+}
+
+// Filter semesters by category
+function filterSemesters() {
+    // Reset expansion when filtering
+    isExpanded = false;
+    updateDisplay();
+}
+
+// Update display based on filter and expansion state
+function updateDisplay() {
+    const filterValue = document.getElementById('semester-filter').value;
+    const allItems = document.querySelectorAll('.semester-item');
+    const toggleBtn = document.getElementById('toggle-semesters');
+
+    let visibleItems = [];
+
+    // First, filter by category
+    allItems.forEach(item => {
+        const itemCategory = item.getAttribute('data-category');
+        const matchesFilter = filterValue === 'all' || itemCategory === filterValue;
+
+        if (matchesFilter) {
+            visibleItems.push(item);
+        }
+    });
+
+    // Now apply visibility based on expansion state
+    visibleItems.forEach((item, index) => {
+        if (isExpanded || index < 4) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+
+    // Hide non-matching items
+    allItems.forEach(item => {
+        const itemCategory = item.getAttribute('data-category');
+        const matchesFilter = filterValue === 'all' || itemCategory === filterValue;
+        if (!matchesFilter) {
+            item.style.display = 'none';
+        }
+    });
+
+    // Update button
+    const hiddenCount = Math.max(0, visibleItems.length - 4);
+
+    if (toggleBtn) {
+        if (hiddenCount > 0) {
+            toggleBtn.style.display = 'block';
+            if (isExpanded) {
+                toggleBtn.innerHTML = '▲ Show Less';
+            } else {
+                toggleBtn.innerHTML = `▼ Show More (${hiddenCount} more)`;
+            }
+        } else {
+            toggleBtn.style.display = 'none';
+        }
+    }
+}
+</script>
+{% endif %}
+
+<div class="admin-cards-grid">
+    <div class="admin-action-card card-users">
+        <h2><span class="icon-badge">👑</span> User Management</h2>
+        <p>Manage students, instructors, and admin accounts</p>
+        <a href="/admin/users" class="admin-action-btn">
+            Manage Users →
+        </a>
+    </div>
+
+    <div class="admin-action-card card-enrollment">
+        <h2><span class="icon-badge">🎓</span> Enrollment Management</h2>
+        <p>Approve enrollment requests and manage semester enrollments</p>
+        <a href="/admin/enrollments" class="admin-action-btn">
+            Manage Enrollments →
+        </a>
+    </div>
+
+    <div class="admin-action-card card-payment">
+        <h2><span class="icon-badge">💳</span> Payment Management</h2>
+        <p>Manage invoice requests, verify payments, and approve licenses</p>
+        <a href="/admin/payments" class="admin-action-btn btn-warning">
+            Manage Payments →
+        </a>
+    </div>
+
+    <div class="admin-action-card card-semester">
+        <h2><span class="icon-badge">📅</span> Semester Management</h2>
+        <p>Manage semesters and specialization availability</p>
+        <a href="/admin/semesters" class="admin-action-btn">
+            Manage Semesters →
+        </a>
+    </div>
+
+    <div class="admin-action-card card-analytics">
+        <h2><span class="icon-badge">📊</span> Analytics & Reports</h2>
+        <p>Platform statistics and performance metrics</p>
+        <a href="/admin/analytics" class="admin-action-btn">
+            View Analytics →
+        </a>
+    </div>
+
+    <div class="admin-action-card card-payment">
+        <h2><span class="icon-badge">🎟️</span> Coupon Management</h2>
+        <p>Create and manage discount coupons for students</p>
+        <a href="/admin/coupons" class="admin-action-btn btn-warning">
+            Manage Coupons →
+        </a>
+    </div>
+
+    <div class="admin-action-card card-enrollment">
+        <h2><span class="icon-badge">🎁</span> Invitation Codes</h2>
+        <p>Generate and manage partner invitation codes</p>
+        <a href="/admin/invitation-codes" class="admin-action-btn">
+            Manage Codes →
+        </a>
+    </div>
+</div>
+
+</div>
+<!-- End Main Content Container -->
+
+{% endblock %}

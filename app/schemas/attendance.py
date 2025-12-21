@@ -11,7 +11,7 @@ class AttendanceBase(BaseModel):
     user_id: int
     session_id: int
     booking_id: int
-    status: AttendanceStatus = AttendanceStatus.PRESENT
+    status: AttendanceStatus = AttendanceStatus.present
     notes: Optional[str] = None
 
 

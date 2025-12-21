@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator
+from typing import Optional, List, Union
 from datetime import datetime
-from ..models.session import SessionMode
+from ..models.session import SessionType
 from .user import User
 from .semester import Semester
 from .group import Group
@@ -12,16 +12,37 @@ class SessionBase(BaseModel):
     description: Optional[str] = None
     date_start: datetime
     date_end: datetime
-    mode: SessionMode = SessionMode.OFFLINE
+    session_type: SessionType = SessionType.on_site
     capacity: int = 20
     location: Optional[str] = None
-    meeting_link: Optional[str] = None
+    meeting_link: Optional[Union[HttpUrl, str]] = None  # 🔒 URL validation for virtual sessions
     sport_type: Optional[str] = 'General'  # Enhanced field for UI
     level: Optional[str] = 'All Levels'  # Enhanced field for UI
     instructor_name: Optional[str] = None  # Enhanced field for UI
     semester_id: int
     group_id: Optional[int] = None  # FIXED: Made optional to allow null values
     instructor_id: Optional[int] = None
+    credit_cost: int = 1  # Number of credits required to book this session
+
+    @field_validator('meeting_link', mode='before')
+    @classmethod
+    def validate_meeting_link(cls, v, info):
+        """
+        Validate meeting_link URL format
+        - Allow None (for non-virtual sessions)
+        - Allow empty string (converts to None)
+        - Validate URL format if provided
+        """
+        if v is None or v == '':
+            return None
+
+        # If it's already a valid URL string, return it
+        if isinstance(v, str):
+            # Basic URL validation: must start with http:// or https://
+            if not (v.startswith('http://') or v.startswith('https://')):
+                raise ValueError('Meeting link must be a valid URL starting with http:// or https://')
+
+        return v
 
 
 class SessionCreate(SessionBase):
@@ -33,7 +54,7 @@ class SessionUpdate(BaseModel):
     description: Optional[str] = None
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
-    mode: Optional[SessionMode] = None
+    session_type: Optional[SessionType] = None
     capacity: Optional[int] = None
     location: Optional[str] = None
     meeting_link: Optional[str] = None
@@ -43,6 +64,7 @@ class SessionUpdate(BaseModel):
     semester_id: Optional[int] = None
     group_id: Optional[int] = None
     instructor_id: Optional[int] = None
+    credit_cost: Optional[int] = None  # Number of credits required to book this session
 
 
 class Session(SessionBase):

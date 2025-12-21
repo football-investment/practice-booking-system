@@ -3,7 +3,7 @@
 Marketing-oriented license progression system with cultural narratives
 """
 import enum
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
@@ -126,15 +126,76 @@ class UserLicense(Base):
     started_at = Column(DateTime, nullable=False)
     last_advanced_at = Column(DateTime)
     instructor_notes = Column(Text)                           # Instructor feedback/notes
-    
+
+    # 💳 Payment tracking
+    payment_reference_code = Column(String(50), nullable=True, unique=True, index=True,
+                                   comment="Unique payment reference for bank transfer (e.g., INT-2025-002-X7K9)")
+    payment_verified = Column(Boolean, nullable=False, default=False,
+                              comment="Whether admin verified payment received for this license")
+    payment_verified_at = Column(DateTime, nullable=True,
+                                 comment="When admin verified the payment")
+
+    # 🎯 NEW: Onboarding tracking
+    onboarding_completed = Column(Boolean, nullable=False, default=False,
+                                   comment="Whether student completed basic onboarding for this specialization")
+    onboarding_completed_at = Column(DateTime, nullable=True,
+                                      comment="When student completed onboarding")
+
+    # ✅ License Activity Status
+    is_active = Column(Boolean, nullable=False, default=True,
+                      comment="Whether this license is currently active (can be used for teaching/enrollment)")
+
+    # 📅 License Expiration & Renewal (Fase 2)
+    expires_at = Column(DateTime, nullable=True,
+                       comment="License expiration date (null = no expiration yet, perpetual until first renewal)")
+    last_renewed_at = Column(DateTime, nullable=True,
+                            comment="When license was last renewed")
+    renewal_cost = Column(Integer, nullable=False, default=1000,
+                         comment="Credit cost to renew this license (default: 1000 credits)")
+
+    # 📊 NEW: Motivation scoring (admin/instructor only - NOT visible to student)
+    motivation_scores = Column(JSON, nullable=True,
+                               comment="Motivation assessment scores (1-5 scale) - filled by admin/instructor")
+    average_motivation_score = Column(Float, nullable=True,
+                                      comment="Calculated average motivation score (1.0-5.0)")
+    motivation_last_assessed_at = Column(DateTime, nullable=True,
+                                         comment="When motivation was last assessed")
+    motivation_assessed_by = Column(Integer, ForeignKey("users.id"), nullable=True,
+                                    comment="Admin/instructor who assessed motivation")
+
+    # ⚽ LFA PLAYER SKILLS: 6 skill percentages (0.0-100.0) for LFA_PLAYER_* specializations
+    # Format: {"heading": 75.0, "shooting": 60.0, "crossing": 55.0, "passing": 80.0, "dribbling": 70.0, "ball_control": 85.0}
+    football_skills = Column(JSON, nullable=True,
+                             comment="6 football skill percentages for LFA Player specializations (heading, shooting, crossing, passing, dribbling, ball_control)")
+    skills_last_updated_at = Column(DateTime, nullable=True,
+                                    comment="When skills were last updated")
+    skills_updated_by = Column(Integer, ForeignKey("users.id"), nullable=True,
+                               comment="Instructor who last updated skills")
+
+    # 💰 CREDIT SYSTEM: Prepaid enrollment credits
+    credit_balance = Column(Integer, nullable=False, default=0,
+                           comment="Current credit balance available for enrollments")
+    credit_purchased = Column(Integer, nullable=False, default=0,
+                              comment="Total credits purchased (lifetime)")
+    credit_expires_at = Column(DateTime, nullable=True,
+                               comment="Credit expiration date (2 years from purchase)")
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                        onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
-    user = relationship("User", back_populates="licenses")
-    progressions = relationship("LicenseProgression", back_populates="user_license", 
+    user = relationship("User", back_populates="licenses", foreign_keys="[UserLicense.user_id]")
+    assessor = relationship("User", foreign_keys="[UserLicense.motivation_assessed_by]")
+    skills_updater = relationship("User", foreign_keys="[UserLicense.skills_updated_by]")
+    progressions = relationship("LicenseProgression", back_populates="user_license",
                                cascade="all, delete-orphan")
+    semester_enrollments = relationship("SemesterEnrollment", back_populates="user_license",
+                                       cascade="all, delete-orphan")
+    belt_promotions = relationship("BeltPromotion", back_populates="user_license",
+                                   cascade="all, delete-orphan")
+    credit_transactions = relationship("CreditTransaction", back_populates="user_license",
+                                      cascade="all, delete-orphan")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
@@ -188,7 +249,7 @@ def configure_license_relationships():
     
     # Add relationships to User model if not already present
     if not hasattr(User, 'licenses'):
-        User.licenses = relationship("UserLicense", back_populates="user")
+        User.licenses = relationship("UserLicense", foreign_keys="UserLicense.user_id", back_populates="user")
 
 
 class LicenseSystemHelper:

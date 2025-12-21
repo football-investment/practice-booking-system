@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Semester Management - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>🎓 Semester Management</h1>
+    <p>Manage semesters and specialization availability</p>
+</div>
+
+<div class="card">
+    <h2>All Semesters ({{ semesters|length }})</h2>
+
+    {% if semesters %}
+    <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid #ecf0f1;">
+                <th style="padding: 0.75rem; text-align: left;">ID</th>
+                <th style="padding: 0.75rem; text-align: left;">Name</th>
+                <th style="padding: 0.75rem; text-align: left;">Start Date</th>
+                <th style="padding: 0.75rem; text-align: left;">End Date</th>
+                <th style="padding: 0.75rem; text-align: left;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for semester in semesters %}
+            <tr style="border-bottom: 1px solid #ecf0f1;">
+                <td style="padding: 0.75rem;">{{ semester.id }}</td>
+                <td style="padding: 0.75rem;">{{ semester.name }}</td>
+                <td style="padding: 0.75rem;">{{ semester.start_date.strftime('%Y-%m-%d') }}</td>
+                <td style="padding: 0.75rem;">{{ semester.end_date.strftime('%Y-%m-%d') }}</td>
+                <td style="padding: 0.75rem;">
+                    {% if semester.is_active %}
+                        <span style="color: #27ae60; font-weight: 600;">✓ Active</span>
+                    {% else %}
+                        <span style="color: #95a5a6;">Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #7f8c8d; margin-top: 1rem;">No semesters found. Create the first semester to get started.</p>
+    {% endif %}
+</div>
+{% endblock %}

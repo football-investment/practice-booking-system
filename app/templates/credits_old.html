@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credits - LFA Education Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .credit-badge {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .balance-item {
+            padding: 1rem;
+        }
+
+        .balance-item:not(:last-child) {
+            border-right: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .balance-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .balance-value {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.3rem;
+        }
+
+        .balance-unit {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .card p {
+            color: #718096;
+            margin-bottom: 1.5rem;
+        }
+
+        .package-grid {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .package-option {
+            display: flex;
+            align-items: center;
+            padding: 1.2rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .package-option:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .package-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f4ff 0%, #f7f0ff 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .package-option.recommended {
+            border-color: #ffd700;
+            background: linear-gradient(135deg, #fffef0 0%, #fff9e6 100%);
+        }
+
+        .package-option input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 1rem;
+            cursor: pointer;
+        }
+
+        .package-info {
+            flex: 1;
+        }
+
+        .package-name {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .package-price {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .payment-info {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 2px solid #e2e8f0;
+        }
+
+        .payment-info h3 {
+            font-size: 1.1rem;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .payment-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .payment-row:last-child {
+            border-bottom: none;
+        }
+
+        .payment-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .payment-value {
+            color: #2d3748;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #fff5f5 0%, #fee;
+            border-left: 4px solid #e74c3c;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .warning-box strong {
+            color: #e74c3c;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-request {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-request:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .help-text {
+            text-align: center;
+            color: #718096;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .balance-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .balance-item:not(:last-child) {
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.3);
+                padding-bottom: 1.5rem;
+            }
+
+            .balance-item:not(:first-child) {
+                padding-top: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header (SAME AS DASHBOARD) -->
+    <div class="header">
+        <div class="header-content">
+            <div class="user-info">
+                <h1>Welcome, {{ current_user.name }}! 👋</h1>
+                <p>{{ current_user.email }}{% if current_user.date_of_birth %} · Age: {{ ((today.year - current_user.date_of_birth.year) - ((today.month, today.day) < (current_user.date_of_birth.month, current_user.date_of_birth.day))) }} years{% endif %}</p>
+            </div>
+            <div class="header-actions">
+                <div class="credit-badge">
+                    💰 {{ total_credit_balance }} credits
+                </div>
+                <a href="/dashboard" class="btn btn-secondary">🏠 Dashboard</a>
+                <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+                <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <h2 class="page-title">💳 Credit Management</h2>
+        <p class="page-subtitle">Purchase credits to unlock specializations and enroll in semesters</p>
+
+        <!-- Credit Balance Overview -->
+        <div class="balance-card">
+            <div class="balance-grid">
+                <div class="balance-item">
+                    <div class="balance-label">Available Balance</div>
+                    <div class="balance-value">{{ total_credit_balance }}</div>
+                    <div class="balance-unit">credits</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">Total Purchased</div>
+                    <div class="balance-value">{{ total_credit_purchased }}</div>
+                    <div class="balance-unit">credits</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-label">Total Used</div>
+                    <div class="balance-value">{{ total_credit_used }}</div>
+                    <div class="balance-unit">credits</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Credit Purchase Packages -->
+        <div class="card">
+            <h2>📦 Purchase Credit Packages</h2>
+            <p>Select a credit package to purchase. Credits can be used across all your specializations.</p>
+
+            <div class="package-grid">
+                <label class="package-option" onclick="selectPackage(250, this)">
+                    <input type="radio" name="credit_package" value="250">
+                    <div class="package-info">
+                        <div class="package-name">250 Credits</div>
+                        <div class="package-price">250 € - One semester</div>
+                    </div>
+                </label>
+
+                <label class="package-option" onclick="selectPackage(500, this)">
+                    <input type="radio" name="credit_package" value="500">
+                    <div class="package-info">
+                        <div class="package-name">500 Credits</div>
+                        <div class="package-price">500 € - Two semesters</div>
+                    </div>
+                </label>
+
+                <label class="package-option recommended selected" onclick="selectPackage(1000, this)">
+                    <input type="radio" name="credit_package" value="1000" checked>
+                    <div class="package-info">
+                        <div class="package-name">1000 Credits ⭐ RECOMMENDED</div>
+                        <div class="package-price">1000 € - Full program (4 semesters)</div>
+                    </div>
+                </label>
+
+                <label class="package-option" onclick="selectPackage(2000, this)">
+                    <input type="radio" name="credit_package" value="2000">
+                    <div class="package-info">
+                        <div class="package-name">2000 Credits 🎓</div>
+                        <div class="package-price">2000 € - Extended program</div>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Payment Information -->
+            <div class="payment-info">
+                <h3>💳 Payment Information</h3>
+                <div class="payment-row">
+                    <span class="payment-label">Amount:</span>
+                    <span class="payment-value" id="selected-amount">1000 €</span>
+                </div>
+                <div class="payment-row">
+                    <span class="payment-label">Account Number:</span>
+                    <span class="payment-value">12345678-12345678-12345678</span>
+                </div>
+                <div class="payment-row">
+                    <span class="payment-label">Account Holder:</span>
+                    <span class="payment-value">LFA Education Center Kft.</span>
+                </div>
+                <div class="payment-row">
+                    <span class="payment-label">Bank:</span>
+                    <span class="payment-value">OTP Bank</span>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ IMPORTANT - Payment Reference</strong>
+                    Each invoice request will have a <strong>unique payment reference code</strong>.
+                    You will see it in the "Invoice Requests" table below after requesting an invoice.
+                </div>
+            </div>
+
+            <!-- Request Invoice Button -->
+            <button onclick="requestInvoice()" class="btn-request">
+                📄 Request Invoice for Selected Package
+            </button>
+            <p class="help-text">
+                Click to request an invoice. Admin will send it to your email address.
+            </p>
+        </div>
+    </div>
+
+    <script>
+    function selectPackage(amount, element) {
+        // Remove selected class from all options
+        document.querySelectorAll('.package-option').forEach(opt => {
+            if (!opt.classList.contains('recommended')) {
+                opt.classList.remove('selected');
+            }
+        });
+
+        // Add selected class to clicked option
+        if (!element.classList.contains('recommended')) {
+            element.classList.add('selected');
+        }
+
+        // Update selected amount display
+        document.getElementById('selected-amount').textContent = amount + ' €';
+
+        // Check the radio button
+        element.querySelector('input[type="radio"]').checked = true;
+    }
+
+    async function requestInvoice() {
+        const selectedPackage = document.querySelector('input[name="credit_package"]:checked');
+        if (!selectedPackage) {
+            alert('Please select a credit package');
+            return;
+        }
+
+        const amount = parseInt(selectedPackage.value);
+
+        try {
+            const response = await fetch('/api/v1/invoices/request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    credit_amount: amount
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`✅ Invoice requested successfully!\\n\\nPayment Reference: ${data.payment_reference}\\n\\nPlease use this reference code when making your bank transfer.`);
+                location.reload();
+            } else {
+                alert(`❌ Error: ${data.detail || 'Failed to request invoice'}`);
+            }
+        } catch (error) {
+            alert('❌ Error requesting invoice: ' + error.message);
+        }
+    }
+    </script>
+</body>
+</html>

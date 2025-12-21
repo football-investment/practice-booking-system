@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Management - Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+/* Card Styles */
+.payment-card {
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.payment-card:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    padding: 1.2rem 1.5rem;
+    color: white;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.stat-badge {
+    background: rgba(255,255,255,0.25);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-block;
+    margin: 0 0.5rem;
+}
+</style>
+
+<div class="welcome-section">
+    <h1>💳 Payment Management</h1>
+    <p>Manage invoice requests, payment verification, and license payments</p>
+    <a href="/admin/enrollments" style="padding: 0.6rem 1.2rem; background: #3498db; color: white; border-radius: 6px; text-decoration: none; display: inline-block; margin-top: 0.5rem;">
+        🎓 Go to Enrollment Management →
+    </a>
+</div>
+
+<!-- Specialization Configuration -->
+{% set spec_config = {
+    'INTERNSHIP': {'color': '#e74c3c', 'icon': '💼', 'name': 'Internship'},
+    'GANCUJU_PLAYER': {'color': '#8e44ad', 'icon': '🥋', 'name': 'GānCuju Player'},
+    'LFA_PLAYER_PRE': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player PRE (4-8 years)'},
+    'LFA_PLAYER_YOUTH': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player Youth (8-14 years)'},
+    'LFA_PLAYER_AMATEUR': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player Amateur (14+ years)'},
+    'LFA_PLAYER_PRO': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player PRO (16+ years)'},
+    'LFA_FOOTBALL_PLAYER': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Football Player (Legacy)'},
+    'LFA_COACH': {'color': '#27ae60', 'icon': '👨\u200d🏫', 'name': 'LFA Coach'}
+} %}
+
+<!-- ========================================== -->
+<!-- INVOICE REQUESTS (from invoice_requests table) -->
+<!-- ========================================== -->
+<div class="payment-card" style="border: 3px solid #f39c12;">
+    <div class="card-header" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+        <h2 style="color: white; margin: 0; font-size: 1.4rem;">📄 Invoice Requests</h2>
+        <p style="opacity: 0.9; margin: 0.5rem 0 0 0; font-size: 0.95rem;">
+            Students requesting invoices for credit purchase
+        </p>
+    </div>
+    <div class="card-body">
+        {% if invoice_requests %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: rgba(243, 156, 18, 0.1);">
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Student</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Amount</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Payment Reference</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Specialization</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Requested At</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Status</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoice_requests %}
+                    <tr style="border-bottom: 1px solid #ecf0f1;" id="invoice-row-{{ invoice.id }}">
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ invoice.user.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ invoice.user.email }}</span>
+                        </td>
+                        <td style="padding: 0.75rem; font-weight: 600; color: #2c3e50;">
+                            {{ invoice.credit_amount }} credits<br>
+                            <span style="color: #27ae60; font-size: 0.9rem;">({{ invoice.amount_eur }} €)</span>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <span style="background: #fff3cd; color: #856404; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; font-family: monospace; display: inline-block;">
+                                {{ invoice.payment_reference }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; color: #7f8c8d; font-size: 0.9rem;">
+                            {% if invoice.specialization %}
+                                {% set spec = spec_config.get(invoice.specialization, {'color': '#95a5a6', 'icon': '📚', 'name': invoice.specialization}) %}
+                                <span style="background-color: {{ spec.color }}; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; display: inline-block;">
+                                    {{ spec.icon }} {{ spec.name }}
+                                </span>
+                            {% else %}
+                                <span style="color: #95a5a6;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center; color: #7f8c8d; font-size: 0.85rem;">
+                            {{ invoice.created_at.strftime('%Y-%m-%d %H:%M') if invoice.created_at else 'N/A' }}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;" id="invoice-status-{{ invoice.id }}">
+                            {% if invoice.status == 'verified' %}
+                                <span style="background: #d4edda; color: #155724; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">✅ VERIFIED</span>
+                            {% elif invoice.status == 'paid' %}
+                                <span style="background: #d1ecf1; color: #0c5460; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">💰 PAID</span>
+                            {% elif invoice.status == 'cancelled' %}
+                                <span style="background: #f8d7da; color: #721c24; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">❌ CANCELLED</span>
+                            {% else %}
+                                <span style="background: #fff3cd; color: #856404; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">⏳ PENDING</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            {% if invoice.status == 'pending' %}
+                                <button onclick="verifyInvoice({{ invoice.id }})" class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
+                                    ✅ Verify Payment
+                                </button>
+                                <button onclick="cancelInvoice({{ invoice.id }})" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
+                                    ❌ Cancel
+                                </button>
+                            {% elif invoice.status == 'paid' %}
+                                <button onclick="verifyInvoice({{ invoice.id }})" class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
+                                    ✅ Verify Credits
+                                </button>
+                            {% elif invoice.status == 'verified' %}
+                                <button onclick="unverifyInvoice({{ invoice.id }})" class="btn btn-warning" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
+                                    🔄 Unverify & Revert
+                                </button>
+                            {% else %}
+                                <span style="color: #95a5a6; font-size: 0.85rem;">No actions available</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 3rem; color: #7f8c8d;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+            <p style="font-size: 1.1rem; font-weight: 600;">No invoice requests yet</p>
+            <p style="font-size: 0.95rem;">Students can request invoices from their Credits page</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- LICENSE PAYMENT VERIFICATION -->
+<!-- (Students who selected specs but haven't enrolled yet) -->
+<!-- ========================================== -->
+{% set total_newcomers = namespace(count=0) %}
+{% for spec_type in SpecializationType %}
+    {% set total_newcomers.count = total_newcomers.count + newcomer_groups[spec_type.value]|length %}
+{% endfor %}
+
+{% if total_newcomers.count > 0 %}
+<div class="payment-card" style="border: 3px solid #3498db;">
+    <div class="card-header" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
+        <h2 style="color: white; margin: 0; font-size: 1.4rem;">🔐 License Payment Verification ({{ total_newcomers.count }})</h2>
+        <p style="opacity: 0.95; margin: 0.5rem 0 0 0; font-size: 0.95rem;">
+            Students with active licenses awaiting payment verification before enrollment
+        </p>
+    </div>
+    <div class="card-body">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: rgba(52, 152, 219, 0.1);">
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Student</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Specialization</th>
+                        <th style="padding: 0.75rem; text-align: left; color: #2c3e50;">Payment Code</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">License Created</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Payment Status</th>
+                        <th style="padding: 0.75rem; text-align: center; color: #2c3e50;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for spec_type in SpecializationType %}
+                        {% set spec = spec_config[spec_type.value] %}
+                        {% for license in newcomer_groups[spec_type.value] %}
+                        <tr style="border-bottom: 1px solid #ecf0f1;" id="license-row-{{ license.id }}">
+                            <td style="padding: 0.75rem;">
+                                <strong>{{ license.user.name }}</strong><br>
+                                <span style="color: #7f8c8d; font-size: 0.85rem;">{{ license.user.email }}</span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <span style="background-color: {{ spec.color }}; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600; display: inline-block;">
+                                    {{ spec.icon }} {{ spec.name }}
+                                </span>
+                            </td>
+                            <td style="padding: 0.75rem;">
+                                <code style="background: #f0f0f0; padding: 6px 10px; border-radius: 4px; font-size: 0.95rem; font-weight: 600; color: {{ spec.color }}; display: inline-block; font-family: monospace;">
+                                    {{ license.payment_reference_code }}
+                                </code>
+                            </td>
+                            <td style="padding: 0.75rem; text-align: center; color: #7f8c8d; font-size: 0.85rem;">
+                                {{ license.started_at.strftime('%Y-%m-%d %H:%M') if license.started_at else '-' }}
+                            </td>
+                            <td style="padding: 0.75rem; text-align: center;" id="payment-status-license-{{ license.id }}">
+                                {% if license.payment_verified %}
+                                    <span style="background-color: #27ae60; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: inline-block;">
+                                        ✅ PAID
+                                    </span>
+                                    <br>
+                                    <span style="color: #7f8c8d; font-size: 0.75rem;">
+                                        {{ license.payment_verified_at.strftime('%Y-%m-%d') if license.payment_verified_at else '' }}
+                                    </span>
+                                {% else %}
+                                    <span style="background-color: #f39c12; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: inline-block;">
+                                        ⏳ AWAITING
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 0.75rem; text-align: center;">
+                                {% if license.payment_verified %}
+                                    <button onclick="unverifyLicensePayment({{ license.id }})" class="btn btn-warning" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                        Unverify
+                                    </button>
+                                {% else %}
+                                    <button onclick="verifyLicensePayment({{ license.id }})" class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+                                        ✅ Verify Payment
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1rem; padding: 0.8rem; background: rgba(52, 152, 219, 0.1); border-radius: 6px; border-left: 4px solid #3498db;">
+            <p style="margin: 0; font-size: 0.95rem; color: #2c3e50;">
+                💡 <strong>Workflow:</strong> Student selects specialization → Receives payment code → Pays tuition → You verify payment here → Student can enroll in semesters
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// ========================================
+// INVOICE COUNT POLLING (Auto-refresh detection)
+// ========================================
+let currentInvoiceCounts = {
+    pending: {{ invoice_requests|selectattr('status', 'equalto', 'pending')|list|length }},
+    verified: {{ invoice_requests|selectattr('status', 'equalto', 'verified')|list|length }},
+    total: {{ invoice_requests|length }}
+};
+let pollingInterval = null;
+let refreshNotificationShown = false;
+
+async function checkForInvoiceChanges() {
+    try {
+        const response = await fetch('/api/v1/invoices/count', {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+
+            // Check if counts changed
+            if (data.pending !== currentInvoiceCounts.pending ||
+                data.verified !== currentInvoiceCounts.verified ||
+                data.total !== currentInvoiceCounts.total) {
+
+                console.log('📄 Invoice counts changed!', {
+                    old: currentInvoiceCounts,
+                    new: data
+                });
+
+                // Show refresh notification
+                if (!refreshNotificationShown) {
+                    showRefreshNotification(data);
+                    refreshNotificationShown = true;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Polling error:', error);
+    }
+}
+
+function showRefreshNotification(newCounts) {
+    const notification = document.createElement('div');
+    notification.id = 'refresh-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1.2rem 1.5rem;
+        background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        color: white;
+        border-radius: 12px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        z-index: 100000;
+        font-weight: 600;
+        cursor: pointer;
+        animation: slideIn 0.4s ease, pulse 2s ease-in-out infinite;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        max-width: 400px;
+    `;
+
+    const message = newCounts.total > currentInvoiceCounts.total
+        ? `New invoice request received!`
+        : `Invoice status updated!`;
+
+    notification.innerHTML = `
+        <div style="font-size: 2rem;">📄</div>
+        <div>
+            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">${message}</div>
+            <div style="font-size: 0.9rem; opacity: 0.95;">
+                Pending: ${newCounts.pending} | Total: ${newCounts.total}
+                <br>Click to refresh page
+            </div>
+        </div>
+    `;
+
+    notification.onclick = () => {
+        window.location.reload();
+    };
+
+    document.body.appendChild(notification);
+
+    // Add animations
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            }
+            50% {
+                box-shadow: 0 8px 30px rgba(243, 156, 18, 0.6);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Start polling when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔄 Starting invoice count polling (every 10 seconds)');
+    pollingInterval = setInterval(checkForInvoiceChanges, 10000); // Check every 10 seconds
+});
+
+// Stop polling when page unloads
+window.addEventListener('beforeunload', () => {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+});
+
+// ========================================
+// INVOICE MANAGEMENT
+// ========================================
+async function verifyInvoice(invoiceId) {
+    if (!confirm('✅ Verify this invoice payment and add credits to student account?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/invoices/${invoiceId}/verify`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Invoice payment verified! Credits added to student account.');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to verify invoice'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function cancelInvoice(invoiceId) {
+    const reason = prompt('❌ Cancellation reason (optional):');
+    if (reason === null) {
+        return; // User cancelled
+    }
+
+    try {
+        const response = await fetch(`/api/v1/invoices/${invoiceId}/cancel`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason || 'No reason provided' })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('❌ Invoice cancelled');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to cancel invoice'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function unverifyInvoice(invoiceId) {
+    if (!confirm('🔄 Unverify this invoice and revert credits?\n\nThis will:\n- Remove credits from student account\n- Set invoice back to PENDING status\n- Create audit log entry\n\nAre you sure?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/invoices/${invoiceId}/unverify`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('🔄 Invoice unverified! Credits removed from student account.');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to unverify invoice'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+// ========================================
+// LICENSE PAYMENT VERIFICATION
+// ========================================
+async function verifyLicensePayment(licenseId) {
+    if (!confirm('✅ Mark this license payment as verified?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/licenses/${licenseId}/verify-payment`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ License payment verified! Student can now enroll in semesters.');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to verify payment'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function unverifyLicensePayment(licenseId) {
+    if (!confirm('⚠️ Remove license payment verification?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/licenses/${licenseId}/unverify-payment`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ License payment verification removed');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to unverify payment'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+</script>
+
+{% endblock %}

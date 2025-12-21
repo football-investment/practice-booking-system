@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - LFA Education Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .admin-badge {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #e74c3c;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 4px solid;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #718096;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-description {
+            font-size: 0.9rem;
+            color: #a0aec0;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            font-size: 1.3rem;
+            color: #2d3748;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            color: #718096;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .nav-menu {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .nav-menu h2 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem;
+            background: #f7fafc;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #2d3748;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: #edf2f7;
+            border-color: #e74c3c;
+            transform: translateX(4px);
+        }
+
+        .nav-link-icon {
+            font-size: 1.5rem;
+        }
+
+        .semester-list {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .semester-item {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .semester-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .semester-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .semester-name {
+            font-weight: 700;
+            color: #2d3748;
+            font-size: 1.1rem;
+        }
+
+        .semester-badge {
+            background: #667eea;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .semester-details {
+            color: #718096;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 0.8rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-select:hover {
+            border-color: #667eea;
+        }
+
+        .show-more-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 1rem;
+        }
+
+        .show-more-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .stats-grid, .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="user-info">
+                <h1>👑 Admin Dashboard</h1>
+                <p>Welcome, {{ user.name }}</p>
+            </div>
+            <div class="header-actions">
+                <div class="admin-badge">
+                    👑 ADMIN
+                </div>
+                <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
+                <a href="/profile" class="btn btn-secondary">👤 Profile</a>
+                <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Page Title -->
+        <h1 class="page-title">🎯 System Overview</h1>
+        <p class="page-subtitle">Monitor and manage the LFA Education Center</p>
+
+        <!-- Statistics Grid -->
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: #3498db;">
+                <h3>👥 Total Users</h3>
+                <div class="stat-value">{{ stats.total_users or 0 }}</div>
+                <p class="stat-description">Registered accounts</p>
+            </div>
+
+            <div class="stat-card" style="border-left-color: #2ecc71;">
+                <h3>🎓 Active Students</h3>
+                <div class="stat-value">{{ stats.active_students or 0 }}</div>
+                <p class="stat-description">Currently enrolled</p>
+            </div>
+
+            <div class="stat-card" style="border-left-color: #f39c12;">
+                <h3>👨‍🏫 Instructors</h3>
+                <div class="stat-value">{{ stats.instructors or 0 }}</div>
+                <p class="stat-description">Teaching staff</p>
+            </div>
+
+            <div class="stat-card" style="border-left-color: #9b59b6;">
+                <h3>📅 Active Semesters</h3>
+                <div class="stat-value">{{ active_semesters|length or 0 }}</div>
+                <p class="stat-description">Running programs</p>
+            </div>
+        </div>
+
+        <!-- Active Semesters Section -->
+        {% if active_semesters and active_semesters|length > 0 %}
+        <div class="semester-list">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <h2 style="color: #2d3748; margin: 0;">📅 Active Semesters ({{ active_semesters|length }})</h2>
+
+                <!-- Filter Dropdown -->
+                <select id="semester-filter" onchange="filterSemesters()" class="filter-select">
+                    <option value="all">All Categories</option>
+                    <option value="LFA_PLAYER">⚽ LFA Player (All Levels)</option>
+                    <option value="GANCUJU">🥋 GānCuju Player</option>
+                    <option value="LFA_COACH">👨‍🏫 LFA Coach</option>
+                    <option value="INTERNSHIP">💼 Internship</option>
+                </select>
+            </div>
+
+            <!-- Semesters Container -->
+            <div id="semesters-container">
+                {% for semester in active_semesters %}
+                <div class="semester-item"
+                     data-spec="{{ semester.specialization_type }}"
+                     data-category="{% if semester.specialization_type and 'LFA_PLAYER' in semester.specialization_type %}LFA_PLAYER{% elif semester.specialization_type and 'GANCUJU' in semester.specialization_type %}GANCUJU{% elif semester.specialization_type == 'LFA_COACH' %}LFA_COACH{% elif semester.specialization_type == 'INTERNSHIP' %}INTERNSHIP{% else %}OTHER{% endif %}"
+                     style="{% if loop.index > 4 %}display: none;{% endif %}"
+                     data-index="{{ loop.index }}">
+                    <div class="semester-header">
+                        <div class="semester-name">{{ semester.name }}</div>
+                        <div>
+                            {% if semester.specialization_type %}
+                            <span class="semester-badge" style="background: #667eea;">
+                                {{ semester.specialization_type.replace('_', ' ').title() }}
+                            </span>
+                            {% endif %}
+                            {% if semester.location_venue %}
+                            <span class="semester-badge" style="background: #f39c12;">
+                                📍 {{ semester.location_venue }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="semester-details">
+                        <strong>Code:</strong> {{ semester.code }}<br>
+                        <strong>Duration:</strong> {{ semester.start_date.strftime('%b %d, %Y') }} → {{ semester.end_date.strftime('%b %d, %Y') }}
+                        {% if semester.location_address %}
+                        <br><strong>Address:</strong> {{ semester.location_address }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Show More/Less Button -->
+            {% if active_semesters|length > 4 %}
+            <button id="toggle-semesters" onclick="toggleSemesters()" class="show-more-btn">
+                ▼ Show More ({{ active_semesters|length - 4 }} more)
+            </button>
+            {% endif %}
+        </div>
+
+        <script>
+        let isExpanded = false;
+
+        function toggleSemesters() {
+            isExpanded = !isExpanded;
+            updateDisplay();
+        }
+
+        function filterSemesters() {
+            isExpanded = false;
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            const filterValue = document.getElementById('semester-filter').value;
+            const allItems = document.querySelectorAll('.semester-item');
+            const toggleBtn = document.getElementById('toggle-semesters');
+
+            let visibleItems = [];
+
+            // Filter by category
+            allItems.forEach(item => {
+                const itemCategory = item.getAttribute('data-category');
+                const matchesFilter = filterValue === 'all' || itemCategory === filterValue;
+
+                if (matchesFilter) {
+                    visibleItems.push(item);
+                }
+            });
+
+            // Apply visibility based on expansion state
+            visibleItems.forEach((item, index) => {
+                if (isExpanded || index < 4) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Hide non-matching items
+            allItems.forEach(item => {
+                const itemCategory = item.getAttribute('data-category');
+                const matchesFilter = filterValue === 'all' || itemCategory === filterValue;
+                if (!matchesFilter) {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Update button
+            const hiddenCount = Math.max(0, visibleItems.length - 4);
+
+            if (toggleBtn) {
+                if (hiddenCount > 0) {
+                    toggleBtn.style.display = 'block';
+                    if (isExpanded) {
+                        toggleBtn.innerHTML = '▲ Show Less';
+                    } else {
+                        toggleBtn.innerHTML = `▼ Show More (${hiddenCount} more)`;
+                    }
+                } else {
+                    toggleBtn.style.display = 'none';
+                }
+            }
+        }
+        </script>
+        {% endif %}
+
+        <!-- Navigation Menu -->
+        <div class="nav-menu">
+            <h2>⚡ Quick Access</h2>
+            <div class="nav-links">
+                <a href="/admin/users" class="nav-link">
+                    <span class="nav-link-icon">👥</span>
+                    <span>User Management</span>
+                </a>
+                <a href="/admin/enrollments" class="nav-link">
+                    <span class="nav-link-icon">🎓</span>
+                    <span>Enrollments</span>
+                </a>
+                <a href="/admin/payments" class="nav-link">
+                    <span class="nav-link-icon">💳</span>
+                    <span>Payments</span>
+                </a>
+                <a href="/admin/semesters" class="nav-link">
+                    <span class="nav-link-icon">📅</span>
+                    <span>Semesters</span>
+                </a>
+                <a href="/admin/coupons" class="nav-link">
+                    <span class="nav-link-icon">🎟️</span>
+                    <span>Coupons</span>
+                </a>
+                <a href="/admin/analytics" class="nav-link">
+                    <span class="nav-link-icon">📊</span>
+                    <span>Analytics</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Management Cards -->
+        <h2 style="font-size: 1.8rem; color: #2d3748; margin-bottom: 1.5rem;">🛠️ System Management</h2>
+        <div class="cards-grid">
+            <div class="card" style="border-left: 4px solid #3498db;">
+                <h2>👑 User Management</h2>
+                <p>Manage students, instructors, and admin accounts. Create new users, edit roles, and monitor activity.</p>
+                <a href="/admin/users" class="btn btn-primary">Manage Users</a>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #2ecc71;">
+                <h2>🎓 Enrollment Management</h2>
+                <p>Approve enrollment requests and manage semester enrollments. Monitor student progress.</p>
+                <a href="/admin/enrollments" class="btn btn-primary">Manage Enrollments</a>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #f39c12;">
+                <h2>💳 Payment Management</h2>
+                <p>Manage invoice requests, verify payments, and approve credit purchases for specializations.</p>
+                <a href="/admin/payments" class="btn btn-primary" style="background: #f39c12; color: white;">Manage Payments</a>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #9b59b6;">
+                <h2>📅 Semester Management</h2>
+                <p>Create and manage semesters, set dates, and control specialization availability.</p>
+                <a href="/admin/semesters" class="btn btn-primary">Manage Semesters</a>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #e74c3c;">
+                <h2>🎟️ Coupon Management</h2>
+                <p>Create discount coupons, manage promo codes, and track usage statistics.</p>
+                <a href="/admin/coupons" class="btn btn-primary">Manage Coupons</a>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #8e44ad;">
+                <h2>🎁 Partner Invitation Codes</h2>
+                <p>Generate unique invitation codes for partners with bonus credits.</p>
+                <a href="/admin/invitation-codes" class="btn btn-primary">Manage Codes</a>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #1abc9c;">
+                <h2>📊 Analytics & Reports</h2>
+                <p>View platform statistics, performance metrics, and generate detailed reports.</p>
+                <a href="/admin/analytics" class="btn btn-primary">View Analytics</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -230,17 +230,15 @@ def generate_lfa_player_youth_season(
 def generate_lfa_player_amateur_season(
     token: str,
     year: int,
-    season: str,
     location_id: int,
     force_overwrite: bool = False
 ) -> Tuple[bool, Optional[str], Optional[dict]]:
     """
-    Generate Fall OR Spring season for LFA_PLAYER AMATEUR
+    Generate annual season for LFA_PLAYER AMATEUR (Jul-Jun)
 
     Args:
         token: Admin authentication token
         year: Year (e.g., 2026)
-        season: "fall" or "spring"
         location_id: ID of location
         force_overwrite: Replace existing season if true
 
@@ -248,7 +246,7 @@ def generate_lfa_player_amateur_season(
         Tuple of (success, error_message, result_data)
         result_data contains: {
             "success": bool,
-            "message": str,  # e.g., "Successfully generated Fall season for 2025/LFA_PLAYER/AMATEUR"
+            "message": str,  # e.g., "Successfully generated season for 2025/2026 LFA_PLAYER/AMATEUR"
             "period": {...}
         }
     """
@@ -258,7 +256,6 @@ def generate_lfa_player_amateur_season(
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "year": year,
-                "season": season,
                 "location_id": location_id,
                 "force_overwrite": force_overwrite
             },

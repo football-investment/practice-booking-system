@@ -24,7 +24,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.STUDENT)
     is_active = Column(Boolean, default=True)
-    onboarding_completed = Column(Boolean, default=False)
+    onboarding_completed = Column(Boolean, default=False, comment="Set to True when student completes FIRST license onboarding (motivation questionnaire). Note: UserLicense.onboarding_completed tracks EACH specialization separately.")
     phone = Column(String, nullable=True)
     emergency_contact = Column(String, nullable=True)
     emergency_phone = Column(String, nullable=True)
@@ -32,6 +32,11 @@ class User(Base):
     medical_notes = Column(String, nullable=True)
     interests = Column(String, nullable=True)  # JSON string of interests array
     position = Column(String, nullable=True)  # Football position (goalkeeper, defender, midfielder, forward, coach)
+
+    # 🆕 NEW: Additional profile fields
+    nationality = Column(String, nullable=True, comment="User's nationality (e.g., Hungarian, American)")
+    gender = Column(String, nullable=True, comment="User's gender (Male, Female, Other, Prefer not to say)")
+    current_location = Column(String, nullable=True, comment="User's current location (e.g., Budapest, Hungary)")
     
     # 🎓 NEW: Specialization field (nullable for backward compatibility)
     specialization = Column(
@@ -57,6 +62,26 @@ class User(Base):
         ForeignKey("users.id"),
         nullable=True,
         comment="Admin who verified the payment"
+    )
+
+    # 💳 CENTRALIZED CREDIT SYSTEM: User-level credits (spec-independent)
+    credit_balance = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Current available credits (can be used across all specializations)"
+    )
+    credit_purchased = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Total credits purchased by this user (for transaction history)"
+    )
+    credit_payment_reference = Column(
+        String(50),
+        nullable=True,
+        unique=True,
+        comment="Unique payment reference code for credit purchases (közlemény)"
     )
 
     # 📄 NEW: NDA acceptance fields
@@ -118,11 +143,35 @@ class User(Base):
     project_enrollments = relationship("ProjectEnrollment", back_populates="user")
     
     # Gamification relationships (will be added after UserAchievement/UserStats are defined)
-    
+
+    # 👨‍🏫 NEW: Instructor specialization qualifications
+    instructor_specializations = relationship("InstructorSpecialization",
+                                             foreign_keys="InstructorSpecialization.user_id",
+                                             back_populates="instructor",
+                                             cascade="all, delete-orphan")
+
     # Message relationships
     sent_messages = relationship("Message", back_populates="sender", foreign_keys="Message.sender_id")
     received_messages = relationship("Message", back_populates="recipient", foreign_keys="Message.recipient_id")
-    
+
+    # Semester enrollment relationships
+    semester_enrollments = relationship("SemesterEnrollment", foreign_keys="SemesterEnrollment.user_id", back_populates="user")
+
+    # Invoice request relationships
+    invoice_requests = relationship("InvoiceRequest", back_populates="user", cascade="all, delete-orphan")
+
+    # Invitation code relationships
+    redeemed_invitation_codes = relationship(
+        "InvitationCode",
+        foreign_keys="InvitationCode.used_by_user_id",
+        back_populates="used_by_user"
+    )
+    created_invitation_codes = relationship(
+        "InvitationCode",
+        foreign_keys="InvitationCode.created_by_admin_id",
+        back_populates="created_by_admin"
+    )
+
     # 🎓 NEW: Specialization helper properties and methods
     @property
     def specialization_display(self) -> str:
@@ -230,6 +279,76 @@ class User(Base):
         self.payment_verified_at = None
         self.payment_verified_by = None
 
+    # 🎓 SEMESTER ENROLLMENT HELPERS
+    def get_active_semester_enrollment(self, db_session, semester_id: Optional[int] = None):
+        """
+        Get user's active, paid enrollment for a specific semester.
+        If semester_id not provided, finds enrollment matching user's current specialization.
+
+        Returns:
+            SemesterEnrollment or None
+        """
+        from .semester import Semester
+        from .semester_enrollment import SemesterEnrollment
+        from .license import UserLicense
+
+        # Admins and instructors don't need enrollments
+        if self.role in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
+            return None
+
+        # If semester_id provided, use it directly
+        if semester_id is not None:
+            # Find active, paid enrollment for specific semester
+            enrollment = db_session.query(SemesterEnrollment).filter(
+                SemesterEnrollment.user_id == self.id,
+                SemesterEnrollment.semester_id == semester_id,
+                SemesterEnrollment.payment_verified == True,
+                SemesterEnrollment.is_active == True
+            ).first()
+            return enrollment
+
+        # No semester_id provided - find enrollment matching user's current specialization
+        # This handles the case where multiple active semesters exist for different specializations
+        if self.specialization:
+            # Convert enum to string for database query
+            spec_value = self.specialization.value if hasattr(self.specialization, 'value') else self.specialization
+
+            # Find active enrollment matching user's specialization through user_license
+            enrollment = db_session.query(SemesterEnrollment).join(
+                UserLicense, SemesterEnrollment.user_license_id == UserLicense.id
+            ).filter(
+                SemesterEnrollment.user_id == self.id,
+                UserLicense.specialization_type == spec_value,
+                SemesterEnrollment.payment_verified == True,
+                SemesterEnrollment.is_active == True
+            ).order_by(SemesterEnrollment.enrolled_at.desc()).first()
+
+            if enrollment:
+                return enrollment
+
+        # Fallback: no specialization, try to find ANY active enrollment
+        enrollment = db_session.query(SemesterEnrollment).filter(
+            SemesterEnrollment.user_id == self.id,
+            SemesterEnrollment.payment_verified == True,
+            SemesterEnrollment.is_active == True
+        ).order_by(SemesterEnrollment.enrolled_at.desc()).first()
+
+        return enrollment
+
+    def has_active_semester_enrollment(self, db_session, semester_id: Optional[int] = None) -> bool:
+        """
+        Check if user has an active, paid enrollment for a semester.
+
+        Returns:
+            bool - True if user has active enrollment or is admin/instructor
+        """
+        # Admins and instructors always have access
+        if self.role in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
+            return True
+
+        enrollment = self.get_active_semester_enrollment(db_session, semester_id)
+        return enrollment is not None
+
     # 👨‍👩‍👧 NEW: Parental consent helper methods
     @property
     def age(self) -> Optional[int]:
@@ -267,3 +386,94 @@ class User(Base):
         self.parental_consent = False
         self.parental_consent_at = None
         self.parental_consent_by = None
+
+    # 👨‍🏫 NEW: Instructor Specialization Helper Methods
+    def get_teaching_specializations(self) -> list:
+        """
+        Get list of ACTIVE specializations this instructor is qualified to teach
+
+        Returns:
+            List of SpecializationType values (e.g., ['GANCUJU_PLAYER', 'LFA_COACH'])
+        """
+        # Only INSTRUCTOR role can teach (ADMIN is pure admin)
+        if self.role != UserRole.INSTRUCTOR:
+            return []
+
+        return [
+            spec.specialization
+            for spec in self.instructor_specializations
+            if spec.is_active
+        ]
+
+    def get_all_teaching_specializations(self) -> list:
+        """
+        Get ALL specializations (active + inactive) with their status
+
+        Returns:
+            List of dicts: [{'specialization': 'GANCUJU_PLAYER', 'is_active': True}, ...]
+        """
+        # Only INSTRUCTOR role can teach (ADMIN is pure admin)
+        if self.role != UserRole.INSTRUCTOR:
+            return []
+
+        return [
+            {
+                'specialization': spec.specialization,
+                'is_active': spec.is_active
+            }
+            for spec in self.instructor_specializations
+        ]
+
+    def can_teach_specialization(self, specialization) -> bool:
+        """
+        Check if instructor/admin is qualified to teach a specific specialization
+
+        Args:
+            specialization: SpecializationType enum or string
+
+        Returns:
+            True if instructor/admin is qualified and active
+        """
+        # Only INSTRUCTOR role can teach (ADMIN is pure admin)
+        if self.role != UserRole.INSTRUCTOR:
+            return False
+
+        # Convert to string if enum
+        spec_str = specialization.value if hasattr(specialization, 'value') else str(specialization)
+
+        return any(
+            spec.specialization == spec_str and spec.is_active
+            for spec in self.instructor_specializations
+        )
+
+    def add_teaching_specialization(self, specialization, certified_by_id=None, notes=None):
+        """
+        Add a new teaching qualification for instructor/admin
+
+        Note: This method only creates the object. You must commit() separately!
+        """
+        from .instructor_specialization import InstructorSpecialization
+
+        if self.role != UserRole.INSTRUCTOR:
+            raise ValueError("Only instructors can have teaching specializations")
+
+        spec_str = specialization.value if hasattr(specialization, 'value') else str(specialization)
+
+        # Check if already exists
+        existing = any(
+            spec.specialization == spec_str
+            for spec in self.instructor_specializations
+        )
+
+        if existing:
+            return None  # Already exists
+
+        new_spec = InstructorSpecialization(
+            user_id=self.id,
+            specialization=spec_str,
+            certified_by=certified_by_id,
+            notes=notes
+        )
+
+        self.instructor_specializations.append(new_spec)
+        return new_spec

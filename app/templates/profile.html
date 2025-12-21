@@ -1,0 +1,548 @@
+{%extends "base.html" %}
+
+{%block title %}Profile - LFA Education Center{%endblock %}
+
+{%block content %}
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .credit-badge {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .success-message {
+            display: none;
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            padding: 1.2rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .info-value {
+            color: #2d3748;
+            text-align: right;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-student {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+
+        .full-width-card {
+            grid-column: 1 / -1;
+        }
+
+        /* Specialization Switcher */
+        .spec-switcher {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .spec-switcher-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .spec-switcher h3 {
+            font-size: 1.3rem;
+            margin: 0;
+        }
+
+        .spec-switcher-form {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .spec-switcher select {
+            padding: 0.7rem 1.2rem;
+            border: 3px solid white;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            background-color: white;
+            color: #2c3e50;
+            cursor: pointer;
+        }
+
+        .spec-switcher button {
+            padding: 0.7rem 1.8rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            background: white;
+            color: #667eea;
+            border: 3px solid white;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+
+        .spec-switcher button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+        }
+
+        @media (max-width: 768px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+
+    <!-- Header (SAME AS ABOUT-SPECIALIZATIONS) -->
+    <div class="header">
+        <div class="header-content">
+            <div class="user-info">
+                <h1>Welcome, {{ user.name }}! 👋</h1>
+                <p>{{ user.email }}{% if user.date_of_birth %} · Age: {{ ((today.year - user.date_of_birth.year) - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))) }} years{% endif %}</p>
+            </div>
+            <div class="header-actions">
+                {% if user.role.value == 'STUDENT' %}
+                <div class="credit-badge">
+                    💰 {{ credit_balance }} credits
+                </div>
+                <a href="/credits" class="btn btn-primary">💳 Purchase Credits</a>
+                {% endif %}
+                <a href="/dashboard" class="btn btn-secondary">🏠 Dashboard</a>
+                <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+                <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div>
+                <h2 class="page-title">👤 My Profile</h2>
+                <p class="page-subtitle">Manage your account information</p>
+            </div>
+            <a href="/profile/edit" class="btn btn-primary">✏️ Edit Profile</a>
+        </div>
+
+        <!-- Success Message -->
+        <div id="success-message" class="success-message">
+            ✅ Profile updated successfully!
+        </div>
+
+        <!-- SPECIALIZATION SWITCHER (for students with multiple licenses) -->
+        {% if user.role.value == 'STUDENT' and user_licenses and user_licenses|length > 1 %}
+        <div class="spec-switcher">
+            <div class="spec-switcher-content">
+                <h3>
+                    {% if user.specialization %}
+                        {% if user.specialization.value == 'GANCUJU_PLAYER' %}
+                            🥋 ACTIVE: GānCuju Player
+                        {% elif user.specialization.value == 'LFA_FOOTBALL_PLAYER' %}
+                            ⚽ ACTIVE: LFA Football Player
+                        {% elif user.specialization.value == 'LFA_COACH' %}
+                            👨‍🏫 ACTIVE: LFA Coach
+                        {% elif user.specialization.value == 'INTERNSHIP' %}
+                            💼 ACTIVE: Internship
+                        {% endif %}
+                    {% endif %}
+                </h3>
+                <form method="POST" action="/specialization/switch" class="spec-switcher-form">
+                    <input type="hidden" name="return_url" value="/profile">
+                    <select name="specialization">
+                        {% for license in user_licenses %}
+                            {% if license.specialization_type == 'GANCUJU_PLAYER' %}
+                                <option value="GANCUJU_PLAYER" {% if user.specialization and user.specialization.value == 'GANCUJU_PLAYER' %}selected{% endif %}>🥋 GānCuju Player</option>
+                            {% elif license.specialization_type == 'LFA_FOOTBALL_PLAYER' %}
+                                <option value="LFA_FOOTBALL_PLAYER" {% if user.specialization and user.specialization.value == 'LFA_FOOTBALL_PLAYER' %}selected{% endif %}>⚽ LFA Football Player</option>
+                            {% elif license.specialization_type == 'LFA_COACH' %}
+                                <option value="LFA_COACH" {% if user.specialization and user.specialization.value == 'LFA_COACH' %}selected{% endif %}>👨‍🏫 LFA Coach</option>
+                            {% elif license.specialization_type == 'INTERNSHIP' %}
+                                <option value="INTERNSHIP" {% if user.specialization and user.specialization.value == 'INTERNSHIP' %}selected{% endif %}>💼 Internship</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <button type="submit">🔄 SWITCH</button>
+                </form>
+            </div>
+            <p style="margin-top: 0.8rem; font-size: 0.9rem; opacity: 0.9; text-align: center;">
+                💡 You have {{ user_licenses|length }} specializations - switch instantly above!
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Profile Cards -->
+        <div class="cards-grid">
+            <!-- Personal Information -->
+            <div class="card">
+                <h2>📋 Personal Information</h2>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value">{{ user.name }}</span>
+                </div>
+                {% if user.nickname %}
+                <div class="info-row">
+                    <span class="info-label">Nickname:</span>
+                    <span class="info-value">{{ user.nickname }}</span>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ user.email }}</span>
+                </div>
+                {% if user.date_of_birth %}
+                <div class="info-row">
+                    <span class="info-label">Date of Birth:</span>
+                    <span class="info-value">{{ user.date_of_birth.strftime('%Y-%m-%d') }} ({{ ((today.year - user.date_of_birth.year) - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))) }} years old)</span>
+                </div>
+                {% endif %}
+                {% if user.phone %}
+                <div class="info-row">
+                    <span class="info-label">📞 Phone:</span>
+                    <span class="info-value">{{ user.phone }}</span>
+                </div>
+                {% endif %}
+                {% if user.nationality %}
+                <div class="info-row">
+                    <span class="info-label">🌍 Nationality:</span>
+                    <span class="info-value">{{ user.nationality }}</span>
+                </div>
+                {% endif %}
+                {% if user.gender %}
+                <div class="info-row">
+                    <span class="info-label">⚧ Gender:</span>
+                    <span class="info-value">{{ user.gender }}</span>
+                </div>
+                {% endif %}
+                {% if user.current_location %}
+                <div class="info-row">
+                    <span class="info-label">📍 Location:</span>
+                    <span class="info-value">{{ user.current_location }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Account Information -->
+            <div class="card">
+                <h2>🔐 Account Information</h2>
+                <div class="info-row">
+                    <span class="info-label">Role:</span>
+                    <span class="info-value">
+                        {% if user.role.value == 'ADMIN' %}
+                            <span class="badge badge-success">ADMIN</span>
+                        {% elif user.role.value == 'INSTRUCTOR' %}
+                            <span class="badge badge-info">INSTRUCTOR</span>
+                        {% else %}
+                            <span class="badge badge-student">STUDENT</span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% if user.specialization %}
+                <div class="info-row">
+                    <span class="info-label">Current Specialization:</span>
+                    <span class="info-value">
+                        {% if user.specialization.value == 'GANCUJU_PLAYER' %}
+                            🥋 GānCuju Player
+                        {% elif user.specialization.value == 'LFA_FOOTBALL_PLAYER' %}
+                            ⚽ LFA Football Player
+                        {% elif user.specialization.value == 'LFA_COACH' %}
+                            👨‍🏫 LFA Coach
+                        {% elif user.specialization.value == 'INTERNSHIP' %}
+                            💼 Internship
+                        {% else %}
+                            {{ user.specialization.value.replace('_', ' ').title() }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% else %}
+                <div class="info-row">
+                    <span class="info-label">Current Specialization:</span>
+                    <span class="info-value">
+                        <a href="/dashboard" style="color: #667eea; font-weight: 600;">Select Specialization →</a>
+                    </span>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <span class="info-label">Account Status:</span>
+                    <span class="info-value">
+                        {% if user.is_active %}
+                            <span class="badge badge-success">✓ Active</span>
+                        {% else %}
+                            <span class="badge" style="background: #e74c3c; color: white;">Inactive</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Member Since:</span>
+                    <span class="info-value">{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'N/A' }}</span>
+                </div>
+                {% if user.role.value == 'STUDENT' %}
+                <div class="info-row">
+                    <span class="info-label">💰 Credit Balance:</span>
+                    <span class="info-value"><strong>{{ credit_balance }}</strong> credits</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Emergency Contact (if provided) -->
+            {% if user.emergency_contact or user.emergency_phone %}
+            <div class="card">
+                <h2>🚨 Emergency Contact</h2>
+                {% if user.emergency_contact %}
+                <div class="info-row">
+                    <span class="info-label">Contact Name:</span>
+                    <span class="info-value">{{ user.emergency_contact }}</span>
+                </div>
+                {% endif %}
+                {% if user.emergency_phone %}
+                <div class="info-row">
+                    <span class="info-label">Contact Phone:</span>
+                    <span class="info-value">{{ user.emergency_phone }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Additional Information (if provided) -->
+            {% if user.medical_notes or user.interests %}
+            <div class="card">
+                <h2>📝 Additional Information</h2>
+                {% if user.medical_notes %}
+                <div style="margin-bottom: 1rem;">
+                    <div class="info-label" style="margin-bottom: 0.5rem;">🏥 Medical Notes:</div>
+                    <div class="info-value" style="text-align: left; color: #4a5568;">{{ user.medical_notes }}</div>
+                </div>
+                {% endif %}
+                {% if user.interests %}
+                <div>
+                    <div class="info-label" style="margin-bottom: 0.5rem;">🎯 Interests:</div>
+                    <div class="info-value" style="text-align: left; color: #4a5568;">{{ user.interests }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+    // Show success message if redirected from edit
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('updated') === 'true') {
+            const successMsg = document.getElementById('success-message');
+            if (successMsg) {
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.opacity = '0';
+                    successMsg.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        successMsg.style.display = 'none';
+                    }, 500);
+                }, 3000);
+            }
+            // Clean up URL
+            window.history.replaceState({}, document.title, '/profile');
+        }
+    });
+    </script>
+
+
+{%endblock %}

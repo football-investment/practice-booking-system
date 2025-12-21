@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}Enrollment Management - Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+/* Accordion Card Styles */
+.spec-accordion {
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.spec-accordion:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.spec-header {
+    padding: 1.2rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    font-weight: 600;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.spec-header:hover {
+    filter: brightness(1.1);
+}
+
+.spec-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.spec-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.spec-stats {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.95rem;
+    opacity: 0.95;
+}
+
+.stat-badge {
+    background: rgba(255,255,255,0.25);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.stat-badge.urgent {
+    background: rgba(255,255,255,0.4);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.toggle-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.spec-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    background: white;
+}
+
+.spec-content.expanded {
+    max-height: 5000px;
+    transition: max-height 0.6s ease-in;
+}
+
+.spec-content-inner {
+    padding: 1.5rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #95a5a6;
+    font-style: italic;
+}
+</style>
+
+<div class="welcome-section">
+    <h1>🎓 Enrollment Management</h1>
+    <p>Approve enrollment requests and manage active semester enrollments. Payment verification is handled separately in Payment Management.</p>
+    <a href="/admin/payments" style="padding: 0.6rem 1.2rem; background: #f39c12; color: white; border-radius: 6px; text-decoration: none; display: inline-block; margin-top: 0.5rem;">
+        💳 Go to Payment Management →
+    </a>
+</div>
+
+<!-- Specialization Configuration (needed by all sections below) -->
+{% set spec_config = {
+    'INTERNSHIP': {'color': '#e74c3c', 'icon': '💼', 'name': 'Internship'},
+    'GANCUJU_PLAYER': {'color': '#8e44ad', 'icon': '🥋', 'name': 'GānCuju Player'},
+    'LFA_PLAYER_PRE': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player PRE (4-8 years)'},
+    'LFA_PLAYER_YOUTH': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player Youth (8-14 years)'},
+    'LFA_PLAYER_AMATEUR': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player Amateur (14+ years)'},
+    'LFA_PLAYER_PRO': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player PRO (16+ years)'},
+    'LFA_FOOTBALL_PLAYER': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Football Player (Legacy)'},
+    'LFA_COACH': {'color': '#27ae60', 'icon': '👨\u200d🏫', 'name': 'LFA Coach'}
+} %}
+
+<!-- ========================================== -->
+<!-- SPECIALIZATION ACCORDION SECTIONS          -->
+<!-- ========================================== -->
+
+{% for spec_type in SpecializationType %}
+{% set spec = spec_config[spec_type.value] %}
+{% set location_groups = specialization_groups[spec_type.value] %}
+
+<!-- Loop through each location within this specialization -->
+{% for location_venue, group in location_groups.items() %}
+{% set has_pending = group.pending|length > 0 %}
+{% set expanded = 'expanded' if has_pending else '' %}
+{% set accordion_id = spec_type.value ~ '_' ~ loop.index %}
+
+<div class="spec-accordion" style="border: 3px solid {{ spec.color }};">
+    <!-- Header -->
+    <div class="spec-header" style="background: {{ spec.color }};" onclick="toggleAccordion('{{ accordion_id }}')">
+        <div class="spec-header-left">
+            <span class="spec-title">{{ spec.icon }} {{ spec.name }} - {{ location_venue }}</span>
+            <div class="spec-stats">
+                <span class="stat-badge {% if has_pending %}urgent{% endif %}">
+                    ⏳ {{ group.pending|length }} Pending
+                </span>
+                <span class="stat-badge">
+                    ✅ {{ group.active|length }} Active
+                </span>
+            </div>
+        </div>
+        <span class="toggle-icon {{ expanded }}" id="toggle-{{ accordion_id }}">▼</span>
+    </div>
+
+    <!-- Content -->
+    <div class="spec-content {{ expanded }}" id="content-{{ accordion_id }}">
+        <div class="spec-content-inner">
+
+            <!-- PENDING REQUESTS -->
+            {% if group.pending %}
+            <h3 style="color: {{ spec.color }}; margin-bottom: 1rem;">⏳ Pending Enrollment Requests</h3>
+            <table style="width: 100%; margin-bottom: 2rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: #f8f9fa;">
+                        <th style="padding: 0.75rem; text-align: left;">Student</th>
+                        <th style="padding: 0.75rem; text-align: left;">Semester</th>
+                        <th style="padding: 0.75rem; text-align: center;">Requested At</th>
+                        <th style="padding: 0.75rem; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in group.pending %}
+                    <tr style="border-bottom: 1px solid #ecf0f1;" id="request-row-{{ enrollment.id }}">
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.user.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.user.email }}</span>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.semester.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.semester.code }}</span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">
+                                {{ enrollment.requested_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <button onclick="approveRequest({{ enrollment.id }})" class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.9rem; margin: 0.2rem;">
+                                ✅ Approve
+                            </button>
+                            <button onclick="rejectRequest({{ enrollment.id }})" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.9rem; margin: 0.2rem;">
+                                ❌ Reject
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- ACTIVE ENROLLMENTS -->
+            {% if group.active %}
+            <h3 style="color: {{ spec.color }}; margin-bottom: 1rem;">✅ Active Enrollments</h3>
+            <table style="width: 100%; margin-bottom: 2rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: #f8f9fa;">
+                        <th style="padding: 0.75rem; text-align: left;">Student</th>
+                        <th style="padding: 0.75rem; text-align: center;">Status</th>
+                        <th style="padding: 0.75rem; text-align: center;">Enrolled At</th>
+                        <th style="padding: 0.75rem; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in group.active %}
+                    <tr style="border-bottom: 1px solid #ecf0f1;" id="enrollment-row-{{ enrollment.id }}">
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.user.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.user.email }}</span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;" id="active-status-{{ enrollment.id }}">
+                            {% if enrollment.is_active %}
+                                <span style="background-color: #27ae60; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600;">ACTIVE</span>
+                            {% else %}
+                                <span style="background-color: #95a5a6; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600;">INACTIVE</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">
+                                {{ enrollment.enrolled_at.strftime('%Y-%m-%d %H:%M') if enrollment.enrolled_at else '-' }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <!-- Active Toggle -->
+                            <button onclick="toggleActive({{ enrollment.id }})" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
+                                {% if enrollment.is_active %}Deactivate{% else %}Activate{% endif %}
+                            </button>
+
+                            <!-- Delete -->
+                            <button onclick="deleteEnrollment({{ enrollment.id }})" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- EMPTY STATE -->
+            {% if not group.pending and not group.active %}
+            <div class="empty-state">
+                <p style="font-size: 1.1rem;">No enrollments for {{ spec.name }} yet</p>
+            </div>
+            {% endif %}
+
+            <!-- ADD NEW ENROLLMENT (for this specialization) -->
+            {% set spec_semester = active_semesters|selectattr('specialization_type', 'equalto', spec_type.value)|first %}
+            {% if spec_semester %}
+            <div style="margin-top: 1.5rem; padding: 1.2rem; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid {{ spec.color }};">
+                <h4 style="color: {{ spec.color }}; margin-bottom: 1rem;">➕ Add New {{ spec.name }} Enrollment</h4>
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: end;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2c3e50;">
+                            Select Student with {{ spec.name }} License:
+                        </label>
+                        <select id="student-select-{{ spec_type.value }}" style="width: 100%; padding: 0.6rem; font-size: 1rem; border: 2px solid {{ spec.color }}; border-radius: 6px;">
+                            <option value="">Select student...</option>
+                            {% for student in students %}
+                                {% set matching_licenses = student.all_licenses|selectattr('specialization_type', 'equalto', spec_type.value)|list %}
+                                {% if matching_licenses %}
+                                    {% for license in matching_licenses %}
+                                        <option value="{{ license.id }}">{{ student.name }} ({{ student.email }})</option>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <button onclick="createEnrollment('{{ spec_type.value }}', {{ spec_semester.id }})" class="btn btn-primary" style="padding: 0.6rem 1.5rem; font-size: 1rem; background: {{ spec.color }}; border-color: {{ spec.color }};">
+                            ➕ Create Enrollment
+                        </button>
+                    </div>
+                </div>
+                <p style="margin-top: 0.8rem; color: #7f8c8d; font-size: 0.9rem;">
+                    💡 <strong>Note:</strong> Enrolling in <strong>{{ spec_semester.name }}</strong>. Only students with {{ spec.name }} license are shown.
+                </p>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% endfor %}
+{% endfor %}
+
+<script>
+// ========================================
+// ACCORDION TOGGLE
+// ========================================
+function toggleAccordion(specType) {
+    const content = document.getElementById('content-' + specType);
+    const icon = document.getElementById('toggle-' + specType);
+
+    content.classList.toggle('expanded');
+    icon.classList.toggle('expanded');
+}
+
+// ========================================
+// SECTION 1: Approve/Reject Enrollment Requests
+// ========================================
+async function approveRequest(enrollmentId) {
+    if (!confirm('✅ Approve this enrollment request?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/approve`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Enrollment request approved!');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to approve'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function rejectRequest(enrollmentId) {
+    const reason = prompt('❌ Rejection reason (optional):');
+    if (reason === null) {
+        return; // User cancelled
+    }
+
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/reject`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason || 'No reason provided' })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('❌ Enrollment request rejected');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to reject'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+// ========================================
+// SECTION 2: Enrollment Management
+// ========================================
+async function createEnrollment(specType, semesterId) {
+    const selectId = 'student-select-' + specType;
+    const userLicenseId = document.getElementById(selectId).value;
+
+    if (!userLicenseId) {
+        alert('Please select a student with ' + specType + ' license');
+        return;
+    }
+
+    if (!semesterId) {
+        alert('❌ No active semester found for this specialization');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/semester-enrollments/enroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: null,  // Not needed, derived from user_license_id
+                semester_id: semesterId,
+                user_license_id: parseInt(userLicenseId)
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ ' + data.message);
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || 'Failed to create enrollment'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function toggleActive(enrollmentId) {
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/toggle-active`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ ' + data.message);
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || 'Failed to toggle status'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function deleteEnrollment(enrollmentId) {
+    if (!confirm('⚠️ Delete this enrollment? (UserLicense progress will be preserved)')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Enrollment deleted');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || 'Failed to delete enrollment'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+</script>
+
+{% endblock %}

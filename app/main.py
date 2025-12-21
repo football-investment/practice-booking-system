@@ -2,9 +2,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from pydantic import ValidationError
+from pathlib import Path
 
 from .config import settings
 from .api.api_v1.api import api_router
@@ -69,11 +72,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="GānCuju™© Education Center - Comprehensive Football Education Platform featuring 8-Level GānCuju™© Player System (4000-year Chinese tradition), 8-Level LFA Coach Training, Internship Programs, and Gamification with Parallel Specialization Tracks",
+    description="LFA Education Center - Comprehensive Football Education Platform featuring LFA Player Development, Coach Training, Internship Programs, and Gamification with Parallel Specialization Tracks",
     version="2.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan
 )
+
+# Setup templates and static files
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Add middleware conditionally based on environment
 if settings.ENABLE_SECURITY_HEADERS:
@@ -116,10 +124,14 @@ app.add_exception_handler(Exception, general_exception_handler)
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Include web routes (HTML pages)
+from .api.web_routes import router as web_router
+app.include_router(web_router)
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint"""
     return {
         "message": "Practice Booking System API",
         "version": "1.0.0",
