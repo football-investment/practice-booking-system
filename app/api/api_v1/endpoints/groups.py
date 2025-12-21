@@ -9,7 +9,7 @@ from ....dependencies import get_current_user, get_current_admin_user
 from ....models.user import User
 from ....models.semester import Semester
 from ....models.group import Group
-from ....models.session import Session as SessionModel
+from ....models.session import Session as SessionTypel
 from ....models.booking import Booking
 from ....schemas.group import (
     Group as GroupSchema, GroupCreate, GroupUpdate, GroupWithRelations,
@@ -64,8 +64,8 @@ def list_groups(
     for group in groups:
         # Calculate statistics
         user_count = db.query(func.count(User.id)).join(Group.users).filter(Group.id == group.id).scalar() or 0
-        session_count = db.query(func.count(SessionModel.id)).filter(SessionModel.group_id == group.id).scalar() or 0
-        total_bookings = db.query(func.count(Booking.id)).join(SessionModel).filter(SessionModel.group_id == group.id).scalar() or 0
+        session_count = db.query(func.count(SessionTypel.id)).filter(SessionTypel.group_id == group.id).scalar() or 0
+        total_bookings = db.query(func.count(Booking.id)).join(SessionTypel).filter(SessionTypel.group_id == group.id).scalar() or 0
         
         group_stats.append(GroupWithStats(
             **group.__dict__,
@@ -158,7 +158,7 @@ def delete_group(
         )
     
     # Check if there are any sessions in this group
-    session_count = db.query(func.count(SessionModel.id)).filter(SessionModel.group_id == group_id).scalar()
+    session_count = db.query(func.count(SessionTypel.id)).filter(SessionTypel.group_id == group_id).scalar()
     if session_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

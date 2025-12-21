@@ -12,7 +12,7 @@ from sqlalchemy import func
 from ....database import get_db
 from ....models.user import User, UserRole
 from ....models.booking import Booking
-from ....models.session import Session as SessionModel
+from ....models.session import Session as SessionTypel
 from ....models.user_progress import SpecializationProgress
 from ....models.license import UserLicense
 from ....dependencies import get_current_admin_user
@@ -52,7 +52,7 @@ def get_admin_dashboard_stats(
         total_instructors = db.query(func.count(User.id)).filter(User.role == UserRole.INSTRUCTOR).scalar() or 0
 
         # Session and booking statistics
-        total_sessions = db.query(func.count(SessionModel.id)).scalar() or 0
+        total_sessions = db.query(func.count(SessionTypel.id)).scalar() or 0
         total_bookings = db.query(func.count(Booking.id)).scalar() or 0
 
         # Progress and license statistics

@@ -7,7 +7,7 @@ from sqlalchemy import func
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_or_instructor_user
 from ....models.user import User
-from ....models.session import Session as SessionModel
+from ....models.session import Session as SessionTypel
 from ....models.feedback import Feedback
 from ....models.booking import Booking, BookingStatus
 from ....schemas.feedback import (
@@ -68,22 +68,46 @@ def create_feedback(
 ) -> Any:
     """
     Create feedback for a session
+
+    🔒 RULE #4: Feedback can only be submitted within 24 hours after session ends
     """
     # Check if session exists
-    session = db.query(SessionModel).filter(SessionModel.id == feedback_data.session_id).first()
+    session = db.query(SessionTypel).filter(SessionTypel.id == feedback_data.session_id).first()
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found"
         )
-    
+
+    # 🔒 RULE #4: Validate 24-hour feedback window
+    from datetime import datetime, timedelta, timezone
+    current_time = datetime.now(timezone.utc).replace(tzinfo=None)
+    session_end_naive = session.date_end.replace(tzinfo=None) if session.date_end.tzinfo else session.date_end
+
+    # Feedback window: session end → session end + 24h
+    feedback_window_end = session_end_naive + timedelta(hours=24)
+
+    if current_time < session_end_naive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot provide feedback before session ends"
+        )
+
+    if current_time > feedback_window_end:
+        hours_since_session = (current_time - session_end_naive).total_seconds() / 3600
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Feedback window closed. You can only provide feedback within 24 hours after session ends. "
+                   f"Session ended {hours_since_session:.1f} hours ago."
+        )
+
     # Check if user has a confirmed booking for this session
     booking = db.query(Booking).filter(
         Booking.user_id == current_user.id,
         Booking.session_id == feedback_data.session_id,
         Booking.status == BookingStatus.CONFIRMED
     ).first()
-    
+
     if not booking:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -129,7 +153,7 @@ def get_my_feedback(
     
     # Apply filters
     if semester_id:
-        query = query.join(SessionModel).filter(SessionModel.semester_id == semester_id)
+        query = query.join(SessionTypel).filter(SessionTypel.semester_id == semester_id)
     
     # Get total count
     total = query.count()
@@ -231,7 +255,7 @@ def get_session_feedback(
     Get feedback for a session (Admin/Instructor only)
     """
     # Check if session exists
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -274,7 +298,7 @@ def get_session_feedback_summary(
     Get feedback summary for a session (Admin/Instructor only)
     """
     # Check if session exists
-    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -336,9 +360,9 @@ def get_instructor_feedback(
     
     # Get feedback from instructor's sessions
     query = db.query(Feedback).join(
-        SessionModel, Feedback.session_id == SessionModel.id
+        SessionTypel, Feedback.session_id == SessionTypel.id
     ).filter(
-        SessionModel.instructor_id == current_user.id
+        SessionTypel.instructor_id == current_user.id
     ).order_by(Feedback.created_at.desc())
     
     # Get total count

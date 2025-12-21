@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import (
-    User, Session as SessionModel, Project, ProjectEnrollment, 
+    User, Session as SessionTypel, Project, ProjectEnrollment, 
     Booking, Semester, Quiz, QuizAttempt
 )
 from app.models.user import UserRole
@@ -69,9 +69,9 @@ async def get_semester_progress(
     
     # Get user's semester activities
     user_bookings = db.query(Booking)\
-        .join(SessionModel)\
+        .join(SessionTypel)\
         .filter(Booking.user_id == current_user.id)\
-        .filter(SessionModel.semester_id == current_semester.id)\
+        .filter(SessionTypel.semester_id == current_semester.id)\
         .count()
     
     user_projects = db.query(ProjectEnrollment)\

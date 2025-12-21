@@ -7,10 +7,10 @@ from sqlalchemy import func, and_
 
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_user
-from ....models.user import User
-from ....models.semester import Semester
+from ....models.user import User, UserRole
+from ....models.semester import Semester, SemesterStatus
 from ....models.group import Group
-from ....models.session import Session as SessionModel
+from ....models.session import Session as SessionTypel
 from ....models.booking import Booking
 from ....schemas.semester import (
     Semester as SemesterSchema, SemesterCreate, SemesterUpdate,
@@ -51,25 +51,50 @@ def list_semesters(
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    List all active semesters with statistics
+    List semesters based on user role:
+    - ADMIN: See ALL semesters (any status)
+    - STUDENT: See only READY_FOR_ENROLLMENT and ONGOING semesters
+    - INSTRUCTOR: See assigned semesters + SEEKING_INSTRUCTOR
     """
     current_date = datetime.now().date()
-    semesters = db.query(Semester).filter(
-        and_(
-            Semester.is_active == True,
+
+    # Admin sees everything
+    if current_user.role == UserRole.ADMIN:
+        semesters = db.query(Semester).filter(
             Semester.end_date >= current_date
-        )
-    ).order_by(Semester.start_date.desc()).all()
+        ).order_by(Semester.start_date.desc()).all()
+
+    # Student sees only READY or ONGOING semesters
+    elif current_user.role == UserRole.STUDENT:
+        semesters = db.query(Semester).filter(
+            and_(
+                Semester.status.in_([SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING]),
+                Semester.end_date >= current_date
+            )
+        ).order_by(Semester.start_date.desc()).all()
+
+    # Instructor sees semesters they're assigned to + SEEKING_INSTRUCTOR
+    else:  # instructor
+        semesters = db.query(Semester).filter(
+            and_(
+                Semester.end_date >= current_date,
+                # Either assigned to this instructor OR seeking instructor
+                (
+                    (Semester.master_instructor_id == current_user.id) |
+                    (Semester.status == SemesterStatus.SEEKING_INSTRUCTOR)
+                )
+            )
+        ).order_by(Semester.start_date.desc()).all()
     
     semester_stats = []
     for semester in semesters:
         # Calculate statistics
         total_groups = db.query(func.count(Group.id)).filter(Group.semester_id == semester.id).scalar() or 0
-        total_sessions = db.query(func.count(SessionModel.id)).filter(SessionModel.semester_id == semester.id).scalar() or 0
-        total_bookings = db.query(func.count(Booking.id)).join(SessionModel).filter(SessionModel.semester_id == semester.id).scalar() or 0
+        total_sessions = db.query(func.count(SessionTypel.id)).filter(SessionTypel.semester_id == semester.id).scalar() or 0
+        total_bookings = db.query(func.count(Booking.id)).join(SessionTypel).filter(SessionTypel.semester_id == semester.id).scalar() or 0
         
         # Count active users (users with bookings in this semester)
-        active_users = db.query(func.count(func.distinct(Booking.user_id))).join(SessionModel).filter(SessionModel.semester_id == semester.id).scalar() or 0
+        active_users = db.query(func.count(func.distinct(Booking.user_id))).join(SessionTypel).filter(SessionTypel.semester_id == semester.id).scalar() or 0
         
         semester_stats.append(SemesterWithStats(
             **semester.__dict__,
@@ -90,14 +115,14 @@ def get_active_semester(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
-    """Get currently active semester"""
+    """Get currently active semester (READY_FOR_ENROLLMENT or ONGOING)"""
     current_date = datetime.now().date()
-    
+
     active_semester = db.query(Semester).filter(
         and_(
             Semester.start_date <= current_date,
             Semester.end_date >= current_date,
-            Semester.is_active == True
+            Semester.status.in_([SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING])
         )
     ).first()
     
@@ -128,9 +153,9 @@ def get_semester(
     
     # Calculate statistics
     total_groups = db.query(func.count(Group.id)).filter(Group.semester_id == semester.id).scalar() or 0
-    total_sessions = db.query(func.count(SessionModel.id)).filter(SessionModel.semester_id == semester.id).scalar() or 0
-    total_bookings = db.query(func.count(Booking.id)).join(SessionModel).filter(SessionModel.semester_id == semester.id).scalar() or 0
-    active_users = db.query(func.count(func.distinct(Booking.user_id))).join(SessionModel).filter(SessionModel.semester_id == semester.id).scalar() or 0
+    total_sessions = db.query(func.count(SessionTypel.id)).filter(SessionTypel.semester_id == semester.id).scalar() or 0
+    total_bookings = db.query(func.count(Booking.id)).join(SessionTypel).filter(SessionTypel.semester_id == semester.id).scalar() or 0
+    active_users = db.query(func.count(func.distinct(Booking.user_id))).join(SessionTypel).filter(SessionTypel.semester_id == semester.id).scalar() or 0
     
     return SemesterWithStats(
         **semester.__dict__,
@@ -195,7 +220,7 @@ def delete_semester(
         )
     
     # Check if there are any sessions in this semester
-    session_count = db.query(func.count(SessionModel.id)).filter(SessionModel.semester_id == semester_id).scalar()
+    session_count = db.query(func.count(SessionTypel.id)).filter(SessionTypel.semester_id == semester_id).scalar()
     if session_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

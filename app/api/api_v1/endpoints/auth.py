@@ -1,15 +1,17 @@
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
 
 from ....database import get_db
 from ....dependencies import get_current_user
 from ....core.auth import create_access_token, create_refresh_token, verify_token
 from ....core.security import verify_password, get_password_hash
 from ....models.user import User
+from ....models.invitation_code import InvitationCode
 from ....schemas.auth import Login, Token, RefreshToken, ChangePassword
 from ....schemas.user import User as UserSchema
 from ....config import settings
@@ -224,5 +226,143 @@ def change_password(
     
     current_user.password_hash = get_password_hash(password_data.new_password)
     db.commit()
-    
+
     return {"message": "Password updated successfully"}
+
+
+# ==================== REGISTRATION ====================
+
+class RegisterWithInvitation(BaseModel):
+    """Registration request with invitation code"""
+    email: EmailStr
+    password: str
+    name: str
+    invitation_code: str
+    date_of_birth: datetime
+    nationality: str
+    gender: str
+
+
+@router.post("/register-with-invitation", response_model=Token)
+def register_with_invitation(
+    registration_data: RegisterWithInvitation,
+    db: Session = Depends(get_db)
+) -> Any:
+    """
+    Register a new user with an invitation code
+    - Validates invitation code
+    - Creates new user with STUDENT role
+    - Marks invitation code as used
+    - Adds bonus credits to user
+    - Returns access token for immediate login
+    """
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == registration_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Find and validate invitation code
+    invitation_code = db.query(InvitationCode).filter(
+        InvitationCode.code == registration_data.invitation_code.upper().strip()
+    ).first()
+
+    if not invitation_code:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invalid invitation code"
+        )
+
+    # Check if code is valid
+    if not invitation_code.is_valid():
+        if invitation_code.is_used:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This invitation code has already been used"
+            )
+        if invitation_code.expires_at and invitation_code.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This invitation code has expired"
+            )
+
+    # Check email restriction (if code is restricted to specific email)
+    if not invitation_code.can_be_used_by_email(registration_data.email):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"This invitation code is restricted to {invitation_code.invited_email}"
+        )
+
+    # Validate password
+    if len(registration_data.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long"
+        )
+
+    # Create new user
+    new_user = User(
+        email=registration_data.email,
+        password_hash=get_password_hash(registration_data.password),
+        name=registration_data.name,
+        role="STUDENT",
+        is_active=True,
+        payment_verified=False,
+        nda_accepted=False,
+        parental_consent=False,
+        credit_balance=invitation_code.bonus_credits,  # Add bonus credits immediately
+        credit_purchased=0,
+        date_of_birth=registration_data.date_of_birth,
+        nationality=registration_data.nationality,
+        gender=registration_data.gender
+    )
+
+    db.add(new_user)
+    db.flush()  # Get user ID without committing
+
+    # Mark invitation code as used
+    invitation_code.is_used = True
+    invitation_code.used_by_user_id = new_user.id
+    invitation_code.used_at = datetime.now(timezone.utc)
+
+    # Commit transaction
+    db.commit()
+    db.refresh(new_user)
+    db.refresh(invitation_code)
+
+    print(f"✅ New user registered: {new_user.email} (ID: {new_user.id}) with invitation code {invitation_code.code}")
+    print(f"🎁 {invitation_code.bonus_credits} bonus credits added to {new_user.name}")
+
+    # 🔍 AUDIT: Log successful registration
+    audit_service = AuditService(db)
+    audit_service.log(
+        action=AuditAction.USER_CREATED,
+        user_id=new_user.id,
+        details={
+            "email": new_user.email,
+            "name": new_user.name,
+            "invitation_code": invitation_code.code,
+            "bonus_credits": invitation_code.bonus_credits,
+            "registration_type": "invitation_code"
+        },
+        ip_address=None
+    )
+
+    # Create access token for immediate login
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+    access_token = create_access_token(
+        data={"sub": new_user.email}, expires_delta=access_token_expires
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": new_user.email}, expires_delta=refresh_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }

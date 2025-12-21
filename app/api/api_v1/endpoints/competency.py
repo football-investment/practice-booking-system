@@ -41,9 +41,17 @@ def get_my_competencies(
     - Proficient (75-89%)
     - Expert (90-100%)
     """
-    service = CompetencyService(db)
-    competencies = service.get_user_competencies(current_user.id, specialization_id)
-    return competencies
+    try:
+        service = CompetencyService(db)
+        competencies = service.get_user_competencies(current_user.id, specialization_id)
+        return competencies
+    except Exception as e:
+        # Log the error but return empty list instead of 500
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching competencies for user {current_user.id}: {str(e)}")
+        # Return empty list if tables don't exist or other database error
+        return []
 
 
 @router.get("/categories", response_model=List[CompetencyCategoryResponse])
