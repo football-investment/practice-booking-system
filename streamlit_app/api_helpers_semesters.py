@@ -167,7 +167,20 @@ def generate_lfa_player_pre_season(
             result = response.json()
             return True, None, result
         else:
-            error_msg = response.json().get("detail", f"HTTP {response.status_code}: {response.text}")
+            # Parse clean error message
+            try:
+                error_data = response.json()
+                if isinstance(error_data, dict):
+                    if "error" in error_data and isinstance(error_data["error"], dict):
+                        error_msg = error_data["error"].get("message", f"HTTP {response.status_code}")
+                    elif "detail" in error_data:
+                        error_msg = error_data["detail"]
+                    else:
+                        error_msg = str(error_data)
+                else:
+                    error_msg = f"HTTP {response.status_code}"
+            except:
+                error_msg = f"HTTP {response.status_code}"
             return False, error_msg, None
 
     except requests.exceptions.RequestException as e:
@@ -218,7 +231,20 @@ def generate_lfa_player_youth_season(
             result = response.json()
             return True, None, result
         else:
-            error_msg = response.json().get("detail", f"HTTP {response.status_code}: {response.text}")
+            # Parse clean error message
+            try:
+                error_data = response.json()
+                if isinstance(error_data, dict):
+                    if "error" in error_data and isinstance(error_data["error"], dict):
+                        error_msg = error_data["error"].get("message", f"HTTP {response.status_code}")
+                    elif "detail" in error_data:
+                        error_msg = error_data["detail"]
+                    else:
+                        error_msg = str(error_data)
+                else:
+                    error_msg = f"HTTP {response.status_code}"
+            except:
+                error_msg = f"HTTP {response.status_code}"
             return False, error_msg, None
 
     except requests.exceptions.RequestException as e:
@@ -266,7 +292,20 @@ def generate_lfa_player_amateur_season(
             result = response.json()
             return True, None, result
         else:
-            error_msg = response.json().get("detail", f"HTTP {response.status_code}: {response.text}")
+            # Parse clean error message
+            try:
+                error_data = response.json()
+                if isinstance(error_data, dict):
+                    if "error" in error_data and isinstance(error_data["error"], dict):
+                        error_msg = error_data["error"].get("message", f"HTTP {response.status_code}")
+                    elif "detail" in error_data:
+                        error_msg = error_data["detail"]
+                    else:
+                        error_msg = str(error_data)
+                else:
+                    error_msg = f"HTTP {response.status_code}"
+            except:
+                error_msg = f"HTTP {response.status_code}"
             return False, error_msg, None
 
     except requests.exceptions.RequestException as e:
@@ -314,7 +353,22 @@ def generate_lfa_player_pro_season(
             result = response.json()
             return True, None, result
         else:
-            error_msg = response.json().get("detail", f"HTTP {response.status_code}: {response.text}")
+            # Parse clean error message from nested JSON structure
+            try:
+                error_data = response.json()
+                if isinstance(error_data, dict):
+                    # Try nested error.message format first
+                    if "error" in error_data and isinstance(error_data["error"], dict):
+                        error_msg = error_data["error"].get("message", f"HTTP {response.status_code}")
+                    # Try detail format (FastAPI standard)
+                    elif "detail" in error_data:
+                        error_msg = error_data["detail"]
+                    else:
+                        error_msg = str(error_data)
+                else:
+                    error_msg = f"HTTP {response.status_code}"
+            except:
+                error_msg = f"HTTP {response.status_code}"
             return False, error_msg, None
 
     except requests.exceptions.RequestException as e:
