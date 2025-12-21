@@ -31,8 +31,27 @@ from .endpoints import (
     competency,  # 🎯 NEW: Add competency tracking system
     health,  # 🏥 P2: Add health monitoring endpoints
     admin,  # 👑 NEW: Add admin dashboard endpoints
-    audit  # 🔍 P0: Add audit log system
+    audit,  # 🔍 P0: Add audit log system
+    semester_enrollments,  # 🎓 NEW: Add semester enrollment management
+    invoices,  # 💳 NEW: Add invoice management system
+    coupons,  # 🎟️ NEW: Add coupon management system
+    invitation_codes,  # 🎁 NEW: Add partner invitation code system
+    lfa_player,  # ⚽ NEW: Add LFA Player license API
+    gancuju,  # 🥋 NEW: Add GānCuju belt/level system API
+    internship,  # 📚 NEW: Add Internship XP system API
+    coach,  # 👨‍🏫 NEW: Add Coach certification system API
+    motivation,  # 🎯 NEW: Add motivation assessment system
+    public_profile,  # 👤 NEW: Add FIFA-style public profile system
+    semester_generator,  # 📅 NEW: Add semester generator system
+    locations,  # 📍 NEW: Add location management system
+    instructor_availability,  # 👨‍🏫 NEW: Add instructor availability management
+    instructor_assignments,  # 📋 NEW: Add instructor assignment request system
+    license_renewal,  # 💰 NEW: Add license renewal system (Fase 2)
+    campuses,  # 🏫 NEW: Add campus management system
+    spec_info  # 🎯 NEW: Add spec services information API
 )
+
+from .endpoints.periods import lfa_player_generators  # 🚀 NEW: Add modular LFA_PLAYER period generators
 
 api_router = APIRouter()
 
@@ -150,4 +169,130 @@ api_router.include_router(
     audit.router,
     prefix="/audit",
     tags=["audit-logs"]
+)
+
+# 🎓 NEW: Add semester enrollment management routes
+api_router.include_router(
+    semester_enrollments.router,
+    prefix="/semester-enrollments",
+    tags=["semester-enrollments"]
+)
+
+# 💳 NEW: Add invoice management routes
+api_router.include_router(
+    invoices.router,
+    prefix="/invoices",
+    tags=["invoices"]
+)
+
+# 🎟️ NEW: Add coupon management routes
+api_router.include_router(
+    coupons.router,
+    prefix="",  # No prefix - routes define their own (admin/coupons, coupons/active)
+    tags=["coupons"]
+)
+
+# 🎁 NEW: Add partner invitation code routes
+api_router.include_router(
+    invitation_codes.router,
+    prefix="",  # No prefix - routes define their own (admin/invitation-codes, invitation-codes/redeem)
+    tags=["invitation-codes"]
+)
+
+# ⚽ NEW: Add LFA Player license API routes (spec-specific system)
+api_router.include_router(
+    lfa_player.router,
+    prefix="/lfa-player",
+    tags=["lfa-player"]
+)
+
+# 🥋 NEW: Add GānCuju belt/level system API routes (spec-specific system)
+api_router.include_router(
+    gancuju.router,
+    prefix="/gancuju",
+    tags=["gancuju"]
+)
+
+# 📚 NEW: Add Internship XP system API routes (spec-specific system)
+api_router.include_router(
+    internship.router,
+    prefix="/internship",
+    tags=["internship"]
+)
+
+# 👨‍🏫 NEW: Add Coach certification system API routes (spec-specific system)
+api_router.include_router(
+    coach.router,
+    prefix="/coach",
+    tags=["coach"]
+)
+
+# 🎯 NEW: Add motivation assessment system routes
+api_router.include_router(
+    motivation.router,
+    prefix="/licenses",
+    tags=["motivation-assessment"]
+)
+
+# 👤 NEW: Add FIFA-style public profile system routes
+api_router.include_router(
+    public_profile.router,
+    prefix="/public",
+    tags=["public-profile"]
+)
+
+# 📅 NEW: Add semester generator system routes (admin only)
+api_router.include_router(
+    semester_generator.router,
+    prefix="/admin/semesters",
+    tags=["semester-generator"]
+)
+
+# 🚀 NEW: Add modular LFA_PLAYER period generators (admin only)
+api_router.include_router(
+    lfa_player_generators.router,
+    prefix="/admin/periods",
+    tags=["period-generators", "lfa-player"]
+)
+
+# 📍 NEW: Add location management system routes (admin only)
+api_router.include_router(
+    locations.router,
+    prefix="/admin/locations",
+    tags=["locations"]
+)
+
+# 👨‍🏫 NEW: Add instructor availability management routes
+api_router.include_router(
+    instructor_availability.router,
+    prefix="/instructor-availability",
+    tags=["instructor-availability"]
+)
+
+# 📋 NEW: Add instructor assignment request system routes
+api_router.include_router(
+    instructor_assignments.router,
+    prefix="/instructor-assignments",
+    tags=["instructor-assignments"]
+)
+
+# 💰 NEW: Add license renewal system routes (Fase 2)
+api_router.include_router(
+    license_renewal.router,
+    prefix="/license-renewal",
+    tags=["license-renewal"]
+)
+
+# 🏫 NEW: Add campus management system routes (admin only)
+api_router.include_router(
+    campuses.router,
+    prefix="/admin",
+    tags=["campuses"]
+)
+
+# 🎯 NEW: Add spec services information API routes
+api_router.include_router(
+    spec_info.router,
+    prefix="/spec-info",
+    tags=["spec-info"]
 )
