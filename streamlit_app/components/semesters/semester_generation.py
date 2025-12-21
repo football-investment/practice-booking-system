@@ -1,7 +1,10 @@
 """
-Semester Generation Component
-Generate semesters for a given year/specialization/age group/location
-Extracted from unified_workflow_dashboard.py lines 1740-1865
+Semester/Season Generation Component - MODULAR INDIVIDUAL PERIOD SELECTION
+===========================================================================
+Generate individual periods/seasons based on specialization type.
+
+✅ LFA_PLAYER: Individual season selection (PRE: month, YOUTH: quarter, AMATEUR: Fall/Spring, PRO: annual)
+⚠️ INTERNSHIP/COACH/GANCUJU: Uses old bulk generator (temporary - will be modularized in Phase 2)
 
 ✅ INTELLIGENT LABELING: Automatically uses "Season" for LFA_PLAYER, "Semester" for others
 """
@@ -9,6 +12,7 @@ Extracted from unified_workflow_dashboard.py lines 1740-1865
 import streamlit as st
 import sys
 from pathlib import Path
+from datetime import datetime
 
 # Add parent directory to path for imports
 parent_dir = Path(__file__).parent.parent
@@ -17,31 +21,31 @@ sys.path.insert(0, str(parent_dir))
 from api_helpers_semesters import (
     get_all_locations,
     get_available_templates,
-    generate_semesters
+    generate_semesters,
+    # 🚀 NEW: Modular LFA_PLAYER generators
+    generate_lfa_player_pre_season,
+    generate_lfa_player_youth_season,
+    generate_lfa_player_amateur_season,
+    generate_lfa_player_pro_season
 )
 from components.period_labels import (
     get_period_label,
     get_period_labels,
-    get_header_text,
-    get_generate_button_text,
     get_count_text
 )
 
 
 def render_semester_generation(token: str):
     """
-    Render the semester/season generation interface
-    - Select active location
-    - Choose year/specialization/age group
-    - Preview template info
-    - Generate button (adapts to "Seasons" for LFA_PLAYER, "Semesters" for others)
+    Render the semester/season generation interface with INDIVIDUAL PERIOD SELECTION
 
-    Source: unified_workflow_dashboard.py lines 1740-1865
+    - LFA_PLAYER: Select specific month/quarter/season to generate
+    - INTERNSHIP/COACH/GANCUJU: Uses old bulk generator (Phase 2: will be modularized)
+
     ✅ INTELLIGENT LABELING: Header text adapts based on selected specialization
     """
-    # Default header (will update after specialization selection)
-    st.markdown("### 🚀 Generate Periods for a Year")
-    st.caption("⚠️ **Important:** You must select an active location before generating!")
+    st.markdown("### 🚀 Generate Individual Periods")
+    st.caption("Select exactly which period/season to generate")
 
     # Fetch active locations first
     success, error, all_locations = get_all_locations(token, include_inactive=False)
@@ -98,12 +102,13 @@ def render_semester_generation(token: str):
     # Extract unique specializations
     available_specs = sorted(list(set(t["specialization"] for t in available_templates)))
 
-    st.markdown("#### 🎯 Period Configuration")
+    st.markdown("#### ⚽ Period Configuration")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        gen_year = st.number_input("Year", min_value=2024, max_value=2030, value=2026, step=1)
+        current_year = datetime.now().year
+        gen_year = st.number_input("Year", min_value=current_year - 2, max_value=current_year + 3, value=current_year, step=1)
 
     with col2:
         gen_spec = st.selectbox("Specialization", available_specs, key="gen_spec_select")
@@ -116,56 +121,211 @@ def render_semester_generation(token: str):
         ])
         gen_age_group = st.selectbox("Age Group", available_age_groups, key="gen_age_select")
 
-    # Show info about selected template with DYNAMIC LABELS
-    if gen_spec and gen_age_group:
-        selected_template = next(
-            (t for t in available_templates
-             if t["specialization"] == gen_spec and t["age_group"] == gen_age_group),
-            None
-        )
-        if selected_template:
-            # ✅ INTELLIGENT LABELING based on specialization
-            labels = get_period_labels(gen_spec)
-            period_count_text = get_count_text(selected_template['semester_count'], gen_spec)
-
-            st.caption(f"📊 **{selected_template['cycle_type'].title()}** cycle: {period_count_text}/year")
-            st.caption(f"This will generate **{selected_template['semester_count']} {labels['plural_lower']}** for **{gen_year}/{gen_spec}/{gen_age_group}** at **{selected_location_label}**")
-
     st.divider()
 
-    # Generate button with DYNAMIC LABEL
-    button_text = get_generate_button_text(gen_spec) if gen_spec else "🚀 Generate Periods"
-    if st.button(button_text, use_container_width=True, type="primary"):
-        if not gen_location_id or not gen_spec or not gen_age_group:
-            st.error("❌ Please select all required fields")
-            return
+    # ============================================================================
+    # 🚀 NEW: MODULAR LFA_PLAYER SEASON GENERATORS (Individual Selection)
+    # ============================================================================
 
-        # ✅ INTELLIGENT LABELING for spinner and messages
+    if gen_spec == "LFA_PLAYER":
+        st.markdown("#### 🎯 Select Specific Period to Generate")
+
         labels = get_period_labels(gen_spec)
-        spinner_text = f"Generating {labels['plural_lower']}..."
+        period_label = labels['singular']
+        period_label_lower = labels['singular_lower']
 
-        with st.spinner(spinner_text):
-            gen_success, gen_error, result = generate_semesters(
-                token,
-                gen_year,
-                gen_spec,
-                gen_age_group,
-                gen_location_id
+        # PRE: 12 monthly seasons
+        if gen_age_group == "PRE":
+            months = {
+                1: "January", 2: "February", 3: "March", 4: "April",
+                5: "May", 6: "June", 7: "July", 8: "August",
+                9: "September", 10: "October", 11: "November", 12: "December"
+            }
+            selected_month = st.selectbox(
+                f"Select Month (generates 1 {period_label_lower})",
+                list(months.keys()),
+                format_func=lambda x: f"M{x:02d} - {months[x]}"
             )
 
-            if gen_success:
-                st.success(f"✅ {result['message']}")
+            st.caption(f"📊 This will generate **{period_label} M{selected_month:02d}** for **{gen_year}/LFA_PLAYER/PRE** at **{selected_location_label}**")
 
-                # ✅ Dynamic count text
-                count_text = get_count_text(result['generated_count'], gen_spec)
-                st.info(f"📅 Generated {count_text} at {selected_location_label}")
+            if st.button(f"🚀 Generate {period_label} M{selected_month:02d}", type="primary", use_container_width=True):
+                with st.spinner(f"Generating {period_label_lower}..."):
+                    success, error, result = generate_lfa_player_pre_season(
+                        token, gen_year, selected_month, gen_location_id
+                    )
 
-                expander_label = f"📋 View Generated {labels['plural']}"
-                with st.expander(expander_label):
-                    for sem in result['semesters']:
-                        st.markdown(f"**{sem['code']}** - {sem['name']}")
-                        st.caption(f"📍 {sem['start_date']} to {sem['end_date']}")
-                        st.caption(f"🎯 Theme: {sem['theme']}")
-                        st.divider()
+                    if success:
+                        st.success(f"✅ {result['message']}")
+                        with st.expander(f"📋 View Generated {period_label}"):
+                            period = result['period']
+                            st.markdown(f"**Code:** {period['code']}")
+                            st.markdown(f"**Name:** {period['name']}")
+                            st.markdown(f"**Dates:** {period['start_date']} to {period['end_date']}")
+                            st.markdown(f"**Theme:** {period['theme']}")
+                            st.caption(f"**Focus:** {period['focus_description']}")
+                    else:
+                        st.error(f"❌ Failed: {error}")
+
+        # YOUTH: 4 quarterly seasons
+        elif gen_age_group == "YOUTH":
+            quarters = {
+                1: "Q1 (Jan-Mar)",
+                2: "Q2 (Apr-Jun)",
+                3: "Q3 (Jul-Sep)",
+                4: "Q4 (Oct-Dec)"
+            }
+            selected_quarter = st.selectbox(
+                f"Select Quarter (generates 1 {period_label_lower})",
+                list(quarters.keys()),
+                format_func=lambda x: quarters[x]
+            )
+
+            st.caption(f"📊 This will generate **{period_label} Q{selected_quarter}** for **{gen_year}/LFA_PLAYER/YOUTH** at **{selected_location_label}**")
+
+            if st.button(f"🚀 Generate {period_label} Q{selected_quarter}", type="primary", use_container_width=True):
+                with st.spinner(f"Generating {period_label_lower}..."):
+                    success, error, result = generate_lfa_player_youth_season(
+                        token, gen_year, selected_quarter, gen_location_id
+                    )
+
+                    if success:
+                        st.success(f"✅ {result['message']}")
+                        with st.expander(f"📋 View Generated {period_label}"):
+                            period = result['period']
+                            st.markdown(f"**Code:** {period['code']}")
+                            st.markdown(f"**Name:** {period['name']}")
+                            st.markdown(f"**Dates:** {period['start_date']} to {period['end_date']}")
+                            st.markdown(f"**Theme:** {period['theme']}")
+                            st.caption(f"**Focus:** {period['focus_description']}")
+                    else:
+                        st.error(f"❌ Failed: {error}")
+
+        # AMATEUR: 2 semi-annual seasons (Fall or Spring)
+        elif gen_age_group == "AMATEUR":
+            seasons = {
+                "fall": "Fall Season (Sep-Feb)",
+                "spring": "Spring Season (Mar-Aug)"
+            }
+            selected_season = st.selectbox(
+                f"Select Season (generates 1 {period_label_lower})",
+                list(seasons.keys()),
+                format_func=lambda x: seasons[x]
+            )
+
+            # Show year wrap-around info for Fall
+            if selected_season == "fall":
+                st.caption(f"📊 This will generate **Fall {period_label}** for **{gen_year}/LFA_PLAYER/AMATEUR** (Sep {gen_year} - Feb {gen_year+1}) at **{selected_location_label}**")
             else:
-                st.error(f"❌ Failed: {gen_error}")
+                st.caption(f"📊 This will generate **Spring {period_label}** for **{gen_year}/LFA_PLAYER/AMATEUR** (Mar {gen_year} - Aug {gen_year}) at **{selected_location_label}**")
+
+            if st.button(f"🚀 Generate {selected_season.capitalize()} {period_label}", type="primary", use_container_width=True):
+                with st.spinner(f"Generating {period_label_lower}..."):
+                    success, error, result = generate_lfa_player_amateur_season(
+                        token, gen_year, selected_season, gen_location_id
+                    )
+
+                    if success:
+                        st.success(f"✅ {result['message']}")
+                        with st.expander(f"📋 View Generated {period_label}"):
+                            period = result['period']
+                            st.markdown(f"**Code:** {period['code']}")
+                            st.markdown(f"**Name:** {period['name']}")
+                            st.markdown(f"**Dates:** {period['start_date']} to {period['end_date']}")
+                            st.markdown(f"**Theme:** {period['theme']}")
+                            st.caption(f"**Focus:** {period['focus_description']}")
+                    else:
+                        st.error(f"❌ Failed: {error}")
+
+        # PRO: 1 annual season
+        elif gen_age_group == "PRO":
+            st.caption(f"📊 This will generate **1 annual {period_label_lower}** for **{gen_year}/LFA_PLAYER/PRO** (Jul {gen_year} - Jun {gen_year+1}) at **{selected_location_label}**")
+
+            if st.button(f"🚀 Generate Annual {period_label}", type="primary", use_container_width=True):
+                with st.spinner(f"Generating {period_label_lower}..."):
+                    success, error, result = generate_lfa_player_pro_season(
+                        token, gen_year, gen_location_id
+                    )
+
+                    if success:
+                        st.success(f"✅ {result['message']}")
+                        with st.expander(f"📋 View Generated {period_label}"):
+                            period = result['period']
+                            st.markdown(f"**Code:** {period['code']}")
+                            st.markdown(f"**Name:** {period['name']}")
+                            st.markdown(f"**Dates:** {period['start_date']} to {period['end_date']}")
+                            st.markdown(f"**Theme:** {period['theme']}")
+                            st.caption(f"**Focus:** {period['focus_description']}")
+                    else:
+                        st.error(f"❌ Failed: {error}")
+
+    # ============================================================================
+    # ⚠️ OLD BULK GENERATOR (INTERNSHIP/COACH/GANCUJU - temporary until Phase 2)
+    # ============================================================================
+    else:
+        st.warning("⚠️ **INTERNSHIP/COACH/GANCUJU generators will be modularized in Phase 2**")
+        st.info("💡 For now, this will generate ALL periods for the selected year (bulk generation)")
+
+        # Show info about selected template with DYNAMIC LABELS
+        if gen_spec and gen_age_group:
+            selected_template = next(
+                (t for t in available_templates
+                 if t["specialization"] == gen_spec and t["age_group"] == gen_age_group),
+                None
+            )
+            if selected_template:
+                # ✅ INTELLIGENT LABELING based on specialization
+                labels = get_period_labels(gen_spec)
+                period_count_text = get_count_text(selected_template['semester_count'], gen_spec)
+
+                # Map technical cycle_type to user-friendly label
+                cycle_type_map = {
+                    "monthly": "Monthly",
+                    "quarterly": "Quarterly",
+                    "semi-annual": "Semi-Annual",
+                    "annual": "Annual"
+                }
+                cycle_display = cycle_type_map.get(selected_template['cycle_type'], selected_template['cycle_type'].title())
+
+                st.caption(f"📊 **{cycle_display}** cycle: {period_count_text}/year")
+                st.caption(f"This will generate **{selected_template['semester_count']} {labels['plural_lower']}** for **{gen_year}/{gen_spec}/{gen_age_group}** at **{selected_location_label}**")
+
+        st.divider()
+
+        # Generate button with DYNAMIC LABEL
+        labels = get_period_labels(gen_spec)
+        button_text = f"🚀 Generate {labels['plural']}"
+
+        if st.button(button_text, use_container_width=True, type="primary"):
+            if not gen_location_id or not gen_spec or not gen_age_group:
+                st.error("❌ Please select all required fields")
+                return
+
+            # ✅ INTELLIGENT LABELING for spinner and messages
+            spinner_text = f"Generating {labels['plural_lower']}..."
+
+            with st.spinner(spinner_text):
+                gen_success, gen_error, result = generate_semesters(
+                    token,
+                    gen_year,
+                    gen_spec,
+                    gen_age_group,
+                    gen_location_id
+                )
+
+                if gen_success:
+                    st.success(f"✅ {result['message']}")
+
+                    # ✅ Dynamic count text
+                    count_text = get_count_text(result['generated_count'], gen_spec)
+                    st.info(f"📅 Generated {count_text} at {selected_location_label}")
+
+                    expander_label = f"📋 View Generated {labels['plural']}"
+                    with st.expander(expander_label):
+                        for sem in result['semesters']:
+                            st.markdown(f"**{sem['code']}** - {sem['name']}")
+                            st.caption(f"📍 {sem['start_date']} to {sem['end_date']}")
+                            st.caption(f"🎯 Theme: {sem['theme']}")
+                            st.divider()
+                else:
+                    st.error(f"❌ Failed: {gen_error}")
