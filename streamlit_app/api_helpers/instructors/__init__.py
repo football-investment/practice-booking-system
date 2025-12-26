@@ -1,17 +1,20 @@
 """
-REDIRECT: This file has been refactored into modular structure
+Instructor Management API Helpers - Modular Package
 
-All functions are now available via:
-    from api_helpers.instructors import *
+This package provides a modular structure for instructor management API functions.
+All functions are exported for backward compatibility with the original flat structure.
 
-This redirect file maintains backward compatibility with existing imports:
-    from api_helpers_instructors import *
-
-See streamlit_app/api_helpers/instructors/ for modular implementation.
+Modules:
+- masters: Master instructor management, direct hire offers, legacy functions
+- positions: Position posting, job board, status management
+- applications: Job applications, application review and tracking
+- assignments: Instructor assignments, matrix integration, co-instructors
+- availability: Instructor availability windows and scheduling
+- licenses: User license retrieval for badge display
 """
 
-from api_helpers.instructors import (
-    # Masters
+# Import from masters module
+from .masters import (
     create_direct_hire_offer,
     respond_to_master_offer,
     get_my_master_offers,
@@ -24,7 +27,10 @@ from api_helpers.instructors import (
     update_master_instructor,
     terminate_master_instructor,
     get_available_instructors,
-    # Positions
+)
+
+# Import from positions module
+from .positions import (
     create_position,
     get_all_positions,
     get_position_by_id,
@@ -32,7 +38,10 @@ from api_helpers.instructors import (
     update_position,
     delete_position,
     close_position,
-    # Applications
+)
+
+# Import from applications module
+from .applications import (
     apply_to_position,
     get_my_applications,
     get_applications_for_position,
@@ -40,7 +49,10 @@ from api_helpers.instructors import (
     accept_application,
     decline_application,
     withdraw_application,
-    # Assignments
+)
+
+# Import from assignments module
+from .assignments import (
     assign_instructor_to_session,
     get_instructor_assignments,
     get_session_instructors,
@@ -49,17 +61,24 @@ from api_helpers.instructors import (
     delete_assignment,
     get_location_instructors_summary,
     create_assignment_from_application,
-    # Availability
+)
+
+# Import from availability module
+from .availability import (
     set_instructor_availability,
     get_instructor_availability,
     update_availability,
     delete_availability,
-    # Licenses
+)
+
+# Import from licenses module
+from .licenses import (
     get_user_licenses,
 )
 
+# Public API - all functions available for import
 __all__ = [
-    # Masters (11 functions)
+    # Masters
     "create_direct_hire_offer",
     "respond_to_master_offer",
     "get_my_master_offers",
@@ -72,7 +91,7 @@ __all__ = [
     "update_master_instructor",
     "terminate_master_instructor",
     "get_available_instructors",
-    # Positions (7 functions)
+    # Positions
     "create_position",
     "get_all_positions",
     "get_position_by_id",
@@ -80,7 +99,7 @@ __all__ = [
     "update_position",
     "delete_position",
     "close_position",
-    # Applications (7 functions)
+    # Applications
     "apply_to_position",
     "get_my_applications",
     "get_applications_for_position",
@@ -88,7 +107,7 @@ __all__ = [
     "accept_application",
     "decline_application",
     "withdraw_application",
-    # Assignments (8 functions)
+    # Assignments
     "assign_instructor_to_session",
     "get_instructor_assignments",
     "get_session_instructors",
@@ -97,11 +116,11 @@ __all__ = [
     "delete_assignment",
     "get_location_instructors_summary",
     "create_assignment_from_application",
-    # Availability (4 functions)
+    # Availability
     "set_instructor_availability",
     "get_instructor_availability",
     "update_availability",
     "delete_availability",
-    # Licenses (1 function)
+    # Licenses
     "get_user_licenses",
 ]
