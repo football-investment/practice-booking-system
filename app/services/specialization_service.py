@@ -1,624 +1,115 @@
 """
-Specialization Progress Service
-Manages student progression through specialization levels
+DEPRECATED: This module has been refactored into app.services.specialization
 
-Updated to use JSON configuration files instead of database tables for level definitions.
-"""
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from datetime import datetime
-from typing import Dict, Any, Optional
-import logging
+This file remains for backward compatibility only.
+All imports are redirected to the new modular structure.
 
-from app.database import Base
-from app.models.specialization import SpecializationType
-from app.services.specialization_config_loader import get_config_loader
+For new code, use:
+    from app.services.specialization import SpecializationService
+    # or
+    from app.services.specialization import enroll_lfa_player, get_lfa_player_progress
 
-# Logger
-logger = logging.getLogger(__name__)
-
-# DEPRECATION SYSTEM
-DEPRECATED_MAPPINGS = {
-    "PLAYER": "GANCUJU_PLAYER",
-    "COACH": "LFA_COACH"
-}
-DEPRECATION_DEADLINE = datetime(2026, 5, 18)  # 6 months from now
-DEPRECATION_WARNING = """
-⚠️ DEPRECATED SPECIALIZATION ID: '{old_id}'
-   Use '{new_id}' instead.
-   Support for '{old_id}' will be removed on {deadline}.
-   Please update your code!
+Old imports still work:
+    from app.services.specialization_service import SpecializationService
 """
 
-
-class SpecializationService:
-    """Service for managing specialization progression"""
-
-    def __init__(self, db: Session):
-        self.db = db
-        self.config_loader = get_config_loader()
-
-    def _specialization_id_to_enum(self, specialization_id: str) -> Optional[SpecializationType]:
-        """
-        Convert string specialization ID to enum value.
-        Supports both old names (PLAYER, COACH) and new names (GANCUJU_PLAYER, LFA_COACH).
-
-        Args:
-            specialization_id: String ID (e.g., "PLAYER", "GANCUJU_PLAYER", "LFA_COACH")
-
-        Returns:
-            SpecializationType enum or None if invalid
-        """
-        # Map old names to new enum values for backward compatibility
-        legacy_mapping = {
-            'PLAYER': SpecializationType.GANCUJU_PLAYER,
-            'COACH': SpecializationType.LFA_COACH,
-        }
-
-        # Try legacy mapping first
-        if specialization_id in legacy_mapping:
-            return legacy_mapping[specialization_id]
-
-        # Try direct enum lookup
-        try:
-            return SpecializationType[specialization_id]
-        except KeyError:
-            return None
-
-    def _handle_legacy_specialization(self, spec_id: str) -> str:
-        """
-        Handle legacy specialization IDs with deprecation warning.
-
-        Args:
-            spec_id: Potentially legacy ID (PLAYER, COACH)
-
-        Returns:
-            Mapped new ID if legacy, original ID otherwise
-
-        Raises:
-            ValueError: If after deprecation deadline
-        """
-        if spec_id in DEPRECATED_MAPPINGS:
-            new_id = DEPRECATED_MAPPINGS[spec_id]
-
-            # Check if past deadline
-            if datetime.now() > DEPRECATION_DEADLINE:
-                raise ValueError(
-                    f"Specialization ID '{spec_id}' is no longer supported. "
-                    f"Use '{new_id}' instead."
-                )
-
-            # Log deprecation warning
-            logger.warning(
-                DEPRECATION_WARNING.format(
-                    old_id=spec_id,
-                    new_id=new_id,
-                    deadline=DEPRECATION_DEADLINE.strftime('%Y-%m-%d')
-                )
-            )
-
-            return new_id
-
-        return spec_id
-
-    def validate_specialization_exists(self, specialization_id: str) -> bool:
-        """
-        Check if specialization exists and is active (HYBRID: DB only).
-
-        This is a lightweight check for API endpoints before loading full JSON config.
-
-        Args:
-            specialization_id: Specialization ID to check (handles legacy IDs)
-
-        Returns:
-            bool: True if specialization exists in DB and is active
-        """
-        from app.models.user_progress import Specialization
-
-        # Handle legacy IDs with deprecation warning
-        specialization_id = self._handle_legacy_specialization(specialization_id)
-
-        spec = self.db.query(Specialization).filter_by(
-            id=specialization_id,
-            is_active=True
-        ).first()
-
-        return spec is not None
-
-    def enroll_user(self, user_id: int, specialization_id: str) -> Dict[str, Any]:
-        """
-        Enroll user in specialization (HYBRID: DB validation + JSON config + Age/Consent validation).
-
-        Process:
-        1. Check DB (FK + is_active)
-        2. Load JSON config for age requirements
-        3. Validate age, parental consent
-        4. Create progress record (DB)
-
-        Args:
-            user_id: User ID to enroll
-            specialization_id: Specialization to enroll in
-
-        Returns:
-            Dict with enrollment result
-
-        Raises:
-            ValueError: If validation fails
-        """
-        from app.models.user import User
-        from app.models.user_progress import SpecializationProgress
-        from app.services.specialization_validation import SpecializationValidator
-
-        # STEP 1: Validate specialization exists in DB
-        if not self.validate_specialization_exists(specialization_id):
-            raise ValueError(f"Specialization '{specialization_id}' does not exist or is not active")
-
-        # STEP 2: Get user
-        user = self.db.query(User).filter_by(id=user_id).first()
-        if not user:
-            raise ValueError(f"User {user_id} not found")
-
-        # STEP 3: Validate age and consent requirements (JSON + User data)
-        spec_enum = self._specialization_id_to_enum(specialization_id)
-        validator = SpecializationValidator(self.db)
-        validation_result = validator.validate_user_for_specialization(user, spec_enum, raise_exception=True)
-
-        # STEP 4: Create progress record (DB)
-        existing_progress = self.db.query(SpecializationProgress).filter_by(
-            student_id=user_id,
-            specialization_id=specialization_id
-        ).first()
-
-        if existing_progress:
-            return {
-                'success': False,
-                'message': 'User already enrolled in this specialization',
-                'progress': existing_progress
-            }
-
-        progress = SpecializationProgress(
-            student_id=user_id,
-            specialization_id=specialization_id,
-            current_level=1,
-            total_xp=0,
-            completed_sessions=0,
-            completed_projects=0
-        )
-        self.db.add(progress)
-        self.db.commit()
-        self.db.refresh(progress)
-
-        return {
-            'success': True,
-            'message': f'User enrolled in {specialization_id}',
-            'progress': progress
-        }
-
-    def get_level_requirements(self, specialization_id: str, level: int) -> Optional[Dict[str, Any]]:
-        """
-        Get requirements for a specific level in a specialization.
-        HYBRID: Validates DB existence, then loads from JSON config.
-
-        Args:
-            specialization_id: GANCUJU_PLAYER, LFA_FOOTBALL_PLAYER, LFA_COACH, or INTERNSHIP
-                              (also supports legacy: PLAYER, COACH)
-            level: Level number (1-8 for most, 1-3 for INTERNSHIP)
-
-        Returns:
-            Dict with level info or None if not found
-        """
-        # STEP 1: Validate specialization exists in DB (HYBRID check)
-        if not self.validate_specialization_exists(specialization_id):
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Specialization {specialization_id} not found or inactive in DB")
-            return None
-
-        # Convert to enum
-        spec_enum = self._specialization_id_to_enum(specialization_id)
-        if not spec_enum:
-            return None
-
-        # STEP 2: Load from JSON config (Source of Truth)
-        try:
-            level_config = self.config_loader.get_level_config(spec_enum, level)
-            if not level_config:
-                return None
-
-            # Format response to match legacy API contract
-            requirements = level_config.get('requirements', {})
-
-            response = {
-                'level': level,
-                'name': level_config.get('name'),
-                'required_xp': level_config.get('xp_required', 0),
-                'xp_max': level_config.get('xp_max', 999999),
-                'required_sessions': level_config.get('required_sessions', 0),
-                'required_projects': level_config.get('required_projects', 0),
-                'description': level_config.get('description', ''),
-            }
-
-            # Add specialization-specific fields
-            if 'theory_hours' in requirements:
-                response['theory_hours'] = requirements['theory_hours']
-            if 'practice_hours' in requirements:
-                response['practice_hours'] = requirements['practice_hours']
-            if 'skills' in requirements:
-                response['skills'] = requirements['skills']
-
-            # Add display fields if available
-            if 'belt_color' in level_config:
-                response['color'] = level_config['belt_color']
-                response['belt_color'] = level_config['belt_color']
-            if 'belt_name' in level_config:
-                response['belt_name'] = level_config['belt_name']
-            if 'name_en' in level_config:
-                response['name_en'] = level_config['name_en']
-
-            # Legacy: license_title (construct from level name)
-            response['license_title'] = level_config.get('name', f'Level {level}')
-
-            return response
-
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error loading level config for {specialization_id} level {level}: {e}")
-            return None
-
-    def get_student_progress(self, student_id: int, specialization_id: str) -> Dict[str, Any]:
-        """
-        Get student's progress for a specialization.
-        HYBRID: Validates DB existence, then creates/retrieves progress.
-
-        Args:
-            student_id: User ID
-            specialization_id: GANCUJU_PLAYER, LFA_FOOTBALL_PLAYER, LFA_COACH, or INTERNSHIP
-                              (also supports legacy: PLAYER, COACH)
-
-        Returns:
-            Dict with complete progress information
-
-        Raises:
-            ValueError: If specialization doesn't exist or is inactive
-        """
-        from app.models.user_progress import SpecializationProgress
-
-        # STEP 1: Validate specialization exists in DB (HYBRID check)
-        if not self.validate_specialization_exists(specialization_id):
-            raise ValueError(f"Specialization '{specialization_id}' does not exist or is not active")
-
-        # STEP 2: Progress lekérése vagy létrehozása
-        progress = self.db.query(SpecializationProgress).filter(
-            and_(
-                SpecializationProgress.student_id == student_id,
-                SpecializationProgress.specialization_id == specialization_id
-            )
-        ).first()
-
-        if not progress:
-            # Automatikus létrehozás
-            progress = SpecializationProgress(
-                student_id=student_id,
-                specialization_id=specialization_id,
-                current_level=1,
-                total_xp=0,
-                completed_sessions=0,
-                completed_projects=0
-            )
-            self.db.add(progress)
-            self.db.commit()
-            self.db.refresh(progress)
-
-        # Jelenlegi szint követelmények
-        current_level_req = self.get_level_requirements(specialization_id, progress.current_level)
-
-        # Következő szint követelmények
-        next_level_req = self.get_level_requirements(specialization_id, progress.current_level + 1)
-
-        # Progress percentage kalkuláció
-        progress_percentage = 0
-        if next_level_req:
-            progress_percentage = min(100, int((progress.total_xp / next_level_req['required_xp']) * 100))
-
-        # XP needed for next level
-        xp_needed = 0
-        if next_level_req:
-            xp_needed = max(0, next_level_req['required_xp'] - progress.total_xp)
-
-        # Sessions needed for next level
-        sessions_needed = 0
-        if next_level_req:
-            sessions_needed = max(0, next_level_req['required_sessions'] - progress.completed_sessions)
-
-        # Format response to match frontend expectations
-        response = {
-            'student_id': student_id,
-            'specialization_id': specialization_id,
-            'current_level': current_level_req,  # Frontend expects full level object
-            'next_level': next_level_req,  # Frontend expects 'next_level', not 'next_level_info'
-            'total_xp': progress.total_xp,
-            'xp_needed': xp_needed,
-            'completed_sessions': progress.completed_sessions,
-            'sessions_needed': sessions_needed,
-            'completed_projects': progress.completed_projects,
-            'progress_percentage': progress_percentage,
-            'can_level_up': self.can_level_up(progress),
-            'last_activity': progress.last_activity,
-            'is_max_level': next_level_req is None
-        }
-
-        # Add COACH-specific hours tracking
-        if specialization_id == 'COACH':
-            response['theory_hours_completed'] = progress.theory_hours_completed
-            response['practice_hours_completed'] = progress.practice_hours_completed
-
-            # Calculate hours needed for next level
-            if next_level_req:
-                response['theory_hours_needed'] = max(0,
-                    next_level_req['theory_hours'] - progress.theory_hours_completed)
-                response['practice_hours_needed'] = max(0,
-                    next_level_req['practice_hours'] - progress.practice_hours_completed)
-
-        return response
-
-    def can_level_up(self, progress) -> bool:
-        """
-        Check if student can level up.
-
-        Args:
-            progress: SpecializationProgress instance
-
-        Returns:
-            bool: True if requirements met
-        """
-        next_level_req = self.get_level_requirements(
-            progress.specialization_id,
-            progress.current_level + 1
-        )
-
-        if not next_level_req:
-            return False  # Nincs több szint
-
-        # Basic requirements (all specializations)
-        can_level = (
-            progress.total_xp >= next_level_req['required_xp'] and
-            progress.completed_sessions >= next_level_req['required_sessions']
-        )
-
-        # COACH specialization: also check theory/practice hours
-        if progress.specialization_id == 'COACH':
-            can_level = can_level and (
-                progress.theory_hours_completed >= next_level_req.get('theory_hours', 0) and
-                progress.practice_hours_completed >= next_level_req.get('practice_hours', 0)
-            )
-
-        return can_level
-
-    def update_progress(
-        self,
-        student_id: int,
-        specialization_id: str,
-        xp_gained: int = 0,
-        sessions_completed: int = 0,
-        projects_completed: int = 0
-    ) -> Dict[str, Any]:
-        """
-        Update student progress and check for level up.
-        HYBRID: Validates DB existence before update.
-
-        Args:
-            student_id: User ID
-            specialization_id: GANCUJU_PLAYER, LFA_FOOTBALL_PLAYER, LFA_COACH, or INTERNSHIP
-                              (also supports legacy: PLAYER, COACH)
-            xp_gained: XP to add
-            sessions_completed: Number of sessions completed
-            projects_completed: Number of projects completed
-
-        Returns:
-            Dict with update result
-
-        Raises:
-            ValueError: If specialization doesn't exist or is inactive
-        """
-        from app.models.user_progress import SpecializationProgress
-
-        # STEP 1: Validate specialization exists in DB (HYBRID check)
-        if not self.validate_specialization_exists(specialization_id):
-            raise ValueError(f"Specialization '{specialization_id}' does not exist or is not active")
-
-        # STEP 2: Get or create progress
-        progress = self.db.query(SpecializationProgress).filter(
-            and_(
-                SpecializationProgress.student_id == student_id,
-                SpecializationProgress.specialization_id == specialization_id
-            )
-        ).first()
-
-        if not progress:
-            progress = SpecializationProgress(
-                student_id=student_id,
-                specialization_id=specialization_id,
-                current_level=1,
-                total_xp=0,
-                completed_sessions=0,
-                completed_projects=0
-            )
-            self.db.add(progress)
-
-        # Progress frissítése
-        old_level = progress.current_level
-        progress.total_xp += xp_gained
-        progress.completed_sessions += sessions_completed
-        progress.completed_projects += projects_completed
-        progress.last_activity = datetime.utcnow()
-
-        # Level up ellenőrzés (akár többszöri level up is)
-        leveled_up = False
-        levels_gained = 0
-        while self.can_level_up(progress):
-            progress.current_level += 1
-            levels_gained += 1
-            leveled_up = True
-
-        self.db.commit()
-        self.db.refresh(progress)
-
-        # Get new level info if leveled up
-        new_level_info = None
-        if leveled_up:
-            new_level_info = self.get_level_requirements(specialization_id, progress.current_level)
-
-        # 🆕 CHECK AND AWARD SPECIALIZATION ACHIEVEMENTS
-        from app.services.gamification import GamificationService
-        gamification = GamificationService(self.db)
-        new_achievements = gamification.check_and_award_specialization_achievements(
-            user_id=student_id,
-            specialization_id=specialization_id
-        )
-
-        # 🔄 P1: AUTO-SYNC Progress → License after level change
-        sync_result = None
-        if leveled_up:
-            try:
-                from app.services.progress_license_sync_service import ProgressLicenseSyncService
-                sync_service = ProgressLicenseSyncService(self.db)
-                sync_result = sync_service.sync_progress_to_license(
-                    user_id=student_id,
-                    specialization=specialization_id,
-                    synced_by=None  # Auto-sync (not manual admin)
-                )
-                if not sync_result.get('success'):
-                    # Log warning but don't fail the update
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(
-                        f"Auto-sync failed for user {student_id}, {specialization_id}: {sync_result.get('message')}"
-                    )
-            except Exception as e:
-                # Log error but don't fail the progress update
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Auto-sync exception for user {student_id}: {str(e)}")
-
-        return {
-            'success': True,
-            'new_xp': progress.total_xp,
-            'old_level': old_level,
-            'new_level': progress.current_level,
-            'leveled_up': leveled_up,
-            'levels_gained': levels_gained,
-            'new_level_info': new_level_info,
-            'sync_result': sync_result,  # Include sync result for transparency
-            'achievements_earned': [
-                {
-                    'title': ach.title,
-                    'description': ach.description,
-                    'icon': ach.icon
-                }
-                for ach in new_achievements
-            ]
-        }
-
-    def get_all_specializations(self) -> list[Dict[str, Any]]:
-        """
-        Get all active specializations (HYBRID: DB + JSON)
-
-        Process:
-        1. Load active specializations from DB (is_active check)
-        2. Load full definitions from JSON
-        3. Merge and return
-
-        This ensures:
-        - Only active specializations are returned
-        - Full content comes from JSON (Source of Truth)
-        - DB maintains referential integrity
-
-        Returns:
-            List of specialization dicts with full details from JSON
-        """
-        from app.models.user_progress import Specialization
-
-        # STEP 1: Get active specializations from DB
-        db_specs = self.db.query(Specialization).filter_by(is_active=True).all()
-        active_ids = {s.id for s in db_specs}  # Set for fast lookup
-
-        # STEP 2 & 3: Load JSON configs for active specializations
-        specializations = []
-
-        for spec_enum in SpecializationType:
-            spec_id = spec_enum.value
-
-            # Skip if not active in DB
-            if spec_id not in active_ids:
-                continue
-
-            try:
-                # Load full definition from JSON (Source of Truth)
-                display_info = self.config_loader.get_display_info(spec_enum)
-                max_level = self.config_loader.get_max_level(spec_enum)
-
-                specializations.append({
-                    'id': spec_id,
-                    'name': display_info['name'],
-                    'icon': display_info.get('icon', '⚽'),
-                    'description': display_info['description'],
-                    'max_levels': max_level,
-                    'min_age': display_info.get('min_age', 0),
-                    'color_theme': display_info.get('color_theme', '#000000')
-                })
-            except FileNotFoundError as e:
-                # JSON missing for DB record - CRITICAL ERROR
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"CRITICAL: JSON config missing for active specialization {spec_id}: {e}")
-                continue
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Error loading specialization {spec_id}: {e}")
-                continue
-
-        return specializations
-
-    def get_all_levels(self, specialization_id: str) -> list[Dict[str, Any]]:
-        """
-        Get all levels for a specialization.
-        HYBRID: Validates DB existence, then loads from JSON config files.
-
-        Args:
-            specialization_id: GANCUJU_PLAYER, LFA_FOOTBALL_PLAYER, LFA_COACH, or INTERNSHIP
-                              (also supports legacy: PLAYER, COACH)
-
-        Returns:
-            List of level dicts
-        """
-        # STEP 1: Validate specialization exists in DB (HYBRID check)
-        if not self.validate_specialization_exists(specialization_id):
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Specialization {specialization_id} not found or inactive in DB")
-            return []
-
-        # Convert to enum
-        spec_enum = self._specialization_id_to_enum(specialization_id)
-        if not spec_enum:
-            return []
-
-        # STEP 2: Load from JSON config (Source of Truth)
-        try:
-            max_level = self.config_loader.get_max_level(spec_enum)
-            levels = []
-
-            for level in range(1, max_level + 1):
-                level_info = self.get_level_requirements(specialization_id, level)
-                if level_info:
-                    levels.append(level_info)
-
-            return levels
-
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error loading levels for {specialization_id}: {e}")
-            return []
+# Re-export everything from the new location
+from app.services.specialization import (
+    # Main class
+    SpecializationService,
+
+    # Validation & Common
+    specialization_id_to_enum,
+    handle_legacy_specialization,
+    validate_specialization_exists,
+    get_all_specializations,
+    DEPRECATED_MAPPINGS,
+    DEPRECATION_DEADLINE,
+    DEPRECATION_WARNING,
+
+    # Common functions
+    get_level_requirements,
+    get_student_progress,
+    can_level_up,
+    update_progress,
+    get_all_levels,
+    enroll_user,
+
+    # LFA_PLAYER
+    enroll_lfa_player,
+    get_lfa_player_level_requirements,
+    get_lfa_player_progress,
+    update_lfa_player_progress,
+    get_all_lfa_player_levels,
+
+    # LFA_COACH
+    enroll_lfa_coach,
+    get_lfa_coach_level_requirements,
+    get_lfa_coach_progress,
+    update_lfa_coach_progress,
+    get_all_lfa_coach_levels,
+
+    # GANCUJU_PLAYER
+    enroll_gancuju_player,
+    get_gancuju_player_level_requirements,
+    get_gancuju_player_progress,
+    update_gancuju_player_progress,
+    get_all_gancuju_player_levels,
+
+    # INTERNSHIP
+    enroll_internship,
+    get_internship_level_requirements,
+    get_internship_progress,
+    update_internship_progress,
+    get_all_internship_levels,
+)
+
+__all__ = [
+    # Main class
+    'SpecializationService',
+
+    # Validation
+    'specialization_id_to_enum',
+    'handle_legacy_specialization',
+    'validate_specialization_exists',
+    'get_all_specializations',
+    'DEPRECATED_MAPPINGS',
+    'DEPRECATION_DEADLINE',
+    'DEPRECATION_WARNING',
+
+    # Common
+    'get_level_requirements',
+    'get_student_progress',
+    'can_level_up',
+    'update_progress',
+    'get_all_levels',
+    'enroll_user',
+
+    # LFA_PLAYER
+    'enroll_lfa_player',
+    'get_lfa_player_level_requirements',
+    'get_lfa_player_progress',
+    'update_lfa_player_progress',
+    'get_all_lfa_player_levels',
+
+    # LFA_COACH
+    'enroll_lfa_coach',
+    'get_lfa_coach_level_requirements',
+    'get_lfa_coach_progress',
+    'update_lfa_coach_progress',
+    'get_all_lfa_coach_levels',
+
+    # GANCUJU_PLAYER
+    'enroll_gancuju_player',
+    'get_gancuju_player_level_requirements',
+    'get_gancuju_player_progress',
+    'update_gancuju_player_progress',
+    'get_all_gancuju_player_levels',
+
+    # INTERNSHIP
+    'enroll_internship',
+    'get_internship_level_requirements',
+    'get_internship_progress',
+    'update_internship_progress',
+    'get_all_internship_levels',
+]
