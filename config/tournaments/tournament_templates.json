@@ -1,0 +1,185 @@
+{
+  "templates": {
+    "half_day": {
+      "name": "Half-Day Tournament",
+      "description": "Compact 4-hour tournament with 2 sessions",
+      "duration_hours": 4,
+      "recommended_capacity_per_session": 20,
+      "sessions": [
+        {
+          "time": "09:00",
+          "duration_minutes": 90,
+          "title": "Morning Session",
+          "description": "First tournament session - skills assessment and warm-up drills",
+          "capacity": 20,
+          "credit_cost": 1
+        },
+        {
+          "time": "11:00",
+          "duration_minutes": 90,
+          "title": "Late Morning Session",
+          "description": "Second tournament session - competitive matches",
+          "capacity": 20,
+          "credit_cost": 1
+        }
+      ]
+    },
+    "full_day": {
+      "name": "Full-Day Tournament",
+      "description": "Standard 8-hour tournament with 3 sessions",
+      "duration_hours": 8,
+      "recommended_capacity_per_session": 20,
+      "sessions": [
+        {
+          "time": "09:00",
+          "duration_minutes": 90,
+          "title": "Morning Session",
+          "description": "Morning warm-up and skills assessment",
+          "capacity": 20,
+          "credit_cost": 1
+        },
+        {
+          "time": "13:00",
+          "duration_minutes": 90,
+          "title": "Afternoon Session",
+          "description": "Afternoon competitive matches and drills",
+          "capacity": 20,
+          "credit_cost": 1
+        },
+        {
+          "time": "16:00",
+          "duration_minutes": 90,
+          "title": "Evening Session",
+          "description": "Evening finals and awards ceremony",
+          "capacity": 16,
+          "credit_cost": 1
+        }
+      ]
+    },
+    "intensive": {
+      "name": "Intensive Tournament",
+      "description": "High-intensity 12-hour tournament with 5 sessions",
+      "duration_hours": 12,
+      "recommended_capacity_per_session": 18,
+      "sessions": [
+        {
+          "time": "08:00",
+          "duration_minutes": 90,
+          "title": "Early Morning Session",
+          "description": "Early bird warm-up and registration",
+          "capacity": 16,
+          "credit_cost": 1
+        },
+        {
+          "time": "10:00",
+          "duration_minutes": 90,
+          "title": "Mid Morning Session",
+          "description": "Morning competitive rounds - Group Stage",
+          "capacity": 20,
+          "credit_cost": 1
+        },
+        {
+          "time": "13:00",
+          "duration_minutes": 90,
+          "title": "Afternoon Session",
+          "description": "Afternoon competitive rounds - Quarterfinals",
+          "capacity": 20,
+          "credit_cost": 1
+        },
+        {
+          "time": "15:30",
+          "duration_minutes": 90,
+          "title": "Late Afternoon Session",
+          "description": "Late afternoon - Semifinals",
+          "capacity": 16,
+          "credit_cost": 1
+        },
+        {
+          "time": "18:00",
+          "duration_minutes": 90,
+          "title": "Evening Finals",
+          "description": "Evening finals and awards ceremony",
+          "capacity": 16,
+          "credit_cost": 2
+        }
+      ]
+    },
+    "weekend_showcase": {
+      "name": "Weekend Showcase",
+      "description": "Special weekend talent showcase - 3 prime-time sessions",
+      "duration_hours": 6,
+      "recommended_capacity_per_session": 24,
+      "sessions": [
+        {
+          "time": "10:00",
+          "duration_minutes": 90,
+          "title": "Morning Showcase",
+          "description": "Morning talent exhibition and skills challenges",
+          "capacity": 24,
+          "credit_cost": 1
+        },
+        {
+          "time": "14:00",
+          "duration_minutes": 90,
+          "title": "Afternoon Showcase",
+          "description": "Afternoon competitive showcase matches",
+          "capacity": 24,
+          "credit_cost": 1
+        },
+        {
+          "time": "17:00",
+          "duration_minutes": 90,
+          "title": "Evening Finals",
+          "description": "Evening finals with scout attendance",
+          "capacity": 24,
+          "credit_cost": 2
+        }
+      ]
+    },
+    "mini_tournament": {
+      "name": "Mini Tournament",
+      "description": "Quick 2-hour mini tournament - single session",
+      "duration_hours": 2,
+      "recommended_capacity_per_session": 16,
+      "sessions": [
+        {
+          "time": "15:00",
+          "duration_minutes": 90,
+          "title": "Mini Tournament",
+          "description": "Fast-paced mini tournament - skills and matches",
+          "capacity": 16,
+          "credit_cost": 1
+        }
+      ]
+    }
+  },
+  "usage_notes": {
+    "half_day": "Ideal for morning or afternoon events. Good for younger age groups (PRE).",
+    "full_day": "Standard tournament format. Works for all age groups. Most popular choice.",
+    "intensive": "For serious competitive events. Recommended for YOUTH and AMATEUR age groups.",
+    "weekend_showcase": "Premium event format. Good for talent scouting and special occasions.",
+    "mini_tournament": "Quick introduction event. Perfect for first-time participants or trial sessions."
+  },
+  "pricing_recommendations": {
+    "half_day": {
+      "credit_cost_total": 2,
+      "suggested_price_range": "€30-50"
+    },
+    "full_day": {
+      "credit_cost_total": 3,
+      "suggested_price_range": "€60-90"
+    },
+    "intensive": {
+      "credit_cost_total": 6,
+      "suggested_price_range": "€120-180"
+    },
+    "weekend_showcase": {
+      "credit_cost_total": 4,
+      "suggested_price_range": "€80-120"
+    },
+    "mini_tournament": {
+      "credit_cost_total": 1,
+      "suggested_price_range": "€20-30"
+    }
+  }
+}

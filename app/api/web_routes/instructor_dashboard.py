@@ -129,10 +129,10 @@ async def instructor_edit_student_skills_page(
 
     # Get specialization display name
     spec_display_map = {
-        "LFA_PLAYER_PRE": "LFA Player PRE (Ages 5-8)",
-        "LFA_PLAYER_YOUTH": "LFA Player Youth (Ages 9-14)",
+        "LFA_PLAYER_PRE": "LFA Player PRE (Ages 5-13)",
+        "LFA_PLAYER_YOUTH": "LFA Player Youth (Ages 14-18)",
         "LFA_PLAYER_AMATEUR": "LFA Player Amateur (Ages 14+)",
-        "LFA_PLAYER_PRO": "LFA Player PRO (Ages 16+)"
+        "LFA_PLAYER_PRO": "LFA Player PRO (Ages 14+)"
     }
     specialization_display = spec_display_map.get(license.specialization_type, license.specialization_type)
 
@@ -209,10 +209,10 @@ async def instructor_update_student_skills(
         if value < 0 or value > 100:
             # Get specialization display name
             spec_display_map = {
-                "LFA_PLAYER_PRE": "LFA Player PRE (Ages 5-8)",
-                "LFA_PLAYER_YOUTH": "LFA Player Youth (Ages 9-14)",
+                "LFA_PLAYER_PRE": "LFA Player PRE (Ages 5-13)",
+                "LFA_PLAYER_YOUTH": "LFA Player Youth (Ages 14-18)",
                 "LFA_PLAYER_AMATEUR": "LFA Player Amateur (Ages 14+)",
-                "LFA_PLAYER_PRO": "LFA Player PRO (Ages 16+)"
+                "LFA_PLAYER_PRO": "LFA Player PRO (Ages 14+)"
             }
             specialization_display = spec_display_map.get(license.specialization_type, license.specialization_type)
             specialization_color = "#f1c40f"
@@ -269,10 +269,10 @@ async def instructor_update_student_skills(
 
     # Get specialization display name
     spec_display_map = {
-        "LFA_PLAYER_PRE": "LFA Player PRE (Ages 5-8)",
-        "LFA_PLAYER_YOUTH": "LFA Player Youth (Ages 9-14)",
+        "LFA_PLAYER_PRE": "LFA Player PRE (Ages 5-13)",
+        "LFA_PLAYER_YOUTH": "LFA Player Youth (Ages 14-18)",
         "LFA_PLAYER_AMATEUR": "LFA Player Amateur (Ages 14+)",
-        "LFA_PLAYER_PRO": "LFA Player PRO (Ages 16+)"
+        "LFA_PLAYER_PRO": "LFA Player PRO (Ages 14+)"
     }
     specialization_display = spec_display_map.get(license.specialization_type, license.specialization_type)
     specialization_color = "#f1c40f"

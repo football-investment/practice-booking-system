@@ -17,10 +17,10 @@ from ..validators import (
     validate_specialization_enrollment,
     validate_payment_enrollment
 )
-from .......database import get_db
-from .......dependencies import get_current_user
-from .......models.user import User
-from .......models.project import (
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.models.project import (
     Project as ProjectModel,
     ProjectEnrollment,
     ProjectMilestone,
@@ -30,7 +30,7 @@ from .......models.project import (
     ProjectProgressStatus,
     MilestoneStatus
 )
-from .......schemas.project import ProjectEnrollment as ProjectEnrollmentSchema
+from app.schemas.project import ProjectEnrollment as ProjectEnrollmentSchema
 
 router = APIRouter()
 

@@ -12,14 +12,14 @@
       "min_age": 14,
       "max_age": null,
       "levels": [1, 2],
-      "description": "5-8 éves korosztály edzése"
+      "description": "5-13 éves korosztály edzése"
     },
     {
       "name": "Youth Football Coach",
       "min_age": 14,
       "max_age": null,
       "levels": [3, 4],
-      "description": "9-14 éves korosztály edzése"
+      "description": "14-18 éves korosztály edzése"
     },
     {
       "name": "Amateur Football Coach",
@@ -33,7 +33,7 @@
       "min_age": 14,
       "max_age": null,
       "levels": [7, 8],
-      "description": "16+ profi korosztály edzése"
+      "description": "14+ profi korosztály edzése"
     }
   ],
   "levels": [
@@ -42,7 +42,7 @@
       "name": "LFA Pre Football Asszisztens Edző",
       "age_group": "Pre Football Coach",
       "license_color": "#FFE4E1",
-      "description": "Kezdő edzői szint - 5-8 évesek foglalkoztatása (14+ belépés)",
+      "description": "Kezdő edzői szint - 5-13 évesek foglalkoztatása (14+ belépés)",
       "xp_required": 0,
       "xp_max": 999,
       "required_sessions": 0,
@@ -82,7 +82,7 @@
       "name": "LFA Youth Football Asszisztens Edző",
       "age_group": "Youth Football Coach",
       "license_color": "#87CEFA",
-      "description": "Ifjúsági asszisztens - 9-14 évesek fejlesztése",
+      "description": "Ifjúsági asszisztens - 14-18 évesek fejlesztése",
       "xp_required": 2500,
       "xp_max": 4999,
       "required_sessions": 30,
@@ -162,7 +162,7 @@
       "name": "LFA PRO Football Asszisztens Edző",
       "age_group": "Pro Football Coach",
       "license_color": "#FFD700",
-      "description": "Profi asszisztens - 16+ profi szint támogatás",
+      "description": "Profi asszisztens - 14+ profi szint támogatás",
       "xp_required": 40000,
       "xp_max": 79999,
       "required_sessions": 130,

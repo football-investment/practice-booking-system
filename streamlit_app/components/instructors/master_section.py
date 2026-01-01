@@ -7,7 +7,7 @@ from api_helpers_instructors import (
     get_master_instructor_by_location,
     get_pending_offers
 )
-from master import (
+from .master import (
     render_master_card,
     render_pending_offers_admin_view,
     render_hiring_interface

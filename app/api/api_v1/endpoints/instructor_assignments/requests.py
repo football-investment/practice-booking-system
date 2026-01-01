@@ -130,6 +130,25 @@ def create_assignment_request(
     db.commit()
     db.refresh(db_request)
 
+    # ✅ NEW: Auto-create notification for instructor
+    from app.models.notification import Notification, NotificationType
+
+    notification = Notification(
+        user_id=instructor.id,
+        type=NotificationType.JOB_OFFER,
+        title=f"New Job Offer: {semester.name}",
+        message=f"You have a new job offer from {current_user.name} for {semester.name} at {semester.location.name if semester.location else 'TBD'}. "
+                f"Period: {semester.start_date} - {semester.end_date}. "
+                f"{request_data.request_message or 'No additional message.'}",
+        link=f"/instructor-dashboard?tab=inbox",  # Deep link to inbox
+        related_semester_id=semester.id,
+        related_request_id=db_request.id,
+        is_read=False
+    )
+
+    db.add(notification)
+    db.commit()
+
     return db_request
 
 

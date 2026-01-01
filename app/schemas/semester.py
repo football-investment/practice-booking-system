@@ -11,6 +11,7 @@ class SemesterBase(BaseModel):
     end_date: date
     status: SemesterStatus = SemesterStatus.DRAFT
     is_active: bool = True
+    enrollment_cost: int = 500
     master_instructor_id: Optional[int] = None
     specialization_type: Optional[str] = None
     age_group: Optional[str] = None
@@ -32,6 +33,7 @@ class SemesterUpdate(BaseModel):
     end_date: Optional[date] = None
     status: Optional[SemesterStatus] = None
     is_active: Optional[bool] = None
+    enrollment_cost: Optional[int] = None
     master_instructor_id: Optional[int] = None
 
 
@@ -48,6 +50,7 @@ class SemesterWithStats(Semester):
     total_sessions: int
     total_bookings: int
     active_users: int
+    location_type: Optional[str] = None  # PARTNER or CENTER from location relationship
 
 
 class SemesterList(BaseModel):

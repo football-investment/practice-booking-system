@@ -19,6 +19,59 @@ from api_helpers_semesters import (
 )
 
 
+def get_period_label(specialization_type: str = None, plural: bool = True, capitalize: bool = True) -> str:
+    """
+    Get appropriate label (Season/Semester) based on specialization
+
+    LFA_PLAYER specializations use "Season"
+    All other specializations (COACH, INTERNSHIP, GANCUJU) use "Semester"
+
+    Args:
+        specialization_type: The specialization (e.g., 'LFA_PLAYER_PRE', 'COACH', etc.)
+        plural: Return plural form if True
+        capitalize: Capitalize first letter if True
+
+    Returns:
+        'Season'/'Seasons' for LFA_PLAYER, 'Semester'/'Semesters' for others
+    """
+    is_lfa_player = specialization_type and 'LFA_PLAYER' in specialization_type
+
+    if is_lfa_player:
+        label = "seasons" if plural else "season"
+    else:
+        label = "semesters" if plural else "semester"
+
+    return label.capitalize() if capitalize else label
+
+
+def get_period_label_for_semesters(semesters: List[Dict], plural: bool = True, capitalize: bool = True) -> str:
+    """
+    Determine the appropriate label for a list of semesters
+    Uses "Season" if ALL semesters are LFA_PLAYER, otherwise "Semester"
+
+    Args:
+        semesters: List of semester dictionaries
+        plural: Return plural form if True
+        capitalize: Capitalize first letter if True
+
+    Returns:
+        'Season'/'Seasons' or 'Semester'/'Semesters'
+    """
+    if not semesters:
+        return get_period_label(None, plural=plural, capitalize=capitalize)
+
+    # Check if ALL semesters are LFA_PLAYER
+    all_lfa_player = all(
+        'LFA_PLAYER' in sem.get('specialization_type', '')
+        for sem in semesters
+    )
+
+    if all_lfa_player:
+        return get_period_label('LFA_PLAYER', plural=plural, capitalize=capitalize)
+    else:
+        return get_period_label(None, plural=plural, capitalize=capitalize)
+
+
 def render_semester_cards(semesters: List[Dict], key_prefix: str = ""):
     """
     Render semester cards in a compact list format
@@ -28,16 +81,30 @@ def render_semester_cards(semesters: List[Dict], key_prefix: str = ""):
         key_prefix: Unique prefix for widget keys
     """
     if not semesters:
-        st.info("📭 No semesters in this group")
+        period_label = get_period_label_for_semesters([], plural=True, capitalize=False)
+        st.info(f"📭 No {period_label} in this group")
         return
 
     for idx, sem in enumerate(semesters):
-        status = "✅" if sem.get('is_active') else "⏸️"
+        status_emoji = "✅" if sem.get('is_active') else "⏸️"
 
-        col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+        # Status badge mapping
+        status_value = sem.get('status', 'DRAFT')
+        status_badges = {
+            'DRAFT': ('📝', 'gray'),
+            'SEEKING_INSTRUCTOR': ('🔍', 'orange'),
+            'INSTRUCTOR_ASSIGNED': ('👨\u200d🏫', 'yellow'),
+            'READY_FOR_ENROLLMENT': ('🟢', 'green'),
+            'ONGOING': ('🔵', 'blue'),
+            'COMPLETED': ('✅', 'violet'),
+            'CANCELLED': ('❌', 'red')
+        }
+        status_badge, status_color = status_badges.get(status_value, ('❓', 'gray'))
+
+        col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 2, 1.5])
 
         with col1:
-            st.write(f"{status} **{sem.get('code', 'N/A')}**")
+            st.write(f"{status_emoji} **{sem.get('code', 'N/A')}**")
 
         with col2:
             start = sem.get('start_date', 'N/A')
@@ -49,6 +116,10 @@ def render_semester_cards(semesters: List[Dict], key_prefix: str = ""):
 
         with col4:
             st.write(f"👥 Enrollments: {sem.get('total_enrollments', 0)}")
+
+        with col5:
+            # Status badge with color
+            st.markdown(f":{status_color}[{status_badge} {status_value}]")
 
         st.divider()
 
@@ -69,14 +140,16 @@ def render_by_year(semesters: List[Dict], location_key: str):
         by_year[year].append(sem)
 
     if not by_year:
-        st.info("📭 No semesters found")
+        period_label = get_period_label_for_semesters(semesters, plural=True, capitalize=False)
+        st.info(f"📭 No {period_label} found")
         return
 
     # Sort years in descending order
     for year in sorted(by_year.keys(), reverse=True):
         year_semesters = by_year[year]
+        period_label = get_period_label_for_semesters(year_semesters, plural=True, capitalize=False)
 
-        with st.expander(f"📅 **{year}** ({len(year_semesters)} semesters)", expanded=False):
+        with st.expander(f"📅 **{year}** ({len(year_semesters)} {period_label})", expanded=False):
             render_semester_cards(year_semesters, key_prefix=f"{location_key}_year_{year}")
 
 
@@ -104,14 +177,16 @@ def render_by_specialization(semesters: List[Dict], location_key: str):
         by_spec[base_spec].append(sem)
 
     if not by_spec:
-        st.info("📭 No semesters found")
+        period_label = get_period_label_for_semesters(semesters, plural=True, capitalize=False)
+        st.info(f"📭 No {period_label} found")
         return
 
     # Sort specializations alphabetically
     for spec in sorted(by_spec.keys()):
         spec_semesters = by_spec[spec]
+        period_label = get_period_label_for_semesters(spec_semesters, plural=True, capitalize=False)
 
-        with st.expander(f"⚽ **{spec}** ({len(spec_semesters)} semesters)", expanded=False):
+        with st.expander(f"⚽ **{spec}** ({len(spec_semesters)} {period_label})", expanded=False):
             render_semester_cards(spec_semesters, key_prefix=f"{location_key}_spec_{spec}")
 
 
@@ -164,12 +239,15 @@ def render_semester_overview(token: str):
     st.markdown("#### 📈 Overall Statistics")
     overall_col1, overall_col2, overall_col3, overall_col4 = st.columns(4)
 
+    # Use dynamic label for overall metrics
+    overall_period_label = get_period_label_for_semesters(semesters, plural=True, capitalize=True)
+
     overall_col1.metric("Total Locations", len(locations))
-    overall_col2.metric("Total Semesters", len(semesters))
+    overall_col2.metric(f"Total {overall_period_label}", len(semesters))
 
     active_semesters = sum(1 for s in semesters if s.get('is_active'))
-    overall_col3.metric("Active Semesters", active_semesters)
-    overall_col4.metric("Inactive Semesters", len(semesters) - active_semesters)
+    overall_col3.metric(f"Active {overall_period_label}", active_semesters)
+    overall_col4.metric(f"Inactive {overall_period_label}", len(semesters) - active_semesters)
 
     st.divider()
 
@@ -202,21 +280,36 @@ def render_semester_overview(token: str):
                     base_spec = spec
                 unique_specs.add(base_spec)
 
+        # Use dynamic label for this location's semesters
+        location_period_label = get_period_label_for_semesters(semesters_at_location, plural=True, capitalize=False)
+        location_period_label_single = get_period_label_for_semesters(semesters_at_location, plural=False, capitalize=True)
+        location_period_label_plural = get_period_label_for_semesters(semesters_at_location, plural=True, capitalize=True)
+
+        # Location type emoji és label
+        location_type = location.get('location_type', 'PARTNER')
+        location_type_emoji = "🏢" if location_type == 'CENTER' else "🤝"
+
         # Location expander
         with st.expander(
-            f"📍 **{name}** ({city}, {country}) — {total} semesters",
+            f"{location_type_emoji} **{name}** ({city}, {country}) — **{location_type}** — {total} {location_period_label}",
             expanded=(total > 0)
         ):
             # Statistics row
             stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
 
-            stat_col1.metric("Total Semesters", total)
+            stat_col1.metric(f"Total {location_period_label_plural}", total)
             stat_col2.metric("Active", active, delta=None)
             stat_col3.metric("Inactive", inactive, delta=None)
             stat_col4.metric("Specializations", len(unique_specs))
 
+            # ✅ ÚJ: Capability info box
+            if location_type == 'CENTER':
+                st.success("🏢 **CENTER Location** → Képességek: Tournament ✅ | Mini Season ✅ | Academy Season ✅")
+            else:
+                st.warning("🤝 **PARTNER Location** → Képességek: Tournament ✅ | Mini Season ✅ | Academy Season ❌")
+
             if total == 0:
-                st.info("📭 No semesters at this location yet")
+                st.info(f"📭 No {location_period_label} at this location yet")
 
                 # Quick action: Generate semesters
                 if st.button("🚀 Generate Semesters Here", key=f"gen_{location_id}", use_container_width=True):
@@ -228,7 +321,7 @@ def render_semester_overview(token: str):
 
             # Grouping selector
             view_by = st.radio(
-                "📊 Group semesters by:",
+                f"📊 Group {location_period_label} by:",
                 ["Year", "Specialization"],
                 horizontal=True,
                 key=f"view_{location_id}"
@@ -249,7 +342,7 @@ def render_semester_overview(token: str):
 
             with action_col1:
                 if st.button("🚀 Generate More Here", key=f"gen_more_{location_id}", use_container_width=True):
-                    st.info("💡 Navigate to the **🚀 Generate** tab to create more semesters")
+                    st.info(f"💡 Navigate to the **🚀 Generate** tab to create more {location_period_label}")
 
             with action_col2:
                 if st.button("🎯 View in Manage Tab", key=f"manage_{location_id}", use_container_width=True):

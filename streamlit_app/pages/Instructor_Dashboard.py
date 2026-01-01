@@ -6,8 +6,9 @@ EXACT API patterns + EXACT UI/UX patterns
 
 import streamlit as st
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY, SESSION_ROLE_KEY, SPECIALIZATIONS
-from api_helpers import get_sessions, get_users
-from datetime import datetime
+from api_helpers import get_sessions, get_users, get_semesters
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 # Page configuration
 st.set_page_config(
@@ -33,9 +34,33 @@ if user.get('role') != 'instructor':
 # Get token
 token = st.session_state[SESSION_TOKEN_KEY]
 
-# Header
-st.title("👨‍🏫 Instructor Dashboard")
-st.caption("LFA Education Center - Instructor Interface")
+# Header with Notification Badge
+from api_helpers_notifications import get_unread_notification_count
+
+col_title, col_badge = st.columns([4, 1])
+
+with col_title:
+    st.title("👨‍🏫 Instructor Dashboard")
+    st.caption("LFA Education Center - Instructor Interface")
+
+with col_badge:
+    # Fetch unread notification count
+    unread_count = get_unread_notification_count(token)
+
+    if unread_count > 0:
+        st.markdown(
+            f"<div style='text-align: center; padding: 15px; margin-top: 10px; background-color: #FF4B4B; "
+            f"border-radius: 10px; font-weight: bold; color: white; font-size: 18px;'>"
+            f"🔔 {unread_count} New Notification{'s' if unread_count > 1 else ''}</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f"<div style='text-align: center; padding: 15px; margin-top: 10px; background-color: #E8F5E9; "
+            f"border-radius: 10px; font-weight: bold; color: #2E7D32; font-size: 18px;'>"
+            f"✅ No New Notifications</div>",
+            unsafe_allow_html=True
+        )
 
 # Sidebar
 with st.sidebar:
@@ -45,131 +70,779 @@ with st.sidebar:
 
     st.markdown("---")
 
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.clear()
-        st.switch_page("🏠_Home.py")
+    # Logout and Refresh buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Refresh", use_container_width=True, help="Reload dashboard data without logging out"):
+            st.rerun()
+    with col2:
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.clear()
+            st.switch_page("🏠_Home.py")
+
+# ========================================
+# HELPER FUNCTIONS
+# ========================================
+
+def get_age_group(specialization_type: str) -> str:
+    """Extract age group from LFA_PLAYER_X format"""
+    if not specialization_type or 'LFA_PLAYER_' not in specialization_type:
+        return 'UNKNOWN'
+    parts = specialization_type.split('_')
+    return parts[-1] if len(parts) > 2 else 'UNKNOWN'
+
+def get_age_group_icon(age_group: str) -> str:
+    """Get emoji icon for age group"""
+    icons = {
+        'PRE': '👶',
+        'YOUTH': '👦',
+        'AMATEUR': '🧑',
+        'PRO': '👨'
+    }
+    return icons.get(age_group, '❓')
+
+# ========================================
+# DATA PREPARATION (Fetch ONCE, use across all tabs)
+# ========================================
+
+with st.spinner("Loading your data..."):
+    # Fetch ALL sessions (shared across tabs)
+    success, all_sessions = get_sessions(token, size=100, specialization_filter=True)
+
+    # Fetch ALL master-led semesters (to show future commitments without sessions)
+    semester_success, all_semesters = get_semesters(token)
+
+if not success:
+    st.error("❌ Failed to load sessions. Please refresh the page.")
+    st.stop()
+
+if not semester_success:
+    st.warning("⚠️ Could not load semester data. Some information may be incomplete.")
+    all_semesters = []
+
+# Separate seasons vs tournaments
+seasons_sessions = [s for s in all_sessions if not s.get('semester', {}).get('code', '').startswith('TOURN-')]
+tournament_sessions = [s for s in all_sessions if s.get('semester', {}).get('code', '').startswith('TOURN-')]
+
+# Group by semester_id
+seasons_by_semester = defaultdict(list)
+for s in seasons_sessions:
+    semester_id = s.get('semester_id')
+    if semester_id:
+        seasons_by_semester[semester_id].append(s)
+
+tournaments_by_semester = defaultdict(list)
+for t in tournament_sessions:
+    semester_id = t.get('semester_id')
+    if semester_id:
+        tournaments_by_semester[semester_id].append(t)
+
+# Filter for today and next 7 days
+today = datetime.now().date()
+next_week = today + timedelta(days=7)
+
+upcoming_sessions = []
+for s in all_sessions:
+    date_start_str = s.get('date_start')
+    if date_start_str:
+        try:
+            session_date = datetime.fromisoformat(date_start_str.replace('Z', '+00:00')).date()
+            if today <= session_date <= next_week:
+                upcoming_sessions.append(s)
+        except:
+            pass  # Skip sessions with invalid date
+
+# Sort upcoming sessions by date
+upcoming_sessions.sort(key=lambda x: x.get('date_start', ''))
+
+# Filter today's sessions
+todays_sessions = [s for s in upcoming_sessions if datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date() == today]
 
 # Main tabs
-tab1, tab2 = st.tabs(["📅 My Sessions", "👥 My Students"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📆 Today & Upcoming",
+    "💼 My Jobs",
+    "👥 My Students",
+    "✅ Check-in & Groups",
+    "📬 Inbox",
+    "👤 My Profile"
+])
 
 # ========================================
-# TAB 1: MY SESSIONS
+# TAB 1: TODAY & UPCOMING (PRIMARY LANDING VIEW)
 # ========================================
 with tab1:
-    st.markdown("### 📅 My Sessions")
-    st.caption("Sessions you are teaching")
+    st.markdown("### 📆 Today & Upcoming")
+    st.caption("Time-sensitive sessions - what needs your attention NOW")
 
-    with st.spinner("Loading your sessions..."):
-        # Get sessions with specialization filter (instructor sees only their specialization)
-        success, sessions = get_sessions(token, size=100, specialization_filter=True)
+    # Quick Stats
+    stats_col1, stats_col2, stats_col3 = st.columns(3)
 
-    if success and sessions:
-        # WORKING DASHBOARD PATTERN: Metric widgets for session stats
-        stats_col1, stats_col2, stats_col3 = st.columns(3)
+    with stats_col1:
+        st.metric("📅 Today", len(todays_sessions))
+    with stats_col2:
+        st.metric("📅 This Week", len(upcoming_sessions))
+    with stats_col3:
+        # Count pending actions (tournament requests + master offers)
+        from api_helpers_instructors import get_my_master_offers
+        try:
+            pending_offers = get_my_master_offers(token, include_expired=False)
+            pending_offers_count = len([o for o in pending_offers if o.get('status') == 'PENDING'])
+        except:
+            pending_offers_count = 0
 
-        now = datetime.now()
-        upcoming_sessions = [s for s in sessions if datetime.fromisoformat(s.get('start_time', '').replace('Z', '+00:00')) > now]
-        past_sessions = [s for s in sessions if datetime.fromisoformat(s.get('start_time', '').replace('Z', '+00:00')) <= now]
+        # TODO: Add tournament requests count when available
+        pending_actions = pending_offers_count
+        st.metric("🎯 Pending Actions", pending_actions)
 
-        with stats_col1:
-            st.metric("📚 Total Sessions", len(sessions))
-        with stats_col2:
-            st.metric("🔜 Upcoming", len(upcoming_sessions))
-        with stats_col3:
-            st.metric("✅ Completed", len(past_sessions))
+    st.divider()
+
+    # TODAY'S SESSIONS
+    if todays_sessions:
+        st.markdown("### 🚨 TODAY'S SESSIONS")
+
+        for session in todays_sessions:
+            semester_data = session.get('semester', {})
+
+            # Extract session details
+            try:
+                start_dt = datetime.fromisoformat(session['date_start'].replace('Z', '+00:00'))
+                time_str = start_dt.strftime('%H:%M')
+            except:
+                time_str = 'N/A'
+
+            title = session.get('title', 'Session')
+            capacity = session.get('capacity', 0)
+            bookings = session.get('confirmed_bookings', 0)
+            semester_name = semester_data.get('name', 'Unknown')
+
+            # Display in red border container
+            with st.container():
+                st.markdown(
+                    f"<div style='border-left: 5px solid #FF4B4B; padding-left: 10px; margin-bottom: 10px;'>"
+                    f"<strong>{time_str}</strong> - {title}<br>"
+                    f"<small>📍 {semester_name} | 👥 {bookings}/{capacity}</small>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+    else:
+        st.info("✅ No sessions today")
+
+    st.divider()
+
+    # THIS WEEK (Next 7 Days)
+    st.markdown("### 📅 THIS WEEK (Next 7 Days)")
+
+    if upcoming_sessions:
+        # Group by day
+        sessions_by_day = defaultdict(list)
+        for s in upcoming_sessions:
+            try:
+                session_date = datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date()
+                sessions_by_day[session_date].append(s)
+            except:
+                pass
+
+        # Display each day
+        for day in sorted(sessions_by_day.keys()):
+            day_sessions = sessions_by_day[day]
+            day_name = day.strftime('%A, %B %d')
+            is_today = (day == today)
+
+            with st.expander(f"**{day_name}** ({len(day_sessions)} sessions)" + (" ⚠️ TODAY" if is_today else ""), expanded=is_today):
+                for session in sorted(day_sessions, key=lambda x: x.get('date_start', '')):
+                    semester_data = session.get('semester', {})
+
+                    try:
+                        start_dt = datetime.fromisoformat(session['date_start'].replace('Z', '+00:00'))
+                        time_str = start_dt.strftime('%H:%M')
+                    except:
+                        time_str = 'N/A'
+
+                    col1, col2, col3 = st.columns([2, 2, 1])
+
+                    with col1:
+                        st.markdown(f"**{session.get('title', 'Session')}**")
+                    with col2:
+                        st.caption(f"🕐 {time_str} | 📍 {semester_data.get('name', 'Unknown')}")
+                    with col3:
+                        capacity = session.get('capacity', 0)
+                        bookings = session.get('confirmed_bookings', 0)
+                        st.caption(f"👥 {bookings}/{capacity}")
+    else:
+        st.info("📅 No sessions scheduled for the next 7 days")
+
+        # Show next session if any
+        if all_sessions:
+            future_sessions = []
+            for s in all_sessions:
+                try:
+                    session_date = datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date()
+                    if session_date > next_week:
+                        future_sessions.append((session_date, s))
+                except:
+                    pass
+
+            if future_sessions:
+                future_sessions.sort(key=lambda x: x[0])
+                next_session_date, next_session = future_sessions[0]
+                st.caption(f"📅 Next session: {next_session_date.strftime('%A, %B %d')} - {next_session.get('title', 'Session')}")
+
+    # ACTION REQUIRED section
+    if pending_actions > 0:
+        st.divider()
+        st.markdown("### ⚠️ ACTION REQUIRED")
+        st.warning(f"You have **{pending_actions}** pending action(s) in the **📬 Inbox** tab")
+        if st.button("Go to Inbox →", use_container_width=True):
+            st.session_state['active_tab'] = 'Inbox'
+            st.rerun()
+
+# ========================================
+# TAB 2: MY JOBS (CV-Style Chronological List)
+# ========================================
+with tab2:
+    st.markdown("### 💼 My Jobs")
+    st.caption("Your teaching assignments - pending offers, upcoming, active, and completed")
+
+    # Get current user ID for PENDING detection
+    current_instructor_id = user.get('id')
+
+    # Collect all jobs (seasons + tournaments) with metadata
+    all_jobs = []
+
+    # Add ALL master-led semesters (both with and without sessions)
+    # Track which semester IDs we've processed
+    processed_semester_ids = set()
+
+    # First, add seasons that have sessions
+    for semester_id, sessions in seasons_by_semester.items():
+        if sessions:
+            semester = sessions[0].get('semester', {})
+            spec_type = semester.get('specialization_type', '')
+            age_group = get_age_group(spec_type)
+
+            # ✅ NEW: Check if ACCEPTED or PENDING
+            master_instructor_id = semester.get('master_instructor_id')
+            is_accepted = (master_instructor_id == current_instructor_id)
+
+            # Determine status: pending, upcoming, active, or completed
+            if not is_accepted:
+                status = 'pending'  # Not accepted yet → PENDING
+            else:
+                try:
+                    start_date = datetime.strptime(semester.get('start_date', ''), '%Y-%m-%d').date()
+                    end_date = datetime.strptime(semester.get('end_date', ''), '%Y-%m-%d').date()
+
+                    if start_date > today:
+                        status = 'upcoming'
+                    elif start_date <= today <= end_date:
+                        status = 'active'
+                    else:
+                        status = 'completed'
+                except:
+                    status = 'active'  # Default to active if can't parse
+
+            all_jobs.append({
+                'type': 'season',
+                'semester_id': semester_id,
+                'semester': semester,
+                'sessions': sessions,
+                'age_group': age_group,
+                'status': status,
+                'start_date': semester.get('start_date', ''),
+                'end_date': semester.get('end_date', ''),
+                'sort_key': semester.get('start_date', '')  # For sorting
+            })
+            processed_semester_ids.add(semester_id)
+
+    # Then, add semesters WITHOUT sessions (future commitments)
+    for semester in all_semesters:
+        semester_id = semester.get('id')
+        code = semester.get('code', '')
+
+        # Skip if already processed (has sessions) or is a tournament
+        if semester_id in processed_semester_ids or code.startswith('TOURN-'):
+            continue
+
+        spec_type = semester.get('specialization_type', '')
+        age_group = get_age_group(spec_type)
+
+        # ✅ NEW: Check if ACCEPTED or PENDING
+        master_instructor_id = semester.get('master_instructor_id')
+        is_accepted = (master_instructor_id == current_instructor_id)
+
+        # Determine status
+        if not is_accepted:
+            status = 'pending'  # Not accepted yet → PENDING
+        else:
+            try:
+                start_date = datetime.strptime(semester.get('start_date', ''), '%Y-%m-%d').date()
+                end_date = datetime.strptime(semester.get('end_date', ''), '%Y-%m-%d').date()
+
+                if start_date > today:
+                    status = 'upcoming'
+                elif start_date <= today <= end_date:
+                    status = 'active'
+                else:
+                    status = 'completed'
+            except:
+                status = 'active'
+
+        all_jobs.append({
+            'type': 'season',
+            'semester_id': semester_id,
+            'semester': semester,
+            'sessions': [],  # No sessions yet
+            'age_group': age_group,
+            'status': status,
+            'start_date': semester.get('start_date', ''),
+            'end_date': semester.get('end_date', ''),
+            'sort_key': semester.get('start_date', '')
+        })
+        processed_semester_ids.add(semester_id)
+
+    # Add tournaments
+    for semester_id, sessions in tournaments_by_semester.items():
+        if sessions:
+            semester = sessions[0].get('semester', {})
+            spec_type = semester.get('specialization_type', '')
+            age_group = get_age_group(spec_type)
+
+            # ✅ NEW: Check if ACCEPTED or PENDING
+            master_instructor_id = semester.get('master_instructor_id')
+            is_accepted = (master_instructor_id == current_instructor_id)
+
+            # Determine status: pending, upcoming, active (today), or completed
+            if not is_accepted:
+                status = 'pending'  # Not accepted yet → PENDING
+            else:
+                try:
+                    tourn_date = datetime.strptime(semester.get('start_date', ''), '%Y-%m-%d').date()
+
+                    if tourn_date > today:
+                        status = 'upcoming'
+                    elif tourn_date == today:
+                        status = 'active'
+                    else:
+                        status = 'completed'
+                except:
+                    status = 'active'
+
+            all_jobs.append({
+                'type': 'tournament',
+                'semester_id': semester_id,
+                'semester': semester,
+                'sessions': sessions,
+                'age_group': age_group,
+                'status': status,
+                'tournament_date': semester.get('start_date', ''),
+                'sort_key': semester.get('start_date', '')
+            })
+
+    # Sort by start date (newest first)
+    all_jobs.sort(key=lambda x: x['sort_key'], reverse=True)
+
+    # Separate into 4 categories (NEW: added PENDING)
+    pending_jobs = [j for j in all_jobs if j['status'] == 'pending']
+    upcoming_jobs = [j for j in all_jobs if j['status'] == 'upcoming']
+    active_jobs = [j for j in all_jobs if j['status'] == 'active']
+    completed_jobs = [j for j in all_jobs if j['status'] == 'completed']
+
+    # Quick Stats (NEW: added PENDING)
+    stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4)
+
+    with stats_col1:
+        st.metric("⏳ PENDING Offers", len(pending_jobs))
+    with stats_col2:
+        st.metric("🔜 Upcoming Jobs", len(upcoming_jobs))
+    with stats_col3:
+        st.metric("🔴 Active Jobs", len(active_jobs))
+    with stats_col4:
+        st.metric("✅ Completed Jobs", len(completed_jobs))
+
+    st.divider()
+
+    # ✅ NEW SECTION: PENDING OFFERS (Not accepted yet)
+    if pending_jobs:
+        st.markdown("### ⏳ PENDING OFFERS (Action Required)")
+        st.warning(f"⚠️ You have **{len(pending_jobs)}** pending job offers. Review them in the **📬 Inbox** tab!")
+
+        for job in pending_jobs:
+            age_icon = get_age_group_icon(job['age_group'])
+
+            if job['type'] == 'season':
+                # PENDING SEASON Card
+                with st.container():
+                    st.markdown(f"#### 📅 SEASON: {job['semester'].get('name', 'Unnamed Season')}")
+
+                    col1, col2 = st.columns([3, 1])
+
+                    with col1:
+                        st.caption("📍 **Education Center:** TBD (Location data)")
+                        st.caption(f"👤 **Position:** Master Instructor")
+                        st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
+                        st.caption(f"📆 **Duration:** {job['start_date']} to {job['end_date']}")
+
+                        # Sessions info
+                        if len(job['sessions']) > 0:
+                            st.caption(f"📊 **Sessions:** {len(job['sessions'])} total")
+                        else:
+                            st.caption("📝 Sessions will be created after acceptance")
+
+                    with col2:
+                        # Status indicator - PENDING
+                        st.markdown(
+                            "<div style='text-align: center; padding: 10px; background-color: #FFF3E0; "
+                            "border-radius: 5px; font-weight: bold; color: #E65100;'>⏳ PENDING</div>",
+                            unsafe_allow_html=True
+                        )
+
+                    st.divider()
+
+            else:  # tournament
+                # PENDING TOURNAMENT Card
+                with st.container():
+                    st.markdown(f"#### 🏆 TOURNAMENT: {job['semester'].get('name', 'Unnamed Tournament')}")
+
+                    col1, col2 = st.columns([3, 1])
+
+                    with col1:
+                        st.caption("📍 **Education Center:** TBD (Location data)")
+                        st.caption(f"👤 **Position:** Master Instructor")
+                        st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
+                        st.caption(f"📆 **Date:** {job['tournament_date']}")
+
+                        # Session summary
+                        if len(job['sessions']) > 0:
+                            session_times = ", ".join([
+                                datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).strftime('%H:%M')
+                                for s in job['sessions'][:3]
+                            ])
+                            st.caption(f"📊 **Sessions:** {len(job['sessions'])} ({session_times}" +
+                                     (f", ..." if len(job['sessions']) > 3 else ")"))
+
+                            total_capacity = sum(s.get('capacity', 0) for s in job['sessions'])
+                            st.caption(f"👥 **Capacity:** {total_capacity} students")
+
+                    with col2:
+                        # Status indicator - PENDING
+                        st.markdown(
+                            "<div style='text-align: center; padding: 10px; background-color: #FFF3E0; "
+                            "border-radius: 5px; font-weight: bold; color: #E65100;'>⏳ PENDING</div>",
+                            unsafe_allow_html=True
+                        )
+
+                    st.divider()
 
         st.divider()
 
-        # WORKING DASHBOARD PATTERN: Expandable cards with session details
-        for session in sessions:
-            try:
-                start_time = datetime.fromisoformat(session.get('start_time', '').replace('Z', '+00:00'))
-                is_upcoming = start_time > now
-                time_icon = "🔜" if is_upcoming else "✅"
+    # Display UPCOMING JOBS (Future commitments)
+    if upcoming_jobs:
+        st.markdown("### 🔜 UPCOMING JOBS (Future Commitments)")
 
-                title = session.get('title', 'Untitled Session')
-                session_type = session.get('session_type', 'N/A')
+        for job in upcoming_jobs:
+            age_icon = get_age_group_icon(job['age_group'])
 
-                with st.expander(f"{time_icon} **{title}** ({session_type}) - {start_time.strftime('%Y-%m-%d %H:%M')}"):
-                    col1, col2, col3 = st.columns(3)
+            if job['type'] == 'season':
+                # SEASON Card
+                with st.container():
+                    st.markdown(f"#### 📅 SEASON: {job['semester'].get('name', 'Unnamed Season')}")
+
+                    col1, col2 = st.columns([3, 1])
 
                     with col1:
-                        st.markdown("**📋 Session Info**")
-                        st.caption(f"ID: {session.get('id')}")
-                        st.caption(f"Title: {session.get('title', 'N/A')}")
-                        st.caption(f"Type: {session.get('session_type', 'N/A')}")
+                        st.caption("📍 **Education Center:** TBD (Location data)")
+                        st.caption(f"👤 **Position:** Master Instructor")
+                        st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
+                        st.caption(f"📆 **Duration:** {job['start_date']} to {job['end_date']}")
+
+                        # Calculate days until start
+                        try:
+                            start_date = datetime.strptime(job['start_date'], '%Y-%m-%d').date()
+                            days_until = (start_date - today).days
+                            st.info(f"🔜 **Starts in {days_until} day(s)**")
+                        except:
+                            pass
+
+                        # Sessions info
+                        if len(job['sessions']) > 0:
+                            st.caption(f"📊 **Sessions:** {len(job['sessions'])} total")
+                            st.caption(f"👥 **Students:** TBD (Enrollment data)")
+                        else:
+                            st.warning("⏳ **Sessions:** Not scheduled yet")
+                            st.caption("📝 Sessions will be created closer to the start date")
 
                     with col2:
-                        st.markdown("**📅 Schedule**")
-                        st.caption(f"Start: {start_time.strftime('%Y-%m-%d %H:%M')}")
-                        end_time = datetime.fromisoformat(session.get('end_time', '').replace('Z', '+00:00'))
-                        st.caption(f"End: {end_time.strftime('%Y-%m-%d %H:%M')}")
-                        st.caption(f"Duration: {int((end_time - start_time).seconds / 60)} min")
+                        # Status indicator
+                        st.markdown(
+                            "<div style='text-align: center; padding: 10px; background-color: #E3F2FD; "
+                            "border-radius: 5px; font-weight: bold; color: #1565C0;'>🔜 UPCOMING</div>",
+                            unsafe_allow_html=True
+                        )
 
-                    with col3:
-                        st.markdown("**👥 Participants**")
-                        max_participants = session.get('max_participants', 0)
-                        current_participants = len(session.get('bookings', []))
-                        st.metric("Bookings", f"{current_participants}/{max_participants}")
-            except:
-                pass  # Skip sessions with invalid datetime
+                    st.divider()
 
-    elif success and not sessions:
-        st.info("No sessions assigned to you yet")
+            else:  # tournament
+                # TOURNAMENT Card
+                with st.container():
+                    st.markdown(f"#### 🏆 TOURNAMENT: {job['semester'].get('name', 'Unnamed Tournament')}")
+
+                    col1, col2 = st.columns([3, 1])
+
+                    with col1:
+                        st.caption("📍 **Education Center:** TBD (Location data)")
+                        st.caption(f"👤 **Position:** Master Instructor")
+                        st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
+                        st.caption(f"📆 **Date:** {job['tournament_date']}")
+
+                        # Calculate days until
+                        try:
+                            tourn_date = datetime.strptime(job['tournament_date'], '%Y-%m-%d').date()
+                            days_until = (tourn_date - today).days
+                            st.info(f"🔜 **Upcoming in {days_until} day(s)**")
+                        except:
+                            pass
+
+                        # Session summary
+                        session_times = ", ".join([
+                            datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).strftime('%H:%M')
+                            for s in job['sessions'][:3]
+                        ])
+                        st.caption(f"📊 **Sessions:** {len(job['sessions'])} ({session_times}" +
+                                 (f", ..." if len(job['sessions']) > 3 else ")"))
+
+                        total_capacity = sum(s.get('capacity', 0) for s in job['sessions'])
+                        st.caption(f"👥 **Capacity:** {total_capacity} students")
+
+                    with col2:
+                        st.markdown(
+                            "<div style='text-align: center; padding: 10px; background-color: #E3F2FD; "
+                            "border-radius: 5px; font-weight: bold; color: #1565C0;'>🔜 UPCOMING</div>",
+                            unsafe_allow_html=True
+                        )
+
+                    st.divider()
+
+        st.divider()
+
+    # Display ACTIVE JOBS
+    if active_jobs:
+        st.markdown("### 🔴 ACTIVE JOBS")
+
+        for job in active_jobs:
+            age_icon = get_age_group_icon(job['age_group'])
+
+            if job['type'] == 'season':
+                # SEASON Card
+                with st.container():
+                    st.markdown(f"#### 📅 SEASON: {job['semester'].get('name', 'Unnamed Season')}")
+
+                    col1, col2 = st.columns([3, 1])
+
+                    with col1:
+                        # Education Center (TODO: fetch from location/campus)
+                        st.caption("📍 **Education Center:** TBD (Location data)")
+                        st.caption(f"👤 **Position:** Master Instructor")
+                        st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
+                        st.caption(f"📆 **Duration:** {job['start_date']} to {job['end_date']}")
+
+                        # Sessions info
+                        if len(job['sessions']) > 0:
+                            # Find next session
+                            future_sessions = [s for s in job['sessions'] if s.get('date_start') and
+                                             datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date() >= today]
+                            if future_sessions:
+                                next_session = min(future_sessions, key=lambda x: x['date_start'])
+                                next_date = datetime.fromisoformat(next_session['date_start'].replace('Z', '+00:00'))
+                                days_until = (next_date.date() - today).days
+
+                                if days_until == 0:
+                                    st.caption(f"📊 **Next session:** Today at {next_date.strftime('%H:%M')} 🚨")
+                                else:
+                                    st.caption(f"📊 **Next session:** {next_date.strftime('%b %d, %H:%M')} ({days_until} days)")
+
+                            st.caption(f"📊 **Sessions:** {len(job['sessions'])} total")
+                            st.caption(f"👥 **Students:** TBD (Enrollment data)")
+                        else:
+                            st.warning("⏳ **Sessions:** Not scheduled yet")
+                            st.caption("📝 Sessions will be created closer to the start date")
+
+                    with col2:
+                        # Status indicator
+                        st.markdown(
+                            "<div style='text-align: center; padding: 10px; background-color: #D4EDDA; "
+                            "border-radius: 5px; font-weight: bold; color: #155724;'>🔴 ACTIVE</div>",
+                            unsafe_allow_html=True
+                        )
+
+                    st.divider()
+
+            else:  # tournament
+                # TOURNAMENT Card
+                with st.container():
+                    st.markdown(f"#### 🏆 TOURNAMENT: {job['semester'].get('name', 'Unnamed Tournament')}")
+
+                    col1, col2 = st.columns([3, 1])
+
+                    with col1:
+                        st.caption("📍 **Education Center:** TBD (Location data)")
+                        st.caption(f"👤 **Position:** Master Instructor")
+                        st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
+                        st.caption(f"📆 **Date:** {job['tournament_date']}")
+
+                        # Calculate days until
+                        try:
+                            tourn_date = datetime.strptime(job['tournament_date'], '%Y-%m-%d').date()
+                            days_until = (tourn_date - today).days
+
+                            if days_until == 0:
+                                st.error("🚨 **TODAY!**")
+                            elif days_until > 0:
+                                st.info(f"🔜 **Upcoming in {days_until} day(s)**")
+                        except:
+                            pass
+
+                        # Session summary
+                        session_times = ", ".join([
+                            datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).strftime('%H:%M')
+                            for s in job['sessions'][:3]
+                        ])
+                        st.caption(f"📊 **Sessions:** {len(job['sessions'])} ({session_times}" +
+                                 (f", ..." if len(job['sessions']) > 3 else ")"))
+
+                        total_capacity = sum(s.get('capacity', 0) for s in job['sessions'])
+                        st.caption(f"👥 **Capacity:** {total_capacity} students")
+
+                    with col2:
+                        st.markdown(
+                            "<div style='text-align: center; padding: 10px; background-color: #D4EDDA; "
+                            "border-radius: 5px; font-weight: bold; color: #155724;'>🔴 ACTIVE</div>",
+                            unsafe_allow_html=True
+                        )
+
+                    st.divider()
     else:
-        st.error("❌ Failed to load sessions")
+        st.info("💼 No active jobs")
+
+    # Display COMPLETED JOBS
+    if completed_jobs:
+        st.divider()
+        st.markdown("### ✅ COMPLETED JOBS")
+
+        with st.expander(f"Show {len(completed_jobs)} completed job(s)", expanded=False):
+            for job in completed_jobs:
+                age_icon = get_age_group_icon(job['age_group'])
+
+                if job['type'] == 'season':
+                    st.markdown(f"**📅 SEASON:** {job['semester'].get('name', 'Unnamed Season')}")
+                    st.caption(f"📍 Education Center: TBD | 👤 Master Instructor | 🎯 {age_icon} {job['age_group']}")
+                    st.caption(f"📆 Duration: {job['start_date']} to {job['end_date']}")
+                    st.caption(f"📊 Sessions: {len(job['sessions'])} completed | 👥 Students: TBD")
+                else:
+                    st.markdown(f"**🏆 TOURNAMENT:** {job['semester'].get('name', 'Unnamed Tournament')}")
+                    st.caption(f"📍 Education Center: TBD | 👤 Master Instructor | 🎯 {age_icon} {job['age_group']}")
+                    st.caption(f"📆 Date: {job['tournament_date']} ✅ Completed")
+                    st.caption(f"📊 Sessions: {len(job['sessions'])} completed | 👥 Participants: TBD")
+
+                st.divider()
+
+    if not active_jobs and not completed_jobs:
+        st.info("💼 No jobs assigned yet")
+        st.caption("Accept tournament requests or master offers to get started")
 
 # ========================================
-# TAB 2: MY STUDENTS
+# TAB 3: MY STUDENTS
 # ========================================
-with tab2:
+with tab3:
     st.markdown("### 👥 My Students")
-    st.caption("Students in your sessions")
+    st.caption("Students enrolled in your master-led semesters")
 
-    with st.spinner("Loading students..."):
-        # Get all users and filter students
-        success, users = get_users(token, limit=100)
+    # Check if user is an active Master Instructor
+    from api_helpers_instructors import get_my_master_offers
 
-    if success and users:
-        # Filter only students
-        students = [u for u in users if u.get("role") == "student"]
+    with st.spinner("Checking master instructor status..."):
+        try:
+            my_offers = get_my_master_offers(token, include_expired=False)
+            active_master_offers = [o for o in my_offers if o.get('offer_status') == 'ACCEPTED' and o.get('is_active')]
+        except:
+            active_master_offers = []
 
-        if students:
-            # WORKING DASHBOARD PATTERN: Metric widgets
-            stats_col1, stats_col2 = st.columns(2)
+    if not active_master_offers:
+        # Not a Master Instructor - show info message
+        st.info("👨‍🏫 **Master Instructor Only**")
+        st.markdown("""
+        This section is only available when you are an **active Master Instructor** at a training location.
 
-            active_students = len([s for s in students if s.get("is_active")])
+        **How to become a Master Instructor:**
+        1. Check the "📩 Master Offers" tab for pending invitations
+        2. Accept an offer from a training location
+        3. Once accepted, you'll see your students here
 
-            with stats_col1:
-                st.metric("🎓 Total Students", len(students))
-            with stats_col2:
-                st.metric("✅ Active", active_students)
-
-            st.divider()
-
-            # WORKING DASHBOARD PATTERN: Expandable cards
-            for student in students:
-                status_icon = "✅" if student.get('is_active') else "❌"
-
-                with st.expander(f"🎓 **{student.get('name', 'Unknown')}** ({student.get('email', 'N/A')}) {status_icon}"):
-                    col1, col2, col3 = st.columns(3)
-
-                    with col1:
-                        st.markdown("**📋 Basic Info**")
-                        st.caption(f"ID: {student.get('id')}")
-                        st.caption(f"Email: {student.get('email', 'N/A')}")
-                        st.caption(f"Name: {student.get('name', 'N/A')}")
-
-                    with col2:
-                        st.markdown("**🎓 Academic Info**")
-                        spec = student.get('specialization')
-                        st.caption(f"Specialization: {SPECIALIZATIONS.get(spec, spec) if spec else 'None'}")
-                        st.caption(f"Status: {'✅ Active' if student.get('is_active') else '❌ Inactive'}")
-
-                    with col3:
-                        st.markdown("**💰 Credits**")
-                        st.metric("Credit Balance", student.get('credit_balance', 0))
-        else:
-            st.info("No students found")
+        **Current Status:** Not currently serving as Master Instructor
+        """)
     else:
-        st.error("❌ Failed to load students")
+        # Active Master Instructor - show students
+        master_location = active_master_offers[0].get('location_name', 'Unknown Location')
+        master_city = active_master_offers[0].get('location_city', '')
+
+        st.success(f"✅ Master Instructor at: **{master_location}** ({master_city})")
+
+        with st.spinner("Loading students..."):
+            # TODO: Implement proper endpoint to get students for master's semesters
+            # For now, show placeholder
+            st.info("🚧 Student management feature coming soon")
+            st.caption("This will show all students enrolled in semesters at your location.")
+
+        # FUTURE: Replace with actual student query
+        # success, students = get_master_students(token, location_id)
+        # Display students with same pattern as before
+
+# ========================================
+# TAB 4: CHECK-IN & GROUPS
+# ========================================
+with tab4:
+    # Import and render session check-in component
+    from components.sessions.session_checkin import render_session_checkin
+
+    render_session_checkin(token, user.get('id'))
+
+# ========================================
+# TAB 5: INBOX
+# ========================================
+with tab5:
+    st.markdown("### 📬 Inbox")
+    st.caption("All pending actions - notifications, tournament requests, and master offers")
+
+    # Import components
+    from components.instructors.notifications_inbox import render_notifications_inbox
+    from components.instructors.tournament_requests import render_tournament_requests
+    from components.instructors.master_offer_card import render_all_master_offers
+
+    # Section 1: System Notifications (NEW!)
+    render_notifications_inbox(token)
+
+    st.divider()
+
+    # Section 2: Tournament Requests
+    st.markdown("### 🏆 Tournament Requests")
+    st.caption("Review and respond to tournament assignment invitations")
+    render_tournament_requests()
+
+    st.divider()
+
+    # Section 3: Master Instructor Offers
+    st.markdown("### 📩 Master Instructor Offers")
+    st.caption("View and respond to master instructor offers from training locations")
+    render_all_master_offers(token)
+
+# ========================================
+# TAB 6: MY PROFILE
+# ========================================
+with tab6:
+    st.markdown("### 👤 My Profile")
+    st.caption("Your licenses, teaching permissions, and instructor status")
+
+    # TODO: Add Profile content from old TAB 1
+    # For now, show placeholder
+    st.info("🚧 Profile section - Coming soon")
+    st.caption("This will show your licenses, teaching permissions, and master instructor status.")

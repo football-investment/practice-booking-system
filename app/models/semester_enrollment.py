@@ -41,17 +41,17 @@ class SemesterEnrollment(Base):
 
     # Core relationships
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
-                     nullable=False, index=True,
+                     nullable=False,
                      comment="Student who is enrolled")
     semester_id = Column(Integer, ForeignKey("semesters.id", ondelete="CASCADE"),
-                        nullable=False, index=True,
+                        nullable=False,
                         comment="Semester for this enrollment")
     user_license_id = Column(Integer, ForeignKey("user_licenses.id", ondelete="CASCADE"),
-                            nullable=False, index=True,
+                            nullable=False,
                             comment="Link to UserLicense (tracks progress/levels)")
 
     # 🆕 NEW: Enrollment request workflow (student requests → admin approves)
-    request_status = Column(Enum(EnrollmentStatus), nullable=False, default=EnrollmentStatus.PENDING, index=True,
+    request_status = Column(Enum(EnrollmentStatus), nullable=False, default=EnrollmentStatus.PENDING,
                            comment="Enrollment request status: PENDING/APPROVED/REJECTED/WITHDRAWN")
     requested_at = Column(DateTime(timezone=True), nullable=False,
                          default=lambda: datetime.now(timezone.utc),
@@ -65,9 +65,9 @@ class SemesterEnrollment(Base):
                              comment="Reason for rejection (if rejected)")
 
     # Payment tracking (per-semester-per-specialization)
-    payment_reference_code = Column(String(50), nullable=True, unique=True, index=True,
+    payment_reference_code = Column(String(50), nullable=True, unique=True,
                                    comment="Unique payment reference code for bank transfer (e.g., LFA-INT-2024S1-042-A7B9)")
-    payment_verified = Column(Boolean, nullable=False, default=False, index=True,
+    payment_verified = Column(Boolean, nullable=False, default=False,
                              comment="Whether student paid for THIS specialization in THIS semester")
     payment_verified_at = Column(DateTime(timezone=True), nullable=True,
                                 comment="When payment was verified")
@@ -76,13 +76,23 @@ class SemesterEnrollment(Base):
                                 comment="Admin user who verified payment")
 
     # Status
-    is_active = Column(Boolean, nullable=False, default=False, index=True,
+    is_active = Column(Boolean, nullable=False, default=False,
                       comment="Whether this enrollment is currently active (auto-set when approved)")
     enrolled_at = Column(DateTime(timezone=True), nullable=False,
                         default=lambda: datetime.now(timezone.utc),
                         comment="When student enrolled in this spec for this semester")
     deactivated_at = Column(DateTime(timezone=True), nullable=True,
                            comment="When enrollment was deactivated (if applicable)")
+
+    # Age category assignment (NEW - Phase 1)
+    age_category = Column(String(20), nullable=True,
+                         comment="Age category at enrollment (PRE/YOUTH/AMATEUR/PRO)")
+    age_category_overridden = Column(Boolean, nullable=False, default=False,
+                                    comment="True if instructor manually changed category")
+    age_category_overridden_at = Column(DateTime(timezone=True), nullable=True,
+                                       comment="When age category was overridden by instructor")
+    age_category_overridden_by = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True,
+                                       comment="Instructor who overrode the age category")
 
     # Audit fields
     created_at = Column(DateTime(timezone=True), nullable=False,
@@ -96,7 +106,8 @@ class SemesterEnrollment(Base):
     semester = relationship("Semester", back_populates="enrollments")
     user_license = relationship("UserLicense", back_populates="semester_enrollments")
     payment_verifier = relationship("User", foreign_keys=[payment_verified_by])
-    approver = relationship("User", foreign_keys=[approved_by])  # 🆕 NEW
+    approver = relationship("User", foreign_keys=[approved_by])
+    category_overrider = relationship("User", foreign_keys=[age_category_overridden_by])
 
     # Constraints (defined in migration but documented here)
     __table_args__ = (

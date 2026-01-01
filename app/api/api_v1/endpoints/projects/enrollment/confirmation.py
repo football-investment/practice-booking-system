@@ -11,19 +11,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
-from .......database import get_db
-from .......dependencies import get_current_user
-from .......models.user import User
-from .......models.project import (
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.models.project import (
     Project as ProjectModel,
     ProjectEnrollment,
     ProjectEnrollmentQuiz,
     ProjectEnrollmentStatus,
     ProjectProgressStatus
 )
-from .......models.quiz import QuizAttempt
-from .......schemas.project import EnrollmentPriorityResponse
-from .......services.gamification import GamificationService
+from app.models.quiz import QuizAttempt
+from app.schemas.project import EnrollmentPriorityResponse
+from app.services.gamification import GamificationService
 
 router = APIRouter()
 

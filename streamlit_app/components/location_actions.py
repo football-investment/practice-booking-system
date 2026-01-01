@@ -5,7 +5,7 @@ Action buttons for location cards
 
 import streamlit as st
 from typing import Dict, Any
-from api_helpers import delete_location, toggle_location_status
+from api_helpers_general import delete_location, toggle_location_status
 from components.location_modals import (
     render_edit_location_modal,
     render_view_location_details

@@ -39,3 +39,8 @@ class EnrollmentResponse(BaseModel):
 class EnrollmentRejection(BaseModel):
     """Request to reject an enrollment with optional reason"""
     reason: Optional[str] = Field(None, description="Rejection reason")
+
+
+class CategoryOverride(BaseModel):
+    """Request to override age category for a student enrollment"""
+    age_category: str = Field(..., description="New age category (PRE, YOUTH, AMATEUR, PRO)")

@@ -86,6 +86,26 @@ class Session(Base):
         comment="Number of credits required to book this session (default: 1, workshops may cost more)"
     )
 
+    # 🏆 Tournament Game Fields
+    is_tournament_game = Column(
+        Boolean,
+        default=False,
+        index=True,
+        comment="True if this session is a tournament game"
+    )
+
+    game_type = Column(
+        String(100),
+        nullable=True,
+        comment="Type/name of tournament game (user-defined, e.g., 'Skills Challenge')"
+    )
+
+    game_results = Column(
+        Text,
+        nullable=True,
+        comment="JSON array of game results: [{user_id: 1, score: 95, rank: 1}, ...]"
+    )
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

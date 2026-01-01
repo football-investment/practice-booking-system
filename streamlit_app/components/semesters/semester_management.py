@@ -62,7 +62,7 @@ def render_semester_management(token: str):
 
     # Filter options
     st.markdown("#### 🔍 Filters")
-    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5 = st.columns(5)
 
     with filter_col1:
         # Extract unique locations (city) - FIRST FILTER
@@ -119,6 +119,20 @@ def render_semester_management(token: str):
             key="filter_age_group"
         )
 
+    with filter_col5:
+        # Extract unique location types from semesters
+        location_types_in_use = set()
+        for s in semesters:
+            loc_type = s.get('location_type', 'PARTNER')
+            if loc_type:  # Skip None values
+                location_types_in_use.add(loc_type)
+
+        selected_location_type = st.selectbox(
+            "🏢 Location Type",
+            ["All"] + sorted(list(location_types_in_use)),
+            key="filter_location_type"
+        )
+
     # Apply filters
     filtered_semesters = semesters
 
@@ -140,6 +154,10 @@ def render_semester_management(token: str):
     if selected_location != "All":
         filtered_semesters = [s for s in filtered_semesters
                             if s.get('location_city') == selected_location]
+
+    # ✅ ÚJ: Location Type filter
+    if selected_location_type != "All":
+        filtered_semesters = [s for s in filtered_semesters if s.get('location_type') == selected_location_type]
 
     st.divider()
 
@@ -187,6 +205,12 @@ def render_semester_management(token: str):
 
             # Location info
             st.markdown(f"**📍 Location:** {semester.get('location_city', 'N/A')}, {semester.get('location_country', 'N/A')}")
+
+            # ✅ ÚJ: Location Type Badge
+            loc_type = semester.get('location_type', 'PARTNER')
+            type_emoji = "🏢" if loc_type == 'CENTER' else "🤝"
+            st.markdown(f"**{type_emoji} Location Type:** {loc_type}")
+
             st.markdown(f"**🎯 Theme:** {semester.get('theme', 'N/A')}")
 
             # Master instructor

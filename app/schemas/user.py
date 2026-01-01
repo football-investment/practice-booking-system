@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict, field_serializer
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from ..models.user import UserRole
 from ..models.specialization import SpecializationType
@@ -12,6 +12,8 @@ class UserLicenseSimple(BaseModel):
     specialization_type: str
     is_active: bool
     payment_verified: bool
+    onboarding_completed: bool = False  # ✅ CRITICAL FIX: Required for onboarding check
+    motivation_scores: Optional[Dict[str, Any]] = None  # ✅ CRITICAL FIX: Required for dashboard data display
 
     model_config = ConfigDict(from_attributes=True)
 

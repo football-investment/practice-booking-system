@@ -205,6 +205,7 @@ class UserLicense(Base):
             "specialization_type": self.specialization_type,
             "current_level": self.current_level,
             "max_achieved_level": self.max_achieved_level,
+            "is_active": self.is_active,  # ✅ ADDED: Include is_active flag
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "last_advanced_at": self.last_advanced_at.isoformat() if self.last_advanced_at else None,
             "instructor_notes": self.instructor_notes

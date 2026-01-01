@@ -90,8 +90,33 @@ def list_sessions(
             else:
                 # Allow filtering by specific semester for students
                 query = query.filter(SessionTypel.semester_id == semester_id)
-    else:
-        # Admin/Instructor can see all sessions or filter by semester
+    elif current_user.role == UserRole.ADMIN:
+        # Admin sees all sessions
+        if semester_id:
+            query = query.filter(SessionTypel.semester_id == semester_id)
+
+    elif current_user.role == UserRole.INSTRUCTOR:
+        # Instructor sees sessions from semesters where:
+        # 1. They are assigned as master instructor (ACCEPTED)
+        # 2. They have a PENDING assignment request
+        from .....models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus
+
+        # Subquery for PENDING request semester IDs
+        pending_semester_ids = db.query(InstructorAssignmentRequest.semester_id).filter(
+            InstructorAssignmentRequest.instructor_id == current_user.id,
+            InstructorAssignmentRequest.status == AssignmentRequestStatus.PENDING
+        ).subquery()
+
+        # Join with Semester and filter
+        query = query.join(Semester, SessionTypel.semester_id == Semester.id)
+        query = query.filter(
+            or_(
+                Semester.master_instructor_id == current_user.id,  # ACCEPTED
+                Semester.id.in_(pending_semester_ids)              # PENDING
+            )
+        )
+
+        # Optional: semester_id filter still works
         if semester_id:
             query = query.filter(SessionTypel.semester_id == semester_id)
 

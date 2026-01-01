@@ -13,7 +13,6 @@ sys.path.insert(0, str(parent_dir))
 
 # Semester components (modular)
 from components.semesters import (
-    render_location_management,
     render_semester_generation,
     render_semester_management,
     render_semester_overview,
@@ -31,12 +30,16 @@ def render_semesters_tab(token, user):
     """
 
     st.markdown("### 📅 Semester Generation & Management")
-    st.caption("Manage locations, generate semesters, and assign instructors")
+    st.caption("Manage semesters, generate periods, and assign instructors")
 
-    # Sub-tabs for semester features
-    semester_tab1, semester_tab2, semester_tab3, semester_tab4, semester_tab5 = st.tabs([
+    # Tip box - Location management is elsewhere
+    st.info("💡 **Location kezelés**: Location-ök létrehozásához és szerkesztéséhez használd az Admin Dashboard **📍 Locations** tab-ját!")
+
+    st.divider()
+
+    # 4 tabs (Locations nélkül!)
+    semester_tab1, semester_tab2, semester_tab3, semester_tab4 = st.tabs([
         "📊 Overview",
-        "📍 Locations",
         "📊 Smart Matrix",
         "🚀 Generate",
         "🎯 Manage"
@@ -49,25 +52,19 @@ def render_semesters_tab(token, user):
         render_semester_overview(token)
 
     # ========================================
-    # LOCATIONS SUB-TAB
-    # ========================================
-    with semester_tab2:
-        render_location_management(token)
-
-    # ========================================
     # SMART MATRIX SUB-TAB (NEW - Combined Generate + Manage with Gap Detection)
     # ========================================
-    with semester_tab3:
+    with semester_tab2:
         render_smart_matrix(token)
 
     # ========================================
     # GENERATE SEMESTERS SUB-TAB
     # ========================================
-    with semester_tab4:
+    with semester_tab3:
         render_semester_generation(token)
 
     # ========================================
     # MANAGE SEMESTERS SUB-TAB
     # ========================================
-    with semester_tab5:
+    with semester_tab4:
         render_semester_management(token)

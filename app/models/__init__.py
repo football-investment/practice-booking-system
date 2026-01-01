@@ -1,10 +1,20 @@
 from .user import User, UserRole
 from .instructor_specialization import InstructorSpecialization
 from .instructor_availability import InstructorSpecializationAvailability
-from .instructor_assignment import InstructorAvailabilityWindow, InstructorAssignmentRequest, AssignmentRequestStatus
+from .instructor_assignment import (
+    InstructorAvailabilityWindow,
+    InstructorAssignmentRequest,
+    AssignmentRequestStatus,
+    LocationMasterInstructor,
+    InstructorPosition,
+    PositionStatus,
+    PositionApplication,
+    ApplicationStatus,
+    InstructorAssignment
+)
 from .location import Location
 from .campus import Campus
-from .semester import Semester
+from .semester import Semester, SemesterStatus
 from .group import Group, group_users
 from .session import Session, SessionType
 from .booking import Booking, BookingStatus
@@ -25,6 +35,7 @@ from .credit_transaction import CreditTransaction, TransactionType
 from .invoice_request import InvoiceRequest, InvoiceRequestStatus
 from .coupon import Coupon, CouponType
 from .invitation_code import InvitationCode
+from .session_group import SessionGroupAssignment, SessionGroupStudent
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
@@ -43,9 +54,16 @@ __all__ = [
     "InstructorAvailabilityWindow",
     "InstructorAssignmentRequest",
     "AssignmentRequestStatus",
+    "LocationMasterInstructor",
+    "InstructorPosition",
+    "PositionStatus",
+    "PositionApplication",
+    "ApplicationStatus",
+    "InstructorAssignment",
     "Location",
     "Campus",
     "Semester",
+    "SemesterStatus",
     "Group",
     "group_users",
     "Session",
@@ -99,4 +117,6 @@ __all__ = [
     "CouponType",
     "StudentPerformanceReview",
     "InstructorSessionReview",
+    "SessionGroupAssignment",
+    "SessionGroupStudent",
 ]

@@ -4,8 +4,8 @@ import streamlit as st
 import sys
 sys.path.append('..')
 
-from pathway_a import render_direct_hire_tab
-from pathway_b import render_post_opening_tab
+from .pathway_a import render_direct_hire_tab
+from .pathway_b import render_post_opening_tab
 
 
 def render_hiring_interface(location_id: int, token: str) -> None:

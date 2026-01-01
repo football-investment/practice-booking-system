@@ -21,12 +21,24 @@ parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from api_helpers_semesters import get_all_locations, get_all_semesters
-from .smart_matrix import (
-    render_coverage_matrix,
-    render_legend,
-    render_master_instructor_section,
-    render_instructor_management_panel,
-)
+
+# Import from the smart_matrix subdirectory/package
+# Use try/except to handle both relative and absolute import contexts
+try:
+    from .smart_matrix import (
+        render_coverage_matrix,
+        render_legend,
+        render_master_instructor_section,
+        render_instructor_management_panel,
+    )
+except ImportError:
+    # Fallback for when loaded via importlib (not as package)
+    from components.semesters.smart_matrix import (
+        render_coverage_matrix,
+        render_legend,
+        render_master_instructor_section,
+        render_instructor_management_panel,
+    )
 
 
 def render_smart_matrix(token: str, user_role: str = "admin"):
@@ -65,16 +77,30 @@ def render_smart_matrix(token: str, user_role: str = "admin"):
         st.error("❌ No active locations available! Please create a location first in the **📍 Locations** tab.")
         return
 
-    location_options = {
-        f"{loc['name']} ({loc['city']}, {loc['country']})": loc['id']
-        for loc in active_locations
-    }
+    # Enhanced location selector with type info
+    location_options = {}
+    for loc in active_locations:
+        loc_id = loc['id']
+        loc_type = loc.get('location_type', 'PARTNER')
+        type_emoji = "🏢" if loc_type == 'CENTER' else "🤝"
+        label = f"{type_emoji} {loc['name']} ({loc['city']}, {loc['country']}) — {loc_type}"
+
+        location_options[label] = {
+            'id': loc_id,
+            'type': loc_type,
+            'city': loc['city']
+        }
+
     selected_location_label = st.selectbox(
         "Location",
         list(location_options.keys()),
         key="matrix_location_select"
     )
-    selected_location_id = location_options[selected_location_label]
+
+    # Extract location data
+    selected_location_data = location_options[selected_location_label]
+    selected_location_id = selected_location_data['id']
+    location_type = selected_location_data['type']
 
     # Show location details
     selected_location = next(
@@ -85,6 +111,12 @@ def render_smart_matrix(token: str, user_role: str = "admin"):
         st.caption(f"🏢 **City:** {selected_location['city']} | **Country:** {selected_location['country']}")
         if selected_location.get('venue'):
             st.caption(f"🏟️ **Venue:** {selected_location['venue']}")
+
+        # ✅ ÚJ: Capability info box
+        if location_type == 'CENTER':
+            st.success("🏢 **CENTER Location** → Képességek: Tournament ✅ | Mini Season ✅ | Academy Season ✅")
+        else:
+            st.warning("🤝 **PARTNER Location** → Képességek: Tournament ✅ | Mini Season ✅ | Academy Season ❌")
 
     st.divider()
 

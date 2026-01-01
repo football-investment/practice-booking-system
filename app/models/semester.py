@@ -56,7 +56,7 @@ class Semester(Base):
 
     # 🎯 SPECIALIZATION & AGE GROUP FIELDS (for semester filtering)
     specialization_type = Column(String(50), nullable=True, index=True,
-                                 comment="Specialization type (e.g., LFA_PLAYER_PRE, GANCUJU_PLAYER_YOUTH)")
+                                 comment="Specialization type (SEASON types: LFA_PLAYER_PRE/YOUTH/AMATEUR/PRO, GANCUJU_PLAYER, LFA_COACH, INTERNSHIP, OR user license for tournaments: LFA_FOOTBALL_PLAYER)")
     age_group = Column(String(20), nullable=True, index=True,
                       comment="Age group (PRE, YOUTH, AMATEUR, PRO)")
     theme = Column(String(200), nullable=True,
@@ -65,15 +65,29 @@ class Semester(Base):
                               comment="Focus description (e.g., 'Újévi fogadalmak, friss kezdés')")
 
     # 📍 LOCATION FIELDS (for semester-level location)
-    # Used for LFA_PLAYER (BUDA/PEST split), GANCUJU (city-based), INTERNSHIP (city only)
+    # NEW: Use campus_id FK for most specific location
+    campus_id = Column(Integer, ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True, index=True,
+                      comment="FK to campuses table (most specific location - preferred)")
+
+    # Use location_id FK instead of denormalized city/venue/address fields
+    location_id = Column(Integer, ForeignKey('locations.id', ondelete='SET NULL'), nullable=True, index=True,
+                        comment="FK to locations table (less specific than campus_id, preferred over legacy location_city/venue/address)")
+
+    # DEPRECATED: Legacy location fields - kept for backward compatibility
     location_city = Column(String(100), nullable=True,
-                          comment="City where semester takes place (e.g., 'Budapest', 'Debrecen')")
+                          comment="DEPRECATED: Use campus_id or location_id instead. City where semester takes place")
     location_venue = Column(String(200), nullable=True,
-                           comment="Venue/campus name (e.g., 'Buda Campus', 'Pest Campus')")
+                           comment="DEPRECATED: Use campus_id or location_id instead. Venue/campus name")
     location_address = Column(String(500), nullable=True,
-                             comment="Full address of the primary location")
+                             comment="DEPRECATED: Use campus_id or location_id instead. Full address")
 
     # Relationships
+    campus = relationship("Campus", foreign_keys=[campus_id],
+                         backref="semesters",
+                         doc="Campus where this semester takes place (most specific)")
+    location = relationship("Location", foreign_keys=[location_id],
+                           backref="semesters",
+                           doc="Location where this semester takes place")
     master_instructor = relationship("User", foreign_keys=[master_instructor_id],
                                     backref="mastered_semesters")
     assistant_instructors = relationship("User", secondary=semester_instructors,

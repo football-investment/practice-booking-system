@@ -14,11 +14,18 @@ Example:
       ├── Campus: Buda Campus
       └── Campus: Pest Campus
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import enum
 
 from ..database import Base
+
+
+class LocationType(enum.Enum):
+    """Location capability level for semester types"""
+    PARTNER = "PARTNER"  # Can host: Tournament + Mini Season only
+    CENTER = "CENTER"    # Can host: Tournament + Mini Season + Academy Season
 
 
 class Location(Base):
@@ -34,6 +41,15 @@ class Location(Base):
     address = Column(String(500), nullable=True)  # General city address info
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+
+    # NEW: Location type determines what semester types can be hosted
+    location_type = Column(
+        SQLEnum(LocationType, name='locationtype', create_constraint=True),
+        nullable=False,
+        default=LocationType.PARTNER,
+        comment="Location capability: PARTNER (Tournament+Mini only) or CENTER (all types)"
+    )
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

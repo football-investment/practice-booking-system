@@ -65,6 +65,7 @@ class SessionUpdate(BaseModel):
     group_id: Optional[int] = None
     instructor_id: Optional[int] = None
     credit_cost: Optional[int] = None  # Number of credits required to book this session
+    game_type: Optional[str] = None  # Tournament game type (e.g., "Group Stage", "Semifinal", "Final")
 
 
 class Session(SessionBase):

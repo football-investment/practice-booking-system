@@ -21,17 +21,25 @@ router = APIRouter()
 
 @router.get("/me", response_model=UserSchema)
 def get_current_user_profile(
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Get current user profile
+    Get current user profile with licenses
     """
+    from sqlalchemy.orm import joinedload
+
+    # Reload user with licenses relationship eagerly loaded
+    user_with_licenses = db.query(User).options(
+        joinedload(User.licenses)
+    ).filter(User.id == current_user.id).first()
+
     # Keep interests as JSON string for schema compatibility
-    user_data = current_user.__dict__.copy()
+    user_data = user_with_licenses.__dict__.copy()
     # Ensure interests is a string (not parsed to list)
     if user_data.get('interests') is None:
         user_data['interests'] = None
-    
+
     return user_data
 
 

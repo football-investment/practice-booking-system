@@ -12,6 +12,45 @@ from config import API_BASE_URL, API_TIMEOUT
 # COUPON MANAGEMENT
 # ========================================
 
+def validate_coupon(token: str, coupon_code: str) -> Tuple[bool, str, dict]:
+    """
+    Validate coupon code and get discount info (for student use)
+
+    Args:
+        token: Authentication token
+        coupon_code: Coupon code to validate
+
+    Returns:
+        (success: bool, error: str, data: dict)
+        data = {
+            "code": str,
+            "type": "PERCENTAGE" | "FIXED_AMOUNT" | "CREDITS",
+            "discount_value": float,
+            "description": str,
+            "valid": bool
+        }
+    """
+    try:
+        response = requests.post(  # POST endpoint!
+            f"{API_BASE_URL}/api/v1/coupons/validate/{coupon_code}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, "", response.json()
+        elif response.status_code == 404:
+            return False, "Coupon not found", {}
+        elif response.status_code == 400:
+            error_detail = response.json().get("detail", "Coupon is not valid")
+            return False, error_detail, {}
+        else:
+            return False, "Failed to validate coupon", {}
+
+    except Exception as e:
+        return False, f"Error: {str(e)}", {}
+
+
 def get_coupons(token: str) -> Tuple[bool, Optional[List[Dict]]]:
     """
     Get all coupons (admin only) - uses cookie auth

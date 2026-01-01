@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
-from .......database import get_db
-from .......dependencies import get_current_user
-from .......models.user import User
-from .......models.project import (
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.models.project import (
     Project as ProjectModel,
     ProjectEnrollment,
     ProjectStatus,
@@ -24,7 +24,7 @@ from .......models.project import (
     ProjectEnrollmentQuiz,
     MilestoneStatus
 )
-from .......models.quiz import QuizAttempt
+from app.models.quiz import QuizAttempt
 
 router = APIRouter()
 

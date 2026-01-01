@@ -8,10 +8,10 @@ from ..database import Base
 
 
 class BookingStatus(enum.Enum):
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
-    CANCELLED = "cancelled"
-    WAITLISTED = "waitlisted"
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    WAITLISTED = "WAITLISTED"
 
 
 class Booking(Base):

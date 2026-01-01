@@ -45,7 +45,16 @@ if SESSION_TOKEN_KEY in st.session_state and SESSION_USER_KEY in st.session_stat
     elif role == 'instructor':
         st.switch_page("pages/Instructor_Dashboard.py")
     else:
-        st.switch_page("pages/Student_Dashboard.py")
+        # Student redirect logic: check if they have unlocked any specializations
+        user_licenses = user.get('licenses', [])
+        has_unlocked_spec = any(lic.get('is_unlocked') for lic in user_licenses)
+
+        if has_unlocked_spec:
+            # Has at least one unlocked specialization -> go to Student Dashboard
+            st.switch_page("pages/Student_Dashboard.py")
+        else:
+            # No unlocked specializations -> go to Specialization Hub to unlock one
+            st.switch_page("pages/Specialization_Hub.py")
 
 # Main page content - LOGIN OR REGISTER
 st.title("⚽ LFA Education Center")
@@ -109,41 +118,74 @@ else:
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        reg_name = st.text_input("Your Name", value="", placeholder="Full Name", key="reg_name")
-        reg_email = st.text_input("Your Email", value="", placeholder="student@example.com", key="reg_email")
-        reg_password = st.text_input("Choose Password", type="password", value="", placeholder="Min 6 characters", key="reg_password")
-        reg_code = st.text_input("Invitation Code", value="", placeholder="Enter the code you received", key="reg_code")
+        reg_name = st.text_input("Your Name *", value="", placeholder="Full Name", key="reg_name")
+        reg_email = st.text_input("Your Email *", value="", placeholder="student@example.com", key="reg_email")
+        reg_password = st.text_input("Choose Password *", type="password", value="", placeholder="Min 6 characters", key="reg_password")
+
+        # ✅ NEW: Date of Birth
+        from datetime import date, datetime
+        reg_dob = st.date_input(
+            "Date of Birth *",
+            value=None,
+            min_value=date(1930, 1, 1),
+            max_value=date.today(),
+            help="Required for age verification and category assignment",
+            key="reg_dob"
+        )
+
+        # ✅ NEW: Nationality
+        reg_nationality = st.text_input("Nationality *", value="", placeholder="e.g., Hungarian", key="reg_nationality")
+
+        # ✅ NEW: Gender
+        reg_gender = st.selectbox(
+            "Gender *",
+            options=["", "Male", "Female", "Other"],
+            index=0,
+            key="reg_gender"
+        )
+
+        reg_code = st.text_input("Invitation Code *", value="", placeholder="Enter the code you received", key="reg_code")
+
+        st.caption("* Required fields")
+
+        # Validation
+        all_fields_filled = (
+            reg_name and reg_email and reg_password and
+            reg_dob is not None and reg_nationality and reg_gender and reg_code
+        )
 
         if st.button("📝 Register Now", use_container_width=True, type="primary"):
-            if reg_name and reg_email and reg_password and reg_code:
-                if len(reg_password) < 6:
-                    st.warning("⚠️ Password must be at least 6 characters")
-                else:
-                    with st.spinner("Registering..."):
-                        # Call register API
-                        try:
-                            response = requests.post(
-                                f"{API_BASE_URL}/api/v1/auth/register-with-invitation",
-                                json={
-                                    "email": reg_email,
-                                    "password": reg_password,
-                                    "name": reg_name,
-                                    "invitation_code": reg_code
-                                },
-                                timeout=10
-                            )
-
-                            if response.status_code == 200:
-                                st.success("✅ Registration successful! You can now login.")
-                                st.session_state.show_register = False
-                                st.rerun()
-                            else:
-                                error_detail = response.json().get("detail", "Registration failed")
-                                st.error(f"❌ {error_detail}")
-                        except Exception as e:
-                            st.error(f"❌ Error: {str(e)}")
+            if not all_fields_filled:
+                st.warning("⚠️ Please fill in all required fields (marked with *)")
+            elif len(reg_password) < 6:
+                st.warning("⚠️ Password must be at least 6 characters")
             else:
-                st.warning("⚠️ Please fill in all fields")
+                with st.spinner("Registering..."):
+                    # Call register API
+                    try:
+                        response = requests.post(
+                            f"{API_BASE_URL}/api/v1/auth/register-with-invitation",
+                            json={
+                                "email": reg_email,
+                                "password": reg_password,
+                                "name": reg_name,
+                                "date_of_birth": reg_dob.isoformat(),  # ✅ NEW: YYYY-MM-DD format
+                                "nationality": reg_nationality,  # ✅ NEW
+                                "gender": reg_gender,  # ✅ NEW
+                                "invitation_code": reg_code
+                            },
+                            timeout=10
+                        )
+
+                        if response.status_code == 200:
+                            st.success("✅ Registration successful! You can now login.")
+                            st.session_state.show_register = False
+                            st.rerun()
+                        else:
+                            error_detail = response.json().get("detail", "Registration failed")
+                            st.error(f"❌ {error_detail}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
 
         st.markdown("---")
 

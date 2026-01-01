@@ -14,11 +14,12 @@ from ..models.user import User, UserRole
 from ..core.security import get_password_hash
 from ..config import settings
 
-# Create test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+# Create test database - Use PostgreSQL for compatibility with production
+# PostgreSQL supports all schema features (CHECK constraints, array types, etc.)
+# Use a separate test database to avoid conflicts with development data
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/test_tournament_enrollment"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -35,8 +36,12 @@ def override_get_db():
 @pytest.fixture(scope="session")
 def db_engine():
     """Create test database engine"""
+    # Drop all tables first to ensure clean state
+    Base.metadata.drop_all(bind=engine, checkfirst=True)
+    # Create all tables fresh
     Base.metadata.create_all(bind=engine)
     yield engine
+    # Clean up after tests
     Base.metadata.drop_all(bind=engine)
 
 

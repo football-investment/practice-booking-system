@@ -46,6 +46,9 @@ from .instructor_integration import (
     render_instructor_management_panel,
 )
 
+# NOTE: render_smart_matrix is NOT imported here because it would create circular import
+# It's imported directly in the parent __init__.py from smart_matrix.py file
+
 __all__ = [
     # Gap Detection
     "extract_existing_months",
@@ -68,4 +71,6 @@ __all__ = [
     # Instructor Integration
     "render_master_instructor_section",
     "render_instructor_management_panel",
+    # Backward compatibility
+    "render_smart_matrix",
 ]

@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from ...database import get_db
-from ...dependencies import get_current_user_web
+from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User
 
 # Setup templates
@@ -245,13 +245,14 @@ async def lfa_player_onboarding_cancel(
 async def lfa_player_onboarding_submit(
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user_web)
+    user: User = Depends(get_current_user)
 ):
     """
     Process LFA Player onboarding questionnaire
-    Saves: position, self-assessment skills, motivation
+    Saves: date_of_birth, position, self-assessment skills, motivation
     """
     from ...models.license import UserLicense
+    from datetime import date as date_type
 
     try:
         form = await request.form()
@@ -260,6 +261,7 @@ async def lfa_player_onboarding_submit(
         position = form.get("position")
         motivation = form.get("motivation", "")
         goals = form.get("goals", "")
+        date_of_birth_str = form.get("date_of_birth")  # ✅ NEW: Get birth date
 
         # Self-assessment scores (0-10)
         skills = {
@@ -275,6 +277,10 @@ async def lfa_player_onboarding_submit(
         valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
         if position not in valid_positions:
             raise ValueError(f"Invalid position: {position}")
+
+        # ❌ REMOVED: date_of_birth is NO LONGER updated here!
+        # It should already exist in user profile from /auth/register-with-invitation
+        # If it doesn't exist, the frontend will show an error and redirect to My Profile
 
         # Get user's LFA Player license
         license = db.query(UserLicense).filter(
@@ -310,7 +316,7 @@ async def lfa_player_onboarding_submit(
         db.refresh(user)
         db.refresh(license)
 
-        print(f"LFA Player onboarding completed for {user.email}: Position={position}, Avg Skill={average_skill:.1f}%")
+        print(f"✅ LFA Player onboarding completed for {user.email}: Position={position}, Avg Skill={average_skill:.1f}%")
 
         # Redirect to dashboard
         return RedirectResponse(url="/dashboard", status_code=303)

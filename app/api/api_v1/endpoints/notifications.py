@@ -133,7 +133,11 @@ def create_notification(
         message=notification_data.message,
         type=notification_data.type,
         related_session_id=notification_data.related_session_id,
-        related_booking_id=notification_data.related_booking_id
+        related_booking_id=notification_data.related_booking_id,
+        # New fields for job offers
+        link=notification_data.link,
+        related_semester_id=notification_data.related_semester_id,
+        related_request_id=notification_data.related_request_id
     )
     
     db.add(notification)

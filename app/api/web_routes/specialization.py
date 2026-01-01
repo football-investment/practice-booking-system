@@ -10,8 +10,11 @@ from pathlib import Path
 from datetime import datetime, timezone, date
 
 from ...database import get_db
-from ...dependencies import get_current_user_web, get_current_user_optional
+from ...dependencies import get_current_user_web, get_current_user_optional, get_current_user
 from ...models.user import User, UserRole
+from ...models.license import UserLicense
+from ...models.credit_transaction import CreditTransaction, TransactionType
+from ...models.specialization import SpecializationType
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
@@ -23,18 +26,76 @@ router = APIRouter()
 
 @router.post("/specialization/unlock")
 async def specialization_unlock(
-    request: Request,
     specialization: str = Form(...),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Unlock a specialization from the dashboard (costs 100 credits)
-    This is the NEW flow - credit-based unlock system
+    Unlock a specialization from Streamlit (costs 100 credits)
+    Uses Bearer token authentication for Streamlit frontend
     """
-    # Delegate to the existing specialization_select_submit function
-    # which already handles the credit deduction and license creation
-    return await specialization_select_submit(request, specialization, db, user)
+    # Check credit balance
+    if current_user.credit_balance < 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient credits. You have {current_user.credit_balance} credits, but need 100."
+        )
+
+    # Deduct credits
+    current_user.credit_balance -= 100
+
+    # Map specialization enum
+    spec_mapping = {
+        "LFA_PLAYER": SpecializationType.LFA_FOOTBALL_PLAYER,
+        "LFA_COACH": SpecializationType.LFA_COACH,
+        "INTERNSHIP": SpecializationType.INTERNSHIP,
+        "GANCUJU_PLAYER": SpecializationType.GANCUJU_PLAYER
+    }
+
+    spec_type = spec_mapping.get(specialization)
+    if not spec_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid specialization: {specialization}"
+        )
+
+    # Create user license
+    new_license = UserLicense(
+        user_id=current_user.id,
+        specialization_type=spec_type.value,
+        current_level=1,
+        max_achieved_level=1,
+        started_at=datetime.utcnow(),
+        payment_verified=True,
+        payment_verified_at=datetime.utcnow(),
+        onboarding_completed=False,
+        is_active=True
+    )
+    db.add(new_license)
+    db.flush()  # Get the ID
+
+    # Create credit transaction
+    credit_transaction = CreditTransaction(
+        user_license_id=new_license.id,
+        amount=-100,
+        transaction_type=TransactionType.PURCHASE.value,
+        description=f"Unlocked specialization: {spec_type.value}",
+        balance_after=current_user.credit_balance,
+        created_at=datetime.utcnow()
+    )
+    db.add(credit_transaction)
+
+    # Update user specialization
+    current_user.specialization = spec_type.value
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Specialization unlocked successfully",
+        "new_balance": current_user.credit_balance,
+        "license_id": new_license.id
+    }
 
 
 @router.get("/specialization/motivation", response_class=HTMLResponse)

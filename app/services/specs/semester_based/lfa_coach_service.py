@@ -9,14 +9,14 @@ This service handles all LFA Coach-specific logic including:
 - Age-appropriate coaching certification
 
 Certification Levels (8 Total):
-1. PRE_ASSISTANT - LFA Pre Football Assistant Coach (Ages 5-8)
-2. PRE_HEAD - LFA Pre Football Head Coach (Ages 5-8)
-3. YOUTH_ASSISTANT - LFA Youth Football Assistant Coach (Ages 9-14)
-4. YOUTH_HEAD - LFA Youth Football Head Coach (Ages 9-14)
+1. PRE_ASSISTANT - LFA Pre Football Assistant Coach (Ages 5-13)
+2. PRE_HEAD - LFA Pre Football Head Coach (Ages 5-13)
+3. YOUTH_ASSISTANT - LFA Youth Football Assistant Coach (Ages 14-18)
+4. YOUTH_HEAD - LFA Youth Football Head Coach (Ages 14-18)
 5. AMATEUR_ASSISTANT - LFA Amateur Football Assistant Coach (Ages 14+)
 6. AMATEUR_HEAD - LFA Amateur Football Head Coach (Ages 14+)
-7. PRO_ASSISTANT - LFA PRO Football Assistant Coach (Ages 16+)
-8. PRO_HEAD - LFA PRO Football Head Coach (Ages 16+)
+7. PRO_ASSISTANT - LFA PRO Football Assistant Coach (Ages 14+)
+8. PRO_HEAD - LFA PRO Football Head Coach (Ages 14+)
 
 Key Characteristics:
 - SEMESTER-BASED: Semester enrollment REQUIRED with payment verification
@@ -48,10 +48,10 @@ class LFACoachService(BaseSpecializationService):
     # ========================================================================
 
     COACH_LEVELS = [
-        'PRE_ASSISTANT',         # L1 - Pre (5-8) Assistant
-        'PRE_HEAD',              # L2 - Pre (5-8) Head
-        'YOUTH_ASSISTANT',       # L3 - Youth (9-14) Assistant
-        'YOUTH_HEAD',            # L4 - Youth (9-14) Head
+        'PRE_ASSISTANT',         # L1 - Pre (5-13) Assistant
+        'PRE_HEAD',              # L2 - Pre (5-13) Head
+        'YOUTH_ASSISTANT',       # L3 - Youth (14-18) Assistant
+        'YOUTH_HEAD',            # L4 - Youth (14-18) Head
         'AMATEUR_ASSISTANT',     # L5 - Amateur (14+) Assistant
         'AMATEUR_HEAD',          # L6 - Amateur (14+) Head
         'PRO_ASSISTANT',         # L7 - Pro (16+) Assistant
@@ -62,7 +62,7 @@ class LFACoachService(BaseSpecializationService):
         'PRE_ASSISTANT': {
             'name': 'LFA Pre Football Assistant Coach',
             'icon': '📋',
-            'age_group': 'Pre (5-8 years)',
+            'age_group': 'Pre (5-13 years)',
             'role': 'Assistant Coach',
             'level': 1,
             'min_coach_age': 14,
@@ -78,7 +78,7 @@ class LFACoachService(BaseSpecializationService):
         'PRE_HEAD': {
             'name': 'LFA Pre Football Head Coach',
             'icon': '📋',
-            'age_group': 'Pre (5-8 years)',
+            'age_group': 'Pre (5-13 years)',
             'role': 'Head Coach',
             'level': 2,
             'min_coach_age': 16,
@@ -94,7 +94,7 @@ class LFACoachService(BaseSpecializationService):
         'YOUTH_ASSISTANT': {
             'name': 'LFA Youth Football Assistant Coach',
             'icon': '📋',
-            'age_group': 'Youth (9-14 years)',
+            'age_group': 'Youth (14-18 years)',
             'role': 'Assistant Coach',
             'level': 3,
             'min_coach_age': 16,
@@ -110,7 +110,7 @@ class LFACoachService(BaseSpecializationService):
         'YOUTH_HEAD': {
             'name': 'LFA Youth Football Head Coach',
             'icon': '📋',
-            'age_group': 'Youth (9-14 years)',
+            'age_group': 'Youth (14-18 years)',
             'role': 'Head Coach',
             'level': 4,
             'min_coach_age': 18,
@@ -412,7 +412,7 @@ class LFACoachService(BaseSpecializationService):
         if current_level >= 2:
             achievements.append({"name": "Head Coach Qualified", "description": "Completed first Head Coach certification (PRE)"})
         if current_level >= 4:
-            achievements.append({"name": "Youth Specialist", "description": "Certified to coach Youth (9-14)"})
+            achievements.append({"name": "Youth Specialist", "description": "Certified to coach Youth (14-18)"})
         if current_level >= 6:
             achievements.append({"name": "Amateur Coach", "description": "Certified for Amateur (14+)"})
         if current_level >= 8:

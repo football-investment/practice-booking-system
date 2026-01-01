@@ -14,6 +14,11 @@ from .....models.semester import Semester
 from .....models.license import UserLicense
 from .....models.semester_enrollment import SemesterEnrollment
 from .schemas import EnrollmentCreate
+from .....services.age_category_service import (
+    calculate_age_at_season_start,
+    get_automatic_age_category,
+    get_current_season_year
+)
 
 router = APIRouter()
 
@@ -56,6 +61,14 @@ async def create_enrollment(
     if existing:
         raise HTTPException(status_code=400, detail="Student is already enrolled in this specialization for this semester")
 
+    # 🎯 NEW: Calculate automatic age category based on date_of_birth
+    age_category = None
+    if student.date_of_birth:
+        season_year = get_current_season_year()
+        age_at_season_start = calculate_age_at_season_start(student.date_of_birth, season_year)
+        age_category = get_automatic_age_category(age_at_season_start)
+        # age_category will be "PRE", "YOUTH", or None (if > 18, instructor must assign)
+
     # Create enrollment
     new_enrollment = SemesterEnrollment(
         user_id=enrollment.user_id,
@@ -63,7 +76,9 @@ async def create_enrollment(
         user_license_id=enrollment.user_license_id,
         payment_verified=False,
         is_active=True,
-        enrolled_at=datetime.utcnow()
+        enrolled_at=datetime.utcnow(),
+        age_category=age_category,  # 🎯 NEW: Auto-assign based on age
+        age_category_overridden=False  # 🎯 NEW: Not overridden yet
     )
 
     db.add(new_enrollment)

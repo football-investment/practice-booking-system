@@ -26,22 +26,14 @@ class InvoiceRequestCreate(BaseModel):
 
 @router.post("/request")
 async def create_invoice_request(
-    request: Request,
     invoice_data: InvoiceRequestCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Create a new invoice request for credit purchase
+    Create a new invoice request for credit purchase.
+    Student can request invoice with optional coupon code.
     """
-
-    # Get current user from cookie
-    try:
-        current_user = await get_current_user_web(request, db)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
 
     # Validate credit amount
     if invoice_data.credit_amount <= 0:
@@ -181,6 +173,39 @@ async def get_invoice_count(
     for status, count in counts:
         result[status] = count
         result['total'] += count
+
+    return result
+
+
+@router.get("/my-invoices")
+async def get_my_invoices(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # ✅ Changed to Bearer token auth (Streamlit uses Bearer, not cookies)
+) -> Any:
+    """
+    Get current user's invoice requests
+
+    Returns list of invoices for the authenticated user, ordered by created_at desc
+    Student can view their own invoice history without admin privileges
+    """
+
+    invoices = db.query(InvoiceRequest).filter(
+        InvoiceRequest.user_id == current_user.id
+    ).order_by(InvoiceRequest.created_at.desc()).all()
+
+    # Build response
+    result = []
+    for invoice in invoices:
+        result.append({
+            "id": invoice.id,
+            "credit_amount": invoice.credit_amount,
+            "amount_eur": invoice.amount_eur,
+            "coupon_code": invoice.coupon_code,
+            "payment_reference": invoice.payment_reference,
+            "status": invoice.status,
+            "created_at": invoice.created_at,
+            "verified_at": invoice.verified_at
+        })
 
     return result
 

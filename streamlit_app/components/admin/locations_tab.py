@@ -11,7 +11,7 @@ import sys
 parent_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from api_helpers import get_locations, get_campuses_by_location
+from api_helpers_general import get_locations, get_campuses_by_location
 from components.location_filters import render_location_filters, apply_location_filters
 from components.location_actions import render_location_action_buttons
 from components.campus_actions import render_campus_action_buttons
@@ -90,6 +90,10 @@ def render_locations_tab(token, user):
                             st.caption(f"Name: {location.get('name', 'N/A')}")
                             st.caption(f"City: {location.get('city', 'N/A')}")
                             st.caption(f"Country: {location.get('country', 'N/A')}")
+                            # Show location type with icon
+                            loc_type = location.get('location_type', 'CENTER')
+                            loc_icon = "🏫" if loc_type == "CENTER" else "🤝"
+                            st.caption(f"Type: {loc_icon} {loc_type}")
 
                         with col2:
                             st.markdown("**📮 Address Details**")
