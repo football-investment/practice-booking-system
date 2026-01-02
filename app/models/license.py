@@ -146,6 +146,8 @@ class UserLicense(Base):
                       comment="Whether this license is currently active (can be used for teaching/enrollment)")
 
     # 📅 License Expiration & Renewal (Fase 2)
+    issued_at = Column(DateTime, nullable=True,
+                      comment="Official license issuance date (e.g., 2014-01-01 for Grand Master)")
     expires_at = Column(DateTime, nullable=True,
                        comment="License expiration date (null = no expiration yet, perpetual until first renewal)")
     last_renewed_at = Column(DateTime, nullable=True,
@@ -207,6 +209,8 @@ class UserLicense(Base):
             "max_achieved_level": self.max_achieved_level,
             "is_active": self.is_active,  # ✅ ADDED: Include is_active flag
             "started_at": self.started_at.isoformat() if self.started_at else None,
+            "issued_at": self.issued_at.isoformat() if self.issued_at else None,  # ✅ License issuance date
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,  # ✅ License expiration date
             "last_advanced_at": self.last_advanced_at.isoformat() if self.last_advanced_at else None,
             "instructor_notes": self.instructor_notes
         }
