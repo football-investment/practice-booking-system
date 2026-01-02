@@ -56,7 +56,7 @@ def render_session_checkin(token: str, user_id: int):
     recent_sessions = []
     for session in my_sessions:
         try:
-            start_time = datetime.fromisoformat(session.get('start_time', '').replace('Z', '+00:00'))
+            start_time = datetime.fromisoformat(session.get('date_start', '').replace('Z', '+00:00'))
             # Include sessions from 1 day ago to 7 days in future
             if (now - timedelta(days=1)) <= start_time <= (now + timedelta(days=7)):
                 recent_sessions.append(session)
@@ -71,9 +71,9 @@ def render_session_checkin(token: str, user_id: int):
     st.markdown("#### 📅 Select Session")
 
     session_options = {}
-    for session in sorted(recent_sessions, key=lambda s: s.get('start_time', '')):
+    for session in sorted(recent_sessions, key=lambda s: s.get('date_start', '')):
         try:
-            start_time = datetime.fromisoformat(session.get('start_time', '').replace('Z', '+00:00'))
+            start_time = datetime.fromisoformat(session.get('date_start', '').replace('Z', '+00:00'))
             is_today = start_time.date() == now.date()
             is_past = start_time < now
             time_indicator = "🔴 NOW" if is_today and not is_past else ("✅ PAST" if is_past else "🔜 UPCOMING")
