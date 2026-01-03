@@ -81,6 +81,14 @@ class Semester(Base):
     location_address = Column(String(500), nullable=True,
                              comment="DEPRECATED: Use campus_id or location_id instead. Full address")
 
+    # 🏆 TOURNAMENT FIELDS (new tournament system)
+    tournament_type = Column(String(50), nullable=True,
+                            comment="Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM")
+    participant_type = Column(String(50), nullable=True, default="INDIVIDUAL",
+                             comment="Participant type: INDIVIDUAL, TEAM, MIXED")
+    is_multi_day = Column(Boolean, default=False,
+                         comment="True if tournament spans multiple days")
+
     # Relationships
     campus = relationship("Campus", foreign_keys=[campus_id],
                          backref="semesters",

@@ -42,6 +42,11 @@ from .track import Track, Module, ModuleComponent
 from .certificate import CertificateTemplate, IssuedCertificate
 from .user_progress import UserTrackProgress, UserModuleProgress, TrackProgressStatus, ModuleProgressStatus
 
+# 🏆 Tournament System
+from .tournament_enums import TournamentType, ParticipantType, TeamMemberRole
+from .team import Team, TeamMember, TournamentTeamEnrollment
+from .tournament_ranking import TournamentRanking, TournamentStats, TournamentReward
+
 # Configure relationships after all models are imported
 configure_relationships()
 configure_license_relationships()
@@ -119,4 +124,14 @@ __all__ = [
     "InstructorSessionReview",
     "SessionGroupAssignment",
     "SessionGroupStudent",
+    # Tournament System
+    "TournamentType",
+    "ParticipantType",
+    "TeamMemberRole",
+    "Team",
+    "TeamMember",
+    "TournamentTeamEnrollment",
+    "TournamentRanking",
+    "TournamentStats",
+    "TournamentReward",
 ]
