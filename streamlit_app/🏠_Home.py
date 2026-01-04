@@ -113,16 +113,23 @@ if not st.session_state.show_register:
 else:
     # === REGISTER FORM ===
     st.markdown("### 📝 Register with Invitation Code")
-    st.info("💡 **Kapott invitation code-dal tudsz regisztrálni!**")
+    st.info("💡 **Register with your received invitation code!**")
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        reg_name = st.text_input("Your Name *", value="", placeholder="Full Name", key="reg_name")
-        reg_email = st.text_input("Your Email *", value="", placeholder="student@example.com", key="reg_email")
-        reg_password = st.text_input("Choose Password *", type="password", value="", placeholder="Min 6 characters", key="reg_password")
+        # Personal Information
+        st.markdown("#### Personal Information")
+        reg_first_name = st.text_input("First Name *", value="", placeholder="John", key="reg_first_name")
+        reg_last_name = st.text_input("Last Name *", value="", placeholder="Doe", key="reg_last_name")
+        reg_nickname = st.text_input("Nickname *", value="", placeholder="Johnny", key="reg_nickname")
 
-        # ✅ NEW: Date of Birth
+        reg_email = st.text_input("Email *", value="", placeholder="student@example.com", key="reg_email")
+        reg_password = st.text_input("Password *", type="password", value="", placeholder="Min 6 characters", key="reg_password")
+
+        reg_phone = st.text_input("Phone Number *", value="", placeholder="+36 20 123 4567", key="reg_phone")
+
+        # Date of Birth
         from datetime import date, datetime
         reg_dob = st.date_input(
             "Date of Birth *",
@@ -133,10 +140,8 @@ else:
             key="reg_dob"
         )
 
-        # ✅ NEW: Nationality
         reg_nationality = st.text_input("Nationality *", value="", placeholder="e.g., Hungarian", key="reg_nationality")
 
-        # ✅ NEW: Gender
         reg_gender = st.selectbox(
             "Gender *",
             options=["", "Male", "Female", "Other"],
@@ -144,14 +149,30 @@ else:
             key="reg_gender"
         )
 
+        # Address Information
+        st.markdown("#### Address")
+        reg_street_address = st.text_input("Street Address *", value="", placeholder="Main Street 123", key="reg_street_address")
+        reg_city = st.text_input("City *", value="", placeholder="Budapest", key="reg_city")
+
+        col_postal, col_country = st.columns(2)
+        with col_postal:
+            reg_postal_code = st.text_input("Postal Code *", value="", placeholder="1011", key="reg_postal_code")
+        with col_country:
+            reg_country = st.text_input("Country *", value="", placeholder="Hungary", key="reg_country")
+
+        # Invitation Code
+        st.markdown("#### Invitation")
         reg_code = st.text_input("Invitation Code *", value="", placeholder="Enter the code you received", key="reg_code")
 
         st.caption("* Required fields")
 
         # Validation
         all_fields_filled = (
-            reg_name and reg_email and reg_password and
-            reg_dob is not None and reg_nationality and reg_gender and reg_code
+            reg_first_name and reg_last_name and reg_nickname and
+            reg_email and reg_password and reg_phone and
+            reg_dob is not None and reg_nationality and reg_gender and
+            reg_street_address and reg_city and reg_postal_code and reg_country and
+            reg_code
         )
 
         if st.button("📝 Register Now", use_container_width=True, type="primary"):
@@ -163,15 +184,26 @@ else:
                 with st.spinner("Registering..."):
                     # Call register API
                     try:
+                        # Build full name from first and last name
+                        full_name = f"{reg_first_name} {reg_last_name}"
+
                         response = requests.post(
                             f"{API_BASE_URL}/api/v1/auth/register-with-invitation",
                             json={
                                 "email": reg_email,
                                 "password": reg_password,
-                                "name": reg_name,
-                                "date_of_birth": reg_dob.isoformat(),  # ✅ NEW: YYYY-MM-DD format
-                                "nationality": reg_nationality,  # ✅ NEW
-                                "gender": reg_gender,  # ✅ NEW
+                                "name": full_name,  # For backward compatibility
+                                "first_name": reg_first_name,
+                                "last_name": reg_last_name,
+                                "nickname": reg_nickname,
+                                "phone": reg_phone,
+                                "date_of_birth": reg_dob.isoformat(),  # YYYY-MM-DD format
+                                "nationality": reg_nationality,
+                                "gender": reg_gender,
+                                "street_address": reg_street_address,
+                                "city": reg_city,
+                                "postal_code": reg_postal_code,
+                                "country": reg_country,
                                 "invitation_code": reg_code
                             },
                             timeout=10

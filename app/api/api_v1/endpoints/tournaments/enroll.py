@@ -141,48 +141,34 @@ def enroll_in_tournament(
                 detail=f"You are over 18 and cannot enroll in {tournament_age_group} tournaments. Please enroll in AMATEUR or PRO tournaments."
             )
 
-    # 6. Verify age category enrollment rules
-    # PRE: Can ONLY enroll in PRE
-    # YOUTH: Can enroll in YOUTH or AMATEUR (NOT PRO)
-    # AMATEUR: Can ONLY enroll in AMATEUR
-    # PRO: Can ONLY enroll in PRO
+    # 6. Verify age category enrollment rules using shared validation
+    from app.services.tournament.validation import validate_tournament_enrollment_age
 
     tournament_age_group = tournament.age_group
+    is_valid, error_message = validate_tournament_enrollment_age(
+        player_age_category,
+        tournament_age_group
+    )
 
-    if player_age_category == "PRE":
-        if tournament_age_group != "PRE":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="PRE category players can only enroll in PRE tournaments"
-            )
-    elif player_age_category == "YOUTH":
-        if tournament_age_group not in ["YOUTH", "AMATEUR"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="YOUTH category players can enroll in YOUTH or AMATEUR tournaments only (not PRO)"
-            )
-    elif player_age_category in ["AMATEUR", "PRO"]:
-        if tournament_age_group != player_age_category:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{player_age_category} category players can only enroll in {player_age_category} tournaments"
-            )
-    else:
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid age category: {player_age_category}"
+            detail=error_message
         )
 
-    # 7. Check not already enrolled
-    existing = db.query(SemesterEnrollment).filter(
-        SemesterEnrollment.user_id == current_user.id,
-        SemesterEnrollment.semester_id == tournament_id
-    ).first()
+    # 7. Check not already enrolled using shared validation
+    from app.services.tournament.validation import check_duplicate_enrollment
 
-    if existing:
+    is_unique, duplicate_message = check_duplicate_enrollment(
+        db,
+        current_user.id,
+        tournament_id
+    )
+
+    if not is_unique:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You are already enrolled in this tournament"
+            detail=duplicate_message
         )
 
     # 8. Check credit balance (use user-level credit_balance, not license-level)

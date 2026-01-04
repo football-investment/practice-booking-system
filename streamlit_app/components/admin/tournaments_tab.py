@@ -7,6 +7,8 @@ import streamlit as st
 from pathlib import Path
 import sys
 from typing import List, Dict
+import requests
+import time
 
 # Setup imports
 parent_dir = Path(__file__).parent.parent.parent
@@ -86,10 +88,17 @@ def render_tournament_list(token: str):
                 st.write(f"**ID**: {tournament.get('id', 'N/A')}")
 
             with col3:
-                if st.button("✏️ Edit", key=f"edit_tournament_{tournament['id']}"):
-                    st.session_state['edit_tournament_id'] = tournament['id']
-                    st.session_state['edit_tournament_data'] = tournament
-                    show_edit_tournament_dialog()
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
+                    if st.button("✏️", key=f"edit_tournament_{tournament['id']}", help="Edit tournament"):
+                        st.session_state['edit_tournament_id'] = tournament['id']
+                        st.session_state['edit_tournament_data'] = tournament
+                        show_edit_tournament_dialog()
+                with btn_col2:
+                    if st.button("🗑️", key=f"delete_tournament_{tournament['id']}", help="Delete tournament"):
+                        st.session_state['delete_tournament_id'] = tournament['id']
+                        st.session_state['delete_tournament_name'] = tournament.get('name', 'Untitled')
+                        show_delete_tournament_dialog()
 
 
 def render_game_type_manager(token: str):
@@ -667,4 +676,57 @@ def show_delete_game_dialog():
                 del st.session_state['delete_game_id']
             if 'delete_game_title' in st.session_state:
                 del st.session_state['delete_game_title']
+            st.rerun()
+
+
+@st.dialog("🗑️ Delete Tournament")
+def show_delete_tournament_dialog():
+    """Show confirmation dialog for deleting a tournament"""
+    from config import API_BASE_URL
+
+    tournament_id = st.session_state.get('delete_tournament_id')
+    tournament_name = st.session_state.get('delete_tournament_name', 'Untitled')
+
+    st.warning(f"Are you sure you want to delete tournament **{tournament_name}**?")
+    st.write("⚠️ This action cannot be undone. All associated sessions and bookings will be permanently deleted.")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✓ Confirm Delete", type="primary", use_container_width=True):
+            token = st.session_state.get('token')
+            if not token:
+                st.error("❌ Authentication token not found. Please log in again.")
+                return
+
+            # Call DELETE API endpoint
+            response = requests.delete(
+                f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+
+            if response.status_code == 204:
+                st.success(f"✅ Tournament '{tournament_name}' deleted successfully!")
+                st.balloons()
+                # Clear session state
+                if 'delete_tournament_id' in st.session_state:
+                    del st.session_state['delete_tournament_id']
+                if 'delete_tournament_name' in st.session_state:
+                    del st.session_state['delete_tournament_name']
+                time.sleep(1)
+                st.rerun()
+            elif response.status_code == 403:
+                st.error("❌ Permission denied. Only admins can delete tournaments.")
+            elif response.status_code == 404:
+                st.error(f"❌ Tournament not found (ID: {tournament_id})")
+            else:
+                st.error(f"❌ Failed to delete tournament. Server error: {response.status_code}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'delete_tournament_id' in st.session_state:
+                del st.session_state['delete_tournament_id']
+            if 'delete_tournament_name' in st.session_state:
+                del st.session_state['delete_tournament_name']
             st.rerun()

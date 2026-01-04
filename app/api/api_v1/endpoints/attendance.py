@@ -35,35 +35,58 @@ def create_attendance(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Booking not found"
         )
-    
+
     if booking.status != BookingStatus.CONFIRMED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only create attendance for confirmed bookings"
         )
+
+    # 🏆 TOURNAMENT VALIDATION: Check if session is a tournament game
+    session = db.query(SessionTypel).filter(SessionTypel.id == booking.session_id).first()
+    if session and session.is_tournament_game:
+        # Tournament sessions ONLY support present/absent (NO late/excused)
+        if attendance_data.status not in [AttendanceStatus.present, AttendanceStatus.absent]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Tournaments only support 'present' or 'absent' attendance. Received: '{attendance_data.status.value}'"
+            )
     
     # Check if attendance already exists
     existing_attendance = db.query(Attendance).filter(Attendance.booking_id == attendance_data.booking_id).first()
+
     if existing_attendance:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendance record already exists for this booking"
+        # UPDATE existing attendance
+        existing_attendance.status = attendance_data.status
+        if attendance_data.notes:
+            existing_attendance.notes = attendance_data.notes
+        existing_attendance.marked_by = current_user.id
+        existing_attendance.updated_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(existing_attendance)
+
+        # Update milestone progress if attendance is marked as PRESENT
+        if existing_attendance.status == AttendanceStatus.PRESENT:
+            _update_milestone_sessions_on_attendance(db, existing_attendance.user_id, existing_attendance.session_id)
+
+        return existing_attendance
+    else:
+        # CREATE new attendance
+        attendance = Attendance(
+            **attendance_data.model_dump(),
+            marked_by=current_user.id
         )
-    
-    attendance = Attendance(
-        **attendance_data.model_dump(),
-        marked_by=current_user.id
-    )
-    
-    db.add(attendance)
-    db.commit()
-    db.refresh(attendance)
-    
-    # Update milestone progress if attendance is marked as PRESENT
-    if attendance.status == AttendanceStatus.PRESENT:
-        _update_milestone_sessions_on_attendance(db, attendance.user_id, attendance.session_id)
-    
-    return attendance
+
+        db.add(attendance)
+        db.commit()
+        db.refresh(attendance)
+
+        # Update milestone progress if attendance is marked as PRESENT
+        if attendance.status == AttendanceStatus.PRESENT:
+            _update_milestone_sessions_on_attendance(db, attendance.user_id, attendance.session_id)
+
+        return attendance
 
 
 @router.get("/", response_model=AttendanceList)
@@ -107,13 +130,15 @@ def list_attendance(
     # Convert to response schema
     attendance_responses = []
     for attendance in attendances:
-        attendance_responses.append(AttendanceWithRelations(
-            **attendance.__dict__,
-            user=attendance.user,
-            session=attendance.session,
-            booking=attendance.booking,
-            marker=attendance.marker
-        ))
+        # Filter out SQLAlchemy internal attributes and construct proper dict
+        attendance_data = {
+            **{k: v for k, v in attendance.__dict__.items() if not k.startswith('_')},
+            'user': attendance.user,
+            'session': attendance.session,
+            'booking': attendance.booking,
+            'marker': attendance.marker
+        }
+        attendance_responses.append(AttendanceWithRelations(**attendance_data))
 
     return AttendanceList(
         attendances=attendance_responses,

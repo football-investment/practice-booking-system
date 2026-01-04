@@ -20,6 +20,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     nickname = Column(String, nullable=True)
+
+    # 🆕 NEW: Separate first/last name for better data structure
+    first_name = Column(String, nullable=True, comment="User first name (given name)")
+    last_name = Column(String, nullable=True, comment="User last name (family name)")
+
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.STUDENT)
@@ -37,6 +42,12 @@ class User(Base):
     nationality = Column(String, nullable=True, comment="User's nationality (e.g., Hungarian, American)")
     gender = Column(String, nullable=True, comment="User's gender (Male, Female, Other, Prefer not to say)")
     current_location = Column(String, nullable=True, comment="User's current location (e.g., Budapest, Hungary)")
+
+    # 🆕 NEW: Address fields for invoicing and registration
+    street_address = Column(String, nullable=True, comment="Street address (e.g., Main Street 123)")
+    city = Column(String, nullable=True, comment="City name")
+    postal_code = Column(String, nullable=True, comment="Postal/ZIP code")
+    country = Column(String, nullable=True, comment="Country name")
     
     # 🎓 NEW: Specialization field (nullable for backward compatibility)
     specialization = Column(
@@ -170,6 +181,13 @@ class User(Base):
         "InvitationCode",
         foreign_keys="InvitationCode.created_by_admin_id",
         back_populates="created_by_admin"
+    )
+
+    # 💰 Credit transaction relationships (user-level rewards and purchases)
+    credit_transactions = relationship(
+        "CreditTransaction",
+        foreign_keys="CreditTransaction.user_id",
+        back_populates="user"
     )
 
     # 🎓 NEW: Specialization helper properties and methods

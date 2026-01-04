@@ -94,7 +94,7 @@ def update_tournament_stats(db: Session, tournament_id: int) -> TournamentStats:
     present_count = db.query(Attendance).join(SessionModel).filter(
         and_(
             SessionModel.semester_id == tournament_id,
-            Attendance.status == AttendanceStatus.PRESENT
+            Attendance.status == AttendanceStatus.present
         )
     ).count()
     

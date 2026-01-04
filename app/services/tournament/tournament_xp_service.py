@@ -66,12 +66,45 @@ def distribute_rewards(
     Uses the reward policy snapshot stored in the semester at tournament creation time.
     Falls back to TournamentReward table for backward compatibility.
 
+    ⚠️ WARNING: This function currently accepts tournaments WITHOUT instructor assignment.
+    This is a known limitation. For production-ready implementation:
+    - Uncomment the instructor validation below
+    - Implement instructor workflow (assignment, attendance tracking)
+    - See: docs/backend/instructor_workflow.md (TODO)
+
     Returns: Dict with stats about distribution
+
+    Raises:
+        ValueError: If tournament not found or rankings missing
+        # TODO: ValueError: If instructor not assigned (when production-ready)
     """
     # Get tournament semester to access reward policy snapshot
     semester = db.query(Semester).filter(Semester.id == tournament_id).first()
     if not semester:
         raise ValueError(f"Tournament semester {tournament_id} not found")
+
+    # ⚠️ TODO: PRODUCTION VALIDATION (Currently commented out for testing)
+    # Uncomment this block when instructor workflow is fully implemented:
+    #
+    # if not semester.master_instructor_id:
+    #     raise ValueError(
+    #         f"Tournament {tournament_id} cannot distribute rewards: "
+    #         f"No instructor assigned. Current status: {semester.status}. "
+    #         f"Instructor assignment is required for production use."
+    #     )
+    #
+    # # Validate attendance records exist
+    # from app.models import Attendance, Session as SessionModel
+    # attendance_count = db.query(Attendance).join(SessionModel).filter(
+    #     SessionModel.semester_id == tournament_id
+    # ).count()
+    #
+    # if attendance_count == 0:
+    #     raise ValueError(
+    #         f"Tournament {tournament_id} cannot distribute rewards: "
+    #         f"No attendance records found. Instructor must mark attendance "
+    #         f"for at least one session before reward distribution."
+    #     )
 
     # Try to use reward policy snapshot (new system)
     if semester.reward_policy_snapshot and semester.reward_policy_snapshot.get("placement_rewards"):

@@ -263,6 +263,8 @@ def list_sessions(
             "updated_at": session.updated_at,
             "target_specialization": session.target_specialization,
             "mixed_specialization": session.mixed_specialization if hasattr(session, 'mixed_specialization') else False,
+            "is_tournament_game": session.is_tournament_game if hasattr(session, 'is_tournament_game') else False,  # 🏆 Tournament game flag
+            "game_type": session.game_type if hasattr(session, 'game_type') else None,  # 🏆 Tournament game type
             "semester": session.semester,
             "group": session.group,
             "instructor": session.instructor,
@@ -338,11 +340,13 @@ def get_session_bookings(
     # Convert to response schema
     booking_responses = []
     for booking in bookings:
-        booking_responses.append(BookingWithRelations(
-            **booking.__dict__,
-            user=booking.user,
-            session=booking.session
-        ))
+        # Use model_dump() to properly serialize the Pydantic model with relationships
+        booking_data = {
+            **{k: v for k, v in booking.__dict__.items() if not k.startswith('_')},
+            'user': booking.user,
+            'session': booking.session
+        }
+        booking_responses.append(BookingWithRelations(**booking_data))
 
     return BookingList(
         bookings=booking_responses,

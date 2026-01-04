@@ -1,14 +1,52 @@
 """
 E2E Test: Reward Policy Distribution Workflow
 
-Complete end-to-end test for reward policy system:
-1. Admin creates tournament with reward policy
-2. Multiple players enroll
-3. Tournament completes with rankings
-4. Admin distributes rewards
-5. Each player sees correct XP/Credit updates
+⚠️ IMPORTANT: SIMPLIFIED E2E TEST (NOT PRODUCTION-REPRESENTATIVE)
 
-This test validates the ENTIRE reward policy system from creation to distribution.
+This test validates the reward distribution BACKEND LOGIC only.
+It does NOT test the full production tournament lifecycle.
+
+MISSING COMPONENTS (Not Implemented):
+❌ Instructor Dashboard UI (does not exist)
+❌ Instructor assignment workflow (no API endpoint)
+❌ Session attendance tracking (no UI/API)
+❌ Instructor-submitted rankings (rankings are SQL-inserted)
+
+CURRENT TEST SCOPE:
+✅ Admin can create tournament with reward policy
+✅ Reward policy snapshot is stored correctly in semesters.reward_policy_snapshot
+✅ Players can enroll in tournament (requires LFA_FOOTBALL_PLAYER license)
+✅ Reward distribution calculates XP/Credits correctly (1ST: 500 XP + 100 Credits, etc.)
+✅ Transaction audit trail is created in credit_transactions table
+✅ XP transactions are recorded via award_xp service
+
+SIMPLIFIED FLOW (Used in This Test):
+1. Admin creates tournament (status: SEEKING_INSTRUCTOR)
+2. ⚠️ Manual status change to READY_FOR_ENROLLMENT (bypasses instructor assignment)
+3. Players enroll
+4. ⚠️ Direct SQL ranking insertion (bypasses attendance tracking)
+5. Mark tournament as COMPLETED
+6. Admin distributes rewards via UI/API
+7. Validate XP/Credits updated correctly
+
+PRODUCTION FLOW (Should Be):
+1. Admin creates tournament (status: SEEKING_INSTRUCTOR)
+2. Instructor accepts assignment → READY_FOR_ENROLLMENT
+3. Players enroll
+4. Instructor marks attendance for each session
+5. Instructor submits rankings based on session results
+6. Tournament marked as COMPLETED
+7. Admin distributes rewards
+8. Players see updated XP/Credits
+
+PRODUCTION READINESS: 🔴 NOT READY
+- Backend reward logic: ✅ Working
+- Instructor workflow: ❌ Not implemented
+- Attendance tracking: ❌ Not implemented
+- Backend validations: ⚠️ Partial (does not check instructor/attendance)
+
+For production-ready testing, implement instructor workflow first.
+See: docs/backend/instructor_workflow.md (TODO)
 """
 
 import pytest
@@ -71,20 +109,29 @@ class TestRewardPolicyDistribution:
         print("="*80 + "\n")
 
         tournament_id = reward_policy_tournament_complete["tournament_id"]
+        tournament_name = reward_policy_tournament_complete["tournament"]["summary"]["name"]
         players = reward_policy_tournament_complete["players"]
         rankings = reward_policy_tournament_complete["rankings"]
 
         print(f"  📊 Tournament ID: {tournament_id}")
+        print(f"  📝 Tournament Name: {tournament_name}")
         print(f"  👥 Players: {len(players)}")
         print(f"  🏆 Rankings set: {len(rankings)}")
 
         # ================================================================
-        # STEP 1: Admin Login
+        # STEP 1: Set Explicit Viewport and Admin Login
         # ================================================================
-        print("\n  1️⃣ Logging in as admin...")
+        print("\n  1️⃣ Setting viewport and logging in as admin...")
+
+        # Set explicit viewport size
+        page.set_viewport_size({"width": 1920, "height": 1080})
 
         page.goto(STREAMLIT_URL)
         page.wait_for_timeout(2000)
+
+        # Explicit scroll to top
+        page.evaluate("window.scrollTo(0, 0)")
+        page.wait_for_timeout(500)
 
         page.fill("input[aria-label='Email']", ADMIN_EMAIL)
         page.fill("input[aria-label='Password']", ADMIN_PASSWORD)
@@ -105,6 +152,8 @@ class TestRewardPolicyDistribution:
         # ================================================================
         print("\n  2️⃣ Navigating to Tournaments tab...")
 
+        page.evaluate("window.scrollTo(0, 0)")  # Scroll to top before tab click
+
         tournaments_btn = page.locator("button:has-text('Tournaments')")
         expect(tournaments_btn).to_be_visible(timeout=10000)
         tournaments_btn.click()
@@ -113,43 +162,59 @@ class TestRewardPolicyDistribution:
         print("  ✅ Tournaments tab opened")
 
         # ================================================================
-        # STEP 3: Navigate to "Manage Tournaments" Sub-Tab
+        # STEP 3: Click "View Tournaments" Sub-Tab (default tab)
         # ================================================================
-        print("\n  3️⃣ Navigating to 'Manage Tournaments' tab...")
+        print("\n  3️⃣ Navigating to 'View Tournaments' tab...")
 
-        # Click second tab (📋 Manage Tournaments)
-        manage_tab = page.locator("button:has-text('Manage Tournaments')")
-        if manage_tab.count() > 0:
-            manage_tab.click()
+        page.evaluate("window.scrollTo(0, 0)")  # Explicit scroll
+        page.wait_for_timeout(1000)
+
+        # Click "View Tournaments" tab (should be active by default)
+        view_tab = page.locator("button:has-text('📋 View Tournaments'), button:has-text('View Tournaments')")
+        if view_tab.count() > 0:
+            view_tab.first.click()
             page.wait_for_timeout(3000)
-            print("  ✅ Manage Tournaments tab opened")
+            print("  ✅ View Tournaments tab opened")
         else:
-            print("  ⚠️ 'Manage Tournaments' tab not found, trying to find tournament expander...")
+            print("  ⚠️ View Tournaments tab not found, assuming already on correct tab")
 
         page.wait_for_timeout(2000)
 
         # ================================================================
-        # STEP 4: Find Tournament Expander
+        # STEP 4: Find and Click Specific Tournament by Name
         # ================================================================
-        print(f"\n  4️⃣ Finding tournament expander (ID: {tournament_id})...")
+        print(f"\n  4️⃣ Finding tournament '{tournament_name}' (ID: {tournament_id})...")
 
-        # Tournament expanders have text with tournament name and status
-        # Look for COMPLETED status
-        tournament_expander = page.locator(f"summary:has-text('COMPLETED')")
+        page.evaluate("window.scrollTo(0, 0)")  # Scroll to top before searching
+        page.wait_for_timeout(1000)
+
+        # Take screenshot before searching
+        page.screenshot(path="docs/screenshots/e2e_reward_before_tournament_search.png", full_page=True)
+
+        # Look for specific tournament by name in expander summary
+        # Tournament expanders contain tournament name
+        tournament_expander = page.locator(f"summary:has-text('{tournament_name}')")
 
         if tournament_expander.count() == 0:
-            print("  ❌ No COMPLETED tournaments found. Available expanders:")
+            print(f"  ❌ Tournament '{tournament_name}' not found. Available expanders:")
             all_expanders = page.locator("summary")
-            for i in range(min(all_expanders.count(), 5)):
-                print(f"     - {all_expanders.nth(i).text_content()}")
+            for i in range(min(all_expanders.count(), 10)):
+                expander_text = all_expanders.nth(i).text_content()
+                print(f"     [{i}] {expander_text[:100]}")
 
             # Take screenshot for debugging
-            page.screenshot(path="docs/screenshots/e2e_reward_no_completed_tournament.png", full_page=True)
-            pytest.fail("No COMPLETED tournament found in UI")
+            page.screenshot(path="docs/screenshots/e2e_reward_no_tournament_found.png", full_page=True)
+            pytest.fail(f"Tournament '{tournament_name}' not found in UI")
 
-        # Click first COMPLETED tournament expander
+        print(f"  ✅ Found tournament, clicking expander...")
+
+        # Scroll tournament into view before clicking
+        tournament_expander.first.scroll_into_view_if_needed()
+        page.wait_for_timeout(500)
+
+        # Click the tournament expander
         tournament_expander.first.click()
-        page.wait_for_timeout(2000)
+        page.wait_for_timeout(3000)
 
         print("  ✅ Tournament expander opened")
 
@@ -165,8 +230,15 @@ class TestRewardPolicyDistribution:
             page.screenshot(path="docs/screenshots/e2e_reward_no_distribute_button.png", full_page=True)
             pytest.fail("Distribute Rewards button not found")
 
-        distribute_btn.click()
-        page.wait_for_timeout(2000)
+        print(f"  ℹ️ Found {distribute_btn.count()} 'Distribute Rewards' buttons, clicking first...")
+
+        # Take screenshot before clicking
+        page.screenshot(path="docs/screenshots/e2e_reward_before_distribute_click.png", full_page=True)
+
+        # Use force=True to click even if element is not in viewport
+        # (Streamlit expander content may not be fully visible initially)
+        distribute_btn.first.click(force=True)
+        page.wait_for_timeout(3000)
 
         print("  ✅ 'Distribute Rewards' button clicked")
 
@@ -281,6 +353,10 @@ class TestRewardPolicyDistribution:
             # Logout current user (admin)
             page.goto(STREAMLIT_URL)
             page.wait_for_timeout(2000)
+
+            # Explicit scroll to top
+            page.evaluate("window.scrollTo(0, 0)")
+            page.wait_for_timeout(500)
 
             # Login as player
             page.fill("input[aria-label='Email']", player["email"])

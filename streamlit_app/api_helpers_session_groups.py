@@ -18,7 +18,7 @@ def get_session_attendance(token: str, session_id: int) -> Tuple[bool, List[Dict
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.get(
-            f"{API_BASE_URL}/attendance",
+            f"{API_BASE_URL}/api/v1/attendance",
             headers=headers,
             params={"session_id": session_id}
         )
@@ -48,23 +48,24 @@ def mark_student_attendance(token: str, session_id: int, user_id: int, status: s
         session_id: Session ID
         user_id: Student user ID
         status: "present", "absent", "late", "excused"
-        booking_id: Optional booking ID
+        booking_id: REQUIRED booking ID
 
     Returns: (success, message)
     """
     try:
+        if not booking_id:
+            return False, "booking_id is required"
+
         headers = {"Authorization": f"Bearer {token}"}
         data = {
             "session_id": session_id,
             "user_id": user_id,
+            "booking_id": booking_id,
             "status": status
         }
 
-        if booking_id:
-            data["booking_id"] = booking_id
-
         response = requests.post(
-            f"{API_BASE_URL}/attendance",
+            f"{API_BASE_URL}/api/v1/attendance",
             headers=headers,
             json=data
         )
@@ -72,10 +73,20 @@ def mark_student_attendance(token: str, session_id: int, user_id: int, status: s
         if response.status_code in [200, 201]:
             return True, "Attendance marked successfully"
         else:
-            error = response.json().get("error", {}).get("message", "Unknown error")
+            try:
+                error_data = response.json()
+                # Handle both error formats
+                if "error" in error_data:
+                    error = error_data["error"].get("message", "Unknown error")
+                elif "detail" in error_data:
+                    error = error_data["detail"]
+                else:
+                    error = f"Status {response.status_code}: {response.text[:100]}"
+            except:
+                error = f"Status {response.status_code}: {response.text[:100]}"
             return False, error
     except Exception as e:
-        return False, str(e)
+        return False, f"An unexpected error occurred: {str(e)}"
 
 
 def auto_assign_groups(token: str, session_id: int) -> Tuple[bool, Optional[Dict], str]:
@@ -87,7 +98,7 @@ def auto_assign_groups(token: str, session_id: int) -> Tuple[bool, Optional[Dict
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.post(
-            f"{API_BASE_URL}/session-groups/auto-assign",
+            f"{API_BASE_URL}/api/v1/session-groups/auto-assign",
             headers=headers,
             json={"session_id": session_id}
         )
@@ -111,7 +122,7 @@ def get_session_groups(token: str, session_id: int) -> Tuple[bool, Optional[Dict
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.get(
-            f"{API_BASE_URL}/session-groups/{session_id}",
+            f"{API_BASE_URL}/api/v1/session-groups/{session_id}",
             headers=headers
         )
 
@@ -133,7 +144,7 @@ def move_student_to_group(token: str, student_id: int, from_group_id: int, to_gr
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.post(
-            f"{API_BASE_URL}/session-groups/move-student",
+            f"{API_BASE_URL}/api/v1/session-groups/move-student",
             headers=headers,
             json={
                 "student_id": student_id,
@@ -160,7 +171,7 @@ def delete_session_groups(token: str, session_id: int) -> Tuple[bool, str]:
     try:
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.delete(
-            f"{API_BASE_URL}/session-groups/{session_id}",
+            f"{API_BASE_URL}/api/v1/session-groups/{session_id}",
             headers=headers
         )
 
@@ -181,23 +192,34 @@ def get_session_bookings(token: str, session_id: int) -> Tuple[bool, List[Dict]]
     """
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.get(
-            f"{API_BASE_URL}/bookings",
-            headers=headers,
-            params={"session_id": session_id}
-        )
+        url = f"{API_BASE_URL}/api/v1/sessions/{session_id}/bookings"
+
+        print(f"[DEBUG] 🔍 Bookings API URL: {url}")
+        print(f"[DEBUG] 🔍 Token (first 50): {token[:50] if token else 'NO TOKEN'}")
+
+        response = requests.get(url, headers=headers)
+
+        print(f"[DEBUG] 🔍 Bookings API Status: {response.status_code}")
+        print(f"[DEBUG] 🔍 Bookings API Response: {response.text[:500]}")
 
         if response.status_code == 200:
             data = response.json()
+            print(f"[DEBUG] 🔍 Response Type: {type(data)}")
+            print(f"[DEBUG] 🔍 Response Keys: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
+
             # Handle different response formats
             if isinstance(data, list):
+                print(f"[DEBUG] 🔍 Returning list with {len(data)} items")
                 return True, data
             elif isinstance(data, dict) and "bookings" in data:
+                print(f"[DEBUG] 🔍 Returning bookings from dict: {len(data['bookings'])} items")
                 return True, data["bookings"]
             else:
+                print(f"[DEBUG] 🔍 No bookings found in response")
                 return True, []
         else:
+            print(f"[DEBUG] ❌ API Error: {response.status_code}")
             return False, []
     except Exception as e:
-        print(f"Error fetching bookings: {e}")
+        print(f"[DEBUG] ❌ Exception fetching bookings: {e}")
         return False, []

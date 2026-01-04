@@ -190,7 +190,7 @@ def calculate_league_points(
     attendances = db.query(Attendance).join(SessionModel).filter(
         SessionModel.id == session_id,
         SessionModel.semester_id == tournament_id,
-        Attendance.status == AttendanceStatus.PRESENT
+        Attendance.status == AttendanceStatus.present
     ).all()
     
     # Award participation points

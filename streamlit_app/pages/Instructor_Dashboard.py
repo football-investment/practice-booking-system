@@ -801,10 +801,24 @@ with tab3:
 # TAB 4: CHECK-IN & GROUPS
 # ========================================
 with tab4:
-    # Import and render session check-in component
-    from components.sessions.session_checkin import render_session_checkin
+    st.markdown("### ✅ Check-in & Group Assignment")
+    st.caption("Mark attendance and create groups for your sessions")
 
-    render_session_checkin(token, user.get('id'))
+    # Sub-tabs for Regular vs Tournament check-in
+    checkin_tab1, checkin_tab2 = st.tabs([
+        "📋 Regular Sessions (4 statuses)",
+        "🏆 Tournament Sessions (2 statuses)"
+    ])
+
+    with checkin_tab1:
+        # Regular session check-in (Present, Absent, Late, Excused)
+        from components.sessions.session_checkin import render_session_checkin
+        render_session_checkin(token, user.get('id'))
+
+    with checkin_tab2:
+        # Tournament session check-in (Present, Absent ONLY)
+        from components.tournaments.instructor.tournament_checkin import render_tournament_checkin
+        render_tournament_checkin(token, user.get('id'))
 
 # ========================================
 # TAB 5: INBOX

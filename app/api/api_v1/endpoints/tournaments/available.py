@@ -104,20 +104,9 @@ def list_available_tournaments(
             )
 
     # 3. Determine visible tournament age groups based on player category
-    # PRE: Only PRE
-    # YOUTH: YOUTH or AMATEUR (NOT PRO) - Special case!
-    # AMATEUR: Only AMATEUR
-    # PRO: Only PRO
-    visible_age_groups = []
-    if player_age_category == "PRE":
-        visible_age_groups = ["PRE"]
-    elif player_age_category == "YOUTH":
-        visible_age_groups = ["YOUTH", "AMATEUR"]  # YOUTH can "move up" to AMATEUR
-    elif player_age_category in ["AMATEUR", "PRO"]:
-        visible_age_groups = [player_age_category]
-    else:
-        # Fallback (should not happen)
-        visible_age_groups = []
+    # Use shared validation module to ensure DRY principle
+    from app.services.tournament.validation import get_visible_tournament_age_groups
+    visible_age_groups = get_visible_tournament_age_groups(player_age_category)
 
     # 4. Base query: Tournaments ready for enrollment + age category filter
     query = db.query(Semester).filter(
