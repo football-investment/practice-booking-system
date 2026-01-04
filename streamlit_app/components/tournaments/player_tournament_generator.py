@@ -11,6 +11,14 @@ from datetime import date, timedelta
 from typing import Optional, Dict, Any
 import requests
 from config import API_BASE_URL
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir))
+
+from api_helpers_tournaments import get_reward_policies, get_reward_policy_details, distribute_tournament_rewards
 
 
 def render_tournament_generator():
@@ -192,6 +200,66 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             key="tourn_game_type"
         )
 
+        # Reward Policy Selector
+        st.divider()
+        st.write("**🎁 Reward Policy**")
+        st.caption("Select the reward policy for this tournament (immutable after creation)")
+
+        # Get available policies
+        success, error, policies = get_reward_policies(st.session_state.get('token', ''))
+
+        if success and policies:
+            policy_names = [p['policy_name'] for p in policies]
+
+            # Default to "default" policy
+            default_index = 0
+            if "default" in policy_names:
+                default_index = policy_names.index("default")
+
+            selected_policy_name = st.selectbox(
+                "Reward Policy *",
+                options=policy_names,
+                index=default_index,
+                help="Reward policy determines XP and Credits for tournament placements",
+                key="reward_policy_selector"
+            )
+
+            # Show policy preview
+            if selected_policy_name:
+                success_detail, error_detail, policy_details = get_reward_policy_details(
+                    st.session_state.get('token', ''),
+                    selected_policy_name
+                )
+
+                if success_detail and policy_details:
+                    st.info(f"**Policy Preview: {policy_details.get('policy_name', 'Unknown')}** (v{policy_details.get('version', 'N/A')})")
+
+                    # Placement Rewards
+                    placement = policy_details.get('placement_rewards', {})
+                    if placement:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            first = placement.get('1ST', {})
+                            st.caption(f"🥇 1st: {first.get('xp', 0)} XP + {first.get('credits', 0)} Credits")
+                        with col2:
+                            second = placement.get('2ND', {})
+                            st.caption(f"🥈 2nd: {second.get('xp', 0)} XP + {second.get('credits', 0)} Credits")
+                        with col3:
+                            third = placement.get('3RD', {})
+                            st.caption(f"🥉 3rd: {third.get('xp', 0)} XP + {third.get('credits', 0)} Credits")
+                        with col4:
+                            participant = placement.get('PARTICIPANT', {})
+                            st.caption(f"👤 Participant: {participant.get('xp', 0)} XP + {participant.get('credits', 0)} Credits")
+
+                    # Participation Rewards
+                    participation = policy_details.get('participation_rewards', {})
+                    if participation:
+                        session_reward = participation.get('session_attendance', {})
+                        st.caption(f"📅 Session Attendance: {session_reward.get('xp', 0)} XP + {session_reward.get('credits', 0)} Credits")
+        else:
+            st.warning("⚠️ Could not load reward policies. Using default policy.")
+            selected_policy_name = "default"
+
         # Submit button
         st.divider()
         col1, col2 = st.columns([1, 3])
@@ -234,7 +302,8 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             campus_id=campus_id,  # ✅ NEW: Send campus instead of location
             location_id=location_id,
             age_group=age_group,
-            sessions=sessions
+            sessions=sessions,
+            reward_policy_name=selected_policy_name  # ✅ NEW: Reward policy
         )
 
 
@@ -245,7 +314,8 @@ def _create_tournament(
     campus_id: int,
     location_id: int,
     age_group: Optional[str],
-    sessions: list
+    sessions: list,
+    reward_policy_name: str = "default"
 ):
     """Create tournament via API"""
     try:
@@ -260,7 +330,8 @@ def _create_tournament(
                 "location_id": location_id,
                 "age_group": age_group,
                 "sessions": sessions,
-                "auto_book_students": False  # Never auto-book in production
+                "auto_book_students": False,  # Never auto-book in production
+                "reward_policy_name": reward_policy_name  # ✅ NEW: Reward policy
             }
         )
 
@@ -363,6 +434,32 @@ def _render_tournament_card(tournament: Dict[str, Any]):
             else:
                 st.warning("⚠️ No master instructor assigned")
 
+            # Reward Policy Info
+            st.divider()
+            st.write("**🎁 Reward Policy**")
+            reward_policy_name = tournament.get('reward_policy_name', 'default')
+            st.write(f"- Policy: **{reward_policy_name}**")
+
+            # Show policy snapshot if available
+            reward_snapshot = tournament.get('reward_policy_snapshot')
+            if reward_snapshot:
+                st.caption(f"Version: {reward_snapshot.get('version', 'N/A')}")
+
+                # Show placement rewards in compact format
+                placement = reward_snapshot.get('placement_rewards', {})
+                if placement:
+                    first = placement.get('1ST', {})
+                    second = placement.get('2ND', {})
+                    third = placement.get('3RD', {})
+                    participant = placement.get('PARTICIPANT', {})
+
+                    st.caption(f"🥇 1st: {first.get('xp', 0)} XP + {first.get('credits', 0)} Credits")
+                    st.caption(f"🥈 2nd: {second.get('xp', 0)} XP + {second.get('credits', 0)} Credits")
+                    st.caption(f"🥉 3rd: {third.get('xp', 0)} XP + {third.get('credits', 0)} Credits")
+                    st.caption(f"👤 Participant: {participant.get('xp', 0)} XP + {participant.get('credits', 0)} Credits")
+            else:
+                st.caption("⚠️ No policy snapshot (legacy tournament)")
+
             # Assignment request info
             if assignment_request:
                 st.divider()
@@ -412,6 +509,16 @@ def _render_tournament_card(tournament: Dict[str, Any]):
             elif tournament.get("status") == "READY_FOR_ENROLLMENT":
                 st.success("✅ Tournament is active!")
                 st.caption(f"Master Instructor ID: {tournament.get('master_instructor_id')}")
+
+            # Reward Distribution Button (Admin only - for COMPLETED tournaments)
+            if tournament.get("status") == "COMPLETED":
+                st.divider()
+                st.write("**🎁 Reward Distribution**")
+
+                if st.button("🎁 Distribute Rewards", key=f"distribute_rewards_btn_{tournament['id']}", use_container_width=True):
+                    st.session_state['distribute_rewards_tournament_id'] = tournament['id']
+                    st.session_state['distribute_rewards_tournament_name'] = tournament.get('name', 'Untitled')
+                    _show_distribute_rewards_dialog()
 
             # Delete button
             st.divider()
@@ -535,3 +642,73 @@ def _delete_tournament(tournament_id: int):
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
+
+
+@st.dialog("🎁 Distribute Tournament Rewards")
+def _show_distribute_rewards_dialog():
+    """Dialog for distributing tournament rewards with confirmation"""
+    tournament_id = st.session_state.get('distribute_rewards_tournament_id')
+    tournament_name = st.session_state.get('distribute_rewards_tournament_name', 'Untitled')
+
+    st.warning(f"⚠️ Are you sure you want to distribute rewards for **{tournament_name}**?")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    st.info("**This action will:**")
+    st.write("✅ Calculate final rankings based on tournament results")
+    st.write("✅ Award XP and Credits to participants based on their placements")
+    st.write("✅ Use the immutable reward policy snapshot from tournament creation")
+    st.write("✅ Create audit trail via CreditTransaction records")
+
+    st.divider()
+    st.error("**⚠️ This action can be run multiple times, but rewards should only be distributed once!**")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🎁 Confirm Distribution", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            if not token:
+                st.error("❌ Authentication token not found. Please log in again.")
+                return
+
+            # Call reward distribution API
+            success, error, stats = distribute_tournament_rewards(token, tournament_id)
+
+            if success:
+                st.success(f"✅ Rewards distributed successfully!")
+                st.balloons()
+
+                # Show distribution statistics
+                st.divider()
+                st.write("**📊 Distribution Summary:**")
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Participants", stats.get('total_participants', 0))
+                with col2:
+                    st.metric("XP Distributed", stats.get('xp_distributed', 0))
+                with col3:
+                    st.metric("Credits Distributed", stats.get('credits_distributed', 0))
+
+                # Clear session state
+                if 'distribute_rewards_tournament_id' in st.session_state:
+                    del st.session_state['distribute_rewards_tournament_id']
+                if 'distribute_rewards_tournament_name' in st.session_state:
+                    del st.session_state['distribute_rewards_tournament_name']
+
+                import time
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error(f"❌ Failed to distribute rewards: {error}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'distribute_rewards_tournament_id' in st.session_state:
+                del st.session_state['distribute_rewards_tournament_id']
+            if 'distribute_rewards_tournament_name' in st.session_state:
+                del st.session_state['distribute_rewards_tournament_name']
+            st.rerun()

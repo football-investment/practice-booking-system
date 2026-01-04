@@ -188,3 +188,114 @@ def update_tournament(
         return False, "Could not connect to server. Please check your connection.", None
     except Exception as e:
         return False, f"Unexpected error: {str(e)}", None
+
+
+def get_reward_policies(token: str) -> Tuple[bool, Optional[str], List[Dict[str, Any]]]:
+    """
+    Get list of available reward policies (Admin only)
+
+    Args:
+        token: API authentication token
+
+    Returns:
+        Tuple of (success, error_message, policies_list)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - policies_list: List of reward policy dicts with metadata
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/reward-policies",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return True, None, data.get('policies', [])
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, []
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", []
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", []
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", []
+
+
+def get_reward_policy_details(
+    token: str,
+    policy_name: str
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Get details of a specific reward policy (Admin only)
+
+    Args:
+        token: API authentication token
+        policy_name: Name of the reward policy (e.g., "default")
+
+    Returns:
+        Tuple of (success, error_message, policy_details)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - policy_details: Policy details dict with placement/participation rewards
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/reward-policies/{policy_name}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def distribute_tournament_rewards(
+    token: str,
+    tournament_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Distribute rewards to tournament participants based on rankings (Admin only)
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament ID to distribute rewards for
+
+    Returns:
+        Tuple of (success, error_message, distribution_stats)
+        - success: True if distribution succeeded
+        - error_message: Error message if failed, None if succeeded
+        - distribution_stats: Stats dict with total_participants, xp_distributed, credits_distributed
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
