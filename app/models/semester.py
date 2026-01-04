@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey, Table, Enum
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey, Table, Enum, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -88,6 +89,12 @@ class Semester(Base):
                              comment="Participant type: INDIVIDUAL, TEAM, MIXED")
     is_multi_day = Column(Boolean, default=False,
                          comment="True if tournament spans multiple days")
+
+    # 🎁 REWARD POLICY FIELDS (tournament reward system)
+    reward_policy_name = Column(String(100), nullable=False, default="default",
+                                comment="Name of the reward policy applied to this tournament semester")
+    reward_policy_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
+                                    comment="Immutable snapshot of the reward policy at tournament creation time")
 
     # Relationships
     campus = relationship("Campus", foreign_keys=[campus_id],

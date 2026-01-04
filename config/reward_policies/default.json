@@ -1,0 +1,31 @@
+{
+  "policy_name": "default",
+  "version": "1.0.0",
+  "description": "Standard reward policy for all tournament types and specializations",
+  "placement_rewards": {
+    "1ST": {
+      "xp": 500,
+      "credits": 100
+    },
+    "2ND": {
+      "xp": 300,
+      "credits": 50
+    },
+    "3RD": {
+      "xp": 200,
+      "credits": 25
+    },
+    "PARTICIPANT": {
+      "xp": 50,
+      "credits": 0
+    }
+  },
+  "participation_rewards": {
+    "session_attendance": {
+      "xp": 10,
+      "credits": 0
+    }
+  },
+  "specializations": ["LFA_FOOTBALL_PLAYER", "LFA_COACH", "INTERNSHIP", "GANCUJU_PLAYER"],
+  "applies_to_all_tournament_types": true
+}

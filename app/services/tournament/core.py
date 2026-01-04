@@ -20,6 +20,7 @@ from app.models.semester import Semester, SemesterStatus
 from app.models.session import Session as SessionModel, SessionType
 from app.models.booking import Booking
 from app.models.specialization import SpecializationType
+from app.services.tournament.reward_policy_loader import load_policy, RewardPolicyError
 
 
 def create_tournament_semester(
@@ -29,7 +30,8 @@ def create_tournament_semester(
     specialization_type: SpecializationType,
     campus_id: Optional[int] = None,
     location_id: Optional[int] = None,
-    age_group: Optional[str] = None
+    age_group: Optional[str] = None,
+    reward_policy_name: str = "default"
 ) -> Semester:
     """
     Create a 1-day semester for tournament (Admin only)
@@ -45,12 +47,19 @@ def create_tournament_semester(
         campus_id: Optional campus ID (preferred - most specific location)
         location_id: Optional location ID (fallback if campus not specified)
         age_group: Optional age group
+        reward_policy_name: Name of reward policy to use (default: "default")
 
     Returns:
         Created semester object with status SEEKING_INSTRUCTOR
+
+    Raises:
+        RewardPolicyError: If reward policy cannot be loaded
     """
     # Generate code: TOURN-YYYYMMDD (e.g., TOURN-20251227)
     code = f"TOURN-{tournament_date.strftime('%Y%m%d')}"
+
+    # Load and snapshot the reward policy
+    reward_policy = load_policy(reward_policy_name)
 
     semester = Semester(
         code=code,
@@ -63,7 +72,9 @@ def create_tournament_semester(
         specialization_type=specialization_type.value if hasattr(specialization_type, 'value') else specialization_type,
         age_group=age_group,
         campus_id=campus_id,
-        location_id=location_id
+        location_id=location_id,
+        reward_policy_name=reward_policy_name,
+        reward_policy_snapshot=reward_policy  # Immutable snapshot of policy
     )
 
     db.add(semester)
@@ -179,6 +190,8 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
         "age_group": semester.age_group,
         "location_id": semester.location_id,
         "campus_id": semester.campus_id,
+        "reward_policy_name": semester.reward_policy_name,
+        "reward_policy_snapshot": semester.reward_policy_snapshot,
         "session_count": len(sessions),
         "sessions_count": len(sessions),
         "sessions": [

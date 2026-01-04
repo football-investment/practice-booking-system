@@ -14,6 +14,12 @@ from app.api.api_v1.endpoints.auth import get_current_user
 from app.models.user import User, UserRole
 from app.models.specialization import SpecializationType
 from app.services.tournament_service import TournamentService
+from app.services.tournament.tournament_xp_service import distribute_rewards
+from app.services.tournament.reward_policy_loader import (
+    get_available_policies,
+    get_policy_info,
+    RewardPolicyError
+)
 
 router = APIRouter()
 
@@ -43,6 +49,7 @@ class TournamentGenerateRequest(BaseModel):
     sessions: List[SessionConfig] = Field(..., description="Session configurations")
     auto_book_students: bool = Field(False, description="Auto-book students (only for testing)")
     booking_capacity_pct: int = Field(70, ge=0, le=100, description="Booking fill percentage (0-100)")
+    reward_policy_name: str = Field("default", description="Reward policy name (default: 'default')")
 
 
 class SendInstructorRequestSchema(BaseModel):
@@ -79,6 +86,8 @@ class TournamentSummaryResponse(BaseModel):
     age_group: Optional[str]  # ✅ PRE, YOUTH, AMATEUR, PRO
     location_id: Optional[int]  # ✅ Location FK
     campus_id: Optional[int]  # ✅ Campus FK
+    reward_policy_name: str  # ✅ Reward policy name
+    reward_policy_snapshot: Optional[dict]  # ✅ Reward policy snapshot (JSONB)
     session_count: int
     sessions_count: int  # ✅ Added for frontend compatibility
     sessions: List[dict]
@@ -157,7 +166,8 @@ def generate_tournament(
         specialization_type=request.specialization_type,
         campus_id=request.campus_id,  # ✅ NEW: Campus support
         location_id=request.location_id,
-        age_group=request.age_group
+        age_group=request.age_group,
+        reward_policy_name=request.reward_policy_name
     )
 
     # Create sessions (no instructor yet)
@@ -455,3 +465,163 @@ def delete_tournament(
         )
 
     return None
+
+
+@router.post("/{tournament_id}/distribute-rewards", status_code=status.HTTP_200_OK)
+def distribute_tournament_rewards(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Distribute rewards to tournament participants based on final rankings (Admin only)
+
+    **Authorization:** Admin only
+
+    **IMPORTANT:** This distributes XP and credits to all participants based on:
+    - Final rankings (1ST, 2ND, 3RD, PARTICIPANT)
+    - Reward policy snapshot frozen at tournament creation
+
+    **Example Response:**
+    ```json
+    {
+      "tournament_id": 123,
+      "total_participants": 20,
+      "xp_distributed": 1050,
+      "credits_distributed": 175,
+      "message": "Rewards distributed successfully"
+    }
+    ```
+    """
+    # Authorization: Admin only
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can distribute rewards"
+        )
+
+    try:
+        stats = distribute_rewards(db, tournament_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error distributing rewards: {str(e)}"
+        )
+
+    return {
+        "tournament_id": tournament_id,
+        "total_participants": stats["total_participants"],
+        "xp_distributed": stats["xp_distributed"],
+        "credits_distributed": stats["credits_distributed"],
+        "message": "Rewards distributed successfully"
+    }
+
+
+@router.get("/reward-policies", status_code=status.HTTP_200_OK)
+def get_reward_policies(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get list of available reward policies (Admin only)
+
+    **Authorization:** Admin only
+
+    Returns list of available reward policy names and their metadata.
+
+    **Example Response:**
+    ```json
+    {
+      "policies": [
+        {
+          "policy_name": "default",
+          "version": "1.0.0",
+          "description": "Standard reward policy for all tournament types",
+          "applies_to_all_tournament_types": true,
+          "specializations": ["LFA_FOOTBALL_PLAYER", "LFA_COACH", "INTERNSHIP", "GANCUJU_PLAYER"]
+        }
+      ]
+    }
+    ```
+    """
+    # Authorization: Admin only
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can view reward policies"
+        )
+
+    try:
+        policy_names = get_available_policies()
+        policies = []
+
+        for name in policy_names:
+            try:
+                info = get_policy_info(name)
+                policies.append(info)
+            except RewardPolicyError:
+                # Skip invalid policies
+                continue
+
+        return {
+            "policies": policies,
+            "count": len(policies)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error loading reward policies: {str(e)}"
+        )
+
+
+@router.get("/reward-policies/{policy_name}", status_code=status.HTTP_200_OK)
+def get_reward_policy_details(
+    policy_name: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get details of a specific reward policy (Admin only)
+
+    **Authorization:** Admin only
+
+    Returns detailed information about a specific reward policy.
+
+    **Example Response:**
+    ```json
+    {
+      "policy_name": "default",
+      "version": "1.0.0",
+      "description": "Standard reward policy for all tournament types",
+      "placement_rewards": {
+        "1ST": {"xp": 500, "credits": 100},
+        "2ND": {"xp": 300, "credits": 50},
+        "3RD": {"xp": 200, "credits": 25},
+        "PARTICIPANT": {"xp": 50, "credits": 0}
+      },
+      "participation_rewards": {
+        "session_attendance": {"xp": 10, "credits": 0}
+      },
+      "specializations": ["LFA_FOOTBALL_PLAYER", "LFA_COACH", "INTERNSHIP", "GANCUJU_PLAYER"],
+      "applies_to_all_tournament_types": true
+    }
+    ```
+    """
+    # Authorization: Admin only
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can view reward policies"
+        )
+
+    try:
+        policy_info = get_policy_info(policy_name)
+        return policy_info
+    except RewardPolicyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
