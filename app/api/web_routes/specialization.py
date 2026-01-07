@@ -33,16 +33,19 @@ async def specialization_unlock(
     """
     Unlock a specialization from Streamlit (costs 100 credits)
     Uses Bearer token authentication for Streamlit frontend
+
+    BUSINESS LOGIC:
+    - All specializations are VISIBLE to all users (for motivation/future planning)
+    - Age requirement is ONLY enforced at UNLOCK time
     """
+    from ...utils.age_requirements import validate_specialization_for_age
+
     # Check credit balance
     if current_user.credit_balance < 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Insufficient credits. You have {current_user.credit_balance} credits, but need 100."
         )
-
-    # Deduct credits
-    current_user.credit_balance -= 100
 
     # Map specialization enum
     spec_mapping = {
@@ -58,6 +61,26 @@ async def specialization_unlock(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid specialization: {specialization}"
         )
+
+    # ✅ AGE REQUIREMENT VALIDATION (Business requirement)
+    # Check if user meets age requirement for this specialization
+    if not validate_specialization_for_age(specialization, current_user.age):
+        # Get age requirement text for error message
+        age_requirements = {
+            "INTERNSHIP": "18+",
+            "LFA_COACH": "14+",
+            "GANCUJU_PLAYER": "5+",
+            "LFA_PLAYER": "5+"
+        }
+        required_age = age_requirements.get(specialization, "unknown")
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Age requirement not met. This specialization requires age {required_age}. Your current age: {current_user.age or 'not set'}."
+        )
+
+    # Deduct credits (only after all validations pass)
+    current_user.credit_balance -= 100
 
     # Create user license
     new_license = UserLicense(

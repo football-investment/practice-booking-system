@@ -12,6 +12,7 @@ from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY,
 from api_helpers_general import get_current_user, unlock_specialization
 from components.credits.credit_purchase_button import render_credit_purchase_button
 from components.credits.credit_purchase_form import render_credit_purchase_form
+from components.credits.coupon_redemption import render_coupon_redemption
 
 # Page configuration
 st.set_page_config(
@@ -209,44 +210,62 @@ st.divider()
 # SPECIALIZATION CARDS
 # ============================================================================
 
-# Define specializations
+# Calculate user age for age-based validation
+user_age = user.get('age')  # Age property from User model
+
+# Age requirements mapping
+age_requirements_map = {
+    "LFA_PLAYER": 5,
+    "INTERNSHIP": 18,
+    "GANCUJU_PLAYER": 5,
+    "LFA_COACH": 14
+}
+
+# Define specializations (ALL VISIBLE - business requirement)
 specializations = [
     {
         "type": "LFA_PLAYER",
         "icon": "⚽",
         "name": "LFA Football Player",
-        "age_requirement": "Ages 6-99",
-        "description": "Modern football training with age-specific programs: PRE (6-11), YOUTH (12-18), AMATEUR (14+), and PRO (14+, master-led)",
-        "is_available": True,  # Only this one is available now
-        # ✅ FIXED: Match against "LFA_FOOTBALL_PLAYER" (the actual DB value)
-        "is_unlocked": "LFA_FOOTBALL_PLAYER" in unlocked_specs or "LFA_PLAYER" in unlocked_specs or any(spec.startswith('LFA_PLAYER_') for spec in unlocked_specs)
+        "age_requirement": "Ages 5-99",
+        "min_age": 5,
+        "description": "Modern football training with age-specific programs: PRE (5-13), YOUTH (14-18), AMATEUR (14+), and PRO (14+, master-led)",
+        "is_available": True,  # Development status
+        "is_unlocked": "LFA_FOOTBALL_PLAYER" in unlocked_specs or "LFA_PLAYER" in unlocked_specs or any(spec.startswith('LFA_PLAYER_') for spec in unlocked_specs),
+        "meets_age_req": user_age is not None and user_age >= 5  # Age validation
     },
     {
         "type": "INTERNSHIP",
         "icon": "💼",
         "name": "Internship",
         "age_requirement": "Ages 18+",
+        "min_age": 18,
         "description": "Build your startup career from zero to co-founder through hands-on internship program",
-        "is_available": False,  # Coming soon
-        "is_unlocked": "INTERNSHIP" in unlocked_specs
+        "is_available": False,  # Coming soon (development)
+        "is_unlocked": "INTERNSHIP" in unlocked_specs,
+        "meets_age_req": user_age is not None and user_age >= 18
     },
     {
         "type": "GANCUJU_PLAYER",
         "icon": "🥋",
         "name": "GānCuju Player",
-        "age_requirement": "Ages 8+",
+        "age_requirement": "Ages 5+",
+        "min_age": 5,
         "description": "Master the 4000-year-old Chinese football art with authentic Ganball™ equipment and belt system",
-        "is_available": False,  # Coming soon
-        "is_unlocked": "GANCUJU_PLAYER" in unlocked_specs
+        "is_available": False,  # Coming soon (development)
+        "is_unlocked": "GANCUJU_PLAYER" in unlocked_specs,
+        "meets_age_req": user_age is not None and user_age >= 5
     },
     {
         "type": "LFA_COACH",
         "icon": "👨‍🏫",
         "name": "LFA Coach",
-        "age_requirement": "Ages 18+",
+        "age_requirement": "Ages 14+",
+        "min_age": 14,
         "description": "Become a certified football coach with LFA methodology and teaching license",
-        "is_available": False,  # Coming soon
-        "is_unlocked": "LFA_COACH" in unlocked_specs
+        "is_available": False,  # Coming soon (development)
+        "is_unlocked": "LFA_COACH" in unlocked_specs,
+        "meets_age_req": user_age is not None and user_age >= 14
     }
 ]
 
@@ -287,28 +306,52 @@ for idx, spec in enumerate(specializations):
                 st.markdown('<div class="unlocked-badge">✅ UNLOCKED</div>', unsafe_allow_html=True)
 
                 if st.button(f"🚀 ENTER {spec['name']}", key=f"enter_{spec['type']}", use_container_width=True, type="primary"):
-                    # Redirect to specialization-specific dashboard
+                    # Redirect to specialization-specific dashboard OR onboarding if not completed
                     if spec['type'] == 'LFA_PLAYER':
-                        st.switch_page("pages/LFA_Player_Dashboard.py")
+                        # Check if onboarding completed for this license
+                        lfa_license = next((lic for lic in user.get('licenses', [])
+                                          if lic.get('specialization_type') == 'LFA_FOOTBALL_PLAYER'), None)
+
+                        if lfa_license and not lfa_license.get('onboarding_completed', False):
+                            # Onboarding not complete - redirect to onboarding
+                            st.info("Redirecting to onboarding...")
+                            st.switch_page("pages/LFA_Player_Onboarding.py")
+                        else:
+                            # Onboarding complete - go to dashboard
+                            st.switch_page("pages/LFA_Player_Dashboard.py")
                     else:
                         # Other specializations coming soon
                         st.info(f"{spec['name']} dashboard coming soon! Each specialization will have its own dedicated dashboard.")
 
             elif not spec['is_available']:
-                # COMING SOON
+                # COMING SOON (Development status)
                 st.markdown('<div class="coming-soon-badge">🚧 COMING SOON</div>', unsafe_allow_html=True)
                 st.caption("This specialization is under development")
+
+            elif not spec['meets_age_req']:
+                # AGE REQUIREMENT NOT MET (Business rule)
+                st.markdown('<div class="coming-soon-badge">⏳ AGE REQUIREMENT</div>', unsafe_allow_html=True)
+                st.caption(f"Available when you turn {spec['min_age']} years old")
+                st.caption(f"Your current age: {user_age or 'Not set'}")
 
             elif credit_balance < 100:
                 # INSUFFICIENT CREDITS - SHOW PURCHASE BUTTON (delegates to component)
                 render_credit_purchase_button(credit_balance, spec['type'], token)
 
             else:
-                # AVAILABLE TO UNLOCK
+                # AVAILABLE TO UNLOCK (all requirements met!)
                 if st.button(f"🔓 Unlock Now (100 credits)", key=f"unlock_{spec['type']}", use_container_width=True, type="primary"):
                     # Show confirmation modal via session state
                     st.session_state[f'confirming_unlock_{spec["type"]}'] = True
                     st.rerun()
+
+            # "Learn More" button (ALWAYS visible - business requirement)
+            st.divider()
+            if st.button(f"ℹ️ Learn More about {spec['name']}", key=f"learn_{spec['type']}", use_container_width=True):
+                # Navigate to specialization info page with spec type as query parameter
+                # Set query params BEFORE switching page
+                st.session_state['selected_spec'] = spec['type']
+                st.switch_page("pages/Specialization_Info.py")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -356,6 +399,12 @@ for idx, spec in enumerate(specializations):
 # Credit purchase form (if triggered)
 if st.session_state.get('show_credit_purchase', False):
     render_credit_purchase_form(token)
+
+# Coupon redemption form (always show below specializations)
+st.divider()
+st.markdown("### 🎁 Have a Coupon Code?")
+st.caption("Redeem your BONUS_CREDITS coupon to instantly add credits")
+render_coupon_redemption(token)
 
 st.divider()
 
