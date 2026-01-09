@@ -129,9 +129,9 @@ def _render_step1_tournament_selection(token: str, user_id: int):
     st.caption("Select a tournament game session to check in students")
 
     # Fetch sessions (instructor's sessions)
-    sessions = get_sessions(token)
+    success, sessions = get_sessions(token)
 
-    if not sessions:
+    if not success or not sessions:
         st.info("No sessions available for check-in.")
         return
 

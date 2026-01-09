@@ -22,6 +22,7 @@ from app.models.semester import Semester, SemesterStatus
 from app.models.session import Session as SessionModel, SessionType
 from app.models.booking import Booking, BookingStatus
 from app.models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus
+from app.models.coupon import Coupon, CouponUsage, CouponType
 from app.core.security import get_password_hash
 from app.core.auth import create_access_token
 

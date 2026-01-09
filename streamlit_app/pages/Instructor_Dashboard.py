@@ -7,6 +7,7 @@ EXACT API patterns + EXACT UI/UX patterns
 import streamlit as st
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY, SESSION_ROLE_KEY, SPECIALIZATIONS
 from api_helpers import get_sessions, get_users, get_semesters
+from session_manager import restore_session_from_url
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -19,6 +20,10 @@ st.set_page_config(
 
 # Apply CSS
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# CRITICAL: Restore session from URL params BEFORE checking authentication
+if SESSION_TOKEN_KEY not in st.session_state:
+    restore_session_from_url()
 
 # Check authentication
 if SESSION_TOKEN_KEY not in st.session_state or SESSION_USER_KEY not in st.session_state:
@@ -159,9 +164,10 @@ upcoming_sessions.sort(key=lambda x: x.get('date_start', ''))
 todays_sessions = [s for s in upcoming_sessions if datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date() == today]
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📆 Today & Upcoming",
     "💼 My Jobs",
+    "🏆 Tournament Applications",
     "👥 My Students",
     "✅ Check-in & Groups",
     "📬 Inbox",
@@ -751,9 +757,36 @@ with tab2:
         st.caption("Accept tournament requests or master offers to get started")
 
 # ========================================
-# TAB 3: MY STUDENTS
+# TAB 3: TOURNAMENT APPLICATIONS (NEW!)
 # ========================================
 with tab3:
+    # Import tournament application components
+    from components.instructor.tournament_applications import (
+        render_open_tournaments_tab,
+        render_my_applications_tab,
+        render_my_tournaments_tab
+    )
+
+    # Sub-tabs for tournament workflow
+    tourn_tab1, tourn_tab2, tourn_tab3 = st.tabs([
+        "🔍 Open Tournaments",
+        "📋 My Applications",
+        "🏆 My Tournaments"
+    ])
+
+    with tourn_tab1:
+        render_open_tournaments_tab(token, user)
+
+    with tourn_tab2:
+        render_my_applications_tab(token, user)
+
+    with tourn_tab3:
+        render_my_tournaments_tab(token, user)
+
+# ========================================
+# TAB 4: MY STUDENTS
+# ========================================
+with tab4:
     st.markdown("### 👥 My Students")
     st.caption("Students enrolled in your master-led semesters")
 
@@ -798,9 +831,9 @@ with tab3:
         # Display students with same pattern as before
 
 # ========================================
-# TAB 4: CHECK-IN & GROUPS
+# TAB 5: CHECK-IN & GROUPS
 # ========================================
-with tab4:
+with tab5:
     st.markdown("### ✅ Check-in & Group Assignment")
     st.caption("Mark attendance and create groups for your sessions")
 
@@ -821,9 +854,9 @@ with tab4:
         render_tournament_checkin(token, user.get('id'))
 
 # ========================================
-# TAB 5: INBOX
+# TAB 6: INBOX
 # ========================================
-with tab5:
+with tab6:
     st.markdown("### 📬 Inbox")
     st.caption("All pending actions - notifications, tournament requests, and master offers")
 
@@ -850,9 +883,9 @@ with tab5:
     render_all_master_offers(token)
 
 # ========================================
-# TAB 6: MY PROFILE
+# TAB 7: MY PROFILE
 # ========================================
-with tab6:
+with tab7:
     st.markdown("### 👤 My Profile")
     st.caption("Your licenses, teaching permissions, and instructor status")
 

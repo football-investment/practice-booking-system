@@ -36,6 +36,7 @@ from .invoice_request import InvoiceRequest, InvoiceRequestStatus
 from .coupon import Coupon, CouponType
 from .invitation_code import InvitationCode
 from .session_group import SessionGroupAssignment, SessionGroupStudent
+from .audit_log import AuditLog
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
@@ -124,6 +125,7 @@ __all__ = [
     "InstructorSessionReview",
     "SessionGroupAssignment",
     "SessionGroupStudent",
+    "AuditLog",
     # Tournament System
     "TournamentType",
     "ParticipantType",

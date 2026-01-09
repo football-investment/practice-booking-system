@@ -100,6 +100,19 @@ def render_tournament_list(token: str):
                         st.session_state['delete_tournament_name'] = tournament.get('name', 'Untitled')
                         show_delete_tournament_dialog()
 
+            # ========================================================================
+            # INSTRUCTOR APPLICATION MANAGEMENT
+            # ========================================================================
+            st.divider()
+            render_instructor_applications_section(token, tournament)
+
+            # ========================================================================
+            # REWARD DISTRIBUTION
+            # ========================================================================
+            if tournament.get('status') == 'COMPLETED':
+                st.divider()
+                render_reward_distribution_section(token, tournament)
+
 
 def render_game_type_manager(token: str):
     """Manage game types for tournament sessions"""
@@ -730,3 +743,363 @@ def show_delete_tournament_dialog():
             if 'delete_tournament_name' in st.session_state:
                 del st.session_state['delete_tournament_name']
             st.rerun()
+
+
+# ========================================
+# INSTRUCTOR APPLICATION MANAGEMENT
+# ========================================
+
+def render_instructor_applications_section(token: str, tournament: Dict):
+    """
+    Render instructor application management section within tournament expander.
+
+    Shows:
+    - Current instructor assignment status
+    - Pending instructor applications
+    - Approve/Reject buttons for applications
+    """
+    from config import API_BASE_URL, API_TIMEOUT
+
+    tournament_id = tournament.get('id')
+    status = tournament.get('status', 'N/A')
+    master_instructor_id = tournament.get('master_instructor_id')
+
+    st.subheader("👨‍🏫 Instructor Assignment")
+
+    # Show current instructor status
+    if master_instructor_id:
+        st.success(f"✅ **Instructor Assigned** (ID: {master_instructor_id})")
+    elif status == "SEEKING_INSTRUCTOR":
+        st.warning("⏳ **Seeking Instructor** - No instructor assigned yet")
+    else:
+        st.info(f"**Status**: {status}")
+
+    # Fetch pending applications for this tournament
+    applications = get_instructor_applications(token, tournament_id)
+
+    if not applications:
+        st.caption("No instructor applications")
+        return
+
+    st.write(f"**Applications**: {len(applications)}")
+    st.divider()
+
+    # Display each application
+    for app in applications:
+        render_instructor_application_card(token, tournament_id, app)
+
+
+def get_instructor_applications(token: str, tournament_id: int) -> List[Dict]:
+    """Fetch instructor applications for a tournament"""
+    from config import API_BASE_URL, API_TIMEOUT
+
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-applications",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('applications', [])
+        else:
+            return []
+    except Exception:
+        return []
+
+
+def render_instructor_application_card(token: str, tournament_id: int, application: Dict):
+    """Render a single instructor application with approve/reject buttons"""
+    from config import API_BASE_URL, API_TIMEOUT
+
+    app_id = application.get('id')
+    instructor_name = application.get('instructor_name', 'Unknown')
+    instructor_email = application.get('instructor_email', 'N/A')
+    status = application.get('status', 'PENDING')
+    applied_at = application.get('created_at', 'N/A')
+    request_message = application.get('request_message') or application.get('application_message', '')
+
+    # Status badge color
+    status_color = {
+        'PENDING': '🟡',
+        'ACCEPTED': '🟢',
+        'DECLINED': '🔴',
+        'CANCELLED': '⚫',
+        'EXPIRED': '⚪'
+    }.get(status, '⚪')
+
+    with st.container():
+        st.markdown(f"**{status_color} Application #{app_id}** - {instructor_name}")
+
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            st.caption(f"📧 {instructor_email}")
+            st.caption(f"📅 Applied: {applied_at[:19] if len(applied_at) > 19 else applied_at}")
+            if request_message:
+                st.caption(f"💬 Message: {request_message}")
+
+        with col2:
+            # Only show approve/reject buttons for PENDING applications
+            if status == 'PENDING':
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
+                    if st.button("✅", key=f"approve_app_{app_id}", help="Approve application"):
+                        st.session_state['approve_app_id'] = app_id
+                        st.session_state['approve_tournament_id'] = tournament_id
+                        st.session_state['approve_instructor_name'] = instructor_name
+                        show_approve_application_dialog()
+                with btn_col2:
+                    if st.button("❌", key=f"reject_app_{app_id}", help="Reject application"):
+                        st.session_state['reject_app_id'] = app_id
+                        st.session_state['reject_tournament_id'] = tournament_id
+                        st.session_state['reject_instructor_name'] = instructor_name
+                        show_reject_application_dialog()
+            else:
+                st.caption(f"**Status**: {status}")
+
+        st.divider()
+
+
+@st.dialog("✅ Approve Instructor Application")
+def show_approve_application_dialog():
+    """Dialog for approving an instructor application"""
+    from config import API_BASE_URL, API_TIMEOUT
+
+    app_id = st.session_state.get('approve_app_id')
+    tournament_id = st.session_state.get('approve_tournament_id')
+    instructor_name = st.session_state.get('approve_instructor_name', 'Unknown')
+
+    st.write(f"**Approve application from**: {instructor_name}")
+    st.write(f"**Application ID**: {app_id}")
+    st.divider()
+
+    # Optional response message
+    response_message = st.text_area(
+        "Response Message (optional)",
+        value="Application approved - looking forward to working with you!",
+        key="approve_response_message"
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✅ Approve", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            try:
+                response = requests.post(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-applications/{app_id}/approve",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"response_message": response_message},
+                    timeout=API_TIMEOUT
+                )
+
+                if response.status_code == 200:
+                    st.success("✅ Application approved successfully!")
+                    st.info("ℹ️ Instructor must now accept the assignment via API to activate.")
+                    time.sleep(2)
+                    # Clear session state
+                    if 'approve_app_id' in st.session_state:
+                        del st.session_state['approve_app_id']
+                    if 'approve_tournament_id' in st.session_state:
+                        del st.session_state['approve_tournament_id']
+                    if 'approve_instructor_name' in st.session_state:
+                        del st.session_state['approve_instructor_name']
+                    st.rerun()
+                else:
+                    error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                    error_msg = error_data.get('detail', response.text)
+                    st.error(f"❌ Error: {error_msg}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            # Clear session state
+            if 'approve_app_id' in st.session_state:
+                del st.session_state['approve_app_id']
+            if 'approve_tournament_id' in st.session_state:
+                del st.session_state['approve_tournament_id']
+            if 'approve_instructor_name' in st.session_state:
+                del st.session_state['approve_instructor_name']
+            st.rerun()
+
+
+@st.dialog("❌ Reject Instructor Application")
+def show_reject_application_dialog():
+    """Dialog for rejecting an instructor application"""
+    from config import API_BASE_URL, API_TIMEOUT
+
+    app_id = st.session_state.get('reject_app_id')
+    tournament_id = st.session_state.get('reject_tournament_id')
+    instructor_name = st.session_state.get('reject_instructor_name', 'Unknown')
+
+    st.warning(f"**Reject application from**: {instructor_name}")
+    st.write(f"**Application ID**: {app_id}")
+    st.divider()
+
+    # Optional response message
+    response_message = st.text_area(
+        "Rejection Reason (optional)",
+        value="Thank you for your interest, but we have selected another instructor.",
+        key="reject_response_message"
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("❌ Reject", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            # Note: Backend doesn't have a reject endpoint yet, we'll use PATCH to update status
+            try:
+                response = requests.patch(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-applications/{app_id}",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={
+                        "status": "DECLINED",
+                        "response_message": response_message
+                    },
+                    timeout=API_TIMEOUT
+                )
+
+                if response.status_code == 200:
+                    st.success("✅ Application rejected successfully!")
+                    time.sleep(2)
+                    # Clear session state
+                    if 'reject_app_id' in st.session_state:
+                        del st.session_state['reject_app_id']
+                    if 'reject_tournament_id' in st.session_state:
+                        del st.session_state['reject_tournament_id']
+                    if 'reject_instructor_name' in st.session_state:
+                        del st.session_state['reject_instructor_name']
+                    st.rerun()
+                else:
+                    error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                    error_msg = error_data.get('detail', response.text)
+                    st.error(f"❌ Error: {error_msg}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            # Clear session state
+            if 'reject_app_id' in st.session_state:
+                del st.session_state['reject_app_id']
+            if 'reject_tournament_id' in st.session_state:
+                del st.session_state['reject_tournament_id']
+            if 'reject_instructor_name' in st.session_state:
+                del st.session_state['reject_instructor_name']
+            st.rerun()
+
+
+# ============================================================================
+# REWARD DISTRIBUTION SECTION
+# ============================================================================
+
+def render_reward_distribution_section(token: str, tournament: Dict):
+    """
+    Render reward distribution section for COMPLETED tournaments.
+
+    Shows:
+    - Tournament completion status
+    - Reward distribution button
+    - Distribution results
+    """
+    from config import API_BASE_URL, API_TIMEOUT
+
+    tournament_id = tournament.get('id')
+    tournament_name = tournament.get('name', 'Unknown')
+
+    st.subheader("🎁 Reward Distribution")
+
+    # Check if rewards already distributed
+    reward_policy = tournament.get('reward_policy_snapshot')
+    if reward_policy:
+        st.success("✅ **Reward policy configured**")
+        st.caption(f"Policy: {reward_policy.get('name', 'Unknown')}")
+    else:
+        st.warning("⚠️ **No reward policy configured for this tournament**")
+        st.caption("Rewards cannot be distributed without a configured policy.")
+        return
+
+    st.divider()
+
+    # Distribute Rewards button
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        if st.button(
+            "🎁 Distribute Rewards",
+            key=f"distribute_{tournament_id}",
+            use_container_width=True,
+            type="primary",
+            help="Distribute XP and credits to tournament participants based on rankings"
+        ):
+            # Call distribute rewards endpoint
+            try:
+                with st.spinner("Distributing rewards..."):
+                    response = requests.post(
+                        f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=API_TIMEOUT
+                    )
+
+                    if response.status_code == 200:
+                        result = response.json()
+
+                        st.success("✅ **Rewards distributed successfully!**")
+
+                        # Display distribution summary
+                        col_a, col_b, col_c = st.columns(3)
+
+                        with col_a:
+                            st.metric(
+                                "👥 Participants",
+                                result.get('total_participants', 0)
+                            )
+
+                        with col_b:
+                            st.metric(
+                                "⭐ Total XP",
+                                result.get('xp_distributed', 0)
+                            )
+
+                        with col_c:
+                            st.metric(
+                                "💰 Total Credits",
+                                result.get('credits_distributed', 0)
+                            )
+
+                        # Show individual rewards if available
+                        if 'rewards' in result:
+                            st.divider()
+                            st.caption("**Individual Rewards:**")
+
+                            for reward in result.get('rewards', []):
+                                placement = reward.get('placement', 'N/A')
+                                player_name = reward.get('player_name', 'Unknown')
+                                xp = reward.get('xp', 0)
+                                credits = reward.get('credits', 0)
+
+                                st.caption(
+                                    f"• **{placement}** - {player_name}: "
+                                    f"+{xp} XP, +{credits} credits"
+                                )
+
+                        time.sleep(2)
+                        st.rerun()
+
+                    else:
+                        error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                        error_msg = error_data.get('detail', response.text)
+                        st.error(f"❌ Distribution failed: {error_msg}")
+
+            except Exception as e:
+                st.error(f"❌ Error distributing rewards: {str(e)}")

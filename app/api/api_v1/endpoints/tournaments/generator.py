@@ -14,7 +14,6 @@ from app.api.api_v1.endpoints.auth import get_current_user
 from app.models.user import User, UserRole
 from app.models.specialization import SpecializationType
 from app.services.tournament_service import TournamentService
-from app.services.tournament.tournament_xp_service import distribute_rewards
 from app.services.tournament.reward_policy_loader import (
     get_available_policies,
     get_policy_info,
@@ -467,59 +466,12 @@ def delete_tournament(
     return None
 
 
-@router.post("/{tournament_id}/distribute-rewards", status_code=status.HTTP_200_OK)
-def distribute_tournament_rewards(
-    tournament_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Distribute rewards to tournament participants based on final rankings (Admin only)
-
-    **Authorization:** Admin only
-
-    **IMPORTANT:** This distributes XP and credits to all participants based on:
-    - Final rankings (1ST, 2ND, 3RD, PARTICIPANT)
-    - Reward policy snapshot frozen at tournament creation
-
-    **Example Response:**
-    ```json
-    {
-      "tournament_id": 123,
-      "total_participants": 20,
-      "xp_distributed": 1050,
-      "credits_distributed": 175,
-      "message": "Rewards distributed successfully"
-    }
-    ```
-    """
-    # Authorization: Admin only
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can distribute rewards"
-        )
-
-    try:
-        stats = distribute_rewards(db, tournament_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error distributing rewards: {str(e)}"
-        )
-
-    return {
-        "tournament_id": tournament_id,
-        "total_participants": stats["total_participants"],
-        "xp_distributed": stats["xp_distributed"],
-        "credits_distributed": stats["credits_distributed"],
-        "message": "Rewards distributed successfully"
-    }
+# NOTE: distribute_rewards endpoint moved to rewards.py for better organization
+# The new endpoint includes:
+# - Ranking validation
+# - Status transition to REWARDS_DISTRIBUTED
+# - Proper response schema with status field
+# See: app/api/api_v1/endpoints/tournaments/rewards.py
 
 
 @router.get("/reward-policies", status_code=status.HTTP_200_OK)

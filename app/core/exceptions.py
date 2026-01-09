@@ -157,7 +157,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     """Handle database-related exceptions."""
     error_code = "database_error"
-    
+
     # Determine specific error type and user-friendly message
     if isinstance(exc, IntegrityError):
         error_code = "integrity_error"
@@ -166,7 +166,7 @@ async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> 
     else:
         user_message = "Database operation failed"
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    
+
     ProductionExceptionHandler.log_exception(
         request=request,
         exc=exc,
@@ -174,7 +174,7 @@ async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> 
         error_code=error_code,
         user_message=user_message
     )
-    
+
     return ProductionExceptionHandler.create_error_response(
         status_code=status_code,
         error_code=error_code,

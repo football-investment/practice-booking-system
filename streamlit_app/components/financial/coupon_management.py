@@ -48,14 +48,31 @@ def render_coupon_management(token: str):
                         st.caption(coupon['description'])
 
                 with c2:
-                    dtype = coupon.get('type', 'percent')
+                    dtype = coupon.get('type', 'BONUS_CREDITS')
                     dval = coupon.get('discount_value', 0)
-                    if dtype == 'percent':
-                        st.markdown(f"**{int(dval * 100)}%**")
-                    elif dtype == 'fixed':
-                        st.markdown(f"**€{dval}**")
-                    else:  # credits
+
+                    # Display value based on type
+                    if dtype == 'BONUS_CREDITS':
                         st.markdown(f"**+{int(dval)} cr**")
+                        st.caption("Instant")
+                    elif dtype == 'PURCHASE_DISCOUNT_PERCENT':
+                        st.markdown(f"**{int(dval * 100)}% off**")
+                        st.caption("Purchase")
+                    elif dtype == 'PURCHASE_BONUS_CREDITS':
+                        st.markdown(f"**+{int(dval)} cr**")
+                        st.caption("Purchase")
+                    # Legacy types (backwards compatibility - should not appear after migration)
+                    elif dtype == 'PERCENT':
+                        st.markdown(f"**{int(dval * 100)}%**")
+                        st.caption("Legacy")
+                    elif dtype == 'FIXED':
+                        st.markdown(f"**€{dval}**")
+                        st.caption("Legacy")
+                    elif dtype == 'CREDITS':
+                        st.markdown(f"**+{int(dval)} cr**")
+                        st.caption("Legacy")
+                    else:
+                        st.markdown(f"**{dval}**")
 
                 with c3:
                     if coupon.get('is_active'):
@@ -100,40 +117,64 @@ def _render_create_coupon_modal(token: str):
     """Render the create coupon modal (internal function)"""
     @st.dialog("Create Coupon")
     def create_coupon_modal():
+        # Initialize coupon type in session state if not present
+        if 'coupon_type_select' not in st.session_state:
+            st.session_state.coupon_type_select = "BONUS_CREDITS"
+
+        # Type selection OUTSIDE form to enable dynamic field updates
+        dtype = st.selectbox(
+            "Type *",
+            ["BONUS_CREDITS", "PURCHASE_DISCOUNT_PERCENT", "PURCHASE_BONUS_CREDITS"],
+            key="coupon_type_select",
+            format_func=lambda x: {
+                "BONUS_CREDITS": "🎁 Bonus Credits (Instant)",
+                "PURCHASE_DISCOUNT_PERCENT": "💰 Purchase Discount (%)",
+                "PURCHASE_BONUS_CREDITS": "🎉 Purchase Bonus Credits"
+            }[x],
+            help="""
+            - Bonus Credits: Immediately awarded when coupon is redeemed (no purchase required)
+            - Purchase Discount %: Percentage discount when buying credit packages (requires invoice + admin approval)
+            - Purchase Bonus Credits: Extra credits awarded after credit package purchase (requires invoice + admin approval)
+            """
+        )
+
+        st.divider()
+
+        # Now render the form with dynamic fields based on selected type
         with st.form("create_coupon_f"):
             code = st.text_input("Code *", placeholder="SUMMER25", help="Unique coupon code (uppercase)")
             desc = st.text_area("Description", placeholder="Describe what this coupon does")
 
-            # Type selection
-            dtype = st.selectbox(
-                "Type *",
-                ["percent", "fixed", "credits"],
-                help="percent = percentage off, fixed = fixed € discount, credits = bonus credits"
-            )
-
             # Value input with validation based on type
-            if dtype == "percent":
-                dval = st.number_input(
-                    "Discount Percentage *",
-                    min_value=0.0,
-                    max_value=100.0,
-                    step=1.0,
-                    help="Enter percentage (0-100). Example: 10 = 10% discount"
-                )
-            elif dtype == "fixed":
-                dval = st.number_input(
-                    "Fixed Discount (€) *",
-                    min_value=0.0,
-                    step=1.0,
-                    help="Enter amount in euros. Example: 50 = €50 discount"
-                )
-            else:  # credits
+            if dtype == "BONUS_CREDITS":
                 dval = st.number_input(
                     "Bonus Credits *",
-                    min_value=0.0,
+                    min_value=1.0,
                     step=10.0,
-                    help="Enter bonus credits. Example: 100 = +100 credits"
+                    help="Enter bonus credits. Example: 500 = +500 credits immediately upon redemption"
                 )
+                st.info("✅ Credits will be awarded IMMEDIATELY upon redemption (no purchase or approval required)")
+
+            elif dtype == "PURCHASE_DISCOUNT_PERCENT":
+                dval = st.number_input(
+                    "Discount Percentage *",
+                    min_value=1.0,
+                    max_value=100.0,
+                    step=1.0,
+                    help="Enter percentage (1-100). Example: 20 = 20% discount on credit package purchase"
+                )
+                st.warning("⚠️ Requires invoice generation and admin approval")
+                st.caption("Example: User buys 1000cr package (€100) with 20% discount → Pays €80 → Admin approves → User receives 1000cr")
+
+            elif dtype == "PURCHASE_BONUS_CREDITS":
+                dval = st.number_input(
+                    "Bonus Credits *",
+                    min_value=1.0,
+                    step=10.0,
+                    help="Enter bonus credits. Example: 500 = +500 bonus credits after purchase"
+                )
+                st.warning("⚠️ Requires invoice generation and admin approval")
+                st.caption("Example: User buys 1000cr package (€100) → Pays €100 → Admin approves → User receives 1000cr + 500cr bonus = 1500cr total")
 
             # Optional settings
             c1, c2 = st.columns(2)
@@ -162,6 +203,9 @@ def _render_create_coupon_modal(token: str):
 
             if can:
                 st.session_state.show_create_coupon_modal = False
+                # Clean up coupon type selection
+                if 'coupon_type_select' in st.session_state:
+                    del st.session_state.coupon_type_select
                 st.rerun()
 
             if sub:
@@ -174,8 +218,13 @@ def _render_create_coupon_modal(token: str):
                     st.error("Value must be greater than 0!")
                     return
 
-                # Convert percent to decimal (10 → 0.1)
-                backend_value = dval / 100.0 if dtype == "percent" else dval
+                # Convert value based on type
+                if dtype == "PURCHASE_DISCOUNT_PERCENT":
+                    # Convert percentage to decimal (20 → 0.2)
+                    backend_value = dval / 100.0
+                else:
+                    # For bonus credits types, use value directly
+                    backend_value = dval
 
                 # Calculate expiration date
                 expires_at = None
@@ -200,6 +249,9 @@ def _render_create_coupon_modal(token: str):
                 if s:
                     st.success(f"✅ Coupon '{code.upper()}' created!")
                     st.session_state.show_create_coupon_modal = False
+                    # Clean up coupon type selection
+                    if 'coupon_type_select' in st.session_state:
+                        del st.session_state.coupon_type_select
                     st.rerun()
                 else:
                     st.error(f"❌ Failed: {e}")

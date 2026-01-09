@@ -8,6 +8,7 @@ from datetime import datetime
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY
 from api_helpers_general import get_current_user, get_credit_transactions, get_my_invoices
 from components.credits.credit_purchase_form import render_credit_purchase_form
+from components.credits.coupon_redemption import render_coupon_redemption
 
 # Page configuration
 st.set_page_config(
@@ -18,6 +19,11 @@ st.set_page_config(
 
 # Apply CSS
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# CRITICAL: Restore session from URL if not in session_state
+if SESSION_TOKEN_KEY not in st.session_state:
+    from session_manager import restore_session_from_url
+    restore_session_from_url()
 
 # Authentication check
 if SESSION_TOKEN_KEY not in st.session_state or SESSION_USER_KEY not in st.session_state:
@@ -68,7 +74,7 @@ st.title("My Credits")
 st.caption("Manage your credits, view history, and track invoices")
 
 # Main tabs
-tab1, tab2, tab3 = st.tabs(["Purchase Credits", "Transaction History", "My Invoices"])
+tab1, tab2, tab3, tab4 = st.tabs(["Purchase Credits", "Redeem Coupon", "Transaction History", "My Invoices"])
 
 # ========================================
 # TAB 1: PURCHASE CREDITS
@@ -84,9 +90,22 @@ with tab1:
     render_credit_purchase_form(token)
 
 # ========================================
-# TAB 2: TRANSACTION HISTORY
+# TAB 2: REDEEM COUPON
 # ========================================
 with tab2:
+    st.markdown("### Redeem Coupon")
+    st.caption("Apply BONUS_CREDITS coupons for instant credits")
+
+    # Show current balance
+    st.info(f"**Current Balance:** {user.get('credit_balance', 0)} credits")
+
+    # Render coupon redemption form
+    render_coupon_redemption(token)
+
+# ========================================
+# TAB 3: TRANSACTION HISTORY
+# ========================================
+with tab3:
     st.markdown("### Transaction History")
     st.caption("All credit purchases, uses, and adjustments")
 
@@ -154,9 +173,9 @@ with tab2:
         st.warning("Failed to load transaction history")
 
 # ========================================
-# TAB 3: MY INVOICES
+# TAB 4: MY INVOICES
 # ========================================
-with tab3:
+with tab4:
     st.markdown("### My Invoices")
     st.caption("Track your credit purchase requests")
 

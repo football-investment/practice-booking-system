@@ -40,6 +40,10 @@ class Semester(Base):
     status = Column(Enum(SemesterStatus, name='semester_status'), nullable=False, default=SemesterStatus.DRAFT, index=True,
                    comment="Current lifecycle phase of the semester")
 
+    # Tournament-specific status (for tournament lifecycle)
+    tournament_status = Column(String(50), nullable=True, index=True,
+                              comment="Tournament-specific status: DRAFT, SEEKING_INSTRUCTOR, READY_FOR_ENROLLMENT, etc.")
+
     # DEPRECATED: Use 'status' instead
     is_active = Column(Boolean, default=True,
                       comment="DEPRECATED: Use status field instead. Kept for backward compatibility.")

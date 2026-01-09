@@ -51,6 +51,55 @@ def validate_coupon(token: str, coupon_code: str) -> Tuple[bool, str, dict]:
         return False, f"Error: {str(e)}", {}
 
 
+def apply_coupon(token: str, coupon_code: str) -> Tuple[bool, str, dict]:
+    """
+    Apply BONUS_CREDITS coupon to user account (instant redemption)
+
+    Args:
+        token: Authentication token
+        coupon_code: Coupon code to apply
+
+    Returns:
+        (success: bool, error: str, data: dict)
+        data = {
+            "message": str,
+            "coupon_code": str,
+            "coupon_type": str,
+            "credits_awarded": int,
+            "new_balance": int
+        }
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/coupons/apply",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"code": coupon_code},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, "", response.json()
+        elif response.status_code == 404:
+            error_detail = response.json().get("detail", {})
+            if isinstance(error_detail, dict):
+                error_msg = error_detail.get("message", "Coupon not found")
+            else:
+                error_msg = str(error_detail)
+            return False, error_msg, {}
+        elif response.status_code == 400:
+            error_detail = response.json().get("detail", {})
+            if isinstance(error_detail, dict):
+                error_msg = error_detail.get("message", "Coupon is not valid")
+            else:
+                error_msg = str(error_detail)
+            return False, error_msg, {}
+        else:
+            return False, "Failed to apply coupon", {}
+
+    except Exception as e:
+        return False, f"Error: {str(e)}", {}
+
+
 def get_coupons(token: str) -> Tuple[bool, Optional[List[Dict]]]:
     """
     Get all coupons (admin only) - uses cookie auth
@@ -75,13 +124,13 @@ def get_coupons(token: str) -> Tuple[bool, Optional[List[Dict]]]:
 
 def create_coupon(token: str, coupon_data: Dict) -> Tuple[bool, Optional[str], Optional[Dict]]:
     """
-    Create a new coupon - uses cookie auth
+    Create a new coupon - uses Bearer token auth (not cookie)
     Returns: (success, error_message, coupon_dict)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/admin/coupons",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},  # Bearer token instead of cookie
             json=coupon_data,
             timeout=API_TIMEOUT
         )
