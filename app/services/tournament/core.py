@@ -68,6 +68,7 @@ def create_tournament_semester(
         end_date=tournament_date,  # 1-day tournament
         is_active=True,
         status=SemesterStatus.SEEKING_INSTRUCTOR,  # Tournament needs master instructor
+        tournament_status="SEEKING_INSTRUCTOR",  # String field for tournament lifecycle
         master_instructor_id=None,  # No instructor yet - admin assigns later
         specialization_type=specialization_type.value if hasattr(specialization_type, 'value') else specialization_type,
         age_group=age_group,
