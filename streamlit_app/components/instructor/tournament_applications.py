@@ -120,8 +120,9 @@ def accept_assignment(token: str, tournament_id: int) -> bool:
     """
     try:
         response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-assignment/accept",
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor/accept",
             headers={"Authorization": f"Bearer {token}"},
+            json={},  # Empty request body required by endpoint
             timeout=API_TIMEOUT
         )
 
@@ -344,6 +345,7 @@ def render_application_card(token: str, application: Dict, status_category: str)
     tournament_id = application.get('tournament_id')
     tournament_name = application.get('tournament_name', 'Unknown Tournament')
     status = application.get('status')
+    tournament_status = application.get('tournament_status')  # NEW: Get tournament status
     created_at = application.get('created_at')
     application_message = application.get('application_message', 'N/A')
     response_message = application.get('response_message')
@@ -355,19 +357,30 @@ def render_application_card(token: str, application: Dict, status_category: str)
     except:
         created_date = 'N/A'
 
-    # Status badge styling
+    # Status badge styling - USE TOURNAMENT STATUS for more accurate state
+    # Application status "ACCEPTED" means admin approved, but tournament may still need instructor acceptance
     if status == 'PENDING':
         badge_color = '#FFF3E0'
         badge_text_color = '#E65100'
         badge_icon = '⏳'
+        display_status = 'PENDING'
+    elif status == 'ACCEPTED' and tournament_status == 'PENDING_INSTRUCTOR_ACCEPTANCE':
+        # Admin approved, but instructor needs to accept
+        badge_color = '#FFF3E0'
+        badge_text_color = '#F57C00'
+        badge_icon = '⏳'
+        display_status = 'ACTION REQUIRED'
     elif status == 'ACCEPTED':
+        # Fully accepted (instructor confirmed)
         badge_color = '#E8F5E9'
         badge_text_color = '#2E7D32'
         badge_icon = '✅'
+        display_status = 'CONFIRMED'
     else:
         badge_color = '#FFEBEE'
         badge_text_color = '#C62828'
         badge_icon = '❌'
+        display_status = status
 
     with st.container():
         col1, col2 = st.columns([3, 1])
@@ -387,21 +400,21 @@ def render_application_card(token: str, application: Dict, status_category: str)
                         pass
 
         with col2:
-            # Status badge
+            # Status badge - using display_status instead of raw status
             st.markdown(
                 f"<div style='text-align: center; padding: 10px; background-color: {badge_color}; "
                 f"border-radius: 5px; font-weight: bold; color: {badge_text_color};'>"
-                f"{badge_icon} {status}</div>",
+                f"{badge_icon} {display_status}</div>",
                 unsafe_allow_html=True
             )
 
-            # Accept button for ACCEPTED applications
-            if status == 'ACCEPTED':
+            # Accept button for ACCEPTED applications that need instructor action
+            if status == 'ACCEPTED' and tournament_status == 'PENDING_INSTRUCTOR_ACCEPTANCE':
                 if st.button(f"✅ Accept Assignment", key=f"accept_{app_id}", use_container_width=True, type="primary"):
                     if accept_assignment(token, tournament_id):
                         st.success("✅ Assignment accepted successfully!")
-                        st.success("🎉 You are now the master instructor for this tournament!")
-                        time.sleep(2)
+                        st.info("🎉 You are now the master instructor for this tournament!")
+                        time.sleep(3)  # Give time for success message to be visible
                         st.rerun()
 
         st.divider()

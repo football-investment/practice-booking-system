@@ -41,6 +41,7 @@ class Semester(SemesterBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    tournament_status: Optional[str] = None  # Tournament-specific status
 
     model_config = ConfigDict(from_attributes=True)
 

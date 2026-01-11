@@ -547,6 +547,20 @@ def create_player_users(token: str, count: int = 5, age_group: str = "AMATEUR") 
         conn.close()
         user["initial_credits"] = 1000
 
+        # Login to get token for UI access
+        login_response = requests.post(
+            f"{API_BASE_URL}/api/v1/auth/login",
+            json={
+                "email": player_data["email"],
+                "password": player_data["password"]
+            }
+        )
+        if login_response.status_code == 200:
+            login_data = login_response.json()
+            user["token"] = login_data["access_token"]
+        else:
+            raise Exception(f"Failed to login player {player_data['email']}: {login_response.text}")
+
         players.append(user)
 
     return players
@@ -687,20 +701,34 @@ def set_tournament_rankings(
 
 def mark_tournament_completed(token: str, tournament_id: int):
     """Mark tournament as COMPLETED."""
-    response = requests.patch(
-        f"{API_BASE_URL}/api/v1/semesters/{tournament_id}",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"status": "COMPLETED"}
+    # WORKAROUND: SemesterUpdate schema doesn't include tournament_status field,
+    # so we update via direct SQL to set both status and tournament_status
+    import psycopg2
+    conn = psycopg2.connect(
+        dbname="lfa_intern_system",
+        user="postgres",
+        password="postgres",
+        host="localhost",
+        port="5432"
     )
-    response.raise_for_status()
-    return response.json()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE semesters SET status = 'COMPLETED', tournament_status = 'COMPLETED' WHERE id = %s",
+        (tournament_id,)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return {"message": "Tournament marked as COMPLETED"}
 
 
 def distribute_rewards(token: str, tournament_id: int) -> Dict[str, Any]:
     """Trigger reward distribution."""
     response = requests.post(
         f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
+        json={"reason": "E2E test reward distribution"}
     )
     response.raise_for_status()
     return response.json()

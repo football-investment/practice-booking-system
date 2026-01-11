@@ -109,31 +109,30 @@ def submit_invitation_form_and_capture_code(page: Page) -> str:
 
     # Wait for success message and code display
     # The modal shows the generated code in a st.code() element after success
+    page.wait_for_timeout(3000)  # Wait longer for new code to appear
+
     code_elements = page.locator("code").all()
 
-    # Find the invitation code (format: INV-YYYYMMDD-XXXXXX)
-    generated_code = None
+    # Find ALL invitation codes and take the LAST one (most recent)
+    invitation_codes_found = []
     for code_el in code_elements:
         try:
             code_value = code_el.inner_text(timeout=500)
             if code_value and code_value.startswith("INV-"):
-                generated_code = code_value
-                break
+                invitation_codes_found.append(code_value)
         except:
             pass
 
-    if not generated_code:
+    if not invitation_codes_found:
         raise AssertionError("Could not capture generated invitation code from modal")
 
+    # Use the LAST (most recent) code
+    generated_code = invitation_codes_found[-1]
     print(f"✅ Captured invitation code: {generated_code}")
 
-    # Close modal by waiting for it to auto-close or clicking outside
-    # (The modal might stay open to show the code, so we need to close it)
-    page.wait_for_timeout(2000)
-
-    # Click outside modal or press Escape to close
+    # Close modal by pressing Escape
     page.keyboard.press("Escape")
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(2000)  # Wait for modal to fully close
 
     return generated_code
 
@@ -401,7 +400,7 @@ def test_d2_first_user_registers_with_invitation(page: Page):
         "email": "pwt.k1sqx1@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
         "password": "password123",
         "phone": "+36 20 123 4567",
-        "date_of_birth": "2016-05-15",  # Age 10 (Pre category: 6-11)
+        "date_of_birth": "2014-05-15",  # Age 10 (Pre category: 5-13)
         "nationality": "Hungarian",
         "gender": "Male",
         "street_address": "Fő utca 12",
@@ -442,7 +441,7 @@ def test_d3_second_user_registers_with_invitation(page: Page):
         "email": "pwt.p3t1k3@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
         "password": "password123",
         "phone": "+36 30 234 5678",
-        "date_of_birth": "2012-08-20",  # Age 14 (Youth category: 12-17)
+        "date_of_birth": "2009-08-20",  # Age 15 (Youth category: 14-17)
         "nationality": "Hungarian",
         "gender": "Male",
         "street_address": "Petőfi utca 34",

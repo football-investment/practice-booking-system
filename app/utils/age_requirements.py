@@ -99,6 +99,7 @@ def validate_specialization_for_age(spec_type: str, age: Optional[int]) -> bool:
         "INTERNSHIP": 18,
         "GANCUJU_PLAYER": 5,
         "LFA_FOOTBALL_PLAYER": 5,
+        "LFA_PLAYER": 5,
         "LFA_COACH": 14
     }
 

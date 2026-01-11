@@ -508,7 +508,7 @@ def instructor_accept_assignment(
     Business rules:
     - Only assigned instructor can accept
     - Tournament must be in PENDING_INSTRUCTOR_ACCEPTANCE status
-    - Auto-transition to READY_FOR_ENROLLMENT
+    - Auto-transition to INSTRUCTOR_CONFIRMED (awaiting admin to open enrollment)
     """
 
     # Fetch tournament
@@ -533,9 +533,9 @@ def instructor_accept_assignment(
             detail="You are not the assigned instructor for this tournament"
         )
 
-    # Accept assignment
+    # Accept assignment - transition to INSTRUCTOR_CONFIRMED (awaiting admin to open enrollment)
     old_status = tournament.tournament_status
-    tournament.tournament_status = "READY_FOR_ENROLLMENT"
+    tournament.tournament_status = "INSTRUCTOR_CONFIRMED"
 
     db.flush()
 
@@ -544,11 +544,12 @@ def instructor_accept_assignment(
         db=db,
         tournament_id=tournament.id,
         old_status=old_status,
-        new_status="READY_FOR_ENROLLMENT",
+        new_status="INSTRUCTOR_CONFIRMED",
         changed_by=current_user.id,
-        reason=f"Instructor {current_user.name} accepted assignment",
+        reason=f"Instructor {current_user.name} accepted assignment - awaiting admin to open enrollment",
         metadata={
-            "instructor_message": request.message
+            "instructor_message": request.message,
+            "instructor_accepted": True
         }
     )
 

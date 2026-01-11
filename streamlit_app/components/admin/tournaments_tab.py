@@ -101,6 +101,38 @@ def render_tournament_list(token: str):
                         show_delete_tournament_dialog()
 
             # ========================================================================
+            # TOURNAMENT STATUS ACTIONS
+            # ========================================================================
+            st.divider()
+            tournament_status = tournament.get('tournament_status', 'N/A')
+
+            # Open Enrollment button (INSTRUCTOR_CONFIRMED → READY_FOR_ENROLLMENT)
+            if tournament_status == 'INSTRUCTOR_CONFIRMED':
+                if st.button(
+                    "📝 Open Enrollment",
+                    key=f"open_enrollment_{tournament['id']}",
+                    help="Allow players to enroll in tournament",
+                    type="primary",
+                    use_container_width=True
+                ):
+                    st.session_state['open_enrollment_tournament_id'] = tournament['id']
+                    st.session_state['open_enrollment_tournament_name'] = tournament.get('name', 'Unknown')
+                    show_open_enrollment_dialog()
+
+            # Start Tournament button (READY_FOR_ENROLLMENT → IN_PROGRESS)
+            if tournament_status == 'READY_FOR_ENROLLMENT':
+                if st.button(
+                    "🚀 Start Tournament",
+                    key=f"start_tournament_{tournament['id']}",
+                    help="Start tournament (requires minimum 2 participants)",
+                    type="primary",
+                    use_container_width=True
+                ):
+                    st.session_state['start_tournament_id'] = tournament['id']
+                    st.session_state['start_tournament_name'] = tournament.get('name', 'Unknown')
+                    show_start_tournament_dialog()
+
+            # ========================================================================
             # INSTRUCTOR APPLICATION MANAGEMENT
             # ========================================================================
             st.divider()
@@ -784,9 +816,12 @@ def render_instructor_applications_section(token: str, tournament: Dict):
     st.write(f"**Applications**: {len(applications)}")
     st.divider()
 
+    # Check if there's already an accepted application
+    has_accepted_application = any(app.get('status') == 'ACCEPTED' for app in applications)
+
     # Display each application
     for app in applications:
-        render_instructor_application_card(token, tournament_id, app)
+        render_instructor_application_card(token, tournament_id, app, has_accepted_application)
 
 
 def get_instructor_applications(token: str, tournament_id: int) -> List[Dict]:
@@ -809,8 +844,14 @@ def get_instructor_applications(token: str, tournament_id: int) -> List[Dict]:
         return []
 
 
-def render_instructor_application_card(token: str, tournament_id: int, application: Dict):
-    """Render a single instructor application with approve/reject buttons"""
+def render_instructor_application_card(token: str, tournament_id: int, application: Dict, has_accepted_application: bool = False):
+    """
+    Render a single instructor application with approve/reject buttons.
+
+    Args:
+        has_accepted_application: If True, hide approve/reject buttons for PENDING applications
+                                  (since another application is already accepted)
+    """
     from config import API_BASE_URL, API_TIMEOUT
 
     app_id = application.get('id')
@@ -841,21 +882,26 @@ def render_instructor_application_card(token: str, tournament_id: int, applicati
                 st.caption(f"💬 Message: {request_message}")
 
         with col2:
-            # Only show approve/reject buttons for PENDING applications
+            # Only show approve/reject buttons for PENDING applications IF no instructor is accepted yet
             if status == 'PENDING':
-                btn_col1, btn_col2 = st.columns(2)
-                with btn_col1:
-                    if st.button("✅", key=f"approve_app_{app_id}", help="Approve application"):
-                        st.session_state['approve_app_id'] = app_id
-                        st.session_state['approve_tournament_id'] = tournament_id
-                        st.session_state['approve_instructor_name'] = instructor_name
-                        show_approve_application_dialog()
-                with btn_col2:
-                    if st.button("❌", key=f"reject_app_{app_id}", help="Reject application"):
-                        st.session_state['reject_app_id'] = app_id
-                        st.session_state['reject_tournament_id'] = tournament_id
-                        st.session_state['reject_instructor_name'] = instructor_name
-                        show_reject_application_dialog()
+                if has_accepted_application:
+                    # Another instructor is already accepted - don't show action buttons
+                    st.caption("ℹ️ _Instructor already selected_")
+                else:
+                    # No accepted instructor yet - show approve/reject buttons
+                    btn_col1, btn_col2 = st.columns(2)
+                    with btn_col1:
+                        if st.button("✅", key=f"approve_app_{app_id}", help="Approve application"):
+                            st.session_state['approve_app_id'] = app_id
+                            st.session_state['approve_tournament_id'] = tournament_id
+                            st.session_state['approve_instructor_name'] = instructor_name
+                            show_approve_application_dialog()
+                    with btn_col2:
+                        if st.button("❌", key=f"reject_app_{app_id}", help="Reject application"):
+                            st.session_state['reject_app_id'] = app_id
+                            st.session_state['reject_tournament_id'] = tournament_id
+                            st.session_state['reject_instructor_name'] = instructor_name
+                            show_reject_application_dialog()
             else:
                 st.caption(f"**Status**: {status}")
 
@@ -900,7 +946,7 @@ def show_approve_application_dialog():
 
                 if response.status_code == 200:
                     st.success("✅ Application approved successfully!")
-                    st.info("ℹ️ Instructor must now accept the assignment via API to activate.")
+                    st.info("ℹ️ Tournament is now ready - you can open enrollment for players.")
                     time.sleep(2)
                     # Clear session state
                     if 'approve_app_id' in st.session_state:
@@ -909,6 +955,11 @@ def show_approve_application_dialog():
                         del st.session_state['approve_tournament_id']
                     if 'approve_instructor_name' in st.session_state:
                         del st.session_state['approve_instructor_name']
+
+                    # Force cache invalidation by setting a timestamp
+                    # This ensures fresh tournament data is fetched after approval
+                    st.session_state['last_tournament_update'] = time.time()
+
                     st.rerun()
                 else:
                     error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
@@ -1103,3 +1154,143 @@ def render_reward_distribution_section(token: str, tournament: Dict):
 
             except Exception as e:
                 st.error(f"❌ Error distributing rewards: {str(e)}")
+
+
+# ============================================================================
+# TOURNAMENT STATUS TRANSITION DIALOGS
+# ============================================================================
+
+@st.dialog("📝 Open Enrollment")
+def show_open_enrollment_dialog():
+    """Dialog for opening enrollment (INSTRUCTOR_CONFIRMED → READY_FOR_ENROLLMENT)"""
+    from config import API_BASE_URL, API_TIMEOUT
+
+    tournament_id = st.session_state.get('open_enrollment_tournament_id')
+    tournament_name = st.session_state.get('open_enrollment_tournament_name', 'Unknown')
+
+    st.write(f"**Tournament**: {tournament_name}")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    st.info("ℹ️ This will open enrollment for this tournament.")
+    st.warning("⚠️ Players will be able to enroll after this action.")
+
+    # Reason for transition
+    reason = st.text_area(
+        "Reason",
+        value="Opening enrollment for tournament",
+        key="open_enrollment_reason"
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("📝 Open Enrollment", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            try:
+                response = requests.patch(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/status",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={
+                        "new_status": "READY_FOR_ENROLLMENT",
+                        "reason": reason
+                    },
+                    timeout=API_TIMEOUT
+                )
+
+                if response.status_code == 200:
+                    st.success("✅ Enrollment opened successfully!")
+                    st.balloons()
+                    time.sleep(2)
+                    # Clear session state
+                    if 'open_enrollment_tournament_id' in st.session_state:
+                        del st.session_state['open_enrollment_tournament_id']
+                    if 'open_enrollment_tournament_name' in st.session_state:
+                        del st.session_state['open_enrollment_tournament_name']
+                    st.rerun()
+                else:
+                    error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                    error_msg = error_data.get('detail', response.text)
+                    st.error(f"❌ Error: {error_msg}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'open_enrollment_tournament_id' in st.session_state:
+                del st.session_state['open_enrollment_tournament_id']
+            if 'open_enrollment_tournament_name' in st.session_state:
+                del st.session_state['open_enrollment_tournament_name']
+            st.rerun()
+
+
+@st.dialog("🚀 Start Tournament")
+def show_start_tournament_dialog():
+    """Dialog for starting a tournament (READY_FOR_ENROLLMENT → IN_PROGRESS)"""
+    from config import API_BASE_URL, API_TIMEOUT
+
+    tournament_id = st.session_state.get('start_tournament_id')
+    tournament_name = st.session_state.get('start_tournament_name', 'Unknown')
+
+    st.write(f"**Tournament**: {tournament_name}")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    st.info("ℹ️ This will start the tournament and transition to **IN_PROGRESS** status.")
+    st.warning("⚠️ Requires minimum 2 enrolled participants.")
+
+    # Reason for transition
+    reason = st.text_area(
+        "Transition Reason",
+        value="Tournament started - enrollment closed",
+        key="start_tournament_reason"
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🚀 Start Tournament", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            try:
+                response = requests.patch(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/status",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={
+                        "new_status": "IN_PROGRESS",
+                        "reason": reason
+                    },
+                    timeout=API_TIMEOUT
+                )
+
+                if response.status_code == 200:
+                    st.success("✅ Tournament started successfully!")
+                    st.balloons()
+                    time.sleep(2)
+                    # Clear session state
+                    if 'start_tournament_id' in st.session_state:
+                        del st.session_state['start_tournament_id']
+                    if 'start_tournament_name' in st.session_state:
+                        del st.session_state['start_tournament_name']
+                    st.rerun()
+                else:
+                    error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                    error_msg = error_data.get('detail', response.text)
+                    st.error(f"❌ Error: {error_msg}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'start_tournament_id' in st.session_state:
+                del st.session_state['start_tournament_id']
+            if 'start_tournament_name' in st.session_state:
+                del st.session_state['start_tournament_name']
+            st.rerun()

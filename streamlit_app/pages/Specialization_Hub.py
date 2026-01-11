@@ -58,6 +58,13 @@ with st.sidebar:
     st.caption(f"Role: **Student**")
     st.caption(f"Email: {user.get('email', 'N/A')}")
 
+    # Display age (critical for specialization eligibility)
+    user_age = user.get('age')
+    if user_age is not None:
+        st.caption(f"Age: **{user_age} years old**")
+    else:
+        st.caption("Age: **Not set**")
+
     st.markdown("---")
 
     # Credits display

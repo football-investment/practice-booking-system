@@ -251,14 +251,38 @@ def distribute_tournament_rewards(
     # Get or create reward policy snapshot
     reward_policy = tournament.reward_policy_snapshot or DEFAULT_REWARD_POLICY
 
+    # Defensive: Ensure reward_policy has valid structure
+    # Support both OLD format (rewards) and NEW format (placement_rewards)
+    if not isinstance(reward_policy, dict):
+        reward_policy = DEFAULT_REWARD_POLICY
+
+    # Detect which format is being used
+    if "rewards" in reward_policy:
+        # OLD format: { "rewards": { "1": {...}, "2": {...}, "participant": {...} } }
+        rewards_map = reward_policy["rewards"]
+    elif "placement_rewards" in reward_policy:
+        # NEW format: { "placement_rewards": { "1ST": {...}, "2ND": {...}, "PARTICIPANT": {...} } }
+        placement_rewards = reward_policy["placement_rewards"]
+        # Convert NEW format to OLD format for backward compatibility
+        rewards_map = {
+            "1": placement_rewards.get("1ST", placement_rewards.get("PARTICIPANT", {"credits": 0, "xp": 0})),
+            "2": placement_rewards.get("2ND", placement_rewards.get("PARTICIPANT", {"credits": 0, "xp": 0})),
+            "3": placement_rewards.get("3RD", placement_rewards.get("PARTICIPANT", {"credits": 0, "xp": 0})),
+            "participant": placement_rewards.get("PARTICIPANT", {"credits": 0, "xp": 0})
+        }
+    else:
+        # Fallback to DEFAULT if neither format is present
+        reward_policy = DEFAULT_REWARD_POLICY
+        rewards_map = reward_policy["rewards"]
+
     # Calculate and distribute rewards
     total_credits = 0
     rewards_count = 0
 
     for ranking in rankings:
         # Determine reward tier
-        rank_key = str(ranking.rank) if str(ranking.rank) in reward_policy["rewards"] else "participant"
-        reward_config = reward_policy["rewards"].get(rank_key, reward_policy["rewards"]["participant"])
+        rank_key = str(ranking.rank) if str(ranking.rank) in rewards_map else "participant"
+        reward_config = rewards_map.get(rank_key, rewards_map["participant"])
 
         credits_amount = reward_config["credits"]
         xp_amount = reward_config["xp"]
@@ -273,11 +297,11 @@ def distribute_tournament_rewards(
                 # Record transaction
                 transaction = CreditTransaction(
                     user_id=user.id,
-                    transaction_type=TransactionType.TOURNAMENT_REWARD,
+                    transaction_type=TransactionType.TOURNAMENT_REWARD.value,  # Convert enum to string
                     amount=credits_amount,
+                    balance_after=user.credit_balance,
                     description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
-                    reference_id=str(tournament_id),
-                    processed_by=current_user.id
+                    semester_id=tournament_id
                 )
                 db.add(transaction)
                 rewards_count += 1

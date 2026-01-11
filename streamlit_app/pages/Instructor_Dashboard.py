@@ -418,21 +418,29 @@ with tab2:
             master_instructor_id = semester.get('master_instructor_id')
             is_accepted = (master_instructor_id == current_instructor_id)
 
-            # Determine status: pending, upcoming, active (today), or completed
+            # Determine status: pending, upcoming, active (today or IN_PROGRESS), or completed
             if not is_accepted:
                 status = 'pending'  # Not accepted yet → PENDING
             else:
-                try:
-                    tourn_date = datetime.strptime(semester.get('start_date', ''), '%Y-%m-%d').date()
-
-                    if tourn_date > today:
-                        status = 'upcoming'
-                    elif tourn_date == today:
-                        status = 'active'
-                    else:
-                        status = 'completed'
-                except:
+                # Check tournament_status first - if IN_PROGRESS, always mark as active
+                tournament_status = semester.get('tournament_status', '')
+                if tournament_status == 'IN_PROGRESS':
                     status = 'active'
+                elif tournament_status in ['COMPLETED', 'REWARDS_DISTRIBUTED']:
+                    status = 'completed'
+                else:
+                    # Fall back to date-based logic
+                    try:
+                        tourn_date = datetime.strptime(semester.get('start_date', ''), '%Y-%m-%d').date()
+
+                        if tourn_date > today:
+                            status = 'upcoming'
+                        elif tourn_date == today:
+                            status = 'active'
+                        else:
+                            status = 'completed'
+                    except:
+                        status = 'active'
 
             all_jobs.append({
                 'type': 'tournament',
@@ -695,6 +703,7 @@ with tab2:
                         st.caption(f"👤 **Position:** Master Instructor")
                         st.caption(f"🎯 **Age Group:** {age_icon} {job['age_group']}")
                         st.caption(f"📆 **Date:** {job['tournament_date']}")
+                        st.caption(f"🔢 **Status:** {job['semester'].get('tournament_status', 'N/A')}")
 
                         # Calculate days until
                         try:
@@ -725,6 +734,42 @@ with tab2:
                             "border-radius: 5px; font-weight: bold; color: #155724;'>🔴 ACTIVE</div>",
                             unsafe_allow_html=True
                         )
+
+                    # ACTION BUTTONS for tournament management
+                    tournament_id = job['semester'].get('id')
+                    tournament_status = job['semester'].get('tournament_status', 'N/A')
+
+                    st.divider()
+                    st.markdown("**🎮 Tournament Actions:**")
+
+                    action_col1, action_col2 = st.columns(2)
+
+                    with action_col1:
+                        # Record Results button - available for IN_PROGRESS tournaments
+                        if tournament_status == "IN_PROGRESS":
+                            if st.button(
+                                "📝 Record Results",
+                                key=f"record_results_{tournament_id}",
+                                use_container_width=True,
+                                help="Submit final rankings and results"
+                            ):
+                                st.session_state['record_results_tournament_id'] = tournament_id
+                                st.session_state['record_results_tournament'] = job['semester']
+                                show_record_results_dialog()
+
+                    with action_col2:
+                        # Mark as Completed button - available for IN_PROGRESS tournaments
+                        if tournament_status == "IN_PROGRESS":
+                            if st.button(
+                                "✅ Mark as Completed",
+                                key=f"complete_tournament_{tournament_id}",
+                                use_container_width=True,
+                                type="primary",
+                                help="Mark tournament as completed"
+                            ):
+                                st.session_state['complete_tournament_id'] = tournament_id
+                                st.session_state['complete_tournament_name'] = job['semester'].get('name', 'Unknown')
+                                show_complete_tournament_dialog()
 
                     st.divider()
     else:
@@ -1091,3 +1136,249 @@ with tab7:
                         st.caption("Valid until: Perpetual")  # NULL = perpetual license
 
                 st.markdown("---")
+
+
+# ============================================================================
+# TOURNAMENT MANAGEMENT DIALOGS
+# ============================================================================
+
+@st.dialog("📝 Record Tournament Results")
+def show_record_results_dialog():
+    """
+    Dialog for recording tournament rankings and results.
+    Calls POST /api/v1/tournaments/{tournament_id}/rankings
+    """
+    import requests
+    from config import API_BASE_URL, API_TIMEOUT
+
+    tournament_id = st.session_state.get('record_results_tournament_id')
+    tournament = st.session_state.get('record_results_tournament', {})
+    tournament_name = tournament.get('name', 'Unknown Tournament')
+
+    st.write(f"**Tournament:** {tournament_name}")
+    st.write(f"**Tournament ID:** {tournament_id}")
+    st.divider()
+
+    # Fetch enrolled players
+    token = st.session_state.get('token')
+    if not token:
+        st.error("❌ Authentication token not found")
+        return
+
+    try:
+        # Get tournament enrollments
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/semesters/{tournament_id}/enrollments",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code != 200:
+            st.error(f"❌ Failed to load tournament enrollments: {response.status_code}")
+            return
+
+        enrollments = response.json().get('enrollments', [])
+
+        if not enrollments:
+            st.warning("⚠️ No enrolled players found")
+            return
+
+        st.info(f"📊 **{len(enrollments)} enrolled player(s)**")
+        st.divider()
+
+        # Create ranking inputs for each player
+        st.markdown("### Enter Rankings")
+        st.caption("Assign a unique rank to each player (1 = 1st place, 2 = 2nd place, etc.)")
+
+        rankings = []
+
+        for idx, enrollment in enumerate(enrollments):
+            user = enrollment.get('user', {})
+            user_id = user.get('id')
+            user_name = user.get('name', 'Unknown Player')
+            user_email = user.get('email', 'N/A')
+
+            col1, col2, col3 = st.columns([2, 1, 1])
+
+            with col1:
+                st.write(f"**{user_name}**")
+                st.caption(f"{user_email}")
+
+            with col2:
+                rank = st.number_input(
+                    "Rank",
+                    min_value=1,
+                    max_value=len(enrollments),
+                    value=idx + 1,
+                    step=1,
+                    key=f"rank_{user_id}",
+                    label_visibility="collapsed"
+                )
+
+            with col3:
+                points = st.number_input(
+                    "Points",
+                    min_value=0.0,
+                    value=0.0,
+                    step=0.5,
+                    key=f"points_{user_id}",
+                    label_visibility="collapsed"
+                )
+
+            rankings.append({
+                "user_id": user_id,
+                "rank": rank,
+                "points": points
+            })
+
+            st.divider()
+
+        # Notes field
+        notes = st.text_area(
+            "Notes (optional)",
+            placeholder="Add any additional notes about the tournament results...",
+            max_chars=500,
+            key="ranking_notes"
+        )
+
+        st.divider()
+
+        # Action buttons
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("✅ Submit Rankings", use_container_width=True, type="primary"):
+                # Validate ranks are unique
+                ranks_list = [r['rank'] for r in rankings]
+                if len(ranks_list) != len(set(ranks_list)):
+                    st.error("❌ Each player must have a unique rank!")
+                    return
+
+                # Validate ranks are sequential (1, 2, 3, ...)
+                expected_ranks = set(range(1, len(enrollments) + 1))
+                actual_ranks = set(ranks_list)
+                if expected_ranks != actual_ranks:
+                    st.error(f"❌ Ranks must be sequential from 1 to {len(enrollments)}")
+                    st.caption(f"Expected: {sorted(expected_ranks)}, Got: {sorted(actual_ranks)}")
+                    return
+
+                # Submit rankings to API
+                payload = {
+                    "rankings": rankings,
+                    "notes": notes if notes else None
+                }
+
+                try:
+                    with st.spinner("Submitting rankings..."):
+                        submit_response = requests.post(
+                            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/rankings",
+                            headers={"Authorization": f"Bearer {token}"},
+                            json=payload,
+                            timeout=API_TIMEOUT
+                        )
+
+                    if submit_response.status_code == 200:
+                        result = submit_response.json()
+                        st.success(f"✅ Rankings submitted successfully!")
+                        st.caption(f"📊 {result.get('rankings_submitted', 0)} rankings recorded")
+                        st.balloons()
+
+                        # Clear session state
+                        if 'record_results_tournament_id' in st.session_state:
+                            del st.session_state['record_results_tournament_id']
+                        if 'record_results_tournament' in st.session_state:
+                            del st.session_state['record_results_tournament']
+
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        error_data = submit_response.json() if submit_response.headers.get('content-type') == 'application/json' else {}
+                        error_msg = error_data.get('detail', submit_response.text)
+                        st.error(f"❌ Failed to submit rankings: {error_msg}")
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+
+        with col2:
+            if st.button("❌ Cancel", use_container_width=True):
+                # Clear session state
+                if 'record_results_tournament_id' in st.session_state:
+                    del st.session_state['record_results_tournament_id']
+                if 'record_results_tournament' in st.session_state:
+                    del st.session_state['record_results_tournament']
+                st.rerun()
+
+    except Exception as e:
+        st.error(f"❌ Error loading tournament data: {str(e)}")
+
+
+@st.dialog("✅ Mark Tournament as Completed")
+def show_complete_tournament_dialog():
+    """
+    Dialog for marking a tournament as COMPLETED.
+    Calls PATCH /api/v1/tournaments/{tournament_id}/status
+    """
+    import requests
+    import time
+    from config import API_BASE_URL, API_TIMEOUT
+
+    tournament_id = st.session_state.get('complete_tournament_id')
+    tournament_name = st.session_state.get('complete_tournament_name', 'Unknown')
+
+    st.warning(f"⚠️ Mark tournament **{tournament_name}** as COMPLETED?")
+    st.write(f"**Tournament ID:** {tournament_id}")
+    st.divider()
+
+    st.info("ℹ️ This will transition the tournament status from IN_PROGRESS to COMPLETED.")
+    st.caption("After completion, you can distribute rewards to players.")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✅ Confirm", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+            if not token:
+                st.error("❌ Authentication token not found")
+                return
+
+            try:
+                with st.spinner("Marking tournament as completed..."):
+                    response = requests.patch(
+                        f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/status",
+                        headers={"Authorization": f"Bearer {token}"},
+                        json={
+                            "new_status": "COMPLETED",
+                            "reason": "Tournament finished - marked by instructor"
+                        },
+                        timeout=API_TIMEOUT
+                    )
+
+                if response.status_code == 200:
+                    st.success("✅ Tournament marked as COMPLETED!")
+                    st.balloons()
+
+                    # Clear session state
+                    if 'complete_tournament_id' in st.session_state:
+                        del st.session_state['complete_tournament_id']
+                    if 'complete_tournament_name' in st.session_state:
+                        del st.session_state['complete_tournament_name']
+
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                    error_msg = error_data.get('detail', response.text)
+                    st.error(f"❌ Failed to complete tournament: {error_msg}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'complete_tournament_id' in st.session_state:
+                del st.session_state['complete_tournament_id']
+            if 'complete_tournament_name' in st.session_state:
+                del st.session_state['complete_tournament_name']
+            st.rerun()

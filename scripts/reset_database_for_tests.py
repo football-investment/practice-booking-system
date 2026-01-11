@@ -88,9 +88,9 @@ def create_database():
 
 
 def create_schema():
-    """Create database schema using SQLAlchemy models"""
+    """Create base database schema using SQLAlchemy models + manual table creation"""
     print(f"\n{'='*80}")
-    print("STEP 3: Creating database schema")
+    print("STEP 3: Creating base database schema")
     print('='*80)
 
     try:
@@ -99,12 +99,78 @@ def create_schema():
         # Create all tables from models
         Base.metadata.create_all(bind=engine)
 
-        print("✅ Database schema created successfully")
+        # Manually create tournament_status_history table
+        # (This table is not in models, only in Alembic migration)
+        with engine.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS tournament_status_history (
+                    id SERIAL PRIMARY KEY,
+                    tournament_id INTEGER NOT NULL REFERENCES semesters(id) ON DELETE CASCADE,
+                    old_status VARCHAR(50),
+                    new_status VARCHAR(50) NOT NULL,
+                    changed_by INTEGER NOT NULL REFERENCES users(id),
+                    changed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    reason TEXT,
+                    metadata JSON
+                );
+
+                CREATE INDEX IF NOT EXISTS ix_tournament_status_history_tournament_id
+                    ON tournament_status_history(tournament_id);
+                CREATE INDEX IF NOT EXISTS ix_tournament_status_history_changed_at
+                    ON tournament_status_history(changed_at);
+            """))
+            conn.commit()
+
+        print("✅ Base database schema created successfully")
+        print("   (including tournament_status_history table)")
 
         engine.dispose()
 
     except Exception as e:
         print(f"❌ Error creating schema: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def run_alembic_migrations():
+    """
+    Apply Alembic migrations to database.
+
+    Strategy:
+    1. Stamp database to mark base schema as created (skip ALTER migrations on existing tables)
+    2. Run remaining migrations (like tournament_status_history table creation)
+    """
+    print(f"\n{'='*80}")
+    print("STEP 3b: Running Alembic migrations")
+    print('='*80)
+
+    try:
+        # Set DATABASE_URL environment variable for Alembic
+        env = os.environ.copy()
+        env['DATABASE_URL'] = DATABASE_URL
+
+        # Stamp to HEAD to mark all migrations as applied
+        # Since Base.metadata.create_all() creates the complete schema (including tournament_status),
+        # we stamp to head to avoid re-running migrations
+        print("  Stamping database to mark all migrations as applied...")
+        stamp_result = subprocess.run(
+            ['venv/bin/alembic', 'stamp', 'head'],
+            cwd=project_root,
+            env=env,
+            capture_output=True,
+            text=True
+        )
+
+        if stamp_result.returncode != 0:
+            print(f"❌ Alembic stamp failed:")
+            print(stamp_result.stderr)
+            sys.exit(1)
+
+        print("✅ Alembic migrations marked as applied (stamped to head)")
+
+    except Exception as e:
+        print(f"❌ Error running Alembic migrations: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -161,10 +227,10 @@ def seed_grandmaster_user(session: Session):
     print("\n📝 Creating Grandmaster licenses...")
 
     licenses_to_create = [
-        # PLAYER (Gancuju Player): Levels 1-8
-        *[("PLAYER", level) for level in range(1, 9)],
-        # COACH (LFA Coach): Levels 1-8
-        *[("COACH", level) for level in range(1, 9)],
+        # LFA_FOOTBALL_PLAYER: Levels 1-8
+        *[("LFA_FOOTBALL_PLAYER", level) for level in range(1, 9)],
+        # LFA_COACH: Levels 1-8
+        *[("LFA_COACH", level) for level in range(1, 9)],
         # INTERNSHIP: Levels 1-5
         *[("INTERNSHIP", level) for level in range(1, 6)],
     ]
@@ -366,6 +432,22 @@ def verify_database():
             print("\n❌ Campus (id=1) not found!")
             return False
 
+        # Check tournament_status_history table exists
+        result = session.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_name = 'tournament_status_history'
+            );
+        """))
+        table_exists = result.scalar()
+
+        if table_exists:
+            print(f"\n✅ Tournament status history table verified")
+        else:
+            print("\n❌ Tournament status history table not found!")
+            return False
+
     engine.dispose()
     return True
 
@@ -387,6 +469,9 @@ def main():
 
         # Step 3: Create schema
         create_schema()
+
+        # Step 3b: Run Alembic migrations
+        run_alembic_migrations()
 
         # Step 4: Seed essential data
         seed_data()

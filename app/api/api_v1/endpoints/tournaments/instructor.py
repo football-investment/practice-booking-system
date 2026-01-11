@@ -7,15 +7,16 @@ TWO SCENARIOS SUPPORTED:
 
 SCENARIO 1 - Direct Assignment:
 1. Admin creates tournament → status: SEEKING_INSTRUCTOR
-2. Admin directly assigns instructor (via admin UI or direct call)
-3. Instructor accepts assignment → status: READY_FOR_ENROLLMENT
-4. Tournament becomes ready for player enrollment
+2. Admin directly assigns instructor (via admin UI or direct call) → status: PENDING_INSTRUCTOR_ACCEPTANCE
+3. Instructor accepts assignment → status: INSTRUCTOR_CONFIRMED
+4. Admin opens enrollment (via UI) → status: READY_FOR_ENROLLMENT
+5. Tournament becomes ready for player enrollment
 
 SCENARIO 2 - Application Workflow:
 1. Admin creates tournament → status: SEEKING_INSTRUCTOR
 2. Instructor applies to tournament (POST /tournaments/{id}/instructor-applications)
-3. Admin approves application (POST /tournaments/{id}/instructor-applications/{id}/approve)
-4. Instructor accepts assignment → status: READY_FOR_ENROLLMENT
+3. Admin approves application → status: INSTRUCTOR_CONFIRMED
+4. Admin opens enrollment (via UI) → status: READY_FOR_ENROLLMENT
 5. Tournament becomes ready for player enrollment
 
 Authorization:
@@ -26,9 +27,11 @@ Authorization:
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
+import json
 
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -39,6 +42,51 @@ from app.models.instructor_assignment import InstructorAssignmentRequest, Assign
 from app.dependencies import get_current_user
 
 router = APIRouter()
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def record_status_change(
+    db: Session,
+    tournament_id: int,
+    old_status: Optional[str],
+    new_status: str,
+    changed_by: int,
+    reason: Optional[str] = None,
+    metadata: Optional[dict] = None
+) -> None:
+    """
+    Record a status change in tournament_status_history table
+
+    Args:
+        db: Database session
+        tournament_id: Tournament ID
+        old_status: Previous status (None for creation)
+        new_status: New status
+        changed_by: User ID who made the change
+        reason: Optional reason for change
+        metadata: Optional metadata dict
+    """
+    # Convert metadata dict to JSON string if provided
+    metadata_json = json.dumps(metadata) if metadata is not None else None
+
+    db.execute(
+        text("""
+        INSERT INTO tournament_status_history
+        (tournament_id, old_status, new_status, changed_by, reason, metadata)
+        VALUES (:tournament_id, :old_status, :new_status, :changed_by, :reason, :metadata)
+        """),
+        {
+            "tournament_id": tournament_id,
+            "old_status": old_status,
+            "new_status": new_status,
+            "changed_by": changed_by,
+            "reason": reason,
+            "metadata": metadata_json
+        }
+    )
 
 
 # ============================================================================
@@ -75,8 +123,8 @@ def accept_instructor_assignment(
     """
     Instructor accepts tournament assignment.
 
-    This endpoint transitions a tournament from SEEKING_INSTRUCTOR to READY_FOR_ENROLLMENT
-    by assigning an instructor to lead the tournament.
+    This endpoint transitions a tournament from SEEKING_INSTRUCTOR to INSTRUCTOR_CONFIRMED
+    by having the instructor accept the assignment.
 
     **Authorization:** INSTRUCTOR role only
 
@@ -88,7 +136,7 @@ def accept_instructor_assignment(
 
     **Actions Performed:**
     - Updates semester.master_instructor_id = current_user.id
-    - Updates semester.status = READY_FOR_ENROLLMENT
+    - Updates semester.tournament_status = INSTRUCTOR_CONFIRMED
     - Updates all associated sessions.instructor_id = current_user.id
 
     **Returns:**
@@ -102,7 +150,7 @@ def accept_instructor_assignment(
         "message": "Tournament assignment accepted successfully",
         "tournament_id": 123,
         "tournament_name": "Youth Football Tournament 2026",
-        "status": "READY_FOR_ENROLLMENT",
+        "tournament_status": "INSTRUCTOR_CONFIRMED",
         "instructor_id": 5,
         "instructor_name": "Coach Smith",
         "sessions_updated": 3
@@ -185,9 +233,10 @@ def accept_instructor_assignment(
     tournament.master_instructor_id = current_user.id
 
     # ============================================================================
-    # ACTION 2: Update tournament status to READY_FOR_ENROLLMENT
+    # ACTION 2: Update tournament status to INSTRUCTOR_CONFIRMED
     # ============================================================================
-    tournament.tournament_status = "READY_FOR_ENROLLMENT"
+    # After instructor accepts, tournament is ready for admin to open enrollment
+    tournament.tournament_status = "INSTRUCTOR_CONFIRMED"
 
     # ============================================================================
     # ACTION 3: Update all sessions with instructor_id
@@ -502,20 +551,44 @@ def approve_instructor_application(
     application.responded_at = datetime.utcnow()
     application.response_message = approval_data.response_message
 
-    db.commit()
-    db.refresh(application)
-
     # Get instructor details
     instructor = db.query(User).filter(User.id == application.instructor_id).first()
+
+    # Update tournament status and assign instructor
+    # Admin approval sets status to PENDING_INSTRUCTOR_ACCEPTANCE
+    # Instructor must then explicitly accept via /instructor/accept
+    old_tournament_status = tournament.tournament_status
+    tournament.master_instructor_id = application.instructor_id
+    tournament.tournament_status = "PENDING_INSTRUCTOR_ACCEPTANCE"
+
+    # Record status history
+    record_status_change(
+        db=db,
+        tournament_id=tournament.id,
+        old_status=old_tournament_status,
+        new_status="PENDING_INSTRUCTOR_ACCEPTANCE",
+        changed_by=current_user.id,
+        reason=f"Admin approved instructor application from {instructor.name} - pending instructor acceptance",
+        metadata={
+            "application_id": application.id,
+            "instructor_id": instructor.id,
+            "instructor_name": instructor.name
+        }
+    )
+
+    db.commit()
+    db.refresh(application)
+    db.refresh(tournament)
 
     # ============================================================================
     # RETURN SUCCESS RESPONSE
     # ============================================================================
     return {
-        "message": "Application approved successfully",
+        "message": "Application approved successfully - Instructor must now accept the assignment",
         "application_id": application.id,
         "tournament_id": tournament.id,
         "tournament_name": tournament.name,
+        "tournament_status": tournament.tournament_status,
         "instructor_id": instructor.id,
         "instructor_name": instructor.name,
         "instructor_email": instructor.email,
@@ -524,7 +597,7 @@ def approve_instructor_application(
         "approved_by": current_user.id,
         "approved_by_name": current_user.name,
         "response_message": application.response_message,
-        "next_step": "Instructor must now accept the assignment via POST /tournaments/{tournament_id}/instructor-assignment/accept"
+        "next_step": "Instructor must accept assignment via /instructor/accept endpoint"
     }
 
 

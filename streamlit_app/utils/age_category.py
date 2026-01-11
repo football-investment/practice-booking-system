@@ -45,15 +45,17 @@ def get_age_category_for_season(date_of_birth):
 
     # Determine category based on age AT SEASON START
     # PRE: 5-13 years (automatic, cannot override)
-    # YOUTH: 14-18 years (automatic default, can override to AMATEUR/PRO)
-    # 18+ years: Instructor must assign AMATEUR or PRO
+    # YOUTH: 14-17 years (automatic, cannot override)
+    # AMATEUR: 18+ years (automatic default - ALL adults start as Amateur)
+    # PRO: 18+ years (ONLY if instructor/admin manually sets it - NOT automatic)
     if 5 <= age_at_season_start <= 13:
         return "PRE"
-    elif 14 <= age_at_season_start <= 18:
+    elif 14 <= age_at_season_start <= 17:
         return "YOUTH"
-    elif age_at_season_start > 18:
-        # For 18+ students, category must be assigned by instructor
-        # This function returns None - instructor assigns AMATEUR or PRO
-        return None
+    elif age_at_season_start >= 18:
+        # Default to AMATEUR for ALL 18+ ages (18, 25, 39, etc.)
+        # ONLY instructor/admin can manually upgrade to PRO category
+        # IMPORTANT: Return UPPERCASE to match get_age_category_info() in dashboard
+        return "AMATEUR"
 
     return None

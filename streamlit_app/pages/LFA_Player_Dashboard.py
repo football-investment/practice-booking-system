@@ -209,12 +209,39 @@ def get_lfa_player_license(user):
     return None
 
 def _display_enrollment_card(enrollment: dict, icon: str):
-    """Display enrollment card with sessions"""
+    """Display enrollment card with sessions and results/rewards for tournaments"""
     semester_name = enrollment.get("semester_name", "N/A")
     sessions = enrollment.get("sessions", [])
     enrollment_id = enrollment.get("enrollment_id", 0)
+    semester_id = enrollment.get("semester_id")
+
+    # Check if this is a tournament and get status
+    semester_data = enrollment.get("semester", {})
+    tournament_status = semester_data.get("tournament_status")
+    is_tournament = icon == "🏆"
 
     with st.expander(f"{icon} {semester_name} ({len(sessions)} sessions)", expanded=False):
+        # Show tournament status if available
+        if is_tournament and tournament_status:
+            status_badge_color = {
+                "COMPLETED": "#10b981",  # Green
+                "REWARDS_DISTRIBUTED": "#8b5cf6",  # Purple
+                "IN_PROGRESS": "#f59e0b",  # Orange
+                "UPCOMING": "#3b82f6",  # Blue
+            }.get(tournament_status, "#6b7280")
+
+            st.markdown(f"""
+            <div style="background: {status_badge_color};
+                        color: white;
+                        padding: 0.5rem 1rem;
+                        border-radius: 6px;
+                        text-align: center;
+                        font-weight: 600;
+                        margin-bottom: 1rem;">
+                📊 Status: {tournament_status.replace('_', ' ')}
+            </div>
+            """, unsafe_allow_html=True)
+
         if not sessions:
             st.info("No sessions scheduled yet.")
             return
@@ -250,6 +277,86 @@ def _display_enrollment_card(enrollment: dict, icon: str):
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+        # ========================================================================
+        # TOURNAMENT RESULTS & REWARDS (for COMPLETED/REWARDS_DISTRIBUTED)
+        # ========================================================================
+        if is_tournament and tournament_status in ["COMPLETED", "REWARDS_DISTRIBUTED"]:
+            st.markdown("---")
+            st.markdown("### 🏆 Tournament Results & Rewards")
+
+            # Fetch tournament results and rewards
+            token = st.session_state.get('token')
+            if token and semester_id:
+                try:
+                    import requests
+                    from config import API_BASE_URL, API_TIMEOUT
+
+                    # Get current user to fetch rankings and rewards
+                    user_id = st.session_state.get(SESSION_USER_KEY, {}).get('id')
+
+                    if user_id:
+                        # Fetch tournament rankings
+                        rankings_response = requests.get(
+                            f"{API_BASE_URL}/api/v1/tournaments/{semester_id}/rankings",
+                            headers={"Authorization": f"Bearer {token}"},
+                            timeout=API_TIMEOUT
+                        )
+
+                        if rankings_response.status_code == 200:
+                            rankings_data = rankings_response.json().get('rankings', [])
+                            user_ranking = next((r for r in rankings_data if r.get('user_id') == user_id), None)
+
+                            if user_ranking:
+                                rank = user_ranking.get('rank')
+                                points = user_ranking.get('points', 0)
+
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    st.metric("🏅 Your Rank", f"#{rank}")
+                                with col2:
+                                    st.metric("⚽ Points", points)
+
+                        # Fetch credit transactions to find tournament rewards
+                        user_response = requests.get(
+                            f"{API_BASE_URL}/api/v1/users/me",
+                            headers={"Authorization": f"Bearer {token}"},
+                            timeout=API_TIMEOUT
+                        )
+
+                        if user_response.status_code == 200:
+                            user_data = user_response.json()
+                            credit_transactions = user_data.get('credit_transactions', [])
+
+                            # Find tournament reward transactions
+                            tournament_rewards = [
+                                tx for tx in credit_transactions
+                                if tx.get('transaction_type') == 'TOURNAMENT_REWARD' and
+                                tx.get('semester_id') == semester_id
+                            ]
+
+                            if tournament_rewards:
+                                st.markdown("---")
+                                st.markdown("#### 💰 Rewards Received")
+
+                                total_credits = sum(tx.get('amount', 0) for tx in tournament_rewards)
+
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    st.metric("💎 Credits Earned", f"+{total_credits}")
+                                with col2:
+                                    # TODO: XP tracking not implemented yet
+                                    st.caption("⭐ XP: Coming soon")
+
+                                # Show transaction details
+                                with st.expander("📜 Transaction Details", expanded=False):
+                                    for tx in tournament_rewards:
+                                        st.caption(f"• {tx.get('description', 'Reward')} - **{tx.get('amount')} credits**")
+                            else:
+                                st.info("ℹ️ No rewards distributed yet for this tournament")
+
+                except Exception as e:
+                    st.warning(f"⚠️ Could not load tournament results: {str(e)}")
 
         # Enrollment actions
         st.markdown("---")
@@ -348,50 +455,14 @@ date_of_birth = user.get('date_of_birth')
 age_category = get_age_category_for_season(date_of_birth)
 age = calculate_age(date_of_birth)  # Still show current age for display
 
-# For 18+ users, age_category is None from automatic calculation
-# DIRECT DATABASE QUERY - Get from semester_enrollments table
-if not age_category:
-    try:
-        import requests
-        from config import API_BASE_URL, API_TIMEOUT
-        # Direct SQL query to get age_category from user's most recent enrollment
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/users/me",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-        if response.status_code == 200:
-            user_data = response.json()
-            # Check if user has enrollments with age_category in user_licenses
-            licenses = user_data.get('user_licenses', [])
-            for lic in licenses:
-                if lic.get('specialization_type') == 'LFA_FOOTBALL_PLAYER':
-                    # Try to extract age_category from any available source
-                    if 'enrollments' in lic:
-                        enr_list = lic.get('enrollments', [])
-                        if enr_list and len(enr_list) > 0:
-                            # Get most recent enrollment
-                            recent = enr_list[0]
-                            age_category = recent.get('age_category')
-                            if age_category:
-                                break
-    except Exception as e:
-        st.sidebar.error(f"Category lookup failed: {str(e)}")
-        pass
-
-# FALLBACK: Query database directly if still no category
-if not age_category:
-    import subprocess
-    try:
-        result = subprocess.run([
-            'psql', '-U', 'postgres', '-h', 'localhost',
-            '-d', 'lfa_intern_system', '-t', '-A', '-c',
-            f"SELECT age_category FROM semester_enrollments WHERE user_id = {user.get('id')} AND age_category IS NOT NULL ORDER BY created_at DESC LIMIT 1;"
-        ], capture_output=True, text=True, timeout=2)
-        if result.returncode == 0 and result.stdout.strip():
-            age_category = result.stdout.strip()
-    except:
-        pass
+# get_age_category_for_season() automatically determines category based on age AT SEASON START:
+# - PRE: 5-13 years old on July 1
+# - YOUTH: 14-17 years old on July 1
+# - Amateur: 18+ years old on July 1 (default for all adults)
+# - Pro: 18+ years old (ONLY if instructor/admin manually sets it)
+#
+# SEASON LOCK: Category is FIXED for entire season (July 1 - June 30)
+# Example: If user turns 18 in December, they remain YOUTH until next July 1
 
 category_info = get_age_category_info(age_category) if age_category else {}
 

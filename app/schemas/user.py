@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, field_serializer
+from pydantic import BaseModel, EmailStr, ConfigDict, field_serializer, computed_field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from ..models.user import UserRole
@@ -105,6 +105,18 @@ class User(UserBase):
     licenses: List[UserLicenseSimple] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def age(self) -> Optional[int]:
+        """Calculate user's age in years from date_of_birth"""
+        if not self.date_of_birth:
+            return None
+        from datetime import timezone
+        today = datetime.now(timezone.utc).date()
+        dob = self.date_of_birth.date() if isinstance(self.date_of_birth, datetime) else self.date_of_birth
+        age_years = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        return age_years
 
     @field_serializer('specialization')
     def serialize_specialization(self, value, _info):

@@ -5,6 +5,7 @@ EXACT PATTERNS from unified_workflow_dashboard.py (WORKING!)
 
 import streamlit as st
 import requests
+import time
 from typing import Tuple, Optional, Union, List, Dict
 from config import API_BASE_URL, API_TIMEOUT
 
@@ -127,8 +128,11 @@ def get_semesters(token: str) -> Tuple[bool, list]:
     Get semesters - EXACT pattern from working dashboard (Line 2781-2794)
     """
     try:
+        # Cache-busting: Add timestamp parameter to force fresh data
+        cache_buster = int(time.time() * 1000)  # milliseconds timestamp
+
         response = requests.get(
-            f"{API_BASE_URL}/api/v1/semesters/",  # ✅ Added trailing slash for refactored backend
+            f"{API_BASE_URL}/api/v1/semesters/?_={cache_buster}",  # ✅ Cache-busting parameter
             headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )

@@ -76,11 +76,11 @@ def enroll_in_tournament(
             detail="Tournament not found"
         )
 
-    # 2. Verify tournament status (use tournament_status for tournaments)
-    if tournament.tournament_status != "READY_FOR_ENROLLMENT":
+    # 2. Verify tournament status
+    if tournament.status != "READY_FOR_ENROLLMENT":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tournament not ready for enrollment (status: {tournament.tournament_status})"
+            detail=f"Tournament not ready for enrollment (status: {tournament.status})"
         )
 
     # 2.5. Verify enrollment deadline (1 hour before first tournament session)
