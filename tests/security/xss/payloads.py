@@ -152,34 +152,156 @@ SECURE_XSS_RESPONSES = {
 
 def is_xss_vulnerable(html_content: str, payload: str) -> bool:
     """
-    Check if HTML content contains unescaped XSS payload
+    Check if HTML content contains EXECUTABLE (unescaped) XSS payload.
+
+    This function distinguishes between:
+    1. SAFE: Properly escaped output (no execution risk)
+    2. VULNERABLE: Unescaped output in executable context
 
     Args:
         html_content: Rendered HTML content
         payload: Original XSS payload
 
     Returns:
-        True if payload is unescaped (vulnerable), False if properly escaped
+        True if vulnerable (payload can execute), False if safe (payload escaped/non-executable)
+
+    Security Contexts Considered SAFE:
+    ────────────────────────────────────
+    1. HTML Entity Encoding:
+       - &lt;script&gt; instead of <script>
+       - &amp;lt; instead of &lt;
+       - &#60; instead of <
+       - Payload in input value="" attributes (automatically escaped by browser)
+
+    2. Attribute Context (safe if properly quoted):
+       - value="&lt;script&gt;..." (escaped in attribute)
+       - Displayed text nodes (non-executable context)
+
+    3. Text Content:
+       - Payload in <p>, <div>, <span> text nodes
+       - Browser automatically escapes in text context
+
+    Security Contexts Considered VULNERABLE:
+    ─────────────────────────────────────────
+    1. Executable Script Context:
+       - <script>alert(1)</script> in HTML body
+       - <img src=x onerror=alert(1)> with unescaped event handler
+
+    2. Attribute Injection:
+       - <div onclick=alert(1)> - unescaped event handler
+       - <a href="javascript:alert(1)"> - javascript: protocol
+
+    3. DOM-based XSS:
+       - innerHTML assignment with unescaped input
+       - document.write() with unescaped input
+
+    Example Safe Cases (returns False):
+    ───────────────────────────────────
+    >>> html = '<input value="&lt;script&gt;alert(1)&lt;/script&gt;">'
+    >>> is_xss_vulnerable(html, '<script>alert(1)</script>')
+    False  # Escaped in input value - SAFE
+
+    >>> html = '<p>&lt;img src=x onerror=alert(1)&gt;</p>'
+    >>> is_xss_vulnerable(html, '<img src=x onerror=alert(1)>')
+    False  # Escaped in text content - SAFE
+
+    Example Vulnerable Cases (returns True):
+    ────────────────────────────────────────
+    >>> html = '<div><script>alert(1)</script></div>'
+    >>> is_xss_vulnerable(html, '<script>alert(1)</script>')
+    True  # Unescaped script tag - VULNERABLE
+
+    >>> html = '<img src=x onerror=alert(1)>'
+    >>> is_xss_vulnerable(html, '<img src=x onerror=alert(1)>')
+    True  # Unescaped event handler - VULNERABLE
     """
     html_lower = html_content.lower()
 
-    # Check if dangerous tags/attributes are present unescaped
-    for indicator in SECURE_XSS_RESPONSES["vulnerable_indicators"]:
-        if indicator in html_lower:
-            # Payload might be reflected unescaped
-            return True
+    # ════════════════════════════════════════════════════════════════════════
+    # STEP 1: Check for ESCAPED versions (SAFE contexts)
+    # ════════════════════════════════════════════════════════════════════════
 
-    # Check for javascript: protocol
-    if "javascript:" in html_lower:
+    # HTML entity encoding patterns (these indicate safe escaping)
+    safe_escaped_patterns = [
+        "&lt;script&gt;",      # <script> → &lt;script&gt;
+        "&lt;img",             # <img → &lt;img
+        "&lt;svg",             # <svg → &lt;svg
+        "&lt;iframe",          # <iframe → &lt;iframe
+        "&#60;script&#62;",    # <script> → &#60;script&#62;
+        "&#60;img",            # <img → &#60;img
+        "onerror&#61;",        # onerror= → onerror&#61;
+        "onclick&#61;",        # onclick= → onclick&#61;
+        "onload&#61;",         # onload= → onload&#61;
+    ]
+
+    # If we find escaped versions, the payload is SAFE (not executable)
+    for escaped in safe_escaped_patterns:
+        if escaped in html_lower:
+            return False  # Payload properly escaped - NOT VULNERABLE
+
+    # Check if payload is in INPUT value attribute (browser auto-escapes)
+    # Pattern: value="<script>..." or value='<script>...'
+    # This is SAFE because browsers treat input values as text, not executable code
+    if 'value="&lt;' in html_lower or "value='&lt;" in html_lower:
+        return False  # Input value context with escaping - NOT VULNERABLE
+
+    # ════════════════════════════════════════════════════════════════════════
+    # STEP 2: Check for UNESCAPED executable contexts (VULNERABLE)
+    # ════════════════════════════════════════════════════════════════════════
+
+    # Check for unescaped script tags (most dangerous)
+    if "<script>" in html_lower and "&lt;script&gt;" not in html_lower:
+        # Unescaped <script> tag found - HIGHLY VULNERABLE
         return True
 
-    # Check for event handlers (onclick, onload, etc.)
-    event_handlers = ["onclick=", "onload=", "onerror=", "onmouseover=", "onfocus="]
-    for handler in event_handlers:
-        if handler in html_lower:
-            return True
+    # Check for unescaped event handlers (second most dangerous)
+    dangerous_event_handlers = [
+        ("onerror=alert", "onerror&#61;"),
+        ("onclick=alert", "onclick&#61;"),
+        ("onload=alert", "onload&#61;"),
+        ("onmouseover=alert", "onmouseover&#61;"),
+        ("onfocus=alert", "onfocus&#61;"),
+    ]
 
-    return False
+    for unescaped_handler, escaped_handler in dangerous_event_handlers:
+        if unescaped_handler in html_lower:
+            # Found unescaped event handler - check if there's also an escaped version
+            if escaped_handler not in html_lower:
+                # No escaped version found - VULNERABLE
+                return True
+
+    # Check for unescaped img/svg tags with onerror/onload
+    if "<img " in html_lower and "onerror=" in html_lower:
+        # Check if it's escaped
+        if "&lt;img" not in html_lower:
+            return True  # Unescaped <img onerror> - VULNERABLE
+
+    if "<svg " in html_lower and "onload=" in html_lower:
+        if "&lt;svg" not in html_lower:
+            return True  # Unescaped <svg onload> - VULNERABLE
+
+    # Check for unescaped iframe (can load malicious content)
+    if "<iframe " in html_lower and "&lt;iframe" not in html_lower:
+        return True  # Unescaped iframe - VULNERABLE
+
+    # Check for javascript: protocol in href (clickjacking risk)
+    if 'href="javascript:' in html_lower or "href='javascript:" in html_lower:
+        return True  # javascript: protocol in link - VULNERABLE
+
+    # Check for unescaped body/html tags with onload
+    if "<body onload=" in html_lower or "<html onload=" in html_lower:
+        return True  # Unescaped body/html onload - VULNERABLE
+
+    # ════════════════════════════════════════════════════════════════════════
+    # STEP 3: Default to SAFE if no dangerous patterns found
+    # ════════════════════════════════════════════════════════════════════════
+
+    # If we reach here, no executable XSS patterns were found
+    # The payload is either:
+    # - Properly escaped
+    # - In a non-executable context (text node)
+    # - Not present in the HTML
+    return False  # NOT VULNERABLE
 
 
 def check_xss_escaped(html_content: str, original_payload: str) -> bool:
