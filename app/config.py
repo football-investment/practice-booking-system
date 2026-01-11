@@ -54,6 +54,22 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_CALLS: int = 10  # More permissive for testing
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 60
 
+    # CORS Configuration (Security: Explicit allowlist)
+    # Production: Set via environment variables
+    # Development/Testing: Allow localhost origins
+    CORS_ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:8501",  # Streamlit default port
+        "http://localhost:8000",  # FastAPI development
+        "http://127.0.0.1:8501",
+        "http://127.0.0.1:8000",
+    ]
+
+    # Cookie Security Configuration
+    COOKIE_SECURE: bool = False  # Set to True in production (HTTPS required)
+    COOKIE_SAMESITE: str = "strict"  # Options: "strict", "lax", "none"
+    COOKIE_HTTPONLY: bool = True
+    COOKIE_MAX_AGE: int = 3600  # 1 hour (matches ACCESS_TOKEN_EXPIRE_MINUTES)
+
     model_config = ConfigDict(env_file=".env")
 
 
