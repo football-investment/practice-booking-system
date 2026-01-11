@@ -244,9 +244,16 @@ class TestCSRFTokenValidation:
         """
         response = requests.get(f"{API_BASE}/dashboard")
 
-        # Should succeed without CSRF token (or redirect to login)
-        assert response.status_code in [200, 302, 303], \
+        # Should succeed without CSRF token (or redirect to login, or 401 unauthorized)
+        # The key is: should NOT return 403 with "CSRF" error
+        assert response.status_code in [200, 302, 303, 401], \
             f"GET should not require CSRF token, got {response.status_code}"
+
+        # If it's a 403, make sure it's NOT a CSRF error
+        if response.status_code == 403:
+            error_text = response.text.lower()
+            assert "csrf" not in error_text, \
+                "GET request should not be blocked by CSRF protection"
 
     def test_api_endpoints_with_bearer_token_exempt(self):
         """
@@ -305,6 +312,18 @@ class TestCSRFTokenRotation:
 
 class TestCSRFTimingAttacks:
     """Test protection against timing attacks"""
+
+    def get_csrf_token(self) -> tuple[str, Dict[str, str]]:
+        """
+        Helper: Get CSRF token from server
+
+        Returns:
+            tuple: (csrf_token, cookies_dict)
+        """
+        response = requests.get(f"{API_BASE}/login")
+        token = response.cookies.get("csrf_token", "")
+        cookies = {"csrf_token": token}
+        return token, cookies
 
     def test_constant_time_comparison(self):
         """
