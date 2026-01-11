@@ -382,6 +382,99 @@ response.set_cookie(
 
 ---
 
+## Framework Dependency Risk Assessment
+
+### Critical Security Dependency: Streamlit Auto-Escaping
+
+**Current Status:** ✅ SECURE (verified by 57 passing tests)
+
+**Risk Profile:**
+The application's XSS protection relies heavily on Streamlit's built-in HTML escaping mechanisms. This creates a framework-level security dependency that must be actively managed.
+
+### Identified Risks
+
+#### 1. Framework Version Changes
+**Risk Level:** 🟡 MEDIUM
+- Streamlit updates could modify escaping behavior
+- Breaking changes in major version upgrades
+- Deprecation of `st.text()`, `st.write()` escaping
+
+**Mitigation:**
+- Lock Streamlit version in `requirements.txt` (currently recommended)
+- Run full XSS test suite before ANY Streamlit upgrade
+- Monitor Streamlit security advisories (GitHub releases)
+- Add pre-commit hook to prevent `unsafe_allow_html=True` usage
+
+#### 2. Developer Bypass of Protection
+**Risk Level:** 🔴 HIGH (if policy not enforced)
+- `st.markdown(unsafe_allow_html=True)` disables escaping
+- Direct HTML rendering bypasses all protection
+- Developer convenience vs security tradeoff
+
+**Mitigation Strategy:**
+```python
+# FORBIDDEN pattern (code review must reject):
+st.markdown(user_input, unsafe_allow_html=True)  # ❌ NEVER DO THIS
+
+# SAFE alternative (keep using):
+st.text(user_input)  # ✅ Auto-escaped
+st.write(user_input)  # ✅ Auto-escaped
+```
+
+**Enforcement:**
+- Add linter rule to detect `unsafe_allow_html=True`
+- Code review checklist item
+- Pre-commit hook blocking pattern
+
+#### 3. Framework Migration Risk
+**Risk Level:** 🟡 MEDIUM (future consideration)
+- Migration to different framework (e.g., Dash, Gradio, custom React)
+- Would require complete XSS test suite re-run
+- Cannot assume equivalent protection mechanisms
+
+**Mitigation:**
+- Document framework dependency explicitly (this section)
+- Maintain framework-agnostic test suite (already done)
+- Re-run all 57 XSS tests if framework changes
+
+### Framework Escaping Verification
+
+**Tested Streamlit Components:**
+| Component | Auto-Escaping | Verification |
+|-----------|---------------|--------------|
+| `st.text()` | ✅ YES | 12 tests passing |
+| `st.write()` | ✅ YES | 18 tests passing |
+| `st.text_input()` | ✅ YES | 15 tests passing |
+| `st.error()` / `st.success()` | ✅ YES | 12 tests passing |
+| `st.markdown()` (default) | ✅ YES | Not directly tested |
+| `st.markdown(unsafe_allow_html=True)` | ❌ NO | **FORBIDDEN** |
+
+### Recommendation: Framework Change Policy
+
+**Policy Statement:**
+> Any change to the Streamlit framework version or migration to a different UI framework REQUIRES full execution of the Phase 2 XSS test suite (57 tests) to verify continued protection.
+
+**Approval Requirements:**
+1. ✅ All 57 XSS tests must pass
+2. ✅ Security team review of framework release notes
+3. ✅ Manual spot-check of critical user input fields
+4. ✅ Staging environment testing with real attack payloads
+
+### Monitoring & Maintenance
+
+**Quarterly Actions:**
+- Re-run XSS test suite (verify no regressions)
+- Check Streamlit security advisories
+- Audit codebase for `unsafe_allow_html=True` usage
+- Review new Streamlit components for escaping behavior
+
+**Before Production Deploy:**
+- Verify Streamlit version locked in `requirements.txt`
+- Confirm no `unsafe_allow_html=True` in diff
+- Run XSS test suite in CI/CD pipeline
+
+---
+
 ## Conclusion
 
 The practice booking system demonstrates **excellent XSS protection** across all tested components. The combination of Streamlit's automatic HTML escaping, FastAPI's response serialization, and PostgreSQL parameterized queries creates a robust defense against XSS attacks.
@@ -391,6 +484,8 @@ The practice booking system demonstrates **excellent XSS protection** across all
 **Confidence Level:** HIGH (based on comprehensive testing with 57 attack vectors)
 
 **Production Readiness:** The application is production-ready from an XSS security perspective, with no critical vulnerabilities identified.
+
+**Framework Dependency:** Streamlit auto-escaping is a critical security dependency - must be managed per Framework Change Policy above.
 
 ---
 
