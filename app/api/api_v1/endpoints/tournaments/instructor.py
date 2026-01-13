@@ -631,18 +631,18 @@ def approve_instructor_application(
     instructor = db.query(User).filter(User.id == application.instructor_id).first()
 
     # Update tournament status and assign instructor
-    # For APPLICATION_BASED: Approval = automatic assignment (status → ONGOING)
+    # For APPLICATION_BASED: Approval = automatic assignment (status → INSTRUCTOR_CONFIRMED)
     # Instructor already showed interest by applying, no further acceptance needed
     old_tournament_status = tournament.tournament_status
     tournament.master_instructor_id = application.instructor_id
-    tournament.tournament_status = "ONGOING"
+    tournament.tournament_status = "INSTRUCTOR_CONFIRMED"
 
     # Record status history
     record_status_change(
         db=db,
         tournament_id=tournament.id,
         old_status=old_tournament_status,
-        new_status="ONGOING",
+        new_status="INSTRUCTOR_CONFIRMED",
         changed_by=current_user.id,
         reason=f"Admin approved instructor application from {instructor.name} - automatically assigned",
         metadata={
@@ -661,17 +661,58 @@ def approve_instructor_application(
     # CREATE NOTIFICATION for instructor
     # ============================================================================
     from app.services.notification_service import create_tournament_application_approved_notification
+    import logging
 
-    create_tournament_application_approved_notification(
-        db=db,
-        instructor_id=instructor.id,
-        tournament=tournament,
-        response_message=approval_data.response_message or "Your application has been approved!",
-        request_id=application.id
-    )
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 DEBUG: Creating notification for application approval")
+    logger.info(f"   - Application ID: {application.id}")
+    logger.info(f"   - Instructor ID: {instructor.id}")
+    logger.info(f"   - Tournament ID: {tournament.id}")
+    logger.info(f"   - Tournament Name: {tournament.name}")
 
-    # Commit the notification
-    db.commit()
+    try:
+        notification = create_tournament_application_approved_notification(
+            db=db,
+            instructor_id=instructor.id,
+            tournament=tournament,
+            response_message=approval_data.response_message or "Your application has been approved!",
+            request_id=application.id
+        )
+
+        logger.info(f"✅ DEBUG: Notification object created successfully")
+        logger.info(f"   - Notification type: {notification.type}")
+        logger.info(f"   - User ID: {notification.user_id}")
+        logger.info(f"   - Related request ID: {notification.related_request_id}")
+        logger.info(f"   - Related semester ID: {notification.related_semester_id}")
+
+        # Commit the notification
+        logger.info(f"🔍 DEBUG: About to commit notification to database...")
+        db.commit()
+        logger.info(f"✅ DEBUG: Notification committed successfully!")
+
+    except Exception as e:
+        logger.error(f"❌ DEBUG: Error during notification creation/commit!")
+        logger.error(f"   - Error type: {type(e).__name__}")
+        logger.error(f"   - Error message: {str(e)}")
+        logger.error(f"   - Application ID being used: {application.id}")
+        logger.error(f"   - Instructor ID being used: {instructor.id}")
+        logger.error(f"   - Tournament ID being used: {tournament.id}")
+
+        # Rollback the notification (but keep the application approval)
+        db.rollback()
+
+        # Re-raise as HTTPException with detailed info
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "notification_creation_failed",
+                "message": f"Application approved successfully, but notification creation failed: {str(e)}",
+                "error_type": type(e).__name__,
+                "application_id": application.id,
+                "tournament_id": tournament.id,
+                "instructor_id": instructor.id
+            }
+        )
 
     # ============================================================================
     # RETURN SUCCESS RESPONSE
