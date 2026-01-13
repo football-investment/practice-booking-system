@@ -94,6 +94,12 @@ class Semester(Base):
     is_multi_day = Column(Boolean, default=False,
                          comment="True if tournament spans multiple days")
 
+    # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
+    assignment_type = Column(String(30), nullable=True,
+                            comment="Tournament instructor assignment strategy: OPEN_ASSIGNMENT (admin assigns directly) or APPLICATION_BASED (instructors apply)")
+    max_players = Column(Integer, nullable=True,
+                        comment="Maximum tournament participants (explicit capacity, independent of session capacity sum)")
+
     # 🎁 REWARD POLICY FIELDS (tournament reward system)
     reward_policy_name = Column(String(100), nullable=False, default="default",
                                 comment="Name of the reward policy applied to this tournament semester")

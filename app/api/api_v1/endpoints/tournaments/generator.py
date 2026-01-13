@@ -4,10 +4,10 @@ Tournament Generator API
 Admin-only endpoint for creating one-day tournaments
 """
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from app.database import get_db
 from app.api.api_v1.endpoints.auth import get_current_user
@@ -45,10 +45,63 @@ class TournamentGenerateRequest(BaseModel):
     age_group: Optional[str] = Field(None, description="Age group (e.g., PRE, YOUTH)")
     campus_id: Optional[int] = Field(None, description="Campus ID (preferred - most specific location)")
     location_id: Optional[int] = Field(None, description="Location ID (fallback if campus not specified)")
-    sessions: List[SessionConfig] = Field(..., description="Session configurations")
+
+    # ⚠️ BUSINESS LOGIC FIX: Sessions are OPTIONAL at tournament creation
+    # Sessions are added LATER by admin/instructor via Tournament Management
+    sessions: List[SessionConfig] = Field(default=[], description="Session configurations (optional - can be added later)")
+
     auto_book_students: bool = Field(False, description="Auto-book students (only for testing)")
     booking_capacity_pct: int = Field(70, ge=0, le=100, description="Booking fill percentage (0-100)")
     reward_policy_name: str = Field("default", description="Reward policy name (default: 'default')")
+
+    # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
+    assignment_type: Literal["OPEN_ASSIGNMENT", "APPLICATION_BASED"] = Field(
+        ...,
+        description="Tournament instructor assignment strategy: OPEN_ASSIGNMENT (admin assigns directly) or APPLICATION_BASED (instructors apply)"
+    )
+    max_players: int = Field(
+        ...,
+        gt=0,
+        description="Maximum tournament participants (explicit capacity, independent of session capacity sum)"
+    )
+    enrollment_cost: int = Field(
+        ...,
+        gt=0,
+        description="Enrollment fee in credits (explicit pricing, no default)"
+    )
+    instructor_id: Optional[int] = Field(
+        None,
+        description="Instructor ID (ALWAYS None at creation - instructor assigned AFTER via Tournament Management)"
+    )
+
+    @validator('instructor_id')
+    def validate_instructor_at_creation(cls, v, values):
+        """
+        BUSINESS LOGIC: instructor_id is ALWAYS None at tournament creation
+
+        Instructor assignment happens AFTER creation via Tournament Management:
+        - OPEN_ASSIGNMENT: Admin invites specific instructor (invitation flow)
+        - APPLICATION_BASED: Instructors apply, admin selects one
+        """
+        if v is not None:
+            raise ValueError(
+                'instructor_id must be None at tournament creation. '
+                'Instructor assignment happens AFTER creation via Tournament Management.'
+            )
+        return v
+
+    @validator('max_players')
+    def validate_capacity_vs_sessions(cls, v, values):
+        """Validate that session capacities do not exceed max_players"""
+        sessions = values.get('sessions', [])
+        if sessions:
+            total_session_capacity = sum(s.capacity for s in sessions)
+            if total_session_capacity > v:
+                raise ValueError(
+                    f'Total session capacity ({total_session_capacity}) exceeds max_players ({v}). '
+                    f'Either increase max_players or reduce session capacities.'
+                )
+        return v
 
 
 class SendInstructorRequestSchema(BaseModel):
@@ -157,7 +210,7 @@ def generate_tournament(
             detail="Tournament date must be today or in the future"
         )
 
-    # Create tournament semester (no instructor yet)
+    # Create tournament semester with explicit business attributes
     semester = TournamentService.create_tournament_semester(
         db=db,
         tournament_date=tournament_date,
@@ -166,7 +219,12 @@ def generate_tournament(
         campus_id=request.campus_id,  # ✅ NEW: Campus support
         location_id=request.location_id,
         age_group=request.age_group,
-        reward_policy_name=request.reward_policy_name
+        reward_policy_name=request.reward_policy_name,
+        # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
+        assignment_type=request.assignment_type,
+        max_players=request.max_players,
+        enrollment_cost=request.enrollment_cost,
+        instructor_id=request.instructor_id
     )
 
     # Create sessions (no instructor yet)

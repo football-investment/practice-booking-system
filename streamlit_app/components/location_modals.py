@@ -49,29 +49,39 @@ def render_create_location_modal(token: str) -> bool:
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    name = st.text_input(
-                        "Location Name *",
-                        value=st.session_state.location_wizard_data.get('name', ''),
-                        placeholder="LFA Education Center - Budapest",
-                        help="Full name of the location"
-                    )
-
                     city = st.text_input(
                         "City *",
                         value=st.session_state.location_wizard_data.get('city', ''),
-                        placeholder="Budapest"
-                    )
-
-                    postal_code = st.text_input(
-                        "Postal Code",
-                        value=st.session_state.location_wizard_data.get('postal_code', ''),
-                        placeholder="1011"
+                        placeholder="Budapest",
+                        help="City name (will be used in display name)"
                     )
 
                     country = st.text_input(
                         "Country *",
                         value=st.session_state.location_wizard_data.get('country', 'Hungary'),
                         placeholder="Hungary"
+                    )
+
+                    country_code = st.text_input(
+                        "Country Code *",
+                        value=st.session_state.location_wizard_data.get('country_code', ''),
+                        placeholder="HU",
+                        max_chars=2,
+                        help="2-letter ISO country code (e.g., HU, AT, SK)"
+                    ).upper()
+
+                    location_code = st.text_input(
+                        "Location Code *",
+                        value=st.session_state.location_wizard_data.get('location_code', ''),
+                        placeholder="BDPST",
+                        max_chars=10,
+                        help="Unique location identifier (e.g., BDPST for Budapest)"
+                    ).upper()
+
+                    postal_code = st.text_input(
+                        "Postal Code",
+                        value=st.session_state.location_wizard_data.get('postal_code', ''),
+                        placeholder="1011"
                     )
 
                 with col2:
@@ -129,16 +139,25 @@ def render_create_location_modal(token: str) -> bool:
 
                 if next_step:
                     # Validation
-                    if not name or not city or not country:
-                        st.error("❌ Name, City, and Country are required!")
+                    if not city or not country or not country_code or not location_code:
+                        st.error("❌ City, Country, Country Code, and Location Code are required!")
                     else:
-                        # Check for duplicate location name
+                        # Generate display name: 🇭🇺 HU - Budapest
+                        def get_flag_emoji(code):
+                            if len(code) == 2:
+                                return chr(ord(code[0]) + 127397) + chr(ord(code[1]) + 127397)
+                            return "🌍"
+
+                        flag = get_flag_emoji(country_code.upper())
+                        name = f"{flag} {country_code.upper()} - {city}"
+
+                        # Check for duplicate location code
                         success, existing_locations = get_locations(token, include_inactive=True)
                         duplicate_found = False
                         if success and existing_locations:
-                            existing_names = [loc.get('name') for loc in existing_locations]
-                            if name in existing_names:
-                                st.error(f"❌ Location '{name}' already exists! Please choose a different name.")
+                            existing_codes = [loc.get('location_code') for loc in existing_locations if loc.get('location_code')]
+                            if location_code.upper() in existing_codes:
+                                st.error(f"❌ Location code '{location_code.upper()}' already exists! Please choose a different code.")
                                 duplicate_found = True
 
                         if not duplicate_found:
@@ -147,6 +166,8 @@ def render_create_location_modal(token: str) -> bool:
                                 "name": name,
                                 "city": city,
                                 "country": country,
+                                "country_code": country_code.upper(),
+                                "location_code": location_code.upper(),
                                 "location_type": location_type,
                                 "postal_code": postal_code if postal_code else None,
                                 "venue": venue if venue else None,

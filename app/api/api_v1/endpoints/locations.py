@@ -29,6 +29,8 @@ class LocationCreate(BaseModel):
     city: str
     postal_code: str | None = None
     country: str
+    country_code: str | None = None  # 2-letter ISO code (e.g., HU, AT, SK)
+    location_code: str | None = None  # Unique location identifier (e.g., BDPST)
     location_type: str = "CENTER"  # NEW: PARTNER or CENTER
     venue: str | None = None
     address: str | None = None
@@ -42,6 +44,8 @@ class LocationUpdate(BaseModel):
     city: str | None = None
     postal_code: str | None = None
     country: str | None = None
+    country_code: str | None = None
+    location_code: str | None = None
     location_type: str | None = None  # NEW: PARTNER or CENTER
     venue: str | None = None
     address: str | None = None
@@ -56,6 +60,8 @@ class LocationResponse(BaseModel):
     city: str
     postal_code: str | None
     country: str
+    country_code: str | None
+    location_code: str | None
     location_type: str  # NEW: PARTNER or CENTER
     venue: str | None
     address: str | None

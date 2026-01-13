@@ -78,9 +78,12 @@ class TestTournamentEnrollmentProtection:
         """
         TEST: Enrollment Protection - INSTRUCTOR_CONFIRMED vs READY_FOR_ENROLLMENT
 
-        Validates:
+        PREREQUISITES:
+        - Run setup script BEFORE this test: python scripts/setup_tournament_enrollment_test.py
+
+        This test validates UI flow ONLY:
         1. Player cannot see tournament when status = INSTRUCTOR_CONFIRMED
-        2. Admin can open enrollment
+        2. Admin opens enrollment via UI
         3. Player can see and enroll when status = READY_FOR_ENROLLMENT
         4. Enrollment succeeds with credit deduction
         """
@@ -91,84 +94,45 @@ class TestTournamentEnrollmentProtection:
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
 
         # ====================================================================
-        # SETUP: Use existing onboarded player (from onboarding tests)
+        # GET LATEST TOURNAMENT FROM SETUP SCRIPT
         # ====================================================================
-        print("  🔧 Setup: Using existing player user...")
+        print("  🔧 Finding latest tournament (from setup script)...")
 
-        # Use pre-created player from onboarding tests
-        player_email = "pwt.k1sqx1@f1stteam.hu"
+        # Use pre-created player from setup script
+        player_email = "pwt.p3t1k3@f1stteam.hu"
         player_password = "password123"
 
-        print(f"     ✅ Using player: {player_email}")
-
-        # Login player to get token
-        player_token_response = requests.post(
-            f"{API_BASE_URL}/api/v1/auth/login",
-            json={"email": player_email, "password": player_password}
-        )
-        assert player_token_response.status_code == 200, f"Player login failed: {player_token_response.text}"
-        player_token = player_token_response.json()["access_token"]
-        print(f"     ✅ Player logged in via API")
-
-        # ====================================================================
-        # SETUP: Create tournament via API
-        # ====================================================================
-        print("  🔧 Setup: Creating tournament via API...")
-
-        tournament_result = create_tournament_via_api(
-            token=reward_policy_admin_token,
-            name=f"Enrollment Protection Test {timestamp}",
-            reward_policy_name="default",
-            age_group="AMATEUR"
-        )
-
-        tournament_id = tournament_result["tournament_id"]
-        tournament_name = tournament_result["summary"]["name"]
-        tournament_code = tournament_result["summary"]["code"]
-        print(f"     ✅ Tournament {tournament_id} created: {tournament_name}")
-
-        # ====================================================================
-        # SETUP: Create instructor and assign to tournament
-        # ====================================================================
-        print("  🔧 Setup: Creating instructor via API...")
-
-        instructor_result = create_instructor_user(
-            token=reward_policy_admin_token
-        )
-        instructor_id = instructor_result["id"]
-        instructor_email = instructor_result["email"]
-        instructor_token = instructor_result["token"]
-        print(f"     ✅ Instructor created: {instructor_email} (ID: {instructor_id})")
-
-        # Direct assign instructor via API
-        print("  📝 Assigning instructor to tournament...")
-        assign_response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/direct-assign-instructor",
-            headers={"Authorization": f"Bearer {reward_policy_admin_token}"},
-            json={"instructor_id": instructor_id}
-        )
-        assert assign_response.status_code == 200, f"Assignment failed: {assign_response.text}"
-        print(f"     ✅ Instructor assigned to tournament")
-
-        # Instructor accepts assignment via API
-        print("  ✅ Instructor accepting assignment...")
-
-        accept_response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-assignment/accept",
-            headers={"Authorization": f"Bearer {instructor_token}"}
-        )
-        assert accept_response.status_code == 200, f"Accept failed: {accept_response.text}"
-        print(f"     ✅ Instructor accepted assignment")
-
-        # Verify status is INSTRUCTOR_CONFIRMED
-        status_response = requests.get(
-            f"{API_BASE_URL}/api/v1/semesters/{tournament_id}",
+        # Get latest tournament with INSTRUCTOR_CONFIRMED status
+        tournaments_response = requests.get(
+            f"{API_BASE_URL}/api/v1/semesters",
             headers={"Authorization": f"Bearer {reward_policy_admin_token}"}
         )
-        assert status_response.status_code == 200
-        current_status = status_response.json()["tournament_status"]
-        print(f"     ℹ️  Tournament status: {current_status}")
-        assert current_status == "INSTRUCTOR_CONFIRMED", f"Expected INSTRUCTOR_CONFIRMED, got {current_status}"
+        assert tournaments_response.status_code == 200, f"Failed to get tournaments: {tournaments_response.text}"
+
+        tournaments_data = tournaments_response.json()
+        tournaments = tournaments_data.get("semesters", [])  # Extract 'semesters' array from response
+        instructor_confirmed_tournaments = [
+            t for t in tournaments
+            if t.get("tournament_status") == "INSTRUCTOR_CONFIRMED"
+        ]
+
+        assert len(instructor_confirmed_tournaments) > 0, "No INSTRUCTOR_CONFIRMED tournament found. Run setup script first!"
+
+        # Get the most recent one
+        latest_tournament = sorted(
+            instructor_confirmed_tournaments,
+            key=lambda x: x.get("id", 0),
+            reverse=True
+        )[0]
+
+        tournament_id = latest_tournament["id"]
+        tournament_name = latest_tournament["name"]
+        tournament_code = latest_tournament["code"]
+
+        print(f"     ✅ Found tournament: {tournament_name}")
+        print(f"     ℹ️  Tournament ID: {tournament_id}")
+        print(f"     ℹ️  Tournament Code: {tournament_code}")
+        print(f"     ℹ️  Status: {latest_tournament['tournament_status']}")
 
         # ====================================================================
         # STEP 1: Verify player CANNOT see tournament (INSTRUCTOR_CONFIRMED)
@@ -248,9 +212,9 @@ class TestTournamentEnrollmentProtection:
         expander_button.click()
         time.sleep(2)
 
-        # Find and click "Open Enrollment" button
-        print("     🟢 Clicking 'Open Enrollment' button...")
-        open_enrollment_button = page.get_by_role("button", name="🟢 Open Enrollment")
+        # Find and click "Open Enrollment" button (opens dialog)
+        print("     📝 Clicking 'Open Enrollment' button (to open dialog)...")
+        open_enrollment_button = page.get_by_role("button", name="📝 Open Enrollment").first
         open_enrollment_button.wait_for(state="visible", timeout=10000)
 
         # Take screenshot before clicking
@@ -258,9 +222,19 @@ class TestTournamentEnrollmentProtection:
 
         open_enrollment_button.click()
         page.wait_for_load_state("networkidle")
+        time.sleep(2)
+
+        print("     ✅ Dialog opened")
+
+        # Now click the second "Open Enrollment" button INSIDE the dialog to confirm
+        print("     📝 Clicking 'Open Enrollment' button in dialog (to confirm)...")
+        confirm_button = page.get_by_role("button", name="📝 Open Enrollment").last
+        confirm_button.wait_for(state="visible", timeout=10000)
+        confirm_button.click()
+        page.wait_for_load_state("networkidle")
         time.sleep(3)
 
-        print("     ✅ 'Open Enrollment' clicked")
+        print("     ✅ 'Open Enrollment' confirmed")
 
         # Verify status changed to READY_FOR_ENROLLMENT
         status_response = requests.get(

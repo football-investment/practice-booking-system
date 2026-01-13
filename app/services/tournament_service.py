@@ -91,12 +91,18 @@ class TournamentService:
         campus_id: Optional[int] = None,
         location_id: Optional[int] = None,
         age_group: Optional[str] = None,
-        reward_policy_name: str = "default"
+        reward_policy_name: str = "default",
+        # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
+        assignment_type: str = "APPLICATION_BASED",
+        max_players: Optional[int] = None,
+        enrollment_cost: int = 500,
+        instructor_id: Optional[int] = None
     ) -> Semester:
         """DEPRECATED: Use app.services.tournament.create_tournament_semester instead"""
         return _create_tournament_semester(
             db, tournament_date, name, specialization_type,
-            campus_id, location_id, age_group, reward_policy_name
+            campus_id, location_id, age_group, reward_policy_name,
+            assignment_type, max_players, enrollment_cost, instructor_id
         )
 
     @staticmethod

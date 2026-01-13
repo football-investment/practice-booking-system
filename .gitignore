@@ -66,6 +66,12 @@ tmp/
 *.temp
 *.backup
 *.bak
+test_summary.txt
+
+# Test Coverage
+.coverage
+htmlcov/
+.pytest_cache/
 
 # Security & Sensitive Data
 secrets/

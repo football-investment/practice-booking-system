@@ -31,13 +31,19 @@ def create_tournament_semester(
     campus_id: Optional[int] = None,
     location_id: Optional[int] = None,
     age_group: Optional[str] = None,
-    reward_policy_name: str = "default"
+    reward_policy_name: str = "default",
+    # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
+    assignment_type: str = "APPLICATION_BASED",
+    max_players: Optional[int] = None,
+    enrollment_cost: int = 500,
+    instructor_id: Optional[int] = None
 ) -> Semester:
     """
     Create a 1-day semester for tournament (Admin only)
 
-    IMPORTANT: Tournament is created WITHOUT master instructor.
-    Status is SEEKING_INSTRUCTOR - admin must assign instructor to activate.
+    IMPORTANT: Tournament behavior depends on assignment_type:
+    - OPEN_ASSIGNMENT: instructor_id required, tournament immediately READY_FOR_ENROLLMENT
+    - APPLICATION_BASED: instructor_id should be None, tournament starts as SEEKING_INSTRUCTOR
 
     Args:
         db: Database session
@@ -48,18 +54,50 @@ def create_tournament_semester(
         location_id: Optional location ID (fallback if campus not specified)
         age_group: Optional age group
         reward_policy_name: Name of reward policy to use (default: "default")
+        assignment_type: Instructor assignment strategy (OPEN_ASSIGNMENT | APPLICATION_BASED)
+        max_players: Maximum tournament participants (explicit capacity)
+        enrollment_cost: Enrollment fee in credits (explicit pricing)
+        instructor_id: Instructor ID (required for OPEN_ASSIGNMENT, None for APPLICATION_BASED)
 
     Returns:
-        Created semester object with status SEEKING_INSTRUCTOR
+        Created semester object with appropriate status based on assignment_type
 
     Raises:
         RewardPolicyError: If reward policy cannot be loaded
+        ValueError: If instructor_id is not None at creation
     """
-    # Generate code: TOURN-YYYYMMDD (e.g., TOURN-20251227)
-    code = f"TOURN-{tournament_date.strftime('%Y%m%d')}"
+    # ⚠️ BUSINESS LOGIC: instructor_id must be None at creation
+    # Instructor assignment happens AFTER via Tournament Management:
+    # - OPEN_ASSIGNMENT: Admin invites specific instructor (invitation flow)
+    # - APPLICATION_BASED: Instructors apply, admin selects one
+    if instructor_id is not None:
+        raise ValueError(
+            "instructor_id must be None at tournament creation. "
+            "Instructor assignment happens AFTER creation via Tournament Management."
+        )
+
+    # Generate code: TOURN-YYYYMMDD-XXX (e.g., TOURN-20260113-001)
+    # Multiple tournaments can exist on the same date, so we need a sequence number
+    date_prefix = f"TOURN-{tournament_date.strftime('%Y%m%d')}"
+
+    # Find existing tournaments on this date
+    existing_tournaments = db.query(Semester).filter(
+        Semester.code.like(f"{date_prefix}%")
+    ).count()
+
+    # Generate unique code with sequence number
+    sequence_num = existing_tournaments + 1
+    code = f"{date_prefix}-{sequence_num:03d}"
 
     # Load and snapshot the reward policy
     reward_policy = load_policy(reward_policy_name)
+
+    # ⚠️ BUSINESS LOGIC: ALL tournaments start as SEEKING_INSTRUCTOR
+    # Status transitions:
+    # - OPEN_ASSIGNMENT: Admin invites instructor → instructor accepts → READY_FOR_ENROLLMENT
+    # - APPLICATION_BASED: Instructors apply → admin selects → instructor accepts → READY_FOR_ENROLLMENT
+    status = SemesterStatus.SEEKING_INSTRUCTOR
+    tournament_status = "SEEKING_INSTRUCTOR"
 
     semester = Semester(
         code=code,
@@ -67,15 +105,19 @@ def create_tournament_semester(
         start_date=tournament_date,
         end_date=tournament_date,  # 1-day tournament
         is_active=True,
-        status=SemesterStatus.SEEKING_INSTRUCTOR,  # Tournament needs master instructor
-        tournament_status="SEEKING_INSTRUCTOR",  # String field for tournament lifecycle
-        master_instructor_id=None,  # No instructor yet - admin assigns later
+        status=status,
+        tournament_status=tournament_status,
+        master_instructor_id=None,  # ⚠️ ALWAYS None at creation
         specialization_type=specialization_type.value if hasattr(specialization_type, 'value') else specialization_type,
         age_group=age_group,
         campus_id=campus_id,
         location_id=location_id,
         reward_policy_name=reward_policy_name,
-        reward_policy_snapshot=reward_policy  # Immutable snapshot of policy
+        reward_policy_snapshot=reward_policy,  # Immutable snapshot of policy
+        # 🎯 NEW: Explicit business attributes
+        assignment_type=assignment_type,
+        max_players=max_players,
+        enrollment_cost=enrollment_cost
     )
 
     db.add(semester)

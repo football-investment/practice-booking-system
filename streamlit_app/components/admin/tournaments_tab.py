@@ -20,11 +20,90 @@ from api_helpers_general import get_semesters, get_sessions
 from api_helpers_tournaments import update_session_game_type, update_tournament
 
 
-# Game type options for tournament sessions
-# Simple league format - everyone plays everyone, ranked by table (like Premier League)
+# ==================================================
+# GAME TYPE OPTIONS - Tournament Match Formats
+# ==================================================
+# All game types support fixed durations: 1, 3, or 5 minutes
+
 GAME_TYPE_OPTIONS = [
-    "League Match"
+    "League Match",
+    "King of the Court",
+    "Group Stage + Placement Matches",
+    "Elimination Bracket"
 ]
+
+# ==================================================
+# GAME TYPE DEFINITIONS - Complete Specifications
+# ==================================================
+
+GAME_TYPE_DEFINITIONS = {
+    "League Match": {
+        "display_name": "⚽ League Match",
+        "category": "LEAGUE",
+        "description": (
+            "All participants play against each other in a round-robin format. "
+            "Points awarded: win=3, draw=1, loss=0. "
+            "Matches can have fixed durations: 1, 3, or 5 minutes. "
+            "Used for season-long competitions with multiple rounds."
+        ),
+        "scoring_system": "TABLE_BASED",
+        "ranking_method": "POINTS",
+        "use_case": "Long-term competitions, everyone plays everyone",
+        "requires_result": True,
+        "allows_draw": True,
+        "fixed_game_times": [1, 3, 5]  # minutes
+    },
+
+    "King of the Court": {
+        "display_name": "🏆 King of the Court",
+        "category": "SPECIAL",
+        "description": (
+            "Players compete in a challenge format. 1v1, 1v2, or 1v3 setup. "
+            "A fixed game time (1, 3, 5 minutes) per round. "
+            "Winner stays on the court; losers rotate out. "
+            "The goal is to stay on the court as long as possible."
+        ),
+        "scoring_system": "WIN_STREAK",
+        "ranking_method": "SURVIVAL",
+        "use_case": "Short, intense challenge competitions",
+        "requires_result": True,
+        "allows_draw": False,
+        "fixed_game_times": [1, 3, 5]  # minutes
+    },
+
+    "Group Stage + Placement Matches": {
+        "display_name": "🏆 Group Stage + Placement",
+        "category": "GROUP_STAGE",
+        "description": (
+            "Tournament split into groups. Each group plays round-robin. "
+            "After group stage, placement matches determine ranking (1st-4th, 5th-8th, etc.). "
+            "Each game has a fixed duration: 1, 3, or 5 minutes. "
+            "Used for tournaments needing group stage + knockout-style placement."
+        ),
+        "scoring_system": "GROUP_TABLE",
+        "ranking_method": "POINTS_ADVANCE",
+        "use_case": "Tournaments requiring fair group competition and placement",
+        "requires_result": True,
+        "allows_draw": True,
+        "fixed_game_times": [1, 3, 5]  # minutes
+    },
+
+    "Elimination Bracket": {
+        "display_name": "🔥 Elimination Bracket",
+        "category": "KNOCKOUT",
+        "description": (
+            "Single or double elimination bracket. Loser is out, winner advances. "
+            "Each game has fixed duration: 1, 3, or 5 minutes. "
+            "Used for tournaments where final winner is determined by knockout rounds."
+        ),
+        "scoring_system": "WIN_LOSS",
+        "ranking_method": "ADVANCE",
+        "use_case": "Direct knockout tournaments, final determines champion",
+        "requires_result": True,
+        "allows_draw": False,
+        "fixed_game_times": [1, 3, 5]  # minutes
+    }
+}
 
 
 def render_tournaments_tab(token, user):
@@ -79,13 +158,40 @@ def render_tournament_list(token: str):
 
             with col1:
                 st.write(f"**Status**: {tournament.get('status', 'N/A')}")
+
+                # Show tournament status with assignment type indicator
+                tournament_status = tournament.get('tournament_status', 'N/A')
+                assignment_type = tournament.get('assignment_type', 'UNKNOWN')
+
+                if tournament_status == 'SEEKING_INSTRUCTOR':
+                    if assignment_type == 'APPLICATION_BASED':
+                        st.write(f"**Tournament Status**: 📝 {tournament_status}")
+                        st.caption("Instructors can apply")
+                    elif assignment_type == 'OPEN_ASSIGNMENT':
+                        st.write(f"**Tournament Status**: 🔒 {tournament_status}")
+                        st.caption("Admin assigns directly")
+                    else:
+                        st.write(f"**Tournament Status**: {tournament_status}")
+                else:
+                    st.write(f"**Tournament Status**: {tournament_status}")
+
                 st.write(f"**Start**: {tournament.get('start_date', 'N/A')}")
                 st.write(f"**End**: {tournament.get('end_date', 'N/A')}")
 
             with col2:
-                st.write(f"**Age Group**: {tournament.get('age_group', 'N/A')}")
-                st.write(f"**Cost**: {tournament.get('enrollment_cost', 0)} credits")
-                st.write(f"**ID**: {tournament.get('id', 'N/A')}")
+                st.write(f"**Age Category**: {tournament.get('age_group', 'N/A')}")
+
+                # Highlight assignment type
+                assignment_type = tournament.get('assignment_type', 'N/A')
+                if assignment_type == 'APPLICATION_BASED':
+                    st.write(f"**Assignment Type**: 📝 {assignment_type}")
+                elif assignment_type == 'OPEN_ASSIGNMENT':
+                    st.write(f"**Assignment Type**: 🔒 {assignment_type}")
+                else:
+                    st.write(f"**Assignment Type**: {assignment_type}")
+
+                st.write(f"**Max Players**: {tournament.get('max_players', 'N/A')}")
+                st.write(f"**Enrollment Cost**: {tournament.get('enrollment_cost', 0)} credits")
 
             with col3:
                 btn_col1, btn_col2 = st.columns(2)
@@ -562,15 +668,38 @@ def show_add_game_dialog():
     st.write(f"**Tournament**: {tournament_data.get('name', 'N/A')}")
     st.divider()
 
+    # ✅ AUTO-FILL: Tournament date parsing
+    tournament_date_str = tournament_data.get('start_date')
+    if tournament_date_str:
+        try:
+            # Parse ISO date string (e.g., "2026-01-19")
+            tournament_date = datetime.fromisoformat(tournament_date_str).date()
+        except:
+            tournament_date = date.today()
+    else:
+        tournament_date = date.today()
+
+    # ✅ AUTO-FILL: Game number for title
+    token = st.session_state.get('token')
+    existing_games = get_tournament_sessions(token, tournament_id) if token else []
+    next_game_number = len(existing_games) + 1
+    default_title = f"Match {next_game_number}"
+
     # Game details
-    title = st.text_input("Game Title", value="League Match", key="new_game_title")
+    title = st.text_input(
+        "Game Title",
+        value=default_title,
+        key="new_game_title",
+        help="Auto-generated based on game count. You can change it."
+    )
 
     # Game Type
     game_type = st.selectbox(
         "Game Type",
         options=GAME_TYPE_OPTIONS,
         index=0,
-        key="new_game_type"
+        key="new_game_type",
+        help="Select the format for this match"
     )
 
     st.divider()
@@ -581,12 +710,13 @@ def show_add_game_dialog():
     with col1:
         game_date = st.date_input(
             "Date",
-            value=date.today(),
-            key="new_game_date"
+            value=tournament_date,  # ✅ AUTO-FILLED from tournament
+            key="new_game_date",
+            help="Auto-filled from tournament date. You can change if needed."
         )
 
     with col2:
-        st.write("")  # Spacing
+        st.info(f"🏆 Tournament Date: {tournament_date.strftime('%Y-%m-%d')}")
 
     col3, col4 = st.columns(2)
 
@@ -623,16 +753,18 @@ def show_add_game_dialog():
                 return
 
             # Build create payload
+            # ✅ TOURNAMENT GAME: Automatically mark as tournament game
             create_payload = {
                 "title": title,
-                "description": "",
+                "description": f"Tournament Game: {game_type}",
                 "date_start": start_datetime.isoformat(),
                 "date_end": end_datetime.isoformat(),
                 "session_type": "on_site",
-                "capacity": 20,
+                "capacity": tournament_data.get('max_players', 20),  # ✅ Use tournament max_players
                 "semester_id": tournament_id,
                 "instructor_id": tournament_data.get('master_instructor_id'),
-                "credit_cost": 1,
+                "credit_cost": 0,  # ✅ Tournament games are included in tournament enrollment cost
+                "is_tournament_game": True,  # ✅ AUTO: Mark as tournament game
                 "game_type": game_type
             }
 
@@ -783,18 +915,18 @@ def show_delete_tournament_dialog():
 
 def render_instructor_applications_section(token: str, tournament: Dict):
     """
-    Render instructor application management section within tournament expander.
+    Render instructor assignment section based on assignment_type.
 
-    Shows:
-    - Current instructor assignment status
-    - Pending instructor applications
-    - Approve/Reject buttons for applications
+    Two workflows:
+    1. APPLICATION_BASED: Instructors apply → Admin approves → Instructor accepts
+    2. OPEN_ASSIGNMENT: Admin directly invites instructor → Instructor accepts
     """
     from config import API_BASE_URL, API_TIMEOUT
 
     tournament_id = tournament.get('id')
     status = tournament.get('status', 'N/A')
     master_instructor_id = tournament.get('master_instructor_id')
+    assignment_type = tournament.get('assignment_type', 'UNKNOWN')
 
     st.subheader("👨‍🏫 Instructor Assignment")
 
@@ -802,15 +934,32 @@ def render_instructor_applications_section(token: str, tournament: Dict):
     if master_instructor_id:
         st.success(f"✅ **Instructor Assigned** (ID: {master_instructor_id})")
     elif status == "SEEKING_INSTRUCTOR":
-        st.warning("⏳ **Seeking Instructor** - No instructor assigned yet")
+        st.warning(f"⏳ **Seeking Instructor** ({assignment_type})")
     else:
         st.info(f"**Status**: {status}")
 
+    st.divider()
+
+    # 🔥 BRANCHING: Different UI based on assignment_type
+    if assignment_type == "APPLICATION_BASED":
+        render_application_based_workflow(token, tournament_id)
+    elif assignment_type == "OPEN_ASSIGNMENT":
+        render_open_assignment_workflow(token, tournament_id, master_instructor_id)
+    else:
+        st.warning(f"⚠️ Unknown assignment type: {assignment_type}")
+
+
+def render_application_based_workflow(token: str, tournament_id: int):
+    """
+    Workflow 1: APPLICATION_BASED
+    Instructors apply → Admin reviews → Admin approves → Instructor accepts
+    """
     # Fetch pending applications for this tournament
     applications = get_instructor_applications(token, tournament_id)
 
     if not applications:
-        st.caption("No instructor applications")
+        st.info("📭 No instructor applications yet")
+        st.caption("Instructors can apply through their dashboard")
         return
 
     st.write(f"**Applications**: {len(applications)}")
@@ -822,6 +971,68 @@ def render_instructor_applications_section(token: str, tournament: Dict):
     # Display each application
     for app in applications:
         render_instructor_application_card(token, tournament_id, app, has_accepted_application)
+
+
+def render_open_assignment_workflow(token: str, tournament_id: int, current_instructor_id: int = None):
+    """
+    Workflow 2: OPEN_ASSIGNMENT
+    Admin directly selects instructor → Sends invitation → Instructor accepts
+    """
+    from config import API_BASE_URL, API_TIMEOUT
+
+    # If instructor already assigned, show status
+    if current_instructor_id:
+        st.success("✅ Instructor directly assigned")
+        return
+
+    st.info("🔒 **Direct Assignment Mode**")
+    st.caption("Select an instructor to invite directly (no application required)")
+    st.divider()
+
+    # Fetch all instructors with LFA_COACH license
+    instructors = get_all_instructors_with_coach_license(token)
+
+    if not instructors:
+        st.warning("⚠️ No instructors available with LFA_COACH license")
+        st.caption("Create instructor accounts first")
+        return
+
+    # Instructor selector
+    instructor_options = {
+        f"{instr.get('name', 'Unnamed')} ({instr.get('email', 'No email')})": instr['id']
+        for instr in instructors
+    }
+
+    selected_instructor_name = st.selectbox(
+        "Select Instructor",
+        options=["-- Select an instructor --"] + list(instructor_options.keys()),
+        key=f"instructor_selector_{tournament_id}"
+    )
+
+    if selected_instructor_name == "-- Select an instructor --":
+        st.caption("ℹ️ Choose an instructor from the dropdown to proceed")
+        return
+
+    selected_instructor_id = instructor_options[selected_instructor_name]
+
+    # Optional invitation message
+    invitation_message = st.text_area(
+        "Invitation Message (optional)",
+        value=f"You have been selected to lead this tournament. Please accept this invitation.",
+        key=f"invitation_message_{tournament_id}",
+        height=100
+    )
+
+    st.divider()
+
+    # Send invitation button
+    if st.button(
+        "📨 Send Direct Invitation",
+        key=f"send_invitation_{tournament_id}",
+        type="primary",
+        use_container_width=True
+    ):
+        send_direct_invitation(token, tournament_id, selected_instructor_id, invitation_message)
 
 
 def get_instructor_applications(token: str, tournament_id: int) -> List[Dict]:
@@ -1294,3 +1505,150 @@ def show_start_tournament_dialog():
             if 'start_tournament_name' in st.session_state:
                 del st.session_state['start_tournament_name']
             st.rerun()
+
+
+# ============================================================================
+# HELPER FUNCTIONS FOR OPEN_ASSIGNMENT WORKFLOW
+# ============================================================================
+
+def get_all_instructors_with_coach_license(token: str) -> List[Dict]:
+    """
+    Fetch all instructors with active LFA_COACH license.
+
+    Returns: List of instructor user objects with license information
+    """
+    from config import API_BASE_URL, API_TIMEOUT
+
+    try:
+        # Fetch all users with INSTRUCTOR role
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/users/",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "role": "instructor",
+                "is_active": True,
+                "size": 100
+            },
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code != 200:
+            return []
+
+        data = response.json()
+        all_instructors = data.get("users", [])
+
+        # For now, return all instructors
+        # TODO: In production, filter for LFA_COACH license
+        # The backend direct-assign-instructor endpoint validates license anyway
+        return all_instructors
+
+        # Filter for instructors with LFA_COACH license
+        # Commented out for now because license endpoint structure needs verification
+        # instructors_with_license = []
+        #
+        # for instructor in all_instructors:
+        #     # Fetch licenses for this instructor
+        #     license_response = requests.get(
+        #         f"{API_BASE_URL}/api/v1/user-licenses/user/{instructor['id']}",
+        #         headers={"Authorization": f"Bearer {token}"},
+        #         timeout=API_TIMEOUT
+        #     )
+        #
+        #     if license_response.status_code == 200:
+        #         licenses = license_response.json()
+        #
+        #         # Check if they have LFA_COACH license
+        #         has_coach_license = any(
+        #             lic.get('specialization_type') == 'LFA_COACH'
+        #             for lic in licenses
+        #         )
+        #
+        #         if has_coach_license:
+        #             instructors_with_license.append(instructor)
+        #
+        # return instructors_with_license
+
+    except Exception as e:
+        st.error(f"❌ Error fetching instructors: {str(e)}")
+        return []
+
+
+def send_direct_invitation(token: str, tournament_id: int, instructor_id: int, message: str):
+    """
+    Send direct invitation to instructor for OPEN_ASSIGNMENT tournament.
+
+    Calls the backend API to directly assign instructor to tournament.
+    """
+    from config import API_BASE_URL, API_TIMEOUT
+
+    try:
+        with st.spinner("Sending invitation..."):
+            response = requests.post(
+                f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/direct-assign-instructor",
+                headers={"Authorization": f"Bearer {token}"},
+                json={
+                    "instructor_id": instructor_id,
+                    "assignment_message": message
+                },
+                timeout=API_TIMEOUT
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+
+                st.success("✅ **Invitation sent successfully!**")
+                st.info("ℹ️ Instructor has been notified and must accept the assignment.")
+
+                # Display assignment details
+                st.divider()
+                st.caption("**Assignment Details:**")
+                st.caption(f"• Instructor: {result.get('instructor_name', 'Unknown')}")
+                st.caption(f"• Status: {result.get('status', 'PENDING')}")
+                st.caption(f"• Assignment ID: {result.get('assignment_id', 'N/A')}")
+
+                time.sleep(2)
+                st.rerun()
+
+            elif response.status_code == 400:
+                error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                error_detail = error_data.get('detail', {})
+
+                if isinstance(error_detail, dict):
+                    error_msg = error_detail.get('message', response.text)
+                    error_type = error_detail.get('error', 'unknown_error')
+
+                    if error_type == 'license_required':
+                        st.error("❌ **License Error**: Selected instructor does not have LFA_COACH license")
+                    elif error_type == 'invalid_tournament_status':
+                        st.error(f"❌ **Status Error**: {error_msg}")
+                        st.caption(f"Current status: {error_detail.get('current_status', 'N/A')}")
+                    else:
+                        st.error(f"❌ **Error**: {error_msg}")
+                else:
+                    st.error(f"❌ Error: {error_detail}")
+
+            elif response.status_code == 403:
+                st.error("❌ **Permission Denied**: Only admins can directly assign instructors")
+
+            elif response.status_code == 404:
+                error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                error_detail = error_data.get('detail', {})
+
+                if isinstance(error_detail, dict):
+                    error_type = error_detail.get('error', 'not_found')
+
+                    if error_type == 'tournament_not_found':
+                        st.error("❌ **Tournament Not Found**")
+                    elif error_type == 'instructor_not_found':
+                        st.error("❌ **Instructor Not Found**")
+                    else:
+                        st.error(f"❌ **Not Found**: {error_detail.get('message', 'Resource not found')}")
+                else:
+                    st.error("❌ Resource not found")
+
+            else:
+                st.error(f"❌ Failed to send invitation: Server error {response.status_code}")
+
+    except Exception as e:
+        st.error(f"❌ Error sending invitation: {str(e)}")

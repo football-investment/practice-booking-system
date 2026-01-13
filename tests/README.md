@@ -66,13 +66,40 @@ Integration tests for API endpoints, database operations, and multi-component wo
 - `test_license_authorization.py` - License authorization tests
 - `test_session_rules_comprehensive.py` - Session rules testing
 
-### `/e2e`
-End-to-end tests simulating complete user journeys using Playwright.
+### `/api` ⭐ NEW
+Backend API integration tests organized in dedicated folder.
+
+**See:** [api/README.md](api/README.md) for detailed documentation
 
 **Key Files:**
-- `test_reward_policy_distribution.py` - Reward distribution E2E test
-- `reward_policy_fixtures.py` - Tournament fixtures for reward testing
-- `conftest.py` - Playwright configuration and browser setup
+- `test_coupons_refactored.py` - Coupon system API tests
+- `test_invitation_codes.py` - Invitation code API tests
+- `test_tournament_enrollment.py` - Tournament enrollment API tests
+
+### `/playwright` ⭐ NEW
+End-to-end UI tests using Playwright browser automation.
+
+**See:** [playwright/README.md](playwright/README.md) for detailed documentation
+
+**Key Files:**
+- `test_user_registration_with_invites.py` - User registration workflow
+- `test_complete_onboarding_with_coupon_ui.py` - Onboarding with coupon redemption
+- `test_ui_instructor_application_workflow.py` - Complete tournament management workflow
+- `test_tournament_enrollment_protection.py` - Enrollment protection validation
+- `demo_player_login.py` - Demo test for presentations
+
+**Master Test Runner:**
+- `run_all_e2e_tests.sh` - Runs all Playwright tests sequentially with database snapshots
+
+### `/e2e` ⚠️ DEPRECATED
+**This folder is deprecated.** All active Playwright tests have been moved to `/playwright`.
+
+**See:** [e2e/DEPRECATED.md](e2e/DEPRECATED.md) for migration details
+
+### `/security`
+Security testing suite (SQL injection, XSS, CSRF protection).
+
+**See:** [security/README.md](security/README.md) for detailed documentation
 
 **⚠️ IMPORTANT: E2E Test Limitations**
 

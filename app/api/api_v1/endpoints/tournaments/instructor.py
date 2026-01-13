@@ -324,10 +324,12 @@ def apply_to_tournament(
     # ============================================================================
     # VALIDATION 2: Current user has LFA_COACH license
     # ============================================================================
+    # Get the HIGHEST level coach license for this user
+    # (Instructors may have multiple LFA_COACH licenses with different levels)
     coach_license = db.query(UserLicense).filter(
         UserLicense.user_id == current_user.id,
         UserLicense.specialization_type == "LFA_COACH"
-    ).first()
+    ).order_by(UserLicense.current_level.desc()).first()
 
     if not coach_license:
         raise HTTPException(
@@ -340,6 +342,12 @@ def apply_to_tournament(
                 "required_license": "LFA_COACH"
             }
         )
+
+    # ============================================================================
+    # VALIDATION 2B: Coach level must be sufficient for tournament category
+    # ============================================================================
+    # Note: We need to check the tournament first to get its category
+    # Moving this validation after tournament existence check (see VALIDATION 3B below)
 
     # ============================================================================
     # VALIDATION 3: Tournament exists
@@ -357,7 +365,56 @@ def apply_to_tournament(
         )
 
     # ============================================================================
-    # VALIDATION 4: Tournament status is SEEKING_INSTRUCTOR
+    # VALIDATION 3B: Coach level must be sufficient for tournament age group
+    # ============================================================================
+    # Define minimum required coach levels for each age group
+    MINIMUM_COACH_LEVELS = {
+        "PRE": 1,       # Level 1 (lowest)
+        "YOUTH": 3,     # Level 3
+        "AMATEUR": 5,   # Level 5
+        "PRO": 7        # Level 7 (highest)
+    }
+
+    tournament_age_group = tournament.age_group
+    required_level = MINIMUM_COACH_LEVELS.get(tournament_age_group)
+
+    if required_level is None:
+        # Tournament age group not recognized - log warning but allow (backward compatibility)
+        pass
+    elif coach_license.current_level < required_level:
+        # Coach level is insufficient for this tournament age group
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "insufficient_coach_level",
+                "message": f"Your coach level ({coach_license.current_level}) is insufficient for {tournament_age_group} age group tournaments. Minimum required: Level {required_level}",
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "current_coach_level": coach_license.current_level,
+                "required_coach_level": required_level,
+                "tournament_age_group": tournament_age_group,
+                "tournament_id": tournament_id,
+                "tournament_name": tournament.name
+            }
+        )
+
+    # ============================================================================
+    # VALIDATION 4: Tournament must be APPLICATION_BASED (not OPEN_ASSIGNMENT)
+    # ============================================================================
+    if tournament.assignment_type == "OPEN_ASSIGNMENT":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "direct_assignment_only",
+                "message": "This tournament uses direct assignment. Instructors cannot apply - admin must directly assign.",
+                "assignment_type": "OPEN_ASSIGNMENT",
+                "tournament_id": tournament_id,
+                "tournament_name": tournament.name
+            }
+        )
+
+    # ============================================================================
+    # VALIDATION 5: Tournament status is SEEKING_INSTRUCTOR
     # ============================================================================
     if tournament.tournament_status != "SEEKING_INSTRUCTOR":
         raise HTTPException(
@@ -373,7 +430,7 @@ def apply_to_tournament(
         )
 
     # ============================================================================
-    # VALIDATION 5: Check for existing application
+    # VALIDATION 6: Check for existing application
     # ============================================================================
     existing_application = db.query(InstructorAssignmentRequest).filter(
         InstructorAssignmentRequest.semester_id == tournament_id,
@@ -437,17 +494,18 @@ def approve_instructor_application(
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    SCENARIO 2: Admin approves instructor application.
+    SCENARIO 2: Admin approves instructor application (APPLICATION_BASED).
 
     This endpoint allows an admin to approve an instructor's application to lead
-    a tournament. After approval, the instructor must still accept the assignment
-    via the /instructor-assignment/accept endpoint.
+    a tournament. For APPLICATION_BASED tournaments, approval automatically assigns
+    the instructor (no further acceptance needed from instructor).
 
     **Authorization:** ADMIN role only
 
     **Validations:**
     - Current user is ADMIN
     - Tournament exists
+    - Tournament must be APPLICATION_BASED (not OPEN_ASSIGNMENT)
     - Application exists and belongs to the tournament
     - Application status is PENDING
     - Tournament status is SEEKING_INSTRUCTOR
@@ -456,10 +514,13 @@ def approve_instructor_application(
     - Updates application status to ACCEPTED
     - Records responded_at timestamp
     - Records optional response_message from admin
+    - Assigns instructor to tournament (master_instructor_id)
+    - Updates tournament status to ONGOING
+    - Creates notification for instructor
 
     **Returns:**
     - Application details
-    - Next steps for instructor
+    - Tournament updated status
 
     **Raises:**
     - 403 FORBIDDEN: User is not an admin
@@ -496,7 +557,22 @@ def approve_instructor_application(
         )
 
     # ============================================================================
-    # VALIDATION 3: Application exists and belongs to tournament
+    # VALIDATION 3: Tournament must be APPLICATION_BASED (not OPEN_ASSIGNMENT)
+    # ============================================================================
+    if tournament.assignment_type == "OPEN_ASSIGNMENT":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "direct_assignment_only",
+                "message": "This tournament uses direct assignment. Cannot approve applications for OPEN_ASSIGNMENT tournaments.",
+                "assignment_type": "OPEN_ASSIGNMENT",
+                "tournament_id": tournament_id,
+                "tournament_name": tournament.name
+            }
+        )
+
+    # ============================================================================
+    # VALIDATION 4: Application exists and belongs to tournament
     # ============================================================================
     application = db.query(InstructorAssignmentRequest).filter(
         InstructorAssignmentRequest.id == application_id,
@@ -555,24 +631,25 @@ def approve_instructor_application(
     instructor = db.query(User).filter(User.id == application.instructor_id).first()
 
     # Update tournament status and assign instructor
-    # Admin approval sets status to PENDING_INSTRUCTOR_ACCEPTANCE
-    # Instructor must then explicitly accept via /instructor/accept
+    # For APPLICATION_BASED: Approval = automatic assignment (status → ONGOING)
+    # Instructor already showed interest by applying, no further acceptance needed
     old_tournament_status = tournament.tournament_status
     tournament.master_instructor_id = application.instructor_id
-    tournament.tournament_status = "PENDING_INSTRUCTOR_ACCEPTANCE"
+    tournament.tournament_status = "ONGOING"
 
     # Record status history
     record_status_change(
         db=db,
         tournament_id=tournament.id,
         old_status=old_tournament_status,
-        new_status="PENDING_INSTRUCTOR_ACCEPTANCE",
+        new_status="ONGOING",
         changed_by=current_user.id,
-        reason=f"Admin approved instructor application from {instructor.name} - pending instructor acceptance",
+        reason=f"Admin approved instructor application from {instructor.name} - automatically assigned",
         metadata={
             "application_id": application.id,
             "instructor_id": instructor.id,
-            "instructor_name": instructor.name
+            "instructor_name": instructor.name,
+            "assignment_type": "APPLICATION_BASED"
         }
     )
 
@@ -581,10 +658,26 @@ def approve_instructor_application(
     db.refresh(tournament)
 
     # ============================================================================
+    # CREATE NOTIFICATION for instructor
+    # ============================================================================
+    from app.services.notification_service import create_tournament_application_approved_notification
+
+    create_tournament_application_approved_notification(
+        db=db,
+        instructor_id=instructor.id,
+        tournament=tournament,
+        response_message=approval_data.response_message or "Your application has been approved!",
+        request_id=application.id
+    )
+
+    # Commit the notification
+    db.commit()
+
+    # ============================================================================
     # RETURN SUCCESS RESPONSE
     # ============================================================================
     return {
-        "message": "Application approved successfully - Instructor must now accept the assignment",
+        "message": "Application approved successfully - Instructor automatically assigned",
         "application_id": application.id,
         "tournament_id": tournament.id,
         "tournament_name": tournament.name,
@@ -597,7 +690,8 @@ def approve_instructor_application(
         "approved_by": current_user.id,
         "approved_by_name": current_user.name,
         "response_message": application.response_message,
-        "next_step": "Instructor must accept assignment via /instructor/accept endpoint"
+        "assignment_type": "APPLICATION_BASED",
+        "next_step": "Tournament is now ONGOING with instructor assigned"
     }
 
 
@@ -700,6 +794,103 @@ def get_instructor_applications(
         "master_instructor_id": tournament.master_instructor_id,
         "applications": applications_data,
         "total_applications": len(applications_data)
+    }
+
+
+# ============================================================================
+# INSTRUCTOR ENDPOINT: Get My Application for Specific Tournament
+# ============================================================================
+
+@router.get("/{tournament_id}/my-application")
+def get_my_tournament_application(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get the current instructor's application for a specific tournament.
+
+    **Authorization:** INSTRUCTOR role only
+
+    **Returns:**
+    - Application details if exists
+    - 404 if no application exists for this tournament
+
+    **Example Response:**
+    ```json
+    {
+        "id": 1,
+        "tournament_id": 123,
+        "tournament_name": "Youth Football Tournament 2026",
+        "status": "PENDING",
+        "created_at": "2026-01-04T10:00:00",
+        "application_message": "I am interested in leading this tournament",
+        "responded_at": null,
+        "response_message": null
+    }
+    ```
+    """
+    # ============================================================================
+    # VALIDATION 1: Current user is INSTRUCTOR
+    # ============================================================================
+    if current_user.role != UserRole.INSTRUCTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "authorization_error",
+                "message": "Only instructors can view their applications",
+                "current_role": current_user.role.value,
+                "required_role": "INSTRUCTOR"
+            }
+        )
+
+    # ============================================================================
+    # VALIDATION 2: Tournament exists
+    # ============================================================================
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "tournament_not_found",
+                "message": f"Tournament {tournament_id} not found",
+                "tournament_id": tournament_id
+            }
+        )
+
+    # ============================================================================
+    # FETCH: Application for this tournament by current instructor
+    # ============================================================================
+    application = db.query(InstructorAssignmentRequest).filter(
+        InstructorAssignmentRequest.semester_id == tournament_id,
+        InstructorAssignmentRequest.instructor_id == current_user.id
+    ).first()
+
+    # Return 404 if no application exists
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "application_not_found",
+                "message": f"No application found for tournament {tournament_id}",
+                "tournament_id": tournament_id,
+                "instructor_id": current_user.id
+            }
+        )
+
+    # ============================================================================
+    # RETURN SUCCESS RESPONSE
+    # ============================================================================
+    return {
+        "id": application.id,
+        "tournament_id": tournament.id,
+        "tournament_name": tournament.name,
+        "status": application.status.value,
+        "created_at": application.created_at.isoformat() if application.created_at else None,
+        "application_message": application.request_message,
+        "responded_at": application.responded_at.isoformat() if application.responded_at else None,
+        "response_message": application.response_message
     }
 
 
@@ -906,10 +1097,12 @@ def direct_assign_instructor(
     # ============================================================================
     # VALIDATION 5: Instructor has LFA_COACH license
     # ============================================================================
+    # Get the HIGHEST level coach license for this instructor
+    # (Instructors may have multiple LFA_COACH licenses with different levels)
     coach_license = db.query(UserLicense).filter(
         UserLicense.user_id == instructor.id,
         UserLicense.specialization_type == "LFA_COACH"
-    ).first()
+    ).order_by(UserLicense.current_level.desc()).first()
 
     if not coach_license:
         raise HTTPException(
@@ -920,6 +1113,39 @@ def direct_assign_instructor(
                 "instructor_id": instructor.id,
                 "instructor_email": instructor.email,
                 "required_license": "LFA_COACH"
+            }
+        )
+
+    # ============================================================================
+    # VALIDATION 5B: Coach level must be sufficient for tournament category
+    # ============================================================================
+    MINIMUM_COACH_LEVELS = {
+        "PRE": 1,       # Level 1 (lowest)
+        "YOUTH": 3,     # Level 3
+        "AMATEUR": 5,   # Level 5
+        "PRO": 7        # Level 7 (highest)
+    }
+
+    tournament_age_group = tournament.age_group
+    required_level = MINIMUM_COACH_LEVELS.get(tournament_age_group)
+
+    if required_level is None:
+        # Tournament age group not recognized - log warning but allow (backward compatibility)
+        pass
+    elif coach_license.current_level < required_level:
+        # Coach level is insufficient for this tournament age group
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "insufficient_coach_level",
+                "message": f"Instructor's coach level ({coach_license.current_level}) is insufficient for {tournament_age_group} age group tournaments. Minimum required: Level {required_level}",
+                "instructor_id": instructor.id,
+                "instructor_email": instructor.email,
+                "current_coach_level": coach_license.current_level,
+                "required_coach_level": required_level,
+                "tournament_age_group": tournament_age_group,
+                "tournament_id": tournament_id,
+                "tournament_name": tournament.name
             }
         )
 
@@ -956,8 +1182,32 @@ def direct_assign_instructor(
     )
 
     db.add(assignment)
+
+    # ============================================================================
+    # ACTION: Update tournament status to PENDING_INSTRUCTOR_ACCEPTANCE
+    # ============================================================================
+    # Admin has assigned instructor, but instructor must still accept
+    tournament.tournament_status = "PENDING_INSTRUCTOR_ACCEPTANCE"
+
     db.commit()
     db.refresh(assignment)
+    db.refresh(tournament)
+
+    # ============================================================================
+    # CREATE NOTIFICATION for instructor
+    # ============================================================================
+    from app.services.notification_service import create_tournament_direct_invitation_notification
+
+    create_tournament_direct_invitation_notification(
+        db=db,
+        instructor_id=instructor.id,
+        tournament=tournament,
+        invitation_message=request_data.assignment_message or "You have been selected to lead this tournament!",
+        request_id=assignment.id
+    )
+
+    # Commit the notification
+    db.commit()
 
     # ============================================================================
     # RETURN SUCCESS RESPONSE
@@ -1090,6 +1340,22 @@ def decline_instructor_application(
 
     # Get instructor details
     instructor = db.query(User).filter(User.id == application.instructor_id).first()
+
+    # ============================================================================
+    # CREATE NOTIFICATION for instructor
+    # ============================================================================
+    from app.services.notification_service import create_tournament_application_rejected_notification
+
+    create_tournament_application_rejected_notification(
+        db=db,
+        instructor_id=instructor.id,
+        tournament=tournament,
+        response_message=decline_data.decline_message or "Thank you for your interest.",
+        request_id=application.id
+    )
+
+    # Commit the notification
+    db.commit()
 
     # ============================================================================
     # RETURN SUCCESS RESPONSE

@@ -17,8 +17,8 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 BASE_URL = "http://localhost:8000/api/v1"
-ADMIN_EMAIL = "admin@example.com"
-ADMIN_PASSWORD = "admin_password"
+ADMIN_EMAIL = "admin@lfa.com"
+ADMIN_PASSWORD = "admin123"
 
 
 class UserFacingDiagnostics:

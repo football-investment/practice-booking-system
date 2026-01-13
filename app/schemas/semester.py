@@ -20,6 +20,8 @@ class SemesterBase(BaseModel):
     location_city: Optional[str] = None
     location_venue: Optional[str] = None
     location_address: Optional[str] = None
+    assignment_type: Optional[str] = None  # 🔥 FIX: Add assignment_type for tournaments
+    max_players: Optional[int] = None  # 🔥 FIX: Add max_players for tournaments
 
 
 class SemesterCreate(SemesterBase):

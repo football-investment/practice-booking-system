@@ -815,7 +815,7 @@ with tab3:
     # Sub-tabs for tournament workflow
     tourn_tab1, tourn_tab2, tourn_tab3 = st.tabs([
         "🔍 Open Tournaments",
-        "📋 My Applications",
+        "📬 Inbox",
         "🏆 My Tournaments"
     ])
 
@@ -899,33 +899,13 @@ with tab5:
         render_tournament_checkin(token, user.get('id'))
 
 # ========================================
-# TAB 6: INBOX
+# TAB 6: INBOX (Universal Messaging System)
 # ========================================
 with tab6:
-    st.markdown("### 📬 Inbox")
-    st.caption("All pending actions - notifications, tournament requests, and master offers")
+    # Use the new universal inbox component
+    from components.instructor.tournament_applications import render_my_applications_tab
 
-    # Import components
-    from components.instructors.notifications_inbox import render_notifications_inbox
-    from components.instructors.tournament_requests import render_tournament_requests
-    from components.instructors.master_offer_card import render_all_master_offers
-
-    # Section 1: System Notifications (NEW!)
-    render_notifications_inbox(token)
-
-    st.divider()
-
-    # Section 2: Tournament Requests
-    st.markdown("### 🏆 Tournament Requests")
-    st.caption("Review and respond to tournament assignment invitations")
-    render_tournament_requests()
-
-    st.divider()
-
-    # Section 3: Master Instructor Offers
-    st.markdown("### 📩 Master Instructor Offers")
-    st.caption("View and respond to master instructor offers from training locations")
-    render_all_master_offers(token)
+    render_my_applications_tab(token, user)
 
 # ========================================
 # TAB 7: MY PROFILE

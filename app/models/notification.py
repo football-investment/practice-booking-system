@@ -13,9 +13,16 @@ class NotificationType(enum.Enum):
     SESSION_CANCELLED = "session_cancelled"
     WAITLIST_PROMOTED = "waitlist_promoted"
     GENERAL = "general"
-    JOB_OFFER = "job_offer"  # New: Instructor job offer notification
-    OFFER_ACCEPTED = "offer_accepted"  # New: Offer accepted notification
-    OFFER_DECLINED = "offer_declined"  # New: Offer declined notification
+    JOB_OFFER = "job_offer"  # Instructor job offer notification
+    OFFER_ACCEPTED = "offer_accepted"  # Offer accepted notification
+    OFFER_DECLINED = "offer_declined"  # Offer declined notification
+
+    # Tournament notifications
+    TOURNAMENT_APPLICATION_APPROVED = "tournament_application_approved"  # Admin approved instructor's application
+    TOURNAMENT_APPLICATION_REJECTED = "tournament_application_rejected"  # Admin rejected instructor's application
+    TOURNAMENT_DIRECT_INVITATION = "tournament_direct_invitation"  # Admin sent direct invitation (OPEN_ASSIGNMENT)
+    TOURNAMENT_INSTRUCTOR_ACCEPTED = "tournament_instructor_accepted"  # Instructor accepted assignment
+    TOURNAMENT_INSTRUCTOR_DECLINED = "tournament_instructor_declined"  # Instructor declined assignment
 
 
 class Notification(Base):

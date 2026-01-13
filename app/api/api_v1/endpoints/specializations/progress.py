@@ -8,6 +8,8 @@ from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.specialization import SpecializationType
+from .....models.user_progress import SpecializationProgress
+from .....services.specialization_service import SpecializationService
 
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status

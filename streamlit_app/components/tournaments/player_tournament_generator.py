@@ -54,19 +54,46 @@ def render_tournament_generator():
         }
     }
 
-    # Tabs for create and manage
-    tab1, tab2 = st.tabs(["➕ Create Tournament", "📋 Manage Tournaments"])
-
-    with tab1:
-        _render_create_tournament_form(templates)
-
-    with tab2:
-        _render_manage_tournaments()
+    # Only show tournament creation form
+    # Tournament management is handled in the "📋 View Tournaments" main tab
+    st.info("ℹ️ **After creating a tournament**, manage it in the **📋 View Tournaments** tab")
+    st.divider()
+    _render_create_tournament_form(templates)
 
 
 def _render_create_tournament_form(templates: Dict[str, Any]):
     """Render tournament creation form"""
     st.subheader("Create New Tournament")
+
+    # ✅ SUCCESS MESSAGE DISPLAY (persists after rerun)
+    if 'tournament_created' in st.session_state:
+        success_data = st.session_state['tournament_created']
+
+        st.success(f"✅ **Tournament created successfully!**")
+
+        # Show tournament details
+        st.info(f"""
+        **Tournament Details:**
+        - **Name:** {success_data['name']}
+        - **Code:** {success_data['code']}
+        - **ID:** {success_data['id']}
+        - **Date:** {success_data['date']}
+        - **Max Players:** {success_data['max_players']}
+        - **Price:** {success_data['enrollment_cost']} credits
+        """)
+
+        # Show next steps based on assignment type
+        if success_data['assignment_type'] == "OPEN_ASSIGNMENT":
+            st.warning("**📋 Next Steps:**\n1. Invite a specific instructor via Tournament Management\n2. Add games via ⚙️ Manage Games tab")
+        else:
+            st.warning("**📋 Next Steps:**\n1. Wait for instructor applications\n2. Select instructor via Tournament Management\n3. Add games via ⚙️ Manage Games tab")
+
+        # Clear button to dismiss success message
+        if st.button("✅ Got it! Create another tournament"):
+            del st.session_state['tournament_created']
+            st.rerun()
+
+        st.divider()
 
     # ⚠️ CRITICAL FIX: Location & Campus selectors OUTSIDE the form
     # This fixes Streamlit's form state bug where selectbox values don't update properly
@@ -122,11 +149,34 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
         col1, col2 = st.columns(2)
 
         with col1:
-            tournament_name = st.text_input(
+            # Get selected location data by location_id to build tournament name
+            selected_location_data = None
+            if location_id and locations:
+                selected_location_data = next((loc for loc in locations if loc['id'] == location_id), None)
+
+            # Build location display part (flag + country code + location code)
+            location_prefix = ""
+            if selected_location_data:
+                country_code = selected_location_data.get('country_code', '')
+                location_code_str = selected_location_data.get('location_code', '')
+                if country_code and location_code_str:
+                    # Generate flag emoji
+                    flag = chr(ord(country_code[0]) + 127397) + chr(ord(country_code[1]) + 127397) if len(country_code) == 2 else "🌍"
+                    location_prefix = f"{flag} {country_code} - "
+
+            tournament_custom_name = st.text_input(
                 "Tournament Name *",
                 placeholder="e.g., Winter Football Cup",
-                help="Name of the tournament"
+                help="Custom name for the tournament (will be prefixed with location)"
             )
+
+            # Show auto-generated full name preview
+            if tournament_custom_name and location_prefix and selected_location_data:
+                location_code_display = selected_location_data.get('location_code', '')
+                full_tournament_name = f"{location_prefix}\"{tournament_custom_name}\" - {location_code_display}"
+                st.caption(f"**Full name:** {full_tournament_name}")
+            else:
+                full_tournament_name = tournament_custom_name  # Fallback if location codes not available
 
             tournament_date = st.date_input(
                 "Tournament Date *",
@@ -143,62 +193,45 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
                 help="Player age group for tournament"
             )
 
-        # Template or custom sessions
+        # 🎯 NEW: Tournament Assignment & Capacity
         st.divider()
-        st.write("**Session Configuration**")
+        st.write("**🎯 Tournament Configuration**")
 
-        use_template = st.checkbox("Use Template", value=True)
+        col1, col2, col3 = st.columns(3)
 
-        sessions = []
-        if use_template:
-            template_choice = st.selectbox(
-                "Select Template",
-                options=list(templates.keys()),
-                format_func=lambda x: templates[x]["name"]
+        with col1:
+            # Assignment Type
+            assignment_type = st.selectbox(
+                "Assignment Type *",
+                options=["OPEN_ASSIGNMENT", "APPLICATION_BASED"],
+                help="OPEN: Admin invites specific instructor. APPLICATION: Instructors apply, admin selects."
             )
-            sessions = templates[template_choice]["sessions"]
 
-            # Show template preview
-            st.info(f"**{templates[template_choice]['name']}** - {len(sessions)} sessions")
-            for i, session in enumerate(sessions, 1):
-                st.caption(f"{i}. {session['title']} - {session['time']} ({session['duration_minutes']}min, Capacity: {session['capacity']})")
-        else:
-            # Custom sessions builder
-            num_sessions = st.number_input("Number of Sessions", min_value=1, max_value=5, value=2)
+        with col2:
+            # Max Players
+            max_players = st.number_input(
+                "Max Players *",
+                min_value=1,
+                max_value=100,
+                value=20,
+                help="Maximum tournament participants (explicit capacity)"
+            )
 
-            for i in range(num_sessions):
-                st.write(f"**Session {i+1}**")
-                col1, col2, col3, col4 = st.columns(4)
+        with col3:
+            # Enrollment Cost
+            enrollment_cost = st.number_input(
+                "Price (Credits) *",
+                min_value=0,
+                value=500,
+                step=50,
+                help="Enrollment fee in credits"
+            )
 
-                with col1:
-                    session_time = st.time_input(f"Time", key=f"time_{i}", value=None)
-                with col2:
-                    session_title = st.text_input(f"Title", key=f"title_{i}", value=f"Session {i+1}")
-                with col3:
-                    duration = st.number_input(f"Duration (min)", key=f"duration_{i}", min_value=30, max_value=180, value=90)
-                with col4:
-                    capacity = st.number_input(f"Capacity", key=f"capacity_{i}", min_value=4, max_value=30, value=20)
 
-                if session_time:
-                    sessions.append({
-                        "time": session_time.strftime("%H:%M"),
-                        "title": session_title,
-                        "duration_minutes": duration,
-                        "capacity": capacity
-                    })
-
-        # Game type (optional)
+        # ⚠️ BUSINESS LOGIC: Sessions are NOT configured at tournament creation!
+        # Sessions are added LATER by admin/instructor via Tournament Management UI
         st.divider()
-        st.write("**Game Type (Optional)**")
-        st.caption("Specify what type of game/competition this tournament is")
-
-        game_type = st.text_input(
-            "Game Type",
-            placeholder="e.g., Skills Challenge, Speed Test, Tactical Match, etc.",
-            max_chars=100,
-            help="Leave empty for generic tournament games",
-            key="tourn_game_type"
-        )
+        st.info("📋 **Sessions will be configured later** in Tournament Management after creation.")
 
         # Reward Policy Selector
         st.divider()
@@ -262,16 +295,11 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
 
         # Submit button
         st.divider()
-        col1, col2 = st.columns([1, 3])
 
-        with col1:
-            submit = st.form_submit_button("🏆 Create Tournament", use_container_width=True)
-
-        with col2:
-            st.caption("Tournament will be created with status **SEEKING_INSTRUCTOR**. You'll need to assign a master instructor to activate it.")
+        submit = st.form_submit_button("🏆 Create Tournament", use_container_width=True, type="primary")
 
     if submit:
-        if not tournament_name:
+        if not tournament_custom_name:
             st.error("Please enter a tournament name")
             return
 
@@ -283,27 +311,36 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             st.error("Please select a campus (required to specify exact tournament location)")
             return
 
-        if not sessions:
-            st.error("Please configure at least one session")
-            return
-
-        # Add game_type to each session if provided
-        if game_type:
-            sessions = [
-                {**session, "game_type": game_type}
-                for session in sessions
-            ]
+        # Rebuild full_tournament_name in case it wasn't set earlier
+        if not full_tournament_name or full_tournament_name == tournament_custom_name:
+            selected_location = locations[location_index] if locations else None
+            if selected_location:
+                country_code = selected_location.get('country_code', '')
+                location_code = selected_location.get('location_code', '')
+                if country_code and location_code:
+                    flag = chr(ord(country_code[0]) + 127397) + chr(ord(country_code[1]) + 127397) if len(country_code) == 2 else "🌍"
+                    full_tournament_name = f"{flag} {country_code} - \"{tournament_custom_name}\" - {location_code}"
+                else:
+                    full_tournament_name = tournament_custom_name
+            else:
+                full_tournament_name = tournament_custom_name
 
         # Create tournament
+        # ⚠️ BUSINESS LOGIC: Instructor assignment happens AFTER creation via Tournament Management
+        # - OPEN_ASSIGNMENT: Admin invites specific instructor (via invitation flow)
+        # - APPLICATION_BASED: Instructors apply, admin selects one
         _create_tournament(
             tournament_date=tournament_date,
-            name=tournament_name,
+            name=full_tournament_name,
             specialization_type="LFA_FOOTBALL_PLAYER",
-            campus_id=campus_id,  # ✅ NEW: Send campus instead of location
+            campus_id=campus_id,
             location_id=location_id,
             age_group=age_group,
-            sessions=sessions,
-            reward_policy_name=selected_policy_name  # ✅ NEW: Reward policy
+            reward_policy_name=selected_policy_name,
+            # 🎯 NEW: Domain gap resolution fields
+            assignment_type=assignment_type,
+            max_players=max_players,
+            enrollment_cost=enrollment_cost
         )
 
 
@@ -314,10 +351,19 @@ def _create_tournament(
     campus_id: int,
     location_id: int,
     age_group: Optional[str],
-    sessions: list,
-    reward_policy_name: str = "default"
+    reward_policy_name: str = "default",
+    # 🎯 NEW: Domain gap resolution fields
+    assignment_type: str = "APPLICATION_BASED",
+    max_players: int = 20,
+    enrollment_cost: int = 500
 ):
-    """Create tournament via API"""
+    """
+    Create tournament via API
+
+    BUSINESS LOGIC:
+    - Instructor assignment happens AFTER creation via Tournament Management
+    - Sessions are added AFTER creation via Tournament Management
+    """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/tournaments/generate",
@@ -326,31 +372,42 @@ def _create_tournament(
                 "date": tournament_date.isoformat(),
                 "name": name,
                 "specialization_type": specialization_type,
-                "campus_id": campus_id,  # ✅ NEW: Send campus_id
+                "campus_id": campus_id,
                 "location_id": location_id,
                 "age_group": age_group,
-                "sessions": sessions,
-                "auto_book_students": False,  # Never auto-book in production
-                "reward_policy_name": reward_policy_name  # ✅ NEW: Reward policy
+                # ⚠️ BUSINESS LOGIC: Sessions added later via Tournament Management
+                "sessions": [],
+                "auto_book_students": False,
+                "reward_policy_name": reward_policy_name,
+                # 🎯 NEW: Domain gap resolution fields
+                "assignment_type": assignment_type,
+                "max_players": max_players,
+                "enrollment_cost": enrollment_cost,
+                # ⚠️ BUSINESS LOGIC: instructor_id is None at creation
+                # Instructor assignment happens AFTER via Tournament Management:
+                # - OPEN_ASSIGNMENT: Admin invites specific instructor
+                # - APPLICATION_BASED: Instructors apply, admin selects
+                "instructor_id": None
             }
         )
 
         if response.status_code == 201:
             data = response.json()
-            st.success(f"✅ Tournament created successfully! (ID: {data['tournament_id']})")
-            st.info(f"**Status:** SEEKING_INSTRUCTOR - Please assign a master instructor to activate")
+            tournament_id = data['tournament_id']
+            tournament_code = data.get('tournament_code', 'N/A')
 
-            # Show summary
-            summary = data.get("summary", {})
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Sessions", summary.get("session_count", 0))
-            with col2:
-                st.metric("Total Capacity", summary.get("total_capacity", 0))
-            with col3:
-                st.metric("Date", tournament_date.strftime("%Y-%m-%d"))
+            # Store success message in session state to persist across rerun
+            st.session_state['tournament_created'] = {
+                'id': tournament_id,
+                'code': tournament_code,
+                'name': name,
+                'date': tournament_date.strftime("%Y-%m-%d"),
+                'assignment_type': assignment_type,
+                'max_players': max_players,
+                'enrollment_cost': enrollment_cost
+            }
 
-            # Clear form
+            # Rerun to show success message
             st.rerun()
         elif response.status_code == 409:
             st.error(f"❌ Tournament already exists for {tournament_date.strftime('%Y-%m-%d')}. Please choose a different date or delete the existing tournament first.")
@@ -365,165 +422,8 @@ def _create_tournament(
         st.error(f"❌ Error: {str(e)}")
 
 
-def _render_manage_tournaments():
-    """Render tournament management UI"""
-    st.subheader("Manage Tournaments")
-
-    # Fetch all semesters with TOURN code prefix
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/semesters/",
-            headers={"Authorization": f"Bearer {st.session_state.token}"}
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-
-            # API returns {"semesters": [...], "total": N}, so extract the list
-            all_semesters = data.get("semesters", []) if isinstance(data, dict) else data
-
-            # Filter tournaments (code starts with TOURN-)
-            tournaments = [s for s in all_semesters if s.get("code", "").startswith("TOURN-")]
-
-            if not tournaments:
-                st.info("No tournaments found. Create one using the 'Create Tournament' tab.")
-                return
-
-            # Display tournaments
-            for tournament in tournaments:
-                _render_tournament_card(tournament)
-        else:
-            st.error("Failed to load tournaments")
-
-    except Exception as e:
-        st.error(f"Error loading tournaments: {str(e)}")
-
-
-def _render_tournament_card(tournament: Dict[str, Any]):
-    """Render a single tournament card"""
-    # Get assignment request status for this tournament
-    assignment_request = _get_assignment_request(tournament['id'])
-
-    request_status_display = ""
-    if assignment_request:
-        status = assignment_request.get('status', 'UNKNOWN')
-        if status == "PENDING":
-            request_status_display = f" - 📩 Pending Request (Instructor: {assignment_request.get('instructor_id')})"
-        elif status == "DECLINED":
-            request_status_display = f" - ❌ Declined"
-        elif status == "ACCEPTED":
-            request_status_display = f" - ✅ Accepted"
-
-    with st.expander(
-        f"🏆 {tournament['name']} - {tournament.get('start_date', '')} ({tournament.get('status', 'UNKNOWN')}){request_status_display}",
-        expanded=tournament.get("status") == "SEEKING_INSTRUCTOR"
-    ):
-        col1, col2 = st.columns([2, 1])
-
-        with col1:
-            st.write(f"**Tournament ID:** {tournament['id']}")
-            st.write(f"**Code:** {tournament['code']}")
-            st.write(f"**Date:** {tournament.get('start_date', 'N/A')}")
-            st.write(f"**Status:** {tournament.get('status', 'UNKNOWN')}")
-            st.write(f"**Specialization:** {tournament.get('specialization_type', 'N/A')}")
-
-            # Master instructor info
-            master_id = tournament.get("master_instructor_id")
-            if master_id:
-                st.write(f"**Master Instructor ID:** {master_id}")
-            else:
-                st.warning("⚠️ No master instructor assigned")
-
-            # Reward Policy Info
-            st.divider()
-            st.write("**🎁 Reward Policy**")
-            reward_policy_name = tournament.get('reward_policy_name', 'default')
-            st.write(f"- Policy: **{reward_policy_name}**")
-
-            # Show policy snapshot if available
-            reward_snapshot = tournament.get('reward_policy_snapshot')
-            if reward_snapshot:
-                st.caption(f"Version: {reward_snapshot.get('version', 'N/A')}")
-
-                # Show placement rewards in compact format
-                placement = reward_snapshot.get('placement_rewards', {})
-                if placement:
-                    first = placement.get('1ST', {})
-                    second = placement.get('2ND', {})
-                    third = placement.get('3RD', {})
-                    participant = placement.get('PARTICIPANT', {})
-
-                    st.caption(f"🥇 1st: {first.get('xp', 0)} XP + {first.get('credits', 0)} Credits")
-                    st.caption(f"🥈 2nd: {second.get('xp', 0)} XP + {second.get('credits', 0)} Credits")
-                    st.caption(f"🥉 3rd: {third.get('xp', 0)} XP + {third.get('credits', 0)} Credits")
-                    st.caption(f"👤 Participant: {participant.get('xp', 0)} XP + {participant.get('credits', 0)} Credits")
-            else:
-                st.caption("⚠️ No policy snapshot (legacy tournament)")
-
-            # Assignment request info
-            if assignment_request:
-                st.divider()
-                st.write("**Assignment Request:**")
-                st.write(f"- Status: {assignment_request.get('status', 'N/A')}")
-                st.write(f"- Instructor ID: {assignment_request.get('instructor_id', 'N/A')}")
-                if assignment_request.get('status') == 'DECLINED' and assignment_request.get('decline_reason'):
-                    st.caption(f"Decline Reason: {assignment_request['decline_reason']}")
-
-        with col2:
-            # Actions based on status
-            if tournament.get("status") == "SEEKING_INSTRUCTOR":
-                # Check if there's already a pending request
-                if assignment_request and assignment_request.get('status') == 'PENDING':
-                    st.info("📩 Waiting for instructor response...")
-                    st.caption(f"Request sent to Instructor ID: {assignment_request.get('instructor_id')}")
-                else:
-                    st.write("**Send Instructor Request:**")
-
-                    # Get available instructors
-                    instructors = _get_instructors()
-
-                    if instructors:
-                        instructor_options = {
-                            f"{i['name']} ({i['email']})": i['id']
-                            for i in instructors
-                        }
-
-                        selected_instructor = st.selectbox(
-                            "Select Grandmaster",
-                            options=list(instructor_options.keys()),
-                            key=f"instructor_select_{tournament['id']}"
-                        )
-
-                        message = st.text_area(
-                            "Message (Optional)",
-                            placeholder="Would you like to lead this tournament?",
-                            key=f"message_{tournament['id']}"
-                        )
-
-                        if st.button("📩 Send Request", key=f"send_request_btn_{tournament['id']}"):
-                            instructor_id = instructor_options[selected_instructor]
-                            _send_instructor_request(tournament['id'], instructor_id, message)
-                    else:
-                        st.info("No instructors available")
-
-            elif tournament.get("status") == "READY_FOR_ENROLLMENT":
-                st.success("✅ Tournament is active!")
-                st.caption(f"Master Instructor ID: {tournament.get('master_instructor_id')}")
-
-            # Reward Distribution Button (Admin only - for COMPLETED tournaments)
-            if tournament.get("status") == "COMPLETED":
-                st.divider()
-                st.write("**🎁 Reward Distribution**")
-
-                if st.button("🎁 Distribute Rewards", key=f"distribute_rewards_btn_{tournament['id']}", use_container_width=True):
-                    st.session_state['distribute_rewards_tournament_id'] = tournament['id']
-                    st.session_state['distribute_rewards_tournament_name'] = tournament.get('name', 'Untitled')
-                    _show_distribute_rewards_dialog()
-
-            # Delete button
-            st.divider()
-            if st.button("🗑️ Delete Tournament", key=f"delete_btn_{tournament['id']}"):
-                _delete_tournament(tournament['id'])
+# Tournament management functions removed - now handled in tournaments_tab.py
+# Use the "📋 View Tournaments" main tab for all tournament management operations
 
 
 def _get_locations():
@@ -562,86 +462,7 @@ def _get_campuses(location_id: Optional[int] = None):
         return []
 
 
-def _get_instructors():
-    """Fetch all instructors (Grandmasters only)"""
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/users/search",
-            headers={"Authorization": f"Bearer {st.session_state.token}"},
-            params={
-                "q": "@",  # Search for @ symbol (all emails contain @)
-                "role": "instructor",  # ⚠️ CRITICAL: lowercase - API expects lowercase enum values
-                "limit": 100  # Get up to 100 instructors
-            }
-        )
-
-        if response.status_code == 200:
-            return response.json()
-        return []
-    except Exception as e:
-        st.error(f"❌ Error fetching instructors: {str(e)}")
-        return []
-
-
-def _get_assignment_request(tournament_id: int) -> Optional[Dict[str, Any]]:
-    """Get assignment request for tournament"""
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/instructor-assignments/requests/semester/{tournament_id}",
-            headers={"Authorization": f"Bearer {st.session_state.token}"}
-        )
-
-        if response.status_code == 200:
-            requests_list = response.json()
-            if requests_list:
-                # Return the most recent request
-                return requests_list[0]
-        return None
-    except:
-        return None
-
-
-def _send_instructor_request(tournament_id: int, instructor_id: int, message: str):
-    """Send instructor assignment request"""
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/send-instructor-request",
-            headers={"Authorization": f"Bearer {st.session_state.token}"},
-            json={
-                "instructor_id": instructor_id,
-                "message": message if message else None
-            }
-        )
-
-        if response.status_code == 201:
-            st.success("✅ Instructor request sent successfully!")
-            st.info("📩 Waiting for instructor response...")
-            st.rerun()
-        else:
-            error_detail = response.json().get("detail", "Unknown error")
-            st.error(f"❌ Error: {error_detail}")
-
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-
-
-def _delete_tournament(tournament_id: int):
-    """Delete tournament"""
-    try:
-        response = requests.delete(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",
-            headers={"Authorization": f"Bearer {st.session_state.token}"}
-        )
-
-        if response.status_code == 204:
-            st.success("✅ Tournament deleted successfully!")
-            st.rerun()
-        else:
-            error_detail = response.json().get("detail", "Unknown error")
-            st.error(f"❌ Error: {error_detail}")
-
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+# Instructor management functions removed - now handled in tournaments_tab.py
 
 
 @st.dialog("🎁 Distribute Tournament Rewards")

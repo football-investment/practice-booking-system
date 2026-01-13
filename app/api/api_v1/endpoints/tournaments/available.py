@@ -112,9 +112,9 @@ def list_available_tournaments(
     query = db.query(Semester).filter(
         and_(
             Semester.code.like("TOURN-%"),
-            Semester.status.in_([
-                SemesterStatus.READY_FOR_ENROLLMENT,
-                SemesterStatus.ONGOING
+            Semester.tournament_status.in_([
+                "READY_FOR_ENROLLMENT",
+                "ONGOING"
             ]),
             Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
             Semester.age_group.in_(visible_age_groups),  # Age category filter

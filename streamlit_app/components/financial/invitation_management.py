@@ -204,9 +204,9 @@ def _render_create_invitation_modal(token: str):
                     st.code(generated_code, language=None)
                     st.info(f"💰 {bonus_credits} bonus credits")
                     if expires_hours > 0:
-                        st.warning(f"⏰ Lejár {expires_hours} óra múlva")
+                        st.warning(f"⏰ Expires in {expires_hours} hours")
                     else:
-                        st.info("⏰ Nincs lejárat")
+                        st.info("⏰ No expiration")
                     st.session_state.show_create_invitation_modal = False
                     # Don't rerun immediately - show the code
                 else:

@@ -76,15 +76,18 @@ def render_tournament_browser(token: str, user: dict):
                 st.caption("💡 As a YOUTH player, you can enroll in YOUTH or AMATEUR tournaments")
 
         with col2:
-            # Date range filter
+            # Date range filter (default: today until end of year)
+            today = date.today()
+            end_of_year = date(today.year, 12, 31)
+
             date_from = st.date_input(
                 "From Date",
-                value=date.today(),
+                value=today,
                 key="tournament_date_from"
             )
             date_to = st.date_input(
                 "To Date",
-                value=date.today() + timedelta(days=90),
+                value=end_of_year,
                 key="tournament_date_to"
             )
 
