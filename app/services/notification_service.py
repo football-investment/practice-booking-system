@@ -273,3 +273,108 @@ def get_unread_notification_count(db: Session, user_id: int) -> int:
         Notification.user_id == user_id,
         Notification.is_read == False
     ).count()
+
+
+def get_notifications(
+    db: Session,
+    user_id: int,
+    limit: int = 50,
+    unread_only: bool = False
+) -> list[Notification]:
+    """
+    Get notifications for a user.
+
+    Args:
+        db: Database session
+        user_id: ID of the user
+        limit: Maximum number of notifications to return (default: 50)
+        unread_only: If True, only return unread notifications (default: False)
+
+    Returns:
+        List of Notification objects, ordered by created_at DESC
+    """
+    query = db.query(Notification).filter(Notification.user_id == user_id)
+
+    if unread_only:
+        query = query.filter(Notification.is_read == False)
+
+    return query.order_by(Notification.created_at.desc()).limit(limit).all()
+
+
+def mark_all_as_read(db: Session, user_id: int) -> int:
+    """
+    Mark all notifications as read for a user.
+
+    Args:
+        db: Database session
+        user_id: ID of the user
+
+    Returns:
+        Number of notifications marked as read
+    """
+    count = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.is_read == False
+    ).update({
+        "is_read": True,
+        "read_at": datetime.now(timezone.utc)
+    }, synchronize_session=False)
+
+    # NOTE: Do NOT commit here - let the caller manage the transaction
+    return count
+
+
+def delete_notification(
+    db: Session,
+    notification_id: int,
+    user_id: int
+) -> bool:
+    """
+    Delete a notification.
+
+    Args:
+        db: Database session
+        notification_id: ID of the notification
+        user_id: ID of the user (for authorization check)
+
+    Returns:
+        True if deleted successfully, False if not found or unauthorized
+    """
+    notification = db.query(Notification).filter(
+        Notification.id == notification_id,
+        Notification.user_id == user_id
+    ).first()
+
+    if not notification:
+        return False
+
+    db.delete(notification)
+    # NOTE: Do NOT commit here - let the caller manage the transaction
+
+    return True
+
+
+def delete_old_notifications(
+    db: Session,
+    days: int = 90
+) -> int:
+    """
+    Delete old notifications (older than specified days).
+
+    Args:
+        db: Database session
+        days: Delete notifications older than this many days (default: 90)
+
+    Returns:
+        Number of notifications deleted
+    """
+    from datetime import timedelta
+
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+    count = db.query(Notification).filter(
+        Notification.created_at < cutoff_date
+    ).delete(synchronize_session=False)
+
+    # NOTE: Do NOT commit here - let the caller manage the transaction
+    return count
