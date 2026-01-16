@@ -159,7 +159,18 @@ class TestInstructorApplicationWorkflowUI:
             'email': 'grandmaster@lfa.com',
             'password': 'GrandMaster2026!'
         }
-        print(f"     ✅ Using Grandmaster (id={instructor['id']}) as instructor")
+
+        # Get instructor token via API login
+        import requests
+        login_response = requests.post(
+            f"{API_BASE_URL}/api/v1/auth/login",
+            json={"email": instructor['email'], "password": instructor['password']}
+        )
+        if login_response.status_code == 200:
+            instructor['token'] = login_response.json().get('access_token')
+            print(f"     ✅ Using Grandmaster (id={instructor['id']}) as instructor (token obtained)")
+        else:
+            raise Exception(f"Failed to login instructor: {login_response.status_code}")
 
         # ========================================================================
         # STEP 1: Instructor logs in and navigates to Tournament Applications
