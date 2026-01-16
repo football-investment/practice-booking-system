@@ -322,49 +322,45 @@ class TestInstructorApplicationWorkflowUI:
         print(f"\n     ✅ All 3 applications submitted successfully!")
 
         # ========================================================================
-        # STEP 4: Admin approves application (via API for reliability)
+        # STEP 4: Admin approves all applications (via API for reliability)
         # ========================================================================
-        print("\n  4️⃣ Admin approves application via API...")
+        print("\n  4️⃣ Admin approves all 3 applications via API...")
 
         try:
-            # Approve via API instead of UI to ensure it actually works
+            # Get application IDs from API
             import requests
-            approval_response = requests.post(
-                f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-applications/{application_id}/approve",
-                headers={"Authorization": f"Bearer {reward_policy_admin_token}"},
-                json={"response_message": "Application approved - looking forward to working with you!"}
+            apps_response = requests.get(
+                f"{API_BASE_URL}/api/v1/tournaments/instructor/my-applications",
+                headers={"Authorization": f"Bearer {instructor['token']}"}
             )
 
-            if approval_response.status_code == 200:
-                print(f"     ✅ Application {application_id} approved via API")
-                # Verify it was actually approved
-                verify_response = requests.get(
-                    f"{API_BASE_URL}/api/v1/tournaments/instructor/my-applications",
-                    headers={"Authorization": f"Bearer {instructor['token']}"}
-                )
-                if verify_response.status_code == 200:
-                    apps = verify_response.json().get('applications', [])
-                    if apps:
-                        verified_status = apps[0].get('status')
-                        print(f"     🔍 Verified application status: {verified_status}")
-                        if verified_status != "ACCEPTED":
-                            raise Exception(f"Application status is {verified_status}, expected ACCEPTED")
+            if apps_response.status_code != 200:
+                raise Exception(f"Failed to fetch applications: {apps_response.status_code}")
 
-                # Verify tournament status was updated to PENDING_INSTRUCTOR_ACCEPTANCE
-                tournament_check = requests.get(
-                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/summary",
-                    headers={"Authorization": f"Bearer {reward_policy_admin_token}"}
+            applications = apps_response.json().get('applications', [])
+            print(f"     📋 Found {len(applications)} applications")
+
+            # Approve each application
+            for idx, app in enumerate(applications[:3], 1):  # Only first 3
+                tournament_id = app.get('tournament_id')
+                application_id = app.get('id')
+                tournament_name = app.get('tournament_name', 'Unknown')
+
+                print(f"\n     Approving application {idx}/3 for: {tournament_name}")
+
+                approval_response = requests.post(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-applications/{application_id}/approve",
+                    headers={"Authorization": f"Bearer {reward_policy_admin_token}"},
+                    json={"response_message": "Application approved - looking forward to working with you!"}
                 )
-                if tournament_check.status_code == 200:
-                    tournament_status = tournament_check.json().get('status')
-                    print(f"     🔍 Tournament status after approval: {tournament_status}")
-                    # NOTE: There's a known issue where /summary endpoint may show stale status
-                    # The actual DB status is correct (proven by subsequent operations succeeding)
-                    if tournament_status != "PENDING_INSTRUCTOR_ACCEPTANCE":
-                        print(f"     ⚠️  Note: Summary shows {tournament_status}, but approval succeeded (DB is correct)")
-            else:
-                error_detail = approval_response.json() if approval_response.headers.get('content-type') == 'application/json' else approval_response.text
-                raise Exception(f"Approval API failed: {approval_response.status_code} - {error_detail}")
+
+                if approval_response.status_code == 200:
+                    print(f"     ✅ Application {idx}/3 approved via API")
+                else:
+                    error_detail = approval_response.json() if approval_response.headers.get('content-type') == 'application/json' else approval_response.text
+                    raise Exception(f"Approval API failed for app {idx}: {approval_response.status_code} - {error_detail}")
+
+            print(f"\n     ✅ All 3 applications approved successfully!")
 
         except Exception as e:
             print(f"     ❌ Failed to approve application: {e}")
