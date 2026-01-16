@@ -5,6 +5,7 @@ Tournament Application Forms - Application dialogs and cards for instructors
 import streamlit as st
 import requests
 import hashlib
+import time
 from typing import Dict
 from datetime import datetime
 from config import API_BASE_URL, API_TIMEOUT
@@ -33,7 +34,7 @@ def show_apply_dialog(token: str):
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("✅ Submit Application", use_container_width=True, type="primary"):
+        if st.button("✅ Submit Application", use_container_width=True, type="primary", key="submit_application_btn"):
             if not application_message.strip():
                 st.error("⚠️ Please provide an application message")
             else:
@@ -282,8 +283,8 @@ def render_system_message_card(token: str, application: Dict, status_category: s
     with button_col1:
         # Accept button for assignments that need instructor action
         if status == 'ACCEPTED' and tournament_status == 'PENDING_INSTRUCTOR_ACCEPTANCE':
-            # Use UUID to ensure 100% uniqueness even if function is called multiple times in same render
-            accept_key = f"accept_btn_{app_id}_{uuid.uuid4().hex[:8]}"
+            # Stable key for E2E testing (app_id is unique per application)
+            accept_key = f"accept_assignment_btn_{app_id}"
             if st.button(f"✅ Accept", key=accept_key, use_container_width=True, type="primary"):
                 if accept_assignment(token, tournament_id):
                     st.success("✅ Assignment accepted successfully!")

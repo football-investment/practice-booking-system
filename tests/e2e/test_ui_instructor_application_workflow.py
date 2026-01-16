@@ -55,7 +55,7 @@ import time
 from datetime import datetime
 
 # Import API fixtures for setup/teardown
-from tests.e2e.reward_policy_fixtures import (
+from .reward_policy_fixtures import (
     API_BASE_URL,
     reward_policy_admin_token,
     create_instructor_user,
@@ -85,11 +85,6 @@ class TestInstructorApplicationWorkflowUI:
     STREAMLIT_URL = "http://localhost:8501"
     ADMIN_ID = 1  # Default admin user ID
 
-    @pytest.mark.xfail(
-        reason="Backend bug: Tournament status transitions not persisting correctly. "
-               "Approval endpoint doesn't update tournament_status from SEEKING_INSTRUCTOR to PENDING_INSTRUCTOR_ACCEPTANCE. "
-               "This causes all subsequent status transitions to fail."
-    )
     def test_complete_ui_workflow(
         self,
         page: Page,
@@ -118,26 +113,53 @@ class TestInstructorApplicationWorkflowUI:
         print("🎭 PLAYWRIGHT E2E TEST: Complete UI Workflow")
         print("="*80 + "\n")
 
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
         # ========================================================================
-        # SETUP: Create tournament and instructor via API (for speed)
+        # STEP 0: Get existing tournaments from DB (already created!)
         # ========================================================================
-        print("  🔧 Setup: Creating tournament and instructor via API...")
+        print("\n  0️⃣ Getting existing tournaments from DB (already created)...")
 
-        tournament_result = create_tournament_via_api(
-            token=reward_policy_admin_token,
-            name=f"UI Test Tournament {timestamp}",
-            reward_policy_name="default",
-            age_group="AMATEUR"
+        # Fetch the 3 tournaments from DB
+        import psycopg2
+        conn = psycopg2.connect(
+            host="localhost",
+            database="lfa_intern_system",
+            user="postgres",
+            password="postgres"
         )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT s.id, s.name
+            FROM semesters s
+            WHERE s.tournament_status = 'SEEKING_INSTRUCTOR'
+            AND s.assignment_type = 'APPLICATION_BASED'
+            ORDER BY s.created_at ASC
+            LIMIT 3
+        """)
+        tournaments = cur.fetchall()
+        cur.close()
+        conn.close()
 
-        tournament_id = tournament_result["tournament_id"]
-        tournament_name = tournament_result["summary"]["name"]  # Get the FULL name with timestamp
-        print(f"     ✅ Tournament {tournament_id} created: {tournament_name}")
+        created_tournaments = [t[1] for t in tournaments]  # Extract names
+        tournament_ids = [t[0] for t in tournaments]  # Extract IDs
 
-        instructor = create_instructor_user(reward_policy_admin_token)
-        print(f"     ✅ Instructor {instructor['id']} created")
+        if len(created_tournaments) != 3:
+            raise Exception(f"Expected 3 tournaments in DB, found {len(created_tournaments)}")
+
+        print(f"     ✅ Found 3 tournaments in DB:")
+        for i, name in enumerate(created_tournaments, 1):
+            print(f"        {i}. {name} (ID={tournament_ids[i-1]})")
+
+        # Skip tournament creation - they already exist in DB!
+
+        # Use Grandmaster as instructor (already has 21 licenses)
+        instructor = {
+            'id': 3,
+            'email': 'grandmaster@lfa.com',
+            'password': 'GrandMaster2026!'
+        }
+        print(f"     ✅ Using Grandmaster (id={instructor['id']}) as instructor")
 
         # ========================================================================
         # STEP 1: Instructor logs in and navigates to Tournament Applications
@@ -161,7 +183,7 @@ class TestInstructorApplicationWorkflowUI:
             print(f"     📧 Filled email: {instructor['email']}")
 
             # Fill password (second input)
-            text_inputs[1].fill("instructor123")
+            text_inputs[1].fill(instructor['password'])
             print(f"     🔑 Filled password")
 
             # Click login button using role and name
@@ -172,27 +194,6 @@ class TestInstructorApplicationWorkflowUI:
             # Wait for dashboard to load - check for page content
             page.wait_for_load_state("networkidle", timeout=10000)
             time.sleep(2)  # Extra wait for Streamlit to fully render
-
-            # Build session params from instructor data (we already have the token!)
-            import json
-            import urllib.parse
-
-            session_token = instructor['token']
-            # Build minimal user object for session
-            session_user_obj = {
-                'id': instructor['id'],
-                'email': instructor['email'],
-                'name': instructor['name'],
-                'role': instructor['role']
-            }
-            session_user = urllib.parse.quote(json.dumps(session_user_obj))
-
-            # Navigate to Instructor Dashboard WITH session params
-            dashboard_url = f"{self.STREAMLIT_URL}/Instructor_Dashboard?session_token={session_token}&session_user={session_user}"
-            print(f"     🚀 Navigating to: Instructor_Dashboard with session params")
-            page.goto(dashboard_url)
-            page.wait_for_load_state("networkidle", timeout=10000)
-            time.sleep(3)
 
             print("     ✅ Instructor logged in successfully")
         except Exception as e:
@@ -259,71 +260,66 @@ class TestInstructorApplicationWorkflowUI:
             raise
 
         # ========================================================================
-        # STEP 3: Instructor applies to tournament
+        # STEP 3: Instructor applies to ALL 3 tournaments (loop)
         # ========================================================================
-        print("\n  3️⃣ Instructor applies to tournament...")
+        print("\n  3️⃣ Instructor applies to all 3 tournaments...")
 
+        # Click on "Open Tournaments" sub-tab (once, before loop)
         try:
-            # Click on "Open Tournaments" sub-tab
             open_tournaments_tab = page.locator("[data-baseweb='tab']:has-text('🔍 Open Tournaments')").first
             open_tournaments_tab.click()
             print(f"     🔘 Clicked Open Tournaments sub-tab")
-
-            # Wait for tournaments to load
             time.sleep(3)
             page.wait_for_load_state("networkidle", timeout=10000)
-
-            # Find and expand the tournament by clicking on the expander
-            # Use the FULL tournament name to ensure we click the right one
-            tournament_expander = page.locator(f"text={tournament_name}").first
-            tournament_expander.click()
-            print(f"     📂 Expanded tournament: {tournament_name}")
-            time.sleep(2)
-
-            # Click Apply button
-            apply_button = page.get_by_role("button", name="📝 Apply")
-            apply_button.click()
-            print(f"     🔘 Clicked Apply button")
-            time.sleep(2)
-
-            # Fill application message in dialog using Streamlit textarea
-            # Streamlit textareas are inside stTextArea containers
-            textarea = page.locator("[data-testid='stTextArea'] textarea").first
-            textarea.fill("I am interested in leading this tournament as the master instructor.")
-            print(f"     ✏️ Filled application message")
-            time.sleep(1)
-
-            # Submit application
-            submit_button = page.get_by_role("button", name="✅ Submit Application")
-            submit_button.click()
-            print(f"     🔘 Clicked Submit Application button")
-
-            # Wait for success message
-            page.wait_for_selector("text=Application submitted successfully", timeout=10000)
-            print("     ✅ Application submitted successfully")
-
-            # GET the application_id via API for verification
-            import requests
-            apps_response = requests.get(
-                f"{API_BASE_URL}/api/v1/tournaments/instructor/my-applications",
-                headers={"Authorization": f"Bearer {instructor['token']}"}
-            )
-            if apps_response.status_code == 200:
-                apps = apps_response.json().get('applications', [])
-                if apps:
-                    application_id = apps[0].get('id')
-                    app_status = apps[0].get('status')
-                    print(f"     🔍 Created application ID: {application_id}, Status: {app_status}")
-                else:
-                    raise Exception("No application found after submission")
-            else:
-                raise Exception(f"Failed to fetch applications: {apps_response.status_code}")
-
         except Exception as e:
-            print(f"     ❌ Failed to submit application: {e}")
-            # Take screenshot for debugging
-            page.screenshot(path=f"tests/e2e/screenshots/apply_failed_{timestamp}.png")
+            print(f"     ❌ Failed to click Open Tournaments tab: {e}")
+            page.screenshot(path=f"tests/e2e/screenshots/open_tournaments_failed_{timestamp}.png")
             raise
+
+        # Loop through all 3 tournaments and apply
+        for i, tournament_name in enumerate(created_tournaments, 1):
+            print(f"\n     🏆 Applying to tournament {i}/3: {tournament_name}")
+
+            try:
+                # Find and expand the tournament by clicking on the expander
+                # Use the FULL tournament name to ensure we click the right one
+                tournament_expander = page.locator(f"text={tournament_name}").first
+                tournament_expander.click()
+                print(f"        📂 Expanded tournament: {tournament_name}")
+                time.sleep(2)
+
+                # Click Apply button
+                apply_button = page.get_by_role("button", name="📝 Apply").first
+                apply_button.click()
+                print(f"        🔘 Clicked Apply button")
+                time.sleep(2)
+
+                # Fill application message in dialog using Streamlit textarea
+                # Streamlit textareas are inside stTextArea containers
+                textarea = page.locator("[data-testid='stTextArea'] textarea").first
+                textarea.fill("I am interested in leading this tournament as the master instructor.")
+                print(f"        ✏️ Filled application message")
+                time.sleep(1)
+
+                # Submit application
+                submit_button = page.get_by_role("button", name="✅ Submit Application").first
+                submit_button.click()
+                print(f"        🔘 Clicked Submit Application button")
+
+                # Wait for success message
+                page.wait_for_selector("text=Application submitted successfully", timeout=10000)
+                print(f"        ✅ Application {i}/3 submitted successfully!")
+
+                # Collapse the tournament expander before next iteration
+                tournament_expander.click()
+                time.sleep(1)
+
+            except Exception as e:
+                print(f"        ❌ Failed to submit application for {tournament_name}: {e}")
+                page.screenshot(path=f"tests/e2e/screenshots/apply_failed_{tournament_name}_{timestamp}.png")
+                raise
+
+        print(f"\n     ✅ All 3 applications submitted successfully!")
 
         # ========================================================================
         # STEP 4: Admin approves application (via API for reliability)

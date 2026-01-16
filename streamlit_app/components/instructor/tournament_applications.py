@@ -9,7 +9,9 @@ Provides UI for instructors to:
 """
 
 import streamlit as st
+import requests
 from typing import Dict
+from config import API_BASE_URL, API_TIMEOUT
 from components.instructor.tournament_helpers import (
     get_instructor_coach_level,
     check_coach_level_sufficient,
@@ -23,7 +25,8 @@ from components.instructor.tournament_application_forms import (
     render_system_message_card,
     render_application_card,
     render_my_tournament_card,
-    render_direct_messages_placeholder
+    render_direct_messages_placeholder,
+    show_apply_dialog
 )
 
 def render_open_tournaments_tab(token: str, user: Dict):
