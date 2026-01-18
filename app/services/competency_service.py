@@ -337,61 +337,17 @@ class CompetencyService:
             return 1  # Beginner
 
     def _check_milestones(self, user_id: int, specialization_id: str):
-        """Check and award milestone achievements"""
-        # TODO: Implement milestone checking when competency_milestones table is properly configured
-        # Currently skipping milestone checks - core competency assessment is working
+        """
+        Check and award milestone achievements
+
+        NOTE: Milestone functionality temporarily disabled (2025-10-10)
+        - Core competency assessment is working correctly
+        - Milestone system requires schema alignment before re-enabling
+        - Original implementation available in git history (commit 0e01764)
+
+        TODO: Re-implement when competency_milestones table is properly configured
+        """
         return
-
-        for milestone in milestones:
-            milestone_id = milestone.id
-            required_score = float(milestone.required_score)
-            required_level = milestone.required_level
-            xp_reward = milestone.xp_reward
-
-            # Check if already achieved
-            existing = self.db.execute(text("""
-                SELECT id FROM user_competency_milestones
-                WHERE user_id = :user_id AND milestone_id = :milestone_id
-            """), {"user_id": user_id, "milestone_id": milestone_id}).fetchone()
-
-            if existing:
-                continue
-
-            # Check if user meets requirements
-            # Get user's current competencies
-            competencies = self.db.execute(text("""
-                SELECT current_score, current_level
-                FROM user_competency_scores ucs
-                JOIN competency_categories cc ON cc.id = ucs.category_id
-                WHERE ucs.user_id = :user_id AND cc.specialization_id = :spec_id
-            """), {"user_id": user_id, "spec_id": specialization_id}).fetchall()
-
-            if not competencies:
-                continue
-
-            # Check if all competencies meet threshold
-            avg_score = sum(float(c.current_score) for c in competencies) / len(competencies)
-
-            if avg_score >= required_score:
-                # Award milestone
-                self.db.execute(text("""
-                    INSERT INTO user_competency_milestones (
-                        user_id, milestone_id, achieved_at
-                    )
-                    VALUES (:user_id, :milestone_id, NOW())
-                """), {"user_id": user_id, "milestone_id": milestone_id})
-
-                # Award XP if applicable
-                if xp_reward and xp_reward > 0:
-                    self.db.execute(text("""
-                        UPDATE users
-                        SET total_xp = total_xp + :xp
-                        WHERE id = :user_id
-                    """), {"user_id": user_id, "xp": xp_reward})
-
-                logger.info(f"Milestone {milestone_id} achieved by user {user_id}, awarded {xp_reward} XP")
-
-        self.db.commit()
 
     # ============================================================================
     # COMPETENCY RETRIEVAL
