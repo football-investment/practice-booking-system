@@ -242,41 +242,40 @@ def _display_enrollment_card(enrollment: dict, icon: str):
             </div>
             """, unsafe_allow_html=True)
 
-        if not sessions:
-            st.info("No sessions scheduled yet.")
-            return
+        # Display sessions (if any)
+        if sessions:
+            for session in sessions:
+                is_booked = session.get("is_booked", False)
+                date_str = session.get("date", "N/A")
+                start_time = session.get("start_time", "N/A")
+                end_time = session.get("end_time", "N/A")
+                location = session.get("location", {})
 
-        # Display sessions
-        for session in sessions:
-            is_booked = session.get("is_booked", False)
-            date_str = session.get("date", "N/A")
-            start_time = session.get("start_time", "N/A")
-            end_time = session.get("end_time", "N/A")
-            location = session.get("location", {})
+                status_icon = "✅" if is_booked else "⭕"
+                status_text = "Booked" if is_booked else "Not booked"
+                bg_color = "#d1fae5" if is_booked else "#f3f4f6"
 
-            status_icon = "✅" if is_booked else "⭕"
-            status_text = "Booked" if is_booked else "Not booked"
-            bg_color = "#d1fae5" if is_booked else "#f3f4f6"
+                # Location display
+                location_text = "Location TBD"
+                if location:
+                    location_text = location.get('location_name', location.get('location_city', 'N/A'))
 
-            # Location display
-            location_text = "Location TBD"
-            if location:
-                location_text = location.get('location_name', location.get('location_city', 'N/A'))
-
-            st.markdown(f"""
-            <div style="background: {bg_color};
-                        padding: 0.75rem; border-radius: 8px; margin: 0.5rem 0;">
-                <div style="font-weight: 600; margin-bottom: 0.25rem; color: #1f2937;">
-                    {status_icon} {date_str} | {start_time} - {end_time}
+                st.markdown(f"""
+                <div style="background: {bg_color};
+                            padding: 0.75rem; border-radius: 8px; margin: 0.5rem 0;">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem; color: #1f2937;">
+                        {status_icon} {date_str} | {start_time} - {end_time}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #6b7280;">
+                        📍 {location_text}
+                    </div>
+                    <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.25rem;">
+                        {status_text}
+                    </div>
                 </div>
-                <div style="font-size: 0.9rem; color: #6b7280;">
-                    📍 {location_text}
-                </div>
-                <div style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.25rem;">
-                    {status_text}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+        else:
+            st.info("ℹ️ No sessions scheduled yet.")
 
         # ========================================================================
         # TOURNAMENT RESULTS & REWARDS (for COMPLETED/REWARDS_DISTRIBUTED)
