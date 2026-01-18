@@ -232,6 +232,14 @@ class AuditMiddleware(BaseHTTPMiddleware):
             elif method == "GET":
                 return AuditAction.CERTIFICATE_VIEWED
 
+        # Tournaments
+        if "/tournaments" in path:
+            if "/enroll" in path:
+                if method == "POST":
+                    return AuditAction.TOURNAMENT_ENROLLED
+                elif method == "DELETE":
+                    return AuditAction.TOURNAMENT_UNENROLLED
+
         # Generic fallback
         return f"{method}_{path}"
 

@@ -262,3 +262,52 @@ def test_pagination_works(client: TestClient, db_session: Session):
     assert data["limit"] == 5
     assert data["offset"] == 0
     assert len(data["logs"]) <= 5
+
+
+def test_tournament_enrollment_audit(client: TestClient, db_session: Session):
+    """Test that tournament enrollment/unenrollment actions are audited"""
+    # Create test user
+    user = User(
+        name="Test Player",
+        email="player@test.com",
+        password_hash="$2b$10$abcdefghijklmnopqrstuv",
+        role=UserRole.STUDENT,
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    # Create audit logs for tournament actions
+    audit_service = AuditService(db_session)
+    audit_service.log(
+        action=AuditAction.TOURNAMENT_ENROLLED,
+        user_id=user.id,
+        resource_type="tournament",
+        resource_id=1,
+        details={"tournament_name": "Test Tournament"}
+    )
+    audit_service.log(
+        action=AuditAction.TOURNAMENT_UNENROLLED,
+        user_id=user.id,
+        resource_type="tournament",
+        resource_id=1,
+        details={"tournament_name": "Test Tournament"}
+    )
+
+    # Login as user
+    token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
+
+    # Query user's logs
+    response = client.get(
+        "/api/v1/audit/my-logs",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 2
+
+    # Verify tournament actions are present
+    actions = [log["action"] for log in data["logs"]]
+    assert AuditAction.TOURNAMENT_ENROLLED in actions
+    assert AuditAction.TOURNAMENT_UNENROLLED in actions
