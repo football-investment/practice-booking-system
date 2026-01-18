@@ -21,6 +21,7 @@ from .....schemas.booking import BookingWithRelations, BookingList
 from .....services.session_filter_service import SessionFilterService
 from .....services.session_stats_aggregator import SessionStatsAggregator
 from .....services.role_semester_filter_service import RoleSemesterFilterService
+from .....services.session_response_builder import SessionResponseBuilder
 
 router = APIRouter()
 
@@ -115,65 +116,9 @@ def list_sessions(
     stats_aggregator = SessionStatsAggregator(db)
     stats = stats_aggregator.fetch_stats(session_ids)
 
-    # Unpack stats dictionaries for backward compatibility
-    booking_stats_dict = stats['bookings']
-    attendance_stats_dict = stats['attendance']
-    rating_stats_dict = stats['ratings']
-
-    # Add statistics
-    session_stats = []
-    for session in sessions:
-        # Get stats from pre-fetched dicts (O(1) lookup)
-        booking_stats = booking_stats_dict.get(session.id, {'total': 0, 'confirmed': 0, 'waitlisted': 0})
-        booking_count = booking_stats['total']
-        confirmed_bookings = booking_stats['confirmed']
-        waitlist_count = booking_stats['waitlisted']
-        attendance_count = attendance_stats_dict.get(session.id, 0)
-        avg_rating = rating_stats_dict.get(session.id, None)
-
-        # FIX: Build session data explicitly to handle NULL values
-        session_data = {
-            "id": session.id,
-            "title": session.title,
-            "description": session.description or "",
-            "date_start": session.date_start,
-            "date_end": session.date_end,
-            "session_type": session.session_type,
-            "capacity": session.capacity if session.capacity is not None else 0,  # FIX: Handle NULL
-            "credit_cost": session.credit_cost if session.credit_cost is not None else 1,  # FIX: Include credit_cost from database
-            "location": session.location,
-            "meeting_link": session.meeting_link,
-            "sport_type": session.sport_type,
-            "level": session.level,
-            "instructor_name": session.instructor_name,
-            "semester_id": session.semester_id,
-            "group_id": session.group_id,
-            "instructor_id": session.instructor_id,
-            "created_at": session.created_at or session.date_start,  # FIX: Handle NULL created_at
-            "updated_at": session.updated_at,
-            "target_specialization": session.target_specialization,
-            "mixed_specialization": session.mixed_specialization if hasattr(session, 'mixed_specialization') else False,
-            "is_tournament_game": session.is_tournament_game if hasattr(session, 'is_tournament_game') else False,  # 🏆 Tournament game flag
-            "game_type": session.game_type if hasattr(session, 'game_type') else None,  # 🏆 Tournament game type
-            "semester": session.semester,
-            "group": session.group,
-            "instructor": session.instructor,
-            "booking_count": booking_count,
-            "confirmed_bookings": confirmed_bookings,
-            "current_bookings": confirmed_bookings,
-            "waitlist_count": waitlist_count,
-            "attendance_count": attendance_count,
-            "average_rating": float(avg_rating) if avg_rating else None
-        }
-
-        session_stats.append(SessionWithStats(**session_data))
-
-    return SessionList(
-        sessions=session_stats,
-        total=total,
-        page=page,
-        size=size
-    )
+    # Build response using SessionResponseBuilder service
+    response_builder = SessionResponseBuilder(db)
+    return response_builder.build_response(sessions, stats, total, page, size)
 
 
 @router.get("/recommendations")
