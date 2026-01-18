@@ -23,7 +23,6 @@ from components.instructor.tournament_table_view import render_table_view
 from components.instructor.tournament_kanban_view import render_kanban_view
 from components.instructor.tournament_application_forms import (
     render_system_message_card,
-    render_application_card,
     render_my_tournament_card,
     render_direct_messages_placeholder,
     show_apply_dialog

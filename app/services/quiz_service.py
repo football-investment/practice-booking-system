@@ -11,7 +11,7 @@ from app.models.quiz import (
 from app.models.user import User
 from app.models.gamification import UserStats
 from app.schemas.quiz import (
-    QuizCreate, QuizUpdate, QuizAttemptStart, QuizAttemptSubmit,
+    QuizCreate, QuizAttemptSubmit,
     QuizUserAnswerCreate, QuizStatistics, UserQuizStatistics
 )
 from app.services.gamification import GamificationService

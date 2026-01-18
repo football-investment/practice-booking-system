@@ -2,7 +2,7 @@
 Curriculum exercise endpoints
 """
 from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db

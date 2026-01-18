@@ -25,7 +25,6 @@ import requests
 from tests.playwright.utils.reward_policy_fixtures import (
     API_BASE_URL,
     reward_policy_admin_token,
-    create_instructor_user,
     create_tournament_via_api,
 )
 

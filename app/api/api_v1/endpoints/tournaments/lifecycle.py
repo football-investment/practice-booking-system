@@ -17,8 +17,7 @@ from app.models.semester import Semester
 from app.models.specialization import SpecializationType
 from app.services.tournament.status_validator import (
     validate_status_transition,
-    get_next_allowed_statuses,
-    StatusValidationError
+    get_next_allowed_statuses
 )
 
 router = APIRouter()
