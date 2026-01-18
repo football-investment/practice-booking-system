@@ -366,8 +366,8 @@ def _display_enrollment_card(enrollment: dict, icon: str):
         with col2:
             if st.button(f"🗑️ Unenroll", key=f"unenroll_{enrollment_id}", use_container_width=True, type="secondary"):
                 # Show unenrollment dialog
-                st.session_state['unenroll_tournament_id'] = tournament_id
-                st.session_state['unenroll_tournament_name'] = tournament_name
+                st.session_state['unenroll_tournament_id'] = semester_id  # Fixed: use semester_id not tournament_id
+                st.session_state['unenroll_tournament_name'] = semester_name
                 st.session_state['unenroll_enrollment_id'] = enrollment_id
                 st.session_state['show_unenroll_dialog'] = True
                 st.rerun()
