@@ -77,7 +77,7 @@ def enroll_in_tournament(
         )
 
     # 2. Verify tournament status (check tournament_status field, NOT the old status field)
-    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "OPEN_FOR_ENROLLMENT", "IN_PROGRESS"]:
+    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "ENROLLMENT_OPEN", "IN_PROGRESS"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Tournament not ready for enrollment (tournament_status: {tournament.tournament_status})"
