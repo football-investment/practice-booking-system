@@ -10,8 +10,6 @@ from .....dependencies import get_current_admin_user_web
 from .....models.user import User
 from .....models.license import UserLicense
 
-    from ....models.license import UserLicense
-    from datetime import datetime
 router = APIRouter()
 
 @router.post("/{license_id}/verify-payment", response_model=Dict[str, Any])

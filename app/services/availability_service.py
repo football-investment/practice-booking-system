@@ -12,12 +12,6 @@ from sqlalchemy.orm import Session
 from ..models.instructor_assignment import InstructorAvailabilityWindow
 from ..schemas.instructor_management import AvailabilityCheckResult
 
-    from ..models.instructor_assignment import LocationMasterInstructor, MasterOfferStatus
-
-    # Check for:
-    # 1. Legacy active contracts (offer_status = NULL, is_active = True)
-    # 2. New accepted contracts (offer_status = ACCEPTED, is_active = True)
-    from ..models.location import Location
 def parse_date_to_quarters(start_date: datetime, end_date: datetime) -> List[str]:
     """
     Parse contract dates to quarter codes (Q1-Q4).

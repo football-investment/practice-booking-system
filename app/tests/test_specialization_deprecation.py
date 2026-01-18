@@ -9,15 +9,9 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 from sqlalchemy.orm import Session
 
-from app.services.specialization_service import (
-    SpecializationService,
+from app.services.specialization_service import SpecializationService
 from app.models.user_progress import Specialization
-
-    import logging
-    from app.models.user import User
-    DEPRECATED_MAPPINGS,
-    DEPRECATION_DEADLINE
-)
+import logging
 @pytest.fixture
 def specialization_service(db_session: Session):
     """Create a SpecializationService instance"""

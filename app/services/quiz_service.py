@@ -33,10 +33,8 @@ class QuizService:
             passing_score=quiz_data.passing_score,
             is_active=quiz_data.is_active
         )
-        
         self.db.add(quiz)
         self.db.flush()  # Get the quiz ID
-        
         # Add questions
         for question_data in quiz_data.questions:
             question = QuizQuestion(
@@ -47,7 +45,6 @@ class QuizService:
                 order_index=question_data.order_index,
                 explanation=question_data.explanation
             )
-            
             self.db.add(question)
             self.db.flush()  # Get the question ID
             

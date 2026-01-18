@@ -15,23 +15,10 @@ from app.models.license import UserLicense
 from app.models.session import Session as SessionModel
 from app.models.booking import Booking, BookingStatus
 from app.schemas.tournament import EnrollmentResponse, EnrollmentConflict
-from app.services.age_category_service import (
-    get_automatic_age_category,
+from app.services.age_category_service import get_automatic_age_category
 from app.services.enrollment_conflict_service import EnrollmentConflictService
-
 import logging
-    from datetime import timedelta
-    # Get first session to determine actual tournament start time
-    from app.services.tournament.validation import validate_tournament_enrollment_age
 
-    from app.services.tournament.validation import check_duplicate_enrollment
-
-    from app.models.credit_transaction import CreditTransaction
-
-    import traceback
-    get_current_season_year,
-    calculate_age_at_season_start
-)
 router = APIRouter()
 
 # Module-level logging to confirm this file loads

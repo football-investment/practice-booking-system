@@ -10,9 +10,6 @@ import logging
 from app.models.specialization import SpecializationType
 from app.services.specialization_config_loader import get_config_loader
 
-    from app.models.user_progress import Specialization
-
-    # Handle legacy IDs with deprecation warning
 logger = logging.getLogger(__name__)
 
 # DEPRECATION SYSTEM

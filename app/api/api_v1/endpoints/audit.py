@@ -7,6 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func, and_
 
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_user

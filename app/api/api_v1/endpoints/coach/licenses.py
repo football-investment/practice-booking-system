@@ -5,7 +5,7 @@ import logging
 from typing import Any, List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone, timedelta
 
 from .....database import get_db
@@ -31,7 +31,6 @@ from app.models.user import User
 from .....services.specs.semester_based.lfa_coach_service import LFACoachService
 
     from app.models.user import UserRole
-        from sqlalchemy import text
 Coach License Management API Endpoints
 
 Provides REST API endpoints for Coach certification system.
@@ -44,7 +43,6 @@ Level System: 1-8 certification levels
 - Expiry: 2 years from creation/renewal
 """
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
 
 router = APIRouter()
 

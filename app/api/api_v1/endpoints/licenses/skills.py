@@ -11,13 +11,6 @@ from .....models.user import User, UserRole
 from .....models.license import UserLicense
 from .....services.football_skill_service import FootballSkillService
 
-    from ....models.license import UserLicense
-    from ....schemas.license import FootballSkillsResponse
-
-    from ....schemas.license import FootballSkillsUpdate
-    from datetime import datetime, timezone
-
-    # Get all LFA Player licenses for this user
 router = APIRouter()
 
 @router.get("/{license_id}/football-skills", response_model=Dict[str, Any])

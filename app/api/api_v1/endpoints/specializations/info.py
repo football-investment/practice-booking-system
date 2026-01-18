@@ -1,27 +1,19 @@
-"""Specialization information and metadata"""
+"""
+Specialization information and metadata
+
+🎓 Specialization API Endpoints
+Handles specialization selection and information for the LFA education platform
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any, List, Dict, Optional
+from pydantic import BaseModel
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.specialization import SpecializationType
-
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends
-"""
-
-from pydantic import BaseModel
-
-    from app.services.specialization_service import SpecializationService
-    from app.services.specialization_config_loader import SpecializationConfigLoader
-
-    # STEP 1: Validate enum
-🎓 Specialization API Endpoints
-Handles specialization selection and information for the LFA education platform
-"""
 router = APIRouter()
 
 class SpecializationResponse(BaseModel):

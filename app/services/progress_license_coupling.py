@@ -16,17 +16,6 @@ Solution:
 - Guaranteed data consistency
 
 Usage:
-    from app.services.progress_license_coupling import ProgressLicenseCoupler
-
-    coupler = ProgressLicenseCoupler(db)
-    result = coupler.update_level_atomic(
-        user_id=123,
-        specialization="PLAYER",
-        new_level=3,
-        xp_change=500,
-        sessions_change=5,
-        reason="Level up from quest completion"
-    )
 """
 
 import logging

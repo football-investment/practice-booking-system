@@ -16,7 +16,7 @@ from typing import Any, List, Dict, Optional
 from datetime import datetime
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user
+from .....dependencies import get_current_admin_user, get_current_user
 from .....models.user import User, UserRole
 from .....models.semester import Semester
 from .....models.license import UserLicense

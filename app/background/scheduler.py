@@ -12,13 +12,6 @@ Features:
 - Graceful shutdown handling
 
 Usage:
-    from app.background import start_scheduler, stop_scheduler
-
-    # Start scheduler (call on app startup)
-    start_scheduler()
-
-    # Stop scheduler (call on app shutdown)
-    stop_scheduler()
 """
 
 import logging

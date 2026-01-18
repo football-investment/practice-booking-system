@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Optional
 from enum import Enum
 
-        import re
 class AssignmentRequestStatusEnum(str, Enum):
     """Status of instructor assignment request"""
     PENDING = "PENDING"

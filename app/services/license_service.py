@@ -7,15 +7,11 @@ from sqlalchemy import func
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
-from ..models.license import (
-    LicenseMetadata, UserLicense, LicenseProgression, 
+from ..models.license import LicenseMetadata, UserLicense, LicenseProgression
 from ..models.user import User
 from ..models.specialization import SpecializationType
 
-                from app.services.progress_license_sync_service import ProgressLicenseSyncService
-                    import logging
-    LicenseType, LicenseSystemHelper
-)
+
 class LicenseService:
     """Service for managing GānCuju™️©️ license system"""
 
@@ -25,7 +21,6 @@ class LicenseService:
     def get_all_license_metadata(self, specialization: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all license metadata, optionally filtered by specialization"""
         query = self.db.query(LicenseMetadata)
-        
         if specialization:
             query = query.filter(LicenseMetadata.specialization_type == specialization.upper())
         
@@ -33,7 +28,6 @@ class LicenseService:
             LicenseMetadata.specialization_type,
             LicenseMetadata.level_number
         ).all()
-        
         return [meta.to_dict() for meta in metadata]
 
     def get_license_metadata_by_level(self, specialization: str, level: int) -> Optional[Dict[str, Any]]:
@@ -42,7 +36,6 @@ class LicenseService:
             LicenseMetadata.specialization_type == specialization.upper(),
             LicenseMetadata.level_number == level
         ).first()
-        
         return metadata.to_dict() if metadata else None
 
     def get_user_licenses(self, user_id: int) -> List[Dict[str, Any]]:
@@ -50,7 +43,6 @@ class LicenseService:
         user_licenses = self.db.query(UserLicense).filter(
             UserLicense.user_id == user_id
         ).all()
-        
         result = []
         for license in user_licenses:
             license_data = license.to_dict()

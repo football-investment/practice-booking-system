@@ -18,7 +18,6 @@ class ParallelSpecializationService:
     def __init__(self, db: Session):
         self.db = db
         self.license_service = LicenseService(db)
-        
     # Age requirements for each specialization
     AGE_REQUIREMENTS = {
         'PLAYER': 5,    # Player: 5+ years
@@ -36,15 +35,11 @@ class ParallelSpecializationService:
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
             return {'meets_requirement': False, 'reason': 'User not found'}
-            
         if not user.date_of_birth:
             return {'meets_requirement': False, 'reason': 'Születési dátum hiányzik a profilból'}
-            
         user_age = self.calculate_age(user.date_of_birth.date())
         required_age = self.AGE_REQUIREMENTS.get(specialization.upper(), 0)
-        
         meets_requirement = user_age >= required_age
-        
         return {
             'meets_requirement': meets_requirement,
             'user_age': user_age,

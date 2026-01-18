@@ -16,18 +16,9 @@ from sqlalchemy import and_
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_or_instructor_user
 from .....models.user import User
-from .....models.project import (
-    Project as ProjectModel,
+from .....models.project import Project as ProjectModel
 from .....schemas.project import (
     ProjectQuiz as ProjectQuizSchema,
-    from .....models.quiz import Quiz
-    from .....models.project import ProjectEnrollmentQuiz
-        from .....models.quiz import QuizAttempt
-
-    # OPTIMIZED: Eager load user and quiz_attempt relationships to avoid 2N+1 query pattern
-    ProjectMilestone,
-    ProjectQuiz
-)
     ProjectQuizCreate,
     ProjectQuizWithDetails
 )

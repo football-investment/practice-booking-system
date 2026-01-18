@@ -14,19 +14,12 @@ from .....models.session import Session as SessionModel, SessionType
 from .....models.attendance import Attendance, AttendanceStatus
 from .....models.booking import Booking, BookingStatus
 from .....schemas.quiz import (
-    QuizListItem, QuizPublic, QuizAttemptSummary,
+    QuizListItem, QuizPublic, QuizAttemptSummary, UserQuizStatistics, QuizDashboardOverview,
+)
 from .....services.quiz_service import QuizService
 from .helpers import get_quiz_service
 from datetime import datetime, timezone
 
-        from ....models.session import SessionTypel
-
-    from ....models.quiz import SessionQuiz
-    from ....models.session import Session as SessionModel, SessionType
-    from ....models.attendance import Attendance, AttendanceStatus
-    from ....models.booking import Booking, BookingStatus
-    UserQuizStatistics, QuizDashboardOverview
-)
 router = APIRouter()
 
 @router.get("/available", response_model=List[QuizListItem])

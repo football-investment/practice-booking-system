@@ -25,7 +25,6 @@ class LocationValidationService:
 
     # Semester types allowed at PARTNER locations (Mini Seasons + Tournaments)
     PARTNER_ALLOWED_TYPES = [
-        # Mini Seasons (quarterly/monthly)
         SpecializationType.LFA_PLAYER_PRE,
         SpecializationType.LFA_PLAYER_YOUTH,
         SpecializationType.LFA_PLAYER_AMATEUR,  # MOVED: Now quarterly mini season

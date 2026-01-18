@@ -17,50 +17,6 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
-    from ...models.user import UserRole
-    
-    # Security check: ONLY admins can access
-    from ...models.semester import Semester
-    
-    # Security check: ONLY admins can access
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from ...models.license import UserLicense
-    from sqlalchemy.orm import joinedload
-
-    # Security check: ONLY admins can access
-    from datetime import date
-    import re
-    from ...models.specialization import SpecializationType
-    from collections import defaultdict
-
-    # First group by specialization, then by location within each specialization
-    from ...models.invoice_request import InvoiceRequest
-    from ...models.semester_enrollment import SemesterEnrollment
-
-    # Security check: ONLY admins can access
-    from ...models.coupon import Coupon
-    from datetime import datetime, timezone
-
-    # Security check: ONLY admins can access
-    from ...models.invitation_code import InvitationCode
-
-    # Security check: ONLY admins can access
-
-    # Security check: ONLY instructors can access
-
-    # Security check: ONLY instructors can access
-
-    # Security check: ONLY instructors can update
-    from ...services.audit_service import AuditService
-    from ...models.audit_log import AuditAction
-    from ...models.session import Session as SessionModel
-    from ...models.booking import Booking
-    
-    # Security check: ONLY admins can access
-
-    # Security check: ONLY admins and instructors can access
-
-    # Security check: ONLY admins and instructors can access
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

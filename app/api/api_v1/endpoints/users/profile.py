@@ -27,22 +27,6 @@ def get_current_user_profile(
     """
     Get current user profile with licenses
     """
-    from sqlalchemy.orm import joinedload
-
-    # Reload user with licenses relationship eagerly loaded
-    user_with_licenses = db.query(User).options(
-        joinedload(User.licenses)
-    ).filter(User.id == current_user.id).first()
-
-    # Keep interests as JSON string for schema compatibility
-    user_data = user_with_licenses.__dict__.copy()
-    # Ensure interests is a string (not parsed to list)
-    if user_data.get('interests') is None:
-        user_data['interests'] = None
-
-    return user_data
-
-
 @router.patch("/me", response_model=UserSchema)
 def update_own_profile(
     user_update: UserUpdateSelf,

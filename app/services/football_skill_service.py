@@ -11,10 +11,6 @@ from ..models.football_skill_assessment import FootballSkillAssessment
 from ..models.license import UserLicense
 from ..models.user import User
 
-            from sqlalchemy.orm.attributes import flag_modified
-        from ..schemas.license import SkillAssessmentHistoryResponse, SkillAssessmentResponse
-
-        # Get assessments for this skill
 class FootballSkillService:
     """Service for managing football skill assessments"""
 

@@ -13,25 +13,6 @@ from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User
 
 # Setup templates
-    from ...models.license import UserLicense
-
-    # All available specializations (hardcoded for now since semester_specializations doesn't exist)
-    from ...models.specialization import SpecializationType
-
-            from ...models.credit_transaction import CreditTransaction, TransactionType
-
-        import traceback
-
-    # Verify user has LFA_FOOTBALL_PLAYER license
-
-    # Find the license
-    from datetime import date as date_type
-
-    from ...utils.age_requirements import get_available_specializations
-    from datetime import date
-
-    # Get today's date for max date validation
-    from datetime import datetime
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

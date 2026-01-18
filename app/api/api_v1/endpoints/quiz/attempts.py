@@ -10,26 +10,12 @@ from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....schemas.quiz import (
     QuizAttemptStart, QuizAttemptSubmit, QuizAttemptResponse
+)
 from .....services.quiz_service import QuizService
 from .....services.competency_service import CompetencyService
 from .....services.adaptive_learning_service import AdaptiveLearningService
 from .helpers import get_quiz_service
 
-    from ....models.quiz import SessionQuiz
-    from ....models.session import Session as SessionModel, SessionType
-    from ....models.attendance import Attendance, AttendanceStatus
-    from ....models.booking import Booking, BookingStatus
-    from datetime import datetime, timezone
-
-        from ....database import SessionLocal
-            import logging
-        from ....services.gamification import GamificationService
-            from ....models.session import Session as SessionModel
-            from ....models.attendance import Attendance
-
-            # Find if this quiz is linked to any session
-                        from ....models.attendance import AttendanceStatus, ConfirmationStatus
-)
 router = APIRouter()
 
 @router.post("/start", response_model=QuizAttemptResponse)

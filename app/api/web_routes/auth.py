@@ -17,13 +17,6 @@ from ...core.security import verify_password
 from ...config import settings
 
 # Setup templates
-    from ...models.user import UserRole
-
-    # Only students need age verification
-    from datetime import date
-
-    # Only students need age verification
-        import traceback
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

@@ -14,20 +14,11 @@ from ..models.achievement import Achievement, AchievementCategory
 from ..models.audit_log import AuditLog, AuditAction
 from ..models.license import UserLicense
 
-            from ..models.quiz import SessionQuiz, QuizAttempt
-        from ..models.quiz import QuizAttempt
-        
-        from ..models.project import ProjectEnrollment, ProjectEnrollmentStatus
-        
-        from ..models.user_progress import SpecializationProgress
-
-        # Get user's progress in this specialization
 class GamificationService:
     """Service to handle gamification logic and achievements"""
     
     def __init__(self, db: Session):
         self.db = db
-        
     def get_or_create_user_stats(self, user_id: int) -> UserStats:
         """Get or create user statistics"""
         stats = self.db.query(UserStats).filter(UserStats.user_id == user_id).first()

@@ -26,22 +26,16 @@ class HealthChecker:
             "error": None,
             "details": {}
         }
-        
         start_time = time.time()
-        
         try:
             db = SessionLocal()
-            
             # Test basic connectivity
             result = db.execute(text("SELECT 1")).scalar()
-            
             # Test table access
             user_count = db.execute(text("SELECT COUNT(*) FROM users")).scalar()
             session_count = db.execute(text("SELECT COUNT(*) FROM sessions")).scalar()
             booking_count = db.execute(text("SELECT COUNT(*) FROM bookings")).scalar()
-            
             response_time = round((time.time() - start_time) * 1000, 2)
-            
             db_health.update({
                 "status": "healthy" if result == 1 else "degraded",
                 "response_time_ms": response_time,

@@ -43,7 +43,6 @@ class ProductionExceptionHandler:
                 "request_id": request_id or get_current_request_id()
             }
         }
-        
         if details:
             response_data["error"]["details"] = details
         

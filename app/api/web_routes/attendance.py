@@ -17,26 +17,6 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
-    from ...models.session import Session as SessionTypel
-    from ...models.attendance import Attendance, AttendanceStatus
-    from ...models.booking import Booking
-    from ...models.user import UserRole
-    from datetime import datetime, timezone
-
-    # Verify user is an instructor
-    from zoneinfo import ZoneInfo
-        from ...models.attendance import ConfirmationStatus, AttendanceHistory
-
-        # CRITICAL ETHICAL REQUIREMENT: If student has confirmed, instructor can only REQUEST a change
-        # Student must approve the change before it takes effect
-    from ...models.attendance import Attendance, ConfirmationStatus
-
-    # Verify user is a student
-    from ...models.attendance import AttendanceHistory
-
-    from ...models.attendance import Attendance, AttendanceStatus, AttendanceHistory
-
-    # Verify user is a student
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

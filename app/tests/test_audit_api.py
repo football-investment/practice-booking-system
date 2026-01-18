@@ -6,13 +6,13 @@ Tests for audit log API access control and functionality.
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from datetime import timedelta
 
 from app.models.audit_log import AuditAction
 from app.models.user import User, UserRole
 from app.services.audit_service import AuditService
+from app.core.auth import create_access_token
 
-    from app.core.auth import create_access_token
-    from datetime import timedelta
 def test_get_my_logs_as_user(client: TestClient, db_session: Session):
     """Test user can get their own audit logs"""
     # Create test user

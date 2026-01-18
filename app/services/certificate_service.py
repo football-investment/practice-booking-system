@@ -38,11 +38,9 @@ class CertificateService:
             design_template=design_template or self._get_default_template(),
             validation_rules=validation_rules or self._get_default_validation_rules()
         )
-        
         self.db.add(template)
         self.db.commit()
         self.db.refresh(template)
-        
         return template
     
     def _get_default_template(self) -> str:

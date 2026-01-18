@@ -7,7 +7,7 @@ from typing import Optional
 from ..database import Base
 from .specialization import SpecializationType
 
-            from app.services.specialization_config_loader import SpecializationConfigLoader
+
 class SessionType(enum.Enum):
     """Professional session type classification for edtech/sporttech platforms"""
     on_site = "on_site"    # Physical presence required at venue

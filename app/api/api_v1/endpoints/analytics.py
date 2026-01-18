@@ -44,7 +44,6 @@ async def get_analytics_metrics(
                 SessionTypel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
             )
         )
-        
         bookings_query = db.query(Booking).join(SessionTypel).filter(
             and_(
                 SessionTypel.date_start >= datetime.fromisoformat(start_date),

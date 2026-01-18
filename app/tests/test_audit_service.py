@@ -16,15 +16,25 @@ def test_log_audit_event(db_session):
     """Test logging an audit event"""
     service = AuditService(db_session)
 
+    # Create test user first
+    user = User(
+        name="Test User",
+        email="test@example.com",
+        password_hash="hashed",
+        role=UserRole.STUDENT
+    )
+    db_session.add(user)
+    db_session.commit()
+
     log = service.log(
         action=AuditAction.LOGIN,
-        user_id=1,
+        user_id=user.id,
         details={"email": "test@example.com"}
     )
 
     assert log.id is not None
     assert log.action == AuditAction.LOGIN
-    assert log.user_id == 1
+    assert log.user_id == user.id
     assert log.details["email"] == "test@example.com"
 
 
@@ -198,6 +208,7 @@ def test_search_logs_with_multiple_filters(db_session):
 
 def test_date_range_filtering(db_session):
     """Test filtering logs by date range"""
+    from datetime import timezone
     service = AuditService(db_session)
 
     # Create test user
@@ -207,8 +218,8 @@ def test_date_range_filtering(db_session):
 
     service.log(action=AuditAction.LOGIN, user_id=user.id)
 
-    yesterday = datetime.now() - timedelta(days=1)
-    tomorrow = datetime.now() + timedelta(days=1)
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
 
     logs = service.get_user_logs(
         user_id=user.id,

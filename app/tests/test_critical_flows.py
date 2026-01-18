@@ -26,11 +26,8 @@ from ..models.session import Session as SessionModel, SessionType
 from ..models.booking import Booking, BookingStatus
 from ..models.attendance import Attendance, AttendanceStatus
 from ..models.feedback import Feedback
-from ..core.security import create_access_token
+from ..core.auth import create_access_token
 
-    from ...core.security import get_password_hash
-
-        from ...services.gamification import calculate_xp_for_attendance
 @pytest.fixture
 def client(db_session):
     """Create test client with database override"""

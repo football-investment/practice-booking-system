@@ -15,33 +15,6 @@ from ...models.user import User, UserRole
 from .helpers import get_lfa_age_category
 
 # Setup templates
-    from ...models.user import UserRole
-
-    # 🆕 STUDENT DASHBOARD: Unified hub showing ALL specializations (locked + unlocked)
-        from ...models.license import UserLicense
-        from ...utils.age_requirements import get_available_specializations
-        from datetime import date
-
-        # Calculate user age
-        from ...models.semester import Semester
-
-        # Check all user licenses for incomplete onboarding
-        from ...models.gamification import UserStats
-        from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-        from sqlalchemy.orm import joinedload
-
-        from datetime import datetime
-        import secrets
-            from ...models.session import Session as SessionModel
-                from datetime import datetime as dt
-
-        # Get current license for current specialization (to check payment_verified)
-        from ...models.user import User as UserModel
-
-    from ...models.semester_enrollment import SemesterEnrollment
-    from datetime import date, timezone
-
-    # Convert URL format to enum format (e.g., "lfa-football-player" → "LFA_FOOTBALL_PLAYER")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

@@ -1,8 +1,14 @@
-"""Specialization progress tracking"""
+"""
+Specialization progress tracking
+
+🎓 Specialization API Endpoints
+Handles specialization selection and information for the LFA education platform
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any, List, Dict, Optional
+from pydantic import BaseModel
 
 from .....database import get_db
 from .....dependencies import get_current_user
@@ -11,16 +17,6 @@ from .....models.specialization import SpecializationType
 from .....models.user_progress import SpecializationProgress
 from .....services.specialization_service import SpecializationService
 
-from typing import List, Dict, Any
-"""
-
-from pydantic import BaseModel
-
-    from sqlalchemy import and_
-    from datetime import datetime
-🎓 Specialization API Endpoints
-Handles specialization selection and information for the LFA education platform
-"""
 router = APIRouter()
 
 class SpecializationResponse(BaseModel):

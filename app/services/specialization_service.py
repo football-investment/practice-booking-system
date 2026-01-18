@@ -5,12 +5,7 @@ This file remains for backward compatibility only.
 All imports are redirected to the new modular structure.
 
 For new code, use:
-    from app.services.specialization import SpecializationService
-    # or
-    from app.services.specialization import enroll_lfa_player, get_lfa_player_progress
-
 Old imports still work:
-    from app.services.specialization_service import SpecializationService
 """
 
 # Re-export everything from the new location

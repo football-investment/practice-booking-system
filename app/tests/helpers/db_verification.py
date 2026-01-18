@@ -5,11 +5,6 @@ These utilities provide reusable database state verification functions
 to ensure consistency across tournament workflow tests.
 
 Usage:
-    from app.tests.helpers.db_verification import (
-        verify_tournament_state,
-        verify_enrollment_consistency,
-        verify_session_structure
-    )
 """
 
 from typing import List, Dict, Any, Optional

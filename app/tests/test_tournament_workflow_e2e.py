@@ -45,9 +45,7 @@ from app.models.tournament_type import TournamentType
 from app.models.location import Location
 from app.models.campus import Campus
 
-        from app.models.license import UserLicense
 
-            from app.models.specialization import SpecializationType
 @pytest.mark.tournament
 @pytest.mark.integration
 @pytest.mark.slow

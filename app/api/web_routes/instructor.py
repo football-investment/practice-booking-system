@@ -17,45 +17,6 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
-    from ...models.user import UserRole
-    from ...models.instructor_specialization import InstructorSpecialization
-
-    # Only instructors can toggle
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-    from ...models.session import Session as SessionModel, SessionType
-
-    # Verify user is instructor
-
-    # Verify user is instructor
-
-    # Verify user is instructor
-    from ...models.quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt
-    from ...models.session import Session as SessionModel
-    from sqlalchemy.orm import joinedload
-    from datetime import datetime, timezone
-
-    # Get quiz with questions and answer options
-        from ...models.booking import Booking
-        from ...models.quiz import SessionQuiz
-
-        # Verify the quiz is actually linked to this session
-    from ...models.quiz import Quiz, QuizAttempt, QuizUserAnswer, QuizAnswerOption
-
-    # Get quiz
-
-        # Verify the quiz is actually linked to this session
-        from ...models.gamification import UserStats
-                from ...models.attendance import Attendance
-
-                # Find student's booking
-    from ...models.attendance import Attendance, AttendanceStatus
-    from ...models.performance_review import StudentPerformanceReview
-    
-    # Verify user is instructor
-    from ...models.performance_review import InstructorSessionReview
-    
-    # Verify user is student
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

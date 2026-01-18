@@ -5,7 +5,7 @@ import logging
 from typing import Any, List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 
 from .....database import get_db
@@ -32,7 +32,6 @@ from app.utils.rbac import validate_license_ownership
 from .....services.specs.semester_based.gancuju_player_service import GanCujuPlayerService
 
     from app.models.user import UserRole
-        from sqlalchemy import text
 GānCuju™️©️ License Management API Endpoints
 
 Provides REST API endpoints for GānCuju belt/level progression system.
@@ -44,7 +43,6 @@ Level System: 1-8 (numeric levels, not belt names)
 - Level 8: Master
 """
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
 
 router = APIRouter()
 

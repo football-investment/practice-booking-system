@@ -13,15 +13,6 @@ from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 
 # Setup templates
-    from ...models.license import UserLicense
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from ...models.semester import Semester
-
-    # Get user licenses for specialization switcher (students only)
-    # Initialize variables at top level to prevent 500 errors
-    from ...utils.age_requirements import validate_specialization_for_age
-
-        import traceback
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

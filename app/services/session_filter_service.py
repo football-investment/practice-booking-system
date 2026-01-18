@@ -45,7 +45,6 @@ class SessionFilterService:
             specialization = UserSpecialization.GENERAL
             self._user_specialization_cache[user.id] = specialization
             return specialization
-            
         # Check user's enrolled projects
         enrolled_projects = self.db.query(Project).join(
             ProjectEnrollment

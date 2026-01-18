@@ -21,13 +21,6 @@ from app.database import SessionLocal
 from app.services.progress_license_coupling import ProgressLicenseCoupler
 
 # Setup logging
-        import json
-
-        import aiofiles
-
-        # Find most recent violation log
-
-        # Find most recent violation log
 logger = logging.getLogger(__name__)
 
 

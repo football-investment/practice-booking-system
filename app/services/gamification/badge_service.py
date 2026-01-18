@@ -18,13 +18,6 @@ from ...models.license import UserLicense
 from .utils import get_or_create_user_stats
 from .xp_service import calculate_user_stats, award_xp
 
-    from ...models.quiz import QuizAttempt
-
-    from ...models.project import ProjectEnrollment, ProjectEnrollmentStatus
-
-    from ...models.user_progress import SpecializationProgress
-
-    # Get user's progress in this specialization
 def award_achievement(
     db: Session,
     user_id: int,

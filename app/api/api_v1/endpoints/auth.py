@@ -41,7 +41,6 @@ def login(
         password_check = verify_password(user_credentials.password, user.password_hash)
         print(f"🔍 Password valid: {password_check}")
         print(f"🔍 Password hash: {user.password_hash[:30]}...")
-        
         # Test with expected password
         expected_check = verify_password("password123", user.password_hash)
         print(f"🔍 Expected password123 works: {expected_check}")

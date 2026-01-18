@@ -36,16 +36,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.window_seconds = window_seconds
         self.per_user_calls = per_user_calls
         self.cleanup_interval = cleanup_interval
-        
         # Storage for rate limiting data
         self.ip_requests: Dict[str, deque] = defaultdict(deque)
         self.user_requests: Dict[int, deque] = defaultdict(deque)
         self.blocked_ips: Dict[str, datetime] = {}
         self.last_cleanup = time.time()
-        
         # Endpoint-specific limits - import settings
         from ..config import settings
-        
         self.endpoint_limits = {
             "/api/v1/auth/login": (settings.LOGIN_RATE_LIMIT_CALLS, settings.LOGIN_RATE_LIMIT_WINDOW_SECONDS),
             "/api/v1/users/": (10, 60),     # 10 user creations per minute

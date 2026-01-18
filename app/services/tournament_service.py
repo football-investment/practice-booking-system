@@ -4,39 +4,6 @@ Tournament Service - Backward Compatibility Layer
 DEPRECATED: This module is kept for backward compatibility only.
 Please use the new modular structure instead:
 
-    from app.services.tournament import (
-        create_tournament_semester,
-    from app.services import tournament
-
-from datetime import date
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-
-# Import from new modular structure
-from app.services.tournament.core import (
-    create_tournament_semester as _create_tournament_semester,
-from app.services.tournament.instructor_service import (
-    send_instructor_request as _send_instructor_request,
-from app.services.tournament.enrollment_service import (
-    auto_book_students as _auto_book_students,
-from app.models.semester import Semester
-from app.models.session import Session as SessionModel
-from app.models.instructor_assignment import InstructorAssignmentRequest
-from app.models.specialization import SpecializationType
-
-        from app.services.tournament_service import TournamentService
-        from app.services.tournament import create_tournament_semester
-        create_tournament_sessions,
-        get_tournament_summary,
-        delete_tournament,
-        send_instructor_request,
-        accept_instructor_request,
-        decline_instructor_request,
-        auto_book_students,
-    )
-
-Or import the entire tournament service package:
-
 New structure:
 - app.services.tournament.core: CRUD operations
 - app.services.tournament.validation: Validation logic
@@ -46,16 +13,30 @@ New structure:
 This class re-exports all functions as static methods to maintain backward compatibility
 with existing code that uses TournamentService.function_name() syntax.
 """
+
+from datetime import date
+from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+
+# Import from new modular structure
+from app.services.tournament.core import (
+    create_tournament_semester as _create_tournament_semester,
     create_tournament_sessions as _create_tournament_sessions,
     get_tournament_summary as _get_tournament_summary,
     delete_tournament as _delete_tournament,
 )
-
+from app.services.tournament.instructor_service import (
+    send_instructor_request as _send_instructor_request,
     accept_instructor_request as _accept_instructor_request,
     decline_instructor_request as _decline_instructor_request,
 )
-
+from app.services.tournament.enrollment_service import (
+    auto_book_students as _auto_book_students,
 )
+from app.models.semester import Semester
+from app.models.session import Session as SessionModel
+from app.models.instructor_assignment import InstructorAssignmentRequest
+from app.models.specialization import SpecializationType
 
 class TournamentService:
     """

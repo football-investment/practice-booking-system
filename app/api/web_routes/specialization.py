@@ -18,19 +18,6 @@ from ...models.specialization import SpecializationType
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
-    from ...utils.age_requirements import validate_specialization_for_age
-
-    # Check credit balance
-
-    # Validate specialization parameter
-
-        import traceback
-
-    # Verify user has LFA_FOOTBALL_PLAYER license
-
-    # Find the license
-
-    # Default redirect URL
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

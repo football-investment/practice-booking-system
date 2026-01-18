@@ -17,22 +17,6 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
-    from ...models.user import UserRole
-    from ...models.semester import Semester
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from sqlalchemy.orm import joinedload
-
-    # Security check: ONLY instructors can access
-    from ...models.specialization import SpecializationType
-
-    from ...models.license import UserLicense
-
-    # Security check: ONLY instructors can access
-    from datetime import datetime, timezone
-
-    # Security check: ONLY instructors can update
-    from ...services.audit_service import AuditService
-    from ...models.audit_log import AuditAction
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

@@ -11,17 +11,6 @@ from app.models.specialization import SpecializationType
 from app.services.specialization_config_loader import get_config_loader
 from .validation import specialization_id_to_enum, validate_specialization_exists
 
-    from app.models.user_progress import SpecializationProgress
-
-    # STEP 1: Validate specialization exists in DB (HYBRID check)
-
-    # STEP 1: Validate specialization exists in DB (HYBRID check)
-    from app.services.gamification import GamificationService
-            from app.services.progress_license_sync_service import ProgressLicenseSyncService
-    from app.models.user import User
-    from app.services.specialization_validation import SpecializationValidator
-
-    # STEP 1: Validate specialization exists in DB
 logger = logging.getLogger(__name__)
 
 

@@ -17,45 +17,6 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
-    from ...models.user import UserRole
-
-    # ONLY students with completed onboarding can access calendar
-    from ...models.session import Session as SessionModel, SessionType
-    from datetime import datetime
-
-    # ONLY students with completed onboarding can access sessions
-        from ...models.booking import Booking
-        from ...models.performance_review import InstructorSessionReview
-
-        from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-
-        # Get user's APPROVED semester enrollments
-        from datetime import timedelta
-        from zoneinfo import ZoneInfo
-        from ...models.attendance import Attendance
-
-                from ...models.quiz import Quiz, QuizAttempt, SessionQuiz
-
-                # Get quizzes for this session
-            from ...models.performance_review import StudentPerformanceReview
-    from ...models.session import Session as SessionTypel
-    from ...models.booking import Booking, BookingStatus
-    from datetime import datetime, timedelta, timezone
-
-    # Check if session exists
-
-    # Find the booking
-    from datetime import datetime, timezone, timedelta
-
-    from ...models.session import Session as SessionModel
-
-            from ...models.attendance import AttendanceHistory
-
-    # IMPORTANT: Database stores timestamps WITHOUT timezone (naive timestamps in local time = Budapest CET/CEST)
-    # We must compare in the same timezone as the database stores (Europe/Budapest)
-        from ..models import SessionQuiz, Quiz, QuizQuestion, QuizAttempt
-
-        # Get all quizzes linked to this session
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

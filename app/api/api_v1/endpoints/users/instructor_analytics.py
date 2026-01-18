@@ -14,16 +14,6 @@ from .....models.attendance import Attendance
 from .....models.feedback import Feedback
 from .helpers import calculate_pagination, serialize_enum_value
 
-    from .....models.project import ProjectEnrollment, ProjectEnrollmentStatus
-    from .....models.session import Session as SessionTypel
-    
-    # Get students enrolled in instructor's projects or sessions
-    # First get all students enrolled in instructor's projects
-    from .....models.project import Project, ProjectEnrollment
-    
-    # Verify instructor has access to this student (student must be in instructor's projects/sessions)
-        from .....models.quiz import QuizAttempt, Quiz
-        from .....models.gamification import UserAchievement, Achievement
 router = APIRouter()
 
 
@@ -354,16 +344,6 @@ def get_instructor_student_progress(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
-    
-    # Import here to avoid circular imports
-    try:
-    except ImportError:
-        QuizAttempt = None
-        Quiz = None
-    try:
-    except ImportError:
-        UserAchievement = None
-        Achievement = None
     
     # Verify instructor has access to this student
     has_access = False

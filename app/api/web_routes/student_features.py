@@ -14,27 +14,6 @@ from ...dependencies import get_current_user_web, get_current_user_optional
 from ...models.user import User, UserRole
 
 # Setup templates
-    from datetime import date
-
-    # Calculate user age
-    from ...models.license import UserLicense
-    from ...models.semester_enrollment import SemesterEnrollment
-    from ...models.semester import Semester
-    from ...models.invoice_request import InvoiceRequest
-
-    from datetime import timezone as tz
-    from ...services.gamification import GamificationService
-    from ...models.session import Session as SessionModel
-    from ...models.attendance import Attendance
-
-    # ONLY STUDENTS can view progress - instructors TEACH, they don't learn!
-        from ...models.quiz import AdaptiveLearningSession
-
-    # Get ALL user licenses for the switcher dropdown
-    from ...models.achievement import Achievement
-    from ...models.gamification import UserAchievement
-
-    # Get all achievements from database
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 

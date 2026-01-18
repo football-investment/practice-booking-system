@@ -4,7 +4,6 @@ Gamification Service - Modular Architecture
 Handles XP, badges, achievements, and leaderboards.
 
 PUBLIC API - Import from this module:
-    from app.services.gamification import GamificationService
 """
 
 from sqlalchemy.orm import Session

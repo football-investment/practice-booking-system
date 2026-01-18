@@ -7,13 +7,7 @@ from typing import Optional
 from ..database import Base
 from .specialization import SpecializationType
 
-        from app.services.specialization_config_loader import SpecializationConfigLoader
-        from .semester import Semester
-        from .semester_enrollment import SemesterEnrollment
-        from .license import UserLicense
 
-        # Admins and instructors don't need enrollments
-        from .instructor_specialization import InstructorSpecialization
 class UserRole(enum.Enum):
     ADMIN = "admin"
     INSTRUCTOR = "instructor"
