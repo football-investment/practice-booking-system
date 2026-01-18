@@ -11,7 +11,6 @@ from datetime import datetime, date, timezone
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
-from .....models.semester import Semester
 from .....models.session import Session as SessionTypel, SessionType
 from .....models.booking import Booking, BookingStatus
 from .....models.attendance import Attendance
@@ -21,6 +20,7 @@ from .....schemas.session import SessionWithStats, SessionList
 from .....schemas.booking import BookingWithRelations, BookingList
 from .....services.session_filter_service import SessionFilterService
 from .....services.session_stats_aggregator import SessionStatsAggregator
+from .....services.role_semester_filter_service import RoleSemesterFilterService
 
 router = APIRouter()
 
@@ -49,77 +49,9 @@ def list_sessions(
     """
     query = db.query(SessionTypel)
 
-    # Apply role-based semester filtering
-    if current_user.role == UserRole.STUDENT:
-        # 🌐 CRITICAL: Cross-semester logic for Mbappé (LFA Testing)
-        if current_user.email == "mbappe@lfa.com":
-            # Mbappé gets access to ALL sessions across ALL semesters
-            print(f"🌐 Cross-semester access granted for {current_user.name} (LFA Testing)")
-            # No semester restriction for Mbappé - only apply semester_id filter if explicitly requested
-            if semester_id:
-                query = query.filter(SessionTypel.semester_id == semester_id)
-                print(f"🎯 Mbappé filtering by specific semester: {semester_id}")
-            else:
-                print("🌐 Mbappé accessing ALL sessions across ALL semesters")
-        else:
-            # Regular students see sessions from all current active semesters with intelligent filtering
-            if not semester_id:
-                # Get all current active semesters (including parallel tracks)
-                today = date.today()
-
-                current_semesters = db.query(Semester).filter(
-                    and_(
-                        Semester.start_date <= today,
-                        Semester.end_date >= today,
-                        Semester.is_active == True
-                    )
-                ).all()
-
-                if current_semesters:
-                    semester_ids = [s.id for s in current_semesters]
-                    query = query.filter(SessionTypel.semester_id.in_(semester_ids))
-                    print(f"Student seeing sessions from {len(current_semesters)} current semesters: {[s.name for s in current_semesters]}")
-                else:
-                    # Fallback: if no current semesters by date, show most recent semesters
-                    recent_semesters = db.query(Semester).filter(
-                        Semester.is_active == True
-                    ).order_by(Semester.id.desc()).limit(3).all()
-                    if recent_semesters:
-                        semester_ids = [s.id for s in recent_semesters]
-                        query = query.filter(SessionTypel.semester_id.in_(semester_ids))
-                        print(f"Fallback: Student seeing sessions from {len(recent_semesters)} recent semesters")
-            else:
-                # Allow filtering by specific semester for students
-                query = query.filter(SessionTypel.semester_id == semester_id)
-    elif current_user.role == UserRole.ADMIN:
-        # Admin sees all sessions
-        if semester_id:
-            query = query.filter(SessionTypel.semester_id == semester_id)
-
-    elif current_user.role == UserRole.INSTRUCTOR:
-        # Instructor sees sessions from semesters where:
-        # 1. They are assigned as master instructor (ACCEPTED)
-        # 2. They have a PENDING assignment request
-        from .....models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus
-
-        # Subquery for PENDING request semester IDs
-        pending_semester_ids = db.query(InstructorAssignmentRequest.semester_id).filter(
-            InstructorAssignmentRequest.instructor_id == current_user.id,
-            InstructorAssignmentRequest.status == AssignmentRequestStatus.PENDING
-        ).subquery()
-
-        # Join with Semester and filter
-        query = query.join(Semester, SessionTypel.semester_id == Semester.id)
-        query = query.filter(
-            or_(
-                Semester.master_instructor_id == current_user.id,  # ACCEPTED
-                Semester.id.in_(pending_semester_ids)              # PENDING
-            )
-        )
-
-        # Optional: semester_id filter still works
-        if semester_id:
-            query = query.filter(SessionTypel.semester_id == semester_id)
+    # Apply role-based semester filtering using RoleSemesterFilterService
+    role_filter_service = RoleSemesterFilterService(db)
+    query = role_filter_service.apply_role_semester_filter(query, current_user, semester_id)
 
     # 🎓 NEW: Apply specialization filtering (CRITICAL: Preserves Mbappé logic)
     # FIX: Only apply to STUDENTS with specialization - skip for admin/instructor
