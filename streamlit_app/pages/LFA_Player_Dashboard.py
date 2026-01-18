@@ -5,7 +5,7 @@ Shows age category, available semesters, enrollment status, and upcoming session
 
 import streamlit as st
 from datetime import datetime, date
-from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY
+from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY, API_BASE_URL, API_TIMEOUT
 from api_helpers_general import get_current_user
 from utils.age_category import get_age_category_for_season
 
