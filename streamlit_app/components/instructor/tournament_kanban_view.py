@@ -5,7 +5,7 @@ Tournament Kanban View - Kanban board rendering for instructor tournaments
 import streamlit as st
 from typing import Dict, List
 from config import API_BASE_URL
-from components.instructor.tournament_helpers import check_coach_level_sufficient
+from components.instructor.tournament_helpers import check_coach_level_sufficient, get_instructor_coach_level
 
 def render_kanban_view(token: str, tournaments: List[Dict], application_statuses: Dict[int, Dict]):
     """
@@ -17,11 +17,8 @@ def render_kanban_view(token: str, tournaments: List[Dict], application_statuses
         tournaments: List of tournament dictionaries
         application_statuses: Dict mapping tournament_id -> application data
     """
-    # 🔥 GET INSTRUCTOR COACH LEVEL (cached in session state)
-    if 'instructor_coach_level' not in st.session_state:
-        st.session_state['instructor_coach_level'] = get_instructor_coach_level(token)
-
-    instructor_coach_level = st.session_state['instructor_coach_level']
+    # 🔥 GET INSTRUCTOR COACH LEVEL (fetch fresh each time to avoid stale cache)
+    instructor_coach_level = get_instructor_coach_level(token)
 
     # Group tournaments by application status
     not_applied = []

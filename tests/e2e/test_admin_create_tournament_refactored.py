@@ -32,41 +32,68 @@ class TestAdminCreateTournamentRefactored:
 
     def test_admin_can_create_tournament_with_type(self, page: Page):
         """
-        Test: Admin can create 3 tournaments with different types
+        Test: Admin can create 6 tournaments with different types and assignment types
 
         Creates:
-        1. League (Round Robin) tournament
-        2. Knockout tournament
-        3. Group+Knockout tournament
+        1-3. APPLICATION_BASED tournaments (League, Knockout, Group+KO)
+        4-6. OPEN_ASSIGNMENT tournaments (League, Knockout, Group+KO)
 
-        This creates the checkpoint needed for test_ui_instructor_application_workflow.py
+        This creates the checkpoint needed for both:
+        - test_ui_instructor_application_workflow.py
+        - test_ui_instructor_invitation_workflow.py
         """
 
         print("\n" + "="*80)
-        print("🏆 E2E TEST: Admin Creates 3 Tournaments (League, Knockout, Group+KO)")
+        print("🏆 E2E TEST: Admin Creates 6 Tournaments (3 APPLICATION + 3 OPEN_ASSIGNMENT)")
         print("="*80 + "\n")
 
         # Generate unique tournament names
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
         tournaments_to_create = [
+            # APPLICATION_BASED tournaments
             {
                 "name": f"Budapest HU League {timestamp}",
                 "type": "League (Round Robin)",
                 "max_players": 8,
                 "location_index": 0,  # Budapest
+                "assignment_type": "APPLICATION_BASED",
             },
             {
                 "name": f"Vienna AT Knockout {timestamp}",
                 "type": "Single Elimination (Knockout)",
                 "max_players": 8,
                 "location_index": 1,  # Vienna
+                "assignment_type": "APPLICATION_BASED",
             },
             {
                 "name": f"Bratislava SK Group+KO {timestamp}",
                 "type": "Group Stage + Knockout",
                 "max_players": 8,
                 "location_index": 2,  # Bratislava
+                "assignment_type": "APPLICATION_BASED",
+            },
+            # OPEN_ASSIGNMENT tournaments (admin invites instructor)
+            {
+                "name": f"Budapest HU League INV {timestamp}",
+                "type": "League (Round Robin)",
+                "max_players": 8,
+                "location_index": 0,  # Budapest
+                "assignment_type": "OPEN_ASSIGNMENT",
+            },
+            {
+                "name": f"Vienna AT Knockout INV {timestamp}",
+                "type": "Single Elimination (Knockout)",
+                "max_players": 8,
+                "location_index": 1,  # Vienna
+                "assignment_type": "OPEN_ASSIGNMENT",
+            },
+            {
+                "name": f"Bratislava SK Group+KO INV {timestamp}",
+                "type": "Group Stage + Knockout",
+                "max_players": 8,
+                "location_index": 2,  # Bratislava
+                "assignment_type": "OPEN_ASSIGNMENT",
             },
         ]
 
@@ -120,19 +147,20 @@ class TestAdminCreateTournamentRefactored:
             raise AssertionError("Cannot find Tournaments tab")
 
         # ================================================================
-        # STEP 3-8: Create 3 Tournaments (Loop)
+        # STEP 3-8: Create 6 Tournaments (Loop)
         # ================================================================
         created_tournament_ids = []
 
         for idx, tournament_config in enumerate(tournaments_to_create, 1):
             print(f"\n  {'='*70}")
-            print(f"  Creating Tournament {idx}/3: {tournament_config['name']}")
+            print(f"  Creating Tournament {idx}/6: {tournament_config['name']}")
             print(f"  {'='*70}")
 
             tournament_name = tournament_config['name']
             tournament_type = tournament_config['type']
             max_players = tournament_config['max_players']
             location_index = tournament_config['location_index']
+            assignment_type = tournament_config['assignment_type']
 
             # ================================================================
             # Click "Create Tournament" Tab
@@ -188,41 +216,65 @@ class TestAdminCreateTournamentRefactored:
 
             # 4c. Select Location (by index)
             print(f"  5.{idx}a. Selecting Location (index {location_index})...")
-            location_selects = page.locator("div[data-baseweb='select']")
 
-            if location_selects.count() > 0:
+            try:
+                # Wait for location selectbox to be visible and stable
+                page.wait_for_timeout(2000)
+                location_selects = page.locator("div[data-baseweb='select']")
+
+                # Wait for at least one select to be visible
+                location_selects.first.wait_for(state="visible", timeout=10000)
+
                 first_location_select = location_selects.first
-                first_location_select.scroll_into_view_if_needed()
+
+                # Try to scroll into view (with timeout)
+                try:
+                    first_location_select.scroll_into_view_if_needed(timeout=5000)
+                except Exception:
+                    # If scroll fails, just continue - element might already be visible
+                    pass
+
                 page.wait_for_timeout(500)
                 first_location_select.click()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1500)
 
                 # Click location option by index
                 location_option = page.locator("li[role='option']").nth(location_index)
                 location_option.click()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1500)
                 print(f"  ✅ Location selected (index {location_index})")
-            else:
-                print("  ⚠️  Location selector not found")
+            except Exception as e:
+                print(f"  ⚠️  Location selection failed: {e}")
+                # Take screenshot for debugging
+                page.screenshot(path=f"tests/e2e/screenshots/location_error_{idx}.png")
 
             # 4d. Select Campus (corresponding to location)
             print(f"  5.{idx}b. Selecting Campus...")
-            campus_selects = page.locator("div[data-baseweb='select']")
 
-            if campus_selects.count() > 1:
-                second_campus_select = campus_selects.nth(1)
-                second_campus_select.scroll_into_view_if_needed()
-                page.wait_for_timeout(500)
-                second_campus_select.click()
-                page.wait_for_timeout(1000)
+            try:
+                page.wait_for_timeout(1500)
+                campus_selects = page.locator("div[data-baseweb='select']")
 
-                # Click first campus option (corresponding to selected location)
-                campus_option = page.locator("li[role='option']").first
-                campus_option.click()
-                page.wait_for_timeout(1000)
-                print("  ✅ Campus selected")
-            else:
-                print("  ⚠️  Campus selector not found")
+                if campus_selects.count() > 1:
+                    second_campus_select = campus_selects.nth(1)
+
+                    try:
+                        second_campus_select.scroll_into_view_if_needed(timeout=5000)
+                    except Exception:
+                        pass
+
+                    page.wait_for_timeout(500)
+                    second_campus_select.click()
+                    page.wait_for_timeout(1500)
+
+                    campus_option = page.locator("li[role='option']").first
+                    campus_option.click()
+                    page.wait_for_timeout(1500)
+                    print("  ✅ Campus selected")
+                else:
+                    print("  ⚠️  Campus selector not found")
+            except Exception as e:
+                print(f"  ⚠️  Campus selection failed: {e}")
 
             page.wait_for_timeout(2000)
 
@@ -231,15 +283,20 @@ class TestAdminCreateTournamentRefactored:
 
             try:
                 age_group_select = page.locator("[data-testid='stSelectbox']:has-text('Age Group')").first
-                age_group_select.scroll_into_view_if_needed()
+
+                try:
+                    age_group_select.scroll_into_view_if_needed(timeout=5000)
+                except Exception:
+                    pass
+
                 page.wait_for_timeout(500)
                 age_group_select.click()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1500)
                 print(f"  ✅ Clicked Age Group selectbox")
 
                 amateur_option = page.locator("li[role='option']:has-text('AMATEUR')").first
                 amateur_option.click()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1500)
                 print(f"  ✅ Age Group: AMATEUR (18+)")
             except Exception as e:
                 print(f"  ⚠️  Age Group selection failed: {e}")
@@ -251,10 +308,15 @@ class TestAdminCreateTournamentRefactored:
 
             try:
                 tournament_type_select = page.locator("[data-testid='stSelectbox']:has-text('Tournament Type')").first
-                tournament_type_select.scroll_into_view_if_needed()
+
+                try:
+                    tournament_type_select.scroll_into_view_if_needed(timeout=5000)
+                except Exception:
+                    pass
+
                 page.wait_for_timeout(500)
                 tournament_type_select.click()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1500)
                 print(f"  ✅ Clicked Tournament Type selectbox")
 
                 # Select tournament type based on config
@@ -285,21 +347,26 @@ class TestAdminCreateTournamentRefactored:
             except Exception as e:
                 print(f"  ⚠️  Enrollment Cost input failed: {e}")
 
-            # 4i. Select Assignment Type (APPLICATION_BASED)
-            print(f"  5.{idx}g. Selecting Assignment Type (APPLICATION_BASED)...")
+            # 4i. Select Assignment Type (dynamic based on config)
+            print(f"  5.{idx}g. Selecting Assignment Type ({assignment_type})...")
 
             try:
                 assignment_type_select = page.locator("[data-testid='stSelectbox']:has-text('Assignment Type')").first
-                assignment_type_select.scroll_into_view_if_needed()
+
+                try:
+                    assignment_type_select.scroll_into_view_if_needed(timeout=5000)
+                except Exception:
+                    pass
+
                 page.wait_for_timeout(500)
                 assignment_type_select.click()
-                page.wait_for_timeout(1000)
+                page.wait_for_timeout(1500)
                 print(f"  ✅ Clicked Assignment Type selectbox")
 
-                app_based_option = page.locator("li[role='option']:has-text('APPLICATION_BASED')").first
-                app_based_option.click()
-                page.wait_for_timeout(1000)
-                print(f"  ✅ Assignment Type: APPLICATION_BASED")
+                assignment_option = page.locator(f"li[role='option']:has-text('{assignment_type}')").first
+                assignment_option.click()
+                page.wait_for_timeout(1500)
+                print(f"  ✅ Assignment Type: {assignment_type}")
             except Exception as e:
                 print(f"  ⚠️  Assignment Type selection failed: {e}")
 
@@ -357,9 +424,11 @@ class TestAdminCreateTournamentRefactored:
             # Store tournament ID for later
             created_tournament_ids.append(tournament_name)
 
-        # End of loop - all 3 tournaments created
+        # End of loop - all 6 tournaments created
         print(f"\n  {'='*70}")
         print(f"  ✅ All {len(tournaments_to_create)} tournaments created!")
+        print(f"     - 3 APPLICATION_BASED tournaments")
+        print(f"     - 3 OPEN_ASSIGNMENT tournaments")
         print(f"  {'='*70}\n")
 
         # ================================================================

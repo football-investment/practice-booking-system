@@ -18,6 +18,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import subprocess
+import json
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
@@ -28,6 +29,7 @@ from app.database import Base
 # Import models
 from app.models.user import User, UserRole, SpecializationType
 from app.models.license import UserLicense
+from app.models.tournament_type import TournamentType
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
 
@@ -99,27 +101,8 @@ def create_schema():
         # Create all tables from models
         Base.metadata.create_all(bind=engine)
 
-        # Manually create tournament_status_history table
-        # (This table is not in models, only in Alembic migration)
-        with engine.connect() as conn:
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS tournament_status_history (
-                    id SERIAL PRIMARY KEY,
-                    tournament_id INTEGER NOT NULL REFERENCES semesters(id) ON DELETE CASCADE,
-                    old_status VARCHAR(50),
-                    new_status VARCHAR(50) NOT NULL,
-                    changed_by INTEGER NOT NULL REFERENCES users(id),
-                    changed_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                    reason TEXT,
-                    metadata JSON
-                );
-
-                CREATE INDEX IF NOT EXISTS ix_tournament_status_history_tournament_id
-                    ON tournament_status_history(tournament_id);
-                CREATE INDEX IF NOT EXISTS ix_tournament_status_history_changed_at
-                    ON tournament_status_history(changed_at);
-            """))
-            conn.commit()
+        # NOTE: tournament_status_history table is now in models (TournamentStatusHistory)
+        # No need for manual creation anymore
 
         print("✅ Base database schema created successfully")
         print("   (including tournament_status_history table)")
@@ -262,44 +245,84 @@ def seed_grandmaster_user(session: Session):
 
 
 def seed_location_and_campus(session: Session):
-    """Create test location and campus for tournament generation"""
-    print("\n📝 Creating Test Location and Campus...")
+    """Create test locations and campuses in different countries for tournament generation"""
+    print("\n📝 Creating Test Locations and Campuses (3 countries)...")
 
-    # Create Location (id=1)
-    location = Location(
-        id=1,
-        name="Test City Center",
-        city="Budapest",
-        postal_code="1011",
-        country="Hungary",
-        address="Test Address 123",
-        location_type=LocationType.CENTER,  # Can host all tournament types
-        is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+    # Define 3 locations in different countries
+    locations_data = [
+        {
+            'id': 1,
+            'name': 'Budapest Center',
+            'city': 'Budapest',
+            'postal_code': '1011',
+            'country': 'Hungary',
+            'country_code': 'HU',
+            'location_code': 'BDPST',
+            'address': 'Váci utca 123',
+            'location_type': LocationType.CENTER
+        },
+        {
+            'id': 2,
+            'name': 'Vienna Academy',
+            'city': 'Vienna',
+            'postal_code': '1010',
+            'country': 'Austria',
+            'country_code': 'AT',
+            'location_code': 'VIE',
+            'address': 'Stephansplatz 1',
+            'location_type': LocationType.CENTER
+        },
+        {
+            'id': 3,
+            'name': 'Bratislava Training Center',
+            'city': 'Bratislava',
+            'postal_code': '81101',
+            'country': 'Slovakia',
+            'country_code': 'SK',
+            'location_code': 'BTS',
+            'address': 'Hviezdoslavovo námestie 1',
+            'location_type': LocationType.PARTNER
+        }
+    ]
 
-    session.add(location)
-    session.flush()
+    # Create locations and campuses
+    for loc_data in locations_data:
+        location = Location(
+            id=loc_data['id'],
+            name=loc_data['name'],
+            city=loc_data['city'],
+            postal_code=loc_data['postal_code'],
+            country=loc_data['country'],
+            country_code=loc_data['country_code'],
+            location_code=loc_data['location_code'],
+            address=loc_data['address'],
+            location_type=loc_data['location_type'],
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        session.add(location)
+        session.flush()
 
-    print(f"  ✅ Location created: {location.city} (id={location.id}, type={location.location_type.value})")
+        # Build flag manually
+        flag = chr(ord(location.country_code[0]) + 127397) + chr(ord(location.country_code[1]) + 127397) if location.country_code and len(location.country_code) == 2 else "🌍"
+        print(f"  ✅ Location created: {flag} {location.country_code} - {location.location_code} - {location.city} (id={location.id})")
 
-    # Create Campus (id=1)
-    campus = Campus(
-        id=1,
-        location_id=location.id,
-        name="Main Test Campus",
-        venue="Test Sports Complex",
-        address="Test Sports Street 1",
-        is_active=True,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+        # Create campus for this location
+        campus = Campus(
+            id=loc_data['id'],  # Same ID as location for simplicity
+            location_id=location.id,
+            name=f"{location.city} Main Campus",
+            venue=f"{location.city} Sports Complex",
+            address=f"{location.city} Sports Street 1",
+            is_active=True,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        session.add(campus)
+        session.flush()
 
-    session.add(campus)
-    session.flush()
-
-    print(f"  ✅ Campus created: {campus.name} (id={campus.id}, location={location.city})")
+        print(f"  ✅ Campus created: {campus.name} (id={campus.id}, location={location.city})")
 
 
 def seed_data():
@@ -328,6 +351,78 @@ def seed_data():
         except Exception as e:
             session.rollback()
             print(f"\n❌ Error seeding data: {e}")
+            raise
+
+    engine.dispose()
+
+
+def seed_tournament_types():
+    """Seed tournament_types table with pre-defined configurations"""
+    print(f"\n{'='*80}")
+    print("STEP 4b: Seeding tournament types")
+    print('='*80)
+
+    engine = create_engine(DATABASE_URL)
+
+    with Session(engine) as session:
+        try:
+            # Check if already seeded
+            existing_count = session.query(TournamentType).count()
+            if existing_count > 0:
+                print(f"  ℹ️  {existing_count} tournament types already exist, skipping seed")
+                return
+
+            # Load configurations
+            tournament_configs = [
+                'league.json',
+                'knockout.json',
+                'group_knockout.json',
+                'swiss.json'
+            ]
+
+            created_count = 0
+
+            for config_file in tournament_configs:
+                try:
+                    config_path = os.path.join(
+                        os.path.dirname(__file__),
+                        '..',
+                        'app',
+                        'tournament_types',
+                        config_file
+                    )
+
+                    with open(config_path, 'r') as f:
+                        config = json.load(f)
+
+                    tournament_type = TournamentType(
+                        code=config['code'],
+                        display_name=config['display_name'],
+                        description=config['description'],
+                        min_players=config['min_players'],
+                        max_players=config.get('max_players'),
+                        requires_power_of_two=config['requires_power_of_two'],
+                        session_duration_minutes=config['session_duration_minutes'],
+                        break_between_sessions_minutes=config['break_between_sessions_minutes'],
+                        config=config
+                    )
+
+                    session.add(tournament_type)
+                    created_count += 1
+                    print(f"  ✅ Created: {tournament_type.display_name} ({tournament_type.code})")
+
+                except FileNotFoundError:
+                    print(f"  ❌ ERROR: Config file not found: {config_file}")
+                except json.JSONDecodeError as e:
+                    print(f"  ❌ ERROR: Invalid JSON in {config_file}: {e}")
+
+            # Commit all changes
+            session.commit()
+            print(f"\n✅ Tournament types seeded: {created_count} types created")
+
+        except Exception as e:
+            session.rollback()
+            print(f"\n❌ Error seeding tournament types: {e}")
             raise
 
     engine.dispose()
@@ -411,25 +506,21 @@ def verify_database():
         else:
             print(f"\n⚠️  WARNING: Found {total_users} users (expected 2)")
 
-        # Check location and campus
-        location = session.query(Location).filter_by(id=1).first()
-        if location:
-            print(f"\n✅ Location verified:")
-            print(f"   - City: {location.city}")
-            print(f"   - Type: {location.location_type.value}")
-            print(f"   - Active: {location.is_active}")
-        else:
-            print("\n❌ Location (id=1) not found!")
-            return False
+        # Check locations and campuses (should have 3)
+        locations = session.query(Location).all()
+        campuses = session.query(Campus).all()
 
-        campus = session.query(Campus).filter_by(id=1).first()
-        if campus:
-            print(f"\n✅ Campus verified:")
-            print(f"   - Name: {campus.name}")
-            print(f"   - Location: {location.city}")
-            print(f"   - Active: {campus.is_active}")
+        if len(locations) == 3 and len(campuses) == 3:
+            print(f"\n✅ Locations verified: {len(locations)} locations")
+            for loc in locations:
+                flag = chr(ord(loc.country_code[0]) + 127397) + chr(ord(loc.country_code[1]) + 127397) if loc.country_code and len(loc.country_code) == 2 else "🌍"
+                print(f"   - {flag} {loc.country_code} - {loc.location_code} - {loc.city} ({loc.location_type.value})")
+
+            print(f"\n✅ Campuses verified: {len(campuses)} campuses")
+            for camp in campuses:
+                print(f"   - {camp.name}")
         else:
-            print("\n❌ Campus (id=1) not found!")
+            print(f"\n❌ Expected 3 locations and 3 campuses, found {len(locations)} locations and {len(campuses)} campuses")
             return False
 
         # Check tournament_status_history table exists
@@ -446,6 +537,16 @@ def verify_database():
             print(f"\n✅ Tournament status history table verified")
         else:
             print("\n❌ Tournament status history table not found!")
+            return False
+
+        # Check tournament types
+        tournament_types_count = session.query(TournamentType).count()
+        if tournament_types_count > 0:
+            print(f"\n✅ Tournament types verified: {tournament_types_count} types available")
+            for tt in session.query(TournamentType).all():
+                print(f"   - {tt.display_name} ({tt.code})")
+        else:
+            print("\n❌ No tournament types found!")
             return False
 
     engine.dispose()
@@ -476,6 +577,9 @@ def main():
         # Step 4: Seed essential data
         seed_data()
 
+        # Step 4b: Seed tournament types
+        seed_tournament_types()
+
         # Step 5: Fix sequences
         fix_sequences()
 
@@ -489,8 +593,9 @@ def main():
             print("   - Admin: admin@lfa.com (password: admin123)")
             print("   - Grandmaster: grandmaster@lfa.com (password: GrandMaster2026!)")
             print("   - Grandmaster licenses: 21 (all active)")
-            print("   - Test Location: Budapest (id=1, CENTER type)")
-            print("   - Test Campus: Main Test Campus (id=1)")
+            print("   - Test Locations: 3 (Budapest/HU, Vienna/AT, Bratislava/SK)")
+            print("   - Test Campuses: 3 (one per location)")
+            print(f"   - Tournament types: 4 (league, knockout, group_knockout, swiss)")
             print("\n🎯 Ready for E2E tests!")
             return 0
         else:

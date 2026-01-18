@@ -38,6 +38,7 @@ TESTS=(
     "tests/e2e/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user1"
     "tests/e2e/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user2"
     "tests/e2e/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user3"
+    "tests/e2e/test_admin_create_tournament_refactored.py::TestAdminCreateTournamentRefactored::test_admin_can_create_tournament_with_type"
     "tests/e2e/test_ui_instructor_application_workflow.py::TestInstructorApplicationWorkflowUI::test_complete_ui_workflow"
 )
 
@@ -122,9 +123,12 @@ for TEST in "${TESTS[@]}"; do
         elif [[ "$TEST" == *"test_complete_onboarding_user3"* ]]; then
             echo -e "${BLUE}📸 Saving snapshot: after_onboarding${NC}"
             ./tests/e2e/snapshot_manager.sh save after_onboarding
+        elif [[ "$TEST" == *"test_admin_can_create_tournament_with_type"* ]]; then
+            echo -e "${BLUE}📸 Saving snapshot: after_tournament_creation${NC}"
+            ./tests/e2e/snapshot_manager.sh save after_tournament_creation
         elif [[ "$TEST" == *"test_complete_ui_workflow"* ]]; then
-            echo -e "${BLUE}📸 Saving snapshot: after_instructor_workflow${NC}"
-            ./tests/e2e/snapshot_manager.sh save after_instructor_workflow
+            echo -e "${BLUE}📸 Saving snapshot: after_application_workflow${NC}"
+            ./tests/e2e/snapshot_manager.sh save after_application_workflow
         fi
     else
         echo ""
@@ -207,8 +211,8 @@ echo -e "${YELLOW}📋 Complete User Journey Validated:${NC}"
 echo -e "  1. ✅ Admin created invitation codes (UI)"
 echo -e "  2. ✅ 3 users registered with invitations (UI)"
 echo -e "  3. ✅ 3 users completed onboarding with coupons (UI)"
-echo -e "  4. ✅ Instructor assignment workflow (UI + API)"
-echo -e "  5. ✅ Tournament enrollment (UI)"
+echo -e "  4. ✅ Admin created 6 tournaments (3 APPLICATION + 3 OPEN_ASSIGNMENT) (UI)"
+echo -e "  5. ✅ Instructor application workflow (UI)"
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}🗄️  Database State${NC}"

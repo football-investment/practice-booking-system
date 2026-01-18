@@ -1,0 +1,7 @@
+snapshot_name: after_application_workflow
+created_at: $(date '+%Y-%m-%d %H:%M:%S')
+db_name: lfa_intern_system
+tournaments: 6
+application_based_confirmed: 3
+open_assignment_pending: 3
+test_file: test_ui_instructor_application_workflow.py

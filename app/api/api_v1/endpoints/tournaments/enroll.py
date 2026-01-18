@@ -43,7 +43,7 @@ def enroll_in_tournament(
     **Authorization:** Student role only
 
     **Validations:**
-    1. Tournament exists and status is READY_FOR_ENROLLMENT
+    1. Tournament exists and tournament_status is READY_FOR_ENROLLMENT, OPEN_FOR_ENROLLMENT, or IN_PROGRESS
     2. Student has LFA_FOOTBALL_PLAYER license
     3. Age category enrollment rules:
        - PRE (5-13): Can ONLY enroll in PRE tournaments
@@ -76,11 +76,11 @@ def enroll_in_tournament(
             detail="Tournament not found"
         )
 
-    # 2. Verify tournament status
-    if tournament.status != "READY_FOR_ENROLLMENT":
+    # 2. Verify tournament status (check tournament_status field, NOT the old status field)
+    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "OPEN_FOR_ENROLLMENT", "IN_PROGRESS"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tournament not ready for enrollment (status: {tournament.status})"
+            detail=f"Tournament not ready for enrollment (tournament_status: {tournament.tournament_status})"
         )
 
     # 2.5. Verify enrollment deadline (1 hour before first tournament session)
@@ -171,7 +171,22 @@ def enroll_in_tournament(
             detail=duplicate_message
         )
 
-    # 8. Check credit balance (use user-level credit_balance, not license-level)
+    # 8. Check tournament capacity (max_players)
+    current_enrollment_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.is_active == True,
+        SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+    ).count()
+
+    max_players = tournament.max_players or 999  # Default if not set
+
+    if current_enrollment_count >= max_players:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tournament is full: {current_enrollment_count}/{max_players} players enrolled"
+        )
+
+    # 8.5. Check credit balance (use user-level credit_balance, not license-level)
     enrollment_cost = tournament.enrollment_cost or 500
     if current_user.credit_balance < enrollment_cost:
         raise HTTPException(
@@ -250,15 +265,17 @@ def enroll_in_tournament(
     ).first()
 
     if tournament_session:
-        # Create booking automatically
+        # Create booking automatically LINKED to enrollment
         booking = Booking(
             user_id=current_user.id,
             session_id=tournament_session.id,
+            enrollment_id=enrollment.id,  # ✅ NEW: Link to enrollment
             status=BookingStatus.CONFIRMED,
             created_at=datetime.utcnow()
         )
         db.add(booking)
-        logger.info(f"✅ Auto-created booking for session {tournament_session.id}")
+        db.flush()  # Get booking.id before commit
+        logger.info(f"✅ Auto-created booking {booking.id} for enrollment {enrollment.id}, session {tournament_session.id}")
     else:
         logger.warning(f"⚠️ No session found for tournament {tournament_id} - booking not created")
 

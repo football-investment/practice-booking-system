@@ -90,17 +90,25 @@ def render_coupon_management(token: str):
                         st.caption("Uses (∞)")
 
                 with c5:
-                    # Only Activate/Deactivate buttons (Edit removed - can't change discount after use)
-                    if coupon.get('is_active'):
-                        if st.button("🔴 Deactivate", key=f"deact_c_{cid}", use_container_width=True):
-                            s, e, _ = update_coupon(token, cid, {"is_active": False})
-                            if s:
-                                st.rerun()
-                    else:
-                        if st.button("🟢 Activate", key=f"act_c_{cid}", use_container_width=True):
-                            s, e, _ = update_coupon(token, cid, {"is_active": True})
-                            if s:
-                                st.rerun()
+                    # Edit and Activate/Deactivate buttons
+                    btn_col1, btn_col2 = st.columns(2)
+                    with btn_col1:
+                        if st.button("✏️", key=f"edit_c_{cid}", help="Edit coupon", use_container_width=True):
+                            st.session_state.editing_coupon_id = cid
+                            st.session_state.editing_coupon_data = coupon
+                            st.rerun()
+
+                    with btn_col2:
+                        if coupon.get('is_active'):
+                            if st.button("🔴", key=f"deact_c_{cid}", help="Deactivate", use_container_width=True):
+                                s, e, _ = update_coupon(token, cid, {"is_active": False})
+                                if s:
+                                    st.rerun()
+                        else:
+                            if st.button("🟢", key=f"act_c_{cid}", help="Activate", use_container_width=True):
+                                s, e, _ = update_coupon(token, cid, {"is_active": True})
+                                if s:
+                                    st.rerun()
                 st.divider()
 
     elif success:
@@ -111,6 +119,10 @@ def render_coupon_management(token: str):
     # CREATE MODAL
     if st.session_state.get('show_create_coupon_modal'):
         _render_create_coupon_modal(token)
+
+    # EDIT MODAL
+    if st.session_state.get('editing_coupon_id'):
+        _render_edit_coupon_modal(token)
 
 
 def _render_create_coupon_modal(token: str):
@@ -257,3 +269,157 @@ def _render_create_coupon_modal(token: str):
                     st.error(f"❌ Failed: {e}")
 
     create_coupon_modal()
+
+
+def _render_edit_coupon_modal(token: str):
+    """Render the edit coupon modal (internal function)"""
+    @st.dialog("Edit Coupon")
+    def edit_coupon_modal():
+        coupon = st.session_state.editing_coupon_data
+        coupon_id = st.session_state.editing_coupon_id
+
+        st.caption(f"Editing: **{coupon.get('code')}**")
+        st.divider()
+
+        # Current coupon type (read-only)
+        dtype = coupon.get('type', 'BONUS_CREDITS')
+        st.info(f"**Type:** {dtype} (cannot be changed)")
+
+        with st.form("edit_coupon_f"):
+            # Description (editable)
+            desc = st.text_area(
+                "Description",
+                value=coupon.get('description', ''),
+                placeholder="Describe what this coupon does"
+            )
+
+            # Value input based on current type
+            current_value = coupon.get('discount_value', 0)
+
+            if dtype == "BONUS_CREDITS":
+                dval = st.number_input(
+                    "Bonus Credits *",
+                    min_value=1.0,
+                    value=float(current_value),
+                    step=10.0,
+                    help="Enter bonus credits. Example: 500 = +500 credits"
+                )
+            elif dtype == "PURCHASE_DISCOUNT_PERCENT":
+                # Convert decimal to percentage for display (0.2 → 20)
+                dval = st.number_input(
+                    "Discount Percentage *",
+                    min_value=1.0,
+                    max_value=100.0,
+                    value=float(current_value * 100),
+                    step=1.0,
+                    help="Enter percentage (1-100). Example: 20 = 20% discount"
+                )
+            elif dtype == "PURCHASE_BONUS_CREDITS":
+                dval = st.number_input(
+                    "Bonus Credits *",
+                    min_value=1.0,
+                    value=float(current_value),
+                    step=10.0,
+                    help="Enter bonus credits awarded after purchase"
+                )
+            else:
+                # Legacy types
+                dval = st.number_input(
+                    "Value *",
+                    min_value=1.0,
+                    value=float(current_value),
+                    step=1.0
+                )
+
+            # Optional settings
+            c1, c2 = st.columns(2)
+            with c1:
+                current_max_uses = coupon.get('max_uses') or 0
+                max_uses = st.number_input(
+                    "Max Uses",
+                    min_value=0,
+                    value=current_max_uses,
+                    step=1,
+                    help="0 = unlimited uses"
+                )
+
+            with c2:
+                # Calculate days until expiration
+                expires_at = coupon.get('expires_at')
+                if expires_at:
+                    try:
+                        exp_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                        days_until_exp = max(0, (exp_date - datetime.now(exp_date.tzinfo)).days)
+                    except:
+                        days_until_exp = 0
+                else:
+                    days_until_exp = 0
+
+                expires_days = st.number_input(
+                    "Expires in (days)",
+                    min_value=0,
+                    value=days_until_exp,
+                    step=1,
+                    help="0 = never expires"
+                )
+
+            cs, cc = st.columns(2)
+            with cs:
+                sub = st.form_submit_button("Save Changes", use_container_width=True, type="primary")
+            with cc:
+                can = st.form_submit_button("Cancel", use_container_width=True)
+
+            if can:
+                # Clean up session state
+                if 'editing_coupon_id' in st.session_state:
+                    del st.session_state.editing_coupon_id
+                if 'editing_coupon_data' in st.session_state:
+                    del st.session_state.editing_coupon_data
+                st.rerun()
+
+            if sub:
+                # Validation
+                if dval <= 0:
+                    st.error("Value must be greater than 0!")
+                    return
+
+                # Convert value based on type
+                if dtype == "PURCHASE_DISCOUNT_PERCENT":
+                    # Convert percentage to decimal (20 → 0.2)
+                    backend_value = dval / 100.0
+                else:
+                    # For bonus credits types, use value directly
+                    backend_value = dval
+
+                # Calculate expiration date
+                expires_at_new = None
+                if expires_days > 0:
+                    expires_at_new = (datetime.now() + timedelta(days=expires_days)).isoformat()
+
+                # Build update data (only include fields that can be changed)
+                update_data = {
+                    "description": desc.strip() if desc else coupon.get('code', '') + " coupon",
+                    "discount_value": backend_value
+                }
+
+                if max_uses >= 0:
+                    update_data["max_uses"] = max_uses if max_uses > 0 else None
+
+                if expires_at_new:
+                    update_data["expires_at"] = expires_at_new
+                else:
+                    update_data["expires_at"] = None
+
+                s, e, _ = update_coupon(token, coupon_id, update_data)
+                if s:
+                    st.success(f"✅ Coupon '{coupon.get('code')}' updated!")
+                    # Clean up session state
+                    if 'editing_coupon_id' in st.session_state:
+                        del st.session_state.editing_coupon_id
+                    if 'editing_coupon_data' in st.session_state:
+                        del st.session_state.editing_coupon_data
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed: {e}")
+
+    edit_coupon_modal()

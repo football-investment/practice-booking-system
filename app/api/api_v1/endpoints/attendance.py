@@ -82,8 +82,8 @@ def create_attendance(
         db.commit()
         db.refresh(attendance)
 
-        # Update milestone progress if attendance is marked as PRESENT
-        if attendance.status == AttendanceStatus.PRESENT:
+        # Update milestone progress if attendance is marked as present
+        if attendance.status == AttendanceStatus.present:
             _update_milestone_sessions_on_attendance(db, attendance.user_id, attendance.session_id)
 
         return attendance
@@ -241,17 +241,28 @@ def update_attendance(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Attendance record not found"
         )
-    
+
+    # 🏆 TOURNAMENT VALIDATION: Check if session is a tournament game
+    session = db.query(SessionTypel).filter(SessionTypel.id == attendance.session_id).first()
+    if session and session.is_tournament_game:
+        # Tournament sessions ONLY support present/absent (NO late/excused)
+        if hasattr(attendance_update, 'status') and attendance_update.status:
+            if attendance_update.status not in [AttendanceStatus.present, AttendanceStatus.absent]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Tournaments only support 'present' or 'absent' attendance. Received: '{attendance_update.status.value}'"
+                )
+
     # Update fields
     update_data = attendance_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(attendance, field, value)
-    
+
     attendance.marked_by = current_user.id
-    
+
     db.commit()
     db.refresh(attendance)
-    
+
     return attendance
 
 

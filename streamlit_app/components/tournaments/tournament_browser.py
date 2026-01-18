@@ -168,10 +168,12 @@ def _render_tournament_card(tournament: dict, token: str, user: dict):
             with st.expander(f"🏆 {len(sessions)} Game(s)", expanded=False):
                 for session in sessions:
                     game_type = session.get('game_type') or 'Tournament Game'
+                    # ✅ Use enrollment_count instead of session bookings
+                    # (enrollment is the source of truth for tournaments)
                     st.markdown(f"""
                     - **{game_type}**
                       {session['start_time']} - {session['end_time']} |
-                      Capacity: {session['current_bookings']}/{session['capacity']}
+                      {enrollment_count}/{tournament_data.get('max_players', 'N/A')} enrolled
                     """)
 
         # Cost

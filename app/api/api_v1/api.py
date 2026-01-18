@@ -51,7 +51,8 @@ from .endpoints import (
     spec_info,  # 🎯 NEW: Add spec services information API
     instructor_management,  # 👨‍🏫 NEW: Add two-tier instructor management system
     session_groups,  # 👥 NEW: Add dynamic session group assignment system
-    tournaments  # 🏆 NEW: Add one-day tournament generator system
+    tournaments,  # 🏆 NEW: Add one-day tournament generator system
+    tournament_types  # 🎯 NEW: Add tournament type system
 )
 
 from .endpoints.sessions import results as session_results  # 🏆 NEW: Game results management
@@ -60,6 +61,8 @@ from .endpoints.semesters import academy_generator  # 🏫 NEW: Add Academy Seas
 from .endpoints.enrollments import conflict_check  # ⚠️ NEW: Add enrollment conflict detection
 
 from .endpoints.periods import lfa_player_generators  # 🚀 NEW: Add modular LFA_PLAYER period generators
+
+from .endpoints.tournaments import generate_sessions  # 🎯 NEW: Add tournament session generation system
 
 api_router = APIRouter()
 
@@ -327,4 +330,18 @@ api_router.include_router(
     tournaments.router,
     prefix="/tournaments",
     tags=["tournaments"]
+)
+
+# 🎯 NEW: Add tournament type system routes (admin only)
+api_router.include_router(
+    tournament_types.router,
+    prefix="/tournament-types",
+    tags=["tournament-types"]
+)
+
+# 🎯 NEW: Add tournament session generation system routes (admin only)
+api_router.include_router(
+    generate_sessions.router,
+    prefix="/tournaments",
+    tags=["tournaments", "session-generation"]
 )

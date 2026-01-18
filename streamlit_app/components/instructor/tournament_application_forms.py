@@ -6,6 +6,7 @@ import streamlit as st
 import requests
 import hashlib
 import time
+import uuid
 from typing import Dict
 from datetime import datetime
 from config import API_BASE_URL, API_TIMEOUT
@@ -263,14 +264,21 @@ def render_system_message_card(token: str, application: Dict, status_category: s
     st.markdown(card_html, unsafe_allow_html=True)
 
     # Expandable message section (collapsed by default to save space)
-    message_preview = (application_message[:60] + "...") if len(application_message) > 60 else application_message
+    # Handle None application_message for direct assignments
+    if application_message and len(application_message) > 60:
+        message_preview = application_message[:60] + "..."
+    else:
+        message_preview = application_message or "Direct assignment - no application message"
+
     with st.expander(f"💬 {message_preview}", expanded=False):
         if assignment_type == 'OPEN_ASSIGNMENT' and response_message:
             st.markdown(f"**Admin invitation:**")
             st.markdown(f"_{response_message}_")
-        else:
+        elif application_message:
             st.markdown(f"**Your application:**")
             st.markdown(f"_{application_message}_")
+        else:
+            st.markdown(f"**Direct assignment by admin - no application message**")
 
         # Admin response (if any)
         if response_message and assignment_type == 'APPLICATION_BASED':
@@ -283,8 +291,8 @@ def render_system_message_card(token: str, application: Dict, status_category: s
     with button_col1:
         # Accept button for assignments that need instructor action
         if status == 'ACCEPTED' and tournament_status == 'PENDING_INSTRUCTOR_ACCEPTANCE':
-            # Stable key for E2E testing (app_id is unique per application)
-            accept_key = f"accept_assignment_btn_{app_id}"
+            # Use UUID to ensure 100% uniqueness across different tabs/contexts
+            accept_key = f"accept_assignment_btn_{app_id}_{uuid.uuid4().hex[:8]}"
             if st.button(f"✅ Accept", key=accept_key, use_container_width=True, type="primary"):
                 if accept_assignment(token, tournament_id):
                     st.success("✅ Assignment accepted successfully!")

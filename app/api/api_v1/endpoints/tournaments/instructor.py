@@ -75,8 +75,8 @@ def record_status_change(
     db.execute(
         text("""
         INSERT INTO tournament_status_history
-        (tournament_id, old_status, new_status, changed_by, reason, metadata)
-        VALUES (:tournament_id, :old_status, :new_status, :changed_by, :reason, :metadata)
+        (tournament_id, old_status, new_status, changed_by, reason, extra_metadata)
+        VALUES (:tournament_id, :old_status, :new_status, :changed_by, :reason, :extra_metadata)
         """),
         {
             "tournament_id": tournament_id,
@@ -84,7 +84,7 @@ def record_status_change(
             "new_status": new_status,
             "changed_by": changed_by,
             "reason": reason,
-            "metadata": metadata_json
+            "extra_metadata": metadata_json
         }
     )
 

@@ -73,6 +73,10 @@ class TournamentGenerateRequest(BaseModel):
         None,
         description="Instructor ID (ALWAYS None at creation - instructor assigned AFTER via Tournament Management)"
     )
+    tournament_type_id: Optional[int] = Field(
+        None,
+        description="Tournament type ID (e.g., knockout, league, swiss) - defines match generation logic"
+    )
 
     @validator('instructor_id')
     def validate_instructor_at_creation(cls, v, values):
@@ -224,7 +228,8 @@ def generate_tournament(
         assignment_type=request.assignment_type,
         max_players=request.max_players,
         enrollment_cost=request.enrollment_cost,
-        instructor_id=request.instructor_id
+        instructor_id=request.instructor_id,
+        tournament_type_id=request.tournament_type_id  # ✅ E2E Test: Support tournament types
     )
 
     # Create sessions (no instructor yet)

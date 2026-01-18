@@ -96,13 +96,15 @@ class TournamentService:
         assignment_type: str = "APPLICATION_BASED",
         max_players: Optional[int] = None,
         enrollment_cost: int = 500,
-        instructor_id: Optional[int] = None
+        instructor_id: Optional[int] = None,
+        tournament_type_id: Optional[int] = None  # ✅ E2E Test: Support tournament types
     ) -> Semester:
         """DEPRECATED: Use app.services.tournament.create_tournament_semester instead"""
         return _create_tournament_semester(
             db, tournament_date, name, specialization_type,
             campus_id, location_id, age_group, reward_policy_name,
-            assignment_type, max_players, enrollment_cost, instructor_id
+            assignment_type, max_players, enrollment_cost, instructor_id,
+            tournament_type_id  # ✅ E2E Test: Pass tournament type through
         )
 
     @staticmethod

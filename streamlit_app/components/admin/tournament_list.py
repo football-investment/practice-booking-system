@@ -14,7 +14,13 @@ parent_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from api_helpers_general import get_semesters
-from api_helpers_tournaments import update_tournament
+from api_helpers_tournaments import (
+    update_tournament,
+    get_tournament_enrollment_count,
+    generate_tournament_sessions,
+    preview_tournament_sessions,
+    delete_generated_sessions
+)
 from config import API_BASE_URL, API_TIMEOUT
 from components.admin.tournament_constants import GAME_TYPE_OPTIONS
 
@@ -26,6 +32,8 @@ def render_tournament_list(token: str):
     from components.admin.tournament_creation import (
         render_reward_distribution_section,
         show_open_enrollment_dialog,
+        show_publish_tournament_dialog,
+        show_close_enrollment_dialog,
         show_start_tournament_dialog
     )
 
@@ -84,7 +92,10 @@ def render_tournament_list(token: str):
                 else:
                     st.write(f"**Assignment Type**: {assignment_type}")
 
-                st.write(f"**Max Players**: {tournament.get('max_players', 'N/A')}")
+                # ✅ NEW: Show enrollment count (source of truth)
+                enrollment_count = get_tournament_enrollment_count(token, tournament['id'])
+                max_players = tournament.get('max_players', 'N/A')
+                st.write(f"**Enrollments**: {enrollment_count}/{max_players}")
                 st.write(f"**Enrollment Cost**: {tournament.get('enrollment_cost', 0)} credits")
 
             with col3:
@@ -119,8 +130,34 @@ def render_tournament_list(token: str):
                     st.session_state['open_enrollment_tournament_name'] = tournament.get('name', 'Unknown')
                     show_open_enrollment_dialog()
 
-            # Start Tournament button (READY_FOR_ENROLLMENT → IN_PROGRESS)
+            # Publish Tournament button (READY_FOR_ENROLLMENT → ENROLLMENT_OPEN)
             if tournament_status == 'READY_FOR_ENROLLMENT':
+                if st.button(
+                    "🌍 Publish Tournament (Players Can Enroll)",
+                    key=f"publish_tournament_{tournament['id']}",
+                    help="Make tournament visible to players for enrollment",
+                    type="primary",
+                    use_container_width=True
+                ):
+                    st.session_state['publish_tournament_id'] = tournament['id']
+                    st.session_state['publish_tournament_name'] = tournament.get('name', 'Unknown')
+                    show_publish_tournament_dialog()
+
+            # Close Enrollment button (ENROLLMENT_OPEN → ENROLLMENT_CLOSED)
+            if tournament_status == 'ENROLLMENT_OPEN':
+                if st.button(
+                    "🔒 Close Enrollment",
+                    key=f"close_enrollment_{tournament['id']}",
+                    help="Close enrollment and prepare to start tournament",
+                    type="secondary",
+                    use_container_width=True
+                ):
+                    st.session_state['close_enrollment_tournament_id'] = tournament['id']
+                    st.session_state['close_enrollment_tournament_name'] = tournament.get('name', 'Unknown')
+                    show_close_enrollment_dialog()
+
+            # Start Tournament button (ENROLLMENT_CLOSED → IN_PROGRESS)
+            if tournament_status == 'ENROLLMENT_CLOSED':
                 if st.button(
                     "🚀 Start Tournament",
                     key=f"start_tournament_{tournament['id']}",
@@ -131,6 +168,53 @@ def render_tournament_list(token: str):
                     st.session_state['start_tournament_id'] = tournament['id']
                     st.session_state['start_tournament_name'] = tournament.get('name', 'Unknown')
                     show_start_tournament_dialog()
+
+            # 🎯 NEW PHASE 3: Generate Sessions button (IN_PROGRESS + tournament_type_id configured)
+            if tournament_status == 'IN_PROGRESS':
+                tournament_type_id = tournament.get('tournament_type_id')
+                sessions_generated = tournament.get('sessions_generated', False)
+
+                if tournament_type_id and not sessions_generated:
+                    # Show "Generate Sessions" button
+                    col1, col2 = st.columns([2, 1])
+
+                    with col1:
+                        if st.button(
+                            "🎯 Generate Tournament Sessions",
+                            key=f"generate_sessions_{tournament['id']}",
+                            help="Auto-generate tournament sessions based on tournament type and enrolled players",
+                            type="primary",
+                            use_container_width=True
+                        ):
+                            st.session_state['generate_sessions_tournament_id'] = tournament['id']
+                            st.session_state['generate_sessions_tournament_name'] = tournament.get('name', 'Unknown')
+                            st.session_state['generate_sessions_tournament_type_id'] = tournament_type_id
+                            show_generate_sessions_dialog()
+
+                    with col2:
+                        if st.button(
+                            "👁️ Preview",
+                            key=f"preview_sessions_{tournament['id']}",
+                            help="Preview session structure without generating",
+                            use_container_width=True
+                        ):
+                            st.session_state['preview_sessions_tournament_id'] = tournament['id']
+                            st.session_state['preview_sessions_tournament_name'] = tournament.get('name', 'Unknown')
+                            show_preview_sessions_dialog()
+
+                elif tournament_type_id and sessions_generated:
+                    # Sessions already generated - show reset button
+                    st.success(f"✅ Sessions generated at {tournament.get('sessions_generated_at', 'N/A')}")
+
+                    if st.button(
+                        "🔄 Reset Sessions",
+                        key=f"reset_sessions_{tournament['id']}",
+                        help="Delete all auto-generated sessions (WARNING: Cannot undo!)",
+                        use_container_width=True
+                    ):
+                        st.session_state['reset_sessions_tournament_id'] = tournament['id']
+                        st.session_state['reset_sessions_tournament_name'] = tournament.get('name', 'Unknown')
+                        show_reset_sessions_dialog()
 
             # ========================================================================
             # INSTRUCTOR APPLICATION MANAGEMENT
@@ -784,4 +868,271 @@ def show_delete_tournament_dialog():
                 del st.session_state['delete_tournament_id']
             if 'delete_tournament_name' in st.session_state:
                 del st.session_state['delete_tournament_name']
+            st.rerun()
+
+
+# ============================================================================
+# 🎯 NEW PHASE 3: SESSION GENERATION DIALOGS
+# ============================================================================
+
+@st.dialog("🎯 Generate Tournament Sessions")
+def show_generate_sessions_dialog():
+    """Dialog for generating tournament sessions"""
+    tournament_id = st.session_state.get('generate_sessions_tournament_id')
+    tournament_name = st.session_state.get('generate_sessions_tournament_name', 'Unknown')
+    tournament_type_id = st.session_state.get('generate_sessions_tournament_type_id')
+
+    st.write(f"**Tournament**: {tournament_name}")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    st.info("🔄 **Auto-Generation Process:**")
+    st.write("1. Fetches enrolled player count")
+    st.write("2. Validates against tournament type constraints")
+    st.write("3. Generates session structure based on tournament format")
+    st.write("4. Creates sessions in database with auto_generated=True")
+
+    st.divider()
+
+    # Configuration options
+    st.subheader("⚙️ Generation Settings")
+
+    parallel_fields = st.number_input(
+        "Parallel Fields",
+        min_value=1,
+        max_value=10,
+        value=1,
+        help="Number of fields available for simultaneous matches"
+    )
+
+    session_duration = st.number_input(
+        "Session Duration (minutes)",
+        min_value=30,
+        max_value=180,
+        value=90,
+        step=15,
+        help="Duration of each match"
+    )
+
+    break_minutes = st.number_input(
+        "Break Between Sessions (minutes)",
+        min_value=0,
+        max_value=60,
+        value=15,
+        step=5,
+        help="Break time between consecutive matches"
+    )
+
+    st.divider()
+    st.warning("⚠️ **CRITICAL**: Once generated, sessions cannot be automatically deleted. You must reset them manually if needed.")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🎯 Generate Sessions", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            if not token:
+                st.error("❌ Authentication token not found. Please log in again.")
+                return
+
+            # Call session generation API
+            success, error, result = generate_tournament_sessions(
+                token,
+                tournament_id,
+                parallel_fields=parallel_fields,
+                session_duration_minutes=session_duration,
+                break_minutes=break_minutes
+            )
+
+            if success:
+                st.success(f"✅ Successfully generated {result.get('sessions_created', 0)} sessions!")
+                st.balloons()
+
+                # Show generation details
+                st.divider()
+                st.write("**📊 Generation Summary:**")
+                st.write(f"- **Tournament**: {result.get('tournament_name', 'N/A')}")
+                st.write(f"- **Sessions Created**: {result.get('sessions_created', 0)}")
+                st.write(f"- **Generated At**: {result.get('sessions_generated_at', 'N/A')}")
+
+                # Clear session state
+                if 'generate_sessions_tournament_id' in st.session_state:
+                    del st.session_state['generate_sessions_tournament_id']
+                if 'generate_sessions_tournament_name' in st.session_state:
+                    del st.session_state['generate_sessions_tournament_name']
+                if 'generate_sessions_tournament_type_id' in st.session_state:
+                    del st.session_state['generate_sessions_tournament_type_id']
+
+                import time
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error(f"❌ Failed to generate sessions: {error}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'generate_sessions_tournament_id' in st.session_state:
+                del st.session_state['generate_sessions_tournament_id']
+            if 'generate_sessions_tournament_name' in st.session_state:
+                del st.session_state['generate_sessions_tournament_name']
+            if 'generate_sessions_tournament_type_id' in st.session_state:
+                del st.session_state['generate_sessions_tournament_type_id']
+            st.rerun()
+
+
+@st.dialog("👁️ Preview Tournament Sessions")
+def show_preview_sessions_dialog():
+    """Dialog for previewing tournament sessions WITHOUT creating them"""
+    tournament_id = st.session_state.get('preview_sessions_tournament_id')
+    tournament_name = st.session_state.get('preview_sessions_tournament_name', 'Unknown')
+
+    st.write(f"**Tournament**: {tournament_name}")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    # Configuration options
+    parallel_fields = st.number_input(
+        "Parallel Fields",
+        min_value=1,
+        max_value=10,
+        value=1,
+        help="Number of fields available for simultaneous matches",
+        key="preview_parallel_fields"
+    )
+
+    session_duration = st.number_input(
+        "Session Duration (minutes)",
+        min_value=30,
+        max_value=180,
+        value=90,
+        step=15,
+        help="Duration of each match",
+        key="preview_session_duration"
+    )
+
+    break_minutes = st.number_input(
+        "Break Between Sessions (minutes)",
+        min_value=0,
+        max_value=60,
+        value=15,
+        step=5,
+        help="Break time between consecutive matches",
+        key="preview_break_minutes"
+    )
+
+    st.divider()
+
+    if st.button("👁️ Load Preview", use_container_width=True, type="primary"):
+        token = st.session_state.get('token')
+
+        if not token:
+            st.error("❌ Authentication token not found. Please log in again.")
+            return
+
+        # Call preview API
+        success, error, preview_data = preview_tournament_sessions(
+            token,
+            tournament_id,
+            parallel_fields=parallel_fields,
+            session_duration_minutes=session_duration,
+            break_minutes=break_minutes
+        )
+
+        if success:
+            st.success("✅ Preview loaded successfully!")
+            st.divider()
+
+            # Display preview data
+            st.write("**📊 Tournament Information:**")
+            st.write(f"- **Tournament Type**: {preview_data.get('tournament_type_code', 'N/A')}")
+            st.write(f"- **Player Count**: {preview_data.get('player_count', 0)}")
+            st.write(f"- **Total Sessions**: {len(preview_data.get('sessions', []))}")
+
+            st.divider()
+            st.subheader("📅 Session Structure Preview")
+
+            sessions = preview_data.get('sessions', [])
+            if sessions:
+                for idx, session in enumerate(sessions, 1):
+                    with st.expander(f"Session {idx}: {session.get('title', 'N/A')}", expanded=False):
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            st.write(f"**Date Start**: {session.get('date_start', 'N/A')[:16]}")
+                            st.write(f"**Date End**: {session.get('date_end', 'N/A')[:16]}")
+
+                        with col2:
+                            st.write(f"**Phase**: {session.get('tournament_phase', 'N/A')}")
+                            st.write(f"**Round**: {session.get('tournament_round', 'N/A')}")
+                            st.write(f"**Game Type**: {session.get('game_type', 'N/A')}")
+            else:
+                st.info("No sessions in preview")
+        else:
+            st.error(f"❌ Failed to load preview: {error}")
+
+    st.divider()
+
+    if st.button("✓ Close", use_container_width=True):
+        # Clear session state
+        if 'preview_sessions_tournament_id' in st.session_state:
+            del st.session_state['preview_sessions_tournament_id']
+        if 'preview_sessions_tournament_name' in st.session_state:
+            del st.session_state['preview_sessions_tournament_name']
+        st.rerun()
+
+
+@st.dialog("🔄 Reset Generated Sessions")
+def show_reset_sessions_dialog():
+    """Dialog for resetting (deleting) auto-generated sessions"""
+    tournament_id = st.session_state.get('reset_sessions_tournament_id')
+    tournament_name = st.session_state.get('reset_sessions_tournament_name', 'Unknown')
+
+    st.warning(f"⚠️ Are you sure you want to reset all auto-generated sessions for **{tournament_name}**?")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    st.error("**⚠️ THIS ACTION CANNOT BE UNDONE!**")
+    st.write("This will permanently delete all auto-generated sessions for this tournament.")
+    st.write("You can re-generate sessions after resetting, but all existing data will be lost.")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🗑️ Confirm Reset", use_container_width=True, type="primary"):
+            token = st.session_state.get('token')
+
+            if not token:
+                st.error("❌ Authentication token not found. Please log in again.")
+                return
+
+            # Call delete sessions API
+            success, error, result = delete_generated_sessions(token, tournament_id)
+
+            if success:
+                st.success(f"✅ Successfully deleted {result.get('sessions_deleted', 0)} sessions!")
+                st.balloons()
+
+                # Clear session state
+                if 'reset_sessions_tournament_id' in st.session_state:
+                    del st.session_state['reset_sessions_tournament_id']
+                if 'reset_sessions_tournament_name' in st.session_state:
+                    del st.session_state['reset_sessions_tournament_name']
+
+                import time
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(f"❌ Failed to reset sessions: {error}")
+
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            if 'reset_sessions_tournament_id' in st.session_state:
+                del st.session_state['reset_sessions_tournament_id']
+            if 'reset_sessions_tournament_name' in st.session_state:
+                del st.session_state['reset_sessions_tournament_name']
             st.rerun()

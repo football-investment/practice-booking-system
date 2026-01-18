@@ -237,7 +237,7 @@ def show_approve_application_dialog():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("✅ Approve", use_container_width=True, type="primary"):
+        if st.button("✅ Approve", use_container_width=True, type="primary", key="confirm_approve_application_btn"):
             token = st.session_state.get('token')
 
             try:

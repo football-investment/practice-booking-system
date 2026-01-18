@@ -108,6 +108,7 @@ class SemesterEnrollment(Base):
     payment_verifier = relationship("User", foreign_keys=[payment_verified_by])
     approver = relationship("User", foreign_keys=[approved_by])
     category_overrider = relationship("User", foreign_keys=[age_category_overridden_by])
+    bookings = relationship("Booking", back_populates="enrollment")
 
     # Constraints (defined in migration but documented here)
     __table_args__ = (

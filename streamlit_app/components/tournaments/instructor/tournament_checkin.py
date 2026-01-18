@@ -32,6 +32,7 @@ from api_helpers_session_groups import (
     move_student_to_group,
     delete_session_groups
 )
+from api_helpers_tournaments import get_tournament_enrollment_count
 from components.sessions.shared.attendance_core import (
     calculate_attendance_summary,
     render_attendance_status_badge
@@ -176,14 +177,17 @@ def _render_tournament_session_card(session: Dict, token: str):
     game_type = session.get('game_type', 'Tournament Game')
     date_start = datetime.fromisoformat(session['date_start'].replace('Z', '+00:00'))
     capacity = session.get('capacity', 0)
-    booked = session.get('bookings_count', 0)
+
+    # ✅ NEW: Get enrollment count for the tournament (source of truth)
+    tournament_id = session.get('semester_id')
+    enrollment_count = get_tournament_enrollment_count(token, tournament_id) if tournament_id else 0
 
     with st.container():
         col1, col2 = st.columns([3, 1])
 
         with col1:
             st.markdown(f"**🏆 {title}**")
-            st.caption(f"🎮 {game_type} | 📅 {date_start.strftime('%Y-%m-%d %H:%M')} | 👥 {booked}/{capacity} players")
+            st.caption(f"🎮 {game_type} | 📅 {date_start.strftime('%Y-%m-%d %H:%M')} | 👥 {enrollment_count}/{capacity} enrolled")
 
         with col2:
             if st.button(f"Select ➡️", key=f"select_tournament_{session_id}", use_container_width=True):
@@ -214,8 +218,20 @@ def _render_step2_tournament_attendance(token: str, user_id: int):
     st.info("**Tournament Mode**: Only Present and Absent statuses available")
 
     # Fetch bookings and attendance
-    bookings = get_session_bookings(token, session_id)
-    attendance_records = get_session_attendance(token, session_id)
+    success_bookings, bookings = get_session_bookings(token, session_id)
+    success, attendance_records = get_session_attendance(token, session_id)
+
+    # ✅ DEBUG: Log what we received to troubleshoot duplicate booking errors
+    if bookings:
+        booking_ids = [b.get('id') for b in bookings]
+        print(f"🔍 DEBUG: Fetched {len(bookings)} bookings for session {session_id}: {booking_ids}")
+
+        # Check for duplicates (should be caught by deduplication in api_helpers)
+        if len(booking_ids) != len(set(booking_ids)):
+            duplicate_ids = [bid for bid in booking_ids if booking_ids.count(bid) > 1]
+            print(f"⚠️ WARNING: Duplicate booking IDs detected: {set(duplicate_ids)}")
+            st.error(f"⚠️ Data Error: Duplicate bookings detected. Please refresh the page or contact support.")
+            return
 
     if not bookings:
         st.warning("No bookings found for this tournament session.")
@@ -261,7 +277,7 @@ def _render_step2_tournament_attendance(token: str, user_id: int):
             btn_col1, btn_col2 = st.columns(2)
 
             with btn_col1:
-                if st.button("✅ Present", key=f"present_{user_id_student}", use_container_width=True,
+                if st.button("✅ Present", key=f"present_booking_{booking_id}", use_container_width=True,
                             type="primary" if current_status == 'present' else "secondary"):
                     success, msg = mark_student_attendance(token, session_id, user_id_student, "present", booking_id)
                     if success:
@@ -270,7 +286,7 @@ def _render_step2_tournament_attendance(token: str, user_id: int):
                         st.error(f"Error: {msg}")
 
             with btn_col2:
-                if st.button("❌ Absent", key=f"absent_{user_id_student}", use_container_width=True,
+                if st.button("❌ Absent", key=f"absent_booking_{booking_id}", use_container_width=True,
                             type="primary" if current_status == 'absent' else "secondary"):
                     success, msg = mark_student_attendance(token, session_id, user_id_student, "absent", booking_id)
                     if success:

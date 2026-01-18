@@ -40,7 +40,10 @@ def list_available_tournaments(
     List available tournaments for current player (Student role only)
 
     **Visibility Rules:**
-    - Status: READY_FOR_ENROLLMENT or ONGOING
+    - Status: ENROLLMENT_OPEN or IN_PROGRESS
+      - ENROLLMENT_OPEN: Admin opened enrollment, players can register
+      - IN_PROGRESS: Tournament running, sessions exist
+      - NOT READY_FOR_ENROLLMENT: Technical readiness only, no player visibility
     - Specialization: LFA_FOOTBALL_PLAYER
     - Date: end_date >= today (not expired)
     - Age Category Filtering:
@@ -59,7 +62,7 @@ def list_available_tournaments(
     **Returns:**
     - List of tournaments with:
       - Tournament details (name, date, location, cost, etc.)
-      - Session/game details
+      - Session/game details (may be empty if ENROLLMENT_OPEN)
       - Enrollment statistics (how many enrolled)
       - User enrollment status (is_enrolled, enrollment_status)
       - Location and campus info
@@ -108,13 +111,17 @@ def list_available_tournaments(
     from app.services.tournament.validation import get_visible_tournament_age_groups
     visible_age_groups = get_visible_tournament_age_groups(player_age_category)
 
-    # 4. Base query: Tournaments ready for enrollment + age category filter
+    # 4. Base query: Tournaments open for enrollment + age category filter
+    # DOMAIN LOGIC:
+    # - ENROLLMENT_OPEN: Admin opened enrollment, players can register
+    # - IN_PROGRESS: Enrollment closed, sessions generated, tournament running
+    # - NOT READY_FOR_ENROLLMENT: Technical readiness only, no player visibility
     query = db.query(Semester).filter(
         and_(
             Semester.code.like("TOURN-%"),
             Semester.tournament_status.in_([
-                "READY_FOR_ENROLLMENT",
-                "ONGOING"
+                "ENROLLMENT_OPEN",  # Admin opened enrollment
+                "IN_PROGRESS"       # Tournament running (sessions exist)
             ]),
             Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
             Semester.age_group.in_(visible_age_groups),  # Age category filter

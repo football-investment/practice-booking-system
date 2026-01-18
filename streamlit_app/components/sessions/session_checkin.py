@@ -318,7 +318,7 @@ def render_step2_attendance(token: str, user_id: int):
             btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
 
             with btn_col1:
-                if st.button("✅ Present", key=f"present_{user_id}", use_container_width=True,
+                if st.button("✅ Present", key=f"present_booking_{booking_id}", use_container_width=True,
                             type="primary" if current_status == 'present' else "secondary"):
                     success, msg = mark_student_attendance(token, session_id, user_id, "present", booking_id)
                     if success:
@@ -327,7 +327,7 @@ def render_step2_attendance(token: str, user_id: int):
                         st.error(f"Error: {msg}")
 
             with btn_col2:
-                if st.button("❌ Absent", key=f"absent_{user_id}", use_container_width=True,
+                if st.button("❌ Absent", key=f"absent_booking_{booking_id}", use_container_width=True,
                             type="primary" if current_status == 'absent' else "secondary"):
                     success, msg = mark_student_attendance(token, session_id, user_id, "absent", booking_id)
                     if success:
@@ -336,7 +336,7 @@ def render_step2_attendance(token: str, user_id: int):
                         st.error(f"Error: {msg}")
 
             with btn_col3:
-                if st.button("⏰ Late", key=f"late_{user_id}", use_container_width=True,
+                if st.button("⏰ Late", key=f"late_booking_{booking_id}", use_container_width=True,
                             type="primary" if current_status == 'late' else "secondary"):
                     success, msg = mark_student_attendance(token, session_id, user_id, "late", booking_id)
                     if success:
@@ -345,7 +345,7 @@ def render_step2_attendance(token: str, user_id: int):
                         st.error(f"Error: {msg}")
 
             with btn_col4:
-                if st.button("🎫 Excused", key=f"excused_{user_id}", use_container_width=True,
+                if st.button("🎫 Excused", key=f"excused_booking_{booking_id}", use_container_width=True,
                             type="primary" if current_status == 'excused' else "secondary"):
                     success, msg = mark_student_attendance(token, session_id, user_id, "excused", booking_id)
                     if success:

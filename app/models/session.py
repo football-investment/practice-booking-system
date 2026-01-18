@@ -106,6 +106,32 @@ class Session(Base):
         comment="JSON array of game results: [{user_id: 1, score: 95, rank: 1}, ...]"
     )
 
+    # 🎯 AUTO-GENERATED TOURNAMENT SESSION METADATA
+    auto_generated = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="True if this session was auto-generated from tournament type config"
+    )
+
+    tournament_phase = Column(
+        String(50),
+        nullable=True,
+        comment="Tournament phase: 'Group Stage', 'Knockout Stage', 'Finals'"
+    )
+
+    tournament_round = Column(
+        Integer,
+        nullable=True,
+        comment="Round number within the tournament (1, 2, 3, ...)"
+    )
+
+    tournament_match_number = Column(
+        Integer,
+        nullable=True,
+        comment="Match number within the round (1, 2, 3, ...)"
+    )
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

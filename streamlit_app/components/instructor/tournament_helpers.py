@@ -59,12 +59,19 @@ def get_instructor_coach_level(token: str) -> int:
             conn.close()
 
             if result and result[0] is not None:
-                return int(result[0])
+                level = int(result[0])
+                print(f"✅ Coach level for user_id={user_id}: {level}")
+                return level
+            else:
+                print(f"⚠️ No LFA_COACH license found for user_id={user_id}")
 
+        print(f"⚠️ API call failed with status {response.status_code}")
         return 0
     except Exception as e:
         # Fallback: return 0 if any error occurs
-        print(f"Error getting coach level: {e}")
+        import traceback
+        print(f"❌ ERROR getting coach level: {e}")
+        print(f"❌ Traceback:\n{traceback.format_exc()}")
         return 0
 
 

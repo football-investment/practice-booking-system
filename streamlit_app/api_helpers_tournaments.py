@@ -299,3 +299,272 @@ def distribute_tournament_rewards(
         return False, "Could not connect to server. Please check your connection.", {}
     except Exception as e:
         return False, f"Unexpected error: {str(e)}", {}
+
+
+def get_tournament_enrollment_count(
+    token: str,
+    tournament_id: int
+) -> int:
+    """
+    Get active enrollment count for a tournament
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+
+    Returns:
+        Number of active enrollments (approved, is_active=True)
+        Returns 0 if API call fails
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/semesters/{tournament_id}/enrollments",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            # Count only APPROVED and is_active enrollments
+            enrollments = data.get('enrollments', [])
+            active_count = sum(
+                1 for e in enrollments
+                if e.get('request_status') == 'APPROVED' and e.get('is_active') is True
+            )
+            return active_count
+        else:
+            print(f"⚠️ Failed to fetch enrollment count for tournament {tournament_id}: {response.status_code}")
+            return 0
+    except Exception as e:
+        print(f"⚠️ Error fetching enrollment count: {e}")
+        return 0
+
+
+# ============================================================================
+# 🎯 TOURNAMENT TYPE & SESSION GENERATION HELPERS (PHASE 2)
+# ============================================================================
+
+def get_tournament_types(token: str) -> Tuple[bool, Optional[str], List[Dict[str, Any]]]:
+    """
+    Get list of available tournament types (Admin only)
+
+    Args:
+        token: API authentication token
+
+    Returns:
+        Tuple of (success, error_message, tournament_types_list)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - tournament_types_list: List of tournament type dicts with:
+          - id, code, display_name, min_players, max_players, requires_power_of_two, config
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournament-types/",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, []
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", []
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", []
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", []
+
+
+def estimate_tournament_duration(
+    token: str,
+    tournament_type_id: int,
+    player_count: int,
+    parallel_fields: int = 1
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Estimate tournament duration based on tournament type and player count
+
+    Args:
+        token: API authentication token
+        tournament_type_id: Tournament type ID
+        player_count: Expected number of players
+        parallel_fields: Number of fields available for parallel matches
+
+    Returns:
+        Tuple of (success, error_message, estimate_data)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - estimate_data: Dict with:
+          - total_matches: int
+          - total_rounds: int
+          - estimated_duration_minutes: int
+          - estimated_duration_days: float
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/tournament-types/{tournament_type_id}/estimate",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "player_count": player_count,
+                "parallel_fields": parallel_fields
+            },
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def preview_tournament_sessions(
+    token: str,
+    tournament_id: int,
+    parallel_fields: int = 1,
+    session_duration_minutes: int = 90,
+    break_minutes: int = 15
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Preview tournament sessions WITHOUT creating them in database
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+        parallel_fields: Number of fields available for parallel matches
+        session_duration_minutes: Duration of each session
+        break_minutes: Break time between sessions
+
+    Returns:
+        Tuple of (success, error_message, preview_data)
+        - success: True if preview succeeded
+        - error_message: Error message if failed, None if succeeded
+        - preview_data: Dict with:
+          - tournament_id, tournament_name, tournament_type_code
+          - player_count, sessions (list of session previews)
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/preview-sessions",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "parallel_fields": parallel_fields,
+                "session_duration_minutes": session_duration_minutes,
+                "break_minutes": break_minutes
+            },
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def generate_tournament_sessions(
+    token: str,
+    tournament_id: int,
+    parallel_fields: int = 1,
+    session_duration_minutes: int = 90,
+    break_minutes: int = 15
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Generate tournament sessions based on tournament type and enrolled player count
+
+    CRITICAL: Sessions can ONLY be generated when tournament_status = "IN_PROGRESS"
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+        parallel_fields: Number of fields available for parallel matches
+        session_duration_minutes: Duration of each session
+        break_minutes: Break time between sessions
+
+    Returns:
+        Tuple of (success, error_message, generation_data)
+        - success: True if generation succeeded
+        - error_message: Error message if failed, None if succeeded
+        - generation_data: Dict with:
+          - tournament_id, tournament_name, sessions_created, sessions_generated_at
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/generate-sessions",
+            headers={"Authorization": f"Bearer {token}"},
+            params={
+                "parallel_fields": parallel_fields,
+                "session_duration_minutes": session_duration_minutes,
+                "break_minutes": break_minutes
+            },
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def delete_generated_sessions(
+    token: str,
+    tournament_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Delete all auto-generated sessions for a tournament (RESET functionality)
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+
+    Returns:
+        Tuple of (success, error_message, deletion_data)
+        - success: True if deletion succeeded
+        - error_message: Error message if failed, None if succeeded
+        - deletion_data: Dict with sessions_deleted count
+    """
+    try:
+        response = requests.delete(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/sessions",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}

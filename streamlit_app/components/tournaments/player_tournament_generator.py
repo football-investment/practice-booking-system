@@ -18,7 +18,13 @@ from pathlib import Path
 parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from api_helpers_tournaments import get_reward_policies, get_reward_policy_details, distribute_tournament_rewards
+from api_helpers_tournaments import (
+    get_reward_policies,
+    get_reward_policy_details,
+    distribute_tournament_rewards,
+    get_tournament_types,
+    estimate_tournament_duration
+)
 
 
 def render_tournament_generator():
@@ -167,6 +173,7 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             tournament_custom_name = st.text_input(
                 "Tournament Name *",
                 placeholder="e.g., Winter Football Cup",
+                key="tournament_name_input",
                 help="Custom name for the tournament (will be prefixed with location)"
             )
 
@@ -182,6 +189,7 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
                 "Tournament Date *",
                 min_value=date.today(),
                 value=date.today() + timedelta(days=1),
+                key="tournament_date_input",
                 help="Date when tournament takes place (1-day event)"
             )
 
@@ -190,6 +198,7 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             age_group = st.selectbox(
                 "Age Group *",
                 options=["PRE", "YOUTH", "AMATEUR", "PRO"],
+                key="age_group_selector",
                 help="Player age group for tournament"
             )
 
@@ -204,6 +213,7 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             assignment_type = st.selectbox(
                 "Assignment Type *",
                 options=["OPEN_ASSIGNMENT", "APPLICATION_BASED"],
+                key="assignment_type_selector",
                 help="OPEN: Admin invites specific instructor. APPLICATION: Instructors apply, admin selects."
             )
 
@@ -214,6 +224,7 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
                 min_value=1,
                 max_value=100,
                 value=20,
+                key="max_players_input",
                 help="Maximum tournament participants (explicit capacity)"
             )
 
@@ -224,14 +235,93 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
                 min_value=0,
                 value=500,
                 step=50,
+                key="enrollment_cost_input",
                 help="Enrollment fee in credits"
             )
 
 
-        # ⚠️ BUSINESS LOGIC: Sessions are NOT configured at tournament creation!
-        # Sessions are added LATER by admin/instructor via Tournament Management UI
+        # ⚠️ BUSINESS LOGIC: Sessions can be auto-generated OR configured manually
+        # 🎯 Tournament Type Selector (NEW - PHASE 3)
         st.divider()
-        st.info("📋 **Sessions will be configured later** in Tournament Management after creation.")
+        st.subheader("🎯 Tournament Type Configuration")
+
+        # Fetch tournament types
+        success, error, tournament_types = get_tournament_types(st.session_state.token)
+
+        selected_tournament_type = None  # Initialize
+
+        if success and tournament_types:
+            # Add "None (Manual Setup)" option
+            type_options = ["None (Manual Configuration)"] + [
+                f"{tt['display_name']} ({tt['code']})"
+                for tt in tournament_types
+            ]
+
+            selected_type_display = st.selectbox(
+                "Tournament Type",
+                options=type_options,
+                key="tournament_type_selector",
+                help="Select a tournament type for automatic session generation, or choose Manual Configuration to add sessions later"
+            )
+
+            # Parse selected tournament type
+            if selected_type_display == "None (Manual Configuration)":
+                selected_tournament_type = None
+                st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
+            else:
+                # Find matching tournament type
+                selected_tournament_type = next(
+                    (tt for tt in tournament_types
+                     if f"{tt['display_name']} ({tt['code']})" == selected_type_display),
+                    None
+                )
+
+                if selected_tournament_type:
+                    # Show tournament type details
+                    st.success(f"✅ Selected: **{selected_tournament_type['display_name']}**")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.caption(f"**Min Players:** {selected_tournament_type['min_players']}")
+                        if selected_tournament_type['max_players']:
+                            st.caption(f"**Max Players:** {selected_tournament_type['max_players']}")
+                        else:
+                            st.caption(f"**Max Players:** Unlimited")
+
+                    with col2:
+                        if selected_tournament_type['requires_power_of_two']:
+                            st.caption("⚠️ **Requires power-of-2 players** (4, 8, 16, 32, 64)")
+
+                    # Show duration estimate if max_players is set
+                    if max_players >= selected_tournament_type['min_players']:
+                        # Estimate tournament duration
+                        est_success, est_error, estimate = estimate_tournament_duration(
+                            st.session_state.token,
+                            selected_tournament_type['id'],
+                            max_players,
+                            parallel_fields=1  # Default to 1 field
+                        )
+
+                        if est_success:
+                            st.info(
+                                f"📊 **Estimated Duration:** {estimate['total_matches']} matches, "
+                                f"{estimate['total_rounds']} rounds, "
+                                f"~{estimate['estimated_duration_minutes']} minutes "
+                                f"({estimate['estimated_duration_days']:.2f} days with 1 field)"
+                            )
+                        else:
+                            st.warning(f"⚠️ Could not estimate duration: {est_error}")
+                    else:
+                        st.warning(
+                            f"⚠️ Max players ({max_players}) is below minimum required "
+                            f"({selected_tournament_type['min_players']}) for this tournament type"
+                        )
+
+                    st.info("🔄 **Sessions will be auto-generated** after enrollment closes (when tournament status changes to IN_PROGRESS)")
+        else:
+            st.error(f"❌ Failed to load tournament types: {error}")
+            selected_tournament_type = None
+            st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
 
         # Reward Policy Selector
         st.divider()
@@ -296,7 +386,7 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
         # Submit button
         st.divider()
 
-        submit = st.form_submit_button("🏆 Create Tournament", use_container_width=True, type="primary")
+        submit = st.form_submit_button("🏆 Create Tournament", use_container_width=True, type="primary", key="create_tournament_submit")
 
     if submit:
         if not tournament_custom_name:
@@ -313,10 +403,10 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
 
         # Rebuild full_tournament_name in case it wasn't set earlier
         if not full_tournament_name or full_tournament_name == tournament_custom_name:
-            selected_location = locations[location_index] if locations else None
-            if selected_location:
-                country_code = selected_location.get('country_code', '')
-                location_code = selected_location.get('location_code', '')
+            selected_location_data = next((loc for loc in locations if loc['id'] == location_id), None) if locations and location_id else None
+            if selected_location_data:
+                country_code = selected_location_data.get('country_code', '')
+                location_code = selected_location_data.get('location_code', '')
                 if country_code and location_code:
                     flag = chr(ord(country_code[0]) + 127397) + chr(ord(country_code[1]) + 127397) if len(country_code) == 2 else "🌍"
                     full_tournament_name = f"{flag} {country_code} - \"{tournament_custom_name}\" - {location_code}"
@@ -340,7 +430,9 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             # 🎯 NEW: Domain gap resolution fields
             assignment_type=assignment_type,
             max_players=max_players,
-            enrollment_cost=enrollment_cost
+            enrollment_cost=enrollment_cost,
+            # 🎯 NEW PHASE 3: Tournament type for auto-generation
+            tournament_type_id=selected_tournament_type['id'] if selected_tournament_type else None
         )
 
 
@@ -355,14 +447,16 @@ def _create_tournament(
     # 🎯 NEW: Domain gap resolution fields
     assignment_type: str = "APPLICATION_BASED",
     max_players: int = 20,
-    enrollment_cost: int = 500
+    enrollment_cost: int = 500,
+    # 🎯 NEW PHASE 3: Tournament type for auto-generation
+    tournament_type_id: Optional[int] = None
 ):
     """
     Create tournament via API
 
     BUSINESS LOGIC:
     - Instructor assignment happens AFTER creation via Tournament Management
-    - Sessions are added AFTER creation via Tournament Management
+    - Sessions can be auto-generated (if tournament_type_id provided) OR manually configured
     """
     try:
         response = requests.post(
@@ -383,6 +477,8 @@ def _create_tournament(
                 "assignment_type": assignment_type,
                 "max_players": max_players,
                 "enrollment_cost": enrollment_cost,
+                # 🎯 NEW PHASE 3: Tournament type for auto-generation
+                "tournament_type_id": tournament_type_id,
                 # ⚠️ BUSINESS LOGIC: instructor_id is None at creation
                 # Instructor assignment happens AFTER via Tournament Management:
                 # - OPEN_ASSIGNMENT: Admin invites specific instructor

@@ -87,12 +87,24 @@ class Semester(Base):
                              comment="DEPRECATED: Use campus_id or location_id instead. Full address")
 
     # 🏆 TOURNAMENT FIELDS (new tournament system)
+    # NEW: FK to tournament_types table (preferred for auto-generation)
+    tournament_type_id = Column(Integer, ForeignKey('tournament_types.id', ondelete='SET NULL'), nullable=True,
+                                comment="FK to tournament_types table (for auto-generating session structure)")
+
+    # DEPRECATED: Legacy tournament_type string field - kept for backward compatibility
     tournament_type = Column(String(50), nullable=True,
-                            comment="Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM")
+                            comment="DEPRECATED: Use tournament_type_id instead. Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM")
+
     participant_type = Column(String(50), nullable=True, default="INDIVIDUAL",
                              comment="Participant type: INDIVIDUAL, TEAM, MIXED")
     is_multi_day = Column(Boolean, default=False,
                          comment="True if tournament spans multiple days")
+
+    # 🔄 SESSION GENERATION TRACKING
+    sessions_generated = Column(Boolean, default=False, nullable=False,
+                               comment="True if tournament sessions have been auto-generated (prevents duplicate generation)")
+    sessions_generated_at = Column(DateTime, nullable=True,
+                                  comment="Timestamp when sessions were auto-generated")
 
     # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
     assignment_type = Column(String(30), nullable=True,
@@ -117,6 +129,9 @@ class Semester(Base):
                                     backref="mastered_semesters")
     assistant_instructors = relationship("User", secondary=semester_instructors,
                                         backref="assisted_semesters")
+    tournament_type_config = relationship("TournamentType", foreign_keys=[tournament_type_id],
+                                         back_populates="semesters",
+                                         doc="Tournament type configuration (for auto-generating sessions)")
     groups = relationship("Group", back_populates="semester")
     sessions = relationship("Session", back_populates="semester")
     projects = relationship("Project", back_populates="semester")

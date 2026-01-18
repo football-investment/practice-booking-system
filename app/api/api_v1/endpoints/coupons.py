@@ -72,10 +72,10 @@ class CouponPublic(BaseModel):
 async def list_all_coupons(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    List all coupons (Admin only) - Web-based (cookie auth)
+    List all coupons (Admin only) - Supports both Bearer token and cookie auth
     """
     coupons = db.query(Coupon).order_by(Coupon.created_at.desc()).all()
 
@@ -252,10 +252,10 @@ async def update_coupon(
     coupon_id: int,
     coupon_data: CouponUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    Update a coupon (Admin only)
+    Update a coupon (Admin only) - Supports both Bearer token and cookie auth
     """
     coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not coupon:
@@ -341,10 +341,10 @@ async def delete_coupon(
     request: Request,
     coupon_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> None:
     """
-    Delete a coupon (Admin only)
+    Delete a coupon (Admin only) - Supports both Bearer token and cookie auth
     """
     coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not coupon:
@@ -386,10 +386,10 @@ async def toggle_coupon_status(
     request: Request,
     coupon_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    Toggle coupon active status (Admin only) - Web-based (cookie auth)
+    Toggle coupon active status (Admin only) - Supports both Bearer token and cookie auth
     """
     coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not coupon:

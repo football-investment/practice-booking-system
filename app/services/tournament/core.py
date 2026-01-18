@@ -36,7 +36,8 @@ def create_tournament_semester(
     assignment_type: str = "APPLICATION_BASED",
     max_players: Optional[int] = None,
     enrollment_cost: int = 500,
-    instructor_id: Optional[int] = None
+    instructor_id: Optional[int] = None,
+    tournament_type_id: Optional[int] = None  # ✅ E2E Test: Support tournament types
 ) -> Semester:
     """
     Create a 1-day semester for tournament (Admin only)
@@ -117,7 +118,8 @@ def create_tournament_semester(
         # 🎯 NEW: Explicit business attributes
         assignment_type=assignment_type,
         max_players=max_players,
-        enrollment_cost=enrollment_cost
+        enrollment_cost=enrollment_cost,
+        tournament_type_id=tournament_type_id  # ✅ E2E Test: Support tournament types
     )
 
     db.add(semester)

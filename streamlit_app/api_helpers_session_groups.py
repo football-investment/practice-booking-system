@@ -208,15 +208,35 @@ def get_session_bookings(token: str, session_id: int) -> Tuple[bool, List[Dict]]
             print(f"[DEBUG] 🔍 Response Keys: {data.keys() if isinstance(data, dict) else 'Not a dict'}")
 
             # Handle different response formats
+            bookings = []
             if isinstance(data, list):
                 print(f"[DEBUG] 🔍 Returning list with {len(data)} items")
-                return True, data
+                bookings = data
             elif isinstance(data, dict) and "bookings" in data:
                 print(f"[DEBUG] 🔍 Returning bookings from dict: {len(data['bookings'])} items")
-                return True, data["bookings"]
+                bookings = data["bookings"]
             else:
                 print(f"[DEBUG] 🔍 No bookings found in response")
                 return True, []
+
+            # ✅ DEDUPLICATE by booking_id (safety measure to prevent duplicate key errors)
+            seen_ids = set()
+            unique_bookings = []
+            duplicate_count = 0
+            for booking in bookings:
+                booking_id = booking.get('id')
+                if booking_id not in seen_ids:
+                    seen_ids.add(booking_id)
+                    unique_bookings.append(booking)
+                else:
+                    duplicate_count += 1
+                    print(f"⚠️ WARNING: Duplicate booking_id={booking_id} detected in API response (skipping)")
+
+            if duplicate_count > 0:
+                print(f"⚠️ DEDUPLICATION: Removed {duplicate_count} duplicate bookings from response")
+
+            print(f"[DEBUG] 🔍 Returning {len(unique_bookings)} unique bookings (removed {duplicate_count} duplicates)")
+            return True, unique_bookings
         else:
             print(f"[DEBUG] ❌ API Error: {response.status_code}")
             return False, []

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_user_web, get_current_admin_user_web
+from .....dependencies import get_current_user, get_current_user_web, get_current_admin_user_web, get_current_admin_user
 from .....models.user import User
 from .....models.invoice_request import InvoiceRequest
 from .....models.coupon import Coupon
@@ -107,12 +107,12 @@ async def create_invoice_request(
 async def list_invoices(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web),
+    current_user: User = Depends(get_current_admin_user),
     status: str | None = None,
     limit: int = 50
 ) -> Any:
     """
-    List all invoice requests (Admin only)
+    List all invoice requests (Admin only) - Supports both Bearer token and cookie auth
 
     Query parameters:
     - status: Filter by status (pending, verified, cancelled)
