@@ -10,12 +10,6 @@ from ....models.user import User
 from ....models.quiz import QuizCategory, QuestionType
 from ....services.adaptive_learning import AdaptiveLearningService
 
-    from ....models.quiz import QuizQuestion, QuizAnswerOption
-    from ....models.quiz import AdaptiveLearningSession
-        from ....models.quiz import Quiz, QuizQuestion
-    from datetime import timedelta
-    
-    # Calculate timeframe
 router = APIRouter()
 
 
