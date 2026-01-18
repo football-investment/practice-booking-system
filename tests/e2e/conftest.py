@@ -6,7 +6,6 @@ and configures Playwright for headed mode with slowmo.
 """
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page
 
 # Import all fixtures to make them available
 from .fixtures import (

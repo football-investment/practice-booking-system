@@ -17,8 +17,6 @@ def render_table_view(token: str, tournaments: List[Dict], application_statuses:
         tournaments: List of tournament dictionaries
         application_statuses: Dict mapping tournament_id -> application data
     """
-    import pandas as pd
-
     # 🔥 GET INSTRUCTOR COACH LEVEL (fetch fresh each time to avoid stale cache)
     instructor_coach_level = get_instructor_coach_level(token)
 

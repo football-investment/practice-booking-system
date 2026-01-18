@@ -13,7 +13,6 @@ from playwright.sync_api import Page, expect
 from tests.e2e.conftest import (
     STREAMLIT_URL,
     navigate_to_session_checkin,
-    assert_button_count,
     take_screenshot
 )
 

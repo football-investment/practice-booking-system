@@ -21,7 +21,6 @@ import re
 import argparse
 from pathlib import Path
 from typing import List, Set, Tuple, Dict
-from collections import OrderedDict
 
 
 def extract_import_blocks(content: str) -> Tuple[List[str], List[Tuple[int, str]], List[str]]:
