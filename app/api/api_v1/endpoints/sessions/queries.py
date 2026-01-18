@@ -40,43 +40,52 @@ def list_sessions(
     include_mixed: bool = Query(True, description="Include mixed specialization sessions")
 ) -> Any:
     """
-    List sessions with pagination and filtering
-    For students: Show sessions from all current active semesters (based on date range)
-    For admin/instructor: Show all sessions or filtered by semester_id
+    List sessions with pagination, filtering, and statistics.
 
-    Multi-semester support: When multiple semesters run concurrently (e.g., different
-    tracks of Fall 2025), students will see sessions from all active semesters.
-    This ensures visibility when users enroll in second semester or concurrent programs.
+    Architecture:
+        - RoleSemesterFilterService: Handles role-based semester filtering
+        - SessionFilterService: Handles specialization filtering
+        - SessionStatsAggregator: Bulk-fetches booking/attendance/rating stats
+        - SessionResponseBuilder: Constructs response with NULL handling
+
+    Role-Based Logic:
+        - Students: Current active semesters (multi-semester support)
+        - Admin: All sessions (optionally filtered by semester_id)
+        - Instructor: Semesters where assigned or PENDING requests
+
+    Specialization:
+        - INTERNSHIP: Simple target_specialization filtering
+        - Other specializations: Intelligent keyword-based filtering
+
+    Performance:
+        - Query count: 5-7 (role-dependent)
+        - N+1 problem eliminated: Bulk GROUP BY queries for stats
+        - Response: SessionList with pre-aggregated statistics
     """
+    # 1. Initialize query
     query = db.query(SessionTypel)
 
-    # Apply role-based semester filtering using RoleSemesterFilterService
+    # 2. Apply role-based semester filtering
     role_filter_service = RoleSemesterFilterService(db)
     query = role_filter_service.apply_role_semester_filter(query, current_user, semester_id)
 
-    # Apply specialization filtering using SessionFilterService
+    # 3. Apply specialization filtering
     if specialization_filter:
         filter_service = SessionFilterService(db)
         query = filter_service.apply_specialization_filter(query, current_user, include_mixed)
 
-    # Apply other filters
+    # 4. Apply additional filters
     if group_id:
         query = query.filter(SessionTypel.group_id == group_id)
     if session_type:
         query = query.filter(SessionTypel.session_type == session_type)
 
-    # Get total count
+    # 5. Get total count
     total = query.count()
 
-    # Apply pagination with ordering (future sessions first, then by start date)
-    # Get current time in UTC and convert to naive for DB comparison
-    # All datetime objects in DB are stored as naive UTC
-    now_utc = datetime.now(timezone.utc)
-    now_naive_utc = now_utc.replace(tzinfo=None)
-
+    # 6. Pagination and ordering
+    now_naive_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     offset = (page - 1) * size
-
-    # Apply intelligent filtering for students, standard ordering for others
     if current_user.role == UserRole.STUDENT:
         # INTERNSHIP users use target_specialization filtering only (already applied above)
         # Other specializations use SessionFilterService for keyword-based filtering
@@ -109,14 +118,12 @@ def list_sessions(
             SessionTypel.date_start.asc()                      # Then by start time (earliest future first)
         ).offset(offset).limit(size).all()
 
-    # 🚀 PERFORMANCE OPTIMIZATION: Pre-fetch all stats with JOIN queries (eliminates N+1 problem)
+    # 7. Fetch statistics (bulk queries, N+1 elimination)
     session_ids = [s.id for s in sessions]
-
-    # Fetch all stats using SessionStatsAggregator service
     stats_aggregator = SessionStatsAggregator(db)
     stats = stats_aggregator.fetch_stats(session_ids)
 
-    # Build response using SessionResponseBuilder service
+    # 8. Build response
     response_builder = SessionResponseBuilder(db)
     return response_builder.build_response(sessions, stats, total, page, size)
 
