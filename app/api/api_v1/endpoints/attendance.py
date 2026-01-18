@@ -13,16 +13,6 @@ from ....models.booking import Booking, BookingStatus
 from ....models.attendance import Attendance, AttendanceStatus
 from ....schemas.attendance import (
     Attendance as AttendanceSchema, AttendanceCreate, AttendanceUpdate,
-    from sqlalchemy.orm import joinedload
-
-    from ....models.booking import Booking
-    
-    # Get instructor's sessions with attendance stats
-    from ....models.project import ProjectEnrollment, ProjectMilestoneProgress, MilestoneStatus
-    from sqlalchemy import and_
-    
-    # Get user's active project enrollments
-            from ....models.project import ProjectMilestone
     AttendanceWithRelations, AttendanceList, AttendanceCheckIn
 )
 

@@ -9,7 +9,6 @@ from ....models.user import User
 from ....services.gamification import GamificationService
 from ....schemas.gamification import UserGamificationResponse
 
-    from ....models.user import UserRole
 router = APIRouter()
 
 

@@ -15,8 +15,6 @@ from ....models.audit_log import AuditLog
 from ....services.audit_service import AuditService
 from ....schemas.audit import (
     AuditLogResponse,
-    from sqlalchemy import func
-    from sqlalchemy import func, and_
     AuditLogListResponse,
     AuditStatisticsResponse
 )

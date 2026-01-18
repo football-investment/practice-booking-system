@@ -1,35 +1,7 @@
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import Any, List, Dict, Optional
-
-from .....database import get_db
-from .....dependencies import get_current_admin_user
-from .....models.user import User
-
 """
-from typing import Any, List
+Instructor Assignment Discovery Endpoints
 
-"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, joinedload
-from typing import List, Optional
-from datetime import datetime
-
-from app.database import get_db
-from app.models.instructor_assignment import (
-    InstructorAvailabilityWindow,
-from app.models.user import User, UserRole
-from app.models.semester import Semester
-from app.models.license import UserLicense
-from app.schemas.instructor_assignment import (
-    InstructorAvailabilityWindowCreate,
-from app.dependencies import get_current_user
-Available instructor discovery
-"""
-Instructor Assignment Request System API Endpoints
-
-NEW CONCEPT: Demand-driven instructor assignment workflow
+Available instructor discovery for admin semester planning.
 
 Flow:
 1. Instructor sets general availability: "Q3 2026, Budapest+Budaörs"
@@ -38,10 +10,23 @@ Flow:
 4. Admin sends assignment request to instructor
 5. Instructor accepts/declines specific semester assignments
 """
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, joinedload
+from typing import Any, List, Dict, Optional
+from datetime import datetime
 
+from .....database import get_db
+from .....dependencies import get_current_admin_user
+from .....models.user import User, UserRole
+from .....models.semester import Semester
+from .....models.license import UserLicense
+from .....models.instructor_assignment import (
+    InstructorAvailabilityWindow,
     InstructorAssignmentRequest,
     AssignmentRequestStatus
 )
+from .....schemas.instructor_assignment import (
+    InstructorAvailabilityWindowCreate,
     InstructorAvailabilityWindowUpdate,
     InstructorAvailabilityWindowResponse,
     InstructorAssignmentRequestCreate,
@@ -53,6 +38,7 @@ Flow:
     InstructorLicenseInfo,
     AvailableInstructorsQuery
 )
+
 router = APIRouter()
 
 
