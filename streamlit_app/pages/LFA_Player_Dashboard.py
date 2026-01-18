@@ -366,7 +366,12 @@ def _display_enrollment_card(enrollment: dict, icon: str):
                 st.info("Detailed view coming soon!")
         with col2:
             if st.button(f"🗑️ Unenroll", key=f"unenroll_{enrollment_id}", use_container_width=True, type="secondary"):
-                st.warning("Unenroll functionality coming soon!")
+                # Show unenrollment dialog
+                st.session_state['unenroll_tournament_id'] = tournament_id
+                st.session_state['unenroll_tournament_name'] = tournament_name
+                st.session_state['unenroll_enrollment_id'] = enrollment_id
+                st.session_state['show_unenroll_dialog'] = True
+                st.rerun()
 
 def parse_motivation_scores(license):
     """Parse motivation_scores JSON from license"""
@@ -390,6 +395,100 @@ def parse_motivation_scores(license):
             return None
 
     return None
+
+
+@st.dialog("🗑️ Unenroll from Tournament")
+def show_unenroll_dialog():
+    """Dialog for unenrolling from tournament with credit refund (50% penalty)"""
+    tournament_id = st.session_state.get('unenroll_tournament_id')
+    tournament_name = st.session_state.get('unenroll_tournament_name', 'Unknown Tournament')
+    enrollment_id = st.session_state.get('unenroll_enrollment_id')
+
+    st.warning("⚠️ **Warning: Unenrollment Penalty**")
+    st.markdown(f"""
+    You are about to unenroll from:
+    **{tournament_name}**
+
+    **Credit Refund Policy:**
+    - 💰 You will receive a **50% refund**
+    - 💸 **50% penalty** will be deducted
+
+    Example:
+    - Enrollment cost: 500 credits
+    - Refund: 250 credits (50%)
+    - Penalty: 250 credits (lost)
+    """)
+
+    reason = st.text_area(
+        "Reason for unenrollment (optional)",
+        placeholder="e.g., Schedule conflict, personal reasons, etc.",
+        help="Providing a reason helps us improve our services"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("❌ Cancel", use_container_width=True):
+            # Clear session state
+            st.session_state.pop('unenroll_tournament_id', None)
+            st.session_state.pop('unenroll_tournament_name', None)
+            st.session_state.pop('unenroll_enrollment_id', None)
+            st.session_state.pop('show_unenroll_dialog', None)
+            st.rerun()
+
+    with col2:
+        if st.button("✅ Confirm Unenroll", use_container_width=True, type="primary"):
+            # Call unenroll API
+            token = st.session_state.get("token")
+            if not token:
+                st.error("Authentication token missing. Please log in again.")
+                return
+
+            try:
+                import requests
+                response = requests.delete(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/unenroll",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=API_TIMEOUT
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    refund_amount = result.get('refund_amount', 0)
+                    penalty_amount = result.get('penalty_amount', 0)
+                    credits_remaining = result.get('credits_remaining', 0)
+                    bookings_removed = result.get('bookings_removed', 0)
+
+                    st.success(f"""
+                    ✅ **Successfully unenrolled from tournament!**
+
+                    📊 **Transaction Summary:**
+                    - Refund: {refund_amount} credits (50%)
+                    - Penalty: {penalty_amount} credits (50%)
+                    - Bookings removed: {bookings_removed}
+                    - Final balance: {credits_remaining} credits
+                    """)
+
+                    # Clear session state
+                    st.session_state.pop('unenroll_tournament_id', None)
+                    st.session_state.pop('unenroll_tournament_name', None)
+                    st.session_state.pop('unenroll_enrollment_id', None)
+                    st.session_state.pop('show_unenroll_dialog', None)
+
+                    # Wait and reload
+                    import time
+                    time.sleep(2)
+                    st.rerun()
+
+                else:
+                    error_detail = response.json().get('detail', 'Unknown error')
+                    st.error(f"❌ Unenrollment failed: {error_detail}")
+
+            except requests.exceptions.Timeout:
+                st.error("⏱️ Request timed out. Please try again.")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
 
 # ============================================================================
 # SIDEBAR
@@ -701,6 +800,14 @@ if motivation_data and ('goals' in motivation_data or 'motivation' in motivation
         if 'motivation' in motivation_data and motivation_data['motivation']:
             st.markdown("**Motivation**")
             st.success(motivation_data['motivation'])
+
+# ============================================================================
+# DIALOGS (triggered by session state)
+# ============================================================================
+
+# Show unenroll dialog if triggered
+if st.session_state.get('show_unenroll_dialog'):
+    show_unenroll_dialog()
 
 # ============================================================================
 # FOOTER

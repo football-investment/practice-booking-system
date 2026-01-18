@@ -343,3 +343,146 @@ def enroll_in_tournament(
         "warnings": warnings_list,
         "credits_remaining": current_user.credit_balance
     }
+
+
+@router.delete("/{tournament_id}/unenroll")
+def unenroll_from_tournament(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Unenroll (withdraw) current student from a tournament
+
+    **Authorization:** Student role only
+
+    **Business Rules:**
+    1. Can only unenroll from ENROLLMENT_OPEN or IN_PROGRESS tournaments
+    2. Cannot unenroll if tournament already COMPLETED or CANCELLED
+    3. Credit refund: 50% penalty (user gets 50% back, 50% lost)
+    4. Sets enrollment to is_active=False and request_status=WITHDRAWN
+    5. Removes ALL bookings linked to this enrollment
+
+    **Credit Refund Logic:**
+    - Enrollment cost: 500 credits
+    - Refund: 250 credits (50%)
+    - Penalty: 250 credits (50% lost)
+
+    **Returns:**
+    - Success status
+    - Refund amount
+    - Final credit balance
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🚫 UNENROLL START - Tournament: {tournament_id}, User: {current_user.id}")
+
+    # 1. Verify student role
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can unenroll from tournaments"
+        )
+
+    # 2. Fetch tournament
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tournament not found"
+        )
+
+    # 3. Verify tournament status - can only unenroll from active tournaments
+    if tournament.tournament_status not in ["ENROLLMENT_OPEN", "IN_PROGRESS"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot unenroll from tournament in {tournament.tournament_status} status. Only ENROLLMENT_OPEN and IN_PROGRESS tournaments allow unenrollment."
+        )
+
+    # 4. Find active enrollment
+    enrollment = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.user_id == current_user.id,
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.is_active == True,
+        SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+    ).first()
+
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active enrollment found for this tournament"
+        )
+
+    # 5. Calculate refund (50% penalty)
+    enrollment_cost = tournament.enrollment_cost or 500
+    refund_amount = enrollment_cost // 2  # 50% refund
+    penalty_amount = enrollment_cost - refund_amount  # 50% penalty
+
+    # 6. Update enrollment status to WITHDRAWN
+    enrollment.is_active = False
+    enrollment.request_status = EnrollmentStatus.WITHDRAWN
+    enrollment.updated_at = datetime.utcnow()
+    db.add(enrollment)
+
+    # 7. Refund credits to user (50% of enrollment cost)
+    current_user.credit_balance = current_user.credit_balance + refund_amount
+    db.add(current_user)
+
+    # 8. Create credit transaction record for refund
+    from app.models.credit_transaction import CreditTransaction
+
+    refund_transaction = CreditTransaction(
+        user_license_id=enrollment.user_license_id,
+        transaction_type="TOURNAMENT_UNENROLL_REFUND",
+        amount=refund_amount,  # Positive amount for refund
+        balance_after=current_user.credit_balance,
+        description=f"Tournament unenrollment refund (50%): {tournament.name} ({tournament.code})",
+        semester_id=tournament_id,
+        enrollment_id=enrollment.id
+    )
+    db.add(refund_transaction)
+
+    # 9. Remove all bookings linked to this enrollment
+    bookings = db.query(Booking).filter(
+        Booking.enrollment_id == enrollment.id,
+        Booking.user_id == current_user.id
+    ).all()
+
+    bookings_removed = len(bookings)
+    for booking in bookings:
+        db.delete(booking)
+        logger.info(f"🗑️ Removed booking {booking.id} for session {booking.session_id}")
+
+    # 10. Commit transaction
+    try:
+        db.commit()
+        db.refresh(enrollment)
+        db.refresh(current_user)
+
+        logger.info(f"✅ UNENROLL SUCCESS:")
+        logger.info(f"   - Enrollment ID: {enrollment.id} → WITHDRAWN")
+        logger.info(f"   - Refund: {refund_amount} credits (50%)")
+        logger.info(f"   - Penalty: {penalty_amount} credits (50%)")
+        logger.info(f"   - Final balance: {current_user.credit_balance}")
+        logger.info(f"   - Bookings removed: {bookings_removed}")
+
+    except Exception as e:
+        logger.error(f"❌ UNENROLL FAILED: {str(e)}")
+        logger.error(traceback.format_exc())
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to unenroll from tournament: {str(e)}"
+        )
+
+    # 11. Return response
+    return {
+        "success": True,
+        "message": "Successfully unenrolled from tournament",
+        "enrollment_id": enrollment.id,
+        "tournament_name": tournament.name,
+        "refund_amount": refund_amount,
+        "penalty_amount": penalty_amount,
+        "credits_remaining": current_user.credit_balance,
+        "bookings_removed": bookings_removed
+    }
