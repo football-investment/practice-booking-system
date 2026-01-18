@@ -79,7 +79,7 @@ def validate_status_transition(
 
     if new_status == "ENROLLMENT_OPEN":
         # Must have enrollment capacity and dates configured
-        if not hasattr(tournament, 'max_participants') or tournament.max_participants is None:
+        if not hasattr(tournament, 'max_players') or tournament.max_players is None:
             return False, "Cannot open enrollment: Max participants not configured"
 
     if new_status == "ENROLLMENT_CLOSED":
