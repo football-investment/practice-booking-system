@@ -1,0 +1,524 @@
+
+🔍 Scanning for unused code (min confidence: 60%)...
+
+
+================================================================================
+🔍 DEAD CODE & UNUSED SYMBOLS AUDIT REPORT
+================================================================================
+
+📊 Summary (min confidence: 60%):
+   - Total issues found: 1591
+   - Files affected: 266
+   - Directories affected: 63
+
+📦 Issues by Type:
+   - Unused Variables: 765
+   - Unused Functions: 384
+   - Unused Classes: 249
+   - Unused Methods: 80
+   - Unused Attributes: 79
+   - Unused Imports: 20
+   - Unused Properties: 12
+   - Other: 1
+   - Unreachable Code: 1
+
+🎯 Issues by Confidence:
+   - <70%: 1591
+
+📁 Top 10 Directories with Most Issues:
+    398 - app/schemas
+    187 - app/models
+    135 - app/api/api_v1/endpoints
+    107 - app/api/api_v1/endpoints/gancuju
+    104 - app/api/api_v1/endpoints/internship
+     98 - app/api/api_v1/endpoints/coach
+     66 - app/services
+     33 - app/api/api_v1/endpoints/lfa_player
+     31 - scripts
+     30 - app/tests
+
+📄 Top 20 Files with Most Issues:
+     61 - app/schemas/motivation.py
+     48 - app/schemas/project.py
+     43 - app/schemas/quiz.py
+     37 - app/api/api_v1/endpoints/gancuju/licenses.py
+     36 - app/api/api_v1/endpoints/internship/licenses.py
+     36 - app/schemas/instructor_management.py
+     35 - app/api/api_v1/endpoints/gancuju/activities.py
+     35 - app/api/api_v1/endpoints/gancuju/belts.py
+     34 - app/api/api_v1/endpoints/coach/licenses.py
+     34 - app/api/api_v1/endpoints/internship/credits.py
+     34 - app/api/api_v1/endpoints/internship/xp_renewal.py
+     32 - app/api/api_v1/endpoints/coach/hours.py
+     32 - app/api/api_v1/endpoints/coach/progression.py
+     32 - app/schemas/message.py
+     31 - app/schemas/license.py
+     27 - app/schemas/track.py
+     19 - app/models/quiz.py
+     17 - app/models/attendance.py
+     16 - app/models/gamification.py
+     15 - app/schemas/adaptive_learning.py
+
+--------------------------------------------------------------------------------
+
+📋 Detailed Breakdown:
+
+
+Unused Imports (20 issues):
+
+  📄 app/api/api_v1/endpoints/curriculum/exercises.py (2 issues)
+     Line    5: unused import 'File' (0%)
+     Line    5: unused import 'UploadFile' (0%)
+
+  📄 app/tests/fixtures/tournament_seeding.py (2 issues)
+     Line   21: unused import 'SemesterType' (0%)
+     Line   21: unused import 'TournamentStatus' (0%)
+
+  📄 tests/e2e/conftest.py (2 issues)
+     Line    9: unused import 'Browser' (0%)
+     Line    9: unused import 'BrowserContext' (0%)
+
+  📄 app/services/quiz_service.py (2 issues)
+     Line   13: unused import 'QuizAttemptStart' (0%)
+     Line   13: unused import 'QuizUpdate' (0%)
+
+  📄 app/api/api_v1/endpoints/payment_verification.py (1 issues)
+     Line    2: unused import 'Body' (0%)
+
+  📄 app/api/routes/lfa_player_routes.py (1 issues)
+     Line   20: unused import 'BulkSkillAssessmentCreate' (0%)
+
+  📄 scripts/fix_duplicate_imports.py (1 issues)
+     Line   24: unused import 'OrderedDict' (0%)
+
+  📄 streamlit_app/components/instructor/tournament_table_view.py (1 issues)
+     Line   20: unused import 'pd' (0%)
+
+  📄 app/api/api_v1/endpoints/tournaments/lifecycle.py (1 issues)
+     Line   18: unused import 'StatusValidationError' (0%)
+
+  📄 tests/e2e/sessions/test_session_checkin_e2e.py (1 issues)
+     Line   13: unused import 'assert_button_count' (0%)
+
+Unused Functions (384 issues):
+
+  📄 app/api/api_v1/endpoints/feedback.py (8 issues)
+     Line   21: unused function 'get_all_feedback' (0%)
+     Line   63: unused function 'create_feedback' (0%)
+     Line  141: unused function 'get_my_feedback' (0%)
+     Line  182: unused function 'update_feedback' (0%)
+     Line  217: unused function 'delete_feedback' (0%)
+     ... and 3 more
+
+  📄 app/api/api_v1/endpoints/groups.py (7 issues)
+     Line   22: unused function 'create_group' (0%)
+     Line   47: unused function 'list_groups' (0%)
+     Line   84: unused function 'get_group' (0%)
+     Line  107: unused function 'update_group' (0%)
+     Line  144: unused function 'delete_group' (0%)
+     ... and 2 more
+
+  📄 app/schemas/message.py (6 issues)
+     Line   33: unused function 'subject_must_not_be_empty' (0%)
+     Line   39: unused function 'message_must_not_be_empty' (0%)
+     Line   49: unused function 'subject_must_not_be_empty' (0%)
+     Line   55: unused function 'message_must_not_be_empty' (0%)
+     Line   66: unused function 'message_must_not_be_empty_if_provided' (0%)
+     ... and 1 more
+
+  📄 app/api/api_v1/endpoints/parallel_specializations.py (6 issues)
+     Line   17: unused function 'get_my_specializations' (0%)
+     Line   29: unused function 'get_available_specializations' (0%)
+     Line   42: unused function 'get_specialization_dashboard' (0%)
+     Line   99: unused function 'get_specialization_combinations' (0%)
+     Line  108: unused function 'get_semester_specialization_info' (0%)
+     ... and 1 more
+
+  📄 app/services/notification_service.py (6 issues)
+     Line  191: unused function 'create_tournament_instructor_accepted_notification' (0%)
+     Line  261: unused function 'get_unread_notification_count' (0%)
+     Line  278: unused function 'get_notifications' (0%)
+     Line  304: unused function 'mark_all_as_read' (0%)
+     Line  327: unused function 'delete_notification' (0%)
+     ... and 1 more
+
+  📄 app/api/api_v1/endpoints/coupons.py (6 issues)
+     Line   71: unused function 'list_all_coupons' (0%)
+     Line  104: unused function 'create_coupon_api' (0%)
+     Line  161: unused function 'create_coupon_web' (0%)
+     Line  339: unused function 'delete_coupon' (0%)
+     Line  384: unused function 'toggle_coupon_status' (0%)
+     ... and 1 more
+
+  📄 app/api/api_v1/endpoints/curriculum/exercises.py (6 issues)
+     Line   14: unused function 'get_exercise_details' (0%)
+     Line   60: unused function 'get_exercise_submission' (0%)
+     Line  107: unused function 'submit_exercise' (0%)
+     Line  154: unused function 'update_exercise_submission' (0%)
+     Line  199: unused function 'upload_exercise_file' (0%)
+     ... and 1 more
+
+  📄 app/api/api_v1/endpoints/instructor_availability.py (6 issues)
+     Line   32: unused function 'get_instructor_availability_matrix' (0%)
+     Line  132: unused function 'create_instructor_availability' (0%)
+     Line  171: unused function 'update_instructor_availability' (0%)
+     Line  209: unused function 'bulk_upsert_instructor_availability' (0%)
+     Line  283: unused function 'delete_instructor_availability' (0%)
+     ... and 1 more
+
+  📄 app/api/api_v1/endpoints/payment_verification.py (6 issues)
+     Line   27: unused function 'get_students_payment_status' (0%)
+     Line   63: unused function 'verify_student_payment' (0%)
+     Line  145: unused function 'unverify_student_payment' (0%)
+     Line  180: unused function 'get_student_payment_status' (0%)
+     Line  220: unused function 'add_student_specialization' (0%)
+     ... and 1 more
+
+  📄 app/api/api_v1/endpoints/tournaments/instructor.py (6 issues)
+     Line  117: unused function 'accept_instructor_assignment' (0%)
+     Line  488: unused function 'approve_instructor_application' (0%)
+     Line  845: unused function 'get_my_tournament_application' (0%)
+     Line  942: unused function 'get_my_instructor_applications' (0%)
+     Line 1030: unused function 'direct_assign_instructor' (0%)
+     ... and 1 more
+
+Unused Classes (249 issues):
+
+  📄 app/schemas/project.py (23 issues)
+     Line   16: unused class 'ProjectEnrollmentStatusEnum' (0%)
+     Line   22: unused class 'ProjectProgressStatusEnum' (0%)
+     Line   52: unused class 'ProjectMilestoneUpdate' (0%)
+     Line   67: unused class 'Config' (0%)
+     Line   87: unused class 'ProjectUpdate' (0%)
+     ... and 18 more
+
+  📄 app/schemas/quiz.py (17 issues)
+     Line   19: unused class 'Config' (0%)
+     Line   28: unused class 'Config' (0%)
+     Line   42: unused class 'QuizQuestionUpdate' (0%)
+     Line   56: unused class 'Config' (0%)
+     Line   68: unused class 'Config' (0%)
+     ... and 12 more
+
+  📄 app/schemas/track.py (12 issues)
+     Line   20: unused class 'TrackCreate' (0%)
+     Line   24: unused class 'TrackUpdate' (0%)
+     Line   39: unused class 'Config' (0%)
+     Line   52: unused class 'ModuleCreate' (0%)
+     Line   67: unused class 'Config' (0%)
+     ... and 7 more
+
+  📄 app/api/api_v1/endpoints/internship/credits.py (12 issues)
+     Line   53: unused class 'Config' (0%)
+     Line   76: unused class 'Config' (0%)
+     Line   99: unused class 'Config' (0%)
+     Line  118: unused class 'Config' (0%)
+     Line  139: unused class 'Config' (0%)
+     ... and 7 more
+
+  📄 app/api/api_v1/endpoints/internship/licenses.py (12 issues)
+     Line   57: unused class 'Config' (0%)
+     Line   80: unused class 'Config' (0%)
+     Line  103: unused class 'Config' (0%)
+     Line  122: unused class 'Config' (0%)
+     Line  143: unused class 'Config' (0%)
+     ... and 7 more
+
+  📄 app/api/api_v1/endpoints/internship/xp_renewal.py (12 issues)
+     Line   54: unused class 'Config' (0%)
+     Line   77: unused class 'Config' (0%)
+     Line  100: unused class 'Config' (0%)
+     Line  119: unused class 'Config' (0%)
+     Line  140: unused class 'Config' (0%)
+     ... and 7 more
+
+  📄 app/api/api_v1/endpoints/coach/hours.py (11 issues)
+     Line   54: unused class 'Config' (0%)
+     Line   77: unused class 'Config' (0%)
+     Line  101: unused class 'Config' (0%)
+     Line  117: unused class 'Config' (0%)
+     Line  134: unused class 'Config' (0%)
+     ... and 6 more
+
+  📄 app/api/api_v1/endpoints/coach/licenses.py (11 issues)
+     Line   58: unused class 'Config' (0%)
+     Line   81: unused class 'Config' (0%)
+     Line  105: unused class 'Config' (0%)
+     Line  121: unused class 'Config' (0%)
+     Line  138: unused class 'Config' (0%)
+     ... and 6 more
+
+  📄 app/api/api_v1/endpoints/coach/progression.py (11 issues)
+     Line   55: unused class 'Config' (0%)
+     Line   78: unused class 'Config' (0%)
+     Line  102: unused class 'Config' (0%)
+     Line  118: unused class 'Config' (0%)
+     Line  135: unused class 'Config' (0%)
+     ... and 6 more
+
+  📄 app/api/api_v1/endpoints/gancuju/activities.py (10 issues)
+     Line   53: unused class 'Config' (0%)
+     Line   75: unused class 'Config' (0%)
+     Line   97: unused class 'Config' (0%)
+     Line  109: unused class 'Config' (0%)
+     Line  126: unused class 'Config' (0%)
+     ... and 5 more
+
+Unused Methods (80 issues):
+
+  📄 app/schemas/feedback.py (6 issues)
+     Line   17: unused method 'validate_rating' (0%)
+     Line   24: unused method 'validate_instructor_rating' (0%)
+     Line   31: unused method 'validate_session_quality' (0%)
+     Line   51: unused method 'validate_rating' (0%)
+     Line   58: unused method 'validate_instructor_rating' (0%)
+     ... and 1 more
+
+  📄 app/services/specialization_config_loader.py (5 issues)
+     Line  147: unused method 'get_xp_range' (0%)
+     Line  167: unused method 'get_max_level' (0%)
+     Line  181: unused method 'get_level_name' (0%)
+     Line  219: unused method 'get_age_groups' (0%)
+     Line  253: unused method 'clear_cache' (0%)
+
+  📄 scripts/load_test_health_dashboard.py (5 issues)
+     Line   44: unused method 'on_start' (0%)
+     Line   67: unused method 'get_health_status' (0%)
+     Line   89: unused method 'get_health_metrics' (0%)
+     Line  111: unused method 'get_violations' (0%)
+     Line  133: unused method 'trigger_manual_check' (0%)
+
+  📄 app/services/quiz_service.py (4 issues)
+     Line   87: unused method 'get_quizzes_by_category' (0%)
+     Line  140: unused method 'submit_quiz_attempt' (0%)
+     Line  447: unused method 'get_user_ongoing_attempt' (0%)
+     Line  457: unused method 'is_quiz_completed_by_user' (0%)
+
+  📄 app/services/adaptive_learning.py (4 issues)
+     Line   23: unused method 'start_adaptive_session' (0%)
+     Line   41: unused method 'get_next_question' (0%)
+     Line   96: unused method 'record_answer' (0%)
+     Line  142: unused method 'end_session' (0%)
+
+  📄 app/schemas/license.py (3 issues)
+     Line   18: unused method 'round_to_one_decimal' (0%)
+     Line   67: unused method 'validate_points' (0%)
+     Line   74: unused method 'validate_skill_name' (0%)
+
+  📄 app/services/teaching_permission_service.py (3 issues)
+     Line  127: unused method 'can_teach_independently' (0%)
+     Line  133: unused method 'requires_supervision' (0%)
+     Line  142: unused method 'get_age_group_for_user' (0%)
+
+  📄 app/services/location_validation_service.py (3 issues)
+     Line   99: unused method 'get_allowed_semester_types' (0%)
+     Line  121: unused method 'get_location_type_display' (0%)
+     Line  129: unused method 'get_location_capabilities' (0%)
+
+  📄 app/middleware/logging.py (3 issues)
+     Line   49: unused method 'dispatch' (0%)
+     Line  175: unused method 'log_auth_attempt' (0%)
+     Line  192: unused method 'log_permission_denied' (0%)
+
+  📄 scripts/load_test_progress_update.py (3 issues)
+     Line   46: unused method 'on_start' (0%)
+     Line   98: unused method 'check_health_status' (0%)
+     Line  115: unused method 'trigger_manual_health_check' (0%)
+
+Unused Variables (765 issues):
+
+  📄 app/schemas/motivation.py (58 issues)
+     Line   16: unused variable 'STRIKER' (0%)
+     Line   17: unused variable 'MIDFIELDER' (0%)
+     Line   18: unused variable 'DEFENDER' (0%)
+     Line   19: unused variable 'GOALKEEPER' (0%)
+     Line   59: unused variable 'WARRIOR' (0%)
+     ... and 53 more
+
+  📄 app/schemas/quiz.py (26 issues)
+     Line   20: unused variable 'from_attributes' (0%)
+     Line   29: unused variable 'from_attributes' (0%)
+     Line   57: unused variable 'from_attributes' (0%)
+     Line   69: unused variable 'from_attributes' (0%)
+     Line  102: unused variable 'from_attributes' (0%)
+     ... and 21 more
+
+  📄 app/api/api_v1/endpoints/gancuju/activities.py (25 issues)
+     Line   54: unused variable 'json_schema_extra' (0%)
+     Line   66: unused variable 'max_level_reached' (0%)
+     Line   67: unused variable 'competitions_entered' (0%)
+     Line   68: unused variable 'competitions_won' (0%)
+     Line   76: unused variable 'json_schema_extra' (0%)
+     ... and 20 more
+
+  📄 app/api/api_v1/endpoints/gancuju/belts.py (25 issues)
+     Line   54: unused variable 'json_schema_extra' (0%)
+     Line   66: unused variable 'max_level_reached' (0%)
+     Line   67: unused variable 'competitions_entered' (0%)
+     Line   68: unused variable 'competitions_won' (0%)
+     Line   76: unused variable 'json_schema_extra' (0%)
+     ... and 20 more
+
+  📄 app/api/api_v1/endpoints/gancuju/licenses.py (25 issues)
+     Line   58: unused variable 'json_schema_extra' (0%)
+     Line   70: unused variable 'max_level_reached' (0%)
+     Line   71: unused variable 'competitions_entered' (0%)
+     Line   72: unused variable 'competitions_won' (0%)
+     Line   80: unused variable 'json_schema_extra' (0%)
+     ... and 20 more
+
+  📄 app/schemas/project.py (25 issues)
+     Line   12: unused variable 'ARCHIVED' (0%)
+     Line   25: unused variable 'REVIEW' (0%)
+     Line   68: unused variable 'from_attributes' (0%)
+     Line  115: unused variable 'from_attributes' (0%)
+     Line  146: unused variable 'sessions_required' (0%)
+     ... and 20 more
+
+  📄 app/schemas/instructor_management.py (23 issues)
+     Line   33: unused variable 'JOB_POSTING' (0%)
+     Line   40: unused variable 'CLOSED' (0%)
+     Line   87: unused variable 'terminated_at' (0%)
+     Line   93: unused variable 'accepted_at' (0%)
+     Line  107: unused variable 'from_attributes' (0%)
+     ... and 18 more
+
+  📄 app/api/api_v1/endpoints/internship/credits.py (22 issues)
+     Line   54: unused variable 'json_schema_extra' (0%)
+     Line   67: unused variable 'max_level_reached' (0%)
+     Line   77: unused variable 'json_schema_extra' (0%)
+     Line  100: unused variable 'json_schema_extra' (0%)
+     Line  111: unused variable 'xp_added' (0%)
+     ... and 17 more
+
+  📄 app/api/api_v1/endpoints/internship/licenses.py (22 issues)
+     Line   58: unused variable 'json_schema_extra' (0%)
+     Line   71: unused variable 'max_level_reached' (0%)
+     Line   81: unused variable 'json_schema_extra' (0%)
+     Line  104: unused variable 'json_schema_extra' (0%)
+     Line  115: unused variable 'xp_added' (0%)
+     ... and 17 more
+
+  📄 app/api/api_v1/endpoints/internship/xp_renewal.py (22 issues)
+     Line   55: unused variable 'json_schema_extra' (0%)
+     Line   68: unused variable 'max_level_reached' (0%)
+     Line   78: unused variable 'json_schema_extra' (0%)
+     Line  101: unused variable 'json_schema_extra' (0%)
+     Line  112: unused variable 'xp_added' (0%)
+     ... and 17 more
+
+Unused Attributes (79 issues):
+
+  📄 scripts/dashboards/unified_workflow_dashboard_improved.py (10 issues)
+     Line   54: unused attribute 'invitation_workflow_state' (0%)
+     Line   64: unused attribute 'student_registration_data' (0%)
+     Line   68: unused attribute 'credit_workflow_state' (0%)
+     Line   79: unused attribute 'specialization_workflow_state' (0%)
+     Line   87: unused attribute 'selected_specialization' (0%)
+     ... and 5 more
+
+  📄 tests/unit/tournament/test_tournament_xp_service.py (8 issues)
+     Line  304: unused attribute 'return_value' (0%)
+     Line  353: unused attribute 'return_value' (0%)
+     Line  415: unused attribute 'return_value' (0%)
+     Line  464: unused attribute 'return_value' (0%)
+     Line  578: unused attribute 'return_value' (0%)
+     ... and 3 more
+
+  📄 app/api/api_v1/endpoints/instructor_management/applications.py (6 issues)
+     Line  195: unused attribute 'position_title' (0%)
+     Line  226: unused attribute 'position_title' (0%)
+     Line  280: unused attribute 'position_title' (0%)
+     Line  326: unused attribute 'reviewed_at' (0%)
+     Line  337: unused attribute 'position_title' (0%)
+     ... and 1 more
+
+  📄 streamlit_app/components/session_filters.py (5 issues)
+     Line  115: unused attribute 'session_filter_date_from' (0%)
+     Line  116: unused attribute 'session_filter_date_to' (0%)
+     Line  117: unused attribute 'session_filter_types' (0%)
+     Line  118: unused attribute 'session_filter_status' (0%)
+     Line  123: unused attribute 'session_filter_location_text' (0%)
+
+  📄 app/api/api_v1/endpoints/instructor_management/positions.py (4 issues)
+     Line  119: unused attribute 'master_name' (0%)
+     Line  153: unused attribute 'master_name' (0%)
+     Line  252: unused attribute 'master_name' (0%)
+     Line  311: unused attribute 'master_name' (0%)
+
+  📄 app/api/api_v1/endpoints/periods/lfa_player_generators.py (4 issues)
+     Line  148: unused attribute 'location_address' (0%)
+     Line  254: unused attribute 'location_address' (0%)
+     Line  354: unused attribute 'location_address' (0%)
+     Line  453: unused attribute 'location_address' (0%)
+
+  📄 app/services/adaptive_learning.py (4 issues)
+     Line  151: unused attribute 'ended_at' (0%)
+     Line  353: unused attribute 'last_attempt_correct' (0%)
+     Line  371: unused attribute 'difficulty_weight' (0%)
+     Line  398: unused attribute 'last_analytics_update' (0%)
+
+  📄 streamlit_app/components/financial/coupon_management.py (4 issues)
+     Line   24: unused attribute 'show_create_coupon_modal' (0%)
+     Line  134: unused attribute 'coupon_type_select' (0%)
+     Line  217: unused attribute 'show_create_coupon_modal' (0%)
+     Line  263: unused attribute 'show_create_coupon_modal' (0%)
+
+  📄 app/api/api_v1/endpoints/instructor_management/assignments.py (3 issues)
+     Line  176: unused attribute 'assigner_name' (0%)
+     Line  235: unused attribute 'assigner_name' (0%)
+     Line  364: unused attribute 'assigner_name' (0%)
+
+  📄 app/api/api_v1/endpoints/instructor_management/masters/legacy.py (3 issues)
+     Line  186: unused attribute 'terminated_at' (0%)
+     Line  201: unused attribute 'terminated_at' (0%)
+     Line  241: unused attribute 'terminated_at' (0%)
+
+Unused Properties (12 issues):
+
+  📄 app/models/project.py (3 issues)
+     Line   98: unused property 'specialization_info' (0%)
+     Line  113: unused property 'is_open_enrollment' (0%)
+     Line  148: unused property 'sessions_required' (0%)
+
+  📄 app/models/user_progress.py (3 issues)
+     Line  262: unused property 'duration_hours' (0%)
+     Line  272: unused property 'is_passed' (0%)
+     Line  277: unused property 'grade_letter' (0%)
+
+  📄 app/models/track.py (2 issues)
+     Line   38: unused property 'mandatory_modules' (0%)
+     Line   75: unused property 'mandatory_components' (0%)
+
+  📄 app/models/performance_review.py (2 issues)
+     Line   62: unused property 'score_breakdown' (0%)
+     Line  134: unused property 'score_breakdown' (0%)
+
+  📄 app/models/certificate.py (1 issues)
+     Line   98: unused property 'display_id' (0%)
+
+  📄 app/models/session_group.py (1 issues)
+     Line   79: unused property 'student_list' (0%)
+
+Unreachable Code (1 issues):
+
+  📄 app/services/competency_service.py (1 issues)
+     Line  345: unreachable code after 'return' (0%)
+
+Other (1 issues):
+
+  📄 tests/integration/test_gancuju_belt_system.py (1 issues)
+     Line  145: unreachable 'else' block (0%)
+
+================================================================================
+🎯 Recommendations:
+   1. Review high-confidence issues (90-100%) first
+   2. Unused imports can usually be safely removed
+   3. Unused functions/classes may be:
+      - Truly dead code (safe to remove)
+      - Public API (keep for backwards compatibility)
+      - Future functionality (document and keep)
+   4. Check unreachable code carefully (may indicate logic errors)
+================================================================================
+
+📝 Detailed report saved to: docs/audit/unused_code_detailed_report.txt
