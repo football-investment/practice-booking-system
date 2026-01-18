@@ -20,7 +20,7 @@ from datetime import date, timedelta, datetime
 import os
 import time
 
-
+    import psycopg2
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
@@ -348,7 +348,6 @@ def test_instructor(admin_token: str) -> Generator[Dict[str, Any], None, None]:
 
     # Add LFA_COACH license via direct DB insert (E2E test workaround)
     # This is acceptable in E2E tests as we need deterministic setup
-    import psycopg2
     conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
     cur = conn.cursor()
     try:
@@ -406,8 +405,6 @@ def test_players(admin_token: str) -> Generator[list[Dict[str, Any]], None, None
     Cleanup:
         Deletes all players after test
     """
-    import psycopg2
-
     players = []
     for player_creds in PLAYER_CREDENTIALS:
         player = create_user_via_api(admin_token, player_creds)

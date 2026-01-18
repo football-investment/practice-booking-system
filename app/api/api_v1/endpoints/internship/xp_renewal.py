@@ -14,6 +14,18 @@ from .....models.license import UserLicense
 from .....models.specialization import SpecializationType
 
 """
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, Field
+import sys
+import os
+
+# Add service layer to path
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
 Internship License Management API Endpoints
 
 Provides REST API endpoints for Internship XP-based progression system.
@@ -25,21 +37,7 @@ Level System: XP-based progression with automatic level-up
 - Expiry: 15 months from creation/renewal
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field
-import sys
-import os
-
-# Add service layer to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
-
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
-from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
 
 router = APIRouter()
 

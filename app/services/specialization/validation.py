@@ -10,6 +10,9 @@ import logging
 from app.models.specialization import SpecializationType
 from app.services.specialization_config_loader import get_config_loader
 
+    from app.models.user_progress import Specialization
+
+    # Handle legacy IDs with deprecation warning
 logger = logging.getLogger(__name__)
 
 # DEPRECATION SYSTEM
@@ -104,9 +107,6 @@ def validate_specialization_exists(db: Session, specialization_id: str) -> bool:
     Returns:
         bool: True if specialization exists in DB and is active
     """
-    from app.models.user_progress import Specialization
-
-    # Handle legacy IDs with deprecation warning
     specialization_id = handle_legacy_specialization(specialization_id)
 
     spec = db.query(Specialization).filter_by(
@@ -137,8 +137,6 @@ def get_all_specializations(db: Session) -> List[Dict[str, Any]]:
     Returns:
         List of specialization dicts with full details from JSON
     """
-    from app.models.user_progress import Specialization
-
     config_loader = get_config_loader()
 
     # STEP 1: Get active specializations from DB

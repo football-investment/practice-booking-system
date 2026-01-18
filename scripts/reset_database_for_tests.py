@@ -14,9 +14,6 @@ import os
 from pathlib import Path
 
 # Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
 import subprocess
 import json
 from datetime import datetime
@@ -37,6 +34,10 @@ from app.models.campus import Campus
 from app.core.security import get_password_hash
 
 # Database config
+        import traceback
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 DB_NAME = "lfa_intern_system"
 DB_USER = "postgres"
 DB_PASSWORD = "postgres"
@@ -111,7 +112,6 @@ def create_schema():
 
     except Exception as e:
         print(f"❌ Error creating schema: {e}")
-        import traceback
         traceback.print_exc()
         sys.exit(1)
 
@@ -154,7 +154,6 @@ def run_alembic_migrations():
 
     except Exception as e:
         print(f"❌ Error running Alembic migrations: {e}")
-        import traceback
         traceback.print_exc()
         sys.exit(1)
 
@@ -604,7 +603,6 @@ def main():
 
     except Exception as e:
         print(f"\n❌ Fatal error: {e}")
-        import traceback
         traceback.print_exc()
         return 1
 

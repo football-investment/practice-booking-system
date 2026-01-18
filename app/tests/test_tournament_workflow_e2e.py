@@ -45,7 +45,9 @@ from app.models.tournament_type import TournamentType
 from app.models.location import Location
 from app.models.campus import Campus
 
+        from app.models.license import UserLicense
 
+            from app.models.specialization import SpecializationType
 @pytest.mark.tournament
 @pytest.mark.integration
 @pytest.mark.slow
@@ -99,7 +101,6 @@ class TestCompleteTournamentWorkflow:
         # =====================================================================
 
         # Create knockout tournament type directly in database
-        from app.models.tournament_type import TournamentType
         knockout_type_obj = TournamentType(
             code="knockout",
             display_name="Single Elimination (Knockout)",
@@ -254,8 +255,6 @@ class TestCompleteTournamentWorkflow:
 
         # Grant COACH license to instructor (REQUIRED for tournament applications)
         # This simulates the business requirement: only certified coaches can lead tournaments
-        from app.models.license import UserLicense
-
         instructor_license = UserLicense(
             user_id=instructor_id,
             specialization_type="LFA_COACH",  # ✅ FIX: Must be "LFA_COACH", not "COACH"
@@ -394,8 +393,6 @@ class TestCompleteTournamentWorkflow:
             assert player_user.credit_balance == 1000, f"Credits not saved! Expected 1000, got {player_user.credit_balance}"
 
             # Grant LFA_FOOTBALL_PLAYER license to player
-            from app.models.license import UserLicense
-            from app.models.specialization import SpecializationType
             player_license = UserLicense(
                 user_id=player_id,
                 specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,

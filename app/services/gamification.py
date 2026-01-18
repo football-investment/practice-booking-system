@@ -14,7 +14,14 @@ from ..models.achievement import Achievement, AchievementCategory
 from ..models.audit_log import AuditLog, AuditAction
 from ..models.license import UserLicense
 
+            from ..models.quiz import SessionQuiz, QuizAttempt
+        from ..models.quiz import QuizAttempt
+        
+        from ..models.project import ProjectEnrollment, ProjectEnrollmentStatus
+        
+        from ..models.user_progress import SpecializationProgress
 
+        # Get user's progress in this specialization
 class GamificationService:
     """Service to handle gamification logic and achievements"""
     
@@ -79,7 +86,6 @@ class GamificationService:
 
         # STEP 2: Instructor Evaluation XP (0-50 XP)
         instructor_xp = 0
-        from ..models.feedback import Feedback
         instructor_feedback = self.db.query(Feedback).filter(
             Feedback.session_id == session.id,
             Feedback.user_id == attendance.user_id
@@ -98,7 +104,6 @@ class GamificationService:
 
         if session_type in ["HYBRID", "VIRTUAL"]:
             # Check if session has required quiz
-            from ..models.quiz import SessionQuiz, QuizAttempt
             session_quiz = self.db.query(SessionQuiz).filter(
                 SessionQuiz.session_id == session.id,
                 SessionQuiz.is_required == True
@@ -333,7 +338,6 @@ class GamificationService:
         ).order_by(UserAchievement.earned_at.desc()).all()
         
         # Get semester information for the user
-        from ..models.booking import Booking
         user_semesters = self.db.query(Semester).join(
             SessionTypel, Semester.id == SessionTypel.semester_id
         ).join(
@@ -431,8 +435,6 @@ class GamificationService:
 
     def check_and_award_first_time_achievements(self, user_id: int) -> List[UserAchievement]:
         """Check and award first-time achievements for quiz completion"""
-        from ..models.quiz import QuizAttempt
-        
         achievements = []
         
         # First Quiz Achievement
@@ -458,8 +460,6 @@ class GamificationService:
 
     def check_first_project_enrollment(self, user_id: int, project_id: int) -> List[UserAchievement]:
         """Check for first project enrollment achievement"""
-        from ..models.project import ProjectEnrollment, ProjectEnrollmentStatus
-        
         achievements = []
         
         # Check if this is user's first project enrollment
@@ -489,9 +489,6 @@ class GamificationService:
 
     def _check_quiz_enrollment_combo(self, user_id: int) -> List[UserAchievement]:
         """Check for quiz completion and project enrollment on the same day"""
-        from ..models.quiz import QuizAttempt
-        from ..models.project import ProjectEnrollment, ProjectEnrollmentStatus
-        
         achievements = []
         today = datetime.now(timezone.utc).date()
         
@@ -588,9 +585,6 @@ class GamificationService:
         Returns:
             List of newly awarded achievements
         """
-        from ..models.user_progress import SpecializationProgress
-
-        # Get user's progress in this specialization
         progress = self.db.query(SpecializationProgress).filter(
             SpecializationProgress.student_id == user_id,
             SpecializationProgress.specialization_id == specialization_id

@@ -18,7 +18,13 @@ from ...models.license import UserLicense
 from .utils import get_or_create_user_stats
 from .xp_service import calculate_user_stats, award_xp
 
+    from ...models.quiz import QuizAttempt
 
+    from ...models.project import ProjectEnrollment, ProjectEnrollmentStatus
+
+    from ...models.user_progress import SpecializationProgress
+
+    # Get user's progress in this specialization
 def award_achievement(
     db: Session,
     user_id: int,
@@ -163,8 +169,6 @@ def check_and_award_first_time_achievements(db: Session, user_id: int) -> List[U
     Returns:
         List of newly awarded achievements
     """
-    from ...models.quiz import QuizAttempt
-
     achievements = []
 
     # First Quiz Achievement
@@ -202,8 +206,6 @@ def check_first_project_enrollment(db: Session, user_id: int, project_id: int) -
     Returns:
         List of newly awarded achievements
     """
-    from ...models.project import ProjectEnrollment, ProjectEnrollmentStatus
-
     achievements = []
 
     # Check if this is user's first project enrollment
@@ -244,9 +246,6 @@ def _check_quiz_enrollment_combo(db: Session, user_id: int) -> List[UserAchievem
     Returns:
         List of newly awarded achievements
     """
-    from ...models.quiz import QuizAttempt
-    from ...models.project import ProjectEnrollment, ProjectEnrollmentStatus
-
     achievements = []
     today = datetime.now(timezone.utc).date()
 
@@ -353,9 +352,6 @@ def check_and_award_specialization_achievements(
     Returns:
         List of newly awarded achievements
     """
-    from ...models.user_progress import SpecializationProgress
-
-    # Get user's progress in this specialization
     progress = db.query(SpecializationProgress).filter(
         SpecializationProgress.student_id == user_id,
         SpecializationProgress.specialization_id == specialization_id

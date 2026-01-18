@@ -16,7 +16,14 @@ from tests.e2e.reward_policy_fixtures import (
     reward_policy_players,
     reward_policy_tournament_complete,
     distribute_rewards,
-    get_user_current_stats
+    get_user_current_stats,
+    create_player_users,
+    create_tournament_via_api,
+    enroll_players_in_tournament,
+    set_tournament_rankings,
+    mark_tournament_completed,
+    cleanup_user,
+    cleanup_tournament
 )
 
 STREAMLIT_URL = os.getenv("STREAMLIT_URL", "http://localhost:8501")
@@ -178,15 +185,6 @@ class TestRewardPolicyUserValidation:
         print("🎯 E2E TEST: Participant-Only Player Receives Minimal Reward")
         print("="*80 + "\n")
 
-        from tests.e2e.reward_policy_fixtures import (
-            create_player_users,
-            create_tournament_via_api,
-            enroll_players_in_tournament,
-            set_tournament_rankings,
-            mark_tournament_completed,
-            cleanup_user,
-            cleanup_tournament
-        )
         from datetime import datetime
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")

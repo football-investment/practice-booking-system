@@ -17,16 +17,24 @@ from app.models.booking import Booking, BookingStatus
 from app.schemas.tournament import EnrollmentResponse, EnrollmentConflict
 from app.services.age_category_service import (
     get_automatic_age_category,
+from app.services.enrollment_conflict_service import EnrollmentConflictService
+
+import logging
+    from datetime import timedelta
+    # Get first session to determine actual tournament start time
+    from app.services.tournament.validation import validate_tournament_enrollment_age
+
+    from app.services.tournament.validation import check_duplicate_enrollment
+
+    from app.models.credit_transaction import CreditTransaction
+
+    import traceback
     get_current_season_year,
     calculate_age_at_season_start
 )
-from app.services.enrollment_conflict_service import EnrollmentConflictService
-
-
 router = APIRouter()
 
 # Module-level logging to confirm this file loads
-import logging
 _module_logger = logging.getLogger(__name__)
 _module_logger.error(f"🔥 TOURNAMENTS/ENROLL.PY MODULE LOADED SUCCESSFULLY")
 
@@ -64,7 +72,6 @@ def enroll_in_tournament(
     - Conflict warnings (if any)
     - Credits remaining after enrollment
     """
-    import logging
     logger = logging.getLogger(__name__)
     logger.error(f"🚀 ENROLLMENT START - Tournament: {tournament_id}, User: {current_user.id}, Email: {current_user.email}")
 
@@ -84,8 +91,6 @@ def enroll_in_tournament(
         )
 
     # 2.5. Verify enrollment deadline (1 hour before first tournament session)
-    from datetime import timedelta
-    # Get first session to determine actual tournament start time
     first_session = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id
     ).order_by(SessionModel.date_start).first()
@@ -142,8 +147,6 @@ def enroll_in_tournament(
             )
 
     # 6. Verify age category enrollment rules using shared validation
-    from app.services.tournament.validation import validate_tournament_enrollment_age
-
     tournament_age_group = tournament.age_group
     is_valid, error_message = validate_tournament_enrollment_age(
         player_age_category,
@@ -157,8 +160,6 @@ def enroll_in_tournament(
         )
 
     # 7. Check not already enrolled using shared validation
-    from app.services.tournament.validation import check_duplicate_enrollment
-
     is_unique, duplicate_message = check_duplicate_enrollment(
         db,
         current_user.id,
@@ -240,8 +241,6 @@ def enroll_in_tournament(
     db.add(current_user)  # ✅ THIS IS REQUIRED! Without this, SQLAlchemy won't track the change
 
     # 11.5. Create credit transaction record for audit trail
-    from app.models.credit_transaction import CreditTransaction
-
     credit_transaction = CreditTransaction(
         user_license_id=license.id,
         transaction_type="TOURNAMENT_ENROLLMENT",
@@ -280,8 +279,6 @@ def enroll_in_tournament(
         logger.warning(f"⚠️ No session found for tournament {tournament_id} - booking not created")
 
     # 12. Commit transaction
-    import logging
-    import traceback
     logger = logging.getLogger(__name__)
 
     try:
@@ -373,7 +370,6 @@ def unenroll_from_tournament(
     - Refund amount
     - Final credit balance
     """
-    import logging
     logger = logging.getLogger(__name__)
     logger.info(f"🚫 UNENROLL START - Tournament: {tournament_id}, User: {current_user.id}")
 
@@ -429,8 +425,6 @@ def unenroll_from_tournament(
     db.add(current_user)
 
     # 8. Create credit transaction record for refund
-    from app.models.credit_transaction import CreditTransaction
-
     refund_transaction = CreditTransaction(
         user_license_id=enrollment.user_license_id,
         transaction_type="TOURNAMENT_UNENROLL_REFUND",

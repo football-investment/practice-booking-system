@@ -14,6 +14,21 @@ from .....models.license import UserLicense
 from .....models.specialization import SpecializationType
 
 """
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, Field
+import sys
+import os
+
+# Add service layer to path
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
+
+    from app.models.user import UserRole
+        from sqlalchemy import text
 Internship License Management API Endpoints
 
 Provides REST API endpoints for Internship XP-based progression system.
@@ -25,21 +40,7 @@ Level System: XP-based progression with automatic level-up
 - Expiry: 15 months from creation/renewal
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field
-import sys
-import os
-
-# Add service layer to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
-
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
-from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
 
 router = APIRouter()
 
@@ -293,12 +294,10 @@ def list_all_licenses(
     current_user: User = Depends(get_current_user)
 ):
     """Get all Internship licenses (Admin only)"""
-    from app.models.user import UserRole
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admin can view all licenses")
 
     try:
-        from sqlalchemy import text
         query = text("SELECT * FROM internship_licenses WHERE is_active = TRUE ORDER BY id DESC")
         result = db.execute(query).fetchall()
         return [dict(row._mapping) for row in result]
@@ -326,7 +325,6 @@ def create_license(
     try:
         # 🔒 CRITICAL: Validate user has enough credits (100 required)
         # Refresh user from database to get latest credit_balance
-        from sqlalchemy import text
         db.refresh(current_user)
 
         REQUIRED_CREDITS = 100

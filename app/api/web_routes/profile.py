@@ -13,6 +13,15 @@ from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 
 # Setup templates
+    from ...models.license import UserLicense
+    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+    from ...models.semester import Semester
+
+    # Get user licenses for specialization switcher (students only)
+    # Initialize variables at top level to prevent 500 errors
+    from ...utils.age_requirements import validate_specialization_for_age
+
+        import traceback
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -26,12 +35,6 @@ async def profile_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display user profile page"""
-    from ...models.license import UserLicense
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from ...models.semester import Semester
-
-    # Get user licenses for specialization switcher (students only)
-    # Initialize variables at top level to prevent 500 errors
     user_licenses = []
     active_license = None
     active_enrollment = None
@@ -170,9 +173,6 @@ async def profile_edit_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Update user profile"""
-    from ...utils.age_requirements import validate_specialization_for_age
-    from ...models.license import UserLicense
-
     try:
         # Parse date of birth
         try:
@@ -272,7 +272,6 @@ async def profile_edit_submit(
     except Exception as e:
         db.rollback()
         print(f"Error updating profile: {e}")
-        import traceback
         traceback.print_exc()
 
         return templates.TemplateResponse(

@@ -15,6 +15,33 @@ from ...models.user import User, UserRole
 from .helpers import get_lfa_age_category
 
 # Setup templates
+    from ...models.user import UserRole
+
+    # 🆕 STUDENT DASHBOARD: Unified hub showing ALL specializations (locked + unlocked)
+        from ...models.license import UserLicense
+        from ...utils.age_requirements import get_available_specializations
+        from datetime import date
+
+        # Calculate user age
+        from ...models.semester import Semester
+
+        # Check all user licenses for incomplete onboarding
+        from ...models.gamification import UserStats
+        from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+        from sqlalchemy.orm import joinedload
+
+        from datetime import datetime
+        import secrets
+            from ...models.session import Session as SessionModel
+                from datetime import datetime as dt
+
+        # Get current license for current specialization (to check payment_verified)
+        from ...models.user import User as UserModel
+
+    from ...models.semester_enrollment import SemesterEnrollment
+    from datetime import date, timezone
+
+    # Convert URL format to enum format (e.g., "lfa-football-player" → "LFA_FOOTBALL_PLAYER")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -30,15 +57,7 @@ async def dashboard(
     user: User = Depends(get_current_user_web)
 ):
     """Dashboard page with multi-spec support"""
-    from ...models.user import UserRole
-
-    # 🆕 STUDENT DASHBOARD: Unified hub showing ALL specializations (locked + unlocked)
     if user.role == UserRole.STUDENT:
-        from ...models.license import UserLicense
-        from ...utils.age_requirements import get_available_specializations
-        from datetime import date
-
-        # Calculate user age
         user_age = None
         if user.date_of_birth:
             today = date.today()
@@ -86,10 +105,6 @@ async def dashboard(
     # 📅 Get active semesters (for ADMIN dashboard)
     active_semesters = []
     if user.role == UserRole.ADMIN:
-        from ...models.semester import Semester
-        from datetime import date
-        import re
-
         today = date.today()
         active_semesters = db.query(Semester).filter(
             Semester.is_active == True,
@@ -134,9 +149,6 @@ async def dashboard(
 
     # 🔄 REDIRECT: Check if student has incomplete onboarding on any UserLicense
     if user.role == UserRole.STUDENT:
-        from ...models.license import UserLicense
-
-        # Check all user licenses for incomplete onboarding
         incomplete_license = db.query(UserLicense).filter(
             UserLicense.user_id == user.id,
             UserLicense.onboarding_completed == False
@@ -190,11 +202,6 @@ async def dashboard(
     next_semester = None
 
     if user.role == UserRole.STUDENT:
-        from ...models.gamification import UserStats
-        from ...models.license import UserLicense
-        from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-        from sqlalchemy.orm import joinedload
-
         user_stats = db.query(UserStats).filter(UserStats.user_id == user.id).first()
         if user_stats:
             xp_data = {
@@ -207,8 +214,6 @@ async def dashboard(
         user_licenses = db.query(UserLicense).filter(UserLicense.user_id == user.id).all()
 
         # Generate payment codes for any licenses that don't have them
-        from datetime import datetime
-        import secrets
         for lic in user_licenses:
             if not lic.payment_reference_code:
                 spec_short = {
@@ -289,7 +294,6 @@ async def dashboard(
         # Get upcoming sessions from APPROVED semesters (for "Next Session" card)
         upcoming_sessions = []
         if has_active_enrollment:
-            from ...models.session import Session as SessionModel
             approved_enrollments = db.query(SemesterEnrollment).filter(
                 SemesterEnrollment.user_id == user.id,
                 SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
@@ -300,7 +304,6 @@ async def dashboard(
             print(f"🔍 DEBUG: Approved semester IDs: {approved_semester_ids}")
 
             if approved_semester_ids:
-                from datetime import datetime as dt
                 now = dt.now()
                 upcoming_sessions = db.query(SessionModel).filter(
                     SessionModel.semester_id.in_(approved_semester_ids),
@@ -309,10 +312,6 @@ async def dashboard(
                 print(f"🔍 DEBUG: Found {len(upcoming_sessions)} upcoming sessions for {user.email}")
 
         # Get active semesters and check which ones user can enroll in
-        from ...models.semester import Semester
-        from datetime import date
-
-        # Get current license for current specialization (to check payment_verified)
         if specialization:
             current_license = next((lic for lic in user_licenses if lic.specialization_type == specialization.value), None)
 
@@ -392,7 +391,6 @@ async def dashboard(
     if user.role == UserRole.ADMIN:
         # ADMIN Dashboard
         print(f"🎯 ROUTING: Using dashboard_admin.html for {user.email}")
-        from ...models.user import User as UserModel
         stats = {
             "total_users": db.query(UserModel).count(),
             "active_students": db.query(UserModel).filter(UserModel.role == UserRole.STUDENT).count(),
@@ -464,8 +462,6 @@ def get_lfa_age_category(date_of_birth):
     - AMATEUR (14+ years): Competitive Play - Bi-annual semesters (instructor assigned)
     - PRO (14+ years): Professional Track - Annual semesters (instructor assigned)
     """
-    from datetime import date
-
     if not date_of_birth:
         return None, None, None, "Date of birth not set"
 
@@ -491,13 +487,6 @@ async def spec_dashboard(
     user: User = Depends(get_current_user_web)
 ):
     """Spec-specific dashboard for unlocked specializations"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-    from ...models.semester_enrollment import SemesterEnrollment
-    from ...models.semester import Semester
-    from datetime import date, timezone
-
-    # Convert URL format to enum format (e.g., "lfa-football-player" → "LFA_FOOTBALL_PLAYER")
     spec_enum = spec_type.upper().replace("-", "_")
 
     # Verify user has access to this specialization

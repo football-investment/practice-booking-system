@@ -17,6 +17,45 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
+    from ...models.user import UserRole
+    from ...models.instructor_specialization import InstructorSpecialization
+
+    # Only instructors can toggle
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from ...models.session import Session as SessionModel, SessionType
+
+    # Verify user is instructor
+
+    # Verify user is instructor
+
+    # Verify user is instructor
+    from ...models.quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt
+    from ...models.session import Session as SessionModel
+    from sqlalchemy.orm import joinedload
+    from datetime import datetime, timezone
+
+    # Get quiz with questions and answer options
+        from ...models.booking import Booking
+        from ...models.quiz import SessionQuiz
+
+        # Verify the quiz is actually linked to this session
+    from ...models.quiz import Quiz, QuizAttempt, QuizUserAnswer, QuizAnswerOption
+
+    # Get quiz
+
+        # Verify the quiz is actually linked to this session
+        from ...models.gamification import UserStats
+                from ...models.attendance import Attendance
+
+                # Find student's booking
+    from ...models.attendance import Attendance, AttendanceStatus
+    from ...models.performance_review import StudentPerformanceReview
+    
+    # Verify user is instructor
+    from ...models.performance_review import InstructorSessionReview
+    
+    # Verify user is student
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -37,10 +76,6 @@ async def toggle_instructor_specialization(
     user: User = Depends(get_current_user_web)
 ):
     """Toggle instructor specialization active/inactive"""
-    from ...models.user import UserRole
-    from ...models.instructor_specialization import InstructorSpecialization
-
-    # Only instructors can toggle
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Only instructors can manage teaching specializations")
 
@@ -80,12 +115,6 @@ async def start_session(
     - Instructor must own this session
     - Session must not be already started
     """
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-    from ...models.session import Session as SessionModel, SessionType
-    from ...models.user import UserRole
-
-    # Verify user is instructor
     if user.role != UserRole.INSTRUCTOR:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
@@ -145,12 +174,6 @@ async def stop_session(
     - Session must be started first
     - Session must not be already stopped
     """
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-    from ...models.session import Session as SessionModel, SessionType
-    from ...models.user import UserRole
-
-    # Verify user is instructor
     if user.role != UserRole.INSTRUCTOR:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
@@ -219,10 +242,6 @@ async def unlock_quiz(
     - Instructor must own this session
     - Session must be started (in progress)
     """
-    from ...models.session import Session as SessionModel, SessionType
-    from ...models.user import UserRole
-
-    # Verify user is instructor
     if user.role != UserRole.INSTRUCTOR:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
@@ -279,12 +298,6 @@ async def take_quiz(
     This is a web interface for quiz-taking linked from sessions.
     Students can take quizzes through this interface.
     """
-    from ...models.quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt
-    from ...models.session import Session as SessionModel
-    from sqlalchemy.orm import joinedload
-    from datetime import datetime, timezone
-
-    # Get quiz with questions and answer options
     quiz = db.query(Quiz).options(
         joinedload(Quiz.questions).joinedload(QuizQuestion.answer_options)
     ).filter(Quiz.id == quiz_id).first()
@@ -294,11 +307,6 @@ async def take_quiz(
 
     # CRITICAL: Check if this quiz is linked to a session, and if so, verify the user is BOOKED
     if session_id:
-        from ...models.booking import Booking
-        from ...models.quiz import SessionQuiz
-        from zoneinfo import ZoneInfo
-
-        # Verify the quiz is actually linked to this session
         session_quiz = db.query(SessionQuiz).filter(
             SessionQuiz.session_id == session_id,
             SessionQuiz.quiz_id == quiz_id
@@ -416,11 +424,6 @@ async def submit_quiz(
     Submit quiz answers and calculate score
     Simple scoring system: Understood (pass) / Needs Review (fail)
     """
-    from ...models.quiz import Quiz, QuizAttempt, QuizUserAnswer, QuizAnswerOption
-    from ...models.session import Session as SessionModel
-    from datetime import datetime, timezone
-
-    # Get quiz
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
@@ -428,11 +431,6 @@ async def submit_quiz(
     # CRITICAL: Check if this quiz is linked to a session, and if so, verify the user is BOOKED
     if session_id and session_id != "None":
         session_id_int = int(session_id)
-        from ...models.booking import Booking
-        from ...models.quiz import SessionQuiz
-        from zoneinfo import ZoneInfo
-
-        # Verify the quiz is actually linked to this session
         session_quiz = db.query(SessionQuiz).filter(
             SessionQuiz.session_id == session_id_int,
             SessionQuiz.quiz_id == quiz_id
@@ -531,7 +529,6 @@ async def submit_quiz(
 
     # Update user_stats with earned XP (GAMIFICATION SYNC)
     if attempt.xp_awarded > 0:
-        from ...models.gamification import UserStats
         user_stats = db.query(UserStats).filter(UserStats.user_id == user.id).first()
 
         if not user_stats:
@@ -558,10 +555,6 @@ async def submit_quiz(
 
             # VIRTUAL SESSION: Auto-mark attendance if quiz passed
             if session and session.session_type.value == 'virtual' and passed:
-                from ...models.attendance import Attendance
-                from ...models.booking import Booking
-
-                # Find student's booking
                 booking = db.query(Booking).filter(
                     Booking.user_id == user.id,
                     Booking.session_id == session.id
@@ -634,13 +627,6 @@ async def evaluate_student_performance(
     - Session must be On-Site type
     - Student must have attended the session
     """
-    from datetime import datetime, timezone
-    from ...models.session import Session as SessionModel, SessionType
-    from ...models.user import UserRole
-    from ...models.attendance import Attendance, AttendanceStatus
-    from ...models.performance_review import StudentPerformanceReview
-    
-    # Verify user is instructor
     if user.role != UserRole.INSTRUCTOR:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
     
@@ -788,13 +774,6 @@ async def evaluate_instructor_session(
     - Session must be On-Site type
     - Student must have attended the session (present/late status)
     """
-    from datetime import datetime, timezone
-    from ...models.session import Session as SessionModel, SessionType
-    from ...models.user import UserRole
-    from ...models.attendance import Attendance, AttendanceStatus
-    from ...models.performance_review import InstructorSessionReview
-    
-    # Verify user is student
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url=f"/sessions/{session_id}?error=students_only", status_code=303)
     

@@ -7,7 +7,7 @@ from typing import Optional
 from ..database import Base
 from .specialization import SpecializationType
 
-
+            from app.services.specialization_config_loader import SpecializationConfigLoader
 class SessionType(enum.Enum):
     """Professional session type classification for edtech/sporttech platforms"""
     on_site = "on_site"    # Physical presence required at venue
@@ -164,7 +164,6 @@ class Session(Base):
         if self.mixed_specialization:
             return "Vegyes (Player + Coach)"
         elif self.target_specialization:
-            from app.services.specialization_config_loader import SpecializationConfigLoader
             loader = SpecializationConfigLoader()
             try:
                 display_info = loader.get_display_info(self.target_specialization)
@@ -179,7 +178,6 @@ class Session(Base):
         if self.mixed_specialization:
             return "⚽👨‍🏫"
         elif self.target_specialization:
-            from app.services.specialization_config_loader import SpecializationConfigLoader
             loader = SpecializationConfigLoader()
             try:
                 display_info = loader.get_display_info(self.target_specialization)

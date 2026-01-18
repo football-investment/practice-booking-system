@@ -16,7 +16,13 @@ import pytest
 import requests
 from http.cookies import SimpleCookie
 
+        from app.config import settings
 
+        # Check that COOKIE_SECURE setting exists
+
+        # Check all required cookie settings exist
+
+        # Should be set
 API_BASE = "http://localhost:8000"
 
 
@@ -127,9 +133,6 @@ class TestCookieSecurityAttributes:
         Note: In development (HTTP), Secure=false is acceptable
         This test checks that the SETTING exists for production
         """
-        from app.config import settings
-
-        # Check that COOKIE_SECURE setting exists
         assert hasattr(settings, "COOKIE_SECURE"), \
             "Config must have COOKIE_SECURE setting for production"
 
@@ -237,9 +240,6 @@ class TestCookieConfiguration:
         """
         Test that cookie security configuration exists in settings
         """
-        from app.config import settings
-
-        # Check all required cookie settings exist
         assert hasattr(settings, "COOKIE_SECURE"), "Missing COOKIE_SECURE setting"
         assert hasattr(settings, "COOKIE_SAMESITE"), "Missing COOKIE_SAMESITE setting"
         assert hasattr(settings, "COOKIE_HTTPONLY"), "Missing COOKIE_HTTPONLY setting"
@@ -251,8 +251,6 @@ class TestCookieConfiguration:
 
         CRITICAL SECURITY: Must be strict (not lax or none)
         """
-        from app.config import settings
-
         assert settings.COOKIE_SAMESITE.lower() == "strict", \
             f"COOKIE_SAMESITE must be 'strict' for CSRF protection, got '{settings.COOKIE_SAMESITE}'"
 
@@ -262,8 +260,6 @@ class TestCookieConfiguration:
 
         For auth cookies (not CSRF cookies)
         """
-        from app.config import settings
-
         assert settings.COOKIE_HTTPONLY is True, \
             "COOKIE_HTTPONLY should be True for auth cookies (prevents XSS theft)"
 
@@ -273,9 +269,6 @@ class TestCookieConfiguration:
 
         Prevents indefinite sessions
         """
-        from app.config import settings
-
-        # Should be set
         assert settings.COOKIE_MAX_AGE > 0, \
             "COOKIE_MAX_AGE must be positive"
 

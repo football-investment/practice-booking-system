@@ -43,6 +43,7 @@ from typing import Dict, Any, List
 # Import fixtures from reward_policy_fixtures
 from tests.e2e.reward_policy_fixtures import (
     API_BASE_URL,
+        from datetime import datetime, timedelta
     reward_policy_admin_token,
     create_instructor_user,
     create_tournament_via_api,
@@ -88,7 +89,6 @@ class TestInstructorApplicationWorkflow:
         print("📋 E2E TEST: Instructor Application Workflow (Scenario 2)")
         print("="*80 + "\n")
 
-        from datetime import datetime, timedelta
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
 
         # ========================================================================
@@ -342,7 +342,6 @@ class TestInstructorApplicationWorkflow:
         print("🔒 E2E TEST: Application Workflow Validations")
         print("="*80 + "\n")
 
-        from datetime import datetime, timedelta
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
 
         # Create tournament

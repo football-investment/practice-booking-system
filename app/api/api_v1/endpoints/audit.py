@@ -15,6 +15,8 @@ from ....models.audit_log import AuditLog
 from ....services.audit_service import AuditService
 from ....schemas.audit import (
     AuditLogResponse,
+    from sqlalchemy import func
+    from sqlalchemy import func, and_
     AuditLogListResponse,
     AuditStatisticsResponse
 )
@@ -61,8 +63,6 @@ async def get_my_audit_logs(
     )
 
     # Get total count for pagination
-    from sqlalchemy import func
-    from ....models.audit_log import AuditLog
     db = audit_service.db
     total = db.query(func.count(AuditLog.id)).filter(
         AuditLog.user_id == current_user.id
@@ -122,8 +122,6 @@ async def get_all_audit_logs(
     )
 
     # Get total count for pagination
-    from sqlalchemy import func, and_
-    from ....models.audit_log import AuditLog
     db = audit_service.db
     query = db.query(func.count(AuditLog.id))
 
@@ -283,8 +281,6 @@ async def get_resource_audit_logs(
     )
 
     # Get total count
-    from sqlalchemy import func, and_
-    from ....models.audit_log import AuditLog
     db = audit_service.db
     total = db.query(func.count(AuditLog.id)).filter(
         and_(

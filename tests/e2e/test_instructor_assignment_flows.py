@@ -32,6 +32,13 @@ import urllib.parse
 # Import API fixtures for setup/teardown
 from tests.e2e.reward_policy_fixtures import (
     API_BASE_URL,
+                import requests
+
+        # Delete tournament
+
+            from playwright.sync_api import expect
+
+        # Delete tournament
     reward_policy_admin_token,
     create_instructor_user,
     create_tournament_via_api,
@@ -181,7 +188,6 @@ class TestInstructorAssignmentFlows:
                 print(f"        ✅ Application submitted")
 
                 # Get application ID via API
-                import requests
                 apps_response = requests.get(
                     f"{API_BASE_URL}/api/v1/tournaments/instructor/my-applications",
                     headers={"Authorization": f"Bearer {instructor['token']}"}
@@ -285,7 +291,6 @@ class TestInstructorAssignmentFlows:
             time.sleep(5)  # Give Streamlit time to fully reload
 
             # Verify status via API
-            import requests
             status_response = requests.get(
                 f"{API_BASE_URL}/api/v1/semesters/{tournament_id}",
                 headers={"Authorization": f"Bearer {reward_policy_admin_token}"}
@@ -373,9 +378,6 @@ class TestInstructorAssignmentFlows:
         # ====================================================================
         print("\n  🧹 Cleaning up...")
 
-        import requests
-
-        # Delete tournament
         try:
             requests.delete(
                 f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",
@@ -454,8 +456,6 @@ class TestInstructorAssignmentFlows:
         try:
             # For now, use API for direct assignment (UI implementation can be added later)
             # The direct assignment endpoint: POST /tournaments/{id}/direct-assign-instructor
-            import requests
-
             assignment_response = requests.post(
                 f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/direct-assign-instructor",
                 headers={"Authorization": f"Bearer {reward_policy_admin_token}"},
@@ -552,7 +552,6 @@ class TestInstructorAssignmentFlows:
             print(f"     ✅ Assignment accepted successfully")
 
             # Verify status via API (same endpoint as TEST 1)
-            import requests
             status_response = requests.get(
                 f"{API_BASE_URL}/api/v1/semesters/{tournament_id}",
                 headers={"Authorization": f"Bearer {reward_policy_admin_token}"}
@@ -613,7 +612,6 @@ class TestInstructorAssignmentFlows:
             time.sleep(3)  # Wait for tournaments to load
 
             # Expand tournament using tournament_code (more reliable than name)
-            from playwright.sync_api import expect
             expander_button = page.locator("summary").filter(has_text=tournament_code)
             expander_button.wait_for(state="visible", timeout=10000)
             expander_button.click()
@@ -641,9 +639,6 @@ class TestInstructorAssignmentFlows:
         # ====================================================================
         print("\n  🧹 Cleaning up...")
 
-        import requests
-
-        # Delete tournament
         try:
             requests.delete(
                 f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",

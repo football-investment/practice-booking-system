@@ -13,6 +13,25 @@ from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User
 
 # Setup templates
+    from ...models.license import UserLicense
+
+    # All available specializations (hardcoded for now since semester_specializations doesn't exist)
+    from ...models.specialization import SpecializationType
+
+            from ...models.credit_transaction import CreditTransaction, TransactionType
+
+        import traceback
+
+    # Verify user has LFA_FOOTBALL_PLAYER license
+
+    # Find the license
+    from datetime import date as date_type
+
+    from ...utils.age_requirements import get_available_specializations
+    from datetime import date
+
+    # Get today's date for max date validation
+    from datetime import datetime
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -26,9 +45,6 @@ async def specialization_select_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display specialization selection page - only show active specializations"""
-    from ...models.license import UserLicense
-
-    # All available specializations (hardcoded for now since semester_specializations doesn't exist)
     active_specializations = {
         "INTERNSHIP": {"has_instructor": True, "max_students": 30},
         "LFA_FOOTBALL_PLAYER": {"has_instructor": True, "max_students": 25},
@@ -59,9 +75,6 @@ async def specialization_select_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Process specialization selection and complete onboarding"""
-    from ...models.specialization import SpecializationType
-    from ...models.license import UserLicense
-
     try:
         # Validate specialization type
         try:
@@ -95,8 +108,6 @@ async def specialization_select_submit(
             user.credit_balance -= SPEC_UNLOCK_COST
 
             # Create the UserLicense (unlock specialization)
-            from ...models.credit_transaction import CreditTransaction, TransactionType
-
             user_license = UserLicense(
                 user_id=user.id,
                 specialization_type=spec_type.value,
@@ -145,7 +156,6 @@ async def specialization_select_submit(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"Error during specialization selection: {e}")
         print(traceback.format_exc())
         # Redirect back to dashboard with error message (instead of showing old 4-card page)
@@ -162,9 +172,6 @@ async def lfa_player_onboarding_page(
     LFA Player specialized onboarding questionnaire
     Multi-step: Position -> Self-Assessment -> Motivation
     """
-    from ...models.license import UserLicense
-
-    # Verify user has LFA_FOOTBALL_PLAYER license
     license = db.query(UserLicense).filter(
         UserLicense.user_id == user.id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
@@ -200,10 +207,6 @@ async def lfa_player_onboarding_cancel(
     """
     Cancel LFA Player onboarding and refund credits
     """
-    from ...models.license import UserLicense
-    from ...models.credit_transaction import CreditTransaction, TransactionType
-
-    # Find the license
     license = db.query(UserLicense).filter(
         UserLicense.user_id == user.id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
@@ -251,9 +254,6 @@ async def lfa_player_onboarding_submit(
     Process LFA Player onboarding questionnaire
     Saves: date_of_birth, position, self-assessment skills, motivation
     """
-    from ...models.license import UserLicense
-    from datetime import date as date_type
-
     try:
         form = await request.form()
 
@@ -323,7 +323,6 @@ async def lfa_player_onboarding_submit(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"Error processing LFA Player onboarding: {e}")
         print(traceback.format_exc())
         return templates.TemplateResponse(
@@ -350,10 +349,6 @@ async def onboarding_start(
     4. Auto-create UserLicense(s)
     5. Show payment info
     """
-    from ...utils.age_requirements import get_available_specializations
-    from datetime import date
-
-    # Get today's date for max date validation
     today = date.today().isoformat()
 
     # Get available specializations based on age
@@ -380,8 +375,6 @@ async def onboarding_set_birthdate(
     user: User = Depends(get_current_user_web)
 ):
     """Set user's date of birth and continue onboarding"""
-    from datetime import datetime
-
     try:
         # Parse date
         dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date()

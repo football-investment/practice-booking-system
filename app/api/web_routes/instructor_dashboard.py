@@ -17,6 +17,22 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
+    from ...models.user import UserRole
+    from ...models.semester import Semester
+    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+    from sqlalchemy.orm import joinedload
+
+    # Security check: ONLY instructors can access
+    from ...models.specialization import SpecializationType
+
+    from ...models.license import UserLicense
+
+    # Security check: ONLY instructors can access
+    from datetime import datetime, timezone
+
+    # Security check: ONLY instructors can update
+    from ...services.audit_service import AuditService
+    from ...models.audit_log import AuditAction
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -30,12 +46,6 @@ async def instructor_enrollments_page(
     user: User = Depends(get_current_user_web)
 ):
     """Instructor-only: View and approve enrollment requests for their semesters"""
-    from ...models.user import UserRole
-    from ...models.semester import Semester
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from sqlalchemy.orm import joinedload
-
-    # Security check: ONLY instructors can access
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
@@ -63,8 +73,6 @@ async def instructor_enrollments_page(
         )
 
     # Group enrollments by specialization
-    from ...models.specialization import SpecializationType
-
     specialization_groups = {}
     for spec_type in SpecializationType:
         spec_enrollments = [e for e in all_enrollments if e.user_license.specialization_type == spec_type.value]
@@ -103,10 +111,6 @@ async def instructor_edit_student_skills_page(
     user: User = Depends(get_current_user_web)
 ):
     """Instructor-only: Edit football skills for LFA Player students"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-
-    # Security check: ONLY instructors can access
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
@@ -170,11 +174,6 @@ async def instructor_update_student_skills(
     instructor_notes: str = Form("")
 ):
     """Instructor-only: Update football skills for a student"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-    from datetime import datetime, timezone
-
-    # Security check: ONLY instructors can update
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
@@ -248,8 +247,6 @@ async def instructor_update_student_skills(
     db.refresh(license)
 
     # Log audit
-    from ...services.audit_service import AuditService
-    from ...models.audit_log import AuditAction
     audit_service = AuditService(db)
     audit_service.log(
         action=AuditAction.UPDATE,

@@ -17,6 +17,13 @@ from ...core.security import verify_password
 from ...config import settings
 
 # Setup templates
+    from ...models.user import UserRole
+
+    # Only students need age verification
+    from datetime import date
+
+    # Only students need age verification
+        import traceback
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -71,7 +78,6 @@ async def login_submit(
     )
 
     # Check if student needs age verification (first time login)
-    from ...models.user import UserRole
     redirect_url = "/dashboard"
 
     if user.role == UserRole.STUDENT and user.date_of_birth is None:
@@ -110,9 +116,6 @@ async def age_verification_page(
     user: User = Depends(get_current_user_web)
 ):
     """Age verification page for first-time students"""
-    from ...models.user import UserRole
-
-    # Only students need age verification
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -138,10 +141,6 @@ async def age_verification_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Process age verification form"""
-    from ...models.user import UserRole
-    from datetime import date
-
-    # Only students need age verification
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -213,7 +212,6 @@ async def age_verification_submit(
         )
     except Exception as e:
         print(f"Error during age verification: {e}")
-        import traceback
         traceback.print_exc()
         return templates.TemplateResponse(
             "age_verification.html",

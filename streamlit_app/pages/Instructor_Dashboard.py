@@ -12,6 +12,22 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 # Page configuration
+from api_helpers_notifications import get_unread_notification_count
+
+        from api_helpers_instructors import get_my_master_offers
+    from components.instructor.tournament_applications import (
+        render_open_tournaments_tab,
+
+        from components.sessions.session_checkin import render_session_checkin
+        from components.tournaments.instructor.tournament_checkin import render_tournament_checkin
+    from components.instructor.tournament_applications import render_my_applications_tab
+
+    from api_helpers_instructors import get_user_licenses
+
+    import requests
+    from config import API_BASE_URL, API_TIMEOUT
+
+                        import time
 st.set_page_config(
     page_title=f"{PAGE_TITLE} - Instructor Dashboard",
     page_icon=PAGE_ICON,
@@ -40,8 +56,6 @@ if user.get('role') != 'instructor':
 token = st.session_state[SESSION_TOKEN_KEY]
 
 # Header with Notification Badge
-from api_helpers_notifications import get_unread_notification_count
-
 col_title, col_badge = st.columns([4, 1])
 
 with col_title:
@@ -190,7 +204,6 @@ with tab1:
         st.metric("📅 This Week", len(upcoming_sessions))
     with stats_col3:
         # Count pending actions (tournament requests + master offers)
-        from api_helpers_instructors import get_my_master_offers
         try:
             pending_offers = get_my_master_offers(token, include_expired=False)
             pending_offers_count = len([o for o in pending_offers if o.get('status') == 'PENDING'])
@@ -806,8 +819,6 @@ with tab2:
 # ========================================
 with tab3:
     # Import tournament application components
-    from components.instructor.tournament_applications import (
-        render_open_tournaments_tab,
         render_my_applications_tab,
         render_my_tournaments_tab
     )
@@ -836,8 +847,6 @@ with tab4:
     st.caption("Students enrolled in your master-led semesters")
 
     # Check if user is an active Master Instructor
-    from api_helpers_instructors import get_my_master_offers
-
     with st.spinner("Checking master instructor status..."):
         try:
             my_offers = get_my_master_offers(token, include_expired=False)
@@ -890,12 +899,10 @@ with tab5:
 
     with checkin_tab1:
         # Regular session check-in (Present, Absent, Late, Excused)
-        from components.sessions.session_checkin import render_session_checkin
         render_session_checkin(token, user.get('id'))
 
     with checkin_tab2:
         # Tournament session check-in (Present, Absent ONLY)
-        from components.tournaments.instructor.tournament_checkin import render_tournament_checkin
         render_tournament_checkin(token, user.get('id'))
 
 # ========================================
@@ -903,8 +910,6 @@ with tab5:
 # ========================================
 with tab6:
     # Use the new universal inbox component
-    from components.instructor.tournament_applications import render_my_applications_tab
-
     render_my_applications_tab(token, user)
 
 # ========================================
@@ -915,8 +920,6 @@ with tab7:
     st.caption("Your licenses, teaching permissions, and instructor status")
 
     # Fetch instructor's teaching licenses
-    from api_helpers_instructors import get_user_licenses
-
     instructor_licenses = get_user_licenses(token, user.get('id'))
 
     # Display instructor profile in 3-column layout (similar to student profile)
@@ -1128,9 +1131,6 @@ def show_record_results_dialog():
     Dialog for recording tournament rankings and results.
     Calls POST /api/v1/tournaments/{tournament_id}/rankings
     """
-    import requests
-    from config import API_BASE_URL, API_TIMEOUT
-
     tournament_id = st.session_state.get('record_results_tournament_id')
     tournament = st.session_state.get('record_results_tournament', {})
     tournament_name = tournament.get('name', 'Unknown Tournament')
@@ -1269,7 +1269,6 @@ def show_record_results_dialog():
                         if 'record_results_tournament' in st.session_state:
                             del st.session_state['record_results_tournament']
 
-                        import time
                         time.sleep(2)
                         st.rerun()
                     else:
@@ -1298,10 +1297,6 @@ def show_complete_tournament_dialog():
     Dialog for marking a tournament as COMPLETED.
     Calls PATCH /api/v1/tournaments/{tournament_id}/status
     """
-    import requests
-    import time
-    from config import API_BASE_URL, API_TIMEOUT
-
     tournament_id = st.session_state.get('complete_tournament_id')
     tournament_name = st.session_state.get('complete_tournament_name', 'Unknown')
 

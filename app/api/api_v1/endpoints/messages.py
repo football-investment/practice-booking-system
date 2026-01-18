@@ -9,6 +9,8 @@ from ....models.user import User
 from ....models.message import Message, MessagePriority
 from ....schemas.message import (
     MessageList,
+    from datetime import datetime, timezone
+        import traceback
     Message as MessageSchema,
     MessageCreate,
     MessageCreateByNickname,
@@ -127,7 +129,6 @@ def create_message(
         raise HTTPException(status_code=404, detail="Recipient not found")
     
     # Create message
-    from datetime import datetime, timezone
     new_message = Message(
         sender_id=current_user.id,
         recipient_id=message_data.recipient_id,
@@ -167,7 +168,6 @@ def create_message_by_nickname(
             raise HTTPException(status_code=404, detail=f"User with nickname '{message_data.recipient_nickname}' not found")
         
         # Create message with explicit datetime
-        from datetime import datetime, timezone
         new_message = Message(
             sender_id=current_user.id,
             recipient_id=recipient.id,
@@ -196,7 +196,6 @@ def create_message_by_nickname(
     except Exception as e:
         db.rollback()
         print(f"Database error in create_message_by_nickname: {e}")
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Database operation failed")
 
@@ -232,7 +231,6 @@ def update_message(
     if message_update.message is not None:
         message.message = message_update.message
         # Mark as edited
-        from datetime import datetime, timezone
         message.edited_at = datetime.now(timezone.utc)
         message.is_edited = True
     

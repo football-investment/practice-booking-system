@@ -57,6 +57,10 @@ from datetime import datetime
 # Import API fixtures for setup/teardown
 from .reward_policy_fixtures import (
     API_BASE_URL,
+        import psycopg2
+        import requests
+
+        # Delete tournament
     reward_policy_admin_token,
     create_instructor_user,
     create_tournament_via_api,
@@ -121,7 +125,6 @@ class TestInstructorApplicationWorkflowUI:
         print("\n  0️⃣ Getting existing tournaments from DB (already created)...")
 
         # Fetch the 3 tournaments from DB
-        import psycopg2
         conn = psycopg2.connect(
             host="localhost",
             database="lfa_intern_system",
@@ -161,7 +164,6 @@ class TestInstructorApplicationWorkflowUI:
         }
 
         # Get instructor token via API login
-        import requests
         login_response = requests.post(
             f"{API_BASE_URL}/api/v1/auth/login",
             json={"email": instructor['email'], "password": instructor['password']}
@@ -339,7 +341,6 @@ class TestInstructorApplicationWorkflowUI:
 
         try:
             # Get application IDs from API
-            import requests
             apps_response = requests.get(
                 f"{API_BASE_URL}/api/v1/tournaments/instructor/my-applications",
                 headers={"Authorization": f"Bearer {instructor['token']}"}
@@ -490,7 +491,6 @@ class TestInstructorApplicationWorkflowUI:
         ]
 
         # Login each player and enroll via API
-        import requests
         enrolled_players = []
         for idx, player_data in enumerate(test_players):
             try:
@@ -812,9 +812,6 @@ class TestInstructorApplicationWorkflowUI:
         # ========================================================================
         print("\n  🧹 Cleaning up...")
 
-        import requests
-
-        # Delete tournament
         try:
             requests.delete(
                 f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",

@@ -14,7 +14,10 @@ from typing import Dict, Any, List, Generator
 from datetime import datetime, timedelta
 import os
 
+    import psycopg2
+    import random
 
+    # Try multiple dates to avoid conflicts
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
@@ -64,7 +67,6 @@ def create_instructor_user(token: str) -> Dict[str, Any]:
     instructor["password"] = instructor_data["password"]
 
     # ✅ CRITICAL FIX: Directly insert LFA_COACH license via database
-    import psycopg2
     conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
     cur = conn.cursor()
 
@@ -285,7 +287,6 @@ def create_first_team_players(admin_token: str, count: int = 3) -> List[Dict[str
     Returns:
         List of player dicts with email, password, id, token
     """
-    import psycopg2
     players = []
 
     for i in range(count):
@@ -420,7 +421,6 @@ def create_attendance_records(
     Returns:
         Dict with attendance count created
     """
-    import psycopg2
     conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
     cur = conn.cursor()
 
@@ -515,7 +515,6 @@ def create_player_users(token: str, count: int = 5, age_group: str = "AMATEUR") 
 
         # ✅ CRITICAL FIX: Directly insert license via database
         # Bypass API complexity and create license + user_license records directly
-        import psycopg2
         conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
         cur = conn.cursor()
 
@@ -577,9 +576,6 @@ def create_tournament_via_api(
 
     Uses the POST /api/v1/tournaments/generate endpoint.
     """
-    import random
-
-    # Try multiple dates to avoid conflicts
     for attempt in range(10):
         today = datetime.now().date()
         # Use far future date with random offset
@@ -667,7 +663,6 @@ def set_tournament_rankings(
         rankings: List of {"user_id": int, "placement": str, "points": int, "wins": int, "draws": int, "losses": int}
                   placement values: "1ST", "2ND", "3RD", "PARTICIPANT"
     """
-    import psycopg2
     conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
     cur = conn.cursor()
 
@@ -703,7 +698,6 @@ def mark_tournament_completed(token: str, tournament_id: int):
     """Mark tournament as COMPLETED."""
     # WORKAROUND: SemesterUpdate schema doesn't include tournament_status field,
     # so we update via direct SQL to set both status and tournament_status
-    import psycopg2
     conn = psycopg2.connect(
         dbname="lfa_intern_system",
         user="postgres",

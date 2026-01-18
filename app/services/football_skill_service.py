@@ -11,7 +11,10 @@ from ..models.football_skill_assessment import FootballSkillAssessment
 from ..models.license import UserLicense
 from ..models.user import User
 
+            from sqlalchemy.orm.attributes import flag_modified
+        from ..schemas.license import SkillAssessmentHistoryResponse, SkillAssessmentResponse
 
+        # Get assessments for this skill
 class FootballSkillService:
     """Service for managing football skill assessments"""
 
@@ -112,7 +115,6 @@ class FootballSkillService:
             license.football_skills[skill_name] = average
 
             # Mark as modified (for JSON field)
-            from sqlalchemy.orm.attributes import flag_modified
             flag_modified(license, 'football_skills')
 
         return average
@@ -151,10 +153,6 @@ class FootballSkillService:
         Returns:
             SkillAssessmentHistoryResponse with current average, count, and assessments
         """
-        from ..schemas.license import SkillAssessmentHistoryResponse, SkillAssessmentResponse
-        from ..models.user import User
-
-        # Get assessments for this skill
         assessments = self.db.query(FootballSkillAssessment).filter(
             FootballSkillAssessment.user_license_id == user_license_id,
             FootballSkillAssessment.skill_name == skill_name

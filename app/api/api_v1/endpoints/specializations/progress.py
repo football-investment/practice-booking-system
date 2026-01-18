@@ -12,18 +12,15 @@ from .....models.user_progress import SpecializationProgress
 from .....services.specialization_service import SpecializationService
 
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 """
-🎓 Specialization API Endpoints
-Handles specialization selection and information for the LFA education platform
-"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
 
 from pydantic import BaseModel
 
+    from sqlalchemy import and_
+    from datetime import datetime
+🎓 Specialization API Endpoints
+Handles specialization selection and information for the LFA education platform
+"""
 router = APIRouter()
 
 class SpecializationResponse(BaseModel):
@@ -203,9 +200,6 @@ async def update_coach_hours(
     Returns:
         Updated progress data
     """
-    from sqlalchemy import and_
-    from datetime import datetime
-
     try:
         # Find COACH progress
         progress = db.query(SpecializationProgress).filter(

@@ -10,27 +10,27 @@ import requests
 from datetime import datetime, date, time
 
 # Setup imports
-parent_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(parent_dir))
-
 from api_helpers_general import get_semesters
 from api_helpers_tournaments import (
     update_tournament,
+from config import API_BASE_URL, API_TIMEOUT
+from components.admin.tournament_constants import GAME_TYPE_OPTIONS
+
+    from components.admin.tournament_approval import render_instructor_applications_section
+    from components.admin.tournament_creation import (
+        render_reward_distribution_section,
+    import time
+parent_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(parent_dir))
+
     get_tournament_enrollment_count,
     generate_tournament_sessions,
     preview_tournament_sessions,
     delete_generated_sessions
 )
-from config import API_BASE_URL, API_TIMEOUT
-from components.admin.tournament_constants import GAME_TYPE_OPTIONS
-
-
 def render_tournament_list(token: str):
     """Display list of all tournaments"""
     # Import cross-module dependencies
-    from components.admin.tournament_approval import render_instructor_applications_section
-    from components.admin.tournament_creation import (
-        render_reward_distribution_section,
         show_open_enrollment_dialog,
         show_publish_tournament_dialog,
         show_close_enrollment_dialog,
@@ -821,8 +821,6 @@ def show_delete_game_dialog():
 @st.dialog("🗑️ Delete Tournament")
 def show_delete_tournament_dialog():
     """Show confirmation dialog for deleting a tournament"""
-    import time
-
     tournament_id = st.session_state.get('delete_tournament_id')
     tournament_name = st.session_state.get('delete_tournament_name', 'Untitled')
 
@@ -964,7 +962,6 @@ def show_generate_sessions_dialog():
                 if 'generate_sessions_tournament_type_id' in st.session_state:
                     del st.session_state['generate_sessions_tournament_type_id']
 
-                import time
                 time.sleep(2)
                 st.rerun()
             else:
@@ -1122,7 +1119,6 @@ def show_reset_sessions_dialog():
                 if 'reset_sessions_tournament_name' in st.session_state:
                     del st.session_state['reset_sessions_tournament_name']
 
-                import time
                 time.sleep(1)
                 st.rerun()
             else:

@@ -8,13 +8,26 @@ from .....dependencies import get_current_user
 from .....models.user import User
 
 """
-Instructor assignment requests
-"""
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
+"""
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional
+from datetime import datetime
 
+from app.database import get_db
+from app.models.instructor_assignment import (
+    InstructorAvailabilityWindow,
+from app.models.user import User, UserRole
+from app.models.semester import Semester
+from app.models.license import UserLicense
+from app.schemas.instructor_assignment import (
+    InstructorAvailabilityWindowCreate,
+from app.dependencies import get_current_user
+
+    from app.models.notification import Notification, NotificationType
+Instructor assignment requests
 """
 Instructor Assignment Request System API Endpoints
 
@@ -28,22 +41,9 @@ Flow:
 5. Instructor accepts/declines specific semester assignments
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, joinedload
-from typing import List, Optional
-from datetime import datetime
-
-from app.database import get_db
-from app.models.instructor_assignment import (
-    InstructorAvailabilityWindow,
     InstructorAssignmentRequest,
     AssignmentRequestStatus
 )
-from app.models.user import User, UserRole
-from app.models.semester import Semester
-from app.models.license import UserLicense
-from app.schemas.instructor_assignment import (
-    InstructorAvailabilityWindowCreate,
     InstructorAvailabilityWindowUpdate,
     InstructorAvailabilityWindowResponse,
     InstructorAssignmentRequestCreate,
@@ -55,8 +55,6 @@ from app.schemas.instructor_assignment import (
     InstructorLicenseInfo,
     AvailableInstructorsQuery
 )
-from app.dependencies import get_current_user
-
 router = APIRouter()
 
 
@@ -131,8 +129,6 @@ def create_assignment_request(
     db.refresh(db_request)
 
     # ✅ NEW: Auto-create notification for instructor
-    from app.models.notification import Notification, NotificationType
-
     notification = Notification(
         user_id=instructor.id,
         type=NotificationType.JOB_OFFER,

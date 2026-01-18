@@ -8,8 +8,6 @@ Usage:
 """
 
 import sys
-sys.path.append('.')
-
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.semester import Semester
@@ -18,6 +16,11 @@ from app.models.instructor_assignment import InstructorAssignmentRequest
 from datetime import datetime, timedelta
 import random
 
+    from app.models.session import Session as SessionModel
+
+    # Get tournament IDs first
+        import traceback
+sys.path.append('.')
 
 def create_test_tournaments(db: Session, count: int = 50):
     """
@@ -149,9 +152,6 @@ def cleanup_test_tournaments(db: Session):
     """Clean up test tournaments and related data"""
     print("\n🧹 Cleaning up test tournaments...")
 
-    from app.models.session import Session as SessionModel
-
-    # Get tournament IDs first
     tournament_ids = [t.id for t in db.query(Semester).filter(Semester.code.like('TOURN-%')).all()]
 
     if not tournament_ids:
@@ -248,7 +248,6 @@ def main():
 
     except Exception as e:
         print(f"\n❌ TEST FAILED: {str(e)}")
-        import traceback
         traceback.print_exc()
 
     finally:
@@ -256,8 +255,6 @@ def main():
 
 
 if __name__ == "__main__":
-    import sys
-
     if len(sys.argv) > 1 and sys.argv[1] == '--cleanup':
         db = SessionLocal()
         try:

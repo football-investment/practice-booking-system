@@ -11,6 +11,7 @@ import pytest
 from playwright.sync_api import Page, expect
 from tests.e2e.conftest import (
     STREAMLIT_URL,
+        import time
     navigate_to_tournament_checkin,
     assert_button_count,
     assert_no_button_with_label,
@@ -328,8 +329,6 @@ class TestTournamentE2EPerformance:
 
     def test_tournament_page_loads_within_5_seconds(self, instructor_page: Page):
         """Tournament check-in page loads within 5 seconds."""
-        import time
-
         page = instructor_page
 
         start_time = time.time()
@@ -345,8 +344,6 @@ class TestTournamentE2EPerformance:
 
     def test_attendance_marking_responds_quickly(self, instructor_page: Page):
         """Clicking attendance button responds within 2 seconds."""
-        import time
-
         page = instructor_page
 
         navigate_to_tournament_checkin(page)

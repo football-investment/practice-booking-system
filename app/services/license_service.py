@@ -9,12 +9,13 @@ from typing import List, Dict, Optional, Any
 
 from ..models.license import (
     LicenseMetadata, UserLicense, LicenseProgression, 
-    LicenseType, LicenseSystemHelper
-)
 from ..models.user import User
 from ..models.specialization import SpecializationType
 
-
+                from app.services.progress_license_sync_service import ProgressLicenseSyncService
+                    import logging
+    LicenseType, LicenseSystemHelper
+)
 class LicenseService:
     """Service for managing GānCuju™️©️ license system"""
 
@@ -157,7 +158,6 @@ class LicenseService:
         level_changed = (old_level != target_level)
         if level_changed:
             try:
-                from app.services.progress_license_sync_service import ProgressLicenseSyncService
                 sync_service = ProgressLicenseSyncService(self.db)
                 sync_result = sync_service.sync_license_to_progress(
                     user_id=user_id,
@@ -165,14 +165,12 @@ class LicenseService:
                 )
                 if not sync_result.get('success'):
                     # Log warning but don't fail the advancement
-                    import logging
                     logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Auto-sync (License→Progress) failed for user {user_id}, {specialization}: {sync_result.get('message')}"
                     )
             except Exception as e:
                 # Log error but don't fail the license advancement
-                import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"Auto-sync exception for user {user_id}: {str(e)}")
 

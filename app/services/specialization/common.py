@@ -11,6 +11,17 @@ from app.models.specialization import SpecializationType
 from app.services.specialization_config_loader import get_config_loader
 from .validation import specialization_id_to_enum, validate_specialization_exists
 
+    from app.models.user_progress import SpecializationProgress
+
+    # STEP 1: Validate specialization exists in DB (HYBRID check)
+
+    # STEP 1: Validate specialization exists in DB (HYBRID check)
+    from app.services.gamification import GamificationService
+            from app.services.progress_license_sync_service import ProgressLicenseSyncService
+    from app.models.user import User
+    from app.services.specialization_validation import SpecializationValidator
+
+    # STEP 1: Validate specialization exists in DB
 logger = logging.getLogger(__name__)
 
 
@@ -111,9 +122,6 @@ def get_student_progress(
     Raises:
         ValueError: If specialization doesn't exist or is inactive
     """
-    from app.models.user_progress import SpecializationProgress
-
-    # STEP 1: Validate specialization exists in DB (HYBRID check)
     if not validate_specialization_exists(db, specialization_id):
         raise ValueError(f"Specialization '{specialization_id}' does not exist or is not active")
 
@@ -255,9 +263,6 @@ def update_progress(
     Raises:
         ValueError: If specialization doesn't exist or is inactive
     """
-    from app.models.user_progress import SpecializationProgress
-
-    # STEP 1: Validate specialization exists in DB (HYBRID check)
     if not validate_specialization_exists(db, specialization_id):
         raise ValueError(f"Specialization '{specialization_id}' does not exist or is not active")
 
@@ -304,7 +309,6 @@ def update_progress(
         new_level_info = get_level_requirements(db, specialization_id, progress.current_level)
 
     # CHECK AND AWARD SPECIALIZATION ACHIEVEMENTS
-    from app.services.gamification import GamificationService
     gamification = GamificationService(db)
     new_achievements = gamification.check_and_award_specialization_achievements(
         user_id=student_id,
@@ -315,7 +319,6 @@ def update_progress(
     sync_result = None
     if leveled_up:
         try:
-            from app.services.progress_license_sync_service import ProgressLicenseSyncService
             sync_service = ProgressLicenseSyncService(db)
             sync_result = sync_service.sync_progress_to_license(
                 user_id=student_id,
@@ -414,11 +417,6 @@ def enroll_user(db: Session, user_id: int, specialization_id: str) -> Dict[str, 
     Raises:
         ValueError: If validation fails
     """
-    from app.models.user import User
-    from app.models.user_progress import SpecializationProgress
-    from app.services.specialization_validation import SpecializationValidator
-
-    # STEP 1: Validate specialization exists in DB
     if not validate_specialization_exists(db, specialization_id):
         raise ValueError(f"Specialization '{specialization_id}' does not exist or is not active")
 

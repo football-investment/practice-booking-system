@@ -11,6 +11,13 @@ from .....models.user import User, UserRole
 from .....models.license import UserLicense
 from .....services.football_skill_service import FootballSkillService
 
+    from ....models.license import UserLicense
+    from ....schemas.license import FootballSkillsResponse
+
+    from ....schemas.license import FootballSkillsUpdate
+    from datetime import datetime, timezone
+
+    # Get all LFA Player licenses for this user
 router = APIRouter()
 
 @router.get("/{license_id}/football-skills", response_model=Dict[str, Any])
@@ -26,9 +33,6 @@ async def get_football_skills(
 
     - **license_id**: UserLicense ID
     """
-    from ....models.license import UserLicense
-    from ....schemas.license import FootballSkillsResponse
-
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 
     if not license:
@@ -104,10 +108,6 @@ async def update_football_skills(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only instructors can update football skills"
         )
-
-    from ....models.license import UserLicense
-    from ....schemas.license import FootballSkillsUpdate
-    from datetime import datetime, timezone
 
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 
@@ -202,9 +202,6 @@ async def get_user_all_football_skills(
             detail="You can only view your own skills"
         )
 
-    from ....models.license import UserLicense
-
-    # Get all LFA Player licenses for this user
     licenses = db.query(UserLicense).filter(
         UserLicense.user_id == user_id,
         UserLicense.specialization_type.like("LFA_PLAYER_%")

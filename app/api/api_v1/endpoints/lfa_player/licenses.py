@@ -9,21 +9,8 @@ from .....dependencies import get_current_user
 from .....models.user import User
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 """
-LFA Player API Endpoints
-
-Provides REST API for LFA Player license management:
-- License CRUD operations
-- Skill tracking and updates
-- Credit management (purchase, spend, balance)
-- Transaction history
-"""
-
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_db, get_current_user
@@ -33,9 +20,21 @@ import sys
 import os
 
 # Import service from implementation directory
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
 from .....services.specs.session_based.lfa_player_service import LFAPlayerService
 
+    from app.models.user import UserRole
+        import logging
+        from sqlalchemy import text
+LFA Player API Endpoints
+
+Provides REST API for LFA Player license management:
+- License CRUD operations
+- Skill tracking and updates
+- Credit management (purchase, spend, balance)
+- Transaction history
+"""
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
 router = APIRouter()
 
 
@@ -141,7 +140,6 @@ def list_all_licenses(
     Returns a list of all active LFA Player licenses in the system.
     """
     # Check if admin
-    from app.models.user import UserRole
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -171,7 +169,6 @@ def list_all_licenses(
 
         return result
     except Exception as e:
-        import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error listing LFA Player licenses: {str(e)}")
         # Return empty list instead of error
@@ -198,7 +195,6 @@ def create_license(
     try:
         # 🔒 CRITICAL: Validate user has enough credits (100 required)
         # Refresh user from database to get latest credit_balance
-        from sqlalchemy import text
         db.refresh(current_user)
 
         REQUIRED_CREDITS = 100
@@ -225,7 +221,6 @@ def create_license(
         )
 
         # Step 2: Create user_licenses record (CRITICAL for motivation assessment!)
-        from sqlalchemy import text
         db.execute(
             text("""
                 INSERT INTO user_licenses (

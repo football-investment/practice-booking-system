@@ -10,6 +10,8 @@ from .....dependencies import get_current_admin_user_web
 from .....models.user import User
 from .....models.license import UserLicense
 
+    from ....models.license import UserLicense
+    from datetime import datetime
 router = APIRouter()
 
 @router.post("/{license_id}/verify-payment", response_model=Dict[str, Any])
@@ -25,9 +27,6 @@ async def verify_license_payment(
     This is used when admin verifies that payment was received for a license
     BEFORE student creates a SemesterEnrollment request.
     """
-
-    from ....models.license import UserLicense
-    from datetime import datetime
 
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 
@@ -82,8 +81,6 @@ async def unverify_license_payment(
 
     This is used when admin needs to revert a payment verification.
     """
-
-    from ....models.license import UserLicense
 
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 

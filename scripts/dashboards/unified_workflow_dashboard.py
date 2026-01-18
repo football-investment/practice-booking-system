@@ -19,6 +19,13 @@ from typing import Tuple, Optional
 # CONFIGURATION
 # ============================================================================
 
+    from datetime import datetime
+
+                                                        from datetime import datetime as dt
+                                    import time
+                    from collections import defaultdict
+                            import secrets
+                            import string
 API_BASE_URL = "http://localhost:8000"
 
 # ============================================================================
@@ -492,8 +499,6 @@ def calculate_age_group_from_dob(date_of_birth: datetime) -> str:
     PRO category (15+ years) is NOT automatic - it's a professional qualification
     that requires manual selection and coaching/admin approval!
     """
-    from datetime import datetime
-
     today = datetime.today()
     age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
 
@@ -1338,7 +1343,6 @@ elif st.session_state.active_workflow == "specialization":
 
                 # Show age group info for LFA Player (auto-calculated from DOB)
                 if selected_spec["code"] == "LFA_PLAYER" and user_info and user_info.get('date_of_birth'):
-                    from datetime import datetime
                     try:
                         dob_str = user_info.get('date_of_birth')
                         if isinstance(dob_str, str):
@@ -2927,7 +2931,6 @@ elif st.session_state.active_workflow == "admin":
 
                                                     # Format dates
                                                     try:
-                                                        from datetime import datetime as dt
                                                         start_dt = dt.fromisoformat(date_start.replace('Z', '+00:00'))
                                                         end_dt = dt.fromisoformat(date_end.replace('Z', '+00:00'))
                                                         date_display = start_dt.strftime('%Y-%m-%d %H:%M')
@@ -3381,7 +3384,6 @@ elif st.session_state.active_workflow == "instructor":
                                 # Fetch sessions for this semester
                                 try:
                                     # 🔧 FIX: Use timestamp to FORCE fresh data - no cache!
-                                    import time
                                     cache_bust = int(time.time() * 1000)  # milliseconds timestamp
 
                                     # 🔍 DEBUG: Verify we're fetching fresh data
@@ -3425,7 +3427,6 @@ elif st.session_state.active_workflow == "instructor":
                                             st.markdown("#### Session Details")
 
                                             # Parse semester dates for default values
-                                            from datetime import datetime as dt
                                             semester_start = dt.fromisoformat(selected_semester['start_date']) if isinstance(selected_semester.get('start_date'), str) else selected_semester.get('start_date')
                                             semester_end = dt.fromisoformat(selected_semester['end_date']) if isinstance(selected_semester.get('end_date'), str) else selected_semester.get('end_date')
 
@@ -3594,7 +3595,6 @@ elif st.session_state.active_workflow == "instructor":
                                                         st.markdown("#### ✏️ Edit Session")
 
                                                         # Parse current dates
-                                                        from datetime import datetime as dt
                                                         current_start = dt.fromisoformat(session['date_start'].replace('Z', '+00:00'))
                                                         current_end = dt.fromisoformat(session['date_end'].replace('Z', '+00:00'))
 
@@ -3901,7 +3901,6 @@ elif st.session_state.active_workflow == "instructor":
 
                                             # Format semester dates
                                             try:
-                                                from datetime import datetime as dt
                                                 start_dt = dt.fromisoformat(start_date) if isinstance(start_date, str) else start_date
                                                 end_dt = dt.fromisoformat(end_date) if isinstance(end_date, str) else end_date
                                                 semester_period = f"{start_dt.strftime('%Y-%m-%d')} - {end_dt.strftime('%Y-%m-%d')}"
@@ -3926,7 +3925,6 @@ elif st.session_state.active_workflow == "instructor":
 
                                                     # Format dates
                                                     try:
-                                                        from datetime import datetime as dt
                                                         start_dt = dt.fromisoformat(date_start.replace('Z', '+00:00'))
                                                         end_dt = dt.fromisoformat(date_end.replace('Z', '+00:00'))
                                                         date_display = start_dt.strftime('%Y-%m-%d %H:%M')
@@ -4019,7 +4017,6 @@ if st.session_state.viewing_profile_user_id:
 
                 if profile['licenses']:
                     # Group licenses by specialization type
-                    from collections import defaultdict
                     grouped_licenses = defaultdict(list)
                     for lic in profile['licenses']:
                         grouped_licenses[lic['specialization_type']].append(lic)
@@ -4268,8 +4265,6 @@ if st.session_state.admin_token:
                     if user_id and role_upper != "ADMIN":  # Don't reset admin passwords
                         if st.button("🔑", key=f"reset_pwd_{user_id}_{idx}", use_container_width=True, help="Reset Password"):
                             # Generate secure random password
-                            import secrets
-                            import string
                             alphabet = string.ascii_letters + string.digits + "!@#$%"
                             new_password = ''.join(secrets.choice(alphabet) for _ in range(12))
 

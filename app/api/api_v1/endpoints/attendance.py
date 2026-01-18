@@ -13,6 +13,16 @@ from ....models.booking import Booking, BookingStatus
 from ....models.attendance import Attendance, AttendanceStatus
 from ....schemas.attendance import (
     Attendance as AttendanceSchema, AttendanceCreate, AttendanceUpdate,
+    from sqlalchemy.orm import joinedload
+
+    from ....models.booking import Booking
+    
+    # Get instructor's sessions with attendance stats
+    from ....models.project import ProjectEnrollment, ProjectMilestoneProgress, MilestoneStatus
+    from sqlalchemy import and_
+    
+    # Get user's active project enrollments
+            from ....models.project import ProjectMilestone
     AttendanceWithRelations, AttendanceList, AttendanceCheckIn
 )
 
@@ -115,8 +125,6 @@ def list_attendance(
         query = query.filter(Attendance.session_id == session_id)
 
     # OPTIMIZED: Eager load relationships to avoid N+1 query pattern
-    from sqlalchemy.orm import joinedload
-
     query = query.options(
         joinedload(Attendance.user),
         joinedload(Attendance.session),
@@ -284,10 +292,6 @@ def get_instructor_attendance_overview(
         )
     
     # Import here to avoid circular imports
-    from ....models.session import Session as SessionTypel
-    from ....models.booking import Booking
-    
-    # Get instructor's sessions with attendance stats
     query = db.query(SessionTypel).filter(
         SessionTypel.instructor_id == current_user.id
     ).order_by(SessionTypel.date_start.desc())
@@ -349,11 +353,6 @@ def _update_milestone_sessions_on_attendance(db: Session, user_id: int, session_
     """
     Update milestone progress when a user attends a session
     """
-    from ....models.project import ProjectEnrollment, ProjectMilestoneProgress, MilestoneStatus
-    from ....models.session import Session as SessionTypel
-    from sqlalchemy import and_
-    
-    # Get user's active project enrollments
     active_enrollments = db.query(ProjectEnrollment).filter(
         and_(
             ProjectEnrollment.user_id == user_id,
@@ -380,7 +379,6 @@ def _update_milestone_sessions_on_attendance(db: Session, user_id: int, session_
             current_milestone.updated_at = datetime.now(timezone.utc)
             
             # Check if milestone requirements are met for auto-submission
-            from ....models.project import ProjectMilestone
             milestone = db.query(ProjectMilestone).filter(
                 ProjectMilestone.id == current_milestone.milestone_id
             ).first()

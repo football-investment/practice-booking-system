@@ -11,7 +11,8 @@ from app.models.audit_log import AuditAction
 from app.models.user import User, UserRole
 from app.services.audit_service import AuditService
 
-
+    from app.core.auth import create_access_token
+    from datetime import timedelta
 def test_get_my_logs_as_user(client: TestClient, db_session: Session):
     """Test user can get their own audit logs"""
     # Create test user
@@ -31,8 +32,6 @@ def test_get_my_logs_as_user(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LICENSE_VIEWED, user_id=user.id)
 
     # Login and get token
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -66,8 +65,6 @@ def test_get_my_logs_with_filters(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LOGOUT, user_id=user.id)
 
     # Login
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -98,8 +95,6 @@ def test_get_all_logs_as_admin(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LOGIN, user_id=admin.id)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -127,8 +122,6 @@ def test_get_all_logs_forbidden_for_student(client: TestClient, db_session: Sess
     db_session.commit()
 
     # Login as student
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -158,8 +151,6 @@ def test_get_statistics_as_admin(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LOGIN_FAILED)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -194,8 +185,6 @@ def test_get_security_events(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.PASSWORD_CHANGE, user_id=admin.id)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -230,8 +219,6 @@ def test_get_resource_history(client: TestClient, db_session: Session):
     )
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -263,8 +250,6 @@ def test_pagination_works(client: TestClient, db_session: Session):
         audit_service.log(action=AuditAction.LOGIN, user_id=admin.id)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(

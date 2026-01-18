@@ -11,17 +11,17 @@ from .....models.specialization import SpecializationType
 
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 """
-🎓 Specialization API Endpoints
-Handles specialization selection and information for the LFA education platform
-"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
 
 from pydantic import BaseModel
 
+    from app.services.specialization_service import SpecializationService
+    from app.services.specialization_config_loader import SpecializationConfigLoader
+
+    # STEP 1: Validate enum
+🎓 Specialization API Endpoints
+Handles specialization selection and information for the LFA education platform
+"""
 router = APIRouter()
 
 class SpecializationResponse(BaseModel):
@@ -41,10 +41,6 @@ async def get_specialization_info(
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """Get detailed information about a specific specialization (HYBRID: DB + JSON)"""
-    from app.services.specialization_service import SpecializationService
-    from app.services.specialization_config_loader import SpecializationConfigLoader
-
-    # STEP 1: Validate enum
     try:
         specialization = SpecializationType(specialization_code.upper())
     except ValueError:

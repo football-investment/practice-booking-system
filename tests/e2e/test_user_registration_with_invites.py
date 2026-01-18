@@ -25,11 +25,15 @@ from playwright.sync_api import Page, expect
 import time
 from datetime import date
 
-
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
+    import json
+    from app.models.user import User
+    from app.models.invitation_code import InvitationCode
+
+    # Verify users exist with CRITICAL fixed emails (pwt. prefix)
 def streamlit_login(page: Page, email: str, password: str):
     """Login to Streamlit app"""
     page.goto("http://localhost:8501")
@@ -359,7 +363,6 @@ def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
     assert len(set(invitation_codes)) == 3  # All unique
 
     # Save codes to file for use in next tests
-    import json
     with open("tests/e2e/generated_invitation_codes.json", "w") as f:
         json.dump(invitation_codes, f)
 
@@ -386,7 +389,6 @@ def test_d2_first_user_registers_with_invitation(page: Page):
     - Success message displayed
     """
     # Load invitation codes from file
-    import json
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
         invitation_codes = json.load(f)
 
@@ -427,7 +429,6 @@ def test_d3_second_user_registers_with_invitation(page: Page):
     - Registration successful with 50 bonus credits
     """
     # Load invitation codes from file
-    import json
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
         invitation_codes = json.load(f)
 
@@ -468,7 +469,6 @@ def test_d4_third_user_registers_with_invitation(page: Page):
     - Registration successful with 50 bonus credits
     """
     # Load invitation codes from file
-    import json
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
         invitation_codes = json.load(f)
 
@@ -560,10 +560,6 @@ def test_d8_verify_users_in_database(db):
     - Invitation codes marked as used
     - Age groups correctly represented: Pre, Youth, Amateur
     """
-    from app.models.user import User
-    from app.models.invitation_code import InvitationCode
-
-    # Verify users exist with CRITICAL fixed emails (pwt. prefix)
     user1 = db.query(User).filter(User.email == "pwt.k1sqx1@f1stteam.hu").first()
     user2 = db.query(User).filter(User.email == "pwt.p3t1k3@f1stteam.hu").first()
     user3 = db.query(User).filter(User.email == "pwt.V4lv3rd3jr@f1stteam.hu").first()
@@ -583,7 +579,6 @@ def test_d8_verify_users_in_database(db):
     assert user3.first_name == "Viktor"
 
     # Verify age groups
-    from datetime import date
     today = date.today()
 
     # User 1 - Pre category (age 6-11)

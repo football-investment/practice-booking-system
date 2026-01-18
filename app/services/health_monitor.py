@@ -20,8 +20,14 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.services.progress_license_coupling import ProgressLicenseCoupler
 
-
 # Setup logging
+        import json
+
+        import aiofiles
+
+        # Find most recent violation log
+
+        # Find most recent violation log
 logger = logging.getLogger(__name__)
 
 
@@ -134,8 +140,6 @@ class HealthMonitor:
 
         File format: logs/integrity_checks/YYYYMMDD_HHMMSS_violations.json
         """
-        import json
-
         timestamp = datetime.utcnow()
         filename = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_violations.json"
         filepath = self.log_dir / filename
@@ -158,10 +162,6 @@ class HealthMonitor:
         Returns:
             Latest report dict, or None if no reports exist
         """
-        import json
-        import aiofiles
-
-        # Find most recent violation log
         log_files = sorted(self.log_dir.glob("*_violations.json"), reverse=True)
 
         if not log_files:
@@ -180,9 +180,6 @@ class HealthMonitor:
         DEPRECATED: Sync version for backward compatibility.
         Use get_latest_report_async() for production endpoints.
         """
-        import json
-
-        # Find most recent violation log
         log_files = sorted(self.log_dir.glob("*_violations.json"), reverse=True)
 
         if not log_files:

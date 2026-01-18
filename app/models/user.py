@@ -7,7 +7,13 @@ from typing import Optional
 from ..database import Base
 from .specialization import SpecializationType
 
+        from app.services.specialization_config_loader import SpecializationConfigLoader
+        from .semester import Semester
+        from .semester_enrollment import SemesterEnrollment
+        from .license import UserLicense
 
+        # Admins and instructors don't need enrollments
+        from .instructor_specialization import InstructorSpecialization
 class UserRole(enum.Enum):
     ADMIN = "admin"
     INSTRUCTOR = "instructor"
@@ -197,7 +203,6 @@ class User(Base):
         if not self.specialization:
             return "Nincs kiválasztva"
 
-        from app.services.specialization_config_loader import SpecializationConfigLoader
         loader = SpecializationConfigLoader()
         try:
             display_info = loader.get_display_info(self.specialization)
@@ -211,7 +216,6 @@ class User(Base):
         if not self.specialization:
             return "❓"
 
-        from app.services.specialization_config_loader import SpecializationConfigLoader
         loader = SpecializationConfigLoader()
         try:
             display_info = loader.get_display_info(self.specialization)
@@ -306,11 +310,6 @@ class User(Base):
         Returns:
             SemesterEnrollment or None
         """
-        from .semester import Semester
-        from .semester_enrollment import SemesterEnrollment
-        from .license import UserLicense
-
-        # Admins and instructors don't need enrollments
         if self.role in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
             return None
 
@@ -470,8 +469,6 @@ class User(Base):
 
         Note: This method only creates the object. You must commit() separately!
         """
-        from .instructor_specialization import InstructorSpecialization
-
         if self.role != UserRole.INSTRUCTOR:
             raise ValueError("Only instructors can have teaching specializations")
 

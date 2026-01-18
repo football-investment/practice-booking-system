@@ -18,6 +18,19 @@ from ...models.specialization import SpecializationType
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
+    from ...utils.age_requirements import validate_specialization_for_age
+
+    # Check credit balance
+
+    # Validate specialization parameter
+
+        import traceback
+
+    # Verify user has LFA_FOOTBALL_PLAYER license
+
+    # Find the license
+
+    # Default redirect URL
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -38,9 +51,6 @@ async def specialization_unlock(
     - All specializations are VISIBLE to all users (for motivation/future planning)
     - Age requirement is ONLY enforced at UNLOCK time
     """
-    from ...utils.age_requirements import validate_specialization_for_age
-
-    # Check credit balance
     if current_user.credit_balance < 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -129,9 +139,6 @@ async def student_motivation_questionnaire_page(
     user: User = Depends(get_current_user_web)
 ):
     """Student self-assessment motivation questionnaire (part of onboarding)"""
-    from ...models.specialization import SpecializationType
-
-    # Validate specialization parameter
     try:
         spec_type = SpecializationType(spec)
     except ValueError:
@@ -166,9 +173,6 @@ async def student_motivation_questionnaire_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Process student's motivation self-assessment and complete onboarding"""
-    from ...models.specialization import SpecializationType
-    from ...models.license import UserLicense
-
     try:
         # Parse form data
         form = await request.form()
@@ -259,7 +263,6 @@ async def student_motivation_questionnaire_submit(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"❌ Error processing motivation questionnaire: {e}")
         print(traceback.format_exc())
         return templates.TemplateResponse(
@@ -286,9 +289,6 @@ async def lfa_player_onboarding_page(
     LFA Player specialized onboarding questionnaire
     Multi-step: Position → Self-Assessment → Motivation
     """
-    from ...models.license import UserLicense
-
-    # Verify user has LFA_FOOTBALL_PLAYER license
     license = db.query(UserLicense).filter(
         UserLicense.user_id == user.id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
@@ -324,10 +324,6 @@ async def lfa_player_onboarding_cancel(
     """
     Cancel LFA Player onboarding and refund credits
     """
-    from ...models.license import UserLicense
-    from ...models.credit_transaction import CreditTransaction, TransactionType
-
-    # Find the license
     license = db.query(UserLicense).filter(
         UserLicense.user_id == user.id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
@@ -375,8 +371,6 @@ async def lfa_player_onboarding_submit(
     Process LFA Player onboarding questionnaire
     Saves: position, self-assessment skills, motivation
     """
-    from ...models.license import UserLicense
-
     try:
         form = await request.form()
 
@@ -441,7 +435,6 @@ async def lfa_player_onboarding_submit(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"❌ Error processing LFA Player onboarding: {e}")
         print(traceback.format_exc())
         return templates.TemplateResponse(
@@ -463,10 +456,6 @@ async def specialization_switch(
     user: User = Depends(get_current_user_web)
 ):
     """Switch student's active specialization (with onboarding check for new specs)"""
-    from ...models.specialization import SpecializationType
-    from ...models.license import UserLicense
-
-    # Default redirect URL
     redirect_url = return_url if return_url else "/dashboard"
 
     try:
@@ -499,7 +488,6 @@ async def specialization_switch(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"❌ Error during specialization switch: {e}")
         print(traceback.format_exc())
         return RedirectResponse(url=redirect_url, status_code=303)

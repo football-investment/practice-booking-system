@@ -9,7 +9,7 @@ from ....models.user import User
 from ....services.gamification import GamificationService
 from ....schemas.gamification import UserGamificationResponse
 
-
+    from ....models.user import UserRole
 router = APIRouter()
 
 
@@ -36,8 +36,6 @@ def get_user_gamification_data(
     """
     Get specific user's gamification data (Admin/Instructor only)
     """
-    from ....models.user import UserRole
-    
     if current_user.role not in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -67,8 +65,6 @@ def refresh_user_achievements(
     """
     Manually refresh a user's achievements (Admin only)
     """
-    from ....models.user import UserRole
-    
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -1,0 +1,830 @@
+🔍 Scanning project: /Users/lovas.zoltan/Seafile/Football Investment/Projects/Football Investment Internship/practice_booking_system
+
+================================================================================
+🔍 DUPLICATE IMPORTS AUDIT REPORT
+================================================================================
+
+📊 Summary:
+   - Files with duplicates: 83
+   - Total duplicate imports: 160
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/adaptive_learning.py
+
+   ❌ Duplicate import on lines 190, 293:
+      from ....models.quiz import AdaptiveLearningSession
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/attendance.py
+
+   ❌ Duplicate import on lines 11, 287, 353:
+      from ....models.session import Session as SessionTypel
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/audit.py
+
+   ❌ Duplicate import on lines 14, 65, 126, 287:
+      from ....models.audit_log import AuditLog
+
+   ❌ Duplicate import on lines 125, 286:
+      from sqlalchemy import func, and_
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/coach/hours.py
+
+   ❌ Duplicate import on lines 6, 29:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/coach/licenses.py
+
+   ❌ Duplicate import on lines 6, 30:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 285, 313:
+      from sqlalchemy import text
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/coach/progression.py
+
+   ❌ Duplicate import on lines 6, 30:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/gamification.py
+
+   ❌ Duplicate import on lines 39, 70:
+      from ....models.user import UserRole
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/gancuju/activities.py
+
+   ❌ Duplicate import on lines 6, 28:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/gancuju/belts.py
+
+   ❌ Duplicate import on lines 6, 28:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/gancuju/licenses.py
+
+   ❌ Duplicate import on lines 6, 29:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 263, 290:
+      from sqlalchemy import text
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/instructor_assignments/availability.py
+
+   ❌ Duplicate import on lines 2, 14:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 3, 15:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/instructor_assignments/discovery.py
+
+   ❌ Duplicate import on lines 2, 14:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 3, 15:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/instructor_assignments/requests.py
+
+   ❌ Duplicate import on lines 2, 14:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 3, 15:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/internship/credits.py
+
+   ❌ Duplicate import on lines 6, 28:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/internship/licenses.py
+
+   ❌ Duplicate import on lines 6, 29:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 301, 329:
+      from sqlalchemy import text
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/internship/xp_renewal.py
+
+   ❌ Duplicate import on lines 6, 29:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/lfa_player/credits.py
+
+   ❌ Duplicate import on lines 3, 12, 25:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 4, 13, 26:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/lfa_player/licenses.py
+
+   ❌ Duplicate import on lines 3, 12, 25:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 4, 13, 26:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 201, 228:
+      from sqlalchemy import text
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/lfa_player/skills.py
+
+   ❌ Duplicate import on lines 3, 11, 24:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 4, 12, 25:
+      from sqlalchemy.orm import Session
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/licenses/payment.py
+
+   ❌ Duplicate import on lines 29, 86:
+      from ....models.license import UserLicense
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/licenses/skills.py
+
+   ❌ Duplicate import on lines 29, 108, 205:
+      from ....models.license import UserLicense
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/messages.py
+
+   ❌ Duplicate import on lines 130, 170, 235:
+      from datetime import datetime, timezone
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/projects/quizzes.py
+
+   ❌ Duplicate import on lines 59, 101, 214:
+      from .....models.quiz import Quiz
+
+   ❌ Duplicate import on lines 218, 273:
+      from .....models.project import ProjectEnrollmentQuiz
+
+   ❌ Duplicate import on lines 229, 274:
+      from .....models.quiz import QuizAttempt
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/quiz/attempts.py
+
+   ❌ Duplicate import on lines 36, 224:
+      from ....models.quiz import SessionQuiz
+
+   ❌ Duplicate import on lines 40, 227:
+      from datetime import datetime, timezone
+
+   ❌ Duplicate import on lines 251, 268:
+      from ....models.attendance import AttendanceStatus, ConfirmationStatus
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/quiz/student.py
+
+   ❌ Duplicate import on lines 22, 109, 168:
+      from datetime import datetime, timezone
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/specializations/info.py
+
+   ❌ Duplicate import on lines 3, 19:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 4, 14, 20:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 12, 21:
+      from typing import List, Dict, Any
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/specializations/progress.py
+
+   ❌ Duplicate import on lines 3, 15, 21:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 4, 16, 22:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 14, 23:
+      from typing import List, Dict, Any
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/specializations/user.py
+
+   ❌ Duplicate import on lines 3, 13, 19:
+      from fastapi import APIRouter, Depends, HTTPException, status
+
+   ❌ Duplicate import on lines 4, 14, 20:
+      from sqlalchemy.orm import Session
+
+   ❌ Duplicate import on lines 49, 83:
+      from app.services.specialization_service import SpecializationService
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/tournaments/enroll.py
+
+   ❌ Duplicate import on lines 29, 67, 283, 376:
+      import logging
+
+   ❌ Duplicate import on lines 243, 432:
+      from app.models.credit_transaction import CreditTransaction
+
+--------------------------------------------------------------------------------
+
+📄 app/api/api_v1/endpoints/users/instructor_analytics.py
+
+   ❌ Duplicate import on lines 39, 156, 359:
+      from .....models.session import Session as SessionTypel
+
+   ❌ Duplicate import on lines 155, 358:
+      from .....models.project import Project, ProjectEnrollment
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/admin.py
+
+   ❌ Duplicate import on lines 33, 59, 86, 266, 330, 365, 410, 483, 550, 696, 742, 798:
+      from ...models.user import UserRole
+
+   ❌ Duplicate import on lines 60, 87, 411:
+      from ...models.semester import Semester
+
+   ❌ Duplicate import on lines 88, 412:
+      from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+
+   ❌ Duplicate import on lines 89, 268, 484, 551, 743, 799:
+      from ...models.license import UserLicense
+
+   ❌ Duplicate import on lines 90, 270, 413:
+      from sqlalchemy.orm import joinedload
+
+   ❌ Duplicate import on lines 176, 301, 443:
+      from ...models.specialization import SpecializationType
+
+   ❌ Duplicate import on lines 332, 367, 552, 800:
+      from datetime import datetime, timezone
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/attendance.py
+
+   ❌ Duplicate import on lines 37, 180, 266:
+      from ...models.session import Session as SessionTypel
+
+   ❌ Duplicate import on lines 40, 182, 268:
+      from ...models.user import UserRole
+
+   ❌ Duplicate import on lines 41, 183, 269:
+      from datetime import datetime, timezone
+
+   ❌ Duplicate import on lines 53, 184:
+      from zoneinfo import ZoneInfo
+
+   ❌ Duplicate import on lines 96, 140:
+      from ...models.attendance import ConfirmationStatus, AttendanceHistory
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/auth.py
+
+   ❌ Duplicate import on lines 74, 113, 141:
+      from ...models.user import UserRole
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/dashboard.py
+
+   ❌ Duplicate import on lines 10, 91:
+      import re
+
+   ❌ Duplicate import on lines 33, 494:
+      from ...models.user import UserRole
+
+   ❌ Duplicate import on lines 37, 137, 194, 495:
+      from ...models.license import UserLicense
+
+   ❌ Duplicate import on lines 39, 90, 313, 467:
+      from datetime import date
+
+   ❌ Duplicate import on lines 89, 312, 497:
+      from ...models.semester import Semester
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/instructor.py
+
+   ❌ Duplicate import on lines 40, 86, 151, 223, 639, 793:
+      from ...models.user import UserRole
+
+   ❌ Duplicate import on lines 83, 148:
+      from datetime import datetime
+
+   ❌ Duplicate import on lines 84, 149, 299, 433:
+      from zoneinfo import ZoneInfo
+
+   ❌ Duplicate import on lines 85, 150, 222, 638, 792:
+      from ...models.session import Session as SessionModel, SessionType
+
+   ❌ Duplicate import on lines 283, 420:
+      from ...models.session import Session as SessionModel
+
+   ❌ Duplicate import on lines 285, 421, 637, 791:
+      from datetime import datetime, timezone
+
+   ❌ Duplicate import on lines 297, 431, 562:
+      from ...models.booking import Booking
+
+   ❌ Duplicate import on lines 298, 432:
+      from ...models.quiz import SessionQuiz
+
+   ❌ Duplicate import on lines 640, 794:
+      from ...models.attendance import Attendance, AttendanceStatus
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/instructor_dashboard.py
+
+   ❌ Duplicate import on lines 33, 106, 173:
+      from ...models.user import UserRole
+
+   ❌ Duplicate import on lines 107, 174:
+      from ...models.license import UserLicense
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/onboarding.py
+
+   ❌ Duplicate import on lines 29, 63, 165, 203, 254:
+      from ...models.license import UserLicense
+
+   ❌ Duplicate import on lines 98, 204:
+      from ...models.credit_transaction import CreditTransaction, TransactionType
+
+   ❌ Duplicate import on lines 148, 326:
+      import traceback
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/profile.py
+
+   ❌ Duplicate import on lines 29, 174:
+      from ...models.license import UserLicense
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/quiz.py
+
+   ❌ Duplicate import on lines 103, 240:
+      from ...models.session import Session as SessionModel
+
+   ❌ Duplicate import on lines 105, 241:
+      from datetime import datetime, timezone
+
+   ❌ Duplicate import on lines 117, 251, 382:
+      from ...models.booking import Booking
+
+   ❌ Duplicate import on lines 118, 252:
+      from ...models.quiz import SessionQuiz
+
+   ❌ Duplicate import on lines 119, 253:
+      from zoneinfo import ZoneInfo
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/sessions.py
+
+   ❌ Duplicate import on lines 33, 56, 367:
+      from ...models.user import UserRole
+
+   ❌ Duplicate import on lines 72, 123, 294, 366:
+      from ...models.booking import Booking
+
+   ❌ Duplicate import on lines 73, 133, 340, 464:
+      from ...models.performance_review import InstructorSessionReview
+
+   ❌ Duplicate import on lines 131, 244, 314, 473:
+      from zoneinfo import ZoneInfo
+
+   ❌ Duplicate import on lines 132, 296, 378:
+      from ...models.attendance import Attendance
+
+   ❌ Duplicate import on lines 203, 410:
+      from ...models.performance_review import StudentPerformanceReview
+
+   ❌ Duplicate import on lines 232, 295:
+      from ...models.session import Session as SessionTypel
+
+   ❌ Duplicate import on lines 313, 472:
+      from datetime import datetime, timezone, timedelta
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/specialization.py
+
+   ❌ Duplicate import on lines 15, 170, 289, 327, 378, 467:
+      from ...models.license import UserLicense
+
+   ❌ Duplicate import on lines 16, 328:
+      from ...models.credit_transaction import CreditTransaction, TransactionType
+
+   ❌ Duplicate import on lines 17, 132, 169, 466:
+      from ...models.specialization import SpecializationType
+
+   ❌ Duplicate import on lines 262, 444, 502:
+      import traceback
+
+--------------------------------------------------------------------------------
+
+📄 app/api/web_routes/student_features.py
+
+   ❌ Duplicate import on lines 61, 288:
+      from ...models.license import UserLicense
+
+   ❌ Duplicate import on lines 63, 196:
+      from ...models.semester import Semester
+
+--------------------------------------------------------------------------------
+
+📄 app/models/session.py
+
+   ❌ Duplicate import on lines 167, 182:
+      from app.services.specialization_config_loader import SpecializationConfigLoader
+
+--------------------------------------------------------------------------------
+
+📄 app/models/user.py
+
+   ❌ Duplicate import on lines 200, 214:
+      from app.services.specialization_config_loader import SpecializationConfigLoader
+
+--------------------------------------------------------------------------------
+
+📄 app/schemas/instructor_assignment.py
+
+   ❌ Duplicate import on lines 35, 145:
+      import re
+
+--------------------------------------------------------------------------------
+
+📄 app/services/availability_service.py
+
+   ❌ Duplicate import on lines 197, 224:
+      from ..models.instructor_assignment import LocationMasterInstructor, MasterOfferStatus
+
+--------------------------------------------------------------------------------
+
+📄 app/services/football_skill_service.py
+
+   ❌ Duplicate import on lines 12, 155:
+      from ..models.user import User
+
+--------------------------------------------------------------------------------
+
+📄 app/services/gamification.py
+
+   ❌ Duplicate import on lines 8, 336:
+      from ..models.booking import Booking
+
+   ❌ Duplicate import on lines 12, 82:
+      from ..models.feedback import Feedback
+
+   ❌ Duplicate import on lines 434, 492:
+      from ..models.quiz import QuizAttempt
+
+   ❌ Duplicate import on lines 461, 493:
+      from ..models.project import ProjectEnrollment, ProjectEnrollmentStatus
+
+--------------------------------------------------------------------------------
+
+📄 app/services/gamification/badge_service.py
+
+   ❌ Duplicate import on lines 166, 247:
+      from ...models.quiz import QuizAttempt
+
+   ❌ Duplicate import on lines 205, 248:
+      from ...models.project import ProjectEnrollment, ProjectEnrollmentStatus
+
+--------------------------------------------------------------------------------
+
+📄 app/services/health_monitor.py
+
+   ❌ Duplicate import on lines 137, 161, 183:
+      import json
+
+--------------------------------------------------------------------------------
+
+📄 app/services/license_service.py
+
+   ❌ Duplicate import on lines 168, 175:
+      import logging
+
+--------------------------------------------------------------------------------
+
+📄 app/services/specialization/common.py
+
+   ❌ Duplicate import on lines 114, 258, 418:
+      from app.models.user_progress import SpecializationProgress
+
+--------------------------------------------------------------------------------
+
+📄 app/services/specialization/validation.py
+
+   ❌ Duplicate import on lines 107, 140:
+      from app.models.user_progress import Specialization
+
+--------------------------------------------------------------------------------
+
+📄 app/services/tournament_service.py
+
+   ❌ Duplicate import on lines 20, 77:
+      from app.services import tournament
+
+--------------------------------------------------------------------------------
+
+📄 app/tests/test_audit_api.py
+
+   ❌ Duplicate import on lines 34, 69, 101, 130, 161, 197, 233, 266:
+      from app.core.auth import create_access_token
+
+   ❌ Duplicate import on lines 35, 70, 102, 131, 162, 198, 234, 267:
+      from datetime import timedelta
+
+--------------------------------------------------------------------------------
+
+📄 app/tests/test_critical_flows.py
+
+   ❌ Duplicate import on lines 61, 287, 374, 482, 569:
+      from ...core.security import get_password_hash
+
+   ❌ Duplicate import on lines 483, 570:
+      from ...services.gamification import calculate_xp_for_attendance
+
+--------------------------------------------------------------------------------
+
+📄 app/tests/test_specialization_deprecation.py
+
+   ❌ Duplicate import on lines 48, 68, 109, 140, 170:
+      import logging
+
+--------------------------------------------------------------------------------
+
+📄 app/tests/test_specialization_integration.py
+
+   ❌ Duplicate import on lines 6, 23:
+      from datetime import datetime
+
+--------------------------------------------------------------------------------
+
+📄 app/tests/test_tournament_workflow_e2e.py
+
+   ❌ Duplicate import on lines 44, 102:
+      from app.models.tournament_type import TournamentType
+
+   ❌ Duplicate import on lines 257, 397:
+      from app.models.license import UserLicense
+
+--------------------------------------------------------------------------------
+
+📄 implementation/05_rbac_tests/conftest.py
+
+   ❌ Duplicate import on lines 233, 261:
+      from jose import jwt
+
+--------------------------------------------------------------------------------
+
+📄 scripts/create_test_data.py
+
+   ❌ Duplicate import on lines 9, 130, 402:
+      import random
+
+--------------------------------------------------------------------------------
+
+📄 scripts/dashboards/unified_workflow_dashboard.py
+
+   ❌ Duplicate import on lines 495, 1341:
+      from datetime import datetime
+
+   ❌ Duplicate import on lines 2930, 3428, 3597, 3904, 3929:
+      from datetime import datetime as dt
+
+--------------------------------------------------------------------------------
+
+📄 scripts/reset_database_for_tests.py
+
+   ❌ Duplicate import on lines 114, 157, 607:
+      import traceback
+
+--------------------------------------------------------------------------------
+
+📄 scripts/setup_tournament_enrollment_test.py
+
+   ❌ Duplicate import on lines 75, 116:
+      import subprocess
+
+--------------------------------------------------------------------------------
+
+📄 scripts/test_instructor_tournament_ui.py
+
+   ❌ Duplicate import on lines 10, 259:
+      import sys
+
+--------------------------------------------------------------------------------
+
+📄 scripts/utility/fix_license_endpoints.py
+
+   ❌ Duplicate import on lines 14, 36, 58:
+      from app.models.user import UserRole
+
+   ❌ Duplicate import on lines 19, 41, 63:
+      from sqlalchemy import text
+
+--------------------------------------------------------------------------------
+
+📄 streamlit_app/components/admin/tournament_list.py
+
+   ❌ Duplicate import on lines 824, 967, 1125:
+      import time
+
+--------------------------------------------------------------------------------
+
+📄 streamlit_app/pages/Instructor_Dashboard.py
+
+   ❌ Duplicate import on lines 193, 839:
+      from api_helpers_instructors import get_my_master_offers
+
+   ❌ Duplicate import on lines 1131, 1301:
+      import requests
+
+   ❌ Duplicate import on lines 1132, 1303:
+      from config import API_BASE_URL, API_TIMEOUT
+
+   ❌ Duplicate import on lines 1272, 1302:
+      import time
+
+--------------------------------------------------------------------------------
+
+📄 streamlit_app/pages/LFA_Player_Dashboard.py
+
+   ❌ Duplicate import on lines 291, 447:
+      import requests
+
+--------------------------------------------------------------------------------
+
+📄 tests/.archive/test_admin_create_tournament.py
+
+   ❌ Duplicate import on lines 15, 342:
+      import os
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/fixtures.py
+
+   ❌ Duplicate import on lines 351, 409:
+      import psycopg2
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/reward_policy_fixtures.py
+
+   ❌ Duplicate import on lines 67, 288, 423, 518, 670, 706:
+      import psycopg2
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/test_complete_business_workflow.py
+
+   ❌ Duplicate import on lines 20, 208:
+      import time
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/test_instructor_application_workflow.py
+
+   ❌ Duplicate import on lines 91, 345:
+      from datetime import datetime, timedelta
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/test_instructor_assignment_flows.py
+
+   ❌ Duplicate import on lines 184, 288, 376, 457, 555, 644:
+      import requests
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/test_reward_policy_user_validation.py
+
+   ❌ Duplicate import on lines 14, 181:
+      from tests.e2e.reward_policy_fixtures import (
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/test_ui_instructor_application_workflow.py
+
+   ❌ Duplicate import on lines 164, 342, 493, 815:
+      import requests
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/test_user_registration_with_invites.py
+
+   ❌ Duplicate import on lines 26, 586:
+      from datetime import date
+
+   ❌ Duplicate import on lines 362, 389, 430, 471:
+      import json
+
+--------------------------------------------------------------------------------
+
+📄 tests/e2e/tournament/test_tournament_checkin_e2e.py
+
+   ❌ Duplicate import on lines 331, 348:
+      import time
+
+--------------------------------------------------------------------------------
+
+📄 tests/playwright/test_user_registration_with_invites.py
+
+   ❌ Duplicate import on lines 26, 586:
+      from datetime import date
+
+   ❌ Duplicate import on lines 362, 389, 430, 471:
+      import json
+
+--------------------------------------------------------------------------------
+
+📄 tests/playwright/utils/fixtures.py
+
+   ❌ Duplicate import on lines 351, 409:
+      import psycopg2
+
+--------------------------------------------------------------------------------
+
+📄 tests/playwright/utils/reward_policy_fixtures.py
+
+   ❌ Duplicate import on lines 67, 288, 423, 518, 670, 706:
+      import psycopg2
+
+--------------------------------------------------------------------------------
+
+📄 tests/security/csrf/test_cookie_security.py
+
+   ❌ Duplicate import on lines 130, 240, 254, 265, 276:
+      from app.config import settings
+
+--------------------------------------------------------------------------------
+
+================================================================================
+🎯 Action Items:
+   1. Review 83 file(s) with duplicate imports
+   2. Remove 160 duplicate import statement(s)
+   3. Verify no functionality is broken after cleanup
+================================================================================

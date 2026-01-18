@@ -15,6 +15,11 @@ from playwright.sync_api import Page, expect
 import os
 from datetime import datetime, timedelta
 
+                    import re
+        import requests
+
+        # Get admin token from environment or use test default
+            import urllib.parse
 ADMIN_DASHBOARD_URL = os.getenv("ADMIN_DASHBOARD_URL", "http://localhost:8501/Admin_Dashboard")
 
 
@@ -303,7 +308,6 @@ class TestAdminCreateTournament:
 
                     # Try to extract tournament ID from success message
                     # Format: "Tournament created successfully! (ID: 123)"
-                    import re
                     id_match = re.search(r'ID:\s*(\d+)', success_text)
                     if id_match:
                         tournament_id = int(id_match.group(1))
@@ -338,16 +342,11 @@ class TestAdminCreateTournament:
         # ================================================================
         print("\n  7. ⚡ BACKEND VERIFICATION: Checking database...")
 
-        import requests
-        import os
-
-        # Get admin token from environment or use test default
         admin_token_env = os.getenv("TEST_ADMIN_TOKEN", None)
         backend_verified = False  # Initialize early
 
         if not admin_token_env:
             # Login to get token (FastAPI uses form data, not JSON)
-            import urllib.parse
             login_response = requests.post(
                 "http://localhost:8000/api/v1/auth/login",
                 data=urllib.parse.urlencode({"username": "admin@lfa.com", "password": "admin123"}),

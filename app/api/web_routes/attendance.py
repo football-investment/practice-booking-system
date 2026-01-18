@@ -17,6 +17,26 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
+    from ...models.session import Session as SessionTypel
+    from ...models.attendance import Attendance, AttendanceStatus
+    from ...models.booking import Booking
+    from ...models.user import UserRole
+    from datetime import datetime, timezone
+
+    # Verify user is an instructor
+    from zoneinfo import ZoneInfo
+        from ...models.attendance import ConfirmationStatus, AttendanceHistory
+
+        # CRITICAL ETHICAL REQUIREMENT: If student has confirmed, instructor can only REQUEST a change
+        # Student must approve the change before it takes effect
+    from ...models.attendance import Attendance, ConfirmationStatus
+
+    # Verify user is a student
+    from ...models.attendance import AttendanceHistory
+
+    from ...models.attendance import Attendance, AttendanceStatus, AttendanceHistory
+
+    # Verify user is a student
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -34,13 +54,6 @@ async def mark_attendance(
     user: User = Depends(get_current_user_web)
 ):
     """Mark attendance for a student (instructor only)"""
-    from ...models.session import Session as SessionTypel
-    from ...models.attendance import Attendance, AttendanceStatus
-    from ...models.booking import Booking
-    from ...models.user import UserRole
-    from datetime import datetime, timezone
-
-    # Verify user is an instructor
     if user.role != UserRole.INSTRUCTOR:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
@@ -50,7 +63,6 @@ async def mark_attendance(
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
     # Check if attendance can be marked (only from 15 min before start until session end)
-    from zoneinfo import ZoneInfo
     budapest_tz = ZoneInfo("Europe/Budapest")
     now = datetime.now(budapest_tz)
 
@@ -93,10 +105,6 @@ async def mark_attendance(
 
     if attendance:
         # Update existing attendance
-        from ...models.attendance import ConfirmationStatus, AttendanceHistory
-
-        # CRITICAL ETHICAL REQUIREMENT: If student has confirmed, instructor can only REQUEST a change
-        # Student must approve the change before it takes effect
         if attendance.confirmation_status == ConfirmationStatus.confirmed:
             # Create change request instead of directly changing
             attendance.pending_change_to = attendance_status.value
@@ -137,7 +145,6 @@ async def mark_attendance(
             attendance.check_in_time = datetime.now(timezone.utc)
     else:
         # Create new attendance record
-        from ...models.attendance import ConfirmationStatus, AttendanceHistory
         attendance = Attendance(
             user_id=student_id,
             session_id=session_id,
@@ -177,13 +184,6 @@ async def confirm_attendance(
     user: User = Depends(get_current_user_web)
 ):
     """Student confirms or disputes attendance marked by instructor"""
-    from ...models.session import Session as SessionTypel
-    from ...models.attendance import Attendance, ConfirmationStatus
-    from ...models.user import UserRole
-    from datetime import datetime, timezone
-    from zoneinfo import ZoneInfo
-
-    # Verify user is a student
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
@@ -209,8 +209,6 @@ async def confirm_attendance(
             return RedirectResponse(url=f"/sessions/{session_id}?error=session_ended", status_code=303)
 
     # Update confirmation status
-    from ...models.attendance import AttendanceHistory
-
     if action == "confirm":
         attendance.confirmation_status = ConfirmationStatus.confirmed
         attendance.student_confirmed_at = datetime.now(timezone.utc)
@@ -263,12 +261,6 @@ async def handle_change_request(
     user: User = Depends(get_current_user_web)
 ):
     """Student approves or rejects instructor's change request"""
-    from ...models.session import Session as SessionTypel
-    from ...models.attendance import Attendance, AttendanceStatus, AttendanceHistory
-    from ...models.user import UserRole
-    from datetime import datetime, timezone
-
-    # Verify user is a student
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 

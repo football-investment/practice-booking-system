@@ -19,6 +19,11 @@ from datetime import datetime, date, timedelta
 import sys
 import random
 
+    import subprocess
+
+    # Update user profile
+    import psycopg2
+        import traceback
 API_BASE = "http://localhost:8000/api/v1"
 ADMIN_EMAIL = "admin@lfa.com"
 ADMIN_PASSWORD = "admin123"
@@ -72,8 +77,6 @@ def reset_player_via_db():
     """Reset player user via direct DB access"""
     print_step("STEP 2: Reset Player User (Database)")
 
-    import subprocess
-
     sql = """
     -- Reset user
     UPDATE users
@@ -113,9 +116,6 @@ def complete_onboarding() -> dict:
     """Complete player onboarding via database (no API endpoint exists)"""
     print_step("STEP 3: Complete Onboarding")
 
-    import subprocess
-
-    # Update user profile
     print("   📝 Updating user profile...")
     sql = f"""
     UPDATE users
@@ -312,7 +312,6 @@ def create_instructor(admin_token: str) -> dict:
     # Activate and create license via database
     print("   💼 Activating instructor and creating license...")
 
-    import psycopg2
     conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
     cur = conn.cursor()
 
@@ -562,7 +561,6 @@ def main():
 
     except Exception as e:
         print_error(f"Setup failed: {str(e)}")
-        import traceback
         traceback.print_exc()
         return 1
 

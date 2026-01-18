@@ -17,6 +17,50 @@ from ...models.user import User, UserRole
 from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
+    from ...models.user import UserRole
+    
+    # Security check: ONLY admins can access
+    from ...models.semester import Semester
+    
+    # Security check: ONLY admins can access
+    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+    from ...models.license import UserLicense
+    from sqlalchemy.orm import joinedload
+
+    # Security check: ONLY admins can access
+    from datetime import date
+    import re
+    from ...models.specialization import SpecializationType
+    from collections import defaultdict
+
+    # First group by specialization, then by location within each specialization
+    from ...models.invoice_request import InvoiceRequest
+    from ...models.semester_enrollment import SemesterEnrollment
+
+    # Security check: ONLY admins can access
+    from ...models.coupon import Coupon
+    from datetime import datetime, timezone
+
+    # Security check: ONLY admins can access
+    from ...models.invitation_code import InvitationCode
+
+    # Security check: ONLY admins can access
+
+    # Security check: ONLY instructors can access
+
+    # Security check: ONLY instructors can access
+
+    # Security check: ONLY instructors can update
+    from ...services.audit_service import AuditService
+    from ...models.audit_log import AuditAction
+    from ...models.session import Session as SessionModel
+    from ...models.booking import Booking
+    
+    # Security check: ONLY admins can access
+
+    # Security check: ONLY admins and instructors can access
+
+    # Security check: ONLY admins and instructors can access
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -30,9 +74,6 @@ async def admin_users_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: User management page"""
-    from ...models.user import UserRole
-    
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -56,10 +97,6 @@ async def admin_semesters_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Semester management page"""
-    from ...models.user import UserRole
-    from ...models.semester import Semester
-    
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -83,13 +120,6 @@ async def admin_enrollments_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Unified Semester Enrollment Management page (replaces /admin/payments)"""
-    from ...models.user import UserRole
-    from ...models.semester import Semester
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from ...models.license import UserLicense
-    from sqlalchemy.orm import joinedload
-
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -108,7 +138,6 @@ async def admin_enrollments_page(
         student.active_specializations = student.all_licenses
 
     # Get ALL truly active semesters (running TODAY - between start_date and end_date)
-    from datetime import date
     today = date.today()
 
     active_semesters = db.query(Semester).filter(
@@ -118,7 +147,6 @@ async def admin_enrollments_page(
     ).order_by(Semester.code, Semester.start_date.desc()).all()
 
     # Add specialization_type and extract location from code
-    import re
     for semester in active_semesters:
         # Extract specialization and location from code
         # Examples:
@@ -173,10 +201,6 @@ async def admin_enrollments_page(
         )
 
     # Group enrollments by specialization + location
-    from ...models.specialization import SpecializationType
-    from collections import defaultdict
-
-    # First group by specialization, then by location within each specialization
     specialization_groups = {}
     for spec_type in SpecializationType:
         spec_enrollments = [e for e in all_enrollments if e.user_license.specialization_type == spec_type.value]
@@ -263,13 +287,6 @@ async def admin_payments_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Payment Management page (invoice requests + license payment verification)"""
-    from ...models.user import UserRole
-    from ...models.invoice_request import InvoiceRequest
-    from ...models.license import UserLicense
-    from ...models.semester_enrollment import SemesterEnrollment
-    from sqlalchemy.orm import joinedload
-
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -298,7 +315,6 @@ async def admin_payments_page(
     )
 
     # Group newcomer licenses by specialization
-    from ...models.specialization import SpecializationType
     newcomer_groups = {}
     for spec_type in SpecializationType:
         newcomer_groups[spec_type.value] = [
@@ -327,11 +343,6 @@ async def admin_coupons_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Coupon Management page"""
-    from ...models.user import UserRole
-    from ...models.coupon import Coupon
-    from datetime import datetime, timezone
-
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -362,11 +373,6 @@ async def admin_invitation_codes_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Partner Invitation Codes Management page"""
-    from ...models.user import UserRole
-    from ...models.invitation_code import InvitationCode
-    from datetime import datetime, timezone
-
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -407,12 +413,6 @@ async def instructor_enrollments_page(
     user: User = Depends(get_current_user_web)
 ):
     """Instructor-only: View and approve enrollment requests for their semesters"""
-    from ...models.user import UserRole
-    from ...models.semester import Semester
-    from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-    from sqlalchemy.orm import joinedload
-
-    # Security check: ONLY instructors can access
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
@@ -440,8 +440,6 @@ async def instructor_enrollments_page(
         )
 
     # Group enrollments by specialization
-    from ...models.specialization import SpecializationType
-
     specialization_groups = {}
     for spec_type in SpecializationType:
         spec_enrollments = [e for e in all_enrollments if e.user_license.specialization_type == spec_type.value]
@@ -480,10 +478,6 @@ async def instructor_edit_student_skills_page(
     user: User = Depends(get_current_user_web)
 ):
     """Instructor-only: Edit football skills for LFA Player students"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-
-    # Security check: ONLY instructors can access
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
@@ -547,11 +541,6 @@ async def instructor_update_student_skills(
     instructor_notes: str = Form("")
 ):
     """Instructor-only: Update football skills for a student"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-    from datetime import datetime, timezone
-
-    # Security check: ONLY instructors can update
     if user.role != UserRole.INSTRUCTOR:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
@@ -625,8 +614,6 @@ async def instructor_update_student_skills(
     db.refresh(license)
 
     # Log audit
-    from ...services.audit_service import AuditService
-    from ...models.audit_log import AuditAction
     audit_service = AuditService(db)
     audit_service.log(
         action=AuditAction.UPDATE,
@@ -693,11 +680,6 @@ async def admin_analytics_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Analytics and reports page"""
-    from ...models.user import UserRole
-    from ...models.session import Session as SessionModel
-    from ...models.booking import Booking
-    
-    # Security check: ONLY admins can access
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -739,10 +721,6 @@ async def motivation_assessment_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin/Instructor-only: Motivation assessment page for a student's specialization"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-
-    # Security check: ONLY admins and instructors can access
     if user.role not in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
         raise HTTPException(status_code=403, detail="Admin or Instructor access required")
 
@@ -795,11 +773,6 @@ async def motivation_assessment_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Admin/Instructor-only: Save motivation assessment"""
-    from ...models.user import UserRole
-    from ...models.license import UserLicense
-    from datetime import datetime, timezone
-
-    # Security check: ONLY admins and instructors can access
     if user.role not in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
         raise HTTPException(status_code=403, detail="Admin or Instructor access required")
 

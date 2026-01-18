@@ -10,6 +10,17 @@ from api_helpers_general import get_current_user
 from utils.age_category import get_age_category_for_season
 
 # Page configuration
+                    import requests
+                    from config import API_BASE_URL, API_TIMEOUT
+
+                    # Get current user to fetch rankings and rewards
+            import json
+                    import time
+from api_helpers_enrollments import get_user_schedule, get_enrollments_by_type
+from components.enrollment_conflict_warning import display_schedule_conflicts_summary
+
+# Fetch user's complete schedule
+        from components.tournaments.tournament_browser import render_tournament_browser
 st.set_page_config(
     page_title=f"{PAGE_TITLE} - LFA Player",
     page_icon="⚽",
@@ -288,10 +299,6 @@ def _display_enrollment_card(enrollment: dict, icon: str):
             token = st.session_state.get('token')
             if token and semester_id:
                 try:
-                    import requests
-                    from config import API_BASE_URL, API_TIMEOUT
-
-                    # Get current user to fetch rankings and rewards
                     user_id = st.session_state.get(SESSION_USER_KEY, {}).get('id')
 
                     if user_id:
@@ -388,7 +395,6 @@ def parse_motivation_scores(license):
     # If it's a string, try to parse it
     if isinstance(motivation_scores, str):
         try:
-            import json
             return json.loads(motivation_scores)
         except:
             return None
@@ -444,7 +450,6 @@ def show_unenroll_dialog():
                 return
 
             try:
-                import requests
                 response = requests.delete(
                     f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/unenroll",
                     headers={"Authorization": f"Bearer {token}"},
@@ -475,7 +480,6 @@ def show_unenroll_dialog():
                     st.session_state.pop('show_unenroll_dialog', None)
 
                     # Wait and reload
-                    import time
                     time.sleep(2)
                     st.rerun()
 
@@ -685,10 +689,6 @@ else:
     st.warning("⚠️ Age category not determined. Please set your date of birth in your profile.")
 
 # Import enrollment helpers
-from api_helpers_enrollments import get_user_schedule, get_enrollments_by_type
-from components.enrollment_conflict_warning import display_schedule_conflicts_summary
-
-# Fetch user's complete schedule
 success, error, schedule_data = get_user_schedule(token)
 
 if not success:
@@ -732,7 +732,6 @@ elif schedule_data:
         st.markdown("#### 🌍 Browse Worldwide Tournaments")
         st.caption("Discover and enroll in competitive football tournaments")
 
-        from components.tournaments.tournament_browser import render_tournament_browser
         render_tournament_browser(token, user)
 
     with tab3:

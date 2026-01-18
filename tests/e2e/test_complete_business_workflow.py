@@ -22,6 +22,10 @@ import random
 from playwright.sync_api import Page, expect
 from tests.e2e.reward_policy_fixtures import (
     create_admin_token,
+        from datetime import datetime
+        import requests
+
+        # Try to create tournament as instructor (should fail with 403)
     create_instructor_user,
     create_multiple_instructors,
     create_first_team_players,
@@ -81,7 +85,6 @@ class TestCompleteBusinessWorkflow:
         print("\nSTEP 1: Admin creates 2 tournaments")
         print("-" * 80)
 
-        from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
         tournament1_result = create_tournament_via_api(
@@ -205,7 +208,6 @@ class TestCompleteBusinessWorkflow:
                 print(f"     ✅ Player {idx+1} applied coupon: {coupon_result['new_balance']} credits")
             except Exception as e:
                 # If coupon exhausted, create new one with unique timestamp
-                import time
                 time.sleep(0.1)  # Small delay to ensure different timestamp
                 new_timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
                 coupon_code = f"TournamentPromo{new_timestamp}"
@@ -268,9 +270,6 @@ class TestCompleteBusinessWorkflow:
         print("\nSTEP 10: Negative Test - Instructor cannot create tournament")
         print("-" * 80)
 
-        import requests
-
-        # Try to create tournament as instructor (should fail with 403)
         try:
             response = requests.post(
                 f"{self.API_BASE_URL}/api/v1/semesters",

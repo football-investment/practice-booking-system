@@ -14,6 +14,27 @@ from ...dependencies import get_current_user_web, get_current_user_optional
 from ...models.user import User, UserRole
 
 # Setup templates
+    from datetime import date
+
+    # Calculate user age
+    from ...models.license import UserLicense
+    from ...models.semester_enrollment import SemesterEnrollment
+    from ...models.semester import Semester
+    from ...models.invoice_request import InvoiceRequest
+
+    from datetime import timezone as tz
+    from ...services.gamification import GamificationService
+    from ...models.session import Session as SessionModel
+    from ...models.attendance import Attendance
+
+    # ONLY STUDENTS can view progress - instructors TEACH, they don't learn!
+        from ...models.quiz import AdaptiveLearningSession
+
+    # Get ALL user licenses for the switcher dropdown
+    from ...models.achievement import Achievement
+    from ...models.gamification import UserAchievement
+
+    # Get all achievements from database
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
@@ -27,9 +48,6 @@ async def about_specializations_page(
     user: User = Depends(get_current_user_web)
 ):
     """About specializations information page"""
-    from datetime import date
-
-    # Calculate user age
     user_age = None
     if user.date_of_birth:
         today = date.today()
@@ -58,11 +76,6 @@ async def credits_page(
         return RedirectResponse(url="/login", status_code=302)
 
     # Get all user licenses (all specializations)
-    from ...models.license import UserLicense
-    from ...models.semester_enrollment import SemesterEnrollment
-    from ...models.semester import Semester
-    from ...models.invoice_request import InvoiceRequest
-
     user_licenses = db.query(UserLicense).filter(
         UserLicense.user_id == current_user.id
     ).all()
@@ -131,7 +144,6 @@ async def credits_page(
             })
 
     # Sort by date descending (handle None and timezone issues)
-    from datetime import timezone as tz
     def safe_date_key(transaction):
         date = transaction['date']
         if date is None:
@@ -190,12 +202,6 @@ async def progress_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display student academic progress page with XP, level, and semester completion"""
-    from ...services.gamification import GamificationService
-    from ...models.session import Session as SessionModel
-    from ...models.attendance import Attendance
-    from ...models.semester import Semester
-
-    # ONLY STUDENTS can view progress - instructors TEACH, they don't learn!
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -246,7 +252,6 @@ async def progress_page(
         earned_session_xp = sum(a.xp_earned or 0 for a in attended_sessions)
 
         # Add bonus XP from Adaptive Learning sessions
-        from ...models.quiz import AdaptiveLearningSession
         adaptive_xp = db.query(func.sum(AdaptiveLearningSession.xp_earned)).filter(
             AdaptiveLearningSession.user_id == user.id,
             AdaptiveLearningSession.started_at >= current_semester.start_date,
@@ -285,9 +290,6 @@ async def progress_page(
     level_progress_percent = (xp_progress_in_level / 500 * 100) if stats.total_xp < xp_for_next_level else 100
 
     # Get ONLY the active specialization's UserLicense
-    from ...models.license import UserLicense
-
-    # Get ALL user licenses for the switcher dropdown
     user_licenses = db.query(UserLicense).filter(
         UserLicense.user_id == user.id
     ).all()
@@ -388,10 +390,6 @@ async def achievements_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display achievements page - using REAL database data"""
-    from ...models.achievement import Achievement
-    from ...models.gamification import UserAchievement
-
-    # Get all achievements from database
     all_achievements_query = db.query(Achievement).filter(
         Achievement.is_active == True
     ).all()

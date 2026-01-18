@@ -14,6 +14,18 @@ from .....models.license import UserLicense
 from .....models.specialization import SpecializationType
 
 """
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, Field
+import sys
+import os
+
+# Add service layer to path
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from .....services.specs.semester_based.lfa_coach_service import LFACoachService
 Coach License Management API Endpoints
 
 Provides REST API endpoints for Coach certification system.
@@ -26,21 +38,7 @@ Level System: 1-8 certification levels
 - Expiry: 2 years from creation/renewal
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field
-import sys
-import os
-
-# Add service layer to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
-
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
-from .....services.specs.semester_based.lfa_coach_service import LFACoachService
 
 router = APIRouter()
 
