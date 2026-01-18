@@ -262,3 +262,54 @@ class SessionFilterService:
                 'interest_matching': user.interests is not None
             }
         }
+
+    def apply_specialization_filter(
+        self,
+        query,
+        user: User,
+        include_mixed: bool = True
+    ):
+        """
+        Apply specialization filtering to session query.
+
+        Extracted from list_sessions() lines 123-146 (Phase 0 analysis).
+        Only applies to STUDENTS with specialization - skips admin/instructor.
+
+        Args:
+            query: SQLAlchemy query for sessions
+            user: Current user
+            include_mixed: Include mixed specialization sessions (default: True)
+
+        Returns:
+            Filtered query
+
+        Complexity: B (6) - role check + hasattr + 3 OR conditions
+        """
+        # Only apply to STUDENTS with specialization
+        if user.role != UserRole.STUDENT:
+            return query
+
+        if not (hasattr(user, 'has_specialization') and user.has_specialization):
+            return query
+
+        specialization_conditions = []
+
+        # Sessions with no specific target (accessible to all)
+        specialization_conditions.append(SessionTypel.target_specialization.is_(None))
+
+        # Sessions matching user's specialization
+        if user.specialization:
+            specialization_conditions.append(
+                SessionTypel.target_specialization == user.specialization
+            )
+
+        # Mixed specialization sessions (if include_mixed is True)
+        if include_mixed:
+            specialization_conditions.append(SessionTypel.mixed_specialization == True)
+
+        query = query.filter(or_(*specialization_conditions))
+
+        if user.specialization:
+            print(f"🎓 Specialization filtering applied for {user.name}: {user.specialization.value}")
+
+        return query

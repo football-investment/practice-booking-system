@@ -53,29 +53,10 @@ def list_sessions(
     role_filter_service = RoleSemesterFilterService(db)
     query = role_filter_service.apply_role_semester_filter(query, current_user, semester_id)
 
-    # 🎓 NEW: Apply specialization filtering (CRITICAL: Preserves Mbappé logic)
-    # FIX: Only apply to STUDENTS with specialization - skip for admin/instructor
-    if specialization_filter and current_user.role == UserRole.STUDENT and hasattr(current_user, 'has_specialization') and current_user.has_specialization:
-        # Only apply specialization filtering to students who have a specialization
-        # ⚠️ CRITICAL: This preserves Mbappé cross-semester access since he's already handled above
-
-        specialization_conditions = []
-
-        # Sessions with no specific target (accessible to all)
-        specialization_conditions.append(SessionTypel.target_specialization.is_(None))
-
-        # Sessions matching user's specialization
-        if current_user.specialization:
-            specialization_conditions.append(SessionTypel.target_specialization == current_user.specialization)
-
-        # Mixed specialization sessions (if include_mixed is True)
-        if include_mixed:
-            specialization_conditions.append(SessionTypel.mixed_specialization == True)
-
-        query = query.filter(or_(*specialization_conditions))
-
-        if current_user.specialization:
-            print(f"🎓 Specialization filtering applied for {current_user.name}: {current_user.specialization.value}")
+    # Apply specialization filtering using SessionFilterService
+    if specialization_filter:
+        filter_service = SessionFilterService(db)
+        query = filter_service.apply_specialization_filter(query, current_user, include_mixed)
 
     # Apply other filters
     if group_id:
