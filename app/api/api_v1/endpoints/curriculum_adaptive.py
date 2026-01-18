@@ -2,7 +2,7 @@
 Curriculum-Based Adaptive Learning API Endpoints
 Personalized learning recommendations and profile management for curriculum system
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
 

@@ -3,7 +3,7 @@ Tournament Ranking and Stats Models
 
 Models for tournament leaderboards, rankings, and statistics.
 """
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base

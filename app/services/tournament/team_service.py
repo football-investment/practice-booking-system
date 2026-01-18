@@ -6,8 +6,7 @@ Business logic for team management (CRUD operations, member management).
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from fastapi import HTTPException, status
-from typing import List, Optional, Dict
-from datetime import datetime
+from typing import List, Optional
 
 from app.models import Team, TeamMember, User, TeamMemberRole
 

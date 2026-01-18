@@ -25,7 +25,6 @@ VALID_TRANSITIONS = {
 
 class StatusValidationError(Exception):
     """Raised when a status transition is invalid"""
-    pass
 
 
 def validate_status_transition(
@@ -110,7 +109,7 @@ def validate_status_transition(
 
     if new_status == "REWARDS_DISTRIBUTED":
         # Rankings must be submitted before distributing rewards
-        from app.models.tournament_ranking import TournamentRanking
+        pass
 
         # Note: Attendance validation is NOT required here - rankings are sufficient
         # The reward distribution endpoint will handle any additional validations
@@ -118,7 +117,6 @@ def validate_status_transition(
         # Count submitted rankings
         # NOTE: Cannot use func.count() with filter directly - need proper query
         # For now, skip the complex SQL validation (endpoint will validate)
-        pass
 
     # All validations passed
     return True, None

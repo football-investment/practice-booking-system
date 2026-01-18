@@ -3,11 +3,10 @@ Tournament Rewards API Endpoints
 
 Handles tournament ranking submission, reward calculation, and distribution.
 """
-from typing import Any, List, Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
-from datetime import datetime
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -15,7 +14,6 @@ from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.models.credit_transaction import CreditTransaction, TransactionType
-from app.services.tournament.status_validator import validate_status_transition
 
 
 router = APIRouter()

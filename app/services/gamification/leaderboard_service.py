@@ -5,7 +5,7 @@ Handles leaderboard generation and user rank calculation based on XP.
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func
 from typing import List, Dict, Optional
 
 from ...models.user import User

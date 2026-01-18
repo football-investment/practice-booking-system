@@ -1,4 +1,3 @@
-import pytest
 
 from ..core.permissions import (
     PermissionChecker, check_user_permission, admin_required,

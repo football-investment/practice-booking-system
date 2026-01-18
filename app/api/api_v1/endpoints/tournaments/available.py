@@ -11,10 +11,8 @@ from datetime import date
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User, UserRole
-from app.models.semester import Semester, SemesterStatus
+from app.models.semester import Semester
 from app.models.semester_enrollment import SemesterEnrollment
-from app.models.session import Session as SessionModel
-from app.models.license import UserLicense
 from app.schemas.tournament import TournamentWithDetails
 from app.services.age_category_service import (
     get_automatic_age_category,

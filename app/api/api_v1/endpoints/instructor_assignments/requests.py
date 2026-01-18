@@ -11,32 +11,23 @@ Flow:
 5. Instructor accepts/declines specific semester assignments
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, joinedload
-from typing import Any, List, Dict, Optional
+from sqlalchemy.orm import Session
+from typing import List, Optional
 from datetime import datetime
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.semester import Semester
-from .....models.license import UserLicense
 from .....models.instructor_assignment import (
-    InstructorAvailabilityWindow,
     InstructorAssignmentRequest,
     AssignmentRequestStatus
 )
 from .....schemas.instructor_assignment import (
-    InstructorAvailabilityWindowCreate,
-    InstructorAvailabilityWindowUpdate,
-    InstructorAvailabilityWindowResponse,
     InstructorAssignmentRequestCreate,
-    InstructorAssignmentRequestUpdate,
     InstructorAssignmentRequestAccept,
     InstructorAssignmentRequestDecline,
-    InstructorAssignmentRequestResponse,
-    AvailableInstructorInfo,
-    InstructorLicenseInfo,
-    AvailableInstructorsQuery
+    InstructorAssignmentRequestResponse
 )
 
 router = APIRouter()

@@ -10,7 +10,6 @@ from typing import List, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import math
-import json
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType

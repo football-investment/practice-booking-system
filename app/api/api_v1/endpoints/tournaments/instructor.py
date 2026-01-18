@@ -35,7 +35,7 @@ import json
 
 from app.database import get_db
 from app.models.user import User, UserRole
-from app.models.semester import Semester, SemesterStatus
+from app.models.semester import Semester
 from app.models.session import Session as SessionModel
 from app.models.license import UserLicense
 from app.models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus

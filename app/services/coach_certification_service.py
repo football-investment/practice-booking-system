@@ -3,11 +3,9 @@
 Handles certification tracking for LFA Coach specialization
 """
 from sqlalchemy.orm import Session
-from typing import Dict, List, Optional
-from datetime import datetime, timezone
+from typing import Dict, Optional
 
 from ..models.license import UserLicense
-from ..models.user import User
 
 
 class CoachCertificationService:

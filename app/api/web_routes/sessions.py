@@ -1,20 +1,16 @@
 """
 Session and calendar routes
 """
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, status, Body
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from pathlib import Path
-from datetime import datetime, timezone, date, timedelta
-from typing import Optional, List
-from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 from ...database import get_db
-from ...dependencies import get_current_user_web, get_current_user_optional
+from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
-from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

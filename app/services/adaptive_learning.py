@@ -1,17 +1,14 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import and_
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Optional, Tuple
-import json
+from typing import List, Dict, Optional
 import random
 import math
 
 from ..models.quiz import (
-    Quiz, QuizQuestion, QuizAttempt, QuizUserAnswer,
-    UserQuestionPerformance, AdaptiveLearningSession, 
-    QuestionMetadata, QuizCategory, QuestionType
+    Quiz, QuizQuestion, UserQuestionPerformance, AdaptiveLearningSession,
+    QuestionMetadata, QuizCategory
 )
-from ..models.user import User
 
 
 class AdaptiveLearningService:

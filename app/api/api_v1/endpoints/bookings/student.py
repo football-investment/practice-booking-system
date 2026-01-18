@@ -2,7 +2,7 @@
 Student booking operations
 Create, view, cancel bookings and view statistics
 """
-from typing import Any, List, Optional, Dict
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func

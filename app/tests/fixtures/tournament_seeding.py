@@ -18,7 +18,6 @@ from app.models.tournament_type import TournamentType
 from app.models.location import Location
 from app.models.campus import Campus
 from app.models.user import User, UserRole
-from app.models.semester import Semester
 from app.core.security import get_password_hash
 
 

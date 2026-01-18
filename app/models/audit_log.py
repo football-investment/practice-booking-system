@@ -5,7 +5,6 @@ Tracks all important user actions and system events for security and compliance.
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, func
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
 
 from ..database import Base
 

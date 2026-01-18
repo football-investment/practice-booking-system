@@ -3,12 +3,10 @@ Test Audit Service
 
 Comprehensive tests for audit logging functionality.
 """
-import pytest
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
 
 from app.services.audit_service import AuditService
-from app.models.audit_log import AuditLog, AuditAction
+from app.models.audit_log import AuditAction
 from app.models.user import User, UserRole
 
 

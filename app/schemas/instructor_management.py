@@ -70,7 +70,6 @@ class MasterInstructorBase(BaseModel):
 
 class MasterInstructorCreate(MasterInstructorBase):
     """Schema for creating master instructor contract"""
-    pass
 
 
 class MasterInstructorUpdate(BaseModel):
@@ -134,7 +133,6 @@ class PositionBase(BaseModel):
 
 class PositionCreate(PositionBase):
     """Schema for creating position posting"""
-    pass
 
 
 class PositionUpdate(BaseModel):
@@ -180,7 +178,6 @@ class ApplicationBase(BaseModel):
 
 class ApplicationCreate(ApplicationBase):
     """Schema for creating application"""
-    pass
 
 
 class ApplicationUpdate(BaseModel):
@@ -224,7 +221,6 @@ class AssignmentBase(BaseModel):
 
 class AssignmentCreate(AssignmentBase):
     """Schema for creating instructor assignment"""
-    pass
 
 
 class AssignmentUpdate(BaseModel):

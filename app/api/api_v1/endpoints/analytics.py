@@ -4,10 +4,10 @@ Claude Code broke these - now they work with real models
 """
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, text, case
+from sqlalchemy import func, and_, case
 
 from app.database import get_db
 from app.dependencies import get_current_admin_or_instructor_user

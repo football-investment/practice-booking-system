@@ -1,15 +1,14 @@
 """
 Football skills assessment endpoints
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Any, List, Dict
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_admin_user_web
+from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.license import UserLicense
-from .....services.football_skill_service import FootballSkillService
 
 router = APIRouter()
 

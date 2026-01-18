@@ -19,7 +19,6 @@ from app.models.project import (
     ProjectEnrollment,
     ProjectStatus,
     ProjectEnrollmentStatus,
-    ProjectProgressStatus,
     ProjectQuiz,
     ProjectEnrollmentQuiz,
     MilestoneStatus

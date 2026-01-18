@@ -4,16 +4,11 @@ Test License Service
 Comprehensive tests for GānCuju™️©️ License System functionality.
 Tests license creation, advancement, requirements checking, and progression tracking.
 """
-import pytest
-from datetime import datetime, timezone
-from sqlalchemy.orm import Session
 
 from app.services.license_service import LicenseService
 from app.models.license import (
-    LicenseMetadata, UserLicense, LicenseProgression,
-    LicenseType, LicenseSystemHelper
+    LicenseMetadata, LicenseProgression
 )
-from app.models.user import User, UserRole
 from app.models.specialization import SpecializationType
 
 

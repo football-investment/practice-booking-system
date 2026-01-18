@@ -3,7 +3,6 @@ Gamification Utility Functions
 Common helper functions used across gamification modules
 """
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 
 from ...models.gamification import UserStats
 

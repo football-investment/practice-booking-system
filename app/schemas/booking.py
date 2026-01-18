@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime
 from ..models.booking import BookingStatus
 from ..models.session import SessionType
 

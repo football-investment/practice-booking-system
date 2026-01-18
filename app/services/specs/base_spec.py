@@ -14,7 +14,7 @@ Specialization Types:
 """
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict, Optional, List
+from typing import Tuple, Dict, Optional
 from datetime import date, datetime
 from sqlalchemy.orm import Session
 
@@ -54,7 +54,6 @@ class BaseSpecializationService(ABC):
             - (True, "Success message") if booking allowed
             - (False, "Error message explaining why not") if not allowed
         """
-        pass
 
     @abstractmethod
     def get_enrollment_requirements(self, user, db: Session) -> Dict:
@@ -76,7 +75,6 @@ class BaseSpecializationService(ABC):
                 "current_status": Dict (spec-specific info)
             }
         """
-        pass
 
     @abstractmethod
     def validate_age_eligibility(self, user, target_group: Optional[str] = None, db: Session = None) -> Tuple[bool, str]:
@@ -94,7 +92,6 @@ class BaseSpecializationService(ABC):
         Returns:
             Tuple of (is_eligible: bool, reason: str)
         """
-        pass
 
     @abstractmethod
     def get_progression_status(self, user_license, db: Session) -> Dict:
@@ -117,7 +114,6 @@ class BaseSpecializationService(ABC):
                 "next_milestone": Dict (optional)
             }
         """
-        pass
 
     # ========================================================================
     # COMMON UTILITY METHODS - Shared across all specializations

@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
-from typing import Optional
 
 from ..database import Base
 from .specialization import SpecializationType

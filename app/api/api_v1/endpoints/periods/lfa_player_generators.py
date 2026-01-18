@@ -15,7 +15,6 @@ Endpoints:
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import date
 from typing import Dict
 
 from .....database import get_db

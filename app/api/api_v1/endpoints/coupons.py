@@ -30,7 +30,6 @@ class CouponBase(BaseModel):
 
 class CouponCreate(CouponBase):
     """Schema for creating a coupon"""
-    pass
 
 
 class CouponUpdate(BaseModel):

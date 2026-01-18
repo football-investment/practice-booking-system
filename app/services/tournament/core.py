@@ -12,7 +12,7 @@ Functions:
     - delete_tournament: Delete a tournament and all associated data
 """
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 
@@ -20,7 +20,7 @@ from app.models.semester import Semester, SemesterStatus
 from app.models.session import Session as SessionModel, SessionType
 from app.models.booking import Booking
 from app.models.specialization import SpecializationType
-from app.services.tournament.reward_policy_loader import load_policy, RewardPolicyError
+from app.services.tournament.reward_policy_loader import load_policy
 
 
 def create_tournament_semester(

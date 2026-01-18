@@ -4,7 +4,7 @@ Handles assessment creation and average calculation for LFA Player skills
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from datetime import datetime, timezone
 
 from ..models.football_skill_assessment import FootballSkillAssessment

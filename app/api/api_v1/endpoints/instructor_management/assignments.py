@@ -16,7 +16,7 @@ from typing import Optional
 from datetime import datetime
 
 from app.database import get_db
-from app.dependencies import get_current_user, get_current_admin_user
+from app.dependencies import get_current_user
 from app.models import User, Location, InstructorAssignment, LocationMasterInstructor, Semester, SemesterStatus
 from app.models.specialization import SpecializationType
 from app.schemas.instructor_management import (

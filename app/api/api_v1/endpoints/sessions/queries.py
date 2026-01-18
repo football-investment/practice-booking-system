@@ -5,18 +5,16 @@ List, filter, recommendations, bookings, instructor sessions, calendar
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, and_, or_, case
-from datetime import datetime, date, timezone
+from sqlalchemy import func, and_
+from datetime import datetime, timezone
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.session import Session as SessionTypel, SessionType
 from .....models.booking import Booking, BookingStatus
-from .....models.attendance import Attendance
-from .....models.feedback import Feedback
 from .....models.specialization import SpecializationType
-from .....schemas.session import SessionWithStats, SessionList
+from .....schemas.session import SessionList
 from .....schemas.booking import BookingWithRelations, BookingList
 from .....services.session_filter_service import SessionFilterService
 from .....services.session_stats_aggregator import SessionStatsAggregator

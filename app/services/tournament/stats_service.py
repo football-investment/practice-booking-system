@@ -4,7 +4,7 @@ Tournament Stats Service
 Business logic for tournament statistics and analytics.
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import and_
 from typing import Dict, Optional
 from decimal import Decimal
 

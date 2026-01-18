@@ -8,7 +8,6 @@ Validates user eligibility for specializations based on:
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
@@ -21,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 class SpecializationValidationError(Exception):
     """Raised when specialization validation fails"""
-    pass
 
 
 class SpecializationValidator:

@@ -6,12 +6,10 @@ This module contains validation functions for:
 - Specialization matching
 - Payment verification
 """
-from typing import Any
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from .....database import get_db
 from .....models.user import User
 from .....models.semester import Semester
 from .....models.project import Project as ProjectModel

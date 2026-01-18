@@ -3,25 +3,21 @@ Track-Based Education Service
 Handles track enrollment, progress tracking, and certificate generation
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import func
 
 from ..models import (
-    Track, Module, ModuleComponent, 
-    UserTrackProgress, UserModuleProgress, 
-    TrackProgressStatus, ModuleProgressStatus,
-    User, Semester,
-    CertificateTemplate, IssuedCertificate
+    Track, Module, UserTrackProgress, 
+    UserModuleProgress, TrackProgressStatus, 
+    ModuleProgressStatus, Semester
 )
-from ..database import get_db
 from .certificate_service import CertificateService
 
 
 class TrackEnrollmentError(Exception):
     """Custom exception for track enrollment errors"""
-    pass
 
 
 class TrackService:

@@ -6,8 +6,6 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional, List
 import logging
 
-from app.models.specialization import SpecializationType
-from app.services.specialization_config_loader import get_config_loader
 from .common import (
     get_level_requirements,
     get_student_progress,

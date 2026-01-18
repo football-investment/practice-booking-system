@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
 
 from ....database import get_db
 from ....dependencies import get_current_user
 from ....models.user import User
-from ....models.notification import Notification, NotificationType
+from ....models.notification import Notification
 from ....schemas.notification import (
     NotificationList,
     Notification as NotificationSchema,

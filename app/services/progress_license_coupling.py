@@ -29,7 +29,6 @@ from sqlalchemy import select
 
 from app.models.user_progress import SpecializationProgress
 from app.models.license import UserLicense, LicenseProgression
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 

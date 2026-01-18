@@ -5,7 +5,6 @@ Tracks belt promotions for Gancuju players
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from datetime import datetime
 
 from ..database import Base
 

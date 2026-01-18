@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ....dependencies import get_current_user
 from ....database import get_db
 from ....models import User
-from ....services.certificate_service import CertificateService, CertificateGenerationError
+from ....services.certificate_service import CertificateService
 from ....schemas.certificate import (
     CertificateResponse, CertificateVerificationResponse,
     CertificateAnalyticsResponse

@@ -1,16 +1,14 @@
 """
 Coach theory and practice hours tracking endpoints
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
-from datetime import datetime, timezone
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
-from .....models.license import UserLicense
 
 """
 from fastapi import APIRouter, Depends, HTTPException, Query

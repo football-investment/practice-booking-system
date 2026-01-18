@@ -13,7 +13,7 @@ Date: 2025-10-25
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 

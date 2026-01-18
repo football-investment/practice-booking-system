@@ -7,11 +7,10 @@ Helps identify N+1 query problems and optimization opportunities.
 
 import time
 import logging
-from typing import Callable, Optional
+from typing import Optional
 from contextlib import contextmanager
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 

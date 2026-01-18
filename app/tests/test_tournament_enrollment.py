@@ -12,7 +12,7 @@ Tests all critical paths for tournament enrollment:
 """
 
 import pytest
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.user import User, UserRole

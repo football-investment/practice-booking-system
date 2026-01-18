@@ -28,8 +28,4 @@ def get_db():
 def create_database():
     """Create all database tables"""
     # Import all models to ensure they are registered with Base
-    from .models import (
-        user, semester, group, session, booking, 
-        attendance, feedback, notification
-    )
     Base.metadata.create_all(bind=engine)

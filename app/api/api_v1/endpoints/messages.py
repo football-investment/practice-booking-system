@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, and_
-from typing import List, Optional
+from typing import List
 
 from ....database import get_db
 from ....dependencies import get_current_user
 from ....models.user import User
-from ....models.message import Message, MessagePriority
+from ....models.message import Message
 from ....schemas.message import (
     MessageList, Message as MessageSchema, MessageUserInfo,
     MessageCreate, MessageCreateByNickname, MessageUpdate,

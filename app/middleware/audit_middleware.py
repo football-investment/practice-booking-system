@@ -14,7 +14,6 @@ from ..config import settings
 from ..database import SessionLocal
 from ..services.audit_service import AuditService
 from ..services.action_determiner import ActionDeterminer
-from ..models.audit_log import AuditAction
 
 
 class AuditMiddleware(BaseHTTPMiddleware):

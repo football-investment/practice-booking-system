@@ -3,13 +3,11 @@
 Handles license progression, advancement, and marketing content delivery
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
 from ..models.license import LicenseMetadata, UserLicense, LicenseProgression
 from ..models.user import User
-from ..models.specialization import SpecializationType
 
 
 class LicenseService:

@@ -64,7 +64,6 @@ class HealthChecker:
                 db.close()
             except Exception as e:
                 logger.error(f"Error closing database connection in health check: {e}")
-                pass
         
         return db_health
     

@@ -12,8 +12,7 @@ Workflow:
 """
 
 from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
-from datetime import datetime
+from typing import List, Dict
 
 from app.models import (
     SessionGroupAssignment,
@@ -21,8 +20,7 @@ from app.models import (
     Session as SessionModel,
     Attendance,
     AttendanceStatus,
-    User,
-    Booking
+    User
 )
 
 

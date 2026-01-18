@@ -3,7 +3,6 @@ Age-based specialization requirements
 Automatically filters available specializations based on user's age
 """
 from typing import List, Dict, Optional
-from datetime import date
 
 
 def get_available_specializations(age: Optional[int]) -> List[Dict]:

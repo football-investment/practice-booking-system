@@ -6,10 +6,9 @@ Centralized service for logging and querying audit events.
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, func
 
 from ..models.audit_log import AuditLog, AuditAction
-from ..models.user import User
 
 
 class AuditService:

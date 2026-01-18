@@ -95,7 +95,6 @@ async def get_current_user_optional(
             return user
     except Exception as e:
         logger.error(f"Error verifying optional user token: {e}")
-        pass
 
     return None
 

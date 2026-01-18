@@ -10,12 +10,11 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
 from ...models.user import User
-from ...models.gamification import UserAchievement, UserStats, BadgeType
-from ...models.achievement import Achievement, AchievementCategory
+from ...models.gamification import UserAchievement, BadgeType
+from ...models.achievement import Achievement
 from ...models.audit_log import AuditLog, AuditAction
 from ...models.license import UserLicense
 
-from .utils import get_or_create_user_stats
 from .xp_service import calculate_user_stats, award_xp
 
 def award_achievement(

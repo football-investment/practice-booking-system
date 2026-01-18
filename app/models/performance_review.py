@@ -5,7 +5,7 @@ Two-way evaluation system:
 1. Instructor evaluates Student performance (soft skills)
 2. Student evaluates Instructor and Session quality
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from ..database import Base

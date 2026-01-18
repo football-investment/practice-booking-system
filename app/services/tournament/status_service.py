@@ -12,7 +12,6 @@ from sqlalchemy import text
 import json
 
 from ...models.semester import Semester
-from ...models.user import User
 
 
 # ============================================================================

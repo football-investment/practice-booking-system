@@ -19,8 +19,8 @@ Architecture:
 - Frontend layer (streamlit components) - user warnings
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
-from typing import List, Dict, Optional
+from sqlalchemy import and_, func
+from typing import Dict, Optional
 from datetime import datetime, timedelta, date, time
 
 from app.models.semester_enrollment import SemesterEnrollment
@@ -28,8 +28,6 @@ from app.models.semester import Semester
 from app.models.session import Session as SessionModel
 from app.models.booking import Booking
 from app.models.location import Location
-from app.models.campus import Campus
-from app.models.specialization import SpecializationType
 
 
 class EnrollmentConflictService:

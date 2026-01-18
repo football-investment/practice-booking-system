@@ -7,7 +7,7 @@ Automatically generates semesters based on templates for each specialization and
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from pydantic import BaseModel
 
 from ....database import get_db

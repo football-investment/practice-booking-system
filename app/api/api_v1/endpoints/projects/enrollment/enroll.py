@@ -10,7 +10,7 @@ This module handles:
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
 
 from ..validators import (
     validate_semester_enrollment,

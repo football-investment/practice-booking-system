@@ -3,14 +3,13 @@ User license operations
 Advancement, dashboard, requirements
 """
 from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db
 from .....dependencies import get_current_user
-from .....models.user import User, UserRole
+from .....models.user import User
 from .....services.license_service import LicenseService
-from .....services.progress_license_sync_service import ProgressLicenseSyncService
 
 router = APIRouter()
 

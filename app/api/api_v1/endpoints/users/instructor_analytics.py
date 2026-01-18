@@ -12,7 +12,7 @@ from .....models.user import User, UserRole
 from .....models.booking import Booking
 from .....models.attendance import Attendance
 from .....models.feedback import Feedback
-from .helpers import calculate_pagination, serialize_enum_value
+from .helpers import serialize_enum_value
 
 router = APIRouter()
 

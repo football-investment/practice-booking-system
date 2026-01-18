@@ -11,7 +11,6 @@ This module handles:
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
 
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_or_instructor_user

@@ -7,7 +7,7 @@ Should be run as a cron job (hourly or daily).
 
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 from ..models.instructor_assignment import LocationMasterInstructor, MasterOfferStatus
 

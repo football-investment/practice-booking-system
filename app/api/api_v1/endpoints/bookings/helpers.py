@@ -5,7 +5,6 @@ Includes auto-promotion logic and validation helpers
 from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from datetime import datetime
 
 from .....models.booking import Booking, BookingStatus
 from .....models.user import User

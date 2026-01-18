@@ -9,7 +9,7 @@ from datetime import datetime
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User, UserRole
-from app.models.semester import Semester, SemesterStatus
+from app.models.semester import Semester
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
 from app.models.session import Session as SessionModel

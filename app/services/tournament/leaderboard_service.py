@@ -10,9 +10,8 @@ from decimal import Decimal
 
 from app.models import (
     TournamentRanking, 
-    Semester, 
     User, 
-    Team,
+    Team, 
     Attendance,
     AttendanceStatus,
     Session as SessionModel,

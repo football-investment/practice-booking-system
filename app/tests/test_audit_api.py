@@ -3,7 +3,6 @@ Test Audit API Endpoints
 
 Tests for audit log API access control and functionality.
 """
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from datetime import timedelta

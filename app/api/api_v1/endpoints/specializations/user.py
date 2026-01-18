@@ -7,7 +7,7 @@ Handles specialization selection and information for the LFA education platform
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict
 from pydantic import BaseModel
 
 from .....database import get_db

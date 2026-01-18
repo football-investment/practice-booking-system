@@ -10,7 +10,7 @@ Templates include:
 - Start/end date patterns
 """
 
-from typing import List, Dict
+from typing import Dict
 from datetime import datetime, timedelta
 
 

@@ -6,11 +6,10 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, EmailStr
 
 from ....database import get_db
-from ....dependencies import get_current_admin_user_web, get_current_user_web, get_current_admin_user, security_optional
+from ....dependencies import get_current_user_web, security_optional
 from fastapi.security import HTTPAuthorizationCredentials
 from ....models.user import User
 from ....models.invitation_code import InvitationCode
-from ....models.credit_transaction import CreditTransaction, TransactionType
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,6 @@ async def get_admin_user_hybrid(
                     return user
         except Exception as e:
             logger.error(f"Error verifying cookie token for admin access: {e}")
-            pass
 
     # Neither method worked
     raise HTTPException(

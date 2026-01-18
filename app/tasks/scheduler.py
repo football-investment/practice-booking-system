@@ -11,7 +11,6 @@ import logging
 
 from app.database import SessionLocal
 from app.services.adaptive_learning_service import AdaptiveLearningService
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 

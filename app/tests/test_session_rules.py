@@ -23,10 +23,9 @@ from sqlalchemy.orm import Session
 
 from ..main import app
 from ..models.user import User, UserRole
-from ..models.session import Session as SessionModel, SessionType
+from ..models.session import Session as SessionModel
 from ..models.booking import Booking, BookingStatus
 from ..models.attendance import Attendance, AttendanceStatus
-from ..models.feedback import Feedback
 from ..models.quiz import Quiz, QuizAttempt
 from ..models.semester import Semester
 from ..database import get_db

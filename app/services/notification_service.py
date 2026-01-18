@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from ..models.notification import Notification, NotificationType
 from ..models.user import User
 from ..models.semester import Semester
-from ..models.instructor_assignment import InstructorAssignment
 
 
 def create_notification(

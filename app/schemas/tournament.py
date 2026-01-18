@@ -3,9 +3,7 @@ Tournament-specific Pydantic schemas for API responses
 """
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
-from datetime import datetime, date
-from .semester import Semester
-from ..models.semester import SemesterStatus
+from datetime import date
 from ..models.semester_enrollment import EnrollmentStatus
 
 

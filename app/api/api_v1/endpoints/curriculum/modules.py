@@ -1,10 +1,8 @@
 """
 Curriculum module endpoints
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 
 from .....database import get_db
 from .....dependencies import get_current_user

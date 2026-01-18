@@ -3,12 +3,11 @@
 Manages multiple simultaneous specializations per user with semester-based progression
 """
 from sqlalchemy.orm import Session
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from datetime import datetime, timezone, date
 
 from ..models.user import User
-from ..models.license import UserLicense, LicenseMetadata
-from ..models.specialization import SpecializationType
+from ..models.license import UserLicense
 from ..services.license_service import LicenseService
 
 

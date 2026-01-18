@@ -1,10 +1,9 @@
 import time
-import json
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Callable, Optional
 from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 
-from fastapi import Request, Response, HTTPException, status
+from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 

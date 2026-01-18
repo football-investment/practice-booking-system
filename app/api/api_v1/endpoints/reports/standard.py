@@ -1,28 +1,22 @@
 """
 Standard report generation endpoints
 """
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime
 
 from .....database import get_db
-from .....dependencies import get_current_admin_or_instructor_user
 from .....models.user import User
 
-import csv
-import io
-from fastapi import Query, Response
-from sqlalchemy import func, and_
+from fastapi import Query
+from sqlalchemy import func
 from pydantic import BaseModel
 
 from .....dependencies import get_current_admin_user
 from .....models.semester import Semester
 from .....models.session import Session as SessionTypel
-from .....models.booking import Booking, BookingStatus
-from .....models.attendance import Attendance, AttendanceStatus
-from .....models.feedback import Feedback
-from .....models.group import Group
+from .....models.booking import Booking
 
 router = APIRouter()
 

@@ -5,14 +5,12 @@ Handles loading, validation, and management of tournament reward policies from J
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class RewardPolicyError(Exception):
     """Exception raised for errors in reward policy loading or validation."""
-    pass
 
 
 def get_policies_directory() -> Path:

@@ -3,7 +3,6 @@
 Defines the Player/Coach specialization system for the LFA education platform
 """
 import enum
-from typing import Optional
 
 
 class SpecializationType(enum.Enum):

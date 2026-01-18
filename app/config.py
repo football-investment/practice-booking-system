@@ -2,7 +2,6 @@ import os
 import sys
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
-from typing import Optional
 
 
 def is_testing() -> bool:

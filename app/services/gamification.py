@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional
 
@@ -10,7 +10,7 @@ from ..models.session import Session as SessionTypel
 from ..models.semester import Semester
 from ..models.attendance import Attendance
 from ..models.feedback import Feedback
-from ..models.achievement import Achievement, AchievementCategory
+from ..models.achievement import Achievement
 from ..models.audit_log import AuditLog, AuditAction
 from ..models.license import UserLicense
 

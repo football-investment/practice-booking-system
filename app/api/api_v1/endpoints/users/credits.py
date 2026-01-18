@@ -6,8 +6,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime, timezone
-import hashlib
 
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_user_web

@@ -1,8 +1,7 @@
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_or_instructor_user

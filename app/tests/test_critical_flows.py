@@ -16,7 +16,6 @@ import pytest
 from fastapi.testclient import TestClient
 from fastapi import status
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
 
 from ..main import app
 from ..database import get_db

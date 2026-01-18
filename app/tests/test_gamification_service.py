@@ -4,12 +4,10 @@ from sqlalchemy.orm import Session
 
 from app.services.gamification import GamificationService
 from app.models.user import User, UserRole
-from app.models.gamification import UserStats, UserAchievement, BadgeType
+from app.models.gamification import UserStats, BadgeType
 from app.models.booking import Booking, BookingStatus
 from app.models.session import Session as SessionTypel
 from app.models.semester import Semester
-from app.models.attendance import Attendance, AttendanceStatus
-from app.models.feedback import Feedback
 
 
 class TestGamificationService:

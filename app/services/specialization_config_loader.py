@@ -7,7 +7,6 @@ specialization-specific data without modifying Python code.
 """
 
 import json
-import os
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 from functools import lru_cache

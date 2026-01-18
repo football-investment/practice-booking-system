@@ -30,7 +30,6 @@ Database Entities Verified:
 """
 
 import pytest
-from fastapi import status
 from datetime import datetime, timedelta, date, timezone
 from sqlalchemy.orm import Session
 import time
@@ -38,9 +37,9 @@ import time
 from app.models.semester import Semester
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.session import Session as SessionModel
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.booking import Booking, BookingStatus
-from app.models.attendance import Attendance, AttendanceStatus
+from app.models.attendance import Attendance
 from app.models.tournament_type import TournamentType
 from app.models.location import Location
 from app.models.campus import Campus

@@ -3,15 +3,15 @@ Audit Log API Endpoints
 
 Provides access to audit logs for users and administrators.
 """
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_user
-from ....models.user import User, UserRole
+from ....models.user import User
 from ....models.audit_log import AuditLog
 from ....services.audit_service import AuditService
 from ....schemas.audit import (

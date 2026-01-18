@@ -10,7 +10,7 @@ RULES (LFA Coach only):
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.specialization import SpecializationType
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 
 class TeachingPermissionService:

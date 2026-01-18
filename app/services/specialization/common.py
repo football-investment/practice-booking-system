@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import logging
 
-from app.models.specialization import SpecializationType
 from app.services.specialization_config_loader import get_config_loader
 from .validation import specialization_id_to_enum, validate_specialization_exists
 

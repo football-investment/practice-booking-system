@@ -3,8 +3,7 @@ Competency Service
 Automatic competency assessment and skill tracking
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import text, func
-from datetime import datetime
+from sqlalchemy import text
 from typing import List, Dict, Optional
 import logging
 

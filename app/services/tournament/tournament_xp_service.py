@@ -4,14 +4,12 @@ Tournament XP Service
 Business logic for tournament-specific XP and rewards distribution.
 """
 from sqlalchemy.orm import Session
-from typing import Dict, Optional
-from decimal import Decimal
+from typing import Dict
 
 from app.models import (
     TournamentReward,
     TournamentRanking,
     User,
-    Team,
     CreditTransaction,
     TransactionType,
     Semester

@@ -12,31 +12,18 @@ Flow:
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
-from typing import Any, List, Dict, Optional
-from datetime import datetime
+from typing import List
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user, get_current_user
+from .....dependencies import get_current_user
 from .....models.user import User, UserRole
-from .....models.semester import Semester
 from .....models.license import UserLicense
 from .....models.instructor_assignment import (
-    InstructorAvailabilityWindow,
-    InstructorAssignmentRequest,
-    AssignmentRequestStatus
+    InstructorAvailabilityWindow
 )
 from .....schemas.instructor_assignment import (
-    InstructorAvailabilityWindowCreate,
-    InstructorAvailabilityWindowUpdate,
-    InstructorAvailabilityWindowResponse,
-    InstructorAssignmentRequestCreate,
-    InstructorAssignmentRequestUpdate,
-    InstructorAssignmentRequestAccept,
-    InstructorAssignmentRequestDecline,
-    InstructorAssignmentRequestResponse,
     AvailableInstructorInfo,
-    InstructorLicenseInfo,
-    AvailableInstructorsQuery
+    InstructorLicenseInfo
 )
 
 router = APIRouter()

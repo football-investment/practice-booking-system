@@ -4,14 +4,13 @@ Handles intelligent session visibility based on user specializations and project
 """
 
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 
 from ..models.user import User, UserRole
 from ..models.session import Session as SessionTypel
 from ..models.project import Project, ProjectEnrollment
-from ..models.semester import Semester
 
 # ProjectSession might not exist yet - let's simplify for now
 # from ..models.project_session import ProjectSession
