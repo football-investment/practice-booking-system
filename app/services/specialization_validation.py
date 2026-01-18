@@ -7,6 +7,7 @@ Validates user eligibility for specializations based on:
 - Age group matching (for LFA_FOOTBALL_PLAYER and LFA_COACH)
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
@@ -14,6 +15,8 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.specialization import SpecializationType
 from app.services.specialization_config_loader import get_config_loader
+
+logger = logging.getLogger(__name__)
 
 
 class SpecializationValidationError(Exception):
@@ -243,7 +246,8 @@ class SpecializationValidator:
             try:
                 display_info = self.config_loader.get_display_info(spec_enum)
                 name = display_info['name']
-            except:
+            except Exception as e:
+                logger.error(f"Error getting display info for specialization {spec_enum}: {e}")
                 name = spec_enum.value
 
             results.append({

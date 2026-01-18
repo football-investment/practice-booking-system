@@ -1,6 +1,7 @@
 """
 Coach license management endpoints
 """
+import logging
 from typing import Any, List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -12,6 +13,8 @@ from .....dependencies import get_current_user, get_current_admin_user
 from .....models.user import User, UserRole
 from .....models.license import UserLicense
 from .....models.specialization import SpecializationType
+
+logger = logging.getLogger(__name__)
 
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -285,7 +288,8 @@ def list_all_licenses(
         query = text("SELECT * FROM coach_licenses WHERE is_active = TRUE ORDER BY id DESC")
         result = db.execute(query).fetchall()
         return [dict(row._mapping) for row in result]
-    except:
+    except Exception as e:
+        logger.error(f"Error fetching coach licenses: {e}")
         return []
 
 @router.post("/licenses", response_model=LicenseResponse, status_code=201)

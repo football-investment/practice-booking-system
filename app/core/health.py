@@ -1,3 +1,4 @@
+import logging
 import time
 import os
 import platform
@@ -9,6 +10,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..database import SessionLocal
 from ..config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class HealthChecker:
@@ -65,7 +68,8 @@ class HealthChecker:
         finally:
             try:
                 db.close()
-            except:
+            except Exception as e:
+                logger.error(f"Error closing database connection in health check: {e}")
                 pass
         
         return db_health

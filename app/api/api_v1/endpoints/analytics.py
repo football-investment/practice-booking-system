@@ -2,6 +2,7 @@
 Analytics endpoints - FIXED VERSION
 Claude Code broke these - now they work with real models
 """
+import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,6 +15,8 @@ from app.models.user import User, UserRole
 from app.models.session import Session as SessionTypel
 from app.models.booking import Booking, BookingStatus
 from app.models.attendance import Attendance, AttendanceStatus
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -60,7 +63,8 @@ async def get_analytics_metrics(
         # Check ACTUAL booking status enum values
         try:
             confirmed_bookings = bookings_query.filter(Booking.status == BookingStatus.CONFIRMED).count()
-        except:
+        except Exception as e:
+            logger.error(f"Error filtering confirmed bookings by status: {e}")
             confirmed_bookings = bookings_query.filter(Booking.status.isnot(None)).count()
         
         # Calculate capacity

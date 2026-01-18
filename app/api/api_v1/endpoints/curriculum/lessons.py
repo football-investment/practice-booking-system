@@ -1,6 +1,8 @@
 """
 Curriculum lesson endpoints
 """
+import json
+import logging
 from typing import Any, List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -8,6 +10,8 @@ from sqlalchemy.orm import Session
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -65,7 +69,8 @@ def get_lesson_modules(
         if r[4]:  # content_data is JSONB
             try:
                 content_data = json.loads(r[4]) if isinstance(r[4], str) else r[4]
-            except:
+            except Exception as e:
+                logger.error(f"Error parsing module content_data JSON: {e}")
                 content_data = r[4]
 
         modules.append({
@@ -143,7 +148,8 @@ def get_lesson_exercises(
         if r[5]:  # requirements is JSONB
             try:
                 requirements = json.loads(r[5]) if isinstance(r[5], str) else r[5]
-            except:
+            except Exception as e:
+                logger.error(f"Error parsing exercise requirements JSON: {e}")
                 requirements = r[5]
 
         exercises.append({

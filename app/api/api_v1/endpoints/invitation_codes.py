@@ -1,3 +1,4 @@
+import logging
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
@@ -10,6 +11,8 @@ from fastapi.security import HTTPAuthorizationCredentials
 from ....models.user import User
 from ....models.invitation_code import InvitationCode
 from ....models.credit_transaction import CreditTransaction, TransactionType
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -50,7 +53,8 @@ async def get_admin_user_hybrid(
                 user = db.query(User).filter(User.email == username).first()
                 if user and user.is_active and user.role == UserRole.ADMIN:
                     return user
-        except:
+        except Exception as e:
+            logger.error(f"Error verifying cookie token for admin access: {e}")
             pass
 
     # Neither method worked

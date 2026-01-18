@@ -61,7 +61,8 @@ class CompetencyService:
                 import json
                 try:
                     lesson_tags = json.loads(lesson_data.skill_focus_tags)
-                except:
+                except Exception as e:
+                    logger.error(f"Error parsing lesson skill_focus_tags JSON: {e}")
                     lesson_tags = []
 
         # Map quiz category to competency categories
