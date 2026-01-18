@@ -20,6 +20,7 @@ from .....models.specialization import SpecializationType
 from .....schemas.session import SessionWithStats, SessionList
 from .....schemas.booking import BookingWithRelations, BookingList
 from .....services.session_filter_service import SessionFilterService
+from .....services.session_stats_aggregator import SessionStatsAggregator
 
 router = APIRouter()
 
@@ -197,38 +198,14 @@ def list_sessions(
     # 🚀 PERFORMANCE OPTIMIZATION: Pre-fetch all stats with JOIN queries (eliminates N+1 problem)
     session_ids = [s.id for s in sessions]
 
-    # Fetch booking stats in a single query using GROUP BY
-    booking_stats_query = db.query(
-        Booking.session_id,
-        func.count(Booking.id).label('total_bookings'),
-        func.sum(case((Booking.status == BookingStatus.CONFIRMED, 1), else_=0)).label('confirmed'),
-        func.sum(case((Booking.status == BookingStatus.WAITLISTED, 1), else_=0)).label('waitlisted')
-    ).filter(Booking.session_id.in_(session_ids)).group_by(Booking.session_id).all()
+    # Fetch all stats using SessionStatsAggregator service
+    stats_aggregator = SessionStatsAggregator(db)
+    stats = stats_aggregator.fetch_stats(session_ids)
 
-    # Create lookup dict for O(1) access
-    booking_stats_dict = {
-        stat.session_id: {
-            'total': stat.total_bookings,
-            'confirmed': stat.confirmed,
-            'waitlisted': stat.waitlisted
-        } for stat in booking_stats_query
-    }
-
-    # Fetch attendance stats in a single query
-    attendance_stats_query = db.query(
-        Attendance.session_id,
-        func.count(Attendance.id).label('count')
-    ).filter(Attendance.session_id.in_(session_ids)).group_by(Attendance.session_id).all()
-
-    attendance_stats_dict = {stat.session_id: stat.count for stat in attendance_stats_query}
-
-    # Fetch rating stats in a single query
-    rating_stats_query = db.query(
-        Feedback.session_id,
-        func.avg(Feedback.rating).label('avg_rating')
-    ).filter(Feedback.session_id.in_(session_ids)).group_by(Feedback.session_id).all()
-
-    rating_stats_dict = {stat.session_id: float(stat.avg_rating) if stat.avg_rating else None for stat in rating_stats_query}
+    # Unpack stats dictionaries for backward compatibility
+    booking_stats_dict = stats['bookings']
+    attendance_stats_dict = stats['attendance']
+    rating_stats_dict = stats['ratings']
 
     # Add statistics
     session_stats = []
