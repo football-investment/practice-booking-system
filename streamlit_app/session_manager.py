@@ -1,61 +1,94 @@
 """
-Session Persistence - SIMPLIFIED VERSION
-Uses Streamlit session_state + query params (no complex localStorage JS)
+Session Management - SECURE VERSION
+Uses ONLY Streamlit session_state (in-memory, server-side storage)
+NO URL query params (security risk: token exposure in browser history/logs)
+
+Includes token expiration validation to prevent stale session usage
 """
 
 import streamlit as st
-import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from config import SESSION_TOKEN_KEY, SESSION_USER_KEY, SESSION_ROLE_KEY
+from utils.token_validator import is_token_expired
 
 
 def restore_session_from_url():
     """
-    Restore session from URL query params
-    This is called on every page load
+    DEPRECATED - NO LONGER USED
+    Previously restored session from URL query params (SECURITY RISK)
+    Now a no-op for backward compatibility
     """
-    query_params = st.query_params
-
-    if 'session_token' in query_params and 'session_user' in query_params:
-        try:
-            token = query_params['session_token']
-            user_json = query_params['session_user']
-
-            # Parse user JSON
-            user = json.loads(user_json) if isinstance(user_json, str) else user_json
-
-            # Restore to session_state
-            st.session_state[SESSION_TOKEN_KEY] = token
-            st.session_state[SESSION_USER_KEY] = user
-            st.session_state[SESSION_ROLE_KEY] = user.get('role', 'student')
-
-            return True
-        except Exception as e:
-            return False
-
-    return False
+    # No-op: session_state is already in memory
+    return SESSION_TOKEN_KEY in st.session_state
 
 
 def save_session_to_url(token: str, user: Dict[str, Any]):
     """
-    Save session to URL query params
-    This persists the session across page refreshes
+    DEPRECATED - NO LONGER USED
+    Previously saved session to URL query params (SECURITY RISK)
+    Now a no-op for backward compatibility
+
+    Session persistence relies on Streamlit's built-in session_state
+    which survives page navigation within the same browser session.
     """
-    try:
-        # Set query params
-        st.query_params['session_token'] = token
-        st.query_params['session_user'] = json.dumps(user)
-    except Exception as e:
-        pass
+    # No-op: session_state already persists across page navigation
+    pass
 
 
 def clear_session():
-    """Clear session from both session_state and query params"""
-    # Clear session_state
+    """Clear session from session_state"""
+    # Clear session_state (in-memory only)
     st.session_state.clear()
 
-    # Clear query params
+    # Clear any legacy query params if they exist
     try:
-        st.query_params.clear()
+        if 'session_token' in st.query_params:
+            del st.query_params['session_token']
+        if 'session_user' in st.query_params:
+            del st.query_params['session_user']
     except:
         pass
+
+
+def validate_session() -> bool:
+    """
+    Validate current session and check token expiration
+
+    Returns:
+        True if session is valid, False otherwise
+
+    Side effects:
+        - Clears session and shows warning if token is expired
+        - Redirects to login page if session invalid
+    """
+    # Check if session exists
+    if SESSION_TOKEN_KEY not in st.session_state:
+        return False
+
+    token = st.session_state.get(SESSION_TOKEN_KEY)
+
+    # Validate token expiration
+    if is_token_expired(token):
+        # Clear expired session
+        clear_session()
+
+        # Show warning
+        st.warning("⚠️ Your session has expired. Please log in again.")
+        st.stop()
+
+        return False
+
+    return True
+
+
+def require_authentication():
+    """
+    Require valid authentication for current page
+    Redirects to login if not authenticated or token expired
+
+    Usage:
+        # At top of protected pages
+        require_authentication()
+    """
+    if not validate_session():
+        st.switch_page("🏠_Home.py")
