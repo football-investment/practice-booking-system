@@ -568,17 +568,27 @@ def render_tournament_list(token: str):
 
                                         st.write("")
 
-                                        # Matches
+                                        # Matches with pairings (player names)
                                         st.markdown("**⚽ Matches:**")
                                         for match in sorted(group_matches, key=lambda x: x.get('tournament_round', 0)):
                                             round_num = match.get('tournament_round', 'N/A')
                                             match_id = match.get('id', 'N/A')
                                             status = match.get('session_status', 'scheduled')
+                                            match_participants = match.get('participant_user_ids', [])
+
+                                            # Get player names for this match
+                                            if len(match_participants) >= 2:
+                                                player1_name = user_names.get(match_participants[0], f"User {match_participants[0]}")
+                                                player2_name = user_names.get(match_participants[1], f"User {match_participants[1]}")
+                                                pairing_text = f"**{player1_name}** vs **{player2_name}**"
+                                            else:
+                                                pairing_text = "⚠️ Incomplete pairing"
 
                                             if status == 'completed':
                                                 st.success(f"✅ Round {round_num}")
                                             else:
                                                 st.info(f"⏳ Round {round_num}")
+                                            st.caption(f"   {pairing_text}")
                                             st.caption(f"   Match #{match_id}")
 
                                         st.write("")
