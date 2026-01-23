@@ -97,7 +97,10 @@ def get_tournament_sessions_from_db(tournament_id: int) -> List[Dict]:
                 scoring_type,
                 participant_user_ids,
                 structure_config,
-                session_status
+                session_status,
+                game_results,
+                pod_tier,
+                round_number
             FROM sessions
             WHERE semester_id = %s
             AND auto_generated = true
@@ -119,7 +122,10 @@ def get_tournament_sessions_from_db(tournament_id: int) -> List[Dict]:
                 'scoring_type': row[6],
                 'participant_user_ids': row[7] if row[7] else [],
                 'structure_config': row[8] if row[8] else {},
-                'session_status': row[9]
+                'session_status': row[9],
+                'game_results': row[10],
+                'pod_tier': row[11],
+                'round_number': row[12]
             })
 
         cursor.close()
@@ -154,6 +160,25 @@ def render_tournament_list(token: str):
     # Display tournaments
     for tournament in tournaments:
         with st.expander(f"🏆 {tournament.get('name', 'Unknown')} ({tournament.get('code', 'N/A')})"):
+            # Get tournament type info BEFORE rendering columns
+            tournament_type_id = tournament.get('tournament_type_id')
+            min_players_requirement = "?"
+            tournament_type_name = "N/A"
+            if tournament_type_id:
+                try:
+                    import requests
+                    response = requests.get(
+                        f"{API_BASE_URL}/api/v1/tournament-types/{tournament_type_id}",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=API_TIMEOUT
+                    )
+                    if response.status_code == 200:
+                        tournament_type = response.json()
+                        min_players_requirement = tournament_type.get('min_players', '?')
+                        tournament_type_name = tournament_type.get('display_name', 'N/A')
+                except:
+                    pass
+
             col1, col2, col3 = st.columns([2, 2, 1])
 
             with col1:
@@ -179,6 +204,7 @@ def render_tournament_list(token: str):
                 st.write(f"**End**: {tournament.get('end_date', 'N/A')}")
 
             with col2:
+                st.write(f"**🏆 Tournament Type**: {tournament_type_name}")
                 st.write(f"**Age Category**: {tournament.get('age_group', 'N/A')}")
 
                 # Highlight assignment type
@@ -206,23 +232,7 @@ def render_tournament_list(token: str):
                 enrollment_count = get_tournament_enrollment_count(token, tournament['id'])
                 max_players = tournament.get('max_players', 'N/A')
 
-                # Get tournament type info for min players requirement
-                tournament_type_id = tournament.get('tournament_type_id')
-                min_players_requirement = "?"
-                if tournament_type_id:
-                    # Fetch tournament type to get min_players
-                    try:
-                        import requests
-                        response = requests.get(
-                            f"{API_BASE_URL}/api/v1/tournament-types/{tournament_type_id}",
-                            headers={"Authorization": f"Bearer {token}"},
-                            timeout=API_TIMEOUT
-                        )
-                        if response.status_code == 200:
-                            tournament_type = response.json()
-                            min_players_requirement = tournament_type.get('min_players', '?')
-                    except:
-                        pass
+                # Note: tournament_type_name and min_players_requirement already fetched above
 
                 # Color code based on requirements with helpful tooltips
                 if isinstance(min_players_requirement, int):
@@ -256,9 +266,14 @@ def render_tournament_list(token: str):
                 match_duration = tournament.get('match_duration_minutes')
                 break_duration = tournament.get('break_duration_minutes')
                 parallel_fields = tournament.get('parallel_fields')
-                if match_duration or break_duration or parallel_fields:
+                tournament_format = tournament.get('format', 'INDIVIDUAL_RANKING')
+                scoring_type = tournament.get('scoring_type', 'PLACEMENT')
+                if match_duration or break_duration or parallel_fields or tournament_format:
                     st.divider()
                     st.caption("⚙️ **Match Schedule Configuration**")
+                    st.caption(f"   • Format: **{tournament_format}**")
+                    if tournament_format == "INDIVIDUAL_RANKING":
+                        st.caption(f"   • Scoring Type: **{scoring_type}**")
                     if match_duration:
                         st.caption(f"   • Match Duration: {match_duration} min")
                     if break_duration:
@@ -509,310 +524,417 @@ def render_tournament_list(token: str):
                     # PROFESSIONAL TOURNAMENT DRAW & BRACKET UI
                     # ============================================================
                     st.divider()
-                    st.subheader("🏆 Tournament Draw & Bracket")
-
-                    try:
-                        # Fetch sessions from database
-                        sessions_data = get_tournament_sessions_from_db(tournament['id'])
-
-                        if not sessions_data:
-                            st.warning("⚠️ No sessions generated. Generate sessions to see the draw.")
-                        else:
-                            # Separate by phase
-                            group_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Group Stage']
-                            knockout_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Knockout Stage']
-
-                            # ============================================================
-                            # GROUP STAGE - Side-by-side columns
-                            # ============================================================
-                            if group_sessions:
-                                st.markdown("### ⚽ Group Stage Draw")
-
-                                # Organize by group
-                                groups = {}
-                                for session in group_sessions:
-                                    group = session.get('group_identifier', 'Unknown')
-                                    if group not in groups:
-                                        groups[group] = []
-                                    groups[group].append(session)
-
-                                # Fetch all participant names (collect from ALL matches, not just first)
-                                all_participant_ids = set()
-                                for group_matches in groups.values():
-                                    for match in group_matches:
-                                        participant_ids = match.get('participant_user_ids', [])
-                                        all_participant_ids.update(participant_ids)
-
-                                user_names = get_user_names_from_db(list(all_participant_ids))
-
-                                # Display groups side-by-side
-                                group_names = sorted(groups.keys())
-                                cols = st.columns(len(group_names))
-
-                                for group_name, col in zip(group_names, cols):
-                                    with col:
-                                        group_matches = groups[group_name]
-                                        # Collect ALL unique participants from ALL matches in this group
-                                        participants = set()
+                    with st.expander("🏆 Tournament Draw & Bracket", expanded=False):
+                        try:
+                            # Fetch sessions from database
+                            sessions_data = get_tournament_sessions_from_db(tournament['id'])
+    
+                            if not sessions_data:
+                                st.warning("⚠️ No sessions generated. Generate sessions to see the draw.")
+                            else:
+                                # Separate by phase
+                                group_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Group Stage']
+                                knockout_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Knockout Stage']
+    
+                                # ============================================================
+                                # GROUP STAGE - Side-by-side columns
+                                # ============================================================
+                                if group_sessions:
+                                    st.markdown("### ⚽ Group Stage Draw")
+    
+                                    # Organize by group
+                                    groups = {}
+                                    for session in group_sessions:
+                                        group = session.get('group_identifier', 'Unknown')
+                                        if group not in groups:
+                                            groups[group] = []
+                                        groups[group].append(session)
+    
+                                    # Fetch all participant names (collect from ALL matches, not just first)
+                                    all_participant_ids = set()
+                                    for group_matches in groups.values():
                                         for match in group_matches:
-                                            participants.update(match.get('participant_user_ids', []))
-                                        participants = sorted(list(participants))  # Sort for consistent display
+                                            participant_ids = match.get('participant_user_ids', [])
+                                            all_participant_ids.update(participant_ids)
+    
+                                    user_names = get_user_names_from_db(list(all_participant_ids))
+    
+                                    # Display groups side-by-side
+                                    group_names = sorted(groups.keys())
+                                    cols = st.columns(len(group_names))
+    
+                                    for group_name, col in zip(group_names, cols):
+                                        with col:
+                                            group_matches = groups[group_name]
+                                            # Collect ALL unique participants from ALL matches in this group
+                                            participants = set()
+                                            for match in group_matches:
+                                                participants.update(match.get('participant_user_ids', []))
+                                            participants = sorted(list(participants))  # Sort for consistent display
+    
+                                            st.markdown(f"#### 📍 GROUP {group_name}")
+    
+                                            # Participants with names
+                                            st.markdown("**👥 Participants:**")
+                                            for i, user_id in enumerate(participants, 1):
+                                                user_name = user_names.get(user_id, f"User {user_id}")
+                                                st.caption(f"{i}. {user_name}")
+    
+                                            st.write("")
+    
+                                            # Matches with pairings (player names)
+                                            st.markdown("**⚽ Matches:**")
+                                            for match in sorted(group_matches, key=lambda x: x.get('tournament_round', 0)):
+                                                round_num = match.get('tournament_round', 'N/A')
+                                                match_id = match.get('id', 'N/A')
+                                                status = match.get('session_status', 'scheduled')
+                                                match_participants = match.get('participant_user_ids', [])
+    
+                                                # Get player names for this match
+                                                if len(match_participants) >= 2:
+                                                    player1_name = user_names.get(match_participants[0], f"User {match_participants[0]}")
+                                                    player2_name = user_names.get(match_participants[1], f"User {match_participants[1]}")
+                                                    pairing_text = f"**{player1_name}** vs **{player2_name}**"
+                                                else:
+                                                    pairing_text = "⚠️ Incomplete pairing"
+    
+                                                if status == 'completed':
+                                                    st.success(f"✅ Round {round_num}")
+                                                else:
+                                                    st.info(f"⏳ Round {round_num}")
+                                                st.caption(f"   {pairing_text}")
+                                                st.caption(f"   Match #{match_id}")
+    
+                                            st.write("")
+    
+                                            # Standings (placeholder)
+                                            st.markdown("**📊 Standings:**")
+                                            st.caption("🔒 Updates after matches")
+    
+                                            st.write("")
+    
+                                            # Qualifiers
+                                            st.markdown("**🎯 Qualifies to KO:**")
+                                            st.caption(f"• **{group_name}1** (1st)")
+                                            st.caption(f"• **{group_name}2** (2nd)")
+    
+                                # ============================================================
+                                # KNOCKOUT STAGE - Bracket diagram
+                                # ============================================================
+                                if knockout_sessions:
+                                    st.markdown("### 🏆 Knockout Bracket")
+    
+                                    # Organize by round
+                                    knockout_rounds = {}
+                                    for session in knockout_sessions:
+                                        structure = session.get('structure_config', {})
+                                        round_name = structure.get('round_name', 'Unknown Round')
+                                        if round_name not in knockout_rounds:
+                                            knockout_rounds[round_name] = []
+                                        knockout_rounds[round_name].append(session)
+    
+                                    # Display rounds in order
+                                    round_order = ['Round of 8', 'Round of 4', 'Round of 2', 'Final', '3rd Place Match']
+    
+                                    for round_name in round_order:
+                                        if round_name in knockout_rounds:
+                                            matches = knockout_rounds[round_name]
+    
+                                            st.markdown(f"#### 🎯 {round_name}")
+    
+                                            for idx, match in enumerate(matches, 1):
+                                                structure_config = match.get('structure_config', {})
+                                                matchup = structure_config.get('matchup', None)
+                                                seed_1 = structure_config.get('seed_1', None)
+                                                seed_2 = structure_config.get('seed_2', None)
+                                                participants = match.get('participant_user_ids', [])
+                                                match_id = match.get('id', 'N/A')
+    
+                                                # Bracket box with HTML styling
+                                                st.markdown(f"""
+                                                <div style="border: 3px solid #2196F3; border-radius: 12px; padding: 20px; margin: 15px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                                    <div style="font-weight: bold; font-size: 18px; margin-bottom: 10px;">⚔️ Match #{match_id}</div>
+                                                """, unsafe_allow_html=True)
+    
+                                                if participants and len(participants) >= 2:
+                                                    # Show actual participants with names
+                                                    player1_name = user_names.get(participants[0], f"User {participants[0]}")
+                                                    player2_name = user_names.get(participants[1], f"User {participants[1]}")
+    
+                                                    st.markdown(f"""
+                                                        <div style="font-size: 16px; margin: 8px 0;">
+                                                            <span style="background: #4CAF50; padding: 5px 10px; border-radius: 5px;">{player1_name}</span>
+                                                        </div>
+                                                        <div style="text-align: center; font-size: 20px; margin: 5px 0;">VS</div>
+                                                        <div style="font-size: 16px; margin: 8px 0;">
+                                                            <span style="background: #FF5722; padding: 5px 10px; border-radius: 5px;">{player2_name}</span>
+                                                        </div>
+                                                    """, unsafe_allow_html=True)
+                                                elif matchup and seed_1 and seed_2:
+                                                    # Show seeding placeholders
+                                                    st.markdown(f"""
+                                                        <div style="font-size: 16px; margin: 8px 0;">
+                                                            <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px;">🎯 {seed_1}</span> (Group {seed_1[0]} - 1st place)
+                                                        </div>
+                                                        <div style="text-align: center; font-size: 20px; margin: 5px 0;">VS</div>
+                                                        <div style="font-size: 16px; margin: 8px 0;">
+                                                            <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px;">🎯 {seed_2}</span> (Group {seed_2[0]} - 2nd place)
+                                                        </div>
+                                                    """, unsafe_allow_html=True)
+                                                else:
+                                                    # TBD
+                                                    st.markdown("""
+                                                        <div style="text-align: center; font-size: 16px; color: #FFD700;">
+                                                            🔒 Awaiting previous round results
+                                                        </div>
+                                                    """, unsafe_allow_html=True)
+    
+                                                st.markdown("</div>", unsafe_allow_html=True)
+    
+                                            if round_name != 'Final' and round_name != '3rd Place Match':
+                                                st.markdown("### ⬇️ **Winner advances** ⬇️")
+    
+                                            st.write("")
+    
+                        except Exception as e:
+                            st.error(f"❌ Error loading draw: {str(e)}")
+    
+                        st.divider()
+    
+                        # ============================================================
+                        # DEBUG: Show all generated sessions with proper structure
+                        # ============================================================
+                        with st.expander("🔍 DEBUG: View All Generated Sessions", expanded=False):
+                            try:
+                                # Fetch sessions directly from database (bypasses API schema limitations)
+                                sessions_data = get_tournament_sessions_from_db(tournament['id'])
+    
+                                st.caption(f"**📊 Total Sessions Generated:** {len(sessions_data)}")
 
-                                        st.markdown(f"#### 📍 GROUP {group_name}")
+                                # Group sessions by tournament_phase (UNIVERSAL DISPATCHER)
+                                group_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Group Stage']
+                                knockout_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Knockout Stage']
+                                league_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'League - Multi-Player Ranking']
+                                swiss_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Swiss System']
+                                single_elim_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Single Elimination']
 
-                                        # Participants with names
-                                        st.markdown("**👥 Participants:**")
-                                        for i, user_id in enumerate(participants, 1):
-                                            user_name = user_names.get(user_id, f"User {user_id}")
-                                            st.caption(f"{i}. {user_name}")
-
-                                        st.write("")
-
-                                        # Matches with pairings (player names)
-                                        st.markdown("**⚽ Matches:**")
+                                st.write(f"**⚽ Group Stage:** {len(group_sessions)} matches")
+                                st.write(f"**🏆 Knockout Stage:** {len(knockout_sessions)} matches")
+                                st.write(f"**📊 League Rounds:** {len(league_sessions)} ranking sessions")
+                                st.write(f"**🎯 Swiss System:** {len(swiss_sessions)} rounds")
+                                st.write(f"**🏅 Single Elimination:** {len(single_elim_sessions)} matches")
+    
+                                # ============================================================
+                                # GROUP STAGE
+                                # ============================================================
+                                if group_sessions:
+                                    st.divider()
+                                    st.markdown("### ⚽ Group Stage")
+    
+                                    # Organize by group
+                                    groups = {}
+                                    for session in group_sessions:
+                                        group = session.get('group_identifier', 'Unknown')
+                                        if group not in groups:
+                                            groups[group] = []
+                                        groups[group].append(session)
+    
+                                    # Display each group
+                                    for group_name in sorted(groups.keys()):
+                                        st.markdown(f"#### 📍 Group {group_name}")
+                                        group_matches = groups[group_name]
+    
+                                        # Show participant IDs for this group
+                                        if group_matches:
+                                            first_match = group_matches[0]
+                                            participants = first_match.get('participant_user_ids', [])
+                                            st.caption(f"**👥 Participants (User IDs):** {participants}")
+    
+                                        # Show rounds
                                         for match in sorted(group_matches, key=lambda x: x.get('tournament_round', 0)):
                                             round_num = match.get('tournament_round', 'N/A')
-                                            match_id = match.get('id', 'N/A')
-                                            status = match.get('session_status', 'scheduled')
-                                            match_participants = match.get('participant_user_ids', [])
-
-                                            # Get player names for this match
-                                            if len(match_participants) >= 2:
-                                                player1_name = user_names.get(match_participants[0], f"User {match_participants[0]}")
-                                                player2_name = user_names.get(match_participants[1], f"User {match_participants[1]}")
-                                                pairing_text = f"**{player1_name}** vs **{player2_name}**"
-                                            else:
-                                                pairing_text = "⚠️ Incomplete pairing"
-
-                                            if status == 'completed':
-                                                st.success(f"✅ Round {round_num}")
-                                            else:
-                                                st.info(f"⏳ Round {round_num}")
-                                            st.caption(f"   {pairing_text}")
-                                            st.caption(f"   Match #{match_id}")
-
-                                        st.write("")
-
-                                        # Standings (placeholder)
-                                        st.markdown("**📊 Standings:**")
-                                        st.caption("🔒 Updates after matches")
-
-                                        st.write("")
-
-                                        # Qualifiers
-                                        st.markdown("**🎯 Qualifies to KO:**")
-                                        st.caption(f"• **{group_name}1** (1st)")
-                                        st.caption(f"• **{group_name}2** (2nd)")
-
-                            # ============================================================
-                            # KNOCKOUT STAGE - Bracket diagram
-                            # ============================================================
-                            if knockout_sessions:
-                                st.markdown("### 🏆 Knockout Bracket")
-
-                                # Organize by round
-                                knockout_rounds = {}
-                                for session in knockout_sessions:
-                                    structure = session.get('structure_config', {})
-                                    round_name = structure.get('round_name', 'Unknown Round')
-                                    if round_name not in knockout_rounds:
-                                        knockout_rounds[round_name] = []
-                                    knockout_rounds[round_name].append(session)
-
-                                # Display rounds in order
-                                round_order = ['Round of 8', 'Round of 4', 'Round of 2', 'Final', '3rd Place Match']
-
-                                for round_name in round_order:
-                                    if round_name in knockout_rounds:
-                                        matches = knockout_rounds[round_name]
-
-                                        st.markdown(f"#### 🎯 {round_name}")
-
-                                        for idx, match in enumerate(matches, 1):
-                                            structure_config = match.get('structure_config', {})
-                                            matchup = structure_config.get('matchup', None)
-                                            seed_1 = structure_config.get('seed_1', None)
-                                            seed_2 = structure_config.get('seed_2', None)
-                                            participants = match.get('participant_user_ids', [])
-                                            match_id = match.get('id', 'N/A')
-
-                                            # Bracket box with HTML styling
-                                            st.markdown(f"""
-                                            <div style="border: 3px solid #2196F3; border-radius: 12px; padding: 20px; margin: 15px 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                                                <div style="font-weight: bold; font-size: 18px; margin-bottom: 10px;">⚔️ Match #{match_id}</div>
-                                            """, unsafe_allow_html=True)
-
-                                            if participants and len(participants) >= 2:
-                                                # Show actual participants with names
-                                                player1_name = user_names.get(participants[0], f"User {participants[0]}")
-                                                player2_name = user_names.get(participants[1], f"User {participants[1]}")
-
-                                                st.markdown(f"""
-                                                    <div style="font-size: 16px; margin: 8px 0;">
-                                                        <span style="background: #4CAF50; padding: 5px 10px; border-radius: 5px;">{player1_name}</span>
-                                                    </div>
-                                                    <div style="text-align: center; font-size: 20px; margin: 5px 0;">VS</div>
-                                                    <div style="font-size: 16px; margin: 8px 0;">
-                                                        <span style="background: #FF5722; padding: 5px 10px; border-radius: 5px;">{player2_name}</span>
-                                                    </div>
-                                                """, unsafe_allow_html=True)
-                                            elif matchup and seed_1 and seed_2:
-                                                # Show seeding placeholders
-                                                st.markdown(f"""
-                                                    <div style="font-size: 16px; margin: 8px 0;">
-                                                        <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px;">🎯 {seed_1}</span> (Group {seed_1[0]} - 1st place)
-                                                    </div>
-                                                    <div style="text-align: center; font-size: 20px; margin: 5px 0;">VS</div>
-                                                    <div style="font-size: 16px; margin: 8px 0;">
-                                                        <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 5px;">🎯 {seed_2}</span> (Group {seed_2[0]} - 2nd place)
-                                                    </div>
-                                                """, unsafe_allow_html=True)
-                                            else:
-                                                # TBD
-                                                st.markdown("""
-                                                    <div style="text-align: center; font-size: 16px; color: #FFD700;">
-                                                        🔒 Awaiting previous round results
-                                                    </div>
-                                                """, unsafe_allow_html=True)
-
-                                            st.markdown("</div>", unsafe_allow_html=True)
-
-                                        if round_name != 'Final' and round_name != '3rd Place Match':
-                                            st.markdown("### ⬇️ **Winner advances** ⬇️")
-
-                                        st.write("")
-
-                    except Exception as e:
-                        st.error(f"❌ Error loading draw: {str(e)}")
-
-                    st.divider()
-
-                    # ============================================================
-                    # DEBUG: Show all generated sessions with proper structure
-                    # ============================================================
-                    with st.expander("🔍 DEBUG: View All Generated Sessions", expanded=False):
-                        try:
-                            # Fetch sessions directly from database (bypasses API schema limitations)
-                            sessions_data = get_tournament_sessions_from_db(tournament['id'])
-
-                            st.caption(f"**📊 Total Sessions Generated:** {len(sessions_data)}")
-
-                            # Group sessions by tournament_phase
-                            group_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Group Stage']
-                            knockout_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Knockout Stage']
-
-                            st.write(f"**⚽ Group Stage:** {len(group_sessions)} matches")
-                            st.write(f"**🏆 Knockout Stage:** {len(knockout_sessions)} matches")
-
-                            # ============================================================
-                            # GROUP STAGE
-                            # ============================================================
-                            if group_sessions:
-                                st.divider()
-                                st.markdown("### ⚽ Group Stage")
-
-                                # Organize by group
-                                groups = {}
-                                for session in group_sessions:
-                                    group = session.get('group_identifier', 'Unknown')
-                                    if group not in groups:
-                                        groups[group] = []
-                                    groups[group].append(session)
-
-                                # Display each group
-                                for group_name in sorted(groups.keys()):
-                                    st.markdown(f"#### 📍 Group {group_name}")
-                                    group_matches = groups[group_name]
-
-                                    # Show participant IDs for this group
-                                    if group_matches:
-                                        first_match = group_matches[0]
-                                        participants = first_match.get('participant_user_ids', [])
-                                        st.caption(f"**👥 Participants (User IDs):** {participants}")
-
-                                    # Show rounds
-                                    for match in sorted(group_matches, key=lambda x: x.get('tournament_round', 0)):
-                                        round_num = match.get('tournament_round', 'N/A')
-                                        match_format = match.get('match_format', 'N/A')
-                                        structure_config = match.get('structure_config', {})
-
-                                        st.write(f"  **Round {round_num}** ({match_format})")
-                                        st.caption(f"    ⚙️ Config: {structure_config}")
-
-                                    st.write("")  # Spacing
-
-                            # ============================================================
-                            # KNOCKOUT STAGE
-                            # ============================================================
-                            if knockout_sessions:
-                                st.divider()
-                                st.markdown("### 🏆 Knockout Stage")
-
-                                # Organize by knockout round
-                                knockout_rounds = {}
-                                for session in knockout_sessions:
-                                    structure = session.get('structure_config', {})
-                                    round_name = structure.get('round_name', 'Unknown Round')
-                                    if round_name not in knockout_rounds:
-                                        knockout_rounds[round_name] = []
-                                    knockout_rounds[round_name].append(session)
-
-                                # Display knockout rounds in order
-                                round_order = ['Round of 8', 'Round of 4', 'Round of 2', 'Final', 'Bronze Match']
-                                for round_name in round_order:
-                                    if round_name in knockout_rounds:
-                                        st.markdown(f"#### 🎯 {round_name}")
-                                        matches = knockout_rounds[round_name]
-
-                                        for idx, match in enumerate(matches, 1):
                                             match_format = match.get('match_format', 'N/A')
-                                            participants = match.get('participant_user_ids', [])
                                             structure_config = match.get('structure_config', {})
-
-                                            # Extract seeding information
-                                            matchup = structure_config.get('matchup', None)
-                                            seed_1 = structure_config.get('seed_1', None)
-                                            seed_2 = structure_config.get('seed_2', None)
-
-                                            if participants:
-                                                # Participants already assigned (after group stage)
-                                                st.write(f"  **Match {idx}:** User IDs {participants}")
-                                            elif matchup:
-                                                # Show seeding placeholders (A1 vs B2, etc.)
-                                                st.write(f"  **Match {idx}:** {matchup}")
-                                                if seed_1 and seed_2:
-                                                    st.caption(f"    🎯 Seeding: {seed_1} (Group {seed_1[0]} 1st) vs {seed_2} (Group {seed_2[0]} 2nd)")
-                                            else:
-                                                st.write(f"  **Match {idx}:** 🔒 Awaiting seeding from group stage")
-
-                                            st.caption(f"    Format: {match_format}")
-
+    
+                                            st.write(f"  **Round {round_num}** ({match_format})")
+                                            st.caption(f"    ⚙️ Config: {structure_config}")
+    
                                         st.write("")  # Spacing
 
-                            # ============================================================
-                            # SUMMARY
-                            # ============================================================
-                            st.divider()
-                            st.info(f"""
-                                **📋 Summary:**
-                                - Group Stage matches show all participants (everyone plays everyone)
-                                - Knockout Stage matches are empty until group stage completes
-                                - After group stage, seeding will populate knockout participant_user_ids
-                                - match_format: INDIVIDUAL_RANKING (group) vs HEAD_TO_HEAD (knockout)
-                            """)
+                                # ============================================================
+                                # LEAGUE ROUNDS (INDIVIDUAL_RANKING)
+                                # ============================================================
+                                if league_sessions:
+                                    st.divider()
+                                    st.markdown("### 📊 League - Individual Ranking Rounds")
+                                    st.caption("All players compete together in each round")
 
-                        except Exception as e:
-                            st.error(f"❌ Error fetching sessions: {str(e)}")
+                                    # Fetch player names for display
+                                    try:
+                                        import requests
+                                        all_participant_ids = set()
+                                        for session in league_sessions:
+                                            all_participant_ids.update(session.get('participant_user_ids', []))
 
-                    if st.button(
-                        "🔄 Reset & Regenerate Sessions",
-                        key=f"reset_sessions_{tournament['id']}",
-                        help="Delete auto-generated sessions and regenerate (WARNING: Cannot undo!)",
-                        use_container_width=True
-                    ):
-                        st.session_state['reset_sessions_tournament_id'] = tournament['id']
-                        st.session_state['reset_sessions_tournament_name'] = tournament.get('name', 'Unknown')
-                        show_reset_sessions_dialog()
+                                        # Fetch user details
+                                        user_names = {}
+                                        for user_id in all_participant_ids:
+                                            try:
+                                                user_response = requests.get(
+                                                    f"{API_BASE_URL}/api/v1/users/{user_id}",
+                                                    headers={"Authorization": f"Bearer {token}"},
+                                                    timeout=API_TIMEOUT
+                                                )
+                                                if user_response.status_code == 200:
+                                                    user_data = user_response.json()
+                                                    user_names[user_id] = user_data.get('name', f'User {user_id}')
+                                            except:
+                                                user_names[user_id] = f'User {user_id}'
+                                    except:
+                                        user_names = {}
+
+                                    for session in sorted(league_sessions, key=lambda x: x.get('round_number', x.get('tournament_round', 0))):
+                                        round_num = session.get('round_number') or session.get('tournament_round', 'N/A')
+                                        participants = session.get('participant_user_ids', [])
+                                        match_format = session.get('match_format', 'N/A')
+                                        title = session.get('title', 'Ranking Round')
+
+                                        with st.container():
+                                            st.markdown(f"#### 🔵 Round {round_num}")
+                                            st.caption(f"**{title}**")
+                                            st.write(f"👥 **Participants:** {len(participants)} players")
+
+                                            if participants and user_names:
+                                                # Display player names
+                                                player_list = [user_names.get(uid, f'User {uid}') for uid in participants]
+                                                for idx, player_name in enumerate(player_list, 1):
+                                                    st.caption(f"  {idx}. {player_name}")
+                                            elif participants:
+                                                st.caption(f"User IDs: {participants}")
+
+                                            st.caption(f"Format: {match_format}")
+                                            st.write("")  # Spacing
+
+                                # ============================================================
+                                # SWISS SYSTEM
+                                # ============================================================
+                                if swiss_sessions:
+                                    st.divider()
+                                    st.markdown("### 🎯 Swiss System - Pod-Based Rounds")
+                                    st.caption("Players grouped into pods by performance, compete within pods")
+
+                                    # Use same user_names dictionary from league_sessions
+                                    for session in sorted(swiss_sessions, key=lambda x: x.get('round_number', x.get('tournament_round', 0))):
+                                        round_num = session.get('round_number') or session.get('tournament_round', 'N/A')
+                                        participants = session.get('participant_user_ids', [])
+                                        match_format = session.get('match_format', 'N/A')
+                                        title = session.get('title', 'Swiss Round')
+                                        pod_tier = session.get('pod_tier', 'N/A')
+
+                                        with st.container():
+                                            st.markdown(f"#### 🎯 Round {round_num} - Pod {pod_tier}")
+                                            st.caption(f"**{title}**")
+                                            st.write(f"👥 **Participants:** {len(participants)} players")
+
+                                            if participants and user_names:
+                                                # Display player names
+                                                player_list = [user_names.get(uid, f'User {uid}') for uid in participants]
+                                                for idx, player_name in enumerate(player_list, 1):
+                                                    st.caption(f"  {idx}. {player_name}")
+                                            elif participants:
+                                                st.caption(f"User IDs: {participants}")
+
+                                            st.caption(f"Format: {match_format} | Pod Tier: {pod_tier}")
+                                            st.write("")  # Spacing
+
+                                # ============================================================
+                                # KNOCKOUT STAGE
+                                # ============================================================
+                                if knockout_sessions:
+                                    st.divider()
+                                    st.markdown("### 🏆 Knockout Stage")
+    
+                                    # Organize by knockout round
+                                    knockout_rounds = {}
+                                    for session in knockout_sessions:
+                                        structure = session.get('structure_config', {})
+                                        round_name = structure.get('round_name', 'Unknown Round')
+                                        if round_name not in knockout_rounds:
+                                            knockout_rounds[round_name] = []
+                                        knockout_rounds[round_name].append(session)
+    
+                                    # Display knockout rounds in order
+                                    round_order = ['Round of 8', 'Round of 4', 'Round of 2', 'Final', 'Bronze Match']
+                                    for round_name in round_order:
+                                        if round_name in knockout_rounds:
+                                            st.markdown(f"#### 🎯 {round_name}")
+                                            matches = knockout_rounds[round_name]
+    
+                                            for idx, match in enumerate(matches, 1):
+                                                match_format = match.get('match_format', 'N/A')
+                                                participants = match.get('participant_user_ids', [])
+                                                structure_config = match.get('structure_config', {})
+    
+                                                # Extract seeding information
+                                                matchup = structure_config.get('matchup', None)
+                                                seed_1 = structure_config.get('seed_1', None)
+                                                seed_2 = structure_config.get('seed_2', None)
+    
+                                                if participants:
+                                                    # Participants already assigned (after group stage)
+                                                    st.write(f"  **Match {idx}:** User IDs {participants}")
+                                                elif matchup:
+                                                    # Show seeding placeholders (A1 vs B2, etc.)
+                                                    st.write(f"  **Match {idx}:** {matchup}")
+                                                    if seed_1 and seed_2:
+                                                        st.caption(f"    🎯 Seeding: {seed_1} (Group {seed_1[0]} 1st) vs {seed_2} (Group {seed_2[0]} 2nd)")
+                                                else:
+                                                    st.write(f"  **Match {idx}:** 🔒 Awaiting seeding from group stage")
+    
+                                                st.caption(f"    Format: {match_format}")
+    
+                                            st.write("")  # Spacing
+    
+                                # ============================================================
+                                # SUMMARY
+                                # ============================================================
+                                st.divider()
+
+                                # Dynamic summary based on tournament format
+                                if league_sessions and not group_sessions and not knockout_sessions:
+                                    # Pure INDIVIDUAL_RANKING (League Round Robin)
+                                    st.info(f"""
+                                        **📋 Summary:**
+                                        - **Format:** League (Round Robin) - Individual Ranking
+                                        - All {len(league_sessions[0].get('participant_user_ids', []))} players compete together in each round
+                                        - Total rounds: {len(league_sessions)}
+                                        - Players are ranked by performance in each round
+                                        - No head-to-head matches - everyone plays simultaneously
+                                    """)
+                                elif group_sessions and knockout_sessions:
+                                    # GROUP STAGE + KNOCKOUT
+                                    st.info(f"""
+                                        **📋 Summary:**
+                                        - Group Stage matches show all participants (everyone plays everyone)
+                                        - Knockout Stage matches are empty until group stage completes
+                                        - After group stage, seeding will populate knockout participant_user_ids
+                                        - match_format: INDIVIDUAL_RANKING (group) vs HEAD_TO_HEAD (knockout)
+                                    """)
+                                else:
+                                    st.info("**📋 Summary:** See sessions above for tournament structure.")
+    
+                            except Exception as e:
+                                st.error(f"❌ Error fetching sessions: {str(e)}")
+    
+                        if st.button(
+                            "🔄 Reset & Regenerate Sessions",
+                            key=f"reset_sessions_{tournament['id']}",
+                            help="Delete auto-generated sessions and regenerate (WARNING: Cannot undo!)",
+                            use_container_width=True
+                        ):
+                            st.session_state['reset_sessions_tournament_id'] = tournament['id']
+                            st.session_state['reset_sessions_tournament_name'] = tournament.get('name', 'Unknown')
+                            show_reset_sessions_dialog()
                 else:
                     # Sessions should have been auto-generated but weren't (error state)
                     st.warning("⚠️ Sessions not yet generated. They should have been auto-generated when status changed to IN_PROGRESS.")
@@ -830,82 +952,226 @@ def render_tournament_list(token: str):
                         st.session_state['generate_sessions_tournament_name'] = tournament.get('name', 'Unknown')
                         st.session_state['generate_sessions_tournament_type_id'] = tournament.get('tournament_type_id')
                         st.rerun()
+    
+                # ========================================================================
+                # INSTRUCTOR APPLICATION MANAGEMENT
+            # ========================================================================
+            with st.expander("👨‍🏫 Instructor Assignment", expanded=False):
+                render_instructor_applications_section(token, tournament)
 
             # ========================================================================
-            # INSTRUCTOR APPLICATION MANAGEMENT
+            # TOURNAMENT DRAW & BRACKET (for completed tournaments)
             # ========================================================================
-            st.divider()
-            render_instructor_applications_section(token, tournament)
+            tournament_status_rewards = tournament.get('tournament_status')
+            if tournament_status_rewards in ['COMPLETED', 'REWARDS_DISTRIBUTED']:
+                # Show draw & bracket for completed tournaments
+                with st.expander("🏆 Tournament Draw & Results", expanded=True):
+                    try:
+                        # Fetch leaderboard with group standings
+                        import requests
+                        import json
+                        leaderboard_response = requests.get(
+                            f"{API_BASE_URL}/api/v1/tournaments/{tournament['id']}/leaderboard",
+                            headers={"Authorization": f"Bearer {token}"},
+                            timeout=API_TIMEOUT
+                        )
 
-            # ========================================================================
-            # REWARD DISTRIBUTION
-            # ========================================================================
-            st.write(f"**🔍 DEBUG: Checking reward distribution eligibility**")
-            st.write(f"- status (old): {tournament.get('status')}")
-            st.write(f"- tournament_status (new): {tournament.get('tournament_status')}")
+                        if leaderboard_response.status_code != 200:
+                            st.warning("⚠️ Could not fetch tournament data")
+                        else:
+                            leaderboard_data = leaderboard_response.json()
+                            group_standings = leaderboard_data.get('group_standings', {})
+                            group_stage_finalized = leaderboard_data.get('group_stage_finalized', False)
 
-            if tournament.get('tournament_status') == 'COMPLETED':
-                st.divider()
-                st.success("✅ Tournament is COMPLETED - showing reward distribution")
-                render_reward_distribution_section(token, tournament)
-            elif tournament.get('tournament_status') == 'REWARDS_DISTRIBUTED':
-                st.divider()
-                st.success("✅ Rewards have been distributed!")
+                            # GROUP STAGE STANDINGS
+                            if group_standings:
+                                st.markdown("### ⚽ Group Stage Standings")
 
-                # Fetch and display reward transactions
-                try:
-                    import traceback
-                    st.write(f"**🔍 DEBUG: Fetching rankings from API**")
-                    st.write(f"- Tournament ID: {tournament['id']}")
-                    st.write(f"- API URL: {API_BASE_URL}/api/v1/tournaments/{tournament['id']}/rankings")
+                                # Display groups vertically (stacked)
+                                for group_name, standings in sorted(group_standings.items()):
+                                    st.markdown(f"**📍 GROUP {group_name}**")
 
-                    import requests as req_module
-                    response = req_module.get(
-                        f"{API_BASE_URL}/api/v1/tournaments/{tournament['id']}/rankings",
-                        headers={"Authorization": f"Bearer {token}"},
-                        timeout=API_TIMEOUT
-                    )
+                                    # Create standings table with FULL stats
+                                    table_data = []
+                                    for standing in standings:
+                                        rank_icon = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣"}.get(standing.get('rank'), f"{standing.get('rank')}.")
+                                        table_data.append({
+                                            "#": rank_icon,
+                                            "Player": standing.get('name', 'Unknown'),
+                                            "MP": standing.get('matches_played', 0),
+                                            "W": standing.get('wins', 0),
+                                            "D": standing.get('draws', 0),
+                                            "L": standing.get('losses', 0),
+                                            "GF": standing.get('goals_for', 0),
+                                            "GA": standing.get('goals_against', 0),
+                                            "GD": standing.get('goal_difference', 0),
+                                            "Pts": standing.get('points', 0),
+                                        })
 
-                    st.write(f"- Response status: {response.status_code}")
+                                    if table_data:
+                                        st.dataframe(table_data, use_container_width=True, hide_index=True)
+                                        st.markdown("")  # Add spacing between groups
 
-                    if response.status_code == 200:
-                        rankings_data = response.json()
-                        st.write(f"- Rankings data: {rankings_data}")
+                            # KNOCKOUT BRACKET RESULTS
+                            if group_stage_finalized:
+                                st.divider()
+                                st.markdown("### 🏆 Knockout Bracket Results")
 
-                        st.subheader("🏆 Final Rankings & Rewards")
+                                # Fetch knockout sessions from database
+                                sessions_data = get_tournament_sessions_from_db(tournament['id'])
+                                knockout_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Knockout Stage']
 
-                        for ranking in rankings_data.get('rankings', []):
-                            rank = ranking.get('rank', 'N/A')
-                            player_name = ranking.get('user_name', 'Unknown')
-                            player_email = ranking.get('user_email', '')
-                            points = ranking.get('points', 0)
+                                if knockout_sessions:
+                                    # Get user names from group standings
+                                    user_names = {}
+                                    if group_standings:
+                                        for group_id, standings in group_standings.items():
+                                            for player in standings:
+                                                user_names[player['user_id']] = player['name']
 
-                            # Get reward info from policy
-                            reward_policy = tournament.get('reward_policy_snapshot', {})
-                            placement_rewards = reward_policy.get('placement_rewards', {})
+                                    # Organize by round
+                                    from collections import defaultdict
+                                    rounds = defaultdict(list)
+                                    for session in knockout_sessions:
+                                        if session.get('tournament_round'):
+                                            rounds[session['tournament_round']].append(session)
 
-                            # Map rank to reward tier
-                            reward_tier_map = {1: '1ST', 2: '2ND', 3: '3RD'}
-                            tier = reward_tier_map.get(rank, 'PARTICIPANT')
-                            reward = placement_rewards.get(tier, {'credits': 0, 'xp': 0})
+                                    # Display rounds from semifinals to final
+                                    sorted_rounds = sorted(rounds.items())
 
-                            credits = reward.get('credits', 0)
-                            xp = reward.get('xp', 0)
+                                    for round_num, matches in sorted_rounds:
+                                        # Separate bronze matches from regular knockout matches
+                                        regular_matches = [m for m in matches if 'bronze' not in m.get('title', '').lower()]
 
-                            # Medal emoji
-                            medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🎖️"
+                                        if not regular_matches:
+                                            continue  # Skip if this round only has bronze matches
 
-                            st.markdown(
-                                f"{medal} **#{rank} - {player_name}** ({player_email}): "
-                                f"**{points} points** → Rewarded: **+{credits} credits**, +{xp} XP"
+                                        # Determine round name
+                                        if round_num == 1:
+                                            st.markdown("#### ⚔️ Semifinals")
+                                        elif round_num == 2:
+                                            st.markdown("#### 🥇 Final")
+                                        else:
+                                            st.markdown(f"#### Round {round_num}")
+
+                                        # Display regular matches (exclude bronze)
+                                        for match in regular_matches:
+                                            participant_ids = match.get('participant_user_ids', [])
+                                            game_results = match.get('game_results')
+
+                                            if len(participant_ids) >= 2:
+                                                player1_name = user_names.get(participant_ids[0], f"Player {participant_ids[0]}")
+                                                player2_name = user_names.get(participant_ids[1], f"Player {participant_ids[1]}")
+
+                                                if game_results:
+                                                    # Parse game results
+                                                    if isinstance(game_results, str):
+                                                        game_results = json.loads(game_results)
+
+                                                    raw_results = game_results.get('raw_results', [])
+                                                    score1 = next((r['score'] for r in raw_results if r['user_id'] == participant_ids[0]), 0)
+                                                    score2 = next((r['score'] for r in raw_results if r['user_id'] == participant_ids[1]), 0)
+
+                                                    winner_name = player1_name if score1 > score2 else player2_name
+                                                    st.markdown(f"⚔️ **{player1_name}** ({score1}) vs **{player2_name}** ({score2}) → 🏆 **{winner_name}**")
+                                                else:
+                                                    st.caption(f"⚔️ {player1_name} vs {player2_name} - Not yet played")
+
+                                    # Show bronze match separately
+                                    bronze_matches = [m for m in knockout_sessions if 'bronze' in m.get('title', '').lower()]
+                                    if bronze_matches:
+                                        st.markdown("#### 🥉 Bronze Match (3rd Place)")
+                                        bronze_match = bronze_matches[0]
+
+                                        participant_ids = bronze_match.get('participant_user_ids', [])
+                                        game_results = bronze_match.get('game_results')
+
+                                        if len(participant_ids) >= 2:
+                                            player1_name = user_names.get(participant_ids[0], f"Player {participant_ids[0]}")
+                                            player2_name = user_names.get(participant_ids[1], f"Player {participant_ids[1]}")
+
+                                            if game_results:
+                                                if isinstance(game_results, str):
+                                                    game_results = json.loads(game_results)
+
+                                                raw_results = game_results.get('raw_results', [])
+                                                score1 = next((r['score'] for r in raw_results if r['user_id'] == participant_ids[0]), 0)
+                                                score2 = next((r['score'] for r in raw_results if r['user_id'] == participant_ids[1]), 0)
+
+                                                winner_name = player1_name if score1 > score2 else player2_name
+                                                st.markdown(f"⚔️ **{player1_name}** ({score1}) vs **{player2_name}** ({score2}) → 🏆 **{winner_name}**")
+                                            else:
+                                                st.caption(f"⚔️ {player1_name} vs {player2_name} - Not yet played")
+
+                    except Exception as e:
+                        st.error(f"❌ Error loading tournament draw: {str(e)}")
+
+                # Show rewards
+                with st.expander("💰 Reward Distribution & Final Rankings", expanded=False):
+                    st.write(f"**🔍 DEBUG: Checking reward distribution eligibility**")
+                    st.write(f"- status (old): {tournament.get('status')}")
+                    st.write(f"- tournament_status (new): {tournament_status_rewards}")
+
+                    if tournament_status_rewards == 'COMPLETED':
+                        st.success("✅ Tournament is COMPLETED - showing reward distribution")
+                        render_reward_distribution_section(token, tournament)
+                    elif tournament_status_rewards == 'REWARDS_DISTRIBUTED':
+                        st.success("✅ Rewards have been distributed!")
+
+                        # Fetch and display reward transactions
+                        try:
+                            import traceback
+                            st.write(f"**🔍 DEBUG: Fetching rankings from API**")
+                            st.write(f"- Tournament ID: {tournament['id']}")
+                            st.write(f"- API URL: {API_BASE_URL}/api/v1/tournaments/{tournament['id']}/rankings")
+    
+                            import requests as req_module
+                            response = req_module.get(
+                                f"{API_BASE_URL}/api/v1/tournaments/{tournament['id']}/rankings",
+                                headers={"Authorization": f"Bearer {token}"},
+                                timeout=API_TIMEOUT
                             )
-                    else:
-                        st.warning(f"⚠️ Could not fetch rankings data - Status: {response.status_code}")
-                        st.write(f"Response: {response.text}")
-                except Exception as e:
-                    import traceback
-                    st.error(f"❌ Error fetching rankings: {str(e)}")
-                    st.code(traceback.format_exc())
+    
+                            st.write(f"- Response status: {response.status_code}")
+    
+                            if response.status_code == 200:
+                                rankings_data = response.json()
+                                st.write(f"- Rankings data: {rankings_data}")
+    
+                                st.subheader("🏆 Final Rankings & Rewards")
+    
+                                for ranking in rankings_data.get('rankings', []):
+                                    rank = ranking.get('rank', 'N/A')
+                                    player_name = ranking.get('user_name', 'Unknown')
+                                    player_email = ranking.get('user_email', '')
+                                    points = ranking.get('points', 0)
+    
+                                    # Get reward info from policy
+                                    reward_policy = tournament.get('reward_policy_snapshot', {})
+                                    placement_rewards = reward_policy.get('placement_rewards', {})
+    
+                                    # Map rank to reward tier
+                                    reward_tier_map = {1: '1ST', 2: '2ND', 3: '3RD'}
+                                    tier = reward_tier_map.get(rank, 'PARTICIPANT')
+                                    reward = placement_rewards.get(tier, {'credits': 0, 'xp': 0})
+    
+                                    credits = reward.get('credits', 0)
+                                    xp = reward.get('xp', 0)
+    
+                                    # Medal emoji
+                                    medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🎖️"
+    
+                                    st.markdown(
+                                        f"{medal} **#{rank} - {player_name}** ({player_email}): "
+                                        f"**{points} points** → Rewarded: **+{credits} credits**, +{xp} XP"
+                                    )
+                            else:
+                                st.warning(f"⚠️ Could not fetch rankings data - Status: {response.status_code}")
+                                st.write(f"Response: {response.text}")
+                        except Exception as e:
+                            import traceback
+                            st.error(f"❌ Error fetching rankings: {str(e)}")
+                            st.code(traceback.format_exc())
             else:
                 st.info(f"⏳ Reward distribution will appear when tournament_status = COMPLETED (currently: {tournament.get('tournament_status')})")
 
@@ -1213,6 +1479,65 @@ def show_edit_tournament_dialog():
     # Tournament Type & Settings
     st.subheader("🏆 Tournament Type & Settings")
 
+    # 🎯 Tournament Type Selector (DANGEROUS - warns about session regeneration)
+    token = st.session_state.get('token')
+
+    # Fetch available tournament types
+    try:
+        import requests
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournament-types/",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+        if response.status_code == 200:
+            tournament_types = response.json()
+            tournament_type_options = {t['id']: t['display_name'] for t in tournament_types}
+        else:
+            tournament_type_options = {}
+            st.error("❌ Failed to load tournament types")
+    except:
+        tournament_type_options = {}
+        st.error("❌ Error loading tournament types")
+
+    current_tournament_type_id = tournament_data.get('tournament_type_id')
+
+    if tournament_type_options:
+        # Create selectbox with tournament type names
+        type_ids = list(tournament_type_options.keys())
+        type_names = list(tournament_type_options.values())
+
+        try:
+            current_index = type_ids.index(current_tournament_type_id) if current_tournament_type_id else 0
+        except:
+            current_index = 0
+
+        new_tournament_type_id = st.selectbox(
+            "Tournament Type",
+            options=type_ids,
+            format_func=lambda x: tournament_type_options[x],
+            index=current_index,
+            key="tournament_type_select",
+            help="⚠️ Changing tournament type will require regenerating sessions!"
+        )
+
+        # ⚠️ WARNING if tournament type changed
+        if new_tournament_type_id != current_tournament_type_id:
+            st.warning("""
+            ⚠️ **WARNING: Tournament Type Change Detected**
+
+            Changing the tournament type will:
+            - Delete all existing sessions for this tournament
+            - Require regenerating sessions with the new structure
+            - Reset all match results and standings
+
+            This action should only be done if the tournament has not started yet!
+            """)
+    else:
+        new_tournament_type_id = current_tournament_type_id
+
+    st.divider()
+
     col1, col2 = st.columns(2)
     with col1:
         # Specialization Type
@@ -1320,15 +1645,17 @@ def show_edit_tournament_dialog():
         "ARCHIVED"
     ]
 
-    current_tournament_status = tournament_data.get('tournament_status', 'DRAFT')
+    # ✅ FIX: Keep original status separate from display status
+    original_tournament_status = tournament_data.get('tournament_status', 'DRAFT')
+    display_tournament_status = original_tournament_status
 
-    # MIGRATION: Map deprecated READY_FOR_ENROLLMENT to ENROLLMENT_OPEN
-    if current_tournament_status == "READY_FOR_ENROLLMENT":
-        current_tournament_status = "ENROLLMENT_OPEN"
+    # MIGRATION: Map deprecated READY_FOR_ENROLLMENT to ENROLLMENT_OPEN for display
+    if display_tournament_status == "READY_FOR_ENROLLMENT":
+        display_tournament_status = "ENROLLMENT_OPEN"
         st.warning("⚠️ READY_FOR_ENROLLMENT is deprecated. Mapped to ENROLLMENT_OPEN.")
 
     try:
-        status_index = TOURNAMENT_STATUS_OPTIONS.index(current_tournament_status)
+        status_index = TOURNAMENT_STATUS_OPTIONS.index(display_tournament_status)
     except:
         status_index = 0
 
@@ -1354,6 +1681,25 @@ def show_edit_tournament_dialog():
                 st.error("❌ End date cannot be before start date!")
                 return
 
+            # Check if tournament type changed
+            tournament_type_changed = new_tournament_type_id != current_tournament_type_id
+
+            # If tournament type changed, inform about automatic sessions regeneration
+            if tournament_type_changed:
+                # Check if tournament has generated sessions
+                sessions_generated = tournament_data.get('sessions_generated', False)
+                if sessions_generated:
+                    st.info("""
+                    ℹ️ **Tournament Type Change - Auto-Regeneration**
+
+                    Changing the tournament type will **automatically**:
+                    - ✅ Delete all existing sessions
+                    - ✅ Reset sessions_generated flag
+                    - ⚠️ You will need to click "Generate Sessions" after saving
+
+                    💾 **Tip:** Use snapshot restore to revert if needed.
+                    """)
+
             # Build update payload with ALL editable fields
             update_data = {
                 "name": new_name,
@@ -1367,23 +1713,16 @@ def show_edit_tournament_dialog():
                 "participant_type": new_participant_type
             }
 
+            # ⚠️ Add tournament_type_id if it changed (and no sessions exist)
+            if tournament_type_changed:
+                update_data["tournament_type_id"] = new_tournament_type_id
+
             # ✅ FIX: Only include tournament_status if it actually changed
-            current_tournament_status = tournament_data.get('tournament_status')
-            if new_tournament_status != current_tournament_status:
+            # Compare with the DISPLAY status (after migration), not the original
+            if new_tournament_status != display_tournament_status:
                 update_data["tournament_status"] = new_tournament_status
 
-            # 🔍 DEBUG: Show what we're sending
-            st.write("**🔍 DEBUG: Tournament Update Request**")
-            st.write(f"- Tournament ID: {tournament_id}")
-            st.write(f"- Update data: {update_data}")
-
             success, error, updated = update_tournament(token, tournament_id, update_data)
-
-            # 🔍 DEBUG: Show result
-            st.write("**🔍 DEBUG: Update Result**")
-            st.write(f"- Success: {success}")
-            st.write(f"- Error: {error}")
-            st.write(f"- Updated data: {updated}")
 
             if success:
                 st.success("✅ Tournament updated successfully!")
@@ -2120,7 +2459,9 @@ def show_edit_schedule_dialog():
                 match_duration_minutes,
                 break_duration_minutes,
                 parallel_fields,
-                tournament_type_id
+                tournament_type_id,
+                format,
+                scoring_type
             FROM semesters
             WHERE id = %s
         """, (tournament_id,))
@@ -2133,20 +2474,25 @@ def show_edit_schedule_dialog():
             current_break_duration = result[2]
             current_parallel_fields = result[3]
             tournament_type_id = result[4]
+            current_format = result[5]
+            current_scoring_type = result[6]
         else:
             current_start = date.today()
             current_match_duration = None
             current_break_duration = None
             current_parallel_fields = None
             tournament_type_id = None
+            current_format = "INDIVIDUAL_RANKING"
+            current_scoring_type = "PLACEMENT"
 
         # Get default values from tournament type if available
         default_match_duration = 90
         default_break_duration = 15
+        default_format = "INDIVIDUAL_RANKING"
 
         if tournament_type_id:
             cursor.execute("""
-                SELECT session_duration_minutes, break_between_sessions_minutes
+                SELECT session_duration_minutes, break_between_sessions_minutes, format
                 FROM tournament_types
                 WHERE id = %s
             """, (tournament_type_id,))
@@ -2155,6 +2501,7 @@ def show_edit_schedule_dialog():
             if type_result:
                 default_match_duration = type_result[0]
                 default_break_duration = type_result[1]
+                default_format = type_result[2] if type_result[2] else "INDIVIDUAL_RANKING"
 
         cursor.close()
         conn.close()
@@ -2163,8 +2510,13 @@ def show_edit_schedule_dialog():
         display_match_duration = current_match_duration if current_match_duration else default_match_duration
         display_break_duration = current_break_duration if current_break_duration else default_break_duration
         display_parallel_fields = current_parallel_fields if current_parallel_fields else 1
+        display_format = current_format if current_format else default_format
+        display_scoring_type = current_scoring_type if current_scoring_type else "PLACEMENT"
 
         st.caption(f"📊 Current start date: {current_start.strftime('%Y-%m-%d') if current_start else 'Not set'}")
+        st.caption(f"🏆 Current format: {display_format}")
+        if display_format == "INDIVIDUAL_RANKING":
+            st.caption(f"📏 Current scoring type: {display_scoring_type}")
         st.caption(f"⏱️ Current match duration: {display_match_duration} min")
         st.caption(f"⏸️ Current break duration: {display_break_duration} min")
         st.caption(f"⚽ Current parallel fields: {display_parallel_fields}")
@@ -2175,6 +2527,7 @@ def show_edit_schedule_dialog():
         display_match_duration = 90
         display_break_duration = 15
         display_parallel_fields = 1
+        display_format = "INDIVIDUAL_RANKING"
 
     st.divider()
 
@@ -2189,8 +2542,29 @@ def show_edit_schedule_dialog():
         )
 
     with col2:
-        # Note: start_time will be added when sessions are generated (not stored in semester)
-        st.info("💡 Match times will be calculated when sessions are generated")
+        tournament_format = st.selectbox(
+            "Tournament Format",
+            options=["INDIVIDUAL_RANKING", "HEAD_TO_HEAD"],
+            index=0 if display_format == "INDIVIDUAL_RANKING" else 1,
+            key="schedule_format",
+            help="INDIVIDUAL_RANKING: Placement-based results (e.g., 1st, 2nd, 3rd). HEAD_TO_HEAD: 1v1 matches with scores."
+        )
+
+    # Show scoring type selector only for INDIVIDUAL_RANKING
+    if tournament_format == "INDIVIDUAL_RANKING":
+        st.markdown("#### Scoring Type (for INDIVIDUAL_RANKING)")
+        scoring_options = ["PLACEMENT", "TIME_BASED", "DISTANCE_BASED", "SCORE_BASED"]
+        current_index = scoring_options.index(display_scoring_type) if display_scoring_type in scoring_options else 0
+        scoring_type = st.selectbox(
+            "Measurement Unit",
+            options=scoring_options,
+            index=current_index,
+            key="schedule_scoring_type",
+            help="PLACEMENT: Ranking (1st, 2nd, 3rd). TIME_BASED: Seconds/minutes. DISTANCE_BASED: Meters. SCORE_BASED: Points."
+        )
+    else:
+        # For HEAD_TO_HEAD, default to SCORE_BASED
+        scoring_type = "SCORE_BASED"
 
     col3, col4, col5 = st.columns(3)
 
@@ -2243,9 +2617,11 @@ def show_edit_schedule_dialog():
                         start_date = %s,
                         match_duration_minutes = %s,
                         break_duration_minutes = %s,
-                        parallel_fields = %s
+                        parallel_fields = %s,
+                        format = %s,
+                        scoring_type = %s
                     WHERE id = %s
-                """, (new_start_date, match_duration, break_duration, parallel_fields, tournament_id))
+                """, (new_start_date, match_duration, break_duration, parallel_fields, tournament_format, scoring_type, tournament_id))
 
                 conn.commit()
                 cursor.close()

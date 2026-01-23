@@ -157,6 +157,11 @@ def update_tournament(
     """
     Update tournament (semester) details
 
+    ✅ NEW BEHAVIOR (2026-01-23):
+    - ALL updates (including tournament_status) now use PATCH /tournaments/{id} endpoint
+    - Admin can change tournament_status freely (bypasses state machine validation)
+    - No longer uses /tournaments/{id}/status endpoint (that has strict validation)
+
     Args:
         token: API authentication token
         tournament_id: Tournament (semester) ID to update
@@ -169,15 +174,18 @@ def update_tournament(
         - updated_tournament: Updated tournament data if success
     """
     try:
+        # ✅ NEW: Use PATCH /tournaments/{id} for ALL updates (including tournament_status)
+        # This bypasses state machine validation and allows admin full control
         response = requests.patch(
-            f"{API_BASE_URL}/api/v1/semesters/{tournament_id}",
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",
             headers={"Authorization": f"Bearer {token}"},
             json=update_data,
             timeout=API_TIMEOUT
         )
 
         if response.status_code == 200:
-            return True, None, response.json()
+            result = response.json()
+            return True, None, result
         else:
             error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
             error_msg = error_data.get('detail', response.text)
@@ -317,23 +325,33 @@ def get_tournament_enrollment_count(
         Returns 0 if API call fails
     """
     try:
+        url = f"{API_BASE_URL}/api/v1/semester-enrollments/semesters/{tournament_id}/enrollments"
+        print(f"🔍 DEBUG: Fetching enrollments from: {url}")
+
         response = requests.get(
-            f"{API_BASE_URL}/api/v1/semesters/{tournament_id}/enrollments",
+            url,
             headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
+        print(f"🔍 DEBUG: Response status: {response.status_code}")
+
         if response.status_code == 200:
-            data = response.json()
+            # API returns a list directly, not a dict with 'enrollments' key
+            enrollments = response.json()
+            print(f"🔍 DEBUG: Total enrollments: {len(enrollments)}")
+
             # Count only APPROVED and is_active enrollments
-            enrollments = data.get('enrollments', [])
+            # Note: API returns lowercase "approved", not "APPROVED"
             active_count = sum(
                 1 for e in enrollments
-                if e.get('request_status') == 'APPROVED' and e.get('is_active') is True
+                if e.get('request_status', '').upper() == 'APPROVED' and e.get('is_active') is True
             )
+            print(f"🔍 DEBUG: Active approved count: {active_count}")
             return active_count
         else:
             print(f"⚠️ Failed to fetch enrollment count for tournament {tournament_id}: {response.status_code}")
+            print(f"⚠️ Response body: {response.text[:200]}")
             return 0
     except Exception as e:
         print(f"⚠️ Error fetching enrollment count: {e}")
@@ -510,11 +528,55 @@ def generate_tournament_sessions(
         response = requests.post(
             f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/generate-sessions",
             headers={"Authorization": f"Bearer {token}"},
-            params={
+            json={
                 "parallel_fields": parallel_fields,
                 "session_duration_minutes": session_duration_minutes,
                 "break_minutes": break_minutes
             },
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def finalize_group_stage(
+    token: str,
+    tournament_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Finalize group stage and calculate final standings
+
+    This endpoint:
+    - Validates all group stage matches are completed
+    - Calculates final group standings
+    - Saves snapshot to database
+    - Determines qualified participants for knockout stage
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+
+    Returns:
+        Tuple of (success, error_message, finalization_data)
+        - success: True if finalization succeeded
+        - error_message: Error message if failed, None if succeeded
+        - finalization_data: Dict with group_standings and qualified_participants
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/finalize-group-stage",
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
