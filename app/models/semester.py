@@ -105,6 +105,20 @@ class Semester(Base):
                                comment="True if tournament sessions have been auto-generated (prevents duplicate generation)")
     sessions_generated_at = Column(DateTime, nullable=True,
                                   comment="Timestamp when sessions were auto-generated")
+    enrollment_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
+                                comment="📸 Snapshot of enrollment state before session generation (for regeneration if needed)")
+
+    # ⏱️ TOURNAMENT SCHEDULE CONFIGURATION (set by admin before session generation)
+    match_duration_minutes = Column(Integer, nullable=True,
+                                   comment="Duration of each match in minutes (overrides tournament_type default)")
+    break_duration_minutes = Column(Integer, nullable=True,
+                                  comment="Break time between matches in minutes (overrides tournament_type default)")
+    parallel_fields = Column(Integer, nullable=True, default=1,
+                            comment="Number of parallel fields/pitches available (1-4) for simultaneous matches")
+    format = Column(String(50), nullable=False, default="INDIVIDUAL_RANKING",
+                   comment="Tournament format: HEAD_TO_HEAD (1v1 with scores) or INDIVIDUAL_RANKING (placement-based). Overrides tournament_type default.")
+    scoring_type = Column(String(50), nullable=False, default="PLACEMENT",
+                         comment="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD.")
 
     # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
     assignment_type = Column(String(30), nullable=True,

@@ -33,6 +33,14 @@ class TournamentType(Base):
     session_duration_minutes = Column(Integer, default=90, nullable=False)
     break_between_sessions_minutes = Column(Integer, default=15, nullable=False)
 
+    # Match format type
+    format = Column(
+        String(50),
+        nullable=False,
+        server_default='INDIVIDUAL_RANKING',
+        comment='Match format: INDIVIDUAL_RANKING (multi-player ranking) or HEAD_TO_HEAD (1v1 or team vs team score-based)'
+    )
+
     # Full configuration (JSON from config files)
     config = Column(JSON, nullable=False)
 

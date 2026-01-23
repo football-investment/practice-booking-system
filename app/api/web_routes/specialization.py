@@ -14,6 +14,7 @@ from ...models.user import User
 from ...models.license import UserLicense
 from ...models.credit_transaction import CreditTransaction, TransactionType
 from ...models.specialization import SpecializationType
+from ...utils.age_requirements import validate_specialization_for_age
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -346,90 +347,9 @@ async def lfa_player_onboarding_cancel(
         return RedirectResponse(url="/dashboard", status_code=303)
 
 
-@router.post("/specialization/lfa-player/onboarding-submit")
-async def lfa_player_onboarding_submit(
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user_web)
-):
-    """
-    Process LFA Player onboarding questionnaire
-    Saves: position, self-assessment skills, motivation
-    """
-    try:
-        form = await request.form()
-
-        # Get form data
-        position = form.get("position")
-        motivation = form.get("motivation", "")
-        goals = form.get("goals", "")
-
-        # Self-assessment scores (0-10)
-        skills = {
-            "heading": int(form.get("skill_heading", 5)),
-            "shooting": int(form.get("skill_shooting", 5)),
-            "passing": int(form.get("skill_passing", 5)),
-            "dribbling": int(form.get("skill_dribbling", 5)),
-            "defending": int(form.get("skill_defending", 5)),
-            "physical": int(form.get("skill_physical", 5))
-        }
-
-        # Validate position
-        valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
-        if position not in valid_positions:
-            raise ValueError(f"Invalid position: {position}")
-
-        # Get user's LFA Player license
-        license = db.query(UserLicense).filter(
-            UserLicense.user_id == user.id,
-            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
-        ).first()
-
-        if not license:
-            raise ValueError("LFA Player license not found")
-
-        # Calculate initial average skill level (convert to percentage)
-        average_skill = sum(skills.values()) / len(skills) / 10 * 100  # Convert 0-10 to 0-100%
-
-        # Store position, goals, and initial self-assessment in motivation_scores JSON field
-        license.motivation_scores = {
-            "position": position,
-            "goals": goals,
-            "motivation": motivation,
-            "initial_self_assessment": skills,
-            "average_skill_level": round(average_skill, 1),
-            "onboarding_completed_at": datetime.now(timezone.utc).isoformat()
-        }
-        license.average_motivation_score = average_skill
-        license.motivation_last_assessed_at = datetime.now(timezone.utc)
-        license.motivation_assessed_by = user.id
-
-        # Mark onboarding as completed
-        user.onboarding_completed = True
-        license.onboarding_completed = True
-        license.onboarding_completed_at = datetime.now(timezone.utc)
-
-        db.commit()
-        db.refresh(user)
-        db.refresh(license)
-
-        print(f"✅ LFA Player onboarding completed for {user.email}: Position={position}, Avg Skill={average_skill:.1f}%")
-
-        # Redirect to dashboard
-        return RedirectResponse(url="/dashboard", status_code=303)
-
-    except Exception as e:
-        db.rollback()
-        print(f"❌ Error processing LFA Player onboarding: {e}")
-        print(traceback.format_exc())
-        return templates.TemplateResponse(
-            "lfa_player_onboarding.html",
-            {
-                "request": request,
-                "user": user,
-                "error": f"An error occurred: {str(e)}"
-            }
-        )
+# ❌ REMOVED DUPLICATE: Onboarding submit handler moved to onboarding.py
+# The endpoint /specialization/lfa-player/onboarding-submit is now handled by
+# app/api/web_routes/onboarding.py to avoid duplicate route conflicts
 
 
 @router.post("/specialization/switch")

@@ -35,9 +35,11 @@ TESTS=(
     "tests/playwright/test_user_registration_with_invites.py::test_d2_first_user_registers_with_invitation"
     "tests/playwright/test_user_registration_with_invites.py::test_d3_second_user_registers_with_invitation"
     "tests/playwright/test_user_registration_with_invites.py::test_d4_third_user_registers_with_invitation"
+    "tests/playwright/test_user_registration_with_invites.py::test_d5_fourth_user_registers_with_invitation"
     "tests/playwright/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user1"
     "tests/playwright/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user2"
     "tests/playwright/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user3"
+    "tests/playwright/test_complete_onboarding_with_coupon_ui.py::test_complete_onboarding_user4"
     # SKIPPED: test_ui_instructor_application_workflow (XFAIL - known backend bug)
     # "tests/playwright/test_ui_instructor_application_workflow.py::TestInstructorApplicationWorkflowUI::test_complete_ui_workflow"
 
@@ -83,53 +85,27 @@ echo -e "${YELLOW}🔧 Activating virtual environment...${NC}"
 source venv/bin/activate
 
 # =============================================================================
-# STEP 1: Reset Database (ONCE)
+# STEP 1: Master Setup (Reset DB + Seed from seed_data.json)
 # =============================================================================
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}📊 STEP 1: Resetting Database${NC}"
+echo -e "${YELLOW}🚀 STEP 1: Master Setup (Reset + Seed Database)${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
-if python scripts/reset_database_for_tests.py; then
-    echo -e "${GREEN}✅ Database reset successful${NC}"
+if python scripts/master_setup.py; then
+    echo -e "${GREEN}✅ Master setup successful${NC}"
 else
-    echo -e "${RED}❌ Database reset FAILED${NC}"
+    echo -e "${RED}❌ Master setup FAILED${NC}"
     exit 1
 fi
 
 # =============================================================================
-# STEP 2: Setup Coupons (onboarding + enrollment)
+# STEP 2: Run Tests (in order, without database reset)
 # =============================================================================
 echo ""
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}🎫 STEP 2: Setting up coupons${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
-echo ""
-
-echo -e "${YELLOW}2a. Creating onboarding coupons (50 credits each)...${NC}"
-if python tests/playwright/utils/setup_onboarding_coupons.py; then
-    echo -e "${GREEN}✅ Onboarding coupons created${NC}"
-else
-    echo -e "${RED}❌ Onboarding coupon setup FAILED${NC}"
-    exit 1
-fi
-
-echo ""
-echo -e "${YELLOW}2b. Creating enrollment coupons (500 credits each)...${NC}"
-if python tests/playwright/utils/setup_enrollment_coupons.py; then
-    echo -e "${GREEN}✅ Enrollment coupons created${NC}"
-else
-    echo -e "${RED}❌ Enrollment coupon setup FAILED${NC}"
-    exit 1
-fi
-
-# =============================================================================
-# STEP 3: Run Tests (in order, without database reset)
-# =============================================================================
-echo ""
-echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}🧪 STEP 3: Running E2E Tests (in sequence)${NC}"
+echo -e "${YELLOW}🧪 STEP 2: Running E2E Tests (in sequence)${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -147,10 +123,10 @@ for TEST in "${TESTS[@]}"; do
         echo -e "${GREEN}✅ Test ${TEST_NUMBER} PASSED${NC}"
 
         # Save snapshot after key test milestones
-        if [[ "$TEST" == *"test_d4_third_user_registers_with_invitation"* ]]; then
+        if [[ "$TEST" == *"test_d5_fourth_user_registers_with_invitation"* ]]; then
             echo -e "${BLUE}📸 Saving snapshot: after_registration${NC}"
             ./tests/playwright/snapshot_manager.sh save after_registration
-        elif [[ "$TEST" == *"test_complete_onboarding_user3"* ]]; then
+        elif [[ "$TEST" == *"test_complete_onboarding_user4"* ]]; then
             echo -e "${BLUE}📸 Saving snapshot: after_onboarding${NC}"
             ./tests/playwright/snapshot_manager.sh save after_onboarding
         elif [[ "$TEST" == *"test_e6_player1_verifies_confirmed_status"* ]]; then
@@ -234,13 +210,13 @@ echo -e "${BLUE}📊 Test Summary${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  ${GREEN}✅${NC} Database reset successful"
-echo -e "  ${GREEN}✅${NC} Coupons created (3 BONUS_CREDITS coupons)"
+echo -e "  ${GREEN}✅${NC} Coupons created (4 BONUS_CREDITS + 4 ENROLLMENT coupons)"
 echo -e "  ${GREEN}✅${NC} ${TOTAL_TESTS} tests passed in sequence"
 echo ""
 echo -e "${YELLOW}📋 Complete User Journey Validated:${NC}"
 echo -e "  1. ✅ Admin created invitation codes (UI)"
-echo -e "  2. ✅ 3 users registered with invitations (UI)"
-echo -e "  3. ✅ 3 users completed onboarding with coupons (UI)"
+echo -e "  2. ✅ 4 users registered with invitations (UI)"
+echo -e "  3. ✅ 4 users completed onboarding with coupons (UI)"
 echo -e "  4. ✅ Instructor assignment workflow (UI + API)"
 echo -e "  5. ✅ Tournament enrollment (UI)"
 echo ""

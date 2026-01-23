@@ -149,7 +149,117 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
 
     st.divider()
 
-    # NOW the form starts - with location_id and campus_id already selected above
+    # ⚠️ CRITICAL FIX: Reward Policy selector OUTSIDE the form
+    # This allows immediate UI update when selecting "✏️ Custom Rewards"
+    st.write("**🎁 Reward Policy**")
+    st.caption("Select the reward policy for this tournament (immutable after creation)")
+
+    # Get available policies
+    success, error, policies = get_reward_policies(st.session_state.get('token', ''))
+
+    custom_policy = None  # Initialize
+    selected_policy_name = "default"  # Default
+
+    if success and policies:
+        policy_names = [p['policy_name'] for p in policies] + ["✏️ Custom Rewards"]
+
+        # Default to "default" policy
+        default_index = 0
+        if "default" in policy_names:
+            default_index = policy_names.index("default")
+
+        selected_policy_name = st.selectbox(
+            "Reward Policy *",
+            options=policy_names,
+            index=default_index,
+            help="Reward policy determines XP and Credits for tournament placements. Choose 'Custom Rewards' to set your own values.",
+            key="reward_policy_selector"
+        )
+
+        # 🔍 DEBUG: Show selected policy name
+        st.write(f"**🔍 DEBUG: Selected Policy Name:** `{selected_policy_name}`")
+        st.write(f"**🔍 DEBUG: Is Custom?** {selected_policy_name == '✏️ Custom Rewards'}")
+
+        # Show policy preview or custom input
+        if selected_policy_name == "✏️ Custom Rewards":
+            st.info("💡 **Create custom reward values for this tournament**")
+
+            st.write("**Placement Rewards**")
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.write("🥇 **1st Place**")
+                first_credits = st.number_input("Credits", min_value=0, value=100, step=10, key="first_credits")
+                first_xp = st.number_input("XP", min_value=0, value=500, step=50, key="first_xp")
+
+            with col2:
+                st.write("🥈 **2nd Place**")
+                second_credits = st.number_input("Credits", min_value=0, value=50, step=10, key="second_credits")
+                second_xp = st.number_input("XP", min_value=0, value=300, step=50, key="second_xp")
+
+            with col3:
+                st.write("🥉 **3rd Place**")
+                third_credits = st.number_input("Credits", min_value=0, value=25, step=10, key="third_credits")
+                third_xp = st.number_input("XP", min_value=0, value=200, step=50, key="third_xp")
+
+            with col4:
+                st.write("👤 **Participant**")
+                participant_credits = st.number_input("Credits", min_value=0, value=0, step=10, key="participant_credits")
+                participant_xp = st.number_input("XP", min_value=0, value=50, step=10, key="participant_xp")
+
+            # Build custom policy
+            custom_policy = {
+                "version": "1.0.0",
+                "policy_name": "custom",
+                "description": "Custom reward policy",
+                "placement_rewards": {
+                    "1ST": {"credits": first_credits, "xp": first_xp},
+                    "2ND": {"credits": second_credits, "xp": second_xp},
+                    "3RD": {"credits": third_credits, "xp": third_xp},
+                    "PARTICIPANT": {"credits": participant_credits, "xp": participant_xp}
+                }
+            }
+
+        elif selected_policy_name:
+            success_detail, error_detail, policy_details = get_reward_policy_details(
+                st.session_state.get('token', ''),
+                selected_policy_name
+            )
+
+            if success_detail and policy_details:
+                st.info(f"**Policy Preview: {policy_details.get('policy_name', 'Unknown')}** (v{policy_details.get('version', 'N/A')})")
+
+                # Placement Rewards
+                placement = policy_details.get('placement_rewards', {})
+                if placement:
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        first = placement.get('1ST', {})
+                        st.caption(f"🥇 1st: {first.get('xp', 0)} XP + {first.get('credits', 0)} Credits")
+                    with col2:
+                        second = placement.get('2ND', {})
+                        st.caption(f"🥈 2nd: {second.get('xp', 0)} XP + {second.get('credits', 0)} Credits")
+                    with col3:
+                        third = placement.get('3RD', {})
+                        st.caption(f"🥉 3rd: {third.get('xp', 0)} XP + {third.get('credits', 0)} Credits")
+                    with col4:
+                        participant = placement.get('PARTICIPANT', {})
+                        st.caption(f"👤 Participant: {participant.get('xp', 0)} XP + {participant.get('credits', 0)} Credits")
+
+                # Participation Rewards
+                participation = policy_details.get('participation_rewards', {})
+                if participation:
+                    session_reward = participation.get('session_attendance', {})
+                    st.caption(f"📅 Session Attendance: {session_reward.get('xp', 0)} XP + {session_reward.get('credits', 0)} Credits")
+
+            custom_policy = None
+    else:
+        st.warning("⚠️ Could not load reward policies. Using default policy.")
+        selected_policy_name = "default"
+
+    st.divider()
+
+    # NOW the form starts - with location_id, campus_id, and reward policy already selected above
     with st.form("create_tournament_form"):
         # Basic info
         col1, col2 = st.columns(2)
@@ -323,66 +433,6 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             selected_tournament_type = None
             st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
 
-        # Reward Policy Selector
-        st.divider()
-        st.write("**🎁 Reward Policy**")
-        st.caption("Select the reward policy for this tournament (immutable after creation)")
-
-        # Get available policies
-        success, error, policies = get_reward_policies(st.session_state.get('token', ''))
-
-        if success and policies:
-            policy_names = [p['policy_name'] for p in policies]
-
-            # Default to "default" policy
-            default_index = 0
-            if "default" in policy_names:
-                default_index = policy_names.index("default")
-
-            selected_policy_name = st.selectbox(
-                "Reward Policy *",
-                options=policy_names,
-                index=default_index,
-                help="Reward policy determines XP and Credits for tournament placements",
-                key="reward_policy_selector"
-            )
-
-            # Show policy preview
-            if selected_policy_name:
-                success_detail, error_detail, policy_details = get_reward_policy_details(
-                    st.session_state.get('token', ''),
-                    selected_policy_name
-                )
-
-                if success_detail and policy_details:
-                    st.info(f"**Policy Preview: {policy_details.get('policy_name', 'Unknown')}** (v{policy_details.get('version', 'N/A')})")
-
-                    # Placement Rewards
-                    placement = policy_details.get('placement_rewards', {})
-                    if placement:
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            first = placement.get('1ST', {})
-                            st.caption(f"🥇 1st: {first.get('xp', 0)} XP + {first.get('credits', 0)} Credits")
-                        with col2:
-                            second = placement.get('2ND', {})
-                            st.caption(f"🥈 2nd: {second.get('xp', 0)} XP + {second.get('credits', 0)} Credits")
-                        with col3:
-                            third = placement.get('3RD', {})
-                            st.caption(f"🥉 3rd: {third.get('xp', 0)} XP + {third.get('credits', 0)} Credits")
-                        with col4:
-                            participant = placement.get('PARTICIPANT', {})
-                            st.caption(f"👤 Participant: {participant.get('xp', 0)} XP + {participant.get('credits', 0)} Credits")
-
-                    # Participation Rewards
-                    participation = policy_details.get('participation_rewards', {})
-                    if participation:
-                        session_reward = participation.get('session_attendance', {})
-                        st.caption(f"📅 Session Attendance: {session_reward.get('xp', 0)} XP + {session_reward.get('credits', 0)} Credits")
-        else:
-            st.warning("⚠️ Could not load reward policies. Using default policy.")
-            selected_policy_name = "default"
-
         # Submit button
         st.divider()
 
@@ -426,7 +476,8 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             campus_id=campus_id,
             location_id=location_id,
             age_group=age_group,
-            reward_policy_name=selected_policy_name,
+            reward_policy_name=selected_policy_name if selected_policy_name != "✏️ Custom Rewards" else "custom",
+            custom_reward_policy=custom_policy if selected_policy_name == "✏️ Custom Rewards" else None,
             # 🎯 NEW: Domain gap resolution fields
             assignment_type=assignment_type,
             max_players=max_players,
@@ -444,6 +495,7 @@ def _create_tournament(
     location_id: int,
     age_group: Optional[str],
     reward_policy_name: str = "default",
+    custom_reward_policy: Optional[dict] = None,
     # 🎯 NEW: Domain gap resolution fields
     assignment_type: str = "APPLICATION_BASED",
     max_players: int = 20,
@@ -459,33 +511,46 @@ def _create_tournament(
     - Sessions can be auto-generated (if tournament_type_id provided) OR manually configured
     """
     try:
+        request_body = {
+            "date": tournament_date.isoformat(),
+            "name": name,
+            "specialization_type": specialization_type,
+            "campus_id": campus_id,
+            "location_id": location_id,
+            "age_group": age_group,
+            # ⚠️ BUSINESS LOGIC: Sessions added later via Tournament Management
+            "sessions": [],
+            "auto_book_students": False,
+            "reward_policy_name": reward_policy_name,
+            # 🎯 NEW: Domain gap resolution fields
+            "assignment_type": assignment_type,
+            "max_players": max_players,
+            "enrollment_cost": enrollment_cost,
+            # 🎯 NEW PHASE 3: Tournament type for auto-generation
+            "tournament_type_id": tournament_type_id,
+            # ⚠️ BUSINESS LOGIC: instructor_id is None at creation
+            # Instructor assignment happens AFTER via Tournament Management:
+            # - OPEN_ASSIGNMENT: Admin invites specific instructor
+            # - APPLICATION_BASED: Instructors apply, admin selects
+            "instructor_id": None
+        }
+
+        # Add custom reward policy if provided
+        if custom_reward_policy:
+            request_body["custom_reward_policy"] = custom_reward_policy
+
+        # 🔍 DEBUG: Show request payload
+        st.write("**🔍 DEBUG: Tournament Creation Request**")
+        st.json(request_body)
+
         response = requests.post(
             f"{API_BASE_URL}/api/v1/tournaments/generate",
             headers={"Authorization": f"Bearer {st.session_state.token}"},
-            json={
-                "date": tournament_date.isoformat(),
-                "name": name,
-                "specialization_type": specialization_type,
-                "campus_id": campus_id,
-                "location_id": location_id,
-                "age_group": age_group,
-                # ⚠️ BUSINESS LOGIC: Sessions added later via Tournament Management
-                "sessions": [],
-                "auto_book_students": False,
-                "reward_policy_name": reward_policy_name,
-                # 🎯 NEW: Domain gap resolution fields
-                "assignment_type": assignment_type,
-                "max_players": max_players,
-                "enrollment_cost": enrollment_cost,
-                # 🎯 NEW PHASE 3: Tournament type for auto-generation
-                "tournament_type_id": tournament_type_id,
-                # ⚠️ BUSINESS LOGIC: instructor_id is None at creation
-                # Instructor assignment happens AFTER via Tournament Management:
-                # - OPEN_ASSIGNMENT: Admin invites specific instructor
-                # - APPLICATION_BASED: Instructors apply, admin selects
-                "instructor_id": None
-            }
+            json=request_body
         )
+
+        # 🔍 DEBUG: Show response status
+        st.write(f"**🔍 DEBUG: Response Status Code:** {response.status_code}")
 
         if response.status_code == 201:
             data = response.json()
@@ -507,15 +572,27 @@ def _create_tournament(
             st.rerun()
         elif response.status_code == 409:
             st.error(f"❌ Tournament already exists for {tournament_date.strftime('%Y-%m-%d')}. Please choose a different date or delete the existing tournament first.")
+            # 🔍 DEBUG: Show full error response
+            try:
+                st.write("**🔍 DEBUG: Full Error Response**")
+                st.json(response.json())
+            except:
+                st.write(f"**🔍 DEBUG: Raw Response:** {response.text}")
         else:
             try:
                 error_detail = response.json().get("detail", "Unknown error")
+                # 🔍 DEBUG: Show full error response
+                st.write("**🔍 DEBUG: Full Error Response**")
+                st.json(response.json())
             except:
                 error_detail = f"HTTP {response.status_code}"
+                st.write(f"**🔍 DEBUG: Raw Response:** {response.text}")
             st.error(f"❌ Error creating tournament: {error_detail}")
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
+        st.write(f"**🔍 DEBUG: Exception Type:** {type(e).__name__}")
+        st.write(f"**🔍 DEBUG: Exception Details:** {repr(e)}")
 
 
 # Tournament management functions removed - now handled in tournaments_tab.py

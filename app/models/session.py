@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
 import enum
 
@@ -129,6 +130,70 @@ class Session(Base):
         Integer,
         nullable=True,
         comment="Match number within the round (1, 2, 3, ...)"
+    )
+
+    # 🎯 MULTI-PLAYER RANKING METADATA (Phase 1 - Unified Ranking System)
+    ranking_mode = Column(
+        String(50),
+        nullable=True,
+        comment="Ranking mode: ALL_PARTICIPANTS, GROUP_ISOLATED, TIERED, QUALIFIED_ONLY, PERFORMANCE_POD"
+    )
+
+    group_identifier = Column(
+        String(10),
+        nullable=True,
+        comment="Group identifier for group stage sessions (A, B, C, D)"
+    )
+
+    round_number = Column(
+        Integer,
+        nullable=True,
+        comment="Round number within the group/phase (1, 2, 3, ...)"
+    )
+
+    expected_participants = Column(
+        Integer,
+        nullable=True,
+        comment="Expected number of participants for this session (used for validation)"
+    )
+
+    participant_filter = Column(
+        String(50),
+        nullable=True,
+        comment="Participant filter logic: group_membership, top_group_qualifiers, dynamic_swiss_pairing"
+    )
+
+    pod_tier = Column(
+        Integer,
+        nullable=True,
+        comment="Performance tier for Swiss System pods (1=top performers, 2=middle, etc.)"
+    )
+
+    # 🏅 MATCH STRUCTURE METADATA (Phase 2 - Performance/Results Layer)
+    match_format = Column(
+        String(50),
+        nullable=True,
+        comment="Match format: INDIVIDUAL_RANKING, HEAD_TO_HEAD, TEAM_MATCH, TIME_BASED, SKILL_RATING"
+    )
+
+    scoring_type = Column(
+        String(50),
+        nullable=True,
+        comment="Scoring type: PLACEMENT, WIN_LOSS, SCORE_BASED, TIME_BASED, SKILL_RATING"
+    )
+
+    structure_config = Column(
+        JSONB,
+        nullable=True,
+        comment="Match structure configuration (pairings, teams, performance criteria, etc.)"
+    )
+
+    # ✅ MATCH PARTICIPANTS: Explicit participant list (NOT runtime filtering!)
+    participant_user_ids = Column(
+        ARRAY(Integer),
+        nullable=True,
+        comment="Explicit list of user_ids participating in THIS MATCH (not tournament-wide). "
+                "This fixes the architectural issue where participants were determined at runtime."
     )
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

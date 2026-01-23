@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
-from ..models.license import LicenseMetadata, UserLicense, LicenseProgression
+from ..models.license import LicenseMetadata, UserLicense, LicenseProgression, LicenseSystemHelper
 from ..models.user import User
 
 

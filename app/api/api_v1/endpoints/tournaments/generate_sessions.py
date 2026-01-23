@@ -26,7 +26,7 @@ router = APIRouter()
 class SessionGenerationRequest(BaseModel):
     """Request body for session generation"""
     parallel_fields: int = Field(default=1, ge=1, le=10, description="Number of fields available for parallel matches")
-    session_duration_minutes: int = Field(default=90, ge=30, le=180, description="Duration of each session in minutes")
+    session_duration_minutes: int = Field(default=90, ge=1, le=180, description="Duration of each session in minutes (business allows 1-5 min matches)")
     break_minutes: int = Field(default=15, ge=0, le=60, description="Break time between sessions in minutes")
 
 
@@ -152,6 +152,10 @@ def preview_tournament_sessions(
             detail=error_msg
         )
 
+    # Use semester's saved schedule configuration if available, otherwise use query parameters
+    session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else session_duration_minutes
+    break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else break_minutes
+
     # Generate preview (call generator service in DRY_RUN mode)
     generator = TournamentSessionGenerator(db)
 
@@ -159,22 +163,22 @@ def preview_tournament_sessions(
     if tournament_type.code == "league":
         sessions = generator._generate_league_sessions(
             tournament, tournament_type, player_count, parallel_fields,
-            session_duration_minutes, break_minutes
+            session_duration, break_duration
         )
     elif tournament_type.code == "knockout":
         sessions = generator._generate_knockout_sessions(
             tournament, tournament_type, player_count, parallel_fields,
-            session_duration_minutes, break_minutes
+            session_duration, break_duration
         )
     elif tournament_type.code == "group_knockout":
         sessions = generator._generate_group_knockout_sessions(
             tournament, tournament_type, player_count, parallel_fields,
-            session_duration_minutes, break_minutes
+            session_duration, break_duration
         )
     elif tournament_type.code == "swiss":
         sessions = generator._generate_swiss_sessions(
             tournament, tournament_type, player_count, parallel_fields,
-            session_duration_minutes, break_minutes
+            session_duration, break_duration
         )
     else:
         raise HTTPException(
@@ -251,12 +255,21 @@ def generate_tournament_sessions(
             detail=reason
         )
 
+    # Fetch tournament to get schedule configuration
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+
+    # Use semester's saved schedule configuration if available, otherwise use request parameters
+    # Admin sets these via schedule editor BEFORE generating sessions
+    session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else request.session_duration_minutes
+    break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else request.break_minutes
+    parallel_fields = tournament.parallel_fields if tournament.parallel_fields else request.parallel_fields
+
     # Generate sessions
     success, message, sessions_created = generator.generate_sessions(
         tournament_id=tournament_id,
-        parallel_fields=request.parallel_fields,
-        session_duration_minutes=request.session_duration_minutes,
-        break_minutes=request.break_minutes
+        parallel_fields=parallel_fields,
+        session_duration_minutes=session_duration,
+        break_minutes=break_duration
     )
 
     if not success:
@@ -304,6 +317,7 @@ def delete_generated_sessions(
     ```
     """
     from app.models.session import Session as SessionModel
+    from app.models.attendance import Attendance
 
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
     if not tournament:
@@ -312,13 +326,33 @@ def delete_generated_sessions(
             detail="Tournament not found"
         )
 
-    # Delete only auto-generated sessions
+    # Get session IDs that will be deleted
+    session_ids_to_delete = [
+        s.id for s in db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.auto_generated == True
+        ).all()
+    ]
+
+    if not session_ids_to_delete:
+        return {
+            "success": True,
+            "message": "No auto-generated sessions to delete",
+            "deleted_count": 0
+        }
+
+    # 1. Delete attendance records first (foreign key dependency)
+    attendance_deleted = db.query(Attendance).filter(
+        Attendance.session_id.in_(session_ids_to_delete)
+    ).delete(synchronize_session=False)
+
+    # 2. Delete only auto-generated sessions
     deleted_count = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
         SessionModel.auto_generated == True
-    ).delete()
+    ).delete(synchronize_session=False)
 
-    # Reset generation flags
+    # 3. Reset generation flags
     tournament.sessions_generated = False
     tournament.sessions_generated_at = None
 

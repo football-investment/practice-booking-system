@@ -12,6 +12,7 @@ from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_user
 from .....core.security import get_password_hash
 from .....models.user import User
+from .....models.license import UserLicense
 from .....schemas.user import User as UserSchema, UserUpdateSelf
 from .....schemas.auth import ResetPassword
 from .helpers import validate_email_unique, validate_nickname
@@ -27,6 +28,14 @@ def get_current_user_profile(
     """
     Get current user profile with licenses
     """
+    # ✅ CRITICAL FIX: Manually load licenses to ensure onboarding_completed is included
+    # Without this, the User model doesn't have licenses relationship defined,
+    # causing infinite onboarding loop
+    licenses = db.query(UserLicense).filter(UserLicense.user_id == current_user.id).all()
+    current_user.licenses = licenses
+    return current_user
+
+
 @router.patch("/me", response_model=UserSchema)
 def update_own_profile(
     user_update: UserUpdateSelf,

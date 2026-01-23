@@ -38,28 +38,66 @@ def render_open_tournaments_tab(token: str, user: Dict):
     # Check if user has LFA_COACH license and get coach level
     has_coach_license = False
     coach_level = 0
+
+    print(f"\n🔍 DEBUG: Checking LFA_COACH license for user {user.get('id')}")
+    print(f"   Token type: {type(token)}")
+    print(f"   Token length: {len(token) if token else 0}")
+    print(f"   Token preview: {token[:50] if token else 'None'}...")
+    print(f"   URL: {API_BASE_URL}/api/v1/licenses/my-licenses")
+
     try:
+        # Use /my-licenses endpoint instead - works with current user's token
         response = requests.get(
-            f"{API_BASE_URL}/api/v1/licenses/user/{user.get('id')}",
+            f"{API_BASE_URL}/api/v1/licenses/my-licenses",
             headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
+        print(f"   Response status: {response.status_code}")
+        print(f"   Response body: {response.text[:500]}")
+
         if response.status_code == 200:
-            licenses = response.json()  # API returns a list directly, not {"licenses": [...]}
+            licenses = response.json()  # API returns a list directly
+            print(f"   Licenses type: {type(licenses)}")
+            print(f"   Licenses count: {len(licenses) if isinstance(licenses, list) else 'N/A'}")
+
             if isinstance(licenses, dict):
                 licenses = licenses.get('licenses', [])
 
-            # Find LFA_COACH license and get level
-            coach_license = next(
-                (lic for lic in licenses if lic.get('specialization_type') == 'LFA_COACH' and lic.get('is_active', True)),
-                None
-            )
-            if coach_license:
+            # Find LFA_COACH license and get level (highest level if multiple)
+            coach_licenses = [
+                lic for lic in licenses
+                if lic.get('specialization_type') == 'LFA_COACH' and lic.get('is_active', True)
+            ]
+            print(f"   LFA_COACH licenses found: {len(coach_licenses)}")
+
+            if coach_licenses:
+                # Get highest level if multiple LFA_COACH licenses exist
+                coach_license = max(coach_licenses, key=lambda x: x.get('current_level', 0))
                 has_coach_license = True
                 coach_level = coach_license.get('current_level', 0)
-    except:
-        pass
+                print(f"   ✅ Has LFA_COACH license: Level {coach_level}")
+            else:
+                print(f"   ❌ No LFA_COACH license found")
+        elif response.status_code == 403:
+            print(f"   ❌ API call failed with 403 Forbidden - TOKEN INVALID!")
+            st.error("❌ **Authentication Error**")
+            st.error(f"Your session token is invalid or expired (HTTP 403).")
+            st.error("**Solution:** Please logout and login again to refresh your session.")
+            if st.button("🚪 Logout Now", use_container_width=True, type="primary"):
+                st.session_state.clear()
+                st.switch_page("🏠_Home.py")
+            st.stop()
+        else:
+            print(f"   ❌ API call failed with status {response.status_code}")
+            st.error(f"❌ Failed to load licenses: HTTP {response.status_code}")
+            st.error(f"Response: {response.text[:200]}")
+    except Exception as e:
+        print(f"❌ Error fetching licenses: {e}")
+        import traceback
+        print(traceback.format_exc())
+        st.error(f"❌ Error connecting to API: {str(e)}")
+        st.error("Please check if the API server is running and try refreshing the page.")
 
     if not has_coach_license:
         st.warning("⚠️ **LFA_COACH License Required**")
@@ -248,7 +286,7 @@ def render_my_tournaments_tab(token: str, user: Dict):
         )
 
         if response.status_code == 200:
-            all_semesters = response.json().get('items', [])
+            all_semesters = response.json().get('semesters', [])
 
             # Filter for tournaments where current user is master instructor
             my_tournaments = [
@@ -262,7 +300,7 @@ def render_my_tournaments_tab(token: str, user: Dict):
                 return
 
             # Separate by status
-            upcoming = [t for t in my_tournaments if t.get('status') in ['READY_FOR_ENROLLMENT', 'ENROLLING']]
+            upcoming = [t for t in my_tournaments if t.get('status') in ['INSTRUCTOR_ASSIGNED', 'READY_FOR_ENROLLMENT', 'ENROLLING']]
             ongoing = [t for t in my_tournaments if t.get('status') == 'ONGOING']
             completed = [t for t in my_tournaments if t.get('status') == 'COMPLETED']
 

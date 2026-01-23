@@ -85,13 +85,15 @@ def list_semesters(
     # Admin sees everything (including expired semesters)
     if current_user.role == UserRole.ADMIN:
         semesters = db.query(Semester).options(
-            joinedload(Semester.location)  # Eager load location for type info
+            joinedload(Semester.location),  # Eager load location for type info
+            joinedload(Semester.master_instructor)  # Eager load instructor details
         ).order_by(Semester.start_date.desc()).all()
 
     # Student sees only READY or ONGOING semesters
     elif current_user.role == UserRole.STUDENT:
         semesters = db.query(Semester).options(
-            joinedload(Semester.location)  # Eager load location for type info
+            joinedload(Semester.location),  # Eager load location for type info
+            joinedload(Semester.master_instructor)  # Eager load instructor details
         ).filter(
             and_(
                 Semester.status.in_([SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING]),
@@ -102,7 +104,8 @@ def list_semesters(
     # Instructor sees semesters they're assigned to + SEEKING_INSTRUCTOR
     else:  # instructor
         semesters = db.query(Semester).options(
-            joinedload(Semester.location)  # Eager load location for type info
+            joinedload(Semester.location),  # Eager load location for type info
+            joinedload(Semester.master_instructor)  # Eager load instructor details
         ).filter(
             and_(
                 Semester.end_date >= current_date,
@@ -130,7 +133,10 @@ def list_semesters(
             total_sessions=total_sessions,
             total_bookings=total_bookings,
             active_users=active_users,
-            location_type=semester.location.location_type.value if semester.location else None
+            location_type=semester.location.location_type.value if semester.location else None,
+            master_instructor_name=semester.master_instructor.name if semester.master_instructor else None,
+            master_instructor_email=semester.master_instructor.email if semester.master_instructor else None
+            # Note: sessions_generated and sessions_generated_at are already in semester.__dict__
         ))
     
     return SemesterList(
@@ -239,7 +245,25 @@ def delete_semester(
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    Delete semester (Admin only)
+    Delete semester/tournament (Admin only)
+
+    **CRITICAL**: Admin can ALWAYS delete semesters/tournaments.
+    This endpoint handles cascading deletes for ALL foreign key dependencies:
+    - Notifications (related_semester_id)
+    - Tournament status history
+    - Instructor assignment requests
+    - Semester enrollments (CASCADE in DB)
+    - Sessions
+    - Tournament rankings (CASCADE in DB)
+    - Groups
+    - Projects
+    - Tracks
+    - Credit transactions (SET NULL in DB)
+    - Teams (CASCADE in DB)
+
+    **Authorization:** Admin only
+
+    **Use Case:** Clean deletion of semesters/tournaments regardless of dependencies
     """
     semester = db.query(Semester).filter(Semester.id == semester_id).first()
     if not semester:
@@ -247,16 +271,106 @@ def delete_semester(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Semester not found"
         )
-    
-    # Check if there are any sessions in this semester
-    session_count = db.query(func.count(SessionTypel.id)).filter(SessionTypel.semester_id == semester_id).scalar()
-    if session_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete semester with existing sessions"
-        )
-    
+
+    # ============================================================================
+    # STEP 1: REFUND CREDITS TO ALL ENROLLED USERS (100% refund)
+    # ============================================================================
+    from ....models.semester_enrollment import SemesterEnrollment
+    from ....models.credit_transaction import CreditTransaction
+
+    enrollments = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == semester_id,
+        SemesterEnrollment.is_active == True
+    ).all()
+
+    enrollment_cost = semester.enrollment_cost or 500
+    refunded_users_count = 0
+
+    for enrollment in enrollments:
+        user_obj = db.query(User).filter(User.id == enrollment.user_id).first()
+        if user_obj:
+            # Refund 100% of enrollment cost
+            user_obj.credit_balance = user_obj.credit_balance + enrollment_cost
+            db.add(user_obj)
+
+            # Create refund transaction record
+            refund_transaction = CreditTransaction(
+                user_license_id=enrollment.user_license_id,
+                transaction_type="TOURNAMENT_DELETED_REFUND",
+                amount=enrollment_cost,  # Positive amount (refund)
+                balance_after=user_obj.credit_balance,
+                description=f"Tournament deleted by admin - Full refund: {semester.name} ({semester.code})",
+                semester_id=None,  # Will be deleted
+                enrollment_id=None  # Will be deleted
+            )
+            db.add(refund_transaction)
+            refunded_users_count += 1
+
+    # Flush refunds before deleting data
+    if refunded_users_count > 0:
+        db.flush()
+
+    # ============================================================================
+    # STEP 2: CASCADE DELETE ALL DEPENDENCIES (in correct order)
+    # ============================================================================
+
+    # Import all models that reference semesters
+    from ....models.notification import Notification
+    from ....models.tournament_status_history import TournamentStatusHistory
+    from ....models.instructor_assignment import InstructorAssignmentRequest
+    from ....models.session import Session as SessionModel
+    from ....models.project import Project
+    from ....models.track import Track
+
+    deleted_counts = {}
+
+    # 1. Delete notifications (related_semester_id)
+    count = db.query(Notification).filter(
+        Notification.related_semester_id == semester_id
+    ).delete(synchronize_session=False)
+    deleted_counts['notifications'] = count
+
+    # 2. Delete tournament status history
+    count = db.query(TournamentStatusHistory).filter(
+        TournamentStatusHistory.tournament_id == semester_id
+    ).delete(synchronize_session=False)
+    deleted_counts['tournament_status_history'] = count
+
+    # 3. Delete instructor assignment requests
+    count = db.query(InstructorAssignmentRequest).filter(
+        InstructorAssignmentRequest.semester_id == semester_id
+    ).delete(synchronize_session=False)
+    deleted_counts['instructor_assignment_requests'] = count
+
+    # 4. Delete sessions (includes bookings via CASCADE in DB)
+    count = db.query(SessionModel).filter(
+        SessionModel.semester_id == semester_id
+    ).delete(synchronize_session=False)
+    deleted_counts['sessions'] = count
+
+    # 5. Delete projects
+    count = db.query(Project).filter(
+        Project.semester_id == semester_id
+    ).delete(synchronize_session=False)
+    deleted_counts['projects'] = count
+
+    # 6. Delete groups
+    count = db.query(Group).filter(
+        Group.semester_id == semester_id
+    ).delete(synchronize_session=False)
+    deleted_counts['groups'] = count
+
+    # Note: semester_enrollments, tournament_rankings, teams have CASCADE in DB schema
+    # Note: credit_transactions have SET NULL in DB schema
+
+    # 8. Finally delete the semester itself
     db.delete(semester)
     db.commit()
-    
-    return {"message": "Semester deleted successfully"}
+
+    return {
+        "message": f"Semester '{semester.name}' deleted successfully with all dependencies",
+        "semester_id": semester_id,
+        "deleted_dependencies": deleted_counts,
+        "refunded_users": refunded_users_count,
+        "refund_amount_per_user": enrollment_cost
+    }

@@ -98,9 +98,11 @@ def get_my_credit_transactions(
 
     license_ids = [lic.id for lic in user_licenses]
 
-    # Get transactions for all user's licenses
+    # Get transactions for all user's licenses OR directly for user (for tournament rewards)
+    # Tournament rewards have user_license_id = NULL, so we need to include user_id filter
     transactions_query = db.query(CreditTransaction).filter(
-        CreditTransaction.user_license_id.in_(license_ids)
+        (CreditTransaction.user_license_id.in_(license_ids)) |
+        ((CreditTransaction.user_id == current_user.id) & (CreditTransaction.user_license_id == None))
     ).order_by(CreditTransaction.created_at.desc())
 
     total_count = transactions_query.count()

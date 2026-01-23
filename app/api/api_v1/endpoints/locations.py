@@ -157,6 +157,8 @@ async def create_location(
         city=location_data.city,
         postal_code=location_data.postal_code,
         country=location_data.country,
+        country_code=location_data.country_code,  # 🔥 FIX: Add country_code
+        location_code=location_data.location_code,  # 🔥 FIX: Add location_code
         location_type=location_data.location_type,  # NEW: PARTNER or CENTER
         venue=location_data.venue,
         address=location_data.address,

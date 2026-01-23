@@ -6,11 +6,11 @@ import streamlit as st
 import requests
 import hashlib
 import time
-import uuid
-from typing import Dict
+from typing import Dict, List
 from datetime import datetime
 from config import API_BASE_URL, API_TIMEOUT
 from components.instructor.tournament_helpers import apply_to_tournament, accept_assignment
+from components.admin.tournament_list import get_tournament_sessions_from_db, get_user_names_from_db
 
 def show_apply_dialog(token: str):
     """Dialog for submitting tournament application"""
@@ -291,8 +291,8 @@ def render_system_message_card(token: str, application: Dict, status_category: s
     with button_col1:
         # Accept button for assignments that need instructor action
         if status == 'ACCEPTED' and tournament_status == 'PENDING_INSTRUCTOR_ACCEPTANCE':
-            # Use UUID to ensure 100% uniqueness across different tabs/contexts
-            accept_key = f"accept_assignment_btn_{app_id}_{uuid.uuid4().hex[:8]}"
+            # Use stable key based on app_id AND tournament_id to ensure uniqueness
+            accept_key = f"accept_assignment_btn_{app_id}_{tournament_id}"
             if st.button(f"✅ Accept", key=accept_key, use_container_width=True, type="primary"):
                 if accept_assignment(token, tournament_id):
                     st.success("✅ Assignment accepted successfully!")
@@ -303,8 +303,8 @@ def render_system_message_card(token: str, application: Dict, status_category: s
     with button_col2:
         # Decline button (future implementation)
         if status == 'ACCEPTED' and tournament_status == 'PENDING_INSTRUCTOR_ACCEPTANCE':
-            # Use UUID to ensure 100% uniqueness
-            decline_key = f"decline_btn_{app_id}_{uuid.uuid4().hex[:8]}"
+            # Use stable key based on app_id AND tournament_id to ensure uniqueness
+            decline_key = f"decline_btn_{app_id}_{tournament_id}"
             if st.button(f"❌ Decline", key=decline_key, use_container_width=True):
                 st.warning("⚠️ Decline functionality coming soon!")
 
@@ -338,7 +338,7 @@ def render_my_tournaments_tab(token: str, user: Dict):
         )
 
         if response.status_code == 200:
-            all_semesters = response.json().get('items', [])
+            all_semesters = response.json().get('semesters', [])
 
             # Filter for tournaments where current user is master instructor
             my_tournaments = [
@@ -352,7 +352,7 @@ def render_my_tournaments_tab(token: str, user: Dict):
                 return
 
             # Separate by status
-            upcoming = [t for t in my_tournaments if t.get('status') in ['READY_FOR_ENROLLMENT', 'ENROLLING']]
+            upcoming = [t for t in my_tournaments if t.get('status') in ['INSTRUCTOR_ASSIGNED', 'READY_FOR_ENROLLMENT', 'ENROLLING']]
             ongoing = [t for t in my_tournaments if t.get('status') == 'ONGOING']
             completed = [t for t in my_tournaments if t.get('status') == 'COMPLETED']
 
@@ -437,4 +437,215 @@ def render_my_tournament_card(token: str, tournament: Dict):
             )
 
         st.divider()
+
+        # ✅ NEW: Show detailed info for COMPLETED tournaments
+        if status == 'COMPLETED' or tournament.get('tournament_status') == 'REWARDS_DISTRIBUTED':
+            # Get leaderboard with final standings
+            try:
+                leaderboard_response = requests.get(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/leaderboard",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=API_TIMEOUT
+                )
+
+                if leaderboard_response.status_code == 200:
+                    leaderboard_data = leaderboard_response.json()
+                    final_standings = leaderboard_data.get('final_standings')
+
+                    # ========================================
+                    # SHOW GROUP STAGE & KNOCKOUT BRACKET
+                    # ========================================
+                    st.markdown("### 🏆 Tournament Draw & Results")
+
+                    try:
+                        # Fetch sessions from database
+                        sessions_data = get_tournament_sessions_from_db(tournament_id)
+
+                        if sessions_data:
+                            # Separate by phase
+                            group_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Group Stage']
+                            knockout_sessions = [s for s in sessions_data if s.get('tournament_phase') == 'Knockout Stage']
+
+                            # GROUP STAGE
+                            if group_sessions:
+                                st.markdown("#### ⚽ Group Stage Results")
+
+                                # Organize by group
+                                groups = {}
+                                for session in group_sessions:
+                                    group = session.get('group_identifier', 'Unknown')
+                                    if group not in groups:
+                                        groups[group] = []
+                                    groups[group].append(session)
+
+                                # Fetch all participant names
+                                all_participant_ids = set()
+                                for group_matches in groups.values():
+                                    for match in group_matches:
+                                        participant_ids = match.get('participant_user_ids', [])
+                                        all_participant_ids.update(participant_ids)
+
+                                user_names = get_user_names_from_db(list(all_participant_ids))
+
+                                # Display groups side-by-side
+                                group_cols = st.columns(len(groups))
+                                for idx, (group_name, matches) in enumerate(sorted(groups.items())):
+                                    with group_cols[idx]:
+                                        st.markdown(f"**📍 {group_name}**")
+
+                                        # Show participants
+                                        group_participants = set()
+                                        for match in matches:
+                                            group_participants.update(match.get('participant_user_ids', []))
+
+                                        if group_participants:
+                                            st.caption("👥 Participants:")
+                                            for pid in sorted(group_participants):
+                                                st.caption(f"    • {user_names.get(pid, f'User {pid}')}")
+
+                            # KNOCKOUT BRACKET
+                            if knockout_sessions:
+                                st.divider()
+                                st.markdown("#### 🏆 Knockout Bracket Results")
+
+                                # Organize by round
+                                rounds = {}
+                                for session in knockout_sessions:
+                                    round_name = session.get('session_label', 'Unknown Round')
+                                    if round_name not in rounds:
+                                        rounds[round_name] = []
+                                    rounds[round_name].append(session)
+
+                                # Display rounds
+                                for round_name in sorted(rounds.keys(), key=lambda x: len(rounds[x]), reverse=True):
+                                    st.markdown(f"**🎯 {round_name}**")
+
+                                    for match in rounds[round_name]:
+                                        participants = match.get('participant_user_ids', [])
+                                        if len(participants) >= 2:
+                                            p1_name = user_names.get(participants[0], f'User {participants[0]}')
+                                            p2_name = user_names.get(participants[1], f'User {participants[1]}')
+                                            st.caption(f"⚔️ {p1_name} vs {p2_name}")
+
+                    except Exception as e:
+                        st.error(f"❌ Error loading tournament draw: {str(e)}")
+
+                    st.divider()
+
+                    # ========================================
+                    # FINAL STANDINGS
+                    # ========================================
+                    if final_standings:
+                        st.markdown("### 🏆 Final Standings")
+
+                        # Podium (Top 3)
+                        col1, col2, col3 = st.columns(3)
+
+                        champion = next((p for p in final_standings if p['rank'] == 1), None)
+                        runner_up = next((p for p in final_standings if p['rank'] == 2), None)
+                        third_place = next((p for p in final_standings if p['rank'] == 3), None)
+
+                        with col2:  # Center column for champion
+                            if champion:
+                                st.markdown(
+                                    f"<div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); "
+                                    f"border-radius: 10px; margin: 10px 0;'>"
+                                    f"<div style='font-size: 3em;'>🥇</div>"
+                                    f"<div style='font-weight: bold; font-size: 1.2em; margin-top: 5px;'>{champion['player_name']}</div>"
+                                    f"<div style='font-size: 0.9em; opacity: 0.9;'>Champion</div>"
+                                    f"</div>",
+                                    unsafe_allow_html=True
+                                )
+
+                        with col1:  # Left column for runner-up
+                            if runner_up:
+                                st.markdown(
+                                    f"<div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%); "
+                                    f"border-radius: 10px; margin: 10px 0; margin-top: 40px;'>"
+                                    f"<div style='font-size: 2.5em;'>🥈</div>"
+                                    f"<div style='font-weight: bold; font-size: 1.1em; margin-top: 5px;'>{runner_up['player_name']}</div>"
+                                    f"<div style='font-size: 0.85em; opacity: 0.9;'>Runner-up</div>"
+                                    f"</div>",
+                                    unsafe_allow_html=True
+                                )
+
+                        with col3:  # Right column for third place
+                            if third_place:
+                                st.markdown(
+                                    f"<div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%); "
+                                    f"border-radius: 10px; margin: 10px 0; margin-top: 40px;'>"
+                                    f"<div style='font-size: 2.5em;'>🥉</div>"
+                                    f"<div style='font-weight: bold; font-size: 1.1em; margin-top: 5px;'>{third_place['player_name']}</div>"
+                                    f"<div style='font-size: 0.85em; opacity: 0.9;'>Third Place</div>"
+                                    f"</div>",
+                                    unsafe_allow_html=True
+                                )
+
+                        # Complete rankings table
+                        st.markdown("#### 📊 Complete Rankings")
+
+                        rankings_data = []
+                        for player in final_standings:
+                            rank_icon = {1: "🥇", 2: "🥈", 3: "🥉"}.get(player['rank'], f"{player['rank']}.")
+                            rankings_data.append({
+                                "Rank": rank_icon,
+                                "Player": player['player_name'],
+                                "Points": player.get('points', 0)
+                            })
+
+                        if rankings_data:
+                            st.dataframe(rankings_data, use_container_width=True, hide_index=True)
+
+            except Exception as e:
+                st.error(f"❌ Failed to load final standings: {str(e)}")
+
+            # Show distributed rewards if available
+            if tournament.get('tournament_status') == 'REWARDS_DISTRIBUTED':
+                st.markdown("---")
+                st.markdown("### 💰 Distributed Rewards")
+
+                try:
+                    rewards_response = requests.get(
+                        f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distributed-rewards",
+                        headers={"Authorization": f"Bearer {token}"},
+                        timeout=API_TIMEOUT
+                    )
+
+                    if rewards_response.status_code == 200:
+                        rewards_data = rewards_response.json()
+                        player_rewards = rewards_data.get('player_rewards', [])
+
+                        if player_rewards:
+                            # Summary metrics
+                            total_credits = sum(r.get('credits_awarded', 0) for r in player_rewards)
+                            total_xp = sum(r.get('xp_awarded', 0) for r in player_rewards)
+
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("💳 Total Credits", f"{total_credits:,}")
+                            with col2:
+                                st.metric("⭐ Total XP", f"{total_xp:,}")
+                            with col3:
+                                st.metric("👥 Players Rewarded", len(player_rewards))
+
+                            # Top 3 rewards detail
+                            st.markdown("#### 🏆 Top 3 Rewards")
+
+                            for idx, reward in enumerate(player_rewards[:3], 1):
+                                medal = {1: "🥇", 2: "🥈", 3: "🥉"}[idx]
+                                with st.container():
+                                    col1, col2, col3 = st.columns([2, 1, 1])
+                                    with col1:
+                                        st.markdown(f"**{medal} {reward['player_name']}**")
+                                    with col2:
+                                        st.markdown(f"💳 {reward.get('credits_awarded', 0):,} credits")
+                                    with col3:
+                                        st.markdown(f"⭐ {reward.get('xp_awarded', 0):,} XP")
+                        else:
+                            st.info("ℹ️ No reward data available")
+                    else:
+                        st.warning("⚠️ Rewards not yet calculated")
+
+                except Exception as e:
+                    st.error(f"❌ Failed to load rewards: {str(e)}")
 

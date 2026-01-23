@@ -1,0 +1,294 @@
+{
+  "users": {
+    "admins": [
+      {
+        "id": 1,
+        "email": "admin@lfa.com",
+        "password": "admin123",
+        "name": "Admin User",
+        "role": "ADMIN"
+      }
+    ],
+    "instructors": [
+      {
+        "id": 3,
+        "email": "grandmaster@lfa.com",
+        "password": "GrandMaster2026!",
+        "name": "Grand Master",
+        "role": "INSTRUCTOR",
+        "licenses": [
+          {
+            "specialization_type": "LFA_COACH",
+            "current_level": 8,
+            "is_active": true
+          },
+          {
+            "specialization_type": "LFA_FOOTBALL_PLAYER",
+            "current_level": 8,
+            "is_active": true
+          }
+        ]
+      }
+    ],
+    "players": [
+      {
+        "email": "k1sqx1@f1rstteam.hu",
+        "password": "TestPass123!",
+        "name": "Player One",
+        "first_name": "Tamás",
+        "last_name": "Juhász",
+        "nickname": "K1sqx1",
+        "role": "STUDENT",
+        "date_of_birth": "2006-01-14",
+        "phone": "+36301234567",
+        "address": {
+          "street": "Test Street 1",
+          "city": "Budapest",
+          "postal_code": "1011",
+          "country": "Hungary"
+        },
+        "specialization": null,
+        "onboarding_completed": false,
+        "onboarding_data": {
+          "position": "DEFENDER",
+          "skills": {
+            "heading": 7,
+            "shooting": 6,
+            "passing": 8,
+            "dribbling": 7,
+            "defending": 5,
+            "physical": 6
+          },
+          "goals": "play_higher_level",
+          "motivation": ""
+        }
+      },
+      {
+        "email": "p3t1k3@f1rstteam.hu",
+        "password": "TestPass123!",
+        "name": "Player Two",
+        "first_name": "Péter",
+        "last_name": "Nagy",
+        "nickname": "P3t1k3",
+        "role": "STUDENT",
+        "date_of_birth": "2007-12-15",
+        "phone": "+36301234568",
+        "address": {
+          "street": "Test Street 2",
+          "city": "Budapest",
+          "postal_code": "1012",
+          "country": "Hungary"
+        },
+        "specialization": "LFA_FOOTBALL_PLAYER",
+        "onboarding_completed": true,
+        "onboarding_data": {
+          "position": "MIDFIELDER",
+          "skills": {
+            "heading": 8,
+            "shooting": 9,
+            "passing": 6,
+            "dribbling": 7,
+            "defending": 4,
+            "physical": 8
+          },
+          "goals": "become_professional",
+          "motivation": ""
+        }
+      },
+      {
+        "email": "v4lv3rd3jr@f1rstteam.hu",
+        "password": "TestPass123!",
+        "name": "Player Three",
+        "first_name": "Péter",
+        "last_name": "Barna",
+        "nickname": "V4lv3rd3Jr",
+        "role": "STUDENT",
+        "date_of_birth": "2007-12-06",
+        "phone": "+36301234569",
+        "address": {
+          "street": "Test Street 3",
+          "city": "Budapest",
+          "postal_code": "1013",
+          "country": "Hungary"
+        },
+        "specialization": "LFA_FOOTBALL_PLAYER",
+        "onboarding_completed": true,
+        "onboarding_data": {
+          "position": "STRIKER",
+          "skills": {
+            "heading": 7,
+            "shooting": 4,
+            "passing": 7,
+            "dribbling": 5,
+            "defending": 9,
+            "physical": 8
+          },
+          "goals": "improve_skills",
+          "motivation": ""
+        }
+      },
+      {
+        "email": "t1b1k3@f1rstteam.hu",
+        "password": "TestPass123!",
+        "name": "Player Four",
+        "first_name": "Tibor",
+        "last_name": "Lénárt",
+        "nickname": "T1b1k3",
+        "role": "STUDENT",
+        "date_of_birth": "2007-05-15",
+        "phone": "+36301234570",
+        "address": {
+          "street": "Test Street 4",
+          "city": "Budapest",
+          "postal_code": "1014",
+          "country": "Hungary"
+        },
+        "specialization": "LFA_FOOTBALL_PLAYER",
+        "onboarding_completed": true,
+        "onboarding_data": {
+          "position": "GOALKEEPER",
+          "skills": {
+            "heading": 5,
+            "shooting": 3,
+            "passing": 6,
+            "dribbling": 5,
+            "defending": 9,
+            "physical": 8
+          },
+          "goals": "improve_skills",
+          "motivation": ""
+        }
+      }
+    ]
+  },
+  "locations": [
+    {
+      "name": "Budapest Center",
+      "city": "Budapest",
+      "country": "Hungary",
+      "address": "1051 Budapest, Fő utca 1.",
+      "campuses": [
+        {
+          "name": "Budapest Main Campus",
+          "address": "Building A"
+        }
+      ]
+    },
+    {
+      "name": "Vienna Academy",
+      "city": "Vienna",
+      "country": "Austria",
+      "address": "Vienna Main Street 1",
+      "campuses": [
+        {
+          "name": "Vienna Main Campus",
+          "address": "Main Building"
+        }
+      ]
+    },
+    {
+      "name": "Bratislava Training Center",
+      "city": "Bratislava",
+      "country": "Slovakia",
+      "address": "Bratislava Training Street 5",
+      "campuses": [
+        {
+          "name": "Bratislava Main Campus",
+          "address": "Main Stadium"
+        }
+      ]
+    }
+  ],
+  "tournaments": [
+    {
+      "code": "TOURN-E2E-APP-001",
+      "name": "E2E Test Tournament - APPLICATION_BASED",
+      "assignment_type": "APPLICATION_BASED",
+      "age_group": "YOUTH",
+      "location": "Budapest Center",
+      "campus": "Budapest Main Campus",
+      "max_players": 10,
+      "enrollment_cost": 500,
+      "start_date": "2026-02-15",
+      "end_date": "2026-02-15",
+      "status": "SEEKING_INSTRUCTOR"
+    },
+    {
+      "code": "TOURN-E2E-OPEN-002",
+      "name": "E2E Test Tournament - OPEN_ASSIGNMENT",
+      "assignment_type": "OPEN_ASSIGNMENT",
+      "age_group": "YOUTH",
+      "location": "Vienna Academy",
+      "campus": "Vienna Main Campus",
+      "max_players": 10,
+      "enrollment_cost": 500,
+      "start_date": "2026-03-20",
+      "end_date": "2026-03-20",
+      "status": "READY_FOR_ENROLLMENT",
+      "assigned_instructor_email": "grandmaster@lfa.com"
+    },
+    {
+      "code": "TOURN-DEB-U12-003",
+      "name": "Bratislava U12 Championship",
+      "assignment_type": "APPLICATION_BASED",
+      "age_group": "YOUTH",
+      "location": "Bratislava Training Center",
+      "campus": "Bratislava Main Campus",
+      "max_players": 8,
+      "enrollment_cost": 400,
+      "start_date": "2026-04-10",
+      "end_date": "2026-04-10",
+      "status": "SEEKING_INSTRUCTOR"
+    }
+  ],
+  "coupons": [
+    {
+      "code": "E2E-BONUS-50-USER1",
+      "type": "CREDIT",
+      "value": 50,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-BONUS-50-USER2",
+      "type": "CREDIT",
+      "value": 50,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-BONUS-50-USER3",
+      "type": "CREDIT",
+      "value": 50,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-ENROLL-500-USER1",
+      "type": "CREDIT",
+      "value": 500,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-ENROLL-500-USER2",
+      "type": "CREDIT",
+      "value": 500,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-ENROLL-500-USER3",
+      "type": "CREDIT",
+      "value": 500,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-BONUS-50-USER4",
+      "type": "CREDIT",
+      "value": 50,
+      "max_uses": 1
+    },
+    {
+      "code": "E2E-ENROLL-500-USER4",
+      "type": "CREDIT",
+      "value": 500,
+      "max_uses": 1
+    }
+  ]
+}

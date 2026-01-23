@@ -101,6 +101,8 @@ class User(UserBase):
     credit_balance: Optional[int] = 0
     credit_purchased: Optional[int] = 0
     credit_payment_reference: Optional[str] = None
+    # ⭐ XP system fields
+    xp_balance: Optional[int] = 0
     # 📜 User licenses (NEW - replaces deprecated specialization field)
     licenses: List[UserLicenseSimple] = []
 

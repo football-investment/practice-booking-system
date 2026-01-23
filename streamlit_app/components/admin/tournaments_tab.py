@@ -1,6 +1,6 @@
 """
 Admin Dashboard - Tournaments Tab Component
-Tournaments management with game type editing
+Tournaments management (sessions auto-generated)
 """
 
 import streamlit as st
@@ -13,7 +13,7 @@ sys.path.insert(0, str(parent_dir))
 
 # Tournament components
 from components.tournaments.player_tournament_generator import render_tournament_generator
-from components.admin.tournament_list import render_tournament_list, render_game_type_manager
+from components.admin.tournament_list import render_tournament_list
 
 
 def render_tournaments_tab(token, user):
@@ -25,12 +25,12 @@ def render_tournaments_tab(token, user):
     - user: Authenticated user object
     """
     st.header("🏆 Tournament Management")
+    st.caption("ℹ️ Tournament sessions are auto-generated when status changes to IN_PROGRESS")
 
-    # 3-tab layout
-    tab1, tab2, tab3 = st.tabs([
+    # 2-tab layout (removed "Manage Games" - sessions are auto-generated)
+    tab1, tab2 = st.tabs([
         "📋 View Tournaments",
-        "➕ Create Tournament",
-        "⚙️ Manage Games"
+        "➕ Create Tournament"
     ])
 
     with tab1:
@@ -38,6 +38,3 @@ def render_tournaments_tab(token, user):
 
     with tab2:
         render_tournament_generator()
-
-    with tab3:
-        render_game_type_manager(token)

@@ -25,7 +25,7 @@ class Attendance(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
-    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True)  # Nullable for tournament sessions
     status = Column(Enum(AttendanceStatus), default=AttendanceStatus.present)
     check_in_time = Column(DateTime, nullable=True)
     check_out_time = Column(DateTime, nullable=True)

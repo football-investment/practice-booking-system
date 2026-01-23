@@ -33,6 +33,7 @@ class EnrollmentResponse(BaseModel):
     payment_verified: bool
     payment_verified_at: Optional[datetime]
     is_active: bool
+    request_status: str  # APPROVED, PENDING, REJECTED, WITHDRAWN
     enrolled_at: datetime
 
 

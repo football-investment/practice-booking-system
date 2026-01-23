@@ -41,14 +41,14 @@ def list_available_tournaments(
     - Status: ENROLLMENT_OPEN or IN_PROGRESS
       - ENROLLMENT_OPEN: Admin opened enrollment, players can register
       - IN_PROGRESS: Tournament running, sessions exist
-      - NOT READY_FOR_ENROLLMENT: Technical readiness only, no player visibility
+      - ENROLLMENT_CLOSED: NOT visible (enrollment period ended, waiting for start)
     - Specialization: LFA_FOOTBALL_PLAYER
     - Date: end_date >= today (not expired)
-    - Age Category Filtering:
-      - PRE (5-13): Can only see PRE tournaments
-      - YOUTH (14-18): Can see YOUTH OR AMATEUR tournaments
-      - AMATEUR (18+): Can only see AMATEUR tournaments
-      - PRO (18+): Can only see PRO tournaments
+    - Age Category Filtering (UPWARD ENROLLMENT):
+      - PRE (5-13): Can see PRE, YOUTH, AMATEUR, PRO tournaments (all above)
+      - YOUTH (14-18): Can see YOUTH, AMATEUR, PRO tournaments (all above)
+      - AMATEUR (18+): Can see AMATEUR, PRO tournaments (all above)
+      - PRO (18+): Can see PRO tournaments only (already at top)
 
     **Query Parameters:**
     - age_group: Filter by specific age category (optional)
@@ -98,11 +98,9 @@ def list_available_tournaments(
         if recent_enrollment and recent_enrollment.age_category:
             player_age_category = recent_enrollment.age_category
         else:
-            # No enrollment history - cannot determine category
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Age category not assigned. Please contact an instructor to assign your category (AMATEUR or PRO)."
-            )
+            # No enrollment history - default to AMATEUR for 18+ players
+            # Instructor can override during enrollment if needed
+            player_age_category = "AMATEUR"
 
     # 3. Determine visible tournament age groups based on player category
     # Use shared validation module to ensure DRY principle
@@ -113,7 +111,7 @@ def list_available_tournaments(
     # DOMAIN LOGIC:
     # - ENROLLMENT_OPEN: Admin opened enrollment, players can register
     # - IN_PROGRESS: Enrollment closed, sessions generated, tournament running
-    # - NOT READY_FOR_ENROLLMENT: Technical readiness only, no player visibility
+    # - ENROLLMENT_CLOSED: NOT visible (enrollment period ended, waiting for tournament start)
     query = db.query(Semester).filter(
         and_(
             Semester.code.like("TOURN-%"),

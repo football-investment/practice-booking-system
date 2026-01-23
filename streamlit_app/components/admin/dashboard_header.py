@@ -57,7 +57,8 @@ def render_dashboard_header():
 
     # Check admin role
     user = st.session_state[SESSION_USER_KEY]
-    if user.get('role') != 'admin':
+    user_role = user.get('role', '').lower()  # Convert to lowercase for comparison
+    if user_role != 'admin':
         st.error("❌ Access denied. Admin role required.")
         st.stop()
 

@@ -275,27 +275,23 @@ class LicenseSystemHelper:
         Returns:
             Maximum level count from DB or fallback default
         """
-        # Try DB first (source of truth)
-        if db:
-            try:
-                from app.models.user_progress import Specialization
-                spec = db.query(Specialization).filter(
-                    Specialization.id == specialization.upper()
-                ).first()
+        # ✅ FIX: spec.max_levels was removed in P0 security fix
+        # Use hardcoded defaults directly (DB table no longer has max_levels column)
 
-                if spec and spec.max_levels:
-                    return spec.max_levels
-            except Exception:
-                # Fallback if DB query fails
-                pass
+        # Normalize specialization_type format (handle both "LFA_COACH" and "COACH")
+        spec_normalized = specialization.upper()
+        if spec_normalized.startswith("LFA_"):
+            spec_normalized = spec_normalized.replace("LFA_FOOTBALL_PLAYER", "PLAYER").replace("LFA_COACH", "COACH")
 
-        # Fallback defaults (should match DB migration seed)
-        max_levels_fallback = {
+        max_levels_map = {
             "COACH": 8,
             "PLAYER": 8,
-            "INTERNSHIP": 3  # FIXED: Was 5, now 3 (DB source of truth)
+            "INTERNSHIP": 3,
+            # Legacy/alternative names
+            "LFA_COACH": 8,
+            "LFA_FOOTBALL_PLAYER": 8
         }
-        return max_levels_fallback.get(specialization.upper(), 1)
+        return max_levels_map.get(spec_normalized, 8)  # Default to 8 if unknown
     
     @staticmethod
     def get_level_metadata(specialization: str, level: int) -> Optional[str]:

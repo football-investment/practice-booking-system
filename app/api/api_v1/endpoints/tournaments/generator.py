@@ -53,6 +53,7 @@ class TournamentGenerateRequest(BaseModel):
     auto_book_students: bool = Field(False, description="Auto-book students (only for testing)")
     booking_capacity_pct: int = Field(70, ge=0, le=100, description="Booking fill percentage (0-100)")
     reward_policy_name: str = Field("default", description="Reward policy name (default: 'default')")
+    custom_reward_policy: Optional[dict] = Field(None, description="Custom reward policy (if reward_policy_name is 'custom')")
 
     # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
     assignment_type: Literal["OPEN_ASSIGNMENT", "APPLICATION_BASED"] = Field(
@@ -215,22 +216,36 @@ def generate_tournament(
         )
 
     # Create tournament semester with explicit business attributes
-    semester = TournamentService.create_tournament_semester(
-        db=db,
-        tournament_date=tournament_date,
-        name=request.name,
-        specialization_type=request.specialization_type,
-        campus_id=request.campus_id,  # ✅ NEW: Campus support
-        location_id=request.location_id,
-        age_group=request.age_group,
-        reward_policy_name=request.reward_policy_name,
-        # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
-        assignment_type=request.assignment_type,
-        max_players=request.max_players,
-        enrollment_cost=request.enrollment_cost,
-        instructor_id=request.instructor_id,
-        tournament_type_id=request.tournament_type_id  # ✅ E2E Test: Support tournament types
-    )
+    try:
+        print(f"🔍 DEBUG: Creating tournament semester...")
+        print(f"🔍 DEBUG: reward_policy_name = {request.reward_policy_name}")
+        print(f"🔍 DEBUG: custom_reward_policy = {request.custom_reward_policy}")
+
+        semester = TournamentService.create_tournament_semester(
+            db=db,
+            tournament_date=tournament_date,
+            name=request.name,
+            specialization_type=request.specialization_type,
+            campus_id=request.campus_id,  # ✅ NEW: Campus support
+            location_id=request.location_id,
+            age_group=request.age_group,
+            reward_policy_name=request.reward_policy_name,
+            custom_reward_policy=request.custom_reward_policy,  # ✅ NEW: Custom reward policy support
+            # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
+            assignment_type=request.assignment_type,
+            max_players=request.max_players,
+            enrollment_cost=request.enrollment_cost,
+            instructor_id=request.instructor_id,
+            tournament_type_id=request.tournament_type_id  # ✅ E2E Test: Support tournament types
+        )
+
+        print(f"🔍 DEBUG: Tournament semester created successfully: {semester.id}")
+    except Exception as e:
+        print(f"❌ ERROR in create_tournament_semester: {type(e).__name__}")
+        print(f"❌ ERROR message: {str(e)}")
+        import traceback
+        print(f"❌ ERROR traceback:\n{traceback.format_exc()}")
+        raise
 
     # Create sessions (no instructor yet)
     session_configs = [

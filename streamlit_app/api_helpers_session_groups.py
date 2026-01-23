@@ -48,21 +48,21 @@ def mark_student_attendance(token: str, session_id: int, user_id: int, status: s
         session_id: Session ID
         user_id: Student user ID
         status: "present", "absent", "late", "excused"
-        booking_id: REQUIRED booking ID
+        booking_id: Optional booking ID (not required for tournament sessions)
 
     Returns: (success, message)
     """
     try:
-        if not booking_id:
-            return False, "booking_id is required"
-
         headers = {"Authorization": f"Bearer {token}"}
         data = {
             "session_id": session_id,
             "user_id": user_id,
-            "booking_id": booking_id,
             "status": status
         }
+
+        # Only include booking_id if provided (regular sessions need it, tournament sessions don't)
+        if booking_id:
+            data["booking_id"] = booking_id
 
         response = requests.post(
             f"{API_BASE_URL}/api/v1/attendance",

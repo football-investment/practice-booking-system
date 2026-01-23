@@ -32,9 +32,9 @@ from app.models.campus import Campus
 
 # Import password hashing
 from app.core.security import get_password_hash
+import traceback
 
 # Database config
-        import traceback
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 

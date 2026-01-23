@@ -1,0 +1,35 @@
+{
+  "coupons": [
+    {
+      "code": "E2E-ENROLL-500-USER1",
+      "type": "CREDIT",
+      "value": 500,
+      "assigned_to_email": "pwt.k1sqx1@f1stteam.hu",
+      "max_uses": 1,
+      "is_active": true
+    },
+    {
+      "code": "E2E-ENROLL-500-USER2",
+      "type": "CREDIT",
+      "value": 500,
+      "assigned_to_email": "pwt.p3t1k3@f1stteam.hu",
+      "max_uses": 1,
+      "is_active": true
+    },
+    {
+      "code": "E2E-ENROLL-500-USER3",
+      "type": "CREDIT",
+      "value": 500,
+      "assigned_to_email": "pwt.V4lv3rd3jr@f1stteam.hu",
+      "max_uses": 1,
+      "is_active": true
+    },
+    {
+      "code": "WELCOME500",
+      "type": "CREDIT",
+      "value": 500,
+      "max_uses": 100,
+      "is_active": true
+    }
+  ]
+}

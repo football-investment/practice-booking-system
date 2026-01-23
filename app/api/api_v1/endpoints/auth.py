@@ -32,8 +32,10 @@ def login(
     """
     print(f"🔍 LOGIN ATTEMPT - Email: {user_credentials.email}")
     print(f"🔍 Password received: '{user_credentials.password}' (length: {len(user_credentials.password)})")
-    
+
+    print(f"🔍 STEP 1: About to query database for user...")
     user = db.query(User).filter(User.email == user_credentials.email).first()
+    print(f"🔍 STEP 2: Database query completed!")
     print(f"🔍 User found: {user is not None}")
     
     if user:

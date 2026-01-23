@@ -22,7 +22,7 @@ from app.models.booking import Booking
 from app.models.specialization import SpecializationType
 from app.services.tournament.reward_policy_loader import load_policy
 
-
+# Force reload - custom reward policy support
 def create_tournament_semester(
     db: Session,
     tournament_date: date,
@@ -32,6 +32,7 @@ def create_tournament_semester(
     location_id: Optional[int] = None,
     age_group: Optional[str] = None,
     reward_policy_name: str = "default",
+    custom_reward_policy: Optional[dict] = None,  # ✅ NEW: Custom reward policy support
     # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
     assignment_type: str = "APPLICATION_BASED",
     max_players: Optional[int] = None,
@@ -91,7 +92,11 @@ def create_tournament_semester(
     code = f"{date_prefix}-{sequence_num:03d}"
 
     # Load and snapshot the reward policy
-    reward_policy = load_policy(reward_policy_name)
+    # If custom_reward_policy is provided, use it directly; otherwise load from file
+    if custom_reward_policy:
+        reward_policy = custom_reward_policy
+    else:
+        reward_policy = load_policy(reward_policy_name)
 
     # ⚠️ BUSINESS LOGIC: ALL tournaments start as SEEKING_INSTRUCTOR
     # Status transitions:
@@ -257,20 +262,110 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
 
 def delete_tournament(db: Session, semester_id: int) -> bool:
     """
-    Delete tournament and all associated sessions/bookings
+    Delete tournament and all associated data
+
+    **CRITICAL BUSINESS LOGIC**:
+    - Refunds 100% of enrollment cost to all enrolled users
+    - Creates credit transaction records for audit trail
+    - Handles cascading deletes for all dependencies
+
+    This ensures users are NOT financially harmed when admin deletes a tournament.
 
     Args:
         db: Database session
         semester_id: Tournament semester ID
 
     Returns:
-        True if deleted successfully
+        True if deleted successfully, False if not found
     """
+    from app.models.semester_enrollment import SemesterEnrollment
+    from app.models.user import User
+    from app.models.credit_transaction import CreditTransaction
+    from app.models.notification import Notification
+    from app.models.tournament_status_history import TournamentStatusHistory
+    from app.models.instructor_assignment import InstructorAssignmentRequest
+    from app.models.session import Session as SessionModel
+    from app.models.project import Project
+    from app.models.track import Track
+    from app.models.group import Group
+
     semester = db.query(Semester).filter(Semester.id == semester_id).first()
     if not semester:
         return False
 
-    # Cascade delete will handle sessions and bookings
+    # ============================================================================
+    # STEP 1: REFUND CREDITS TO ALL ENROLLED USERS (100% refund)
+    # ============================================================================
+    enrollments = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == semester_id,
+        SemesterEnrollment.is_active == True
+    ).all()
+
+    enrollment_cost = semester.enrollment_cost or 500
+    refunded_users_count = 0
+
+    for enrollment in enrollments:
+        user = db.query(User).filter(User.id == enrollment.user_id).first()
+        if user:
+            # Refund 100% of enrollment cost
+            user.credit_balance = user.credit_balance + enrollment_cost
+            db.add(user)
+
+            # Create refund transaction record
+            refund_transaction = CreditTransaction(
+                user_license_id=enrollment.user_license_id,
+                transaction_type="TOURNAMENT_DELETED_REFUND",
+                amount=enrollment_cost,  # Positive amount (refund)
+                balance_after=user.credit_balance,
+                description=f"Tournament deleted by admin - Full refund: {semester.name} ({semester.code})",
+                semester_id=None,  # Will be deleted
+                enrollment_id=None  # Will be deleted
+            )
+            db.add(refund_transaction)
+            refunded_users_count += 1
+
+    # Commit refunds before deleting data
+    if refunded_users_count > 0:
+        db.flush()
+
+    # ============================================================================
+    # STEP 2: CASCADE DELETE ALL DEPENDENCIES
+    # ============================================================================
+
+    # Delete notifications
+    db.query(Notification).filter(
+        Notification.related_semester_id == semester_id
+    ).delete(synchronize_session=False)
+
+    # Delete tournament status history
+    db.query(TournamentStatusHistory).filter(
+        TournamentStatusHistory.tournament_id == semester_id
+    ).delete(synchronize_session=False)
+
+    # Delete instructor assignment requests
+    db.query(InstructorAssignmentRequest).filter(
+        InstructorAssignmentRequest.semester_id == semester_id
+    ).delete(synchronize_session=False)
+
+    # Delete sessions (bookings cascade via DB)
+    db.query(SessionModel).filter(
+        SessionModel.semester_id == semester_id
+    ).delete(synchronize_session=False)
+
+    # Delete projects
+    db.query(Project).filter(
+        Project.semester_id == semester_id
+    ).delete(synchronize_session=False)
+
+    # Delete groups
+    db.query(Group).filter(
+        Group.semester_id == semester_id
+    ).delete(synchronize_session=False)
+
+    # Note: semester_enrollments, tournament_rankings, teams have CASCADE in DB
+    # Note: credit_transactions have SET NULL for semester_id/enrollment_id
+
+    # Finally delete the tournament
     db.delete(semester)
     db.commit()
 

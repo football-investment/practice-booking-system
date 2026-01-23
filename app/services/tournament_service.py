@@ -71,6 +71,7 @@ class TournamentService:
         location_id: Optional[int] = None,
         age_group: Optional[str] = None,
         reward_policy_name: str = "default",
+        custom_reward_policy: Optional[dict] = None,  # ✅ NEW: Custom reward policy support
         # 🎯 NEW: Explicit business attributes (DOMAIN GAP RESOLUTION)
         assignment_type: str = "APPLICATION_BASED",
         max_players: Optional[int] = None,
@@ -82,6 +83,7 @@ class TournamentService:
         return _create_tournament_semester(
             db, tournament_date, name, specialization_type,
             campus_id, location_id, age_group, reward_policy_name,
+            custom_reward_policy,  # ✅ Pass custom reward policy
             assignment_type, max_players, enrollment_cost, instructor_id,
             tournament_type_id  # ✅ E2E Test: Pass tournament type through
         )

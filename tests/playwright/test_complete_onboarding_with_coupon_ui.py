@@ -16,18 +16,11 @@ Based on working test_hybrid_ui_player_workflow.py
 """
 
 import pytest
-import random
 from playwright.sync_api import Page, expect
 
 
 # Test configuration
 STREAMLIT_URL = "http://localhost:8501"
-
-TEST_USERS = [
-    {"email": "pwt.k1sqx1@f1stteam.hu", "password": "password123", "coupon_code": "E2E-BONUS-50-USER1"},
-    {"email": "pwt.p3t1k3@f1stteam.hu", "password": "password123", "coupon_code": "E2E-BONUS-50-USER2"},
-    {"email": "pwt.V4lv3rd3jr@f1stteam.hu", "password": "password123", "coupon_code": "E2E-BONUS-50-USER3"}
-]
 
 
 # =============================================================================
@@ -109,10 +102,14 @@ def user_apply_coupon(page: Page, email: str, password: str, coupon_code: str) -
         return False
 
 
-def user_unlock_and_complete_onboarding(page: Page) -> bool:
+def user_unlock_and_complete_onboarding(page: Page, onboarding_data: dict) -> bool:
     """
     User unlocks LFA Football Player specialization AND completes onboarding
-    (Based on working test_hybrid_ui_player_workflow.py lines 334-487)
+    Uses onboarding_data from seed_data.json (NOT random values!)
+
+    Args:
+        page: Playwright Page object
+        onboarding_data: Dict with position, skills, goals from seed_data.json
 
     Returns:
         True if unlocked and onboarding completed, False otherwise
@@ -160,11 +157,17 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
     print(f"🎓 Starting Onboarding (3 steps)...")
     page.wait_for_timeout(2000)
 
-    # Step 1: Position Selection (RANDOM)
+    # Step 1: Position Selection (FROM seed_data.json)
     print(f"  📍 Step 1: Position Selection")
-    positions = ["Striker", "Midfielder", "Defender", "Goalkeeper"]
-    selected_position = random.choice(positions)
-    print(f"     🎲 Randomly selecting: {selected_position}")
+    # Map position from seed_data.json format to UI button text
+    position_mapping = {
+        "STRIKER": "Striker",
+        "MIDFIELDER": "Midfielder",
+        "DEFENDER": "Defender",
+        "GOALKEEPER": "Goalkeeper"
+    }
+    selected_position = position_mapping.get(onboarding_data["position"], "Midfielder")
+    print(f"     📋 Using position from seed_data.json: {selected_position}")
 
     position_button = page.locator(f'button:has-text("{selected_position}")')
     if position_button.count() > 0:
@@ -184,7 +187,7 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
         print(f"     ⚠️  Position button not found")
         return False
 
-    # Step 2: Skills Assessment (RANDOM VALUES)
+    # Step 2: Skills Assessment (FROM seed_data.json)
     print(f"  ⚡ Step 2: Skills Assessment")
     page.wait_for_timeout(2000)
 
@@ -193,21 +196,24 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
     slider_count = sliders.count()
     print(f"     Found {slider_count} sliders")
 
-    skill_names = ["Heading", "Shooting", "Passing", "Dribbling", "Defending", "Physical"]
+    # Map skill names to values from seed_data.json
+    skill_names = ["heading", "shooting", "passing", "dribbling", "defending", "physical"]
+    skills_data = onboarding_data.get("skills", {})
 
     for i in range(min(slider_count, len(skill_names))):
         try:
             slider = sliders.nth(i)
-            random_value = random.randint(1, 10)
+            skill_key = skill_names[i]
+            target_value = skills_data.get(skill_key, 5)  # Default to 5 if not found
             current_value = slider.get_attribute("aria-valuenow")
-            skill_name = skill_names[i] if i < len(skill_names) else f"Skill {i+1}"
+            skill_display_name = skill_key.capitalize()
 
             slider.click()
             page.wait_for_timeout(200)
 
             # Calculate difference and use arrow keys
             current = int(current_value) if current_value else 5
-            diff = random_value - current
+            diff = target_value - current
 
             if diff > 0:
                 for _ in range(diff):
@@ -218,7 +224,7 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
                     page.keyboard.press("ArrowLeft")
                     page.wait_for_timeout(50)
 
-            print(f"       {skill_name}: {random_value}/10")
+            print(f"       {skill_display_name}: {target_value}/10 (from seed_data.json)")
             page.wait_for_timeout(200)
         except Exception as e:
             print(f"       ❌ Error setting slider {i+1}: {e}")
@@ -235,9 +241,19 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
         print(f"     ❌ Next button not found")
         return False
 
-    # Step 3: Goals & Motivation (DROPDOWN SELECTION)
+    # Step 3: Goals & Motivation (FROM seed_data.json)
     print(f"  🎯 Step 3: Goals & Motivation")
     page.wait_for_timeout(1000)
+
+    # Map goal key from seed_data.json to UI option text (EXACT match from LFA_Player_Onboarding.py)
+    goal_mapping = {
+        "play_higher_level": "Play at a higher competitive level",
+        "become_professional": "Become a professional player",
+        "improve_skills": "Improve my technical skills"
+    }
+    target_goal_key = onboarding_data.get("goals", "improve_skills")
+    target_goal_text = goal_mapping.get(target_goal_key, "Improve my technical skills")
+    print(f"     📋 Using goal from seed_data.json: {target_goal_text}")
 
     try:
         # Find selectbox input with role="combobox"
@@ -247,20 +263,15 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
         selectbox.click(timeout=10000)
         page.wait_for_timeout(2000)
 
-        # Look for dropdown options
-        options = page.locator('li[role="option"]')
-        option_count = options.count()
+        # Look for the specific goal option from seed_data.json
+        goal_option = page.locator(f'li[role="option"]:has-text("{target_goal_text}")')
 
-        if option_count > 0:
-            random_index = random.randint(0, option_count - 1)
-            option_text = options.nth(random_index).inner_text(timeout=1000) if random_index < option_count else f"Option {random_index+1}"
-            print(f"     🎲 Selecting goal: {option_text}")
-
-            options.nth(random_index).click()
+        if goal_option.count() > 0:
+            goal_option.first.click()
             page.wait_for_timeout(2000)
-            print(f"     ✅ Goal selected")
+            print(f"     ✅ Goal selected: {target_goal_text}")
         else:
-            print(f"     ❌ No goal options found")
+            print(f"     ❌ Goal option '{target_goal_text}' not found in UI")
     except Exception as e:
         print(f"     ❌ Error selecting goal: {e}")
 
@@ -297,7 +308,7 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
 @pytest.mark.e2e
 @pytest.mark.onboarding
 @pytest.mark.ui
-def test_complete_onboarding_user1(page: Page):
+def test_complete_onboarding_user1(page: Page, test_data):
     """
     Test complete onboarding workflow for User 1 (UI-based)
 
@@ -307,12 +318,12 @@ def test_complete_onboarding_user1(page: Page):
     3. User completes onboarding (3 steps)
     4. Verify dashboard redirect
 
-    Prerequisites: Run setup_onboarding_coupons.py first
+    Data loaded from seed_data.json
     """
-    user = TEST_USERS[0]
-    email = user["email"]
-    password = user["password"]
-    coupon_code = user["coupon_code"]
+    player = test_data.get_player(index=0)
+    email = player["email"]
+    password = player["password"]
+    coupon_code = "E2E-BONUS-50-USER1"
 
     print(f"\n{'='*60}")
     print(f"🎬 COMPLETE ONBOARDING TEST: {email}")
@@ -325,7 +336,8 @@ def test_complete_onboarding_user1(page: Page):
 
     # Step 2: User unlocks specialization AND completes onboarding
     print(f"\n📋 STEP 2: User unlocks specialization + completes onboarding")
-    onboarding_complete = user_unlock_and_complete_onboarding(page)
+    onboarding_data = player["onboarding_data"]
+    onboarding_complete = user_unlock_and_complete_onboarding(page, onboarding_data)
     assert onboarding_complete, "Failed to unlock specialization or complete onboarding"
 
     print(f"\n{'='*60}")
@@ -336,12 +348,12 @@ def test_complete_onboarding_user1(page: Page):
 @pytest.mark.e2e
 @pytest.mark.onboarding
 @pytest.mark.ui
-def test_complete_onboarding_user2(page: Page):
+def test_complete_onboarding_user2(page: Page, test_data):
     """Test complete onboarding workflow for User 2 (UI-based)"""
-    user = TEST_USERS[1]
-    email = user["email"]
-    password = user["password"]
-    coupon_code = user["coupon_code"]
+    player = test_data.get_player(index=1)
+    email = player["email"]
+    password = player["password"]
+    coupon_code = "E2E-BONUS-50-USER2"
 
     print(f"\n{'='*60}")
     print(f"🎬 COMPLETE ONBOARDING TEST: {email}")
@@ -354,7 +366,8 @@ def test_complete_onboarding_user2(page: Page):
 
     # User unlocks specialization + completes onboarding
     print(f"\n📋 STEP 2: User unlocks specialization + completes onboarding")
-    onboarding_complete = user_unlock_and_complete_onboarding(page)
+    onboarding_data = player["onboarding_data"]
+    onboarding_complete = user_unlock_and_complete_onboarding(page, onboarding_data)
     assert onboarding_complete, "Failed to unlock specialization or complete onboarding"
 
     print(f"\n{'='*60}")
@@ -365,12 +378,12 @@ def test_complete_onboarding_user2(page: Page):
 @pytest.mark.e2e
 @pytest.mark.onboarding
 @pytest.mark.ui
-def test_complete_onboarding_user3(page: Page):
+def test_complete_onboarding_user3(page: Page, test_data):
     """Test complete onboarding workflow for User 3 (UI-based)"""
-    user = TEST_USERS[2]
-    email = user["email"]
-    password = user["password"]
-    coupon_code = user["coupon_code"]
+    player = test_data.get_player(index=2)
+    email = player["email"]
+    password = player["password"]
+    coupon_code = "E2E-BONUS-50-USER3"
 
     print(f"\n{'='*60}")
     print(f"🎬 COMPLETE ONBOARDING TEST: {email}")
@@ -383,7 +396,38 @@ def test_complete_onboarding_user3(page: Page):
 
     # User unlocks specialization + completes onboarding
     print(f"\n📋 STEP 2: User unlocks specialization + completes onboarding")
-    onboarding_complete = user_unlock_and_complete_onboarding(page)
+    onboarding_data = player["onboarding_data"]
+    onboarding_complete = user_unlock_and_complete_onboarding(page, onboarding_data)
+    assert onboarding_complete, "Failed to unlock specialization or complete onboarding"
+
+    print(f"\n{'='*60}")
+    print(f"🎉 TEST PASSED: {email}")
+    print(f"{'='*60}\n")
+
+
+@pytest.mark.e2e
+@pytest.mark.onboarding
+@pytest.mark.ui
+def test_complete_onboarding_user4(page: Page, test_data):
+    """Test complete onboarding workflow for User 4 (UI-based)"""
+    player = test_data.get_player(index=3)
+    email = player["email"]
+    password = player["password"]
+    coupon_code = "E2E-BONUS-50-USER4"
+
+    print(f"\n{'='*60}")
+    print(f"🎬 COMPLETE ONBOARDING TEST: {email}")
+    print(f"{'='*60}\n")
+
+    # User applies coupon
+    print(f"\n📋 STEP 1: User applies coupon")
+    coupon_applied = user_apply_coupon(page, email, password, coupon_code)
+    assert coupon_applied, f"Failed to apply coupon '{coupon_code}'"
+
+    # User unlocks specialization + completes onboarding
+    print(f"\n📋 STEP 2: User unlocks specialization + completes onboarding")
+    onboarding_data = player["onboarding_data"]
+    onboarding_complete = user_unlock_and_complete_onboarding(page, onboarding_data)
     assert onboarding_complete, "Failed to unlock specialization or complete onboarding"
 
     print(f"\n{'='*60}")

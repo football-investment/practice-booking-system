@@ -7,14 +7,15 @@ from app.models.semester import Semester
 
 
 # Valid status transition graph
+# NOTE: READY_FOR_ENROLLMENT removed - it was redundant (no player visibility, no functionality)
+# Simplified workflow: INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN → ENROLLMENT_CLOSED → IN_PROGRESS
 VALID_TRANSITIONS = {
     "DRAFT": ["SEEKING_INSTRUCTOR", "CANCELLED"],
     "SEEKING_INSTRUCTOR": ["PENDING_INSTRUCTOR_ACCEPTANCE", "CANCELLED"],
     "PENDING_INSTRUCTOR_ACCEPTANCE": ["INSTRUCTOR_CONFIRMED", "SEEKING_INSTRUCTOR", "CANCELLED"],
-    "INSTRUCTOR_CONFIRMED": ["READY_FOR_ENROLLMENT", "CANCELLED"],
-    "READY_FOR_ENROLLMENT": ["ENROLLMENT_OPEN", "IN_PROGRESS", "CANCELLED"],  # Direct IN_PROGRESS for API enrollment
+    "INSTRUCTOR_CONFIRMED": ["ENROLLMENT_OPEN", "CANCELLED"],  # Direct to ENROLLMENT_OPEN
     "ENROLLMENT_OPEN": ["ENROLLMENT_CLOSED", "CANCELLED"],
-    "ENROLLMENT_CLOSED": ["IN_PROGRESS", "CANCELLED"],
+    "ENROLLMENT_CLOSED": ["IN_PROGRESS", "CANCELLED"],  # Scheduled start (enrollment closed, waiting for start_date)
     "IN_PROGRESS": ["COMPLETED", "CANCELLED"],
     "COMPLETED": ["REWARDS_DISTRIBUTED", "ARCHIVED"],
     "REWARDS_DISTRIBUTED": ["ARCHIVED"],
@@ -71,32 +72,63 @@ def validate_status_transition(
         if not tournament.master_instructor_id:
             return False, "Cannot move to pending acceptance: No instructor assigned"
 
-    if new_status == "READY_FOR_ENROLLMENT":
+    if new_status == "ENROLLMENT_OPEN":
         # Must have instructor assigned and confirmed
         if not tournament.master_instructor_id:
             return False, "Cannot open enrollment: No instructor assigned"
-
-    if new_status == "ENROLLMENT_OPEN":
         # Must have enrollment capacity and dates configured
         if not hasattr(tournament, 'max_players') or tournament.max_players is None:
             return False, "Cannot open enrollment: Max participants not configured"
 
     if new_status == "ENROLLMENT_CLOSED":
-        # Must have at least minimum participants
+        # Must have at least minimum participants for tournament type
         enrollments = getattr(tournament, 'enrollments', [])
         active_enrollments = [e for e in enrollments if e.is_active]
-        if len(active_enrollments) < 2:  # Minimum 2 for a tournament
-            return False, "Cannot close enrollment: Minimum 2 participants required"
+        player_count = len(active_enrollments)
+
+        # Get minimum from tournament type (fallback to 2 if no type configured)
+        min_players_required = 2
+        if tournament.tournament_type_id:
+            # Load tournament type to get min_players
+            from app.models.tournament_type import TournamentType
+            from sqlalchemy.orm import Session
+
+            # Get db session from tournament
+            db: Session = tournament.__dict__.get('_sa_instance_state').session
+            if db:
+                tournament_type = db.query(TournamentType).filter(TournamentType.id == tournament.tournament_type_id).first()
+                if tournament_type:
+                    min_players_required = tournament_type.min_players
+
+        if player_count < min_players_required:
+            return False, f"Cannot close enrollment: Minimum {min_players_required} participants required (current: {player_count})"
 
     if new_status == "IN_PROGRESS":
         # Must have instructor and participants
         if not tournament.master_instructor_id:
             return False, "Cannot start tournament: No instructor assigned"
 
+        # Validate against tournament type's minimum player requirement
         enrollments = getattr(tournament, 'enrollments', [])
         active_enrollments = [e for e in enrollments if e.is_active]
-        if len(active_enrollments) < 2:
-            return False, "Cannot start tournament: Minimum 2 participants required"
+        player_count = len(active_enrollments)
+
+        # Get minimum from tournament type (fallback to 2 if no type configured)
+        min_players_required = 2
+        if tournament.tournament_type_id:
+            # Load tournament type to get min_players
+            from app.models.tournament_type import TournamentType
+            from sqlalchemy.orm import Session
+
+            # Get db session from tournament
+            db: Session = tournament.__dict__.get('_sa_instance_state').session
+            if db:
+                tournament_type = db.query(TournamentType).filter(TournamentType.id == tournament.tournament_type_id).first()
+                if tournament_type:
+                    min_players_required = tournament_type.min_players
+
+        if player_count < min_players_required:
+            return False, f"Cannot start tournament: Minimum {min_players_required} participants required (current: {player_count})"
 
     if new_status == "COMPLETED":
         # All sessions must have attendance records

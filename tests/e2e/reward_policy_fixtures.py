@@ -13,11 +13,10 @@ import pytest
 from typing import Dict, Any, List, Generator
 from datetime import datetime, timedelta
 import os
+import psycopg2
+import random
 
-    import psycopg2
-    import random
-
-    # Try multiple dates to avoid conflicts
+# Try multiple dates to avoid conflicts
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 

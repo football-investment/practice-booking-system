@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session, joinedload
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user_web
+from .....dependencies import get_current_admin_user
 from .....models.user import User
 from .....models.semester_enrollment import SemesterEnrollment
 from .schemas import EnrollmentResponse
@@ -20,7 +20,7 @@ async def get_semester_enrollments(
     request: Request,
     semester_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> List[EnrollmentResponse]:
     """
     Get all enrollments for a specific semester (Admin only)
@@ -52,6 +52,7 @@ async def get_semester_enrollments(
             payment_verified=e.payment_verified,
             payment_verified_at=e.payment_verified_at,
             is_active=e.is_active,
+            request_status=e.request_status.value,  # Convert enum to string
             enrolled_at=e.enrolled_at
         )
         for e in enrollments
@@ -63,7 +64,7 @@ async def get_student_enrollments(
     request: Request,
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> List[EnrollmentResponse]:
     """
     Get all enrollments for a specific student across all semesters (Admin only)
@@ -94,6 +95,7 @@ async def get_student_enrollments(
             payment_verified=e.payment_verified,
             payment_verified_at=e.payment_verified_at,
             is_active=e.is_active,
+            request_status=e.request_status.value,  # Convert enum to string
             enrolled_at=e.enrolled_at
         )
         for e in enrollments

@@ -13,21 +13,17 @@ from collections import defaultdict
 
 # Page configuration
 from api_helpers_notifications import get_unread_notification_count
-
-        from api_helpers_instructors import get_my_master_offers
-    from components.instructor.tournament_applications import (
-        render_open_tournaments_tab,
-
-        from components.sessions.session_checkin import render_session_checkin
-        from components.tournaments.instructor.tournament_checkin import render_tournament_checkin
-    from components.instructor.tournament_applications import render_my_applications_tab
-
-    from api_helpers_instructors import get_user_licenses
-
-    import requests
-    from config import API_BASE_URL, API_TIMEOUT
-
-                        import time
+from api_helpers_instructors import get_my_master_offers, get_user_licenses
+from components.instructor.tournament_applications import (
+    render_open_tournaments_tab,
+    render_my_applications_tab,
+    render_my_tournaments_tab
+)
+from components.sessions.session_checkin import render_session_checkin
+from components.tournaments.instructor.tournament_checkin import render_tournament_checkin
+import requests
+from config import API_BASE_URL, API_TIMEOUT
+import time
 st.set_page_config(
     page_title=f"{PAGE_TITLE} - Instructor Dashboard",
     page_icon=PAGE_ICON,
@@ -54,6 +50,41 @@ if user.get('role') != 'instructor':
 
 # Get token
 token = st.session_state[SESSION_TOKEN_KEY]
+
+# ✅ CRITICAL FIX: Validate token expiration BEFORE using it
+from session_manager import validate_session
+if not validate_session():
+    st.error("❌ Your session has expired. Please login again.")
+    st.stop()
+
+# DEBUG: Print token info for troubleshooting
+print(f"\n🔍 INSTRUCTOR DASHBOARD TOKEN DEBUG:")
+print(f"   Token in session_state: {SESSION_TOKEN_KEY in st.session_state}")
+print(f"   Token type: {type(token)}")
+print(f"   Token length: {len(token) if token else 0}")
+print(f"   Token preview: {token[:50] if token else 'EMPTY'}...")
+
+# Test token validity with a simple API call
+import requests
+from config import API_BASE_URL, API_TIMEOUT
+try:
+    test_response = requests.get(
+        f"{API_BASE_URL}/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=API_TIMEOUT
+    )
+    print(f"   Token validation test: {test_response.status_code}")
+    if test_response.status_code != 200:
+        print(f"   ERROR: Token is invalid! Response: {test_response.text[:200]}")
+        st.error(f"❌ Token validation failed: {test_response.status_code}")
+        st.error("Please logout and login again to refresh your session.")
+        st.stop()
+    else:
+        print(f"   ✅ Token is valid!")
+except Exception as e:
+    print(f"   ERROR: Token validation failed with exception: {e}")
+    st.error(f"❌ Cannot connect to API: {str(e)}")
+    st.stop()
 
 # Header with Notification Badge
 col_title, col_badge = st.columns([4, 1])
@@ -818,26 +849,116 @@ with tab2:
 # TAB 3: TOURNAMENT APPLICATIONS (NEW!)
 # ========================================
 with tab3:
-    # Import tournament application components
-        render_my_applications_tab,
-        render_my_tournaments_tab
-    )
-
     # Sub-tabs for tournament workflow
-    tourn_tab1, tourn_tab2, tourn_tab3 = st.tabs([
+    tourn_tab1, tourn_tab2, tourn_tab3, tourn_tab4 = st.tabs([
         "🔍 Open Tournaments",
-        "📬 Inbox",
-        "🏆 My Tournaments"
+        "🏆 My Tournaments",
+        "⚽ Match Command Center",
+        "📋 Fixtures (Validation)"
     ])
 
     with tourn_tab1:
         render_open_tournaments_tab(token, user)
 
     with tourn_tab2:
-        render_my_applications_tab(token, user)
+        render_my_tournaments_tab(token, user)
 
     with tourn_tab3:
-        render_my_tournaments_tab(token, user)
+        # Match Command Center (Concept A) - POST-START tournament management
+        from components.tournaments.instructor.match_command_center import render_match_command_center
+
+        st.markdown("### ⚽ Match Command Center")
+        st.caption("Manage active tournaments: attendance, results, and leaderboard")
+
+        # Get instructor's active tournaments (IN_PROGRESS status)
+        try:
+            response = requests.get(
+                f"{API_BASE_URL}/api/v1/semesters",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=API_TIMEOUT
+            )
+            if response.status_code == 200:
+                all_semesters = response.json().get('semesters', [])
+                # Filter for active tournaments assigned to this instructor
+                # Tournaments have code starting with "TOURN-"
+                active_tournaments = [
+                    t for t in all_semesters
+                    if t.get('code', '').startswith('TOURN-') and
+                       t.get('master_instructor_id') == user.get('id') and
+                       t.get('tournament_status') == 'IN_PROGRESS'
+                ]
+
+                if active_tournaments:
+                    # Let user select tournament
+                    tournament_options = {
+                        f"{t['name']} (ID: {t['id']})": t['id']
+                        for t in active_tournaments
+                    }
+
+                    selected_tournament_name = st.selectbox(
+                        "Select Active Tournament",
+                        options=list(tournament_options.keys()),
+                        key="match_center_tournament_select"
+                    )
+
+                    if selected_tournament_name:
+                        tournament_id = tournament_options[selected_tournament_name]
+                        st.divider()
+                        render_match_command_center(token, tournament_id)
+                else:
+                    st.info("📋 No active tournaments")
+                    st.caption("Tournaments appear here once they are IN_PROGRESS")
+            else:
+                st.error(f"Failed to load tournaments: {response.status_code}")
+        except Exception as e:
+            st.error(f"Error loading tournaments: {str(e)}")
+
+    with tourn_tab4:
+        # Fixtures Validation View - ONLY show schedule, NO result entry
+        from components.tournaments.instructor.tournament_fixtures_view import render_tournament_fixtures
+
+        st.markdown("### 📋 Tournament Fixtures (Validation)")
+        st.caption("View tournament schedule - Backend verification ONLY")
+
+        # Get ALL tournaments (not just IN_PROGRESS) for validation
+        try:
+            response = requests.get(
+                f"{API_BASE_URL}/api/v1/semesters",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=API_TIMEOUT
+            )
+            if response.status_code == 200:
+                all_semesters = response.json().get('semesters', [])
+                # Filter for tournaments assigned to this instructor
+                tournaments = [
+                    t for t in all_semesters
+                    if t.get('code', '').startswith('TOURN-') and
+                       t.get('master_instructor_id') == user.get('id')
+                ]
+
+                if tournaments:
+                    # Let user select tournament
+                    tournament_options = {
+                        f"{t['name']} - {t.get('tournament_status', 'UNKNOWN')} (ID: {t['id']})": t['id']
+                        for t in tournaments
+                    }
+
+                    selected_tournament_name = st.selectbox(
+                        "Select Tournament to View Fixtures",
+                        options=list(tournament_options.keys()),
+                        key="fixtures_view_tournament_select"
+                    )
+
+                    if selected_tournament_name:
+                        tournament_id = tournament_options[selected_tournament_name]
+                        st.divider()
+                        render_tournament_fixtures(token, tournament_id)
+                else:
+                    st.info("📋 No tournaments found")
+            else:
+                st.error(f"Failed to load tournaments: {response.status_code}")
+        except Exception as e:
+            st.error(f"Error loading tournaments: {str(e)}")
 
 # ========================================
 # TAB 4: MY STUDENTS
@@ -889,21 +1010,13 @@ with tab4:
 # ========================================
 with tab5:
     st.markdown("### ✅ Check-in & Group Assignment")
-    st.caption("Mark attendance and create groups for your sessions")
+    st.caption("Mark attendance and create groups for your regular sessions")
 
-    # Sub-tabs for Regular vs Tournament check-in
-    checkin_tab1, checkin_tab2 = st.tabs([
-        "📋 Regular Sessions (4 statuses)",
-        "🏆 Tournament Sessions (2 statuses)"
-    ])
+    # Note: Tournament check-in moved to Match Command Center
+    st.info("💡 **For tournaments:** Use the **⚽ Match Command Center** in the **Tournament Applications** tab!")
 
-    with checkin_tab1:
-        # Regular session check-in (Present, Absent, Late, Excused)
-        render_session_checkin(token, user.get('id'))
-
-    with checkin_tab2:
-        # Tournament session check-in (Present, Absent ONLY)
-        render_tournament_checkin(token, user.get('id'))
+    # Regular session check-in only (Present, Absent, Late, Excused)
+    render_session_checkin(token, user.get('id'))
 
 # ========================================
 # TAB 6: INBOX (Universal Messaging System)

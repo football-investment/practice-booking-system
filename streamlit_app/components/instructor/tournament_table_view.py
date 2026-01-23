@@ -53,7 +53,7 @@ def render_table_view(token: str, tournaments: List[Dict], application_statuses:
         st.session_state['table_filters']['assignment_types'] = selected_assignment_types
 
     with filter_col3:
-        status_options = ['Not Applied', 'Pending', 'Accepted', 'Declined']
+        status_options = ['Not Applied', 'Pending', 'Pending Acceptance', 'Accepted', 'Declined']
         selected_statuses = st.multiselect(
             "Your Status",
             options=status_options,
@@ -84,7 +84,11 @@ def render_table_view(token: str, tournaments: List[Dict], application_statuses:
         # Determine application status
         if application_data:
             app_status = application_data.get('status', 'PENDING')
-            status_display = app_status.title()
+            # Handle special case: direct assignment pending acceptance
+            if app_status == 'PENDING_ACCEPTANCE':
+                status_display = 'Pending Acceptance'
+            else:
+                status_display = app_status.title()
         else:
             app_status = 'NOT_APPLIED'
             status_display = 'Not Applied'
@@ -117,6 +121,7 @@ def render_table_view(token: str, tournaments: List[Dict], application_statuses:
         status_icons = {
             'NOT_APPLIED': '-',
             'PENDING': '🟡',
+            'PENDING_ACCEPTANCE': '🟡',  # Direct assignment - instructor must accept
             'ACCEPTED': '🟢',
             'DECLINED': '🔴',
             'CANCELLED': '⚫'

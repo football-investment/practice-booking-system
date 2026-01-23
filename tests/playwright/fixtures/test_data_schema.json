@@ -1,0 +1,262 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "E2E Test Data Schema",
+  "description": "Schema for E2E test fixture data configuration",
+  "type": "object",
+  "required": ["users", "locations", "tournaments"],
+  "properties": {
+    "users": {
+      "type": "object",
+      "description": "Test users organized by role",
+      "properties": {
+        "admins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/user"
+          }
+        },
+        "instructors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/instructor"
+          }
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/player"
+          }
+        }
+      },
+      "required": ["admins", "instructors", "players"]
+    },
+    "locations": {
+      "type": "array",
+      "description": "Training locations and campuses",
+      "items": {
+        "$ref": "#/definitions/location"
+      }
+    },
+    "tournaments": {
+      "type": "array",
+      "description": "Tournament templates for E2E tests",
+      "items": {
+        "$ref": "#/definitions/tournament"
+      }
+    },
+    "coupons": {
+      "type": "array",
+      "description": "Enrollment and credit coupons",
+      "items": {
+        "$ref": "#/definitions/coupon"
+      }
+    }
+  },
+  "definitions": {
+    "user": {
+      "type": "object",
+      "required": ["email", "password", "name", "role"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "User database ID (optional, auto-generated if not provided)"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 6
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["ADMIN", "INSTRUCTOR", "STUDENT"]
+        }
+      }
+    },
+    "instructor": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/user"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "licenses": {
+              "type": "array",
+              "description": "Teaching licenses for this instructor",
+              "items": {
+                "type": "object",
+                "required": ["specialization_type", "current_level"],
+                "properties": {
+                  "specialization_type": {
+                    "type": "string",
+                    "enum": ["LFA_COACH", "LFA_FOOTBALL_PLAYER", "INTERNSHIP", "GANCUJU_PLAYER"]
+                  },
+                  "current_level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "is_active": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "player": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/user"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "first_name": {
+              "type": "string"
+            },
+            "last_name": {
+              "type": "string"
+            },
+            "nickname": {
+              "type": "string"
+            },
+            "date_of_birth": {
+              "type": "string",
+              "format": "date"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "street": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "postal_code": {
+                  "type": "string"
+                },
+                "country": {
+                  "type": "string"
+                }
+              }
+            },
+            "specialization": {
+              "type": ["string", "null"],
+              "enum": ["LFA_FOOTBALL_PLAYER", "GANCUJU_PLAYER", null]
+            },
+            "onboarding_completed": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      ]
+    },
+    "location": {
+      "type": "object",
+      "required": ["name", "city", "campuses"],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "campuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "tournament": {
+      "type": "object",
+      "required": ["name", "assignment_type", "age_group", "max_players", "enrollment_cost"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "assignment_type": {
+          "type": "string",
+          "enum": ["OPEN_ASSIGNMENT", "APPLICATION_BASED"]
+        },
+        "age_group": {
+          "type": "string",
+          "enum": ["PRE", "YOUTH", "AMATEUR", "PRO"]
+        },
+        "max_players": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 100
+        },
+        "enrollment_cost": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_date_offset_days": {
+          "type": "integer",
+          "description": "Days from today (e.g., 7 means 7 days in the future)",
+          "default": 7
+        },
+        "instructor_email": {
+          "type": "string",
+          "format": "email",
+          "description": "For OPEN_ASSIGNMENT only - pre-assigned instructor"
+        }
+      }
+    },
+    "coupon": {
+      "type": "object",
+      "required": ["code", "type", "value"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["CREDIT", "ENROLLMENT"]
+        },
+        "value": {
+          "type": "integer",
+          "description": "Credits to add or enrollment discount"
+        },
+        "assigned_to_email": {
+          "type": "string",
+          "format": "email",
+          "description": "Pre-assign to specific user (optional)"
+        },
+        "max_uses": {
+          "type": "integer",
+          "default": 1
+        }
+      }
+    }
+  }
+}

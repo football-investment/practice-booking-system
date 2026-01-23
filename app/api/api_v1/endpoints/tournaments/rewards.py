@@ -3,7 +3,7 @@ Tournament Rewards API Endpoints
 
 Handles tournament ranking submission, reward calculation, and distribution.
 """
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -14,6 +14,7 @@ from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.models.credit_transaction import CreditTransaction, TransactionType
+from app.models.xp_transaction import XPTransaction
 
 
 router = APIRouter()
@@ -49,14 +50,26 @@ class RewardDistributionRequest(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=200)
 
 
+class PlayerRewardDetail(BaseModel):
+    """Individual player reward details"""
+    user_id: int
+    player_name: str
+    player_email: str
+    rank: int
+    credits: int
+    xp: int
+
+
 class RewardDistributionResponse(BaseModel):
     """Response after distributing rewards"""
     tournament_id: int
     tournament_name: str
     rewards_distributed: int
     total_credits_awarded: int
+    total_xp_awarded: int
     status: str
     message: str
+    rewards: List[PlayerRewardDetail]
 
 
 # ============================================================================
@@ -275,7 +288,9 @@ def distribute_tournament_rewards(
 
     # Calculate and distribute rewards
     total_credits = 0
+    total_xp = 0
     rewards_count = 0
+    reward_details = []
 
     for ranking in rankings:
         # Determine reward tier
@@ -285,24 +300,54 @@ def distribute_tournament_rewards(
         credits_amount = reward_config["credits"]
         xp_amount = reward_config["xp"]
 
-        if credits_amount > 0:
-            # Add credits to user account
-            user = db.query(User).filter(User.id == ranking.user_id).first()
-            if user:
-                user.credit_balance += credits_amount
-                total_credits += credits_amount
+        # Get user details
+        user = db.query(User).filter(User.id == ranking.user_id).first()
+        if not user:
+            continue
 
-                # Record transaction
-                transaction = CreditTransaction(
-                    user_id=user.id,
-                    transaction_type=TransactionType.TOURNAMENT_REWARD.value,  # Convert enum to string
-                    amount=credits_amount,
-                    balance_after=user.credit_balance,
-                    description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
-                    semester_id=tournament_id
-                )
-                db.add(transaction)
-                rewards_count += 1
+        # Add credits to user account (only if > 0)
+        if credits_amount > 0:
+            user.credit_balance += credits_amount
+            total_credits += credits_amount
+
+            # Record credit transaction
+            credit_transaction = CreditTransaction(
+                user_id=user.id,
+                transaction_type=TransactionType.TOURNAMENT_REWARD.value,  # Convert enum to string
+                amount=credits_amount,
+                balance_after=user.credit_balance,
+                description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
+                semester_id=tournament_id
+            )
+            db.add(credit_transaction)
+
+        # Add XP to user account (always, even if 0 to track participation)
+        if xp_amount > 0:
+            user.xp_balance += xp_amount
+            total_xp += xp_amount
+
+            # Record XP transaction
+            xp_transaction = XPTransaction(
+                user_id=user.id,
+                transaction_type="TOURNAMENT_REWARD",
+                amount=xp_amount,
+                balance_after=user.xp_balance,
+                description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
+                semester_id=tournament_id
+            )
+            db.add(xp_transaction)
+
+        rewards_count += 1
+
+        # Add to reward details list
+        reward_details.append(PlayerRewardDetail(
+            user_id=user.id,
+            player_name=user.name,
+            player_email=user.email,
+            rank=ranking.rank,
+            credits=credits_amount,
+            xp=xp_amount
+        ))
 
     # Transition tournament to REWARDS_DISTRIBUTED
     from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change
@@ -328,9 +373,145 @@ def distribute_tournament_rewards(
         tournament_name=tournament.name,
         rewards_distributed=rewards_count,
         total_credits_awarded=total_credits,
+        total_xp_awarded=total_xp,
         status="REWARDS_DISTRIBUTED",
-        message=f"Successfully distributed {total_credits} credits to {rewards_count} players"
+        message=f"Successfully distributed {total_credits} credits and {total_xp} XP to {rewards_count} players",
+        rewards=reward_details
     )
+
+
+@router.get("/{tournament_id}/distributed-rewards")
+def get_distributed_rewards(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get list of distributed rewards for a tournament (for instructor view)
+
+    Returns:
+    - List of players with their rank, credits, and XP received
+    - Total credits and XP awarded
+    - Distribution timestamp
+
+    Authorization: INSTRUCTOR (assigned) or ADMIN
+    """
+    # Check authorization
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tournament {tournament_id} not found"
+        )
+
+    if current_user.role == UserRole.ADMIN:
+        pass  # Admin can access any tournament
+    elif current_user.role == UserRole.INSTRUCTOR:
+        if tournament.master_instructor_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not assigned to this tournament"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only instructors and admins can view distributed rewards"
+        )
+
+    # Check if rewards have been distributed
+    if tournament.tournament_status != "REWARDS_DISTRIBUTED":
+        return {
+            "tournament_id": tournament_id,
+            "tournament_name": tournament.name,
+            "rewards_distributed": False,
+            "message": "Rewards have not been distributed yet",
+            "rewards": []
+        }
+
+    # Get credit transactions for this tournament
+    from app.models.credit_transaction import CreditTransaction
+
+    credit_transactions = db.query(CreditTransaction).filter(
+        CreditTransaction.semester_id == tournament_id,
+        CreditTransaction.transaction_type == TransactionType.TOURNAMENT_REWARD.value
+    ).all()
+
+    # Get XP transactions for this tournament
+    from app.models.xp_transaction import XPTransaction
+
+    xp_transactions = db.query(XPTransaction).filter(
+        XPTransaction.semester_id == tournament_id,
+        XPTransaction.transaction_type == "TOURNAMENT_REWARD"
+    ).all()
+
+    # Build reward details from transactions
+    reward_map = {}  # {user_id: {credits, xp, rank}}
+
+    for txn in credit_transactions:
+        if txn.user_id not in reward_map:
+            reward_map[txn.user_id] = {"credits": 0, "xp": 0, "rank": None}
+        reward_map[txn.user_id]["credits"] += txn.amount
+
+        # Extract rank from description (e.g., "Rank #1 reward")
+        if "Rank #" in txn.description:
+            try:
+                rank_str = txn.description.split("Rank #")[1].split()[0]
+                reward_map[txn.user_id]["rank"] = int(rank_str)
+            except:
+                pass
+
+    for txn in xp_transactions:
+        if txn.user_id not in reward_map:
+            reward_map[txn.user_id] = {"credits": 0, "xp": 0, "rank": None}
+        reward_map[txn.user_id]["xp"] += txn.amount
+
+        # Extract rank if not already set
+        if reward_map[txn.user_id]["rank"] is None and "Rank #" in txn.description:
+            try:
+                rank_str = txn.description.split("Rank #")[1].split()[0]
+                reward_map[txn.user_id]["rank"] = int(rank_str)
+            except:
+                pass
+
+    # Get user details and build final list
+    user_ids = list(reward_map.keys())
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
+    user_dict = {user.id: user for user in users}
+
+    reward_details = []
+    total_credits = 0
+    total_xp = 0
+
+    for user_id, data in reward_map.items():
+        user = user_dict.get(user_id)
+        if not user:
+            continue
+
+        reward_details.append({
+            "user_id": user_id,
+            "player_name": user.name or user.email,
+            "player_email": user.email,
+            "rank": data["rank"],
+            "credits": data["credits"],
+            "xp": data["xp"]
+        })
+
+        total_credits += data["credits"]
+        total_xp += data["xp"]
+
+    # Sort by rank
+    reward_details.sort(key=lambda x: x["rank"] if x["rank"] else 999)
+
+    return {
+        "tournament_id": tournament_id,
+        "tournament_name": tournament.name,
+        "rewards_distributed": True,
+        "total_credits_awarded": total_credits,
+        "total_xp_awarded": total_xp,
+        "rewards_count": len(reward_details),
+        "rewards": reward_details
+    }
 
 
 @router.get("/{tournament_id}/rankings")

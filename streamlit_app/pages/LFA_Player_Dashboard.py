@@ -5,22 +5,17 @@ Shows age category, available semesters, enrollment status, and upcoming session
 
 import streamlit as st
 from datetime import datetime, date
+import requests
+import json
+import time
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY, API_BASE_URL, API_TIMEOUT
 from api_helpers_general import get_current_user
 from utils.age_category import get_age_category_for_season
-
-# Page configuration
-                    import requests
-                    from config import API_BASE_URL, API_TIMEOUT
-
-                    # Get current user to fetch rankings and rewards
-            import json
-                    import time
 from api_helpers_enrollments import get_user_schedule, get_enrollments_by_type
 from components.enrollment_conflict_warning import display_schedule_conflicts_summary
+from components.tournaments.tournament_browser import render_tournament_browser
 
-# Fetch user's complete schedule
-        from components.tournaments.tournament_browser import render_tournament_browser
+# Page configuration
 st.set_page_config(
     page_title=f"{PAGE_TITLE} - LFA Player",
     page_icon="⚽",
@@ -588,7 +583,7 @@ st.markdown(f"""
 
 st.markdown("### 👤 Player Information")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.markdown("**Age**")
@@ -620,6 +615,12 @@ with col3:
         """, unsafe_allow_html=True)
     else:
         st.info("Position not set")
+
+with col4:
+    st.markdown("**Experience**")
+    user_xp = user.get('xp_balance', 0)
+    st.markdown(f"<h2 style='color: #16a34a; margin: 0;'>⭐ {user_xp} XP</h2>", unsafe_allow_html=True)
+    st.caption("Total experience earned")
 
 st.divider()
 
@@ -812,4 +813,6 @@ if st.session_state.get('show_unenroll_dialog'):
 # ============================================================================
 
 st.markdown("---")
-st.caption(f"LFA Player Dashboard | License Level: {lfa_license.get('current_level', 1)} | XP: {lfa_license.get('xp_balance', 0)}")
+# Display XP from user data (not license)
+user_xp = user.get('xp_balance', 0)
+st.caption(f"LFA Player Dashboard | License Level: {lfa_license.get('current_level', 1)} | XP: {user_xp}")

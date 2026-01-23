@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict U64zPzOoifEZhMjYUV6WuakheuzfIPD6wbQnUmYF7OvmWwzGy8MPbAoCDJHWOlJ
+\restrict Cme83lG2gRu3YJdnLZ4l0eznOja8ShqhnY7Mg9GtpaLRCSiUzMIQLv8ZUqR0EWI
 
 -- Dumped from database version 14.19 (Homebrew)
 -- Dumped by pg_dump version 14.19 (Homebrew)
@@ -184,7 +184,12 @@ CREATE TYPE public.notificationtype AS ENUM (
     'GENERAL',
     'JOB_OFFER',
     'OFFER_ACCEPTED',
-    'OFFER_DECLINED'
+    'OFFER_DECLINED',
+    'TOURNAMENT_APPLICATION_APPROVED',
+    'TOURNAMENT_APPLICATION_REJECTED',
+    'TOURNAMENT_DIRECT_INVITATION',
+    'TOURNAMENT_INSTRUCTOR_ACCEPTED',
+    'TOURNAMENT_INSTRUCTOR_DECLINED'
 );
 
 
@@ -630,7 +635,8 @@ CREATE TABLE public.bookings (
     created_at timestamp without time zone,
     updated_at timestamp without time zone,
     cancelled_at timestamp without time zone,
-    attended_status character varying(20)
+    attended_status character varying(20),
+    enrollment_id integer
 );
 
 
@@ -2187,6 +2193,8 @@ CREATE TABLE public.locations (
     city character varying(100) NOT NULL,
     postal_code character varying(20),
     country character varying(100) NOT NULL,
+    country_code character varying(2),
+    location_code character varying(10),
     venue character varying(200),
     address character varying(500),
     notes text,
@@ -3246,9 +3254,14 @@ CREATE TABLE public.semesters (
     location_city character varying(100),
     location_venue character varying(200),
     location_address character varying(500),
+    tournament_type_id integer,
     tournament_type character varying(50),
     participant_type character varying(50),
     is_multi_day boolean,
+    sessions_generated boolean NOT NULL,
+    sessions_generated_at timestamp without time zone,
+    assignment_type character varying(30),
+    max_players integer,
     reward_policy_name character varying(100) NOT NULL,
     reward_policy_snapshot jsonb
 );
@@ -3355,10 +3368,17 @@ COMMENT ON COLUMN public.semesters.location_address IS 'DEPRECATED: Use campus_i
 
 
 --
+-- Name: COLUMN semesters.tournament_type_id; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.tournament_type_id IS 'FK to tournament_types table (for auto-generating session structure)';
+
+
+--
 -- Name: COLUMN semesters.tournament_type; Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON COLUMN public.semesters.tournament_type IS 'Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM';
+COMMENT ON COLUMN public.semesters.tournament_type IS 'DEPRECATED: Use tournament_type_id instead. Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM';
 
 
 --
@@ -3373,6 +3393,34 @@ COMMENT ON COLUMN public.semesters.participant_type IS 'Participant type: INDIVI
 --
 
 COMMENT ON COLUMN public.semesters.is_multi_day IS 'True if tournament spans multiple days';
+
+
+--
+-- Name: COLUMN semesters.sessions_generated; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.sessions_generated IS 'True if tournament sessions have been auto-generated (prevents duplicate generation)';
+
+
+--
+-- Name: COLUMN semesters.sessions_generated_at; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.sessions_generated_at IS 'Timestamp when sessions were auto-generated';
+
+
+--
+-- Name: COLUMN semesters.assignment_type; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.assignment_type IS 'Tournament instructor assignment strategy: OPEN_ASSIGNMENT (admin assigns directly) or APPLICATION_BASED (instructors apply)';
+
+
+--
+-- Name: COLUMN semesters.max_players; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.max_players IS 'Maximum tournament participants (explicit capacity, independent of session capacity sum)';
 
 
 --
@@ -3596,6 +3644,10 @@ CREATE TABLE public.sessions (
     is_tournament_game boolean,
     game_type character varying(100),
     game_results text,
+    auto_generated boolean NOT NULL,
+    tournament_phase character varying(50),
+    tournament_round integer,
+    tournament_match_number integer,
     created_at timestamp without time zone,
     updated_at timestamp without time zone
 );
@@ -3678,6 +3730,34 @@ COMMENT ON COLUMN public.sessions.game_type IS 'Type/name of tournament game (us
 --
 
 COMMENT ON COLUMN public.sessions.game_results IS 'JSON array of game results: [{user_id: 1, score: 95, rank: 1}, ...]';
+
+
+--
+-- Name: COLUMN sessions.auto_generated; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.auto_generated IS 'True if this session was auto-generated from tournament type config';
+
+
+--
+-- Name: COLUMN sessions.tournament_phase; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.tournament_phase IS 'Tournament phase: ''Group Stage'', ''Knockout Stage'', ''Finals''';
+
+
+--
+-- Name: COLUMN sessions.tournament_round; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.tournament_round IS 'Round number within the tournament (1, 2, 3, ...)';
+
+
+--
+-- Name: COLUMN sessions.tournament_match_number; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.tournament_match_number IS 'Match number within the round (1, 2, 3, ...)';
 
 
 --
@@ -4036,12 +4116,12 @@ ALTER SEQUENCE public.tournament_stats_id_seq OWNED BY public.tournament_stats.i
 CREATE TABLE public.tournament_status_history (
     id integer NOT NULL,
     tournament_id integer NOT NULL,
-    old_status character varying(50),
+    old_status character varying(50) NOT NULL,
     new_status character varying(50) NOT NULL,
     changed_by integer NOT NULL,
-    changed_at timestamp without time zone DEFAULT now() NOT NULL,
     reason text,
-    metadata json
+    extra_metadata json,
+    created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL
 );
 
 
@@ -4105,6 +4185,48 @@ ALTER TABLE public.tournament_team_enrollments_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE public.tournament_team_enrollments_id_seq OWNED BY public.tournament_team_enrollments.id;
+
+
+--
+-- Name: tournament_types; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.tournament_types (
+    id integer NOT NULL,
+    code character varying(50) NOT NULL,
+    display_name character varying(100) NOT NULL,
+    description text,
+    min_players integer NOT NULL,
+    max_players integer,
+    requires_power_of_two boolean NOT NULL,
+    session_duration_minutes integer NOT NULL,
+    break_between_sessions_minutes integer NOT NULL,
+    config json NOT NULL
+);
+
+
+ALTER TABLE public.tournament_types OWNER TO postgres;
+
+--
+-- Name: tournament_types_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.tournament_types_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.tournament_types_id_seq OWNER TO postgres;
+
+--
+-- Name: tournament_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.tournament_types_id_seq OWNED BY public.tournament_types.id;
 
 
 --
@@ -5161,6 +5283,13 @@ ALTER TABLE ONLY public.tournament_team_enrollments ALTER COLUMN id SET DEFAULT 
 
 
 --
+-- Name: tournament_types id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types ALTER COLUMN id SET DEFAULT nextval('public.tournament_types_id_seq'::regclass);
+
+
+--
 -- Name: user_achievements id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -5216,7 +5345,7 @@ COPY public.adaptive_learning_sessions (id, user_id, category, started_at, ended
 --
 
 COPY public.alembic_version (version_num) FROM stdin;
-71aab5034cd9
+f7592a774d52
 \.
 
 
@@ -5241,179 +5370,202 @@ COPY public.attendance_history (id, attendance_id, changed_by, change_type, old_
 --
 
 COPY public.audit_logs (id, user_id, action, resource_type, resource_id, details, ip_address, user_agent, request_method, request_path, status_code, "timestamp") FROM stdin;
-1	1	LOGIN	\N	\N	{"email": "admin@lfa.com", "role": "admin", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:15:13.313601+01
-2	1	POST_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/coupons	201	2026-01-11 20:15:13.555085+01
-3	1	POST_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/coupons	201	2026-01-11 20:15:13.565377+01
-4	1	POST_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/coupons	201	2026-01-11 20:15:13.575404+01
-5	1	LOGIN	\N	\N	{"email": "admin@lfa.com", "role": "admin", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:15:21.553666+01
-6	1	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:15:21.795415+01
-7	1	GET_/api/v1/admin/locations/	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/	200	2026-01-11 20:15:21.899969+01
-8	1	GET_/api/v1/admin/locations/1/campuses	location	1	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/1/campuses	200	2026-01-11 20:15:21.948574+01
-9	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:24.109479+01
-10	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:24.119866+01
-11	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:24.133301+01
-12	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:28.253663+01
-13	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:28.264387+01
-14	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:28.297075+01
-15	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:28.306876+01
-16	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:28.316618+01
-17	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:32.572333+01
-18	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:41.688293+01
-19	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:41.706501+01
-20	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:41.743327+01
-21	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:41.753573+01
-22	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:41.764246+01
-23	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:45.93948+01
-24	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:55.079863+01
-25	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:55.09412+01
-26	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:55.129768+01
-27	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:55.141441+01
-28	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:55.155393+01
-29	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:59.387476+01
-30	4	USER_CREATED	\N	\N	{"email": "pwt.k1sqx1@f1stteam.hu", "name": "Krist\\u00f3f Kis", "invitation_code": "INV-20260111-2VS4SP", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-11 20:16:38.99041+01
-31	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-11 20:16:39.00364+01
-32	5	USER_CREATED	\N	\N	{"email": "pwt.p3t1k3@f1stteam.hu", "name": "P\\u00e9ter Pataki", "invitation_code": "INV-20260111-J8I63C", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-11 20:17:13.483452+01
-33	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-11 20:17:13.494762+01
-34	6	USER_CREATED	\N	\N	{"email": "pwt.V4lv3rd3jr@f1stteam.hu", "name": "Viktor Valverde", "invitation_code": "INV-20260111-T7S3WI", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-11 20:17:47.957211+01
-35	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-11 20:17:47.972332+01
-36	4	LOGIN	\N	\N	{"email": "pwt.k1sqx1@f1stteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:18:06.299116+01
-37	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:06.544464+01
-38	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:06.621249+01
-39	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:15.27692+01
-40	4	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-11 20:18:15.361094+01
-41	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:15.372912+01
-42	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:15.415585+01
-43	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:26.842535+01
-44	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:26.887981+01
-45	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:29.287325+01
-46	4	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-11 20:18:29.356495+01
-47	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:29.368668+01
-48	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:29.437936+01
-49	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:34.869134+01
-50	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:34.91246+01
-51	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:36.431693+01
-52	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:36.475747+01
-53	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:42.083673+01
-55	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:43.384226+01
-57	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:44.793785+01
-59	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:46.091411+01
-61	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:47.241191+01
-63	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:48.645457+01
-65	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:49.934779+01
-67	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:51.081145+01
-69	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:52.630767+01
-71	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:54.445242+01
-73	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:55.732191+01
-75	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:58.136766+01
-77	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:06.426775+01
-78	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:09.981812+01
-79	4	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-11 20:19:10.0241+01
-81	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:10.076192+01
-54	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:42.814987+01
-56	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:43.961162+01
-58	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:45.513922+01
-60	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:46.659823+01
-62	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:47.812418+01
-64	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:49.364824+01
-66	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:50.510537+01
-68	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:51.908791+01
-70	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:53.461589+01
-72	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:55.162309+01
-74	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:56.303065+01
-76	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:18:58.212596+01
-80	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:10.035184+01
-82	5	LOGIN	\N	\N	{"email": "pwt.p3t1k3@f1stteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:19:27.742959+01
-83	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:27.989342+01
-84	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:28.044304+01
-85	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:36.47298+01
-86	5	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-11 20:19:36.507234+01
-87	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:36.523569+01
-88	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:36.551179+01
-89	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:48.095009+01
-90	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:48.131741+01
-91	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:50.665691+01
-92	5	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-11 20:19:50.695028+01
-93	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:50.705267+01
-94	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:50.749291+01
-95	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:56.249104+01
-96	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:56.288712+01
-97	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:57.81313+01
-98	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:19:57.855254+01
-99	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:03.408478+01
-100	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:04.134164+01
-101	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:04.704827+01
-102	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:05.54444+01
-103	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:06.260466+01
-104	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:07.093972+01
-105	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:07.810867+01
-106	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:08.367375+01
-107	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:08.946801+01
-108	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:09.519379+01
-109	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:10.360954+01
-110	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:11.074353+01
-111	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:11.910635+01
-112	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:12.624153+01
-113	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:13.194777+01
-114	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:14.026322+01
-115	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:14.743283+01
-116	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:15.311497+01
-117	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:15.886054+01
-118	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:16.458651+01
-119	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:18.275283+01
-120	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:18.324745+01
-121	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:26.53739+01
-122	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:30.115609+01
-123	5	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-11 20:20:30.143868+01
-124	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:30.156348+01
-125	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:30.197016+01
-126	6	LOGIN	\N	\N	{"email": "pwt.V4lv3rd3jr@f1stteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:20:47.40773+01
-128	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:47.678708+01
-131	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:56.191883+01
-133	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:07.778627+01
-135	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:10.347268+01
-136	6	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-11 20:21:10.374944+01
-138	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:10.424227+01
-140	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:15.955363+01
-142	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:17.524618+01
-144	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:23.798377+01
-146	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:24.949916+01
-148	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:26.097202+01
-150	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:27.646138+01
-127	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:47.620296+01
-129	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:56.154531+01
-130	6	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-11 20:20:56.18279+01
-132	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:20:56.217477+01
-134	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:07.815581+01
-137	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:10.384165+01
-139	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:15.914799+01
-141	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:17.483553+01
-143	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:23.078344+01
-145	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:24.376699+01
-147	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:25.524559+01
-149	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:26.929009+01
-151	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:28.217938+01
-152	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:28.789716+01
-153	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:29.628343+01
-154	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:30.346552+01
-155	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:30.916598+01
-156	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:31.490714+01
-157	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:32.063008+01
-158	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:32.895501+01
-159	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:33.612384+01
-160	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:34.445395+01
-161	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:35.15686+01
-162	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:35.99466+01
-163	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:36.712755+01
-164	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:37.283367+01
-165	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:37.86277+01
-166	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:39.68318+01
-167	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:39.726483+01
-168	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:47.970211+01
-169	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:51.534269+01
-170	6	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-11 20:21:51.562704+01
-171	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:51.573671+01
-172	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:21:51.617712+01
-173	6	GET_/api/v1/tournaments/available	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/tournaments/available	400	2026-01-11 20:21:51.651645+01
+1	1	LOGIN	\N	\N	{"email": "admin@lfa.com", "role": "admin", "success": true}	\N	\N	\N	\N	\N	2026-01-20 19:09:02.33641+01
+2	1	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:09:02.584122+01
+3	1	GET_/api/v1/admin/locations/	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/	200	2026-01-20 19:09:02.66277+01
+4	1	GET_/api/v1/admin/locations/2/campuses	location	2	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/2/campuses	200	2026-01-20 19:09:02.717998+01
+5	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:04.857608+01
+6	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:04.898641+01
+7	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:09.026228+01
+8	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:09.105647+01
+9	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:09.14245+01
+10	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:13.257644+01
+11	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:22.421666+01
+12	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:22.499476+01
+13	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:22.538944+01
+14	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:26.652098+01
+15	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:35.802072+01
+16	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:35.897247+01
+17	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:35.93394+01
+18	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:39.993285+01
+19	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:49.156815+01
+20	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:49.264862+01
+21	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:49.301672+01
+22	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:53.298987+01
+23	4	USER_CREATED	\N	\N	{"email": "k1sqx1@f1rstteam.hu", "name": "Tam\\u00e1s Juh\\u00e1sz", "invitation_code": "INV-20260120-W5239I", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:10:30.280179+01
+24	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:10:30.298809+01
+25	5	USER_CREATED	\N	\N	{"email": "p3t1k3@f1rstteam.hu", "name": "P\\u00e9ter Nagy", "invitation_code": "INV-20260120-CZMG95", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:11:02.890942+01
+26	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:11:02.903791+01
+27	6	USER_CREATED	\N	\N	{"email": "v4lv3rd3jr@f1rstteam.hu", "name": "P\\u00e9ter Barna", "invitation_code": "INV-20260120-TVBQSA", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:11:35.3272+01
+28	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:11:35.340467+01
+29	7	USER_CREATED	\N	\N	{"email": "t1b1k3@f1rstteam.hu", "name": "Tibor L\\u00e9n\\u00e1rt", "invitation_code": "INV-20260120-JTJA0Q", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:12:08.617294+01
+30	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:12:08.631626+01
+31	4	LOGIN	\N	\N	{"email": "k1sqx1@f1rstteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-20 19:12:24.530521+01
+32	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:24.770503+01
+33	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:24.834445+01
+34	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:33.195836+01
+35	4	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-20 19:12:33.257309+01
+36	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:33.268385+01
+37	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:33.315848+01
+38	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:44.77345+01
+39	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:44.828698+01
+40	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:47.339965+01
+41	4	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-20 19:12:47.375653+01
+42	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:47.388828+01
+43	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:47.446423+01
+44	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:52.908875+01
+45	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:52.972676+01
+46	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:54.457616+01
+47	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:12:54.498039+01
+48	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:00.038023+01
+49	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:00.750917+01
+50	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:01.320708+01
+51	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:02.133088+01
+52	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:02.832384+01
+54	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:04.347526+01
+56	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:05.477883+01
+58	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:07.001245+01
+60	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:08.384243+01
+62	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:10.049393+01
+64	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:11.93183+01
+66	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:23.618617+01
+67	4	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-20 19:13:23.644369+01
+69	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:23.708359+01
+70	4	GET_/api/v1/tournaments/available	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/tournaments/available	400	2026-01-20 19:13:23.749226+01
+71	5	LOGIN	\N	\N	{"email": "p3t1k3@f1rstteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-20 19:13:39.7542+01
+73	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:40.056305+01
+76	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:48.492701+01
+78	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:00.019132+01
+80	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:02.574345+01
+81	5	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-20 19:14:02.608845+01
+83	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:02.668243+01
+85	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:08.179488+01
+87	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:09.725046+01
+53	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:03.65353+01
+55	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:04.910312+01
+57	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:06.305398+01
+59	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:07.561247+01
+61	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:09.351651+01
+63	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:11.876389+01
+65	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:20.123488+01
+68	4	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:23.656877+01
+72	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:39.985625+01
+74	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:48.4263+01
+75	5	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-20 19:13:48.483035+01
+77	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:13:48.535754+01
+79	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:00.115196+01
+82	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:02.619407+01
+84	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:08.142007+01
+86	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:09.687873+01
+88	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:15.280998+01
+89	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:15.991652+01
+90	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:16.548168+01
+91	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:17.112809+01
+92	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:17.935886+01
+93	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:18.643693+01
+94	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:19.197283+01
+95	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:19.763078+01
+96	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:20.331694+01
+97	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:21.172178+01
+98	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:21.87677+01
+99	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:22.702821+01
+100	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:23.407927+01
+101	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:23.9673+01
+102	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:24.785279+01
+103	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:25.496707+01
+104	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:26.322308+01
+105	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:27.026122+01
+106	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:27.594759+01
+107	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:28.15654+01
+108	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:29.971704+01
+109	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:30.013573+01
+110	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:38.231064+01
+111	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:41.751316+01
+112	5	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-20 19:14:41.775393+01
+113	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:41.789792+01
+114	5	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:41.837418+01
+115	6	LOGIN	\N	\N	{"email": "v4lv3rd3jr@f1rstteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-20 19:14:58.660315+01
+116	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:58.889156+01
+117	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:14:58.95332+01
+118	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:07.339661+01
+119	6	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-20 19:15:07.416405+01
+120	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:07.429951+01
+121	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:07.476732+01
+122	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:18.939608+01
+123	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:18.995871+01
+124	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:21.473212+01
+125	6	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-20 19:15:21.50468+01
+126	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:21.51713+01
+127	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:21.565893+01
+128	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:27.074792+01
+129	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:27.135247+01
+131	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:28.641586+01
+133	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:34.891437+01
+135	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:36.28841+01
+137	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:37.802567+01
+139	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:39.064929+01
+141	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:40.907585+01
+143	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:42.169124+01
+145	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:43.292235+01
+147	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:44.82114+01
+149	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:45.950147+01
+151	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:47.827184+01
+153	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:59.571978+01
+154	6	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-20 19:15:59.6039+01
+156	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:59.668203+01
+130	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:28.605989+01
+132	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:34.18799+01
+134	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:35.456896+01
+136	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:36.99094+01
+138	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:38.498848+01
+140	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:39.960835+01
+142	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:41.607637+01
+144	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:42.728749+01
+146	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:44.115996+01
+148	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:45.386029+01
+150	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:47.760651+01
+152	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:56.053999+01
+155	6	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:15:59.620733+01
+157	7	LOGIN	\N	\N	{"email": "t1b1k3@f1rstteam.hu", "role": "student", "success": true}	\N	\N	\N	\N	\N	2026-01-20 19:16:15.848136+01
+158	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:16.079211+01
+159	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:16.153623+01
+160	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:24.533792+01
+161	7	POST_/api/v1/coupons/apply	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/coupons/apply	200	2026-01-20 19:16:24.582048+01
+162	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:24.591257+01
+163	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:24.635492+01
+164	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:36.106703+01
+165	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:36.15404+01
+166	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:38.654932+01
+167	7	POST_/specialization/unlock	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/unlock	200	2026-01-20 19:16:38.680065+01
+168	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:38.694308+01
+169	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:38.742429+01
+170	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:44.249163+01
+171	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:44.299131+01
+172	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:45.784395+01
+173	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:45.823517+01
+174	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:51.368622+01
+175	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:52.356964+01
+176	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:53.084954+01
+177	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:53.621905+01
+178	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:54.452835+01
+179	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:55.151368+01
+180	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:55.985119+01
+181	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:56.958314+01
+182	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:57.651083+01
+183	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:58.210277+01
+184	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:58.773297+01
+185	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:16:59.336371+01
+186	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:00.17501+01
+187	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:00.876613+01
+188	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:01.441448+01
+189	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:02.006282+01
+190	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:03.823095+01
+191	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:03.864934+01
+192	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:12.06144+01
+193	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:15.585359+01
+194	7	POST_/specialization/lfa-player/onboarding-submit	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/specialization/lfa-player/onboarding-submit	303	2026-01-20 19:17:15.606973+01
+195	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:15.626862+01
+196	7	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:17:15.676593+01
 \.
 
 
@@ -5429,7 +5581,7 @@ COPY public.belt_promotions (id, user_license_id, from_belt, to_belt, promoted_b
 -- Data for Name: bookings; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.bookings (id, user_id, session_id, status, waitlist_position, notes, created_at, updated_at, cancelled_at, attended_status) FROM stdin;
+COPY public.bookings (id, user_id, session_id, status, waitlist_position, notes, created_at, updated_at, cancelled_at, attended_status, enrollment_id) FROM stdin;
 \.
 
 
@@ -5438,7 +5590,9 @@ COPY public.bookings (id, user_id, session_id, status, waitlist_position, notes,
 --
 
 COPY public.campuses (id, location_id, name, venue, address, notes, is_active, created_at, updated_at) FROM stdin;
-1	1	Main Test Campus	Test Sports Complex	Test Sports Street 1	\N	t	2026-01-11 19:15:12.867445	2026-01-11 19:15:12.867451
+1	1	Budapest Main Campus	Budapest Sports Complex	Budapest Sports Street 1	\N	t	2026-01-20 18:08:55.008351	2026-01-20 18:08:55.008359
+2	2	Vienna Main Campus	Vienna Sports Complex	Vienna Sports Street 1	\N	t	2026-01-20 18:08:55.01111	2026-01-20 18:08:55.011112
+3	3	Bratislava Main Campus	Bratislava Sports Complex	Bratislava Sports Street 1	\N	t	2026-01-20 18:08:55.012178	2026-01-20 18:08:55.01218
 \.
 
 
@@ -5463,9 +5617,10 @@ COPY public.coach_levels (id, name, required_xp, required_sessions, theory_hours
 --
 
 COPY public.coupon_usages (id, coupon_id, user_id, credits_awarded, used_at) FROM stdin;
-1	1	4	50	2026-01-11 20:18:15.333874+01
-2	2	5	50	2026-01-11 20:19:36.494978+01
-3	3	6	50	2026-01-11 20:20:56.176382+01
+1	1	4	50	2026-01-20 19:12:33.243453+01
+2	2	5	50	2026-01-20 19:13:48.471287+01
+3	3	6	50	2026-01-20 19:15:07.372067+01
+4	7	7	50	2026-01-20 19:16:24.572057+01
 \.
 
 
@@ -5474,9 +5629,14 @@ COPY public.coupon_usages (id, coupon_id, user_id, credits_awarded, used_at) FRO
 --
 
 COPY public.coupons (id, code, type, discount_value, description, is_active, expires_at, max_uses, current_uses, requires_purchase, requires_admin_approval, created_at, updated_at) FROM stdin;
-1	E2E-BONUS-50-USER1	BONUS_CREDITS	50	E2E onboarding test: +50 bonus credits	t	\N	1	1	f	f	2026-01-11 20:15:13.547334+01	2026-01-11 20:18:15.324096+01
-2	E2E-BONUS-50-USER2	BONUS_CREDITS	50	E2E onboarding test: +50 bonus credits	t	\N	1	1	f	f	2026-01-11 20:15:13.562407+01	2026-01-11 20:19:36.493185+01
-3	E2E-BONUS-50-USER3	BONUS_CREDITS	50	E2E onboarding test: +50 bonus credits	t	\N	1	1	f	f	2026-01-11 20:15:13.572274+01	2026-01-11 20:20:56.17459+01
+4	E2E-ENROLL-500-USER1	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.737782+01	2026-01-20 19:08:55.732573+01
+5	E2E-ENROLL-500-USER2	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.738602+01	2026-01-20 19:08:55.732573+01
+6	E2E-ENROLL-500-USER3	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.73933+01	2026-01-20 19:08:55.732573+01
+8	E2E-ENROLL-500-USER4	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.740728+01	2026-01-20 19:08:55.732573+01
+1	E2E-BONUS-50-USER1	BONUS_CREDITS	50	50 credits	t	\N	1	1	f	f	2026-01-20 19:08:55.733521+01	2026-01-20 19:12:33.235056+01
+2	E2E-BONUS-50-USER2	BONUS_CREDITS	50	50 credits	t	\N	1	1	f	f	2026-01-20 19:08:55.735869+01	2026-01-20 19:13:48.455906+01
+3	E2E-BONUS-50-USER3	BONUS_CREDITS	50	50 credits	t	\N	1	1	f	f	2026-01-20 19:08:55.736926+01	2026-01-20 19:15:07.369705+01
+7	E2E-BONUS-50-USER4	BONUS_CREDITS	50	50 credits	t	\N	1	1	f	f	2026-01-20 19:08:55.740011+01	2026-01-20 19:16:24.569263+01
 \.
 
 
@@ -5485,9 +5645,10 @@ COPY public.coupons (id, code, type, discount_value, description, is_active, exp
 --
 
 COPY public.credit_transactions (id, user_id, user_license_id, transaction_type, amount, balance_after, description, semester_id, enrollment_id, created_at) FROM stdin;
-1	\N	22	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-11 19:18:29.341396
-2	\N	23	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-11 19:19:50.689087
-3	\N	24	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-11 19:21:10.36966
+1	\N	22	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-20 18:12:47.36431
+2	\N	23	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-20 18:14:02.599685
+3	\N	24	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-20 18:15:21.499499
+4	\N	25	PURCHASE	-100	0	Unlocked specialization: LFA_FOOTBALL_PLAYER	\N	\N	2026-01-20 18:16:38.6753
 \.
 
 
@@ -5592,9 +5753,10 @@ COPY public.internship_levels (id, name, required_xp, required_sessions, total_h
 --
 
 COPY public.invitation_codes (id, code, invited_name, invited_email, bonus_credits, is_used, used_by_user_id, used_at, created_by_admin_id, created_at, expires_at, notes) FROM stdin;
-1	INV-20260111-2VS4SP	E2E Test - First Team Player 1 - Pre Category	\N	50	t	4	2026-01-11 20:16:38.98401+01	1	2026-01-11 20:15:32.560882+01	2026-01-18 20:15:32.525077+01	\N
-2	INV-20260111-J8I63C	E2E Test - First Team Player 2 - Youth Category	\N	50	t	5	2026-01-11 20:17:13.476874+01	1	2026-01-11 20:15:45.934735+01	2026-01-18 20:15:45.918707+01	\N
-3	INV-20260111-T7S3WI	E2E Test - First Team Player 3 - Amateur Category	\N	50	t	6	2026-01-11 20:17:47.951324+01	1	2026-01-11 20:15:59.381448+01	2026-01-18 20:15:59.344323+01	\N
+1	INV-20260120-W5239I	E2E Test - F1rstteam Player 1	\N	50	t	4	2026-01-20 19:10:30.270734+01	1	2026-01-20 19:09:13.247894+01	2026-01-27 19:09:13.238438+01	\N
+2	INV-20260120-CZMG95	E2E Test - F1rstteam Player 2	\N	50	t	5	2026-01-20 19:11:02.885802+01	1	2026-01-20 19:09:26.64622+01	2026-01-27 19:09:26.639401+01	\N
+3	INV-20260120-TVBQSA	E2E Test - F1rstteam Player 3	\N	50	t	6	2026-01-20 19:11:35.319341+01	1	2026-01-20 19:09:39.987751+01	2026-01-27 19:09:39.980505+01	\N
+4	INV-20260120-JTJA0Q	E2E Test - F1rstteam Player 4	\N	50	t	7	2026-01-20 19:12:08.603489+01	1	2026-01-20 19:09:53.294603+01	2026-01-27 19:09:53.28151+01	\N
 \.
 
 
@@ -5642,8 +5804,10 @@ COPY public.location_master_instructors (id, location_id, instructor_id, contrac
 -- Data for Name: locations; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.locations (id, name, city, postal_code, country, venue, address, notes, is_active, location_type, created_at, updated_at) FROM stdin;
-1	Test City Center	Budapest	1011	Hungary	\N	Test Address 123	\N	t	CENTER	2026-01-11 19:15:12.865736	2026-01-11 19:15:12.865747
+COPY public.locations (id, name, city, postal_code, country, country_code, location_code, venue, address, notes, is_active, location_type, created_at, updated_at) FROM stdin;
+1	Budapest Center	Budapest	1011	Hungary	HU	BDPST	\N	Váci utca 123	\N	t	CENTER	2026-01-20 18:08:55.006361	2026-01-20 18:08:55.006372
+2	Vienna Academy	Vienna	1010	Austria	AT	VIE	\N	Stephansplatz 1	\N	t	CENTER	2026-01-20 18:08:55.010486	2026-01-20 18:08:55.01049
+3	Bratislava Training Center	Bratislava	81101	Slovakia	SK	BTS	\N	Hviezdoslavovo námestie 1	\N	t	PARTNER	2026-01-20 18:08:55.011634	2026-01-20 18:08:55.011636
 \.
 
 
@@ -5819,7 +5983,10 @@ COPY public.semester_instructors (semester_id, instructor_id) FROM stdin;
 -- Data for Name: semesters; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.semesters (id, code, name, start_date, end_date, status, tournament_status, is_active, enrollment_cost, created_at, updated_at, master_instructor_id, specialization_type, age_group, theme, focus_description, campus_id, location_id, location_city, location_venue, location_address, tournament_type, participant_type, is_multi_day, reward_policy_name, reward_policy_snapshot) FROM stdin;
+COPY public.semesters (id, code, name, start_date, end_date, status, tournament_status, is_active, enrollment_cost, created_at, updated_at, master_instructor_id, specialization_type, age_group, theme, focus_description, campus_id, location_id, location_city, location_venue, location_address, tournament_type_id, tournament_type, participant_type, is_multi_day, sessions_generated, sessions_generated_at, assignment_type, max_players, reward_policy_name, reward_policy_snapshot) FROM stdin;
+1	TOURN-E2E-APP-001	E2E Test Tournament - APPLICATION_BASED	2026-02-15	2026-02-15	DRAFT	SEEKING_INSTRUCTOR	t	500	2026-01-20 19:08:55.722947	2026-01-20 19:08:55.722953	\N	LFA_FOOTBALL_PLAYER	YOUTH	\N	\N	1	1	\N	\N	\N	\N	\N	INDIVIDUAL	f	f	\N	APPLICATION_BASED	10	default	\N
+2	TOURN-E2E-OPEN-002	E2E Test Tournament - OPEN_ASSIGNMENT	2026-03-20	2026-03-20	DRAFT	READY_FOR_ENROLLMENT	t	500	2026-01-20 19:08:55.728038	2026-01-20 19:08:55.728043	3	LFA_FOOTBALL_PLAYER	YOUTH	\N	\N	2	2	\N	\N	\N	\N	\N	INDIVIDUAL	f	f	\N	OPEN_ASSIGNMENT	10	default	\N
+3	TOURN-DEB-U12-003	Bratislava U12 Championship	2026-04-10	2026-04-10	DRAFT	SEEKING_INSTRUCTOR	t	400	2026-01-20 19:08:55.730265	2026-01-20 19:08:55.730269	\N	LFA_FOOTBALL_PLAYER	YOUTH	\N	\N	3	3	\N	\N	\N	\N	\N	INDIVIDUAL	f	f	\N	APPLICATION_BASED	8	default	\N
 \.
 
 
@@ -5851,7 +6018,7 @@ COPY public.session_quizzes (id, session_id, quiz_id, is_required, max_attempts,
 -- Data for Name: sessions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.sessions (id, title, description, date_start, date_end, session_type, capacity, location, meeting_link, sport_type, level, instructor_name, semester_id, group_id, instructor_id, target_specialization, mixed_specialization, actual_start_time, actual_end_time, session_status, quiz_unlocked, base_xp, credit_cost, is_tournament_game, game_type, game_results, created_at, updated_at) FROM stdin;
+COPY public.sessions (id, title, description, date_start, date_end, session_type, capacity, location, meeting_link, sport_type, level, instructor_name, semester_id, group_id, instructor_id, target_specialization, mixed_specialization, actual_start_time, actual_end_time, session_status, quiz_unlocked, base_xp, credit_cost, is_tournament_game, game_type, game_results, auto_generated, tournament_phase, tournament_round, tournament_match_number, created_at, updated_at) FROM stdin;
 \.
 
 
@@ -5923,7 +6090,7 @@ COPY public.tournament_stats (id, tournament_id, total_participants, total_teams
 -- Data for Name: tournament_status_history; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.tournament_status_history (id, tournament_id, old_status, new_status, changed_by, changed_at, reason, metadata) FROM stdin;
+COPY public.tournament_status_history (id, tournament_id, old_status, new_status, changed_by, reason, extra_metadata, created_at) FROM stdin;
 \.
 
 
@@ -5932,6 +6099,18 @@ COPY public.tournament_status_history (id, tournament_id, old_status, new_status
 --
 
 COPY public.tournament_team_enrollments (id, semester_id, team_id, enrollment_date, payment_verified, is_active) FROM stdin;
+\.
+
+
+--
+-- Data for Name: tournament_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.tournament_types (id, code, display_name, description, min_players, max_players, requires_power_of_two, session_duration_minutes, break_between_sessions_minutes, config) FROM stdin;
+1	league	League (Round Robin)	Every player plays against every other player once. Best for smaller groups with balanced competition.	4	16	f	90	15	{"code": "league", "display_name": "League (Round Robin)", "description": "Every player plays against every other player once. Best for smaller groups with balanced competition.", "min_players": 4, "max_players": 16, "requires_power_of_two": false, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "n * (n - 1) / 2", "rounds_calculation": "n - 1 if n is even else n", "session_naming_pattern": "Round {round_number} - Match {match_number}", "placement_rules": {"primary": "wins", "tiebreakers": ["goal_difference", "goals_scored", "head_to_head"]}, "config_notes": ["Each player plays every other player exactly once", "Total matches = n*(n-1)/2 where n = player count", "Can run multiple matches in parallel if fields available", "Fair format - everyone gets equal opportunities"]}
+2	knockout	Single Elimination (Knockout)	Traditional knockout tournament - lose once and you're out. Fast and exciting.	4	64	t	90	15	{"code": "knockout", "display_name": "Single Elimination (Knockout)", "description": "Traditional knockout tournament - lose once and you're out. Fast and exciting.", "min_players": 4, "max_players": 64, "requires_power_of_two": true, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "n - 1", "rounds_calculation": "log2(n)", "session_naming_pattern": "{round_name} - Match {match_number}", "round_names": {"64": "Round of 64", "32": "Round of 32", "16": "Round of 16", "8": "Quarter-finals", "4": "Semi-finals", "2": "Final"}, "placement_rules": {"1": "Winner of final", "2": "Loser of final", "3": "Winners of 3rd place playoff (optional)", "4": "Loser of 3rd place playoff (optional)"}, "config_notes": ["Requires power-of-2 players (4, 8, 16, 32, 64)", "Total matches = n - 1", "Fastest tournament format", "Highly competitive - no second chances"], "third_place_playoff": true}
+3	group_knockout	Group Stage + Knockout	Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.	8	32	f	90	15	{"code": "group_knockout", "display_name": "Group Stage + Knockout", "description": "Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.", "min_players": 8, "max_players": 32, "requires_power_of_two": false, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "group_matches + knockout_matches", "rounds_calculation": "group_rounds + knockout_rounds", "session_naming_pattern": "{phase} - {round_name} - Match {match_number}", "phases": [{"name": "Group Stage", "format": "round_robin_within_groups", "groups_count": "dynamic", "players_per_group": 4, "top_qualifiers_per_group": 2}, {"name": "Knockout Stage", "format": "single_elimination", "seeding": "group_winners_vs_runners_up"}], "group_configuration": {"8_players": {"groups": 2, "players_per_group": 4, "qualifiers": 2}, "12_players": {"groups": 3, "players_per_group": 4, "qualifiers": 2}, "16_players": {"groups": 4, "players_per_group": 4, "qualifiers": 2}, "24_players": {"groups": 6, "players_per_group": 4, "qualifiers": 2}, "32_players": {"groups": 8, "players_per_group": 4, "qualifiers": 2}}, "placement_rules": {"group_stage": {"primary": "wins", "tiebreakers": ["goal_difference", "goals_scored", "head_to_head"]}, "knockout_stage": {"1": "Winner of final", "2": "Loser of final", "3-4": "Losers of semi-finals"}}, "config_notes": ["Group stage ensures everyone plays multiple matches", "Knockout stage provides exciting conclusion", "Most popular format for medium-large tournaments", "Balances fairness with entertainment value"]}
+4	swiss	Swiss System	Players with similar scores play each other. Fair and flexible format for any player count.	4	64	f	90	15	{"code": "swiss", "display_name": "Swiss System", "description": "Players with similar scores play each other. Fair and flexible format for any player count.", "min_players": 4, "max_players": 64, "requires_power_of_two": false, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "n * rounds / 2", "rounds_calculation": "ceil(log2(n))", "session_naming_pattern": "Round {round_number} - Match {match_number}", "pairing_algorithm": "swiss_pairing", "pairing_rules": ["Round 1: Random or seeded pairing", "Round 2+: Players with similar scores paired together", "Avoid repeat matchups if possible", "Handle odd number of players with byes"], "placement_rules": {"primary": "total_points", "tiebreakers": ["buchholz_score", "sonneborn_berger", "goal_difference", "goals_scored"]}, "config_notes": ["Flexible format - works with any player count", "Each round pairs players of similar strength", "Typical rounds = log2(players) rounded up", "Popular in chess, works well for football too", "No elimination - everyone plays all rounds"], "bye_handling": {"enabled": true, "points_awarded": 3, "max_byes_per_player": 1}}
 \.
 
 
@@ -5956,30 +6135,31 @@ COPY public.user_achievements (id, user_id, achievement_id, badge_type, title, d
 --
 
 COPY public.user_licenses (id, user_id, specialization_type, current_level, max_achieved_level, started_at, last_advanced_at, instructor_notes, payment_reference_code, payment_verified, payment_verified_at, onboarding_completed, onboarding_completed_at, is_active, issued_at, expires_at, last_renewed_at, renewal_cost, motivation_scores, average_motivation_score, motivation_last_assessed_at, motivation_assessed_by, football_skills, skills_last_updated_at, skills_updated_by, credit_balance, credit_purchased, credit_expires_at, created_at, updated_at) FROM stdin;
-1	3	LFA_FOOTBALL_PLAYER	1	1	2026-01-11 19:15:12.858906	\N	\N	\N	t	2026-01-11 19:15:12.858917	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860847	2026-01-11 20:15:12.860848
-2	3	LFA_FOOTBALL_PLAYER	2	2	2026-01-11 19:15:12.858982	\N	\N	\N	t	2026-01-11 19:15:12.858984	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.86085	2026-01-11 20:15:12.86085
-3	3	LFA_FOOTBALL_PLAYER	3	3	2026-01-11 19:15:12.859016	\N	\N	\N	t	2026-01-11 19:15:12.859017	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860851	2026-01-11 20:15:12.860851
-4	3	LFA_FOOTBALL_PLAYER	4	4	2026-01-11 19:15:12.85904	\N	\N	\N	t	2026-01-11 19:15:12.859041	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860852	2026-01-11 20:15:12.860852
-5	3	LFA_FOOTBALL_PLAYER	5	5	2026-01-11 19:15:12.859061	\N	\N	\N	t	2026-01-11 19:15:12.859061	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860853	2026-01-11 20:15:12.860854
-6	3	LFA_FOOTBALL_PLAYER	6	6	2026-01-11 19:15:12.85908	\N	\N	\N	t	2026-01-11 19:15:12.859081	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860854	2026-01-11 20:15:12.860855
-7	3	LFA_FOOTBALL_PLAYER	7	7	2026-01-11 19:15:12.8591	\N	\N	\N	t	2026-01-11 19:15:12.8591	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860855	2026-01-11 20:15:12.860856
-8	3	LFA_FOOTBALL_PLAYER	8	8	2026-01-11 19:15:12.859123	\N	\N	\N	t	2026-01-11 19:15:12.859124	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860856	2026-01-11 20:15:12.860857
-9	3	LFA_COACH	1	1	2026-01-11 19:15:12.859143	\N	\N	\N	t	2026-01-11 19:15:12.859144	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860857	2026-01-11 20:15:12.860858
-10	3	LFA_COACH	2	2	2026-01-11 19:15:12.859163	\N	\N	\N	t	2026-01-11 19:15:12.859164	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860858	2026-01-11 20:15:12.860859
-11	3	LFA_COACH	3	3	2026-01-11 19:15:12.859184	\N	\N	\N	t	2026-01-11 19:15:12.859184	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860859	2026-01-11 20:15:12.86086
-12	3	LFA_COACH	4	4	2026-01-11 19:15:12.859209	\N	\N	\N	t	2026-01-11 19:15:12.85921	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.86086	2026-01-11 20:15:12.860861
-13	3	LFA_COACH	5	5	2026-01-11 19:15:12.859229	\N	\N	\N	t	2026-01-11 19:15:12.85923	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860861	2026-01-11 20:15:12.860862
-14	3	LFA_COACH	6	6	2026-01-11 19:15:12.859249	\N	\N	\N	t	2026-01-11 19:15:12.85925	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860862	2026-01-11 20:15:12.860863
-15	3	LFA_COACH	7	7	2026-01-11 19:15:12.859274	\N	\N	\N	t	2026-01-11 19:15:12.859275	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860863	2026-01-11 20:15:12.860864
-16	3	LFA_COACH	8	8	2026-01-11 19:15:12.859294	\N	\N	\N	t	2026-01-11 19:15:12.859294	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860864	2026-01-11 20:15:12.860865
-17	3	INTERNSHIP	1	1	2026-01-11 19:15:12.859314	\N	\N	\N	t	2026-01-11 19:15:12.859315	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860865	2026-01-11 20:15:12.860866
-18	3	INTERNSHIP	2	2	2026-01-11 19:15:12.859333	\N	\N	\N	t	2026-01-11 19:15:12.859334	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860866	2026-01-11 20:15:12.860867
-19	3	INTERNSHIP	3	3	2026-01-11 19:15:12.859352	\N	\N	\N	t	2026-01-11 19:15:12.859353	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860867	2026-01-11 20:15:12.860868
-20	3	INTERNSHIP	4	4	2026-01-11 19:15:12.859371	\N	\N	\N	t	2026-01-11 19:15:12.859372	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860868	2026-01-11 20:15:12.860869
-21	3	INTERNSHIP	5	5	2026-01-11 19:15:12.85939	\N	\N	\N	t	2026-01-11 19:15:12.859391	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860869	2026-01-11 20:15:12.86087
-22	4	LFA_FOOTBALL_PLAYER	1	1	2026-01-11 19:18:29.327978	\N	\N	\N	t	2026-01-11 19:18:29.32798	t	2026-01-11 20:19:10.009659	t	\N	\N	\N	1000	{"position": "GOALKEEPER", "goals": "improve_skills", "motivation": "", "initial_self_assessment": {"heading": 2, "shooting": 10, "passing": 1, "dribbling": 4, "defending": 5, "physical": 2}, "average_skill_level": 40.0, "onboarding_completed_at": "2026-01-11T19:19:10.009604+00:00"}	40	2026-01-11 20:19:10.009649	4	\N	\N	\N	0	0	\N	2026-01-11 20:18:29.338486	2026-01-11 20:19:10.016325
-23	5	LFA_FOOTBALL_PLAYER	1	1	2026-01-11 19:19:50.686546	\N	\N	\N	t	2026-01-11 19:19:50.686548	t	2026-01-11 20:20:30.135706	t	\N	\N	\N	1000	{"position": "STRIKER", "goals": "fitness_health", "motivation": "", "initial_self_assessment": {"heading": 3, "shooting": 6, "passing": 9, "dribbling": 4, "defending": 3, "physical": 1}, "average_skill_level": 43.3, "onboarding_completed_at": "2026-01-11T19:20:30.135673+00:00"}	43.33333333333333	2026-01-11 20:20:30.135699	5	\N	\N	\N	0	0	\N	2026-01-11 20:19:50.68819	2026-01-11 20:20:30.138802
-24	6	LFA_FOOTBALL_PLAYER	1	1	2026-01-11 19:21:10.367209	\N	\N	\N	t	2026-01-11 19:21:10.367211	t	2026-01-11 20:21:51.554033	t	\N	\N	\N	1000	{"position": "DEFENDER", "goals": "team_football", "motivation": "", "initial_self_assessment": {"heading": 10, "shooting": 8, "passing": 1, "dribbling": 4, "defending": 4, "physical": 2}, "average_skill_level": 48.3, "onboarding_completed_at": "2026-01-11T19:21:51.554000+00:00"}	48.33333333333333	2026-01-11 20:21:51.554025	6	\N	\N	\N	0	0	\N	2026-01-11 20:21:10.368911	2026-01-11 20:21:51.556559
+1	3	LFA_FOOTBALL_PLAYER	1	1	2026-01-20 18:08:54.997382	\N	\N	\N	t	2026-01-20 18:08:54.997393	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999396	2026-01-20 19:08:54.999402
+2	3	LFA_FOOTBALL_PLAYER	2	2	2026-01-20 18:08:54.997459	\N	\N	\N	t	2026-01-20 18:08:54.99746	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999405	2026-01-20 19:08:54.999406
+3	3	LFA_FOOTBALL_PLAYER	3	3	2026-01-20 18:08:54.997489	\N	\N	\N	t	2026-01-20 18:08:54.99749	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999407	2026-01-20 19:08:54.999407
+4	3	LFA_FOOTBALL_PLAYER	4	4	2026-01-20 18:08:54.997513	\N	\N	\N	t	2026-01-20 18:08:54.997514	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999408	2026-01-20 19:08:54.999408
+5	3	LFA_FOOTBALL_PLAYER	5	5	2026-01-20 18:08:54.997539	\N	\N	\N	t	2026-01-20 18:08:54.99754	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999409	2026-01-20 19:08:54.999409
+6	3	LFA_FOOTBALL_PLAYER	6	6	2026-01-20 18:08:54.99756	\N	\N	\N	t	2026-01-20 18:08:54.99756	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.99941	2026-01-20 19:08:54.99941
+7	3	LFA_FOOTBALL_PLAYER	7	7	2026-01-20 18:08:54.99758	\N	\N	\N	t	2026-01-20 18:08:54.997581	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999411	2026-01-20 19:08:54.999411
+8	3	LFA_FOOTBALL_PLAYER	8	8	2026-01-20 18:08:54.997601	\N	\N	\N	t	2026-01-20 18:08:54.997601	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999412	2026-01-20 19:08:54.999412
+9	3	LFA_COACH	1	1	2026-01-20 18:08:54.997621	\N	\N	\N	t	2026-01-20 18:08:54.997622	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999413	2026-01-20 19:08:54.999413
+10	3	LFA_COACH	2	2	2026-01-20 18:08:54.997641	\N	\N	\N	t	2026-01-20 18:08:54.997642	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999414	2026-01-20 19:08:54.999414
+11	3	LFA_COACH	3	3	2026-01-20 18:08:54.997662	\N	\N	\N	t	2026-01-20 18:08:54.997663	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999415	2026-01-20 19:08:54.999415
+12	3	LFA_COACH	4	4	2026-01-20 18:08:54.997682	\N	\N	\N	t	2026-01-20 18:08:54.997683	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999416	2026-01-20 19:08:54.999416
+13	3	LFA_COACH	5	5	2026-01-20 18:08:54.997702	\N	\N	\N	t	2026-01-20 18:08:54.997703	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999417	2026-01-20 19:08:54.999417
+14	3	LFA_COACH	6	6	2026-01-20 18:08:54.997722	\N	\N	\N	t	2026-01-20 18:08:54.997722	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999418	2026-01-20 19:08:54.999418
+15	3	LFA_COACH	7	7	2026-01-20 18:08:54.997741	\N	\N	\N	t	2026-01-20 18:08:54.997742	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999419	2026-01-20 19:08:54.999419
+16	3	LFA_COACH	8	8	2026-01-20 18:08:54.997761	\N	\N	\N	t	2026-01-20 18:08:54.997762	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.99942	2026-01-20 19:08:54.99942
+17	3	INTERNSHIP	1	1	2026-01-20 18:08:54.997781	\N	\N	\N	t	2026-01-20 18:08:54.997782	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999421	2026-01-20 19:08:54.999421
+18	3	INTERNSHIP	2	2	2026-01-20 18:08:54.997801	\N	\N	\N	t	2026-01-20 18:08:54.997802	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999422	2026-01-20 19:08:54.999422
+19	3	INTERNSHIP	3	3	2026-01-20 18:08:54.997821	\N	\N	\N	t	2026-01-20 18:08:54.997822	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999423	2026-01-20 19:08:54.999423
+20	3	INTERNSHIP	4	4	2026-01-20 18:08:54.997841	\N	\N	\N	t	2026-01-20 18:08:54.997841	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999424	2026-01-20 19:08:54.999424
+21	3	INTERNSHIP	5	5	2026-01-20 18:08:54.99786	\N	\N	\N	t	2026-01-20 18:08:54.997861	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999425	2026-01-20 19:08:54.999425
+22	4	LFA_FOOTBALL_PLAYER	1	1	2026-01-20 18:12:47.360173	\N	\N	\N	t	2026-01-20 18:12:47.360175	t	2026-01-20 19:13:23.635524	t	\N	\N	\N	1000	{"position": "DEFENDER", "goals": "play_higher_level", "motivation": "", "initial_self_assessment": {"heading": 7, "shooting": 6, "passing": 8, "dribbling": 7, "defending": 5, "physical": 6}, "average_skill_level": 65.0, "onboarding_completed_at": "2026-01-20T18:13:23.635485+00:00"}	65	2026-01-20 19:13:23.63551	4	\N	\N	\N	0	0	\N	2026-01-20 19:12:47.362611	2026-01-20 19:13:23.63828
+23	5	LFA_FOOTBALL_PLAYER	1	1	2026-01-20 18:14:02.596118	\N	\N	\N	t	2026-01-20 18:14:02.59612	t	2026-01-20 19:14:41.767454	t	\N	\N	\N	1000	{"position": "MIDFIELDER", "goals": "become_professional", "motivation": "", "initial_self_assessment": {"heading": 8, "shooting": 9, "passing": 6, "dribbling": 7, "defending": 4, "physical": 8}, "average_skill_level": 70.0, "onboarding_completed_at": "2026-01-20T18:14:41.767403+00:00"}	70	2026-01-20 19:14:41.767431	5	\N	\N	\N	0	0	\N	2026-01-20 19:14:02.598446	2026-01-20 19:14:41.770269
+24	6	LFA_FOOTBALL_PLAYER	1	1	2026-01-20 18:15:21.490764	\N	\N	\N	t	2026-01-20 18:15:21.490766	t	2026-01-20 19:15:59.588776	t	\N	\N	\N	1000	{"position": "STRIKER", "goals": "improve_skills", "motivation": "", "initial_self_assessment": {"heading": 7, "shooting": 4, "passing": 7, "dribbling": 5, "defending": 9, "physical": 8}, "average_skill_level": 66.7, "onboarding_completed_at": "2026-01-20T18:15:59.588718+00:00"}	66.66666666666667	2026-01-20 19:15:59.588759	6	\N	\N	\N	0	0	\N	2026-01-20 19:15:21.498505	2026-01-20 19:15:59.597334
+25	7	LFA_FOOTBALL_PLAYER	1	1	2026-01-20 18:16:38.673106	\N	\N	\N	t	2026-01-20 18:16:38.673111	t	2026-01-20 19:17:15.600171	t	\N	\N	\N	1000	{"position": "GOALKEEPER", "goals": "improve_skills", "motivation": "", "initial_self_assessment": {"heading": 5, "shooting": 3, "passing": 6, "dribbling": 5, "defending": 9, "physical": 8}, "average_skill_level": 60.0, "onboarding_completed_at": "2026-01-20T18:17:15.600136+00:00"}	60	2026-01-20 19:17:15.600161	7	\N	\N	\N	0	0	\N	2026-01-20 19:16:38.674631	2026-01-20 19:17:15.602293
 \.
 
 
@@ -6020,11 +6200,12 @@ COPY public.user_track_progresses (id, user_id, track_id, enrollment_date, curre
 --
 
 COPY public.users (id, name, nickname, first_name, last_name, email, password_hash, role, is_active, onboarding_completed, phone, emergency_contact, emergency_phone, date_of_birth, medical_notes, interests, "position", nationality, gender, current_location, street_address, city, postal_code, country, specialization, payment_verified, payment_verified_at, payment_verified_by, credit_balance, credit_purchased, credit_payment_reference, nda_accepted, nda_accepted_at, nda_ip_address, parental_consent, parental_consent_at, parental_consent_by, created_at, updated_at, created_by) FROM stdin;
-1	Admin User	\N	\N	\N	admin@lfa.com	$2b$10$Nl7m1x4iUehrC0g3hdHjVO5Gvuq3FedPfeckFZe1rBnmNuWWgFNLm	ADMIN	t	t	\N	\N	\N	1990-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	0	0	\N	f	\N	\N	f	\N	\N	2026-01-11 19:15:12.682678	2026-01-11 20:15:12.790299	1
-3	Grand Master	\N	\N	\N	grandmaster@lfa.com	$2b$10$/sfDoxzgWxtLj/KqPGaxZuqS4u5a.rdYkCLJFxa7J.O9V.CpmHms.	INSTRUCTOR	t	t	\N	\N	\N	1985-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	5000	0	\N	f	\N	\N	f	\N	\N	2026-01-11 19:15:12.85731	2026-01-11 20:15:12.85803	1
-4	Kristóf Kis	Krisz	Kristóf	Kis	pwt.k1sqx1@f1stteam.hu	$2b$10$E2SXnufr259tgCxym79pp.WT3vhmBENprusxVqeEVVVWyLfrRdfJW	STUDENT	t	t	+36201234567	\N	\N	2014-05-15 00:00:00	\N	\N	\N	Hungarian	Male	\N	Fő utca 12	Budapest	1011	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-11 20:16:38.928071	2026-01-11 20:19:10.011473	\N
-5	Péter Pataki	Peti	Péter	Pataki	pwt.p3t1k3@f1stteam.hu	$2b$10$QV06Y0eNm0bVhxRa15EIyug61d7UwoKW38hGOeQ6kgdMCeIDFgr4W	STUDENT	t	t	+36302345678	\N	\N	2009-08-20 00:00:00	\N	\N	\N	Hungarian	Male	\N	Petőfi utca 34	Debrecen	4024	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-11 20:17:13.471435	2026-01-11 20:20:30.138194	\N
-6	Viktor Valverde	Viki	Viktor	Valverde	pwt.V4lv3rd3jr@f1stteam.hu	$2b$10$Ng7CwSNGFwyc56ghQ2hn5OZAGualf9V1KiGktLHrK8ijDR3wwR/sC	STUDENT	t	t	+36703456789	\N	\N	2004-11-12 00:00:00	\N	\N	\N	Hungarian	Male	\N	Rákóczi út 56	Szeged	6720	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-11 20:17:47.946817	2026-01-11 20:21:51.556016	\N
+1	Admin User	\N	\N	\N	admin@lfa.com	$2b$10$bjpU3WFRI4kWAog.6WjYK.nirb1erBuZRAvuZ3tK0JuzqUb/xgCHy	ADMIN	t	t	\N	\N	\N	1990-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	0	0	\N	f	\N	\N	f	\N	\N	2026-01-20 18:08:54.815211	2026-01-20 19:08:54.931405	1
+3	Grand Master	\N	\N	\N	grandmaster@lfa.com	$2b$10$55Gk5oVHNvov.EJst6qpdeXZ.mzgVunq8Z.QmDOtBpAk0Y1JeCVZW	INSTRUCTOR	t	t	\N	\N	\N	1985-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	5000	0	\N	f	\N	\N	f	\N	\N	2026-01-20 18:08:54.995621	2026-01-20 19:08:54.996338	1
+4	Tamás Juhász	K1sqx1	Tamás	Juhász	k1sqx1@f1rstteam.hu	$2b$10$HWXFxFkTa/fuQaWpqR27nuPfzXt/orQFsu6wkAU8vGrF9OWG8Et7S	STUDENT	t	t	+36301234567	\N	\N	2006-01-14 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 1	Budapest	1011	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-20 19:10:30.265608	2026-01-20 19:13:23.637402	\N
+5	Péter Nagy	P3t1k3	Péter	Nagy	p3t1k3@f1rstteam.hu	$2b$10$vhkmQn8ZqvSebeUzEDA3f.7/IVhheCfR8cZK1rlV.vLREwQgcZMAq	STUDENT	t	t	+36301234568	\N	\N	2007-12-15 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 2	Budapest	1012	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-20 19:11:02.878646	2026-01-20 19:14:41.769605	\N
+6	Péter Barna	V4lv3rd3Jr	Péter	Barna	v4lv3rd3jr@f1rstteam.hu	$2b$10$Ze9WwCeazzhuVnNGzTaVjOYTFSw35YpeexDHbC/Oyt47TZ576S1ZG	STUDENT	t	t	+36301234569	\N	\N	2007-12-06 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 3	Budapest	1013	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-20 19:11:35.307325	2026-01-20 19:15:59.596494	\N
+7	Tibor Lénárt	T1b1k3	Tibor	Lénárt	t1b1k3@f1rstteam.hu	$2b$10$V8mTVTe1NBapPBZypEPDR.Tz3Ivw3vZOS6UBGiTMVVCteIn1fEsLW	STUDENT	t	t	+36301234570	\N	\N	2007-05-15 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 4	Budapest	1014	Hungary	LFA_FOOTBALL_PLAYER	f	\N	\N	0	50	\N	f	\N	\N	f	\N	\N	2026-01-20 19:12:08.599343	2026-01-20 19:17:15.601718	\N
 \.
 
 
@@ -6060,7 +6241,7 @@ SELECT pg_catalog.setval('public.attendance_id_seq', 1, false);
 -- Name: audit_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_logs_id_seq', 173, true);
+SELECT pg_catalog.setval('public.audit_logs_id_seq', 196, true);
 
 
 --
@@ -6095,21 +6276,21 @@ SELECT pg_catalog.setval('public.coach_levels_id_seq', 1, false);
 -- Name: coupon_usages_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.coupon_usages_id_seq', 3, true);
+SELECT pg_catalog.setval('public.coupon_usages_id_seq', 4, true);
 
 
 --
 -- Name: coupons_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.coupons_id_seq', 3, true);
+SELECT pg_catalog.setval('public.coupons_id_seq', 8, true);
 
 
 --
 -- Name: credit_transactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.credit_transactions_id_seq', 3, true);
+SELECT pg_catalog.setval('public.credit_transactions_id_seq', 4, true);
 
 
 --
@@ -6193,7 +6374,7 @@ SELECT pg_catalog.setval('public.internship_levels_id_seq', 1, false);
 -- Name: invitation_codes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.invitation_codes_id_seq', 3, true);
+SELECT pg_catalog.setval('public.invitation_codes_id_seq', 4, true);
 
 
 --
@@ -6361,7 +6542,7 @@ SELECT pg_catalog.setval('public.semester_enrollments_id_seq', 1, false);
 -- Name: semesters_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.semesters_id_seq', 1, false);
+SELECT pg_catalog.setval('public.semesters_id_seq', 3, true);
 
 
 --
@@ -6456,6 +6637,13 @@ SELECT pg_catalog.setval('public.tournament_team_enrollments_id_seq', 1, false);
 
 
 --
+-- Name: tournament_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.tournament_types_id_seq', 4, true);
+
+
+--
 -- Name: user_achievements_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -6466,7 +6654,7 @@ SELECT pg_catalog.setval('public.user_achievements_id_seq', 1, false);
 -- Name: user_licenses_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.user_licenses_id_seq', 24, true);
+SELECT pg_catalog.setval('public.user_licenses_id_seq', 25, true);
 
 
 --
@@ -6487,7 +6675,7 @@ SELECT pg_catalog.setval('public.user_stats_id_seq', 1, false);
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_id_seq', 6, true);
+SELECT pg_catalog.setval('public.users_id_seq', 7, true);
 
 
 --
@@ -6760,6 +6948,14 @@ ALTER TABLE ONLY public.location_master_instructors
 
 ALTER TABLE ONLY public.locations
     ADD CONSTRAINT locations_city_key UNIQUE (city);
+
+
+--
+-- Name: locations locations_location_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locations
+    ADD CONSTRAINT locations_location_code_key UNIQUE (location_code);
 
 
 --
@@ -7067,6 +7263,14 @@ ALTER TABLE ONLY public.tournament_team_enrollments
 
 
 --
+-- Name: tournament_types tournament_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types
+    ADD CONSTRAINT tournament_types_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: tracks tracks_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -7353,6 +7557,13 @@ CREATE INDEX ix_belt_promotions_to_belt ON public.belt_promotions USING btree (t
 --
 
 CREATE INDEX ix_belt_promotions_user_license_id ON public.belt_promotions USING btree (user_license_id);
+
+
+--
+-- Name: ix_bookings_enrollment_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX ix_bookings_enrollment_id ON public.bookings USING btree (enrollment_id);
 
 
 --
@@ -7888,10 +8099,10 @@ CREATE UNIQUE INDEX ix_tournament_stats_tournament_id ON public.tournament_stats
 
 
 --
--- Name: ix_tournament_status_history_changed_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_tournament_status_history_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX ix_tournament_status_history_changed_at ON public.tournament_status_history USING btree (changed_at);
+CREATE INDEX ix_tournament_status_history_id ON public.tournament_status_history USING btree (id);
 
 
 --
@@ -7920,6 +8131,20 @@ CREATE INDEX ix_tournament_team_enrollments_semester_id ON public.tournament_tea
 --
 
 CREATE INDEX ix_tournament_team_enrollments_team_id ON public.tournament_team_enrollments USING btree (team_id);
+
+
+--
+-- Name: ix_tournament_types_code; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX ix_tournament_types_code ON public.tournament_types USING btree (code);
+
+
+--
+-- Name: ix_tournament_types_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX ix_tournament_types_id ON public.tournament_types USING btree (id);
 
 
 --
@@ -8057,6 +8282,14 @@ ALTER TABLE ONLY public.belt_promotions
 
 ALTER TABLE ONLY public.belt_promotions
     ADD CONSTRAINT belt_promotions_user_license_id_fkey FOREIGN KEY (user_license_id) REFERENCES public.user_licenses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: bookings bookings_enrollment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_enrollment_id_fkey FOREIGN KEY (enrollment_id) REFERENCES public.semester_enrollments(id);
 
 
 --
@@ -8780,6 +9013,14 @@ ALTER TABLE ONLY public.semesters
 
 
 --
+-- Name: semesters semesters_tournament_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.semesters
+    ADD CONSTRAINT semesters_tournament_type_id_fkey FOREIGN KEY (tournament_type_id) REFERENCES public.tournament_types(id) ON DELETE SET NULL;
+
+
+--
 -- Name: session_group_assignments session_group_assignments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -8976,7 +9217,7 @@ ALTER TABLE ONLY public.tournament_status_history
 --
 
 ALTER TABLE ONLY public.tournament_status_history
-    ADD CONSTRAINT tournament_status_history_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.semesters(id) ON DELETE CASCADE;
+    ADD CONSTRAINT tournament_status_history_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.semesters(id);
 
 
 --
@@ -9127,5 +9368,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict U64zPzOoifEZhMjYUV6WuakheuzfIPD6wbQnUmYF7OvmWwzGy8MPbAoCDJHWOlJ
+\unrestrict Cme83lG2gRu3YJdnLZ4l0eznOja8ShqhnY7Mg9GtpaLRCSiUzMIQLv8ZUqR0EWI
 

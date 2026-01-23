@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Rai6k2cHWbRKC4bUwoDtVnegFU8Vs6jyXkTyHeGo5key3ZgwJ0vOjucOaMbMYWn
+\restrict sPB6h0NUl2JbsI3xD4MHCDzN8EXWh6VXOEUqjb1lyidFjjBzOeX8ABpoTWNMuPh
 
 -- Dumped from database version 14.19 (Homebrew)
 -- Dumped by pg_dump version 14.19 (Homebrew)
@@ -184,7 +184,12 @@ CREATE TYPE public.notificationtype AS ENUM (
     'GENERAL',
     'JOB_OFFER',
     'OFFER_ACCEPTED',
-    'OFFER_DECLINED'
+    'OFFER_DECLINED',
+    'TOURNAMENT_APPLICATION_APPROVED',
+    'TOURNAMENT_APPLICATION_REJECTED',
+    'TOURNAMENT_DIRECT_INVITATION',
+    'TOURNAMENT_INSTRUCTOR_ACCEPTED',
+    'TOURNAMENT_INSTRUCTOR_DECLINED'
 );
 
 
@@ -630,7 +635,8 @@ CREATE TABLE public.bookings (
     created_at timestamp without time zone,
     updated_at timestamp without time zone,
     cancelled_at timestamp without time zone,
-    attended_status character varying(20)
+    attended_status character varying(20),
+    enrollment_id integer
 );
 
 
@@ -2187,6 +2193,8 @@ CREATE TABLE public.locations (
     city character varying(100) NOT NULL,
     postal_code character varying(20),
     country character varying(100) NOT NULL,
+    country_code character varying(2),
+    location_code character varying(10),
     venue character varying(200),
     address character varying(500),
     notes text,
@@ -3246,9 +3254,14 @@ CREATE TABLE public.semesters (
     location_city character varying(100),
     location_venue character varying(200),
     location_address character varying(500),
+    tournament_type_id integer,
     tournament_type character varying(50),
     participant_type character varying(50),
     is_multi_day boolean,
+    sessions_generated boolean NOT NULL,
+    sessions_generated_at timestamp without time zone,
+    assignment_type character varying(30),
+    max_players integer,
     reward_policy_name character varying(100) NOT NULL,
     reward_policy_snapshot jsonb
 );
@@ -3355,10 +3368,17 @@ COMMENT ON COLUMN public.semesters.location_address IS 'DEPRECATED: Use campus_i
 
 
 --
+-- Name: COLUMN semesters.tournament_type_id; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.tournament_type_id IS 'FK to tournament_types table (for auto-generating session structure)';
+
+
+--
 -- Name: COLUMN semesters.tournament_type; Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON COLUMN public.semesters.tournament_type IS 'Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM';
+COMMENT ON COLUMN public.semesters.tournament_type IS 'DEPRECATED: Use tournament_type_id instead. Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM';
 
 
 --
@@ -3373,6 +3393,34 @@ COMMENT ON COLUMN public.semesters.participant_type IS 'Participant type: INDIVI
 --
 
 COMMENT ON COLUMN public.semesters.is_multi_day IS 'True if tournament spans multiple days';
+
+
+--
+-- Name: COLUMN semesters.sessions_generated; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.sessions_generated IS 'True if tournament sessions have been auto-generated (prevents duplicate generation)';
+
+
+--
+-- Name: COLUMN semesters.sessions_generated_at; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.sessions_generated_at IS 'Timestamp when sessions were auto-generated';
+
+
+--
+-- Name: COLUMN semesters.assignment_type; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.assignment_type IS 'Tournament instructor assignment strategy: OPEN_ASSIGNMENT (admin assigns directly) or APPLICATION_BASED (instructors apply)';
+
+
+--
+-- Name: COLUMN semesters.max_players; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.semesters.max_players IS 'Maximum tournament participants (explicit capacity, independent of session capacity sum)';
 
 
 --
@@ -3596,6 +3644,10 @@ CREATE TABLE public.sessions (
     is_tournament_game boolean,
     game_type character varying(100),
     game_results text,
+    auto_generated boolean NOT NULL,
+    tournament_phase character varying(50),
+    tournament_round integer,
+    tournament_match_number integer,
     created_at timestamp without time zone,
     updated_at timestamp without time zone
 );
@@ -3678,6 +3730,34 @@ COMMENT ON COLUMN public.sessions.game_type IS 'Type/name of tournament game (us
 --
 
 COMMENT ON COLUMN public.sessions.game_results IS 'JSON array of game results: [{user_id: 1, score: 95, rank: 1}, ...]';
+
+
+--
+-- Name: COLUMN sessions.auto_generated; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.auto_generated IS 'True if this session was auto-generated from tournament type config';
+
+
+--
+-- Name: COLUMN sessions.tournament_phase; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.tournament_phase IS 'Tournament phase: ''Group Stage'', ''Knockout Stage'', ''Finals''';
+
+
+--
+-- Name: COLUMN sessions.tournament_round; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.tournament_round IS 'Round number within the tournament (1, 2, 3, ...)';
+
+
+--
+-- Name: COLUMN sessions.tournament_match_number; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.sessions.tournament_match_number IS 'Match number within the round (1, 2, 3, ...)';
 
 
 --
@@ -4036,12 +4116,12 @@ ALTER SEQUENCE public.tournament_stats_id_seq OWNED BY public.tournament_stats.i
 CREATE TABLE public.tournament_status_history (
     id integer NOT NULL,
     tournament_id integer NOT NULL,
-    old_status character varying(50),
+    old_status character varying(50) NOT NULL,
     new_status character varying(50) NOT NULL,
     changed_by integer NOT NULL,
-    changed_at timestamp without time zone DEFAULT now() NOT NULL,
     reason text,
-    metadata json
+    extra_metadata json,
+    created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text) NOT NULL
 );
 
 
@@ -4105,6 +4185,48 @@ ALTER TABLE public.tournament_team_enrollments_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE public.tournament_team_enrollments_id_seq OWNED BY public.tournament_team_enrollments.id;
+
+
+--
+-- Name: tournament_types; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.tournament_types (
+    id integer NOT NULL,
+    code character varying(50) NOT NULL,
+    display_name character varying(100) NOT NULL,
+    description text,
+    min_players integer NOT NULL,
+    max_players integer,
+    requires_power_of_two boolean NOT NULL,
+    session_duration_minutes integer NOT NULL,
+    break_between_sessions_minutes integer NOT NULL,
+    config json NOT NULL
+);
+
+
+ALTER TABLE public.tournament_types OWNER TO postgres;
+
+--
+-- Name: tournament_types_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.tournament_types_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.tournament_types_id_seq OWNER TO postgres;
+
+--
+-- Name: tournament_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.tournament_types_id_seq OWNED BY public.tournament_types.id;
 
 
 --
@@ -5161,6 +5283,13 @@ ALTER TABLE ONLY public.tournament_team_enrollments ALTER COLUMN id SET DEFAULT 
 
 
 --
+-- Name: tournament_types id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types ALTER COLUMN id SET DEFAULT nextval('public.tournament_types_id_seq'::regclass);
+
+
+--
 -- Name: user_achievements id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -5216,7 +5345,7 @@ COPY public.adaptive_learning_sessions (id, user_id, category, started_at, ended
 --
 
 COPY public.alembic_version (version_num) FROM stdin;
-71aab5034cd9
+f7592a774d52
 \.
 
 
@@ -5241,41 +5370,36 @@ COPY public.attendance_history (id, attendance_id, changed_by, change_type, old_
 --
 
 COPY public.audit_logs (id, user_id, action, resource_type, resource_id, details, ip_address, user_agent, request_method, request_path, status_code, "timestamp") FROM stdin;
-1	1	LOGIN	\N	\N	{"email": "admin@lfa.com", "role": "admin", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:15:13.313601+01
-2	1	POST_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/coupons	201	2026-01-11 20:15:13.555085+01
-3	1	POST_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/coupons	201	2026-01-11 20:15:13.565377+01
-4	1	POST_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/coupons	201	2026-01-11 20:15:13.575404+01
-5	1	LOGIN	\N	\N	{"email": "admin@lfa.com", "role": "admin", "success": true}	\N	\N	\N	\N	\N	2026-01-11 20:15:21.553666+01
-6	1	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-11 20:15:21.795415+01
-7	1	GET_/api/v1/admin/locations/	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/	200	2026-01-11 20:15:21.899969+01
-8	1	GET_/api/v1/admin/locations/1/campuses	location	1	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/1/campuses	200	2026-01-11 20:15:21.948574+01
-9	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:24.109479+01
-10	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:24.119866+01
-11	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:24.133301+01
-12	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:28.253663+01
-13	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:28.264387+01
-14	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:28.297075+01
-15	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:28.306876+01
-16	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:28.316618+01
-17	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:32.572333+01
-18	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:41.688293+01
-19	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:41.706501+01
-20	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:41.743327+01
-21	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:41.753573+01
-22	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:41.764246+01
-23	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:45.93948+01
-24	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:55.079863+01
-25	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:55.09412+01
-26	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	401	2026-01-11 20:15:55.129768+01
-27	1	GET_/api/v1/invoices/list	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/invoices/list	401	2026-01-11 20:15:55.141441+01
-28	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:55.155393+01
-29	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-11 20:15:59.387476+01
-30	4	USER_CREATED	\N	\N	{"email": "pwt.k1sqx1@f1stteam.hu", "name": "Krist\\u00f3f Kis", "invitation_code": "INV-20260111-2VS4SP", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-11 20:16:38.99041+01
-31	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-11 20:16:39.00364+01
-32	5	USER_CREATED	\N	\N	{"email": "pwt.p3t1k3@f1stteam.hu", "name": "P\\u00e9ter Pataki", "invitation_code": "INV-20260111-J8I63C", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-11 20:17:13.483452+01
-33	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-11 20:17:13.494762+01
-34	6	USER_CREATED	\N	\N	{"email": "pwt.V4lv3rd3jr@f1stteam.hu", "name": "Viktor Valverde", "invitation_code": "INV-20260111-T7S3WI", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-11 20:17:47.957211+01
-35	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-11 20:17:47.972332+01
+1	1	LOGIN	\N	\N	{"email": "admin@lfa.com", "role": "admin", "success": true}	\N	\N	\N	\N	\N	2026-01-20 19:09:02.33641+01
+2	1	GET_/api/v1/users/me	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/users/me	200	2026-01-20 19:09:02.584122+01
+3	1	GET_/api/v1/admin/locations/	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/	200	2026-01-20 19:09:02.66277+01
+4	1	GET_/api/v1/admin/locations/2/campuses	location	2	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/locations/2/campuses	200	2026-01-20 19:09:02.717998+01
+5	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:04.857608+01
+6	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:04.898641+01
+7	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:09.026228+01
+8	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:09.105647+01
+9	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:09.14245+01
+10	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:13.257644+01
+11	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:22.421666+01
+12	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:22.499476+01
+13	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:22.538944+01
+14	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:26.652098+01
+15	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:35.802072+01
+16	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:35.897247+01
+17	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:35.93394+01
+18	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:39.993285+01
+19	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:49.156815+01
+20	1	GET_/api/v1/admin/coupons	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/coupons	200	2026-01-20 19:09:49.264862+01
+21	1	GET_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	GET	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:49.301672+01
+22	1	POST_/api/v1/admin/invitation-codes	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/admin/invitation-codes	200	2026-01-20 19:09:53.298987+01
+23	4	USER_CREATED	\N	\N	{"email": "k1sqx1@f1rstteam.hu", "name": "Tam\\u00e1s Juh\\u00e1sz", "invitation_code": "INV-20260120-W5239I", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:10:30.280179+01
+24	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:10:30.298809+01
+25	5	USER_CREATED	\N	\N	{"email": "p3t1k3@f1rstteam.hu", "name": "P\\u00e9ter Nagy", "invitation_code": "INV-20260120-CZMG95", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:11:02.890942+01
+26	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:11:02.903791+01
+27	6	USER_CREATED	\N	\N	{"email": "v4lv3rd3jr@f1rstteam.hu", "name": "P\\u00e9ter Barna", "invitation_code": "INV-20260120-TVBQSA", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:11:35.3272+01
+28	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:11:35.340467+01
+29	7	USER_CREATED	\N	\N	{"email": "t1b1k3@f1rstteam.hu", "name": "Tibor L\\u00e9n\\u00e1rt", "invitation_code": "INV-20260120-JTJA0Q", "bonus_credits": 50, "registration_type": "invitation_code"}	\N	\N	\N	\N	\N	2026-01-20 19:12:08.617294+01
+30	\N	POST_/api/v1/auth/register-with-invitation	\N	\N	null	127.0.0.1	python-requests/2.32.5	POST	/api/v1/auth/register-with-invitation	200	2026-01-20 19:12:08.631626+01
 \.
 
 
@@ -5291,7 +5415,7 @@ COPY public.belt_promotions (id, user_license_id, from_belt, to_belt, promoted_b
 -- Data for Name: bookings; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.bookings (id, user_id, session_id, status, waitlist_position, notes, created_at, updated_at, cancelled_at, attended_status) FROM stdin;
+COPY public.bookings (id, user_id, session_id, status, waitlist_position, notes, created_at, updated_at, cancelled_at, attended_status, enrollment_id) FROM stdin;
 \.
 
 
@@ -5300,7 +5424,9 @@ COPY public.bookings (id, user_id, session_id, status, waitlist_position, notes,
 --
 
 COPY public.campuses (id, location_id, name, venue, address, notes, is_active, created_at, updated_at) FROM stdin;
-1	1	Main Test Campus	Test Sports Complex	Test Sports Street 1	\N	t	2026-01-11 19:15:12.867445	2026-01-11 19:15:12.867451
+1	1	Budapest Main Campus	Budapest Sports Complex	Budapest Sports Street 1	\N	t	2026-01-20 18:08:55.008351	2026-01-20 18:08:55.008359
+2	2	Vienna Main Campus	Vienna Sports Complex	Vienna Sports Street 1	\N	t	2026-01-20 18:08:55.01111	2026-01-20 18:08:55.011112
+3	3	Bratislava Main Campus	Bratislava Sports Complex	Bratislava Sports Street 1	\N	t	2026-01-20 18:08:55.012178	2026-01-20 18:08:55.01218
 \.
 
 
@@ -5333,9 +5459,14 @@ COPY public.coupon_usages (id, coupon_id, user_id, credits_awarded, used_at) FRO
 --
 
 COPY public.coupons (id, code, type, discount_value, description, is_active, expires_at, max_uses, current_uses, requires_purchase, requires_admin_approval, created_at, updated_at) FROM stdin;
-1	E2E-BONUS-50-USER1	BONUS_CREDITS	50	E2E onboarding test: +50 bonus credits	t	\N	1	0	f	f	2026-01-11 20:15:13.547334+01	2026-01-11 20:15:13.547334+01
-2	E2E-BONUS-50-USER2	BONUS_CREDITS	50	E2E onboarding test: +50 bonus credits	t	\N	1	0	f	f	2026-01-11 20:15:13.562407+01	2026-01-11 20:15:13.562407+01
-3	E2E-BONUS-50-USER3	BONUS_CREDITS	50	E2E onboarding test: +50 bonus credits	t	\N	1	0	f	f	2026-01-11 20:15:13.572274+01	2026-01-11 20:15:13.572274+01
+1	E2E-BONUS-50-USER1	BONUS_CREDITS	50	50 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.733521+01	2026-01-20 19:08:55.732573+01
+2	E2E-BONUS-50-USER2	BONUS_CREDITS	50	50 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.735869+01	2026-01-20 19:08:55.732573+01
+3	E2E-BONUS-50-USER3	BONUS_CREDITS	50	50 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.736926+01	2026-01-20 19:08:55.732573+01
+4	E2E-ENROLL-500-USER1	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.737782+01	2026-01-20 19:08:55.732573+01
+5	E2E-ENROLL-500-USER2	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.738602+01	2026-01-20 19:08:55.732573+01
+6	E2E-ENROLL-500-USER3	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.73933+01	2026-01-20 19:08:55.732573+01
+7	E2E-BONUS-50-USER4	BONUS_CREDITS	50	50 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.740011+01	2026-01-20 19:08:55.732573+01
+8	E2E-ENROLL-500-USER4	BONUS_CREDITS	500	500 credits	t	\N	1	0	f	f	2026-01-20 19:08:55.740728+01	2026-01-20 19:08:55.732573+01
 \.
 
 
@@ -5448,9 +5579,10 @@ COPY public.internship_levels (id, name, required_xp, required_sessions, total_h
 --
 
 COPY public.invitation_codes (id, code, invited_name, invited_email, bonus_credits, is_used, used_by_user_id, used_at, created_by_admin_id, created_at, expires_at, notes) FROM stdin;
-1	INV-20260111-2VS4SP	E2E Test - First Team Player 1 - Pre Category	\N	50	t	4	2026-01-11 20:16:38.98401+01	1	2026-01-11 20:15:32.560882+01	2026-01-18 20:15:32.525077+01	\N
-2	INV-20260111-J8I63C	E2E Test - First Team Player 2 - Youth Category	\N	50	t	5	2026-01-11 20:17:13.476874+01	1	2026-01-11 20:15:45.934735+01	2026-01-18 20:15:45.918707+01	\N
-3	INV-20260111-T7S3WI	E2E Test - First Team Player 3 - Amateur Category	\N	50	t	6	2026-01-11 20:17:47.951324+01	1	2026-01-11 20:15:59.381448+01	2026-01-18 20:15:59.344323+01	\N
+1	INV-20260120-W5239I	E2E Test - F1rstteam Player 1	\N	50	t	4	2026-01-20 19:10:30.270734+01	1	2026-01-20 19:09:13.247894+01	2026-01-27 19:09:13.238438+01	\N
+2	INV-20260120-CZMG95	E2E Test - F1rstteam Player 2	\N	50	t	5	2026-01-20 19:11:02.885802+01	1	2026-01-20 19:09:26.64622+01	2026-01-27 19:09:26.639401+01	\N
+3	INV-20260120-TVBQSA	E2E Test - F1rstteam Player 3	\N	50	t	6	2026-01-20 19:11:35.319341+01	1	2026-01-20 19:09:39.987751+01	2026-01-27 19:09:39.980505+01	\N
+4	INV-20260120-JTJA0Q	E2E Test - F1rstteam Player 4	\N	50	t	7	2026-01-20 19:12:08.603489+01	1	2026-01-20 19:09:53.294603+01	2026-01-27 19:09:53.28151+01	\N
 \.
 
 
@@ -5498,8 +5630,10 @@ COPY public.location_master_instructors (id, location_id, instructor_id, contrac
 -- Data for Name: locations; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.locations (id, name, city, postal_code, country, venue, address, notes, is_active, location_type, created_at, updated_at) FROM stdin;
-1	Test City Center	Budapest	1011	Hungary	\N	Test Address 123	\N	t	CENTER	2026-01-11 19:15:12.865736	2026-01-11 19:15:12.865747
+COPY public.locations (id, name, city, postal_code, country, country_code, location_code, venue, address, notes, is_active, location_type, created_at, updated_at) FROM stdin;
+1	Budapest Center	Budapest	1011	Hungary	HU	BDPST	\N	Váci utca 123	\N	t	CENTER	2026-01-20 18:08:55.006361	2026-01-20 18:08:55.006372
+2	Vienna Academy	Vienna	1010	Austria	AT	VIE	\N	Stephansplatz 1	\N	t	CENTER	2026-01-20 18:08:55.010486	2026-01-20 18:08:55.01049
+3	Bratislava Training Center	Bratislava	81101	Slovakia	SK	BTS	\N	Hviezdoslavovo námestie 1	\N	t	PARTNER	2026-01-20 18:08:55.011634	2026-01-20 18:08:55.011636
 \.
 
 
@@ -5675,7 +5809,10 @@ COPY public.semester_instructors (semester_id, instructor_id) FROM stdin;
 -- Data for Name: semesters; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.semesters (id, code, name, start_date, end_date, status, tournament_status, is_active, enrollment_cost, created_at, updated_at, master_instructor_id, specialization_type, age_group, theme, focus_description, campus_id, location_id, location_city, location_venue, location_address, tournament_type, participant_type, is_multi_day, reward_policy_name, reward_policy_snapshot) FROM stdin;
+COPY public.semesters (id, code, name, start_date, end_date, status, tournament_status, is_active, enrollment_cost, created_at, updated_at, master_instructor_id, specialization_type, age_group, theme, focus_description, campus_id, location_id, location_city, location_venue, location_address, tournament_type_id, tournament_type, participant_type, is_multi_day, sessions_generated, sessions_generated_at, assignment_type, max_players, reward_policy_name, reward_policy_snapshot) FROM stdin;
+1	TOURN-E2E-APP-001	E2E Test Tournament - APPLICATION_BASED	2026-02-15	2026-02-15	DRAFT	SEEKING_INSTRUCTOR	t	500	2026-01-20 19:08:55.722947	2026-01-20 19:08:55.722953	\N	LFA_FOOTBALL_PLAYER	YOUTH	\N	\N	1	1	\N	\N	\N	\N	\N	INDIVIDUAL	f	f	\N	APPLICATION_BASED	10	default	\N
+2	TOURN-E2E-OPEN-002	E2E Test Tournament - OPEN_ASSIGNMENT	2026-03-20	2026-03-20	DRAFT	READY_FOR_ENROLLMENT	t	500	2026-01-20 19:08:55.728038	2026-01-20 19:08:55.728043	3	LFA_FOOTBALL_PLAYER	YOUTH	\N	\N	2	2	\N	\N	\N	\N	\N	INDIVIDUAL	f	f	\N	OPEN_ASSIGNMENT	10	default	\N
+3	TOURN-DEB-U12-003	Bratislava U12 Championship	2026-04-10	2026-04-10	DRAFT	SEEKING_INSTRUCTOR	t	400	2026-01-20 19:08:55.730265	2026-01-20 19:08:55.730269	\N	LFA_FOOTBALL_PLAYER	YOUTH	\N	\N	3	3	\N	\N	\N	\N	\N	INDIVIDUAL	f	f	\N	APPLICATION_BASED	8	default	\N
 \.
 
 
@@ -5707,7 +5844,7 @@ COPY public.session_quizzes (id, session_id, quiz_id, is_required, max_attempts,
 -- Data for Name: sessions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.sessions (id, title, description, date_start, date_end, session_type, capacity, location, meeting_link, sport_type, level, instructor_name, semester_id, group_id, instructor_id, target_specialization, mixed_specialization, actual_start_time, actual_end_time, session_status, quiz_unlocked, base_xp, credit_cost, is_tournament_game, game_type, game_results, created_at, updated_at) FROM stdin;
+COPY public.sessions (id, title, description, date_start, date_end, session_type, capacity, location, meeting_link, sport_type, level, instructor_name, semester_id, group_id, instructor_id, target_specialization, mixed_specialization, actual_start_time, actual_end_time, session_status, quiz_unlocked, base_xp, credit_cost, is_tournament_game, game_type, game_results, auto_generated, tournament_phase, tournament_round, tournament_match_number, created_at, updated_at) FROM stdin;
 \.
 
 
@@ -5779,7 +5916,7 @@ COPY public.tournament_stats (id, tournament_id, total_participants, total_teams
 -- Data for Name: tournament_status_history; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.tournament_status_history (id, tournament_id, old_status, new_status, changed_by, changed_at, reason, metadata) FROM stdin;
+COPY public.tournament_status_history (id, tournament_id, old_status, new_status, changed_by, reason, extra_metadata, created_at) FROM stdin;
 \.
 
 
@@ -5788,6 +5925,18 @@ COPY public.tournament_status_history (id, tournament_id, old_status, new_status
 --
 
 COPY public.tournament_team_enrollments (id, semester_id, team_id, enrollment_date, payment_verified, is_active) FROM stdin;
+\.
+
+
+--
+-- Data for Name: tournament_types; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.tournament_types (id, code, display_name, description, min_players, max_players, requires_power_of_two, session_duration_minutes, break_between_sessions_minutes, config) FROM stdin;
+1	league	League (Round Robin)	Every player plays against every other player once. Best for smaller groups with balanced competition.	4	16	f	90	15	{"code": "league", "display_name": "League (Round Robin)", "description": "Every player plays against every other player once. Best for smaller groups with balanced competition.", "min_players": 4, "max_players": 16, "requires_power_of_two": false, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "n * (n - 1) / 2", "rounds_calculation": "n - 1 if n is even else n", "session_naming_pattern": "Round {round_number} - Match {match_number}", "placement_rules": {"primary": "wins", "tiebreakers": ["goal_difference", "goals_scored", "head_to_head"]}, "config_notes": ["Each player plays every other player exactly once", "Total matches = n*(n-1)/2 where n = player count", "Can run multiple matches in parallel if fields available", "Fair format - everyone gets equal opportunities"]}
+2	knockout	Single Elimination (Knockout)	Traditional knockout tournament - lose once and you're out. Fast and exciting.	4	64	t	90	15	{"code": "knockout", "display_name": "Single Elimination (Knockout)", "description": "Traditional knockout tournament - lose once and you're out. Fast and exciting.", "min_players": 4, "max_players": 64, "requires_power_of_two": true, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "n - 1", "rounds_calculation": "log2(n)", "session_naming_pattern": "{round_name} - Match {match_number}", "round_names": {"64": "Round of 64", "32": "Round of 32", "16": "Round of 16", "8": "Quarter-finals", "4": "Semi-finals", "2": "Final"}, "placement_rules": {"1": "Winner of final", "2": "Loser of final", "3": "Winners of 3rd place playoff (optional)", "4": "Loser of 3rd place playoff (optional)"}, "config_notes": ["Requires power-of-2 players (4, 8, 16, 32, 64)", "Total matches = n - 1", "Fastest tournament format", "Highly competitive - no second chances"], "third_place_playoff": true}
+3	group_knockout	Group Stage + Knockout	Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.	8	32	f	90	15	{"code": "group_knockout", "display_name": "Group Stage + Knockout", "description": "Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.", "min_players": 8, "max_players": 32, "requires_power_of_two": false, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "group_matches + knockout_matches", "rounds_calculation": "group_rounds + knockout_rounds", "session_naming_pattern": "{phase} - {round_name} - Match {match_number}", "phases": [{"name": "Group Stage", "format": "round_robin_within_groups", "groups_count": "dynamic", "players_per_group": 4, "top_qualifiers_per_group": 2}, {"name": "Knockout Stage", "format": "single_elimination", "seeding": "group_winners_vs_runners_up"}], "group_configuration": {"8_players": {"groups": 2, "players_per_group": 4, "qualifiers": 2}, "12_players": {"groups": 3, "players_per_group": 4, "qualifiers": 2}, "16_players": {"groups": 4, "players_per_group": 4, "qualifiers": 2}, "24_players": {"groups": 6, "players_per_group": 4, "qualifiers": 2}, "32_players": {"groups": 8, "players_per_group": 4, "qualifiers": 2}}, "placement_rules": {"group_stage": {"primary": "wins", "tiebreakers": ["goal_difference", "goals_scored", "head_to_head"]}, "knockout_stage": {"1": "Winner of final", "2": "Loser of final", "3-4": "Losers of semi-finals"}}, "config_notes": ["Group stage ensures everyone plays multiple matches", "Knockout stage provides exciting conclusion", "Most popular format for medium-large tournaments", "Balances fairness with entertainment value"]}
+4	swiss	Swiss System	Players with similar scores play each other. Fair and flexible format for any player count.	4	64	f	90	15	{"code": "swiss", "display_name": "Swiss System", "description": "Players with similar scores play each other. Fair and flexible format for any player count.", "min_players": 4, "max_players": 64, "requires_power_of_two": false, "session_duration_minutes": 90, "break_between_sessions_minutes": 15, "matches_calculation": "n * rounds / 2", "rounds_calculation": "ceil(log2(n))", "session_naming_pattern": "Round {round_number} - Match {match_number}", "pairing_algorithm": "swiss_pairing", "pairing_rules": ["Round 1: Random or seeded pairing", "Round 2+: Players with similar scores paired together", "Avoid repeat matchups if possible", "Handle odd number of players with byes"], "placement_rules": {"primary": "total_points", "tiebreakers": ["buchholz_score", "sonneborn_berger", "goal_difference", "goals_scored"]}, "config_notes": ["Flexible format - works with any player count", "Each round pairs players of similar strength", "Typical rounds = log2(players) rounded up", "Popular in chess, works well for football too", "No elimination - everyone plays all rounds"], "bye_handling": {"enabled": true, "points_awarded": 3, "max_byes_per_player": 1}}
 \.
 
 
@@ -5812,27 +5961,27 @@ COPY public.user_achievements (id, user_id, achievement_id, badge_type, title, d
 --
 
 COPY public.user_licenses (id, user_id, specialization_type, current_level, max_achieved_level, started_at, last_advanced_at, instructor_notes, payment_reference_code, payment_verified, payment_verified_at, onboarding_completed, onboarding_completed_at, is_active, issued_at, expires_at, last_renewed_at, renewal_cost, motivation_scores, average_motivation_score, motivation_last_assessed_at, motivation_assessed_by, football_skills, skills_last_updated_at, skills_updated_by, credit_balance, credit_purchased, credit_expires_at, created_at, updated_at) FROM stdin;
-1	3	LFA_FOOTBALL_PLAYER	1	1	2026-01-11 19:15:12.858906	\N	\N	\N	t	2026-01-11 19:15:12.858917	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860847	2026-01-11 20:15:12.860848
-2	3	LFA_FOOTBALL_PLAYER	2	2	2026-01-11 19:15:12.858982	\N	\N	\N	t	2026-01-11 19:15:12.858984	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.86085	2026-01-11 20:15:12.86085
-3	3	LFA_FOOTBALL_PLAYER	3	3	2026-01-11 19:15:12.859016	\N	\N	\N	t	2026-01-11 19:15:12.859017	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860851	2026-01-11 20:15:12.860851
-4	3	LFA_FOOTBALL_PLAYER	4	4	2026-01-11 19:15:12.85904	\N	\N	\N	t	2026-01-11 19:15:12.859041	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860852	2026-01-11 20:15:12.860852
-5	3	LFA_FOOTBALL_PLAYER	5	5	2026-01-11 19:15:12.859061	\N	\N	\N	t	2026-01-11 19:15:12.859061	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860853	2026-01-11 20:15:12.860854
-6	3	LFA_FOOTBALL_PLAYER	6	6	2026-01-11 19:15:12.85908	\N	\N	\N	t	2026-01-11 19:15:12.859081	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860854	2026-01-11 20:15:12.860855
-7	3	LFA_FOOTBALL_PLAYER	7	7	2026-01-11 19:15:12.8591	\N	\N	\N	t	2026-01-11 19:15:12.8591	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860855	2026-01-11 20:15:12.860856
-8	3	LFA_FOOTBALL_PLAYER	8	8	2026-01-11 19:15:12.859123	\N	\N	\N	t	2026-01-11 19:15:12.859124	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860856	2026-01-11 20:15:12.860857
-9	3	LFA_COACH	1	1	2026-01-11 19:15:12.859143	\N	\N	\N	t	2026-01-11 19:15:12.859144	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860857	2026-01-11 20:15:12.860858
-10	3	LFA_COACH	2	2	2026-01-11 19:15:12.859163	\N	\N	\N	t	2026-01-11 19:15:12.859164	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860858	2026-01-11 20:15:12.860859
-11	3	LFA_COACH	3	3	2026-01-11 19:15:12.859184	\N	\N	\N	t	2026-01-11 19:15:12.859184	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860859	2026-01-11 20:15:12.86086
-12	3	LFA_COACH	4	4	2026-01-11 19:15:12.859209	\N	\N	\N	t	2026-01-11 19:15:12.85921	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.86086	2026-01-11 20:15:12.860861
-13	3	LFA_COACH	5	5	2026-01-11 19:15:12.859229	\N	\N	\N	t	2026-01-11 19:15:12.85923	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860861	2026-01-11 20:15:12.860862
-14	3	LFA_COACH	6	6	2026-01-11 19:15:12.859249	\N	\N	\N	t	2026-01-11 19:15:12.85925	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860862	2026-01-11 20:15:12.860863
-15	3	LFA_COACH	7	7	2026-01-11 19:15:12.859274	\N	\N	\N	t	2026-01-11 19:15:12.859275	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860863	2026-01-11 20:15:12.860864
-16	3	LFA_COACH	8	8	2026-01-11 19:15:12.859294	\N	\N	\N	t	2026-01-11 19:15:12.859294	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860864	2026-01-11 20:15:12.860865
-17	3	INTERNSHIP	1	1	2026-01-11 19:15:12.859314	\N	\N	\N	t	2026-01-11 19:15:12.859315	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860865	2026-01-11 20:15:12.860866
-18	3	INTERNSHIP	2	2	2026-01-11 19:15:12.859333	\N	\N	\N	t	2026-01-11 19:15:12.859334	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860866	2026-01-11 20:15:12.860867
-19	3	INTERNSHIP	3	3	2026-01-11 19:15:12.859352	\N	\N	\N	t	2026-01-11 19:15:12.859353	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860867	2026-01-11 20:15:12.860868
-20	3	INTERNSHIP	4	4	2026-01-11 19:15:12.859371	\N	\N	\N	t	2026-01-11 19:15:12.859372	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860868	2026-01-11 20:15:12.860869
-21	3	INTERNSHIP	5	5	2026-01-11 19:15:12.85939	\N	\N	\N	t	2026-01-11 19:15:12.859391	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-11 20:15:12.860869	2026-01-11 20:15:12.86087
+1	3	LFA_FOOTBALL_PLAYER	1	1	2026-01-20 18:08:54.997382	\N	\N	\N	t	2026-01-20 18:08:54.997393	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999396	2026-01-20 19:08:54.999402
+2	3	LFA_FOOTBALL_PLAYER	2	2	2026-01-20 18:08:54.997459	\N	\N	\N	t	2026-01-20 18:08:54.99746	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999405	2026-01-20 19:08:54.999406
+3	3	LFA_FOOTBALL_PLAYER	3	3	2026-01-20 18:08:54.997489	\N	\N	\N	t	2026-01-20 18:08:54.99749	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999407	2026-01-20 19:08:54.999407
+4	3	LFA_FOOTBALL_PLAYER	4	4	2026-01-20 18:08:54.997513	\N	\N	\N	t	2026-01-20 18:08:54.997514	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999408	2026-01-20 19:08:54.999408
+5	3	LFA_FOOTBALL_PLAYER	5	5	2026-01-20 18:08:54.997539	\N	\N	\N	t	2026-01-20 18:08:54.99754	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999409	2026-01-20 19:08:54.999409
+6	3	LFA_FOOTBALL_PLAYER	6	6	2026-01-20 18:08:54.99756	\N	\N	\N	t	2026-01-20 18:08:54.99756	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.99941	2026-01-20 19:08:54.99941
+7	3	LFA_FOOTBALL_PLAYER	7	7	2026-01-20 18:08:54.99758	\N	\N	\N	t	2026-01-20 18:08:54.997581	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999411	2026-01-20 19:08:54.999411
+8	3	LFA_FOOTBALL_PLAYER	8	8	2026-01-20 18:08:54.997601	\N	\N	\N	t	2026-01-20 18:08:54.997601	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999412	2026-01-20 19:08:54.999412
+9	3	LFA_COACH	1	1	2026-01-20 18:08:54.997621	\N	\N	\N	t	2026-01-20 18:08:54.997622	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999413	2026-01-20 19:08:54.999413
+10	3	LFA_COACH	2	2	2026-01-20 18:08:54.997641	\N	\N	\N	t	2026-01-20 18:08:54.997642	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999414	2026-01-20 19:08:54.999414
+11	3	LFA_COACH	3	3	2026-01-20 18:08:54.997662	\N	\N	\N	t	2026-01-20 18:08:54.997663	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999415	2026-01-20 19:08:54.999415
+12	3	LFA_COACH	4	4	2026-01-20 18:08:54.997682	\N	\N	\N	t	2026-01-20 18:08:54.997683	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999416	2026-01-20 19:08:54.999416
+13	3	LFA_COACH	5	5	2026-01-20 18:08:54.997702	\N	\N	\N	t	2026-01-20 18:08:54.997703	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999417	2026-01-20 19:08:54.999417
+14	3	LFA_COACH	6	6	2026-01-20 18:08:54.997722	\N	\N	\N	t	2026-01-20 18:08:54.997722	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999418	2026-01-20 19:08:54.999418
+15	3	LFA_COACH	7	7	2026-01-20 18:08:54.997741	\N	\N	\N	t	2026-01-20 18:08:54.997742	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999419	2026-01-20 19:08:54.999419
+16	3	LFA_COACH	8	8	2026-01-20 18:08:54.997761	\N	\N	\N	t	2026-01-20 18:08:54.997762	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.99942	2026-01-20 19:08:54.99942
+17	3	INTERNSHIP	1	1	2026-01-20 18:08:54.997781	\N	\N	\N	t	2026-01-20 18:08:54.997782	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999421	2026-01-20 19:08:54.999421
+18	3	INTERNSHIP	2	2	2026-01-20 18:08:54.997801	\N	\N	\N	t	2026-01-20 18:08:54.997802	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999422	2026-01-20 19:08:54.999422
+19	3	INTERNSHIP	3	3	2026-01-20 18:08:54.997821	\N	\N	\N	t	2026-01-20 18:08:54.997822	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999423	2026-01-20 19:08:54.999423
+20	3	INTERNSHIP	4	4	2026-01-20 18:08:54.997841	\N	\N	\N	t	2026-01-20 18:08:54.997841	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999424	2026-01-20 19:08:54.999424
+21	3	INTERNSHIP	5	5	2026-01-20 18:08:54.99786	\N	\N	\N	t	2026-01-20 18:08:54.997861	t	\N	t	\N	\N	\N	1000	\N	\N	\N	\N	\N	\N	\N	0	0	\N	2026-01-20 19:08:54.999425	2026-01-20 19:08:54.999425
 \.
 
 
@@ -5873,11 +6022,12 @@ COPY public.user_track_progresses (id, user_id, track_id, enrollment_date, curre
 --
 
 COPY public.users (id, name, nickname, first_name, last_name, email, password_hash, role, is_active, onboarding_completed, phone, emergency_contact, emergency_phone, date_of_birth, medical_notes, interests, "position", nationality, gender, current_location, street_address, city, postal_code, country, specialization, payment_verified, payment_verified_at, payment_verified_by, credit_balance, credit_purchased, credit_payment_reference, nda_accepted, nda_accepted_at, nda_ip_address, parental_consent, parental_consent_at, parental_consent_by, created_at, updated_at, created_by) FROM stdin;
-1	Admin User	\N	\N	\N	admin@lfa.com	$2b$10$Nl7m1x4iUehrC0g3hdHjVO5Gvuq3FedPfeckFZe1rBnmNuWWgFNLm	ADMIN	t	t	\N	\N	\N	1990-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	0	0	\N	f	\N	\N	f	\N	\N	2026-01-11 19:15:12.682678	2026-01-11 20:15:12.790299	1
-3	Grand Master	\N	\N	\N	grandmaster@lfa.com	$2b$10$/sfDoxzgWxtLj/KqPGaxZuqS4u5a.rdYkCLJFxa7J.O9V.CpmHms.	INSTRUCTOR	t	t	\N	\N	\N	1985-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	5000	0	\N	f	\N	\N	f	\N	\N	2026-01-11 19:15:12.85731	2026-01-11 20:15:12.85803	1
-4	Kristóf Kis	Krisz	Kristóf	Kis	pwt.k1sqx1@f1stteam.hu	$2b$10$E2SXnufr259tgCxym79pp.WT3vhmBENprusxVqeEVVVWyLfrRdfJW	STUDENT	t	f	+36201234567	\N	\N	2014-05-15 00:00:00	\N	\N	\N	Hungarian	Male	\N	Fő utca 12	Budapest	1011	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-11 20:16:38.928071	2026-01-11 20:16:38.928098	\N
-5	Péter Pataki	Peti	Péter	Pataki	pwt.p3t1k3@f1stteam.hu	$2b$10$QV06Y0eNm0bVhxRa15EIyug61d7UwoKW38hGOeQ6kgdMCeIDFgr4W	STUDENT	t	f	+36302345678	\N	\N	2009-08-20 00:00:00	\N	\N	\N	Hungarian	Male	\N	Petőfi utca 34	Debrecen	4024	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-11 20:17:13.471435	2026-01-11 20:17:13.471444	\N
-6	Viktor Valverde	Viki	Viktor	Valverde	pwt.V4lv3rd3jr@f1stteam.hu	$2b$10$Ng7CwSNGFwyc56ghQ2hn5OZAGualf9V1KiGktLHrK8ijDR3wwR/sC	STUDENT	t	f	+36703456789	\N	\N	2004-11-12 00:00:00	\N	\N	\N	Hungarian	Male	\N	Rákóczi út 56	Szeged	6720	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-11 20:17:47.946817	2026-01-11 20:17:47.946827	\N
+1	Admin User	\N	\N	\N	admin@lfa.com	$2b$10$bjpU3WFRI4kWAog.6WjYK.nirb1erBuZRAvuZ3tK0JuzqUb/xgCHy	ADMIN	t	t	\N	\N	\N	1990-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	0	0	\N	f	\N	\N	f	\N	\N	2026-01-20 18:08:54.815211	2026-01-20 19:08:54.931405	1
+3	Grand Master	\N	\N	\N	grandmaster@lfa.com	$2b$10$55Gk5oVHNvov.EJst6qpdeXZ.mzgVunq8Z.QmDOtBpAk0Y1JeCVZW	INSTRUCTOR	t	t	\N	\N	\N	1985-01-01 00:00:00	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	5000	0	\N	f	\N	\N	f	\N	\N	2026-01-20 18:08:54.995621	2026-01-20 19:08:54.996338	1
+4	Tamás Juhász	K1sqx1	Tamás	Juhász	k1sqx1@f1rstteam.hu	$2b$10$HWXFxFkTa/fuQaWpqR27nuPfzXt/orQFsu6wkAU8vGrF9OWG8Et7S	STUDENT	t	f	+36301234567	\N	\N	2006-01-14 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 1	Budapest	1011	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-20 19:10:30.265608	2026-01-20 19:10:30.265618	\N
+5	Péter Nagy	P3t1k3	Péter	Nagy	p3t1k3@f1rstteam.hu	$2b$10$vhkmQn8ZqvSebeUzEDA3f.7/IVhheCfR8cZK1rlV.vLREwQgcZMAq	STUDENT	t	f	+36301234568	\N	\N	2007-12-15 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 2	Budapest	1012	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-20 19:11:02.878646	2026-01-20 19:11:02.878654	\N
+6	Péter Barna	V4lv3rd3Jr	Péter	Barna	v4lv3rd3jr@f1rstteam.hu	$2b$10$Ze9WwCeazzhuVnNGzTaVjOYTFSw35YpeexDHbC/Oyt47TZ576S1ZG	STUDENT	t	f	+36301234569	\N	\N	2007-12-06 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 3	Budapest	1013	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-20 19:11:35.307325	2026-01-20 19:11:35.307337	\N
+7	Tibor Lénárt	T1b1k3	Tibor	Lénárt	t1b1k3@f1rstteam.hu	$2b$10$V8mTVTe1NBapPBZypEPDR.Tz3Ivw3vZOS6UBGiTMVVCteIn1fEsLW	STUDENT	t	f	+36301234570	\N	\N	2007-05-15 00:00:00	\N	\N	\N	Hungarian	Male	\N	Test Street 4	Budapest	1014	Hungary	\N	f	\N	\N	50	0	\N	f	\N	\N	f	\N	\N	2026-01-20 19:12:08.599343	2026-01-20 19:12:08.599352	\N
 \.
 
 
@@ -5913,7 +6063,7 @@ SELECT pg_catalog.setval('public.attendance_id_seq', 1, false);
 -- Name: audit_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_logs_id_seq', 35, true);
+SELECT pg_catalog.setval('public.audit_logs_id_seq', 30, true);
 
 
 --
@@ -5955,7 +6105,7 @@ SELECT pg_catalog.setval('public.coupon_usages_id_seq', 1, false);
 -- Name: coupons_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.coupons_id_seq', 3, true);
+SELECT pg_catalog.setval('public.coupons_id_seq', 8, true);
 
 
 --
@@ -6046,7 +6196,7 @@ SELECT pg_catalog.setval('public.internship_levels_id_seq', 1, false);
 -- Name: invitation_codes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.invitation_codes_id_seq', 3, true);
+SELECT pg_catalog.setval('public.invitation_codes_id_seq', 4, true);
 
 
 --
@@ -6214,7 +6364,7 @@ SELECT pg_catalog.setval('public.semester_enrollments_id_seq', 1, false);
 -- Name: semesters_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.semesters_id_seq', 1, false);
+SELECT pg_catalog.setval('public.semesters_id_seq', 3, true);
 
 
 --
@@ -6309,6 +6459,13 @@ SELECT pg_catalog.setval('public.tournament_team_enrollments_id_seq', 1, false);
 
 
 --
+-- Name: tournament_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.tournament_types_id_seq', 4, true);
+
+
+--
 -- Name: user_achievements_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -6340,7 +6497,7 @@ SELECT pg_catalog.setval('public.user_stats_id_seq', 1, false);
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_id_seq', 6, true);
+SELECT pg_catalog.setval('public.users_id_seq', 7, true);
 
 
 --
@@ -6613,6 +6770,14 @@ ALTER TABLE ONLY public.location_master_instructors
 
 ALTER TABLE ONLY public.locations
     ADD CONSTRAINT locations_city_key UNIQUE (city);
+
+
+--
+-- Name: locations locations_location_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locations
+    ADD CONSTRAINT locations_location_code_key UNIQUE (location_code);
 
 
 --
@@ -6920,6 +7085,14 @@ ALTER TABLE ONLY public.tournament_team_enrollments
 
 
 --
+-- Name: tournament_types tournament_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.tournament_types
+    ADD CONSTRAINT tournament_types_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: tracks tracks_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -7206,6 +7379,13 @@ CREATE INDEX ix_belt_promotions_to_belt ON public.belt_promotions USING btree (t
 --
 
 CREATE INDEX ix_belt_promotions_user_license_id ON public.belt_promotions USING btree (user_license_id);
+
+
+--
+-- Name: ix_bookings_enrollment_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX ix_bookings_enrollment_id ON public.bookings USING btree (enrollment_id);
 
 
 --
@@ -7741,10 +7921,10 @@ CREATE UNIQUE INDEX ix_tournament_stats_tournament_id ON public.tournament_stats
 
 
 --
--- Name: ix_tournament_status_history_changed_at; Type: INDEX; Schema: public; Owner: postgres
+-- Name: ix_tournament_status_history_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX ix_tournament_status_history_changed_at ON public.tournament_status_history USING btree (changed_at);
+CREATE INDEX ix_tournament_status_history_id ON public.tournament_status_history USING btree (id);
 
 
 --
@@ -7773,6 +7953,20 @@ CREATE INDEX ix_tournament_team_enrollments_semester_id ON public.tournament_tea
 --
 
 CREATE INDEX ix_tournament_team_enrollments_team_id ON public.tournament_team_enrollments USING btree (team_id);
+
+
+--
+-- Name: ix_tournament_types_code; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX ix_tournament_types_code ON public.tournament_types USING btree (code);
+
+
+--
+-- Name: ix_tournament_types_id; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX ix_tournament_types_id ON public.tournament_types USING btree (id);
 
 
 --
@@ -7910,6 +8104,14 @@ ALTER TABLE ONLY public.belt_promotions
 
 ALTER TABLE ONLY public.belt_promotions
     ADD CONSTRAINT belt_promotions_user_license_id_fkey FOREIGN KEY (user_license_id) REFERENCES public.user_licenses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: bookings bookings_enrollment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.bookings
+    ADD CONSTRAINT bookings_enrollment_id_fkey FOREIGN KEY (enrollment_id) REFERENCES public.semester_enrollments(id);
 
 
 --
@@ -8633,6 +8835,14 @@ ALTER TABLE ONLY public.semesters
 
 
 --
+-- Name: semesters semesters_tournament_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.semesters
+    ADD CONSTRAINT semesters_tournament_type_id_fkey FOREIGN KEY (tournament_type_id) REFERENCES public.tournament_types(id) ON DELETE SET NULL;
+
+
+--
 -- Name: session_group_assignments session_group_assignments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -8829,7 +9039,7 @@ ALTER TABLE ONLY public.tournament_status_history
 --
 
 ALTER TABLE ONLY public.tournament_status_history
-    ADD CONSTRAINT tournament_status_history_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.semesters(id) ON DELETE CASCADE;
+    ADD CONSTRAINT tournament_status_history_tournament_id_fkey FOREIGN KEY (tournament_id) REFERENCES public.semesters(id);
 
 
 --
@@ -8980,5 +9190,5 @@ ALTER TABLE ONLY public.users
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Rai6k2cHWbRKC4bUwoDtVnegFU8Vs6jyXkTyHeGo5key3ZgwJ0vOjucOaMbMYWn
+\unrestrict sPB6h0NUl2JbsI3xD4MHCDzN8EXWh6VXOEUqjb1lyidFjjBzOeX8ABpoTWNMuPh
 

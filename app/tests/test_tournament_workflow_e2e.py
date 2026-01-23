@@ -70,11 +70,11 @@ class TestCompleteTournamentWorkflow:
         1. Create location and campus
         2. Create tournament with knockout type (8 players)
         3. Verify tournament in INSTRUCTOR_CONFIRMED status
-        4. Open enrollment (READY_FOR_ENROLLMENT)
+        4. Open enrollment (ENROLLMENT_OPEN)
         5. Create 8 test players
         6. Enroll all 8 players
         7. Verify enrollments in database
-        8. Close enrollment (transition to IN_PROGRESS)
+        8. Close enrollment (transition to ENROLLMENT_CLOSED → IN_PROGRESS)
         9. Generate tournament sessions (7 matches for 8 players)
         10. Verify session structure in database
         11. Simulate match results
@@ -319,14 +319,14 @@ class TestCompleteTournamentWorkflow:
         print(f"\n✅ STEP 2.5 VERIFIED: Instructor assigned successfully")
 
         # =====================================================================
-        # STEP 3: Open Enrollment (INSTRUCTOR_CONFIRMED → READY_FOR_ENROLLMENT)
+        # STEP 3: Open Enrollment (INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN)
         # =====================================================================
 
         open_enrollment_response = client.patch(
             f"/api/v1/tournaments/{tournament_id}/status",
             headers=headers,
             json={
-                "new_status": "READY_FOR_ENROLLMENT",
+                "new_status": "ENROLLMENT_OPEN",
                 "reason": "E2E Test: Opening enrollment"
             }
         )
@@ -335,7 +335,7 @@ class TestCompleteTournamentWorkflow:
         # Verify status transition
         db_session.expire(db_tournament)
         db_session.refresh(db_tournament)
-        assert db_tournament.tournament_status == "READY_FOR_ENROLLMENT"
+        assert db_tournament.tournament_status == "ENROLLMENT_OPEN"
 
         print(f"\n✅ STEP 3 VERIFIED: Enrollment opened")
         print(f"   ✓ New Status: {db_tournament.tournament_status}")
@@ -449,9 +449,26 @@ class TestCompleteTournamentWorkflow:
         print(f"   ✓ No bookings yet (sessions not generated)")
 
         # =====================================================================
-        # STEP 5: Close Enrollment (READY_FOR_ENROLLMENT → IN_PROGRESS)
+        # STEP 5: Close Enrollment and Start Tournament (ENROLLMENT_OPEN → ENROLLMENT_CLOSED → IN_PROGRESS)
         # =====================================================================
 
+        # First close enrollment
+        close_enrollment_response = client.patch(
+            f"/api/v1/tournaments/{tournament_id}/status",
+            headers=headers,
+            json={
+                "new_status": "ENROLLMENT_CLOSED",
+                "reason": "E2E Test: Closing enrollment"
+            }
+        )
+        assert close_enrollment_response.status_code == 200
+
+        db_session.expire(db_tournament)
+        db_session.refresh(db_tournament)
+        assert db_tournament.tournament_status == "ENROLLMENT_CLOSED"
+        print(f"\n✅ STEP 5a: Enrollment closed")
+
+        # Then start tournament
         start_tournament_response = client.patch(
             f"/api/v1/tournaments/{tournament_id}/status",
             headers=headers,
@@ -828,11 +845,11 @@ class TestCompleteTournamentWorkflow:
         )
         tournament_id = tournament_response.json()["id"]
 
-        # 4. Transition to IN_PROGRESS (required for session generation)
+        # 4. Transition to ENROLLMENT_OPEN (required for enrollment)
         client.patch(
             f"/api/v1/tournaments/{tournament_id}/status",
             headers=headers,
-            json={"new_status": "READY_FOR_ENROLLMENT", "reason": "Test"}
+            json={"new_status": "ENROLLMENT_OPEN", "reason": "Test"}
         )
 
         # Create minimal enrollments (4 players for knockout)

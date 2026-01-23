@@ -4,7 +4,7 @@ Students can enroll in available tournaments
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.api.deps import get_current_user
@@ -14,9 +14,15 @@ from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
 from app.models.session import Session as SessionModel
 from app.models.booking import Booking, BookingStatus
+from app.models.credit_transaction import CreditTransaction
 from app.schemas.tournament import EnrollmentResponse, EnrollmentConflict
-from app.services.age_category_service import get_automatic_age_category
+from app.services.age_category_service import (
+    get_automatic_age_category,
+    get_current_season_year,
+    calculate_age_at_season_start
+)
 from app.services.enrollment_conflict_service import EnrollmentConflictService
+from app.services.tournament.validation import validate_tournament_enrollment_age, check_duplicate_enrollment
 import logging
 
 router = APIRouter()
@@ -38,13 +44,13 @@ def enroll_in_tournament(
     **Authorization:** Student role only
 
     **Validations:**
-    1. Tournament exists and tournament_status is READY_FOR_ENROLLMENT, OPEN_FOR_ENROLLMENT, or IN_PROGRESS
+    1. Tournament exists and tournament_status is ENROLLMENT_OPEN or IN_PROGRESS
     2. Student has LFA_FOOTBALL_PLAYER license
-    3. Age category enrollment rules:
-       - PRE (5-13): Can ONLY enroll in PRE tournaments
-       - YOUTH (14-18): Can enroll in YOUTH OR AMATEUR (NOT PRO)
-       - AMATEUR (18+): Can ONLY enroll in AMATEUR tournaments
-       - PRO (18+): Can ONLY enroll in PRO tournaments
+    3. Age category enrollment rules (UPWARD ENROLLMENT - no instructor approval needed):
+       - PRE (5-13): Can enroll in PRE, YOUTH, AMATEUR, PRO (all above)
+       - YOUTH (14-18): Can enroll in YOUTH, AMATEUR, PRO (all above)
+       - AMATEUR (18+): Can enroll in AMATEUR, PRO (all above)
+       - PRO (18+): Can enroll in PRO only (already at top)
     4. Student not already enrolled
     5. Sufficient credit balance
     6. Conflict check (WARNING only, non-blocking)
@@ -71,10 +77,12 @@ def enroll_in_tournament(
         )
 
     # 2. Verify tournament status (check tournament_status field, NOT the old status field)
-    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "ENROLLMENT_OPEN", "IN_PROGRESS"]:
+    # Only ENROLLMENT_OPEN and IN_PROGRESS allow enrollment
+    # ENROLLMENT_CLOSED does NOT allow new enrollments (enrollment period ended)
+    if tournament.tournament_status not in ["ENROLLMENT_OPEN", "IN_PROGRESS"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tournament not ready for enrollment (tournament_status: {tournament.tournament_status})"
+            detail=f"Tournament not accepting enrollments (tournament_status: {tournament.tournament_status}). Only ENROLLMENT_OPEN and IN_PROGRESS tournaments accept enrollments."
         )
 
     # 2.5. Verify enrollment deadline (1 hour before first tournament session)
@@ -244,26 +252,28 @@ def enroll_in_tournament(
     credit_transaction.enrollment_id = enrollment.id
     db.add(credit_transaction)
 
-    # 11.7. Auto-create booking for tournament session (tournament enrollment = auto-booking)
-    # Get the tournament's session
-    tournament_session = db.query(SessionModel).filter(
+    # 11.7. Auto-create bookings for ALL tournament sessions (tournament enrollment = auto-booking)
+    # Get ALL the tournament's sessions
+    tournament_sessions = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id
-    ).first()
+    ).all()
 
-    if tournament_session:
-        # Create booking automatically LINKED to enrollment
-        booking = Booking(
-            user_id=current_user.id,
-            session_id=tournament_session.id,
-            enrollment_id=enrollment.id,  # ✅ NEW: Link to enrollment
-            status=BookingStatus.CONFIRMED,
-            created_at=datetime.utcnow()
-        )
-        db.add(booking)
-        db.flush()  # Get booking.id before commit
-        logger.info(f"✅ Auto-created booking {booking.id} for enrollment {enrollment.id}, session {tournament_session.id}")
+    if tournament_sessions:
+        for tournament_session in tournament_sessions:
+            # Create booking automatically LINKED to enrollment
+            booking = Booking(
+                user_id=current_user.id,
+                session_id=tournament_session.id,
+                enrollment_id=enrollment.id,  # ✅ NEW: Link to enrollment
+                status=BookingStatus.CONFIRMED,
+                created_at=datetime.utcnow()
+            )
+            db.add(booking)
+
+        db.flush()  # Get booking IDs before commit
+        logger.info(f"✅ Auto-created {len(tournament_sessions)} bookings for enrollment {enrollment.id}")
     else:
-        logger.warning(f"⚠️ No session found for tournament {tournament_id} - booking not created")
+        logger.warning(f"⚠️ No sessions found for tournament {tournament_id} - bookings not created")
 
     # 12. Commit transaction
     logger = logging.getLogger(__name__)

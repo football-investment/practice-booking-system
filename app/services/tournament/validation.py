@@ -18,11 +18,15 @@ def get_visible_tournament_age_groups(player_age_category: str) -> List[str]:
     """
     Determine which tournament age groups a player can see/enroll in.
 
-    Age Category Rules:
-    - PRE (5-13): Can ONLY see/enroll in PRE tournaments
-    - YOUTH (14-18): Can see/enroll in YOUTH OR AMATEUR (NOT PRO) - Special case!
-    - AMATEUR (18+): Can ONLY see/enroll in AMATEUR tournaments
-    - PRO (18+): Can ONLY see/enroll in PRO tournaments
+    Age Category Rules (UPWARD ENROLLMENT - no instructor approval needed):
+    - PRE (5-13): Can enroll in PRE, YOUTH, AMATEUR, PRO (all above)
+    - YOUTH (14-18): Can enroll in YOUTH, AMATEUR, PRO (all above)
+    - AMATEUR (18+): Can enroll in AMATEUR, PRO (all above)
+    - PRO (18+): Can enroll in PRO only (already at top)
+
+    This allows players to "move up" to higher age categories for tournaments
+    without requiring instructor approval, making the system more transparent
+    and user-friendly.
 
     Args:
         player_age_category: The player's age category (PRE, YOUTH, AMATEUR, PRO)
@@ -32,22 +36,26 @@ def get_visible_tournament_age_groups(player_age_category: str) -> List[str]:
 
     Example:
         >>> get_visible_tournament_age_groups("YOUTH")
-        ["YOUTH", "AMATEUR"]
+        ["YOUTH", "AMATEUR", "PRO"]
 
         >>> get_visible_tournament_age_groups("PRE")
-        ["PRE"]
+        ["PRE", "YOUTH", "AMATEUR", "PRO"]
+
+        >>> get_visible_tournament_age_groups("AMATEUR")
+        ["AMATEUR", "PRO"]
     """
-    if player_age_category == "PRE":
-        return ["PRE"]
-    elif player_age_category == "YOUTH":
-        # Special case: YOUTH can "move up" to AMATEUR but NOT PRO
-        return ["YOUTH", "AMATEUR"]
-    elif player_age_category in ["AMATEUR", "PRO"]:
-        # AMATEUR and PRO can only participate in their own category
-        return [player_age_category]
-    else:
+    # Age category hierarchy: PRE → YOUTH → AMATEUR → PRO
+    age_hierarchy = ["PRE", "YOUTH", "AMATEUR", "PRO"]
+
+    if player_age_category not in age_hierarchy:
         # Invalid category - return empty list
         return []
+
+    # Find player's position in hierarchy
+    player_index = age_hierarchy.index(player_age_category)
+
+    # Return all categories from player's level and above
+    return age_hierarchy[player_index:]
 
 
 def validate_tournament_enrollment_age(
@@ -57,7 +65,8 @@ def validate_tournament_enrollment_age(
     """
     Validate if a player can enroll in a tournament based on age category.
 
-    This function enforces strict age category rules for tournament enrollment.
+    This function enforces upward enrollment rules for tournament age categories.
+    Players can always enroll in their own age category or higher categories.
 
     Args:
         player_age_category: The player's age category (PRE, YOUTH, AMATEUR, PRO)
@@ -72,21 +81,25 @@ def validate_tournament_enrollment_age(
         >>> validate_tournament_enrollment_age("YOUTH", "AMATEUR")
         (True, None)
 
-        >>> validate_tournament_enrollment_age("PRE", "AMATEUR")
-        (False, "PRE category players can only enroll in PRE tournaments")
+        >>> validate_tournament_enrollment_age("YOUTH", "PRO")
+        (True, None)
+
+        >>> validate_tournament_enrollment_age("AMATEUR", "YOUTH")
+        (False, "AMATEUR category players cannot enroll in YOUTH tournaments (lower age category)")
     """
     visible_groups = get_visible_tournament_age_groups(player_age_category)
 
     if tournament_age_group not in visible_groups:
-        # Build specific error message based on player category
-        if player_age_category == "PRE":
-            return False, "PRE category players can only enroll in PRE tournaments"
-        elif player_age_category == "YOUTH":
-            return False, "YOUTH category players can enroll in YOUTH or AMATEUR tournaments only (not PRO)"
-        elif player_age_category in ["AMATEUR", "PRO"]:
-            return False, f"{player_age_category} category players can only enroll in {player_age_category} tournaments"
+        # Build error message for downward enrollment attempt
+        age_hierarchy = ["PRE", "YOUTH", "AMATEUR", "PRO"]
+        player_index = age_hierarchy.index(player_age_category) if player_age_category in age_hierarchy else -1
+        tournament_index = age_hierarchy.index(tournament_age_group) if tournament_age_group in age_hierarchy else -1
+
+        if player_index > tournament_index:
+            # Trying to enroll in a lower age category
+            return False, f"{player_age_category} category players cannot enroll in {tournament_age_group} tournaments (lower age category). You can only enroll in your age category or higher."
         else:
-            return False, f"Invalid age category: {player_age_category}"
+            return False, f"Invalid age category combination: {player_age_category} → {tournament_age_group}"
 
     return True, None
 

@@ -2,8 +2,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from datetime import datetime, timezone
+from sqlalchemy import func, and_
+from datetime import datetime, timezone, timedelta
 
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_or_instructor_user
@@ -11,10 +11,12 @@ from ....models.user import User
 from ....models.session import Session as SessionTypel
 from ....models.booking import Booking, BookingStatus
 from ....models.attendance import Attendance, AttendanceStatus
+from ....models.project import ProjectEnrollment, ProjectMilestone, ProjectMilestoneProgress, MilestoneStatus
 from ....schemas.attendance import (
     Attendance as AttendanceSchema, AttendanceCreate, AttendanceUpdate,
     AttendanceWithRelations, AttendanceList, AttendanceCheckIn
 )
+from sqlalchemy.orm import joinedload
 
 router = APIRouter()
 
@@ -27,33 +29,56 @@ def create_attendance(
 ) -> Any:
     """
     Create attendance record (Admin/Instructor only)
+
+    For regular sessions: booking_id is required
+    For tournament sessions: booking_id is optional (uses user_id + session_id)
     """
-    # Check if booking exists and is confirmed
-    booking = db.query(Booking).filter(Booking.id == attendance_data.booking_id).first()
-    if not booking:
+    # Get session first to determine if it's a tournament
+    session = db.query(SessionTypel).filter(SessionTypel.id == attendance_data.session_id).first()
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Booking not found"
+            detail="Session not found"
         )
 
-    if booking.status != BookingStatus.CONFIRMED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only create attendance for confirmed bookings"
-        )
-
-    # 🏆 TOURNAMENT VALIDATION: Check if session is a tournament game
-    session = db.query(SessionTypel).filter(SessionTypel.id == booking.session_id).first()
-    if session and session.is_tournament_game:
+    # 🏆 TOURNAMENT SESSION: No booking required
+    if session.is_tournament_game:
         # Tournament sessions ONLY support present/absent (NO late/excused)
         if attendance_data.status not in [AttendanceStatus.present, AttendanceStatus.absent]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Tournaments only support 'present' or 'absent' attendance. Received: '{attendance_data.status.value}'"
             )
-    
-    # Check if attendance already exists
-    existing_attendance = db.query(Attendance).filter(Attendance.booking_id == attendance_data.booking_id).first()
+
+        # Check if attendance already exists (by user_id + session_id)
+        existing_attendance = db.query(Attendance).filter(
+            Attendance.user_id == attendance_data.user_id,
+            Attendance.session_id == attendance_data.session_id
+        ).first()
+    else:
+        # 📅 REGULAR SESSION: Booking required
+        if not attendance_data.booking_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="booking_id is required for regular (non-tournament) sessions"
+            )
+
+        # Check if booking exists and is confirmed
+        booking = db.query(Booking).filter(Booking.id == attendance_data.booking_id).first()
+        if not booking:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Booking not found"
+            )
+
+        if booking.status != BookingStatus.CONFIRMED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Can only create attendance for confirmed bookings"
+            )
+
+        # Check if attendance already exists (by booking_id)
+        existing_attendance = db.query(Attendance).filter(Attendance.booking_id == attendance_data.booking_id).first()
 
     if existing_attendance:
         # UPDATE existing attendance
@@ -66,8 +91,8 @@ def create_attendance(
         db.commit()
         db.refresh(existing_attendance)
 
-        # Update milestone progress if attendance is marked as PRESENT
-        if existing_attendance.status == AttendanceStatus.PRESENT:
+        # Update milestone progress if attendance is marked as present
+        if existing_attendance.status == AttendanceStatus.present:
             _update_milestone_sessions_on_attendance(db, existing_attendance.user_id, existing_attendance.session_id)
 
         return existing_attendance
@@ -205,7 +230,7 @@ def checkin(
             user_id=current_user.id,
             session_id=session.id,
             booking_id=booking_id,
-            status=AttendanceStatus.PRESENT,
+            status=AttendanceStatus.present,
             check_in_time=current_time,
             notes=checkin_data.notes
         )
@@ -213,7 +238,7 @@ def checkin(
     else:
         # Update existing record
         attendance.check_in_time = current_time
-        attendance.status = AttendanceStatus.PRESENT
+        attendance.status = AttendanceStatus.present
         if checkin_data.notes:
             attendance.notes = checkin_data.notes
     

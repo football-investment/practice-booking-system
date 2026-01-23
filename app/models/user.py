@@ -95,6 +95,14 @@ class User(Base):
         comment="Unique payment reference code for credit purchases (közlemény)"
     )
 
+    # ⭐ XP SYSTEM: Experience Points (separate from credits)
+    xp_balance = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Current XP (Experience Points) - earned through training and tournaments"
+    )
+
     # 📄 NEW: NDA acceptance fields
     nda_accepted = Column(
         Boolean,
@@ -187,6 +195,13 @@ class User(Base):
     credit_transactions = relationship(
         "CreditTransaction",
         foreign_keys="CreditTransaction.user_id",
+        back_populates="user"
+    )
+
+    # ⭐ XP transaction relationships (experience points history)
+    xp_transactions = relationship(
+        "XPTransaction",
+        foreign_keys="XPTransaction.user_id",
         back_populates="user"
     )
 

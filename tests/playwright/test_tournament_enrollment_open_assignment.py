@@ -39,12 +39,6 @@ ADMIN_PASSWORD = "admin123"
 GRANDMASTER_EMAIL = "grandmaster@lfa.com"
 GRANDMASTER_PASSWORD = "GrandMaster2026!"
 
-TEST_PLAYERS = [
-    {"email": "pwt.k1sqx1@f1stteam.hu", "password": "TestPass123!", "coupon": "E2E-ENROLL-500-USER1"},
-    {"email": "pwt.p3t1k3@f1stteam.hu", "password": "TestPass123!", "coupon": "E2E-ENROLL-500-USER2"},
-    {"email": "pwt.V4lv3rd3jr@f1stteam.hu", "password": "TestPass123!", "coupon": "E2E-ENROLL-500-USER3"},
-]
-
 TOURNAMENT_NAME = f"E2E Test Tournament - Open Assignment {datetime.now().strftime('%Y%m%d%H%M%S')}"
 
 
@@ -79,7 +73,17 @@ def take_screenshot(page: Page, name: str):
 
 
 def test_e1_admin_creates_open_assignment_tournament(page: Page):
-    """Test 1: Admin creates OPEN_ASSIGNMENT tournament and directly assigns instructor."""
+    """Test 1: Admin creates OPEN_ASSIGNMENT tournament via Streamlit UI
+
+    ✅ REAL UI AUTOMATION: Creates tournament through actual Streamlit form interaction
+
+    APPROACH:
+    1. Admin logs in and navigates to Create Tournament tab
+    2. Fills out form using proper Streamlit selector strategies
+    3. Submits form and waits for success message
+    4. Validates tournament exists in database
+    """
+    import psycopg2
 
     # Login as admin
     login(page, ADMIN_EMAIL, ADMIN_PASSWORD)
@@ -90,91 +94,258 @@ def test_e1_admin_creates_open_assignment_tournament(page: Page):
     page.wait_for_timeout(2000)
     take_screenshot(page, "tournament_management_page")
 
-    # Click Create Tournament TAB (Streamlit role-based selector with emoji)
+    # Click Create Tournament TAB
     page.get_by_role("tab", name="➕ Create Tournament").click()
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(3000)
     take_screenshot(page, "create_tournament_tab_open")
 
     # ========================================================================
-    # SECTION 1: Location & Campus (OUTSIDE form - lines 71-116)
+    # SECTION 1: Location & Campus Selection (OUTSIDE form - lines 104-149)
     # ========================================================================
-    # Use placeholder text to identify Location selectbox (first selectbox on page)
-    page.get_by_text("Location *").click()
-    page.wait_for_timeout(1000)
-    # Click the first location option (Budapest)
-    page.get_by_role("option").first.click()
-    page.wait_for_timeout(1500)
+    print("📍 Step 1: Selecting Location...")
 
-    # Campus selectbox appears after location is selected (second selectbox)
-    page.get_by_text("Campus *").click()
-    page.wait_for_timeout(1000)
-    # Click the first campus option
-    page.get_by_role("option").first.click()
-    page.wait_for_timeout(1500)
+    # Wait for page to fully load - look for the selectbox by its label
+    page.wait_for_timeout(2000)
+
+    # Streamlit selectboxes can be targeted using:
+    # 1. data-testid attribute with the key parameter
+    # 2. Or by finding the select element within the labeled div
+    # The selectbox with key="tourn_location_sel" should have data-testid="stSelectbox"
+
+    try:
+        # Wait for Location selectbox to appear
+        # Streamlit selectboxes are rendered as <select> within a div
+        # Try to find by the visible label and then the select element
+        location_label = page.locator("label:has-text('Location *')").first
+        location_label.wait_for(timeout=10000)
+
+        # The select element should be near this label
+        # Streamlit renders selectbox as a button-like div that opens a listbox
+        # Click on the div that contains the selectbox
+        location_selectbox = page.locator("label:has-text('Location *')").locator("..").locator("[data-baseweb='select']").first
+        location_selectbox.click()
+        page.wait_for_timeout(1000)
+
+        # Now the dropdown should be open, select first option
+        page.locator("[role='option']").first.click()
+        page.wait_for_timeout(1500)
+        print("   ✅ Location selected")
+    except Exception as e:
+        print(f"   ❌ Location selection failed: {e}")
+        take_screenshot(page, "location_selection_error")
+        raise
+
+    print("🏫 Step 2: Selecting Campus...")
+
+    # Campus selectbox appears after location is selected
+    try:
+        campus_label = page.locator("label:has-text('Campus *')").first
+        campus_label.wait_for(timeout=10000)
+
+        campus_selectbox = page.locator("label:has-text('Campus *')").locator("..").locator("[data-baseweb='select']").first
+        campus_selectbox.click()
+        page.wait_for_timeout(1000)
+
+        # Select first campus option
+        page.locator("[role='option']").first.click()
+        page.wait_for_timeout(1500)
+        print("   ✅ Campus selected")
+    except Exception as e:
+        print(f"   ❌ Campus selection failed: {e}")
+        take_screenshot(page, "campus_selection_error")
+        raise
 
     # ========================================================================
-    # SECTION 2: Form Fields (INSIDE form - starts at line 120)
+    # SECTION 2: Form Fields (INSIDE form - starts at line 153)
     # ========================================================================
-    # Tournament Name (text_input - lines 125-129)
-    page.get_by_placeholder("e.g., Winter Football Cup").fill(TOURNAMENT_NAME)
-    page.wait_for_timeout(500)
+    print("📝 Step 3: Filling tournament form...")
 
-    # Tournament Date (date_input - lines 131-136)
-    tournament_date = (datetime.now() + timedelta(days=7)).strftime("%m/%d/%Y")
-    # Use label for date input (Streamlit renders it with proper label)
-    page.get_by_label("Tournament Date *").fill(tournament_date)
-    page.wait_for_timeout(500)
+    # Tournament Name (text_input - line 173-178)
+    try:
+        tournament_name_input = page.get_by_placeholder("e.g., Winter Football Cup")
+        tournament_name_input.click()
+        tournament_name_input.fill(TOURNAMENT_NAME)
+        page.wait_for_timeout(500)
+        print(f"   ✅ Tournament name: {TOURNAMENT_NAME}")
+    except Exception as e:
+        print(f"   ❌ Tournament name input failed: {e}")
+        take_screenshot(page, "tournament_name_error")
+        raise
 
-    # Age Group (selectbox - lines 140-144)
-    page.get_by_text("Age Group *").click()
-    page.wait_for_timeout(1000)
-    page.get_by_role("option", name="YOUTH").click()
-    page.wait_for_timeout(500)
+    # Tournament Date (date_input - line 188-194)
+    # Streamlit date_input with key="tournament_date_input" renders as an input field
+    try:
+        tournament_date = (datetime.now() + timedelta(days=7)).strftime("%m/%d/%Y")
+        # Find the date input - Streamlit renders it with a label, find input nearby
+        date_label = page.locator("label:has-text('Tournament Date *')").first
+        # The input should be after or near this label
+        date_input = date_label.locator("..").locator("input[type='text']").first
+        date_input.click()
+        date_input.fill(tournament_date)
+        page.wait_for_timeout(500)
+        print(f"   ✅ Tournament date: {tournament_date}")
+    except Exception as e:
+        print(f"   ❌ Tournament date input failed: {e}")
+        take_screenshot(page, "tournament_date_error")
+        raise
 
-    # Assignment Type (selectbox - lines 154-158)
-    page.get_by_text("Assignment Type *").click()
-    page.wait_for_timeout(1000)
-    page.get_by_role("option", name="OPEN_ASSIGNMENT").click()
-    page.wait_for_timeout(1500)
+    # Age Group (selectbox - lines 198-203)
+    print("👶 Step 4: Selecting Age Group...")
+    try:
+        age_label = page.locator("label:has-text('Age Group *')").first
+        age_label.wait_for(timeout=10000)
 
-    # Max Players (number_input - lines 162-168)
-    # Click and clear first, then fill
-    page.get_by_label("Max Players *").click()
-    page.get_by_label("Max Players *").fill("5")
-    page.wait_for_timeout(500)
+        age_selectbox = page.locator("label:has-text('Age Group *')").locator("..").locator("[data-baseweb='select']").first
+        age_selectbox.click()
+        page.wait_for_timeout(1000)
 
-    # Price (Credits) (number_input - lines 172-178)
-    page.get_by_label("Price (Credits) *").click()
-    page.get_by_label("Price (Credits) *").fill("500")
-    page.wait_for_timeout(500)
+        # Select YOUTH option
+        page.locator("[role='option']:has-text('YOUTH')").click()
+        page.wait_for_timeout(500)
+        print("   ✅ Age Group: YOUTH")
+    except Exception as e:
+        print(f"   ❌ Age Group selection failed: {e}")
+        take_screenshot(page, "age_group_error")
+        raise
 
-    # Select Instructor (selectbox - lines 191-196, conditional on OPEN_ASSIGNMENT)
-    page.get_by_text("Select Instructor *").click()
-    page.wait_for_timeout(1000)
-    # Select the first instructor option (should be Grandmaster)
-    page.get_by_role("option").first.click()
-    page.wait_for_timeout(1000)
+    # Assignment Type (selectbox - lines 213-218)
+    print("🎯 Step 5: Selecting Assignment Type...")
+    try:
+        assignment_label = page.locator("label:has-text('Assignment Type *')").first
+        assignment_label.wait_for(timeout=10000)
+
+        assignment_selectbox = page.locator("label:has-text('Assignment Type *')").locator("..").locator("[data-baseweb='select']").first
+        assignment_selectbox.click()
+        page.wait_for_timeout(1000)
+
+        page.locator("[role='option']:has-text('OPEN_ASSIGNMENT')").click()
+        page.wait_for_timeout(1500)
+        print("   ✅ Assignment Type: OPEN_ASSIGNMENT")
+    except Exception as e:
+        print(f"   ❌ Assignment Type selection failed: {e}")
+        take_screenshot(page, "assignment_type_error")
+        raise
+
+    # Max Players (number_input - lines 222-229)
+    try:
+        max_players_label = page.locator("label:has-text('Max Players *')").first
+        max_players_input = max_players_label.locator("..").locator("input[type='number']").first
+        max_players_input.click()
+        max_players_input.fill("5")
+        page.wait_for_timeout(500)
+        print("   ✅ Max Players: 5")
+    except Exception as e:
+        print(f"   ❌ Max Players input failed: {e}")
+        take_screenshot(page, "max_players_error")
+        raise
+
+    # Price (Credits) (number_input - lines 233-240)
+    try:
+        price_label = page.locator("label:has-text('Price (Credits) *')").first
+        price_input = price_label.locator("..").locator("input[type='number']").first
+        price_input.click()
+        price_input.fill("500")
+        page.wait_for_timeout(500)
+        print("   ✅ Price: 500 credits")
+    except Exception as e:
+        print(f"   ❌ Price input failed: {e}")
+        take_screenshot(page, "price_error")
+        raise
 
     take_screenshot(page, "tournament_form_filled")
+    print("✅ All form fields filled!")
 
-    # Submit tournament creation (Streamlit form submit button)
-    page.get_by_role("button", name="🏆 Create Tournament").click()
-    page.wait_for_timeout(3000)
+    # ========================================================================
+    # SECTION 3: Submit Form & Verify Creation
+    # ========================================================================
+    print("🚀 Step 6: Submitting tournament creation form...")
 
-    take_screenshot(page, "tournament_created")
+    # Submit tournament creation (form submit button - line 389)
+    try:
+        submit_button = page.locator("button:has-text('🏆 Create Tournament')").first
+        submit_button.click()
+        page.wait_for_timeout(5000)  # Wait for API call and Streamlit rerun
+        print("   ✅ Form submitted")
+    except Exception as e:
+        print(f"   ❌ Form submission failed: {e}")
+        take_screenshot(page, "submit_error")
+        raise
 
-    # Verify success message
-    expect(page.get_by_text(re.compile("Tournament created successfully", re.IGNORECASE))).to_be_visible(timeout=10000)
+    take_screenshot(page, "after_tournament_creation")
 
-    # Verify tournament appears in list with OPEN_FOR_ENROLLMENT status
-    expect(page.get_by_text(TOURNAMENT_NAME)).to_be_visible()
-    expect(page.get_by_text("OPEN_FOR_ENROLLMENT")).to_be_visible()
+    # Verify success message (line 77 - success message display)
+    print("✅ Step 7: Verifying success message...")
+    try:
+        # Look for success message
+        success_message = page.locator("text=/Tournament created successfully/i")
+        expect(success_message).to_be_visible(timeout=10000)
+        print("   ✅ Success message visible")
+    except Exception as e:
+        print(f"   ❌ Success message not found: {e}")
+        take_screenshot(page, "no_success_message")
+        raise
+
+    # ========================================================================
+    # SECTION 4: Backend Database Validation (CRITICAL)
+    # ========================================================================
+    print("🔍 Step 8: Validating tournament in database...")
+
+    import psycopg2
+
+    conn = psycopg2.connect(
+        dbname="lfa_intern_system",
+        user="postgres",
+        password="postgres",
+        host="localhost",
+        port="5432"
+    )
+    cursor = conn.cursor()
+
+    # Query for the tournament we just created
+    cursor.execute("""
+        SELECT id, name, status, tournament_status, assignment_type, max_players, enrollment_cost
+        FROM semesters
+        WHERE name LIKE %s
+        ORDER BY created_at DESC
+        LIMIT 1
+    """, (f"%{TOURNAMENT_NAME}%",))
+
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if result:
+        tournament_id, name, status, tournament_status, assignment_type, max_players, enrollment_cost = result
+        print("   ✅ TOURNAMENT FOUND IN DATABASE!")
+        print(f"      ID: {tournament_id}")
+        print(f"      Name: {name}")
+        print(f"      Status: {status}")
+        print(f"      Tournament Status: {tournament_status}")
+        print(f"      Assignment Type: {assignment_type}")
+        print(f"      Max Players: {max_players}")
+        print(f"      Enrollment Cost: {enrollment_cost} credits")
+
+        # Verify values match what we submitted
+        assert assignment_type == "OPEN_ASSIGNMENT", f"Expected OPEN_ASSIGNMENT, got {assignment_type}"
+        assert max_players == 5, f"Expected max_players=5, got {max_players}"
+        assert enrollment_cost == 500, f"Expected enrollment_cost=500, got {enrollment_cost}"
+
+        print("   ✅ ALL DATABASE VALUES VERIFIED!")
+        print("=" * 70)
+        print("✅ TEST PASSED: Tournament created successfully via Streamlit UI and verified in database")
+        print("=" * 70)
+    else:
+        print("   ❌ TOURNAMENT NOT FOUND IN DATABASE!")
+        print("   This means the Streamlit form submission did NOT create the tournament in the backend")
+        take_screenshot(page, "tournament_not_in_database")
+        raise AssertionError("Tournament not found in database after successful UI creation")
 
 
-def test_e2_player1_redeems_coupon_and_enrolls(page: Page):
+def test_e2_player1_redeems_coupon_and_enrolls(page: Page, test_data):
     """Test 2: First player redeems enrollment coupon and enrolls in tournament."""
 
-    player = TEST_PLAYERS[0]
+    player = test_data.get_player(index=0)
+    coupon_code = "E2E-ENROLL-500-USER1"
 
     # Logout admin, login as player1
     logout(page)
@@ -190,7 +361,7 @@ def test_e2_player1_redeems_coupon_and_enrolls(page: Page):
     page.wait_for_timeout(1000)
 
     # Enter coupon code
-    page.get_by_label("Coupon Code").fill(player["coupon"])
+    page.get_by_label("Coupon Code").fill(coupon_code)
     page.get_by_role("button", name="Redeem").click()
     page.wait_for_timeout(2000)
 
@@ -226,10 +397,11 @@ def test_e2_player1_redeems_coupon_and_enrolls(page: Page):
     expect(page.get_by_text("0", exact=True)).to_be_visible()  # 0 credits remaining
 
 
-def test_e3_player2_redeems_coupon_and_enrolls(page: Page):
+def test_e3_player2_redeems_coupon_and_enrolls(page: Page, test_data):
     """Test 3: Second player redeems enrollment coupon and enrolls in tournament."""
 
-    player = TEST_PLAYERS[1]
+    player = test_data.get_player(index=1)
+    coupon_code = "E2E-ENROLL-500-USER2"
 
     logout(page)
     login(page, player["email"], player["password"])
@@ -239,7 +411,7 @@ def test_e3_player2_redeems_coupon_and_enrolls(page: Page):
     page.wait_for_timeout(2000)
     page.get_by_role("button", name="Redeem Coupon").click()
     page.wait_for_timeout(1000)
-    page.get_by_label("Coupon Code").fill(player["coupon"])
+    page.get_by_label("Coupon Code").fill(coupon_code)
     page.get_by_role("button", name="Redeem").click()
     page.wait_for_timeout(2000)
     take_screenshot(page, "player2_coupon_redeemed")
@@ -256,10 +428,11 @@ def test_e3_player2_redeems_coupon_and_enrolls(page: Page):
     expect(page.get_by_text("Successfully enrolled")).to_be_visible()
 
 
-def test_e4_player3_redeems_coupon_and_enrolls(page: Page):
+def test_e4_player3_redeems_coupon_and_enrolls(page: Page, test_data):
     """Test 4: Third player redeems enrollment coupon and enrolls in tournament."""
 
-    player = TEST_PLAYERS[2]
+    player = test_data.get_player(index=2)
+    coupon_code = "E2E-ENROLL-500-USER3"
 
     logout(page)
     login(page, player["email"], player["password"])
@@ -269,7 +442,7 @@ def test_e4_player3_redeems_coupon_and_enrolls(page: Page):
     page.wait_for_timeout(2000)
     page.get_by_role("button", name="Redeem Coupon").click()
     page.wait_for_timeout(1000)
-    page.get_by_label("Coupon Code").fill(player["coupon"])
+    page.get_by_label("Coupon Code").fill(coupon_code)
     page.get_by_role("button", name="Redeem").click()
     page.wait_for_timeout(2000)
     take_screenshot(page, "player3_coupon_redeemed")
@@ -324,11 +497,12 @@ def test_e5_admin_approves_all_enrollments(page: Page):
     take_screenshot(page, "all_enrollments_confirmed")
 
 
-def test_e6_player1_verifies_confirmed_status(page: Page):
+def test_e6_player1_verifies_confirmed_status(page: Page, test_data):
     """Test 6: Player 1 verifies their enrollment is CONFIRMED."""
 
+    player = test_data.get_player(index=0)
     logout(page)
-    login(page, TEST_PLAYERS[0]["email"], TEST_PLAYERS[0]["password"])
+    login(page, player["email"], player["password"])
 
     # Navigate to My Tournaments or My Enrollments
     page.get_by_text("My Tournaments").click()

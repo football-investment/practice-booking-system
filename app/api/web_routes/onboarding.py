@@ -7,10 +7,12 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone
+import traceback
 
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User
+from ...models.license import UserLicense  # ✅ CRITICAL FIX: Missing import causing NameError
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -229,7 +231,7 @@ async def lfa_player_onboarding_cancel(
 async def lfa_player_onboarding_submit(
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user)  # Uses Bearer token from Streamlit API call
 ):
     """
     Process LFA Player onboarding questionnaire

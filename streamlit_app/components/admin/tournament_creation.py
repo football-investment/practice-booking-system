@@ -59,13 +59,14 @@ def render_reward_distribution_section(token: str, tournament: Dict):
                     response = requests.post(
                         f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
                         headers={"Authorization": f"Bearer {token}"},
+                        json={"reason": f"Reward distribution for tournament: {tournament_name}"},
                         timeout=API_TIMEOUT
                     )
 
                     if response.status_code == 200:
                         result = response.json()
 
-                        st.success("✅ **Rewards distributed successfully!**")
+                        st.success(f"✅ **{result.get('message', 'Rewards distributed successfully!')}**")
 
                         # Display distribution summary
                         col_a, col_b, col_c = st.columns(3)
@@ -73,39 +74,42 @@ def render_reward_distribution_section(token: str, tournament: Dict):
                         with col_a:
                             st.metric(
                                 "👥 Participants",
-                                result.get('total_participants', 0)
+                                result.get('rewards_distributed', 0)
                             )
 
                         with col_b:
                             st.metric(
                                 "⭐ Total XP",
-                                result.get('xp_distributed', 0)
+                                result.get('total_xp_awarded', 0)
                             )
 
                         with col_c:
                             st.metric(
                                 "💰 Total Credits",
-                                result.get('credits_distributed', 0)
+                                result.get('total_credits_awarded', 0)
                             )
 
                         # Show individual rewards if available
-                        if 'rewards' in result:
+                        if 'rewards' in result and result['rewards']:
                             st.divider()
-                            st.caption("**Individual Rewards:**")
+                            st.subheader("🏆 Individual Rewards")
 
-                            for reward in result.get('rewards', []):
-                                placement = reward.get('placement', 'N/A')
+                            for reward in result['rewards']:
+                                rank = reward.get('rank', 'N/A')
                                 player_name = reward.get('player_name', 'Unknown')
+                                player_email = reward.get('player_email', '')
                                 xp = reward.get('xp', 0)
                                 credits = reward.get('credits', 0)
 
-                                st.caption(
-                                    f"• **{placement}** - {player_name}: "
-                                    f"+{xp} XP, +{credits} credits"
+                                # Medal emoji based on rank
+                                medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🎖️"
+
+                                st.markdown(
+                                    f"{medal} **#{rank} - {player_name}** ({player_email}): "
+                                    f"**+{credits} credits**, +{xp} XP"
                                 )
 
-                        time.sleep(2)
-                        st.rerun()
+                        st.info("ℹ️ Rewards have been distributed. Refresh the page to see updated tournament status.")
 
                     else:
                         error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}

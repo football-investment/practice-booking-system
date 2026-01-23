@@ -11,62 +11,45 @@ def get_instructor_coach_level(token: str) -> int:
     """
     Get the instructor's highest LFA_COACH license level.
 
-    This is a WORKAROUND: Since there's no /api/v1/user-licenses/me endpoint,
-    we query the database directly using a SQL-like approach through the users endpoint.
-
-    For now, we'll use a simpler approach: check the user's profile data
-    which may include license information, or query the database directly.
+    Uses /api/v1/licenses/my-licenses endpoint (proper API approach).
 
     Returns:
         int: Highest coach level (1-8), or 0 if no LFA_COACH license found
     """
     try:
-        # WORKAROUND: Query database directly since API endpoint doesn't exist
-        # We'll need to implement this properly on the backend
-        # For now, return a default based on user email for testing
-
-        # Get current user info
+        # Use /my-licenses endpoint (works with current user's token)
         response = requests.get(
-            f"{API_BASE_URL}/api/v1/users/me",
+            f"{API_BASE_URL}/api/v1/licenses/my-licenses",
             headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
         if response.status_code == 200:
-            user_data = response.json()
-            user_id = user_data.get('id')
+            licenses = response.json()  # API returns a list directly
 
-            # Query database directly (temporary solution)
-            import psycopg2
-            conn = psycopg2.connect(
-                host="localhost",
-                database="lfa_intern_system",
-                user="postgres",
-                password="postgres",
-                port=5432
-            )
-            cur = conn.cursor()
+            # Handle both list and dict formats
+            if isinstance(licenses, dict):
+                licenses = licenses.get('licenses', [])
 
-            # Get highest LFA_COACH license level
-            cur.execute("""
-                SELECT MAX(current_level)
-                FROM user_licenses
-                WHERE user_id = %s AND specialization_type = 'LFA_COACH'
-            """, (user_id,))
+            # Find LFA_COACH license and get level (highest level if multiple)
+            coach_licenses = [
+                lic for lic in licenses
+                if lic.get('specialization_type') == 'LFA_COACH' and lic.get('is_active', True)
+            ]
 
-            result = cur.fetchone()
-            cur.close()
-            conn.close()
-
-            if result and result[0] is not None:
-                level = int(result[0])
-                print(f"✅ Coach level for user_id={user_id}: {level}")
+            if coach_licenses:
+                # Get highest level if multiple LFA_COACH licenses exist
+                coach_license = max(coach_licenses, key=lambda x: x.get('current_level', 0))
+                level = coach_license.get('current_level', 0)
+                print(f"✅ Instructor has LFA_COACH license: Level {level}")
                 return level
             else:
-                print(f"⚠️ No LFA_COACH license found for user_id={user_id}")
-
-        print(f"⚠️ API call failed with status {response.status_code}")
-        return 0
+                print(f"⚠️ No LFA_COACH license found for current user")
+                return 0
+        else:
+            print(f"⚠️ API call to /my-licenses failed with status {response.status_code}")
+            print(f"   Response: {response.text[:200]}")
+            return 0
     except Exception as e:
         # Fallback: return 0 if any error occurs
         import traceback
@@ -237,7 +220,7 @@ def accept_assignment(token: str, tournament_id: int) -> bool:
     """
     try:
         response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor/accept",
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/instructor-assignment/accept",
             headers={"Authorization": f"Bearer {token}"},
             json={},  # Empty request body required by endpoint
             timeout=API_TIMEOUT

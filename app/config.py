@@ -39,8 +39,12 @@ def get_secret_key() -> str:
 
 
 def get_cors_origins() -> list[str]:
-    """Get CORS origins - localhost for testing, explicit allowlist for production"""
-    if is_testing():
+    """Get CORS origins - localhost for testing/development, explicit allowlist for production"""
+    # Check ENVIRONMENT variable directly (not is_testing() to avoid import issues)
+    env = os.getenv("ENVIRONMENT", "development")
+
+    # Development or test mode: allow localhost
+    if env in ("development", "test", "testing"):
         return [
             "http://localhost:8501",
             "http://localhost:8000",
