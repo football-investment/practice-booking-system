@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from typing import Any, List, Dict, Optional
+from typing import Any
 from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user, get_current_admin_user_web
-from .....models.user import User, UserRole
+from .....dependencies import get_current_admin_user
+from .....models.user import User
 from .....models.invoice_request import InvoiceRequest
 
 
@@ -33,10 +33,10 @@ async def verify_invoice_payment(
     request: Request,
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    Verify invoice payment and add credits to student account (Admin only)
+    Verify invoice payment and add credits to student account (Admin only) - Supports both Bearer token and cookie auth
     """
     # Get invoice
     invoice = db.query(InvoiceRequest).filter(
@@ -121,10 +121,10 @@ async def cancel_invoice(
     invoice_id: int,
     cancellation_request: InvoiceCancellationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    Cancel an invoice request (Admin only)
+    Cancel an invoice request (Admin only) - Supports both Bearer token and cookie auth
     """
     # Get invoice
     invoice = db.query(InvoiceRequest).filter(
@@ -185,10 +185,10 @@ async def unverify_invoice_payment(
     request: Request,
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
-    Unverify invoice payment and revert credits (Admin only)
+    Unverify invoice payment and revert credits (Admin only) - Supports both Bearer token and cookie auth
     This reverses the verification: removes credits and sets status back to pending
     """
     # Get invoice

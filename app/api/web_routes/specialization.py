@@ -2,17 +2,19 @@
 Specialization-related routes (unlock, motivation, switch)
 """
 from fastapi import APIRouter, Request, Depends, HTTPException, Form, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from pathlib import Path
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone
 
 from ...database import get_db
-from ...dependencies import get_current_user_web, get_current_user_optional
-from ...models.user import User, UserRole
-from .helpers import update_specialization_xp, get_lfa_age_category
+from ...dependencies import get_current_user_web, get_current_user
+from ...models.user import User
+from ...models.license import UserLicense
+from ...models.credit_transaction import CreditTransaction, TransactionType
+from ...models.specialization import SpecializationType
+from ...utils.age_requirements import validate_specialization_for_age
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -23,18 +25,96 @@ router = APIRouter()
 
 @router.post("/specialization/unlock")
 async def specialization_unlock(
-    request: Request,
     specialization: str = Form(...),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Unlock a specialization from the dashboard (costs 100 credits)
-    This is the NEW flow - credit-based unlock system
+    Unlock a specialization from Streamlit (costs 100 credits)
+    Uses Bearer token authentication for Streamlit frontend
+
+    BUSINESS LOGIC:
+    - All specializations are VISIBLE to all users (for motivation/future planning)
+    - Age requirement is ONLY enforced at UNLOCK time
     """
-    # Delegate to the existing specialization_select_submit function
-    # which already handles the credit deduction and license creation
-    return await specialization_select_submit(request, specialization, db, user)
+    if current_user.credit_balance < 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient credits. You have {current_user.credit_balance} credits, but need 100."
+        )
+
+    # Map specialization enum
+    spec_mapping = {
+        "LFA_PLAYER": SpecializationType.LFA_FOOTBALL_PLAYER,
+        "LFA_COACH": SpecializationType.LFA_COACH,
+        "INTERNSHIP": SpecializationType.INTERNSHIP,
+        "GANCUJU_PLAYER": SpecializationType.GANCUJU_PLAYER
+    }
+
+    spec_type = spec_mapping.get(specialization)
+    if not spec_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid specialization: {specialization}"
+        )
+
+    # ✅ AGE REQUIREMENT VALIDATION (Business requirement)
+    # Check if user meets age requirement for this specialization
+    if not validate_specialization_for_age(specialization, current_user.age):
+        # Get age requirement text for error message
+        age_requirements = {
+            "INTERNSHIP": "18+",
+            "LFA_COACH": "14+",
+            "GANCUJU_PLAYER": "5+",
+            "LFA_PLAYER": "5+"
+        }
+        required_age = age_requirements.get(specialization, "unknown")
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Age requirement not met. This specialization requires age {required_age}. Your current age: {current_user.age or 'not set'}."
+        )
+
+    # Deduct credits (only after all validations pass)
+    current_user.credit_balance -= 100
+
+    # Create user license
+    new_license = UserLicense(
+        user_id=current_user.id,
+        specialization_type=spec_type.value,
+        current_level=1,
+        max_achieved_level=1,
+        started_at=datetime.utcnow(),
+        payment_verified=True,
+        payment_verified_at=datetime.utcnow(),
+        onboarding_completed=False,
+        is_active=True
+    )
+    db.add(new_license)
+    db.flush()  # Get the ID
+
+    # Create credit transaction
+    credit_transaction = CreditTransaction(
+        user_license_id=new_license.id,
+        amount=-100,
+        transaction_type=TransactionType.PURCHASE.value,
+        description=f"Unlocked specialization: {spec_type.value}",
+        balance_after=current_user.credit_balance,
+        created_at=datetime.utcnow()
+    )
+    db.add(credit_transaction)
+
+    # Update user specialization
+    current_user.specialization = spec_type.value
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Specialization unlocked successfully",
+        "new_balance": current_user.credit_balance,
+        "license_id": new_license.id
+    }
 
 
 @router.get("/specialization/motivation", response_class=HTMLResponse)
@@ -45,9 +125,6 @@ async def student_motivation_questionnaire_page(
     user: User = Depends(get_current_user_web)
 ):
     """Student self-assessment motivation questionnaire (part of onboarding)"""
-    from ...models.specialization import SpecializationType
-
-    # Validate specialization parameter
     try:
         spec_type = SpecializationType(spec)
     except ValueError:
@@ -82,9 +159,6 @@ async def student_motivation_questionnaire_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Process student's motivation self-assessment and complete onboarding"""
-    from ...models.specialization import SpecializationType
-    from ...models.license import UserLicense
-
     try:
         # Parse form data
         form = await request.form()
@@ -175,7 +249,6 @@ async def student_motivation_questionnaire_submit(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"❌ Error processing motivation questionnaire: {e}")
         print(traceback.format_exc())
         return templates.TemplateResponse(
@@ -202,9 +275,6 @@ async def lfa_player_onboarding_page(
     LFA Player specialized onboarding questionnaire
     Multi-step: Position → Self-Assessment → Motivation
     """
-    from ...models.license import UserLicense
-
-    # Verify user has LFA_FOOTBALL_PLAYER license
     license = db.query(UserLicense).filter(
         UserLicense.user_id == user.id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
@@ -240,10 +310,6 @@ async def lfa_player_onboarding_cancel(
     """
     Cancel LFA Player onboarding and refund credits
     """
-    from ...models.license import UserLicense
-    from ...models.credit_transaction import CreditTransaction, TransactionType
-
-    # Find the license
     license = db.query(UserLicense).filter(
         UserLicense.user_id == user.id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
@@ -281,93 +347,9 @@ async def lfa_player_onboarding_cancel(
         return RedirectResponse(url="/dashboard", status_code=303)
 
 
-@router.post("/specialization/lfa-player/onboarding-submit")
-async def lfa_player_onboarding_submit(
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user_web)
-):
-    """
-    Process LFA Player onboarding questionnaire
-    Saves: position, self-assessment skills, motivation
-    """
-    from ...models.license import UserLicense
-
-    try:
-        form = await request.form()
-
-        # Get form data
-        position = form.get("position")
-        motivation = form.get("motivation", "")
-        goals = form.get("goals", "")
-
-        # Self-assessment scores (0-10)
-        skills = {
-            "heading": int(form.get("skill_heading", 5)),
-            "shooting": int(form.get("skill_shooting", 5)),
-            "passing": int(form.get("skill_passing", 5)),
-            "dribbling": int(form.get("skill_dribbling", 5)),
-            "defending": int(form.get("skill_defending", 5)),
-            "physical": int(form.get("skill_physical", 5))
-        }
-
-        # Validate position
-        valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
-        if position not in valid_positions:
-            raise ValueError(f"Invalid position: {position}")
-
-        # Get user's LFA Player license
-        license = db.query(UserLicense).filter(
-            UserLicense.user_id == user.id,
-            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
-        ).first()
-
-        if not license:
-            raise ValueError("LFA Player license not found")
-
-        # Calculate initial average skill level (convert to percentage)
-        average_skill = sum(skills.values()) / len(skills) / 10 * 100  # Convert 0-10 to 0-100%
-
-        # Store position, goals, and initial self-assessment in motivation_scores JSON field
-        license.motivation_scores = {
-            "position": position,
-            "goals": goals,
-            "motivation": motivation,
-            "initial_self_assessment": skills,
-            "average_skill_level": round(average_skill, 1),
-            "onboarding_completed_at": datetime.now(timezone.utc).isoformat()
-        }
-        license.average_motivation_score = average_skill
-        license.motivation_last_assessed_at = datetime.now(timezone.utc)
-        license.motivation_assessed_by = user.id
-
-        # Mark onboarding as completed
-        user.onboarding_completed = True
-        license.onboarding_completed = True
-        license.onboarding_completed_at = datetime.now(timezone.utc)
-
-        db.commit()
-        db.refresh(user)
-        db.refresh(license)
-
-        print(f"✅ LFA Player onboarding completed for {user.email}: Position={position}, Avg Skill={average_skill:.1f}%")
-
-        # Redirect to dashboard
-        return RedirectResponse(url="/dashboard", status_code=303)
-
-    except Exception as e:
-        db.rollback()
-        import traceback
-        print(f"❌ Error processing LFA Player onboarding: {e}")
-        print(traceback.format_exc())
-        return templates.TemplateResponse(
-            "lfa_player_onboarding.html",
-            {
-                "request": request,
-                "user": user,
-                "error": f"An error occurred: {str(e)}"
-            }
-        )
+# ❌ REMOVED DUPLICATE: Onboarding submit handler moved to onboarding.py
+# The endpoint /specialization/lfa-player/onboarding-submit is now handled by
+# app/api/web_routes/onboarding.py to avoid duplicate route conflicts
 
 
 @router.post("/specialization/switch")
@@ -379,10 +361,6 @@ async def specialization_switch(
     user: User = Depends(get_current_user_web)
 ):
     """Switch student's active specialization (with onboarding check for new specs)"""
-    from ...models.specialization import SpecializationType
-    from ...models.license import UserLicense
-
-    # Default redirect URL
     redirect_url = return_url if return_url else "/dashboard"
 
     try:
@@ -415,7 +393,6 @@ async def specialization_switch(
 
     except Exception as e:
         db.rollback()
-        import traceback
         print(f"❌ Error during specialization switch: {e}")
         print(traceback.format_exc())
         return RedirectResponse(url=redirect_url, status_code=303)

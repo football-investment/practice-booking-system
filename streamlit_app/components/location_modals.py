@@ -4,119 +4,183 @@ Edit, View, and Create modals for Location Management
 """
 
 import streamlit as st
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
-from api_helpers import create_location, update_location
+import time
+from api_helpers_general import create_location, update_location, get_locations
 
 
 # ============================================================================
-# CREATE LOCATION MODAL
+# CREATE LOCATION MODAL - SIMPLE SINGLE-STEP CREATION
 # ============================================================================
 
 def render_create_location_modal(token: str) -> bool:
     """
-    Render create location modal
+    Render single-step location creation form
+    Creates location immediately. Campuses can be added afterwards via Edit modal.
     Returns True if location was created
     """
     if 'create_location_modal' not in st.session_state or not st.session_state.create_location_modal:
         return False
 
+    # Initialize wizard state
+    if 'location_wizard_data' not in st.session_state:
+        st.session_state.location_wizard_data = {}
+
     @st.dialog("➕ Create New Location", width="large")
     def create_modal():
-        with st.form("create_location_form"):
-            st.markdown("### 📍 Location Details")
+        st.markdown("### 📍 Location Details")
+        st.info("💡 **Tip:** After creating the location, you can add campuses in the Edit modal.")
 
-            col1, col2 = st.columns(2)
+        with st.form("location_details_form"):
+                col1, col2 = st.columns(2)
 
-            with col1:
-                name = st.text_input(
-                    "Location Name *",
-                    placeholder="LFA Education Center - Budapest",
-                    help="Full name of the location"
-                )
+                with col1:
+                    city = st.text_input(
+                        "City *",
+                        value=st.session_state.location_wizard_data.get('city', ''),
+                        placeholder="Budapest",
+                        help="City name (will be used in display name)"
+                    )
 
-                city = st.text_input(
-                    "City *",
-                    placeholder="Budapest"
-                )
+                    country = st.text_input(
+                        "Country *",
+                        value=st.session_state.location_wizard_data.get('country', 'Hungary'),
+                        placeholder="Hungary"
+                    )
 
-                postal_code = st.text_input(
-                    "Postal Code",
-                    placeholder="1011"
-                )
+                    country_code = st.text_input(
+                        "Country Code *",
+                        value=st.session_state.location_wizard_data.get('country_code', ''),
+                        placeholder="HU",
+                        max_chars=2,
+                        help="2-letter ISO country code (e.g., HU, AT, SK)"
+                    ).upper()
 
-                country = st.text_input(
-                    "Country *",
-                    value="Hungary"
-                )
+                    location_code = st.text_input(
+                        "Location Code *",
+                        value=st.session_state.location_wizard_data.get('location_code', ''),
+                        placeholder="BDPST",
+                        max_chars=10,
+                        help="Unique location identifier (e.g., BDPST for Budapest)"
+                    ).upper()
 
-            with col2:
-                venue = st.text_input(
-                    "Venue",
-                    placeholder="Buda Campus",
-                    help="Specific venue or building name"
-                )
+                    postal_code = st.text_input(
+                        "Postal Code",
+                        value=st.session_state.location_wizard_data.get('postal_code', ''),
+                        placeholder="1011"
+                    )
 
-                address = st.text_area(
-                    "Address",
-                    placeholder="Fő utca 1.",
-                    height=100
-                )
+                with col2:
+                    venue = st.text_input(
+                        "Venue",
+                        value=st.session_state.location_wizard_data.get('venue', ''),
+                        placeholder="Main Building",
+                        help="Specific venue or building name"
+                    )
 
-                notes = st.text_area(
-                    "Notes",
-                    placeholder="Additional information...",
-                    height=100
-                )
+                    # Location Type dropdown (PARTNER or CENTER)
+                    current_type = st.session_state.location_wizard_data.get('location_type', 'CENTER')
+                    type_index = 0 if current_type == 'CENTER' else 1
+                    location_type = st.selectbox(
+                        "Location Type *",
+                        options=["CENTER", "PARTNER"],
+                        index=type_index,
+                        help="CENTER: Full capabilities (Mini Seasons + Academy + Tournaments). PARTNER: Limited capabilities (Mini Seasons + Tournaments only)"
+                    )
 
-                is_active = st.checkbox("Active", value=True)
+                    address = st.text_area(
+                        "Address",
+                        value=st.session_state.location_wizard_data.get('address', ''),
+                        placeholder="Fő utca 1.",
+                        height=80
+                    )
 
-            col1, col2 = st.columns(2)
+                    notes = st.text_area(
+                        "Notes",
+                        value=st.session_state.location_wizard_data.get('notes', ''),
+                        placeholder="Additional information...",
+                        height=60
+                    )
 
-            with col1:
-                submit = st.form_submit_button("✅ Create Location", use_container_width=True, type="primary")
+                    is_active = st.checkbox(
+                        "Active",
+                        value=st.session_state.location_wizard_data.get('is_active', True)
+                    )
 
-            with col2:
-                cancel = st.form_submit_button("❌ Cancel", use_container_width=True)
+                col1, col2 = st.columns(2)
 
-            if cancel:
-                st.session_state.create_location_modal = False
-                st.rerun()
+                with col1:
+                    cancel = st.form_submit_button("❌ Cancel", use_container_width=True)
 
-            if submit:
-                # Validation
-                if not name or not city or not country:
-                    st.error("❌ Name, City, and Country are required!")
-                    return
+                with col2:
+                    submit = st.form_submit_button("✅ Create Location", use_container_width=True, type="primary")
 
-                # Create location data
-                location_data = {
-                    "name": name,
-                    "city": city,
-                    "country": country,
-                    "postal_code": postal_code if postal_code else None,
-                    "venue": venue if venue else None,
-                    "address": address if address else None,
-                    "notes": notes if notes else None,
-                    "is_active": is_active
-                }
-
-                # Call API
-                success, error, response = create_location(token, location_data)
-
-                if success:
-                    st.success(f"✅ Location '{name}' created successfully!")
+                if cancel:
+                    # Reset wizard state
                     st.session_state.create_location_modal = False
+                    st.session_state.location_wizard_data = {}
                     st.rerun()
-                else:
-                    st.error(f"❌ Failed to create location: {error}")
+
+                if submit:
+                    # Validation
+                    if not city or not country or not country_code or not location_code:
+                        st.error("❌ City, Country, Country Code, and Location Code are required!")
+                    else:
+                        # Generate display name: 🇭🇺 HU - Budapest
+                        def get_flag_emoji(code):
+                            if len(code) == 2:
+                                return chr(ord(code[0]) + 127397) + chr(ord(code[1]) + 127397)
+                            return "🌍"
+
+                        flag = get_flag_emoji(country_code.upper())
+                        name = f"{flag} {country_code.upper()} - {city}"
+
+                        # Check for duplicate location code
+                        success, existing_locations = get_locations(token, include_inactive=True)
+                        duplicate_found = False
+                        if success and existing_locations:
+                            existing_codes = [loc.get('location_code') for loc in existing_locations if loc.get('location_code')]
+                            if location_code.upper() in existing_codes:
+                                st.error(f"❌ Location code '{location_code.upper()}' already exists! Please choose a different code.")
+                                duplicate_found = True
+
+                        if not duplicate_found:
+                            # Create location data
+                            location_data = {
+                                "name": name,
+                                "city": city,
+                                "country": country,
+                                "country_code": country_code.upper(),
+                                "location_code": location_code.upper(),
+                                "location_type": location_type,
+                                "postal_code": postal_code if postal_code else None,
+                                "venue": venue if venue else None,
+                                "address": address if address else None,
+                                "notes": notes if notes else None,
+                                "is_active": is_active
+                            }
+
+                            # Create location immediately
+                            success, error, response = create_location(token, location_data)
+
+                            if success:
+                                st.success(f"✅ Location '{name}' created successfully!")
+                                st.info("💡 You can now add campuses in the Edit modal.")
+                                time.sleep(2)
+                                # Reset wizard state
+                                st.session_state.create_location_modal = False
+                                st.session_state.location_wizard_data = {}
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Failed to create location: {error}")
 
     create_modal()
     return False
 
 
 # ============================================================================
-# EDIT LOCATION MODAL
+# EDIT LOCATION MODAL - WITH CAMPUS MANAGEMENT
 # ============================================================================
 
 def render_edit_location_modal(location: Dict[str, Any], token: str) -> bool:
@@ -132,6 +196,7 @@ def render_edit_location_modal(location: Dict[str, Any], token: str) -> bool:
 
     @st.dialog(f"✏️ Edit Location: {location.get('name')}", width="large")
     def edit_modal():
+        # Location Details Form
         with st.form(f"edit_location_form_{location_id}"):
             st.markdown("### 📍 Location Details")
 
@@ -166,16 +231,26 @@ def render_edit_location_modal(location: Dict[str, Any], token: str) -> bool:
                     help="Specific venue or building name"
                 )
 
+                # Location Type dropdown (PARTNER or CENTER)
+                current_location_type = location.get('location_type', 'CENTER')
+                location_type_index = 0 if current_location_type == 'CENTER' else 1
+                location_type = st.selectbox(
+                    "Location Type *",
+                    options=["CENTER", "PARTNER"],
+                    index=location_type_index,
+                    help="CENTER: Full capabilities (Mini Seasons + Academy + Tournaments). PARTNER: Limited capabilities (Mini Seasons + Tournaments only)"
+                )
+
                 address = st.text_area(
                     "Address",
                     value=location.get('address', '') or '',
-                    height=100
+                    height=80
                 )
 
                 notes = st.text_area(
                     "Notes",
                     value=location.get('notes', '') or '',
-                    height=100
+                    height=60
                 )
 
                 is_active = st.checkbox(
@@ -201,11 +276,21 @@ def render_edit_location_modal(location: Dict[str, Any], token: str) -> bool:
                     st.error("❌ Name, City, and Country are required!")
                     return
 
+                # Check for duplicate location name (only if name is being changed)
+                if name != location.get('name'):
+                    success, existing_locations = get_locations(token, include_inactive=True)
+                    if success and existing_locations:
+                        existing_names = [loc.get('name') for loc in existing_locations if loc.get('id') != location_id]
+                        if name in existing_names:
+                            st.error(f"❌ Location '{name}' already exists! Please choose a different name.")
+                            return
+
                 # Create update data
                 update_data = {
                     "name": name,
                     "city": city,
                     "country": country,
+                    "location_type": location_type,
                     "postal_code": postal_code if postal_code else None,
                     "venue": venue if venue else None,
                     "address": address if address else None,

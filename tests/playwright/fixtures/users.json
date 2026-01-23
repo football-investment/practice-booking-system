@@ -1,0 +1,161 @@
+{
+"users": [
+{
+"email": "admin@lfa.com",
+"password": "admin123",
+"role": "ADMIN",
+"name": "Admin User"
+},
+{
+"email": "grandmaster@lfa.com",
+"password": "GrandMaster2026!",
+"role": "INSTRUCTOR",
+"name": "Grand Master",
+"licenses": [
+{
+"specialization_type": "LFA_COACH",
+"current_level": 8,
+"is_active": true
+},
+{
+"specialization_type": "LFA_FOOTBALL_PLAYER",
+"current_level": 8,
+"is_active": true
+},
+{
+"specialization_type": "INTERNSHIP",
+"current_level": 5,
+"is_active": true
+}
+]
+},
+{
+"email": "k1sqx1@f1rstteam.hu",
+"password": "TestPass123!",
+"role": "STUDENT",
+"name": "Player One",
+"first_name": "Tamás",
+"last_name": "Juhász",
+"nickname": "K1sqx1",
+"date_of_birth": "2006-01-14",
+"phone": "+36301234567",
+"specialization": "LFA_FOOTBALL_PLAYER",
+"onboarding_completed": true,
+"address": {
+"street": "Test Street 1",
+"city": "Budapest",
+"postal_code": "1011",
+"country": "Hungary"
+},
+"onboarding_data": {
+"position": "DEFENDER",
+"skills": {
+"heading": 7,
+"shooting": 6,
+"passing": 8,
+"dribbling": 7,
+"defending": 5,
+"physical": 6
+},
+"goals": "play_higher_level",
+"motivation": ""
+}
+},
+{
+"email": "p3t1k3@f1rstteam.hu",
+"password": "TestPass123!",
+"role": "STUDENT",
+"name": "Player Two",
+"first_name": "Péter",
+"last_name": "Nagy",
+"nickname": "P3t1k3",
+"date_of_birth": "2007-12-15",
+"phone": "+36301234568",
+"specialization": "LFA_FOOTBALL_PLAYER",
+"onboarding_completed": true,
+"address": {
+"street": "Test Street 2",
+"city": "Budapest",
+"postal_code": "1012",
+"country": "Hungary"
+},
+"onboarding_data": {
+"position": "MIDFIELDER",
+"skills": {
+"heading": 8,
+"shooting": 9,
+"passing": 6,
+"dribbling": 7,
+"defending": 4,
+"physical": 8
+},
+"goals": "become_professional",
+"motivation": ""
+}
+},
+{
+"email": "v4lv3rd3jr@f1rstteam.hu",
+"password": "TestPass123!",
+"role": "STUDENT",
+"name": "Player Three",
+"first_name": "Péter",
+"last_name": "Barna",
+"nickname": "V4lv3rd3Jr",
+"date_of_birth": "2007-12-06",
+"phone": "+36301234569",
+"specialization": "LFA_FOOTBALL_PLAYER",
+"onboarding_completed": true,
+"address": {
+"street": "Test Street 3",
+"city": "Budapest",
+"postal_code": "1013",
+"country": "Hungary"
+},
+"onboarding_data": {
+"position": "STRIKER",
+"skills": {
+"heading": 7,
+"shooting": 4,
+"passing": 7,
+"dribbling": 5,
+"defending": 9,
+"physical": 8
+},
+"goals": "improve_skills",
+"motivation": ""
+}
+},
+{
+"email": "t1b1k3@f1rstteam.hu",
+"password": "TestPass123!",
+"role": "STUDENT",
+"name": "Player Four",
+"first_name": "Tibor",
+"last_name": "Lénárt",
+"nickname": "T1b1k3",
+"date_of_birth": "2007-05-15",
+"phone": "+36301234570",
+"specialization": "LFA_FOOTBALL_PLAYER",
+"onboarding_completed": true,
+"address": {
+"street": "Test Street 4",
+"city": "Budapest",
+"postal_code": "1014",
+"country": "Hungary"
+},
+"onboarding_data": {
+"position": "GOALKEEPER",
+"skills": {
+"heading": 5,
+"shooting": 3,
+"passing": 6,
+"dribbling": 5,
+"defending": 9,
+"physical": 8
+},
+"goals": "improve_skills",
+"motivation": ""
+}
+}
+]
+}

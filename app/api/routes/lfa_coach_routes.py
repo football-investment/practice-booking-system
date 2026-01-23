@@ -14,7 +14,6 @@ NO skills, NO belts, NO XP - ONLY certifications with teaching hours.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from typing import Dict
 
 from ...database import get_db
 from ...models.user import User, UserRole

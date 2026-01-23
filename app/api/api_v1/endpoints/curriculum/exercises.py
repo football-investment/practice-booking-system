@@ -1,13 +1,16 @@
 """
 Curriculum exercise endpoints
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+import json
+import logging
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_admin_or_instructor_user
+from .....dependencies import get_current_user
 from .....models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,7 +38,8 @@ def get_exercise_details(
     if result[5]:
         try:
             requirements = json.loads(result[5]) if isinstance(result[5], str) else result[5]
-        except:
+        except Exception as e:
+            logger.error(f"Error parsing exercise requirements JSON: {e}")
             requirements = result[5]
 
     return {
@@ -82,7 +86,8 @@ def get_exercise_submission(
     if result[4]:
         try:
             submission_data = json.loads(result[4]) if isinstance(result[4], str) else result[4]
-        except:
+        except Exception as e:
+            logger.error(f"Error parsing submission data JSON: {e}")
             submission_data = result[4]
 
     return {

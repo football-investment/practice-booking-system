@@ -1,12 +1,12 @@
 """
 Instructor license operations
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Any, List, Dict
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_admin_user_web
+from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....services.license_service import LicenseService
 
@@ -56,6 +56,28 @@ async def instructor_advance_license(
     return result
 
 
+@router.get("/user/{user_id}", response_model=List[Dict[str, Any]])
+async def get_user_licenses(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get license information for a specific user
+    - Users can view their own licenses
+    - Instructors/Admins can view any user's licenses
+    """
+    # Users can only view their own, instructors/admins can view anyone's
+    if current_user.id != user_id and current_user.role not in [UserRole.INSTRUCTOR, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view your own licenses"
+        )
+
+    license_service = LicenseService(db)
+    return license_service.get_user_licenses(user_id)
+
+
 @router.get("/instructor/users/{user_id}/licenses", response_model=List[Dict[str, Any]])
 async def get_user_licenses_by_instructor(
     user_id: int,
@@ -63,14 +85,14 @@ async def get_user_licenses_by_instructor(
     db: Session = Depends(get_db)
 ):
     """
-    Get license information for a specific user (instructor only)
+    Get license information for a specific user (instructor only) - DEPRECATED, use /user/{user_id}
     """
     if current_user.role != UserRole.INSTRUCTOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only instructors can view other users' licenses"
         )
-    
+
     license_service = LicenseService(db)
     return license_service.get_user_licenses(user_id)
 

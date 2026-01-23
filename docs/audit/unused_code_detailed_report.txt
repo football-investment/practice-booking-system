@@ -1,0 +1,336 @@
+================================================================================
+DEAD CODE & UNUSED SYMBOLS - DETAILED REPORT
+================================================================================
+
+Minimum Confidence Threshold: 70%
+Total Issues Found: 58
+Files Affected: 25
+
+================================================================================
+ISSUES BY FILE
+================================================================================
+
+
+================================================================================
+📄 app/api/api_v1/endpoints/curriculum/exercises.py
+   Total issues: 2
+================================================================================
+
+Line     5 | unused_import        | Confidence:   0%
+           | unused import 'File'
+
+Line     5 | unused_import        | Confidence:   0%
+           | unused import 'UploadFile'
+
+
+================================================================================
+📄 app/api/api_v1/endpoints/locations.py
+   Total issues: 5
+================================================================================
+
+Line    85 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+Line   108 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+Line   127 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+Line   181 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+Line   228 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+
+================================================================================
+📄 app/api/api_v1/endpoints/payment_verification.py
+   Total issues: 1
+================================================================================
+
+Line     2 | unused_import        | Confidence:   0%
+           | unused import 'Body'
+
+
+================================================================================
+📄 app/api/api_v1/endpoints/semester_generator.py
+   Total issues: 2
+================================================================================
+
+Line   295 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+Line   386 | unused_variable      | Confidence:   0%
+           | unused variable 'current_admin'
+
+
+================================================================================
+📄 app/api/api_v1/endpoints/tournaments/lifecycle.py
+   Total issues: 1
+================================================================================
+
+Line    18 | unused_import        | Confidence:   0%
+           | unused import 'StatusValidationError'
+
+
+================================================================================
+📄 app/api/routes/lfa_player_routes.py
+   Total issues: 1
+================================================================================
+
+Line    20 | unused_import        | Confidence:   0%
+           | unused import 'BulkSkillAssessmentCreate'
+
+
+================================================================================
+📄 app/middleware/query_logger.py
+   Total issues: 2
+================================================================================
+
+Line   161 | unused_variable      | Confidence:   0%
+           | unused variable 'executemany'
+
+Line   167 | unused_variable      | Confidence:   0%
+           | unused variable 'executemany'
+
+
+================================================================================
+📄 app/services/competency_service.py
+   Total issues: 1
+================================================================================
+
+Line   345 | unreachable_code     | Confidence:   0%
+           | unreachable code after 'return'
+
+
+================================================================================
+📄 app/services/quiz_service.py
+   Total issues: 2
+================================================================================
+
+Line    13 | unused_import        | Confidence:   0%
+           | unused import 'QuizAttemptStart'
+
+Line    13 | unused_import        | Confidence:   0%
+           | unused import 'QuizUpdate'
+
+
+================================================================================
+📄 app/services/specs/session_based/lfa_player_service.py
+   Total issues: 1
+================================================================================
+
+Line   530 | unused_variable      | Confidence:   0%
+           | unused variable 'promoted_by_instructor_id'
+
+
+================================================================================
+📄 app/tests/test_e2e_age_validation.py
+   Total issues: 7
+================================================================================
+
+Line   136 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   149 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   165 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   181 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   193 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   206 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   221 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+
+================================================================================
+📄 app/tests/test_onboarding_api.py
+   Total issues: 5
+================================================================================
+
+Line    69 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_test_db'
+
+Line    81 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_test_db'
+
+Line   100 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_test_db'
+
+Line   130 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_test_db'
+
+Line   152 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_test_db'
+
+
+================================================================================
+📄 app/tests/test_specialization_integration.py
+   Total issues: 6
+================================================================================
+
+Line   157 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   201 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   222 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   331 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   382 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+Line   470 | unused_variable      | Confidence:   0%
+           | unused variable 'setup_specializations'
+
+
+================================================================================
+📄 app/tests/test_tournament_enrollment.py
+   Total issues: 7
+================================================================================
+
+Line   192 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+Line   228 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+Line   333 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+Line   480 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+Line   524 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+Line   569 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+Line   618 | unused_variable      | Confidence:   0%
+           | unused variable 'lfa_player_license'
+
+
+================================================================================
+📄 scripts/create_fresh_db.py
+   Total issues: 1
+================================================================================
+
+Line    31 | unused_import        | Confidence:   0%
+           | unused import 'user_progress'
+
+
+================================================================================
+📄 streamlit_app/components/instructor/tournament_applications.py
+   Total issues: 1
+================================================================================
+
+Line    24 | unused_import        | Confidence:   0%
+           | unused import 'render_application_card'
+
+
+================================================================================
+📄 streamlit_app/components/semesters/semester_overview.py
+   Total issues: 1
+================================================================================
+
+Line    75 | unused_variable      | Confidence:   0%
+           | unused variable 'key_prefix'
+
+
+================================================================================
+📄 tests/e2e/conftest.py
+   Total issues: 2
+================================================================================
+
+Line    27 | unused_variable      | Confidence:   0%
+           | unused variable 'pytestconfig'
+
+Line    45 | unused_variable      | Confidence:   0%
+           | unused variable 'pytestconfig'
+
+
+================================================================================
+📄 tests/e2e/test_reward_policy_distribution.py
+   Total issues: 2
+================================================================================
+
+Line    58 | unused_import        | Confidence:   0%
+           | unused import 'reward_policy_players'
+
+Line    81 | unused_variable      | Confidence:   0%
+           | unused variable 'reward_policy_players'
+
+
+================================================================================
+📄 tests/e2e/test_reward_policy_user_validation.py
+   Total issues: 2
+================================================================================
+
+Line    14 | unused_import        | Confidence:   0%
+           | unused import 'reward_policy_players'
+
+Line    41 | unused_variable      | Confidence:   0%
+           | unused variable 'reward_policy_players'
+
+
+================================================================================
+📄 tests/e2e/test_tournament_enrollment_protection.py
+   Total issues: 1
+================================================================================
+
+Line    25 | unused_import        | Confidence:   0%
+           | unused import 'create_instructor_user'
+
+
+================================================================================
+📄 tests/integration/conftest.py
+   Total issues: 1
+================================================================================
+
+Line    96 | unused_variable      | Confidence:   0%
+           | unused variable 'postgres_admin_user'
+
+
+================================================================================
+📄 tests/integration/test_gancuju_belt_system.py
+   Total issues: 1
+================================================================================
+
+Line   145 | other                | Confidence:   0%
+           | unreachable 'else' block
+
+
+================================================================================
+📄 tests/integration/test_lfa_coach_service.py
+   Total issues: 2
+================================================================================
+
+Line   307 | unused_variable      | Confidence:   0%
+           | unused variable 'semester_enrollment_paid'
+
+Line   359 | unused_variable      | Confidence:   0%
+           | unused variable 'semester_enrollment_paid'
+
+
+================================================================================
+📄 tests/playwright/test_tournament_enrollment_protection.py
+   Total issues: 1
+================================================================================
+
+Line    25 | unused_import        | Confidence:   0%
+           | unused import 'create_instructor_user'
+

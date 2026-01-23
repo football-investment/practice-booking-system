@@ -3,14 +3,14 @@ Test Audit API Endpoints
 
 Tests for audit log API access control and functionality.
 """
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from datetime import timedelta
 
 from app.models.audit_log import AuditAction
 from app.models.user import User, UserRole
 from app.services.audit_service import AuditService
-
+from app.core.auth import create_access_token
 
 def test_get_my_logs_as_user(client: TestClient, db_session: Session):
     """Test user can get their own audit logs"""
@@ -31,8 +31,6 @@ def test_get_my_logs_as_user(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LICENSE_VIEWED, user_id=user.id)
 
     # Login and get token
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -66,8 +64,6 @@ def test_get_my_logs_with_filters(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LOGOUT, user_id=user.id)
 
     # Login
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -98,8 +94,6 @@ def test_get_all_logs_as_admin(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LOGIN, user_id=admin.id)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -127,8 +121,6 @@ def test_get_all_logs_forbidden_for_student(client: TestClient, db_session: Sess
     db_session.commit()
 
     # Login as student
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -158,8 +150,6 @@ def test_get_statistics_as_admin(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.LOGIN_FAILED)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -194,8 +184,6 @@ def test_get_security_events(client: TestClient, db_session: Session):
     audit_service.log(action=AuditAction.PASSWORD_CHANGE, user_id=admin.id)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -230,8 +218,6 @@ def test_get_resource_history(client: TestClient, db_session: Session):
     )
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -263,8 +249,6 @@ def test_pagination_works(client: TestClient, db_session: Session):
         audit_service.log(action=AuditAction.LOGIN, user_id=admin.id)
 
     # Login as admin
-    from app.core.auth import create_access_token
-    from datetime import timedelta
     token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
 
     response = client.get(
@@ -277,3 +261,52 @@ def test_pagination_works(client: TestClient, db_session: Session):
     assert data["limit"] == 5
     assert data["offset"] == 0
     assert len(data["logs"]) <= 5
+
+
+def test_tournament_enrollment_audit(client: TestClient, db_session: Session):
+    """Test that tournament enrollment/unenrollment actions are audited"""
+    # Create test user
+    user = User(
+        name="Test Player",
+        email="player@test.com",
+        password_hash="$2b$10$abcdefghijklmnopqrstuv",
+        role=UserRole.STUDENT,
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    # Create audit logs for tournament actions
+    audit_service = AuditService(db_session)
+    audit_service.log(
+        action=AuditAction.TOURNAMENT_ENROLLED,
+        user_id=user.id,
+        resource_type="tournament",
+        resource_id=1,
+        details={"tournament_name": "Test Tournament"}
+    )
+    audit_service.log(
+        action=AuditAction.TOURNAMENT_UNENROLLED,
+        user_id=user.id,
+        resource_type="tournament",
+        resource_id=1,
+        details={"tournament_name": "Test Tournament"}
+    )
+
+    # Login as user
+    token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
+
+    # Query user's logs
+    response = client.get(
+        "/api/v1/audit/my-logs",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 2
+
+    # Verify tournament actions are present
+    actions = [log["action"] for log in data["logs"]]
+    assert AuditAction.TOURNAMENT_ENROLLED in actions
+    assert AuditAction.TOURNAMENT_UNENROLLED in actions

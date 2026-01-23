@@ -9,14 +9,9 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 from sqlalchemy.orm import Session
 
-from app.services.specialization_service import (
-    SpecializationService,
-    DEPRECATED_MAPPINGS,
-    DEPRECATION_DEADLINE
-)
+from app.services.specialization_service import SpecializationService
 from app.models.user_progress import Specialization
-
-
+import logging
 @pytest.fixture
 def specialization_service(db_session: Session):
     """Create a SpecializationService instance"""
@@ -45,7 +40,6 @@ def test_legacy_player_mapped_to_gancuju(
     caplog
 ):
     """Test PLAYER → GANCUJU_PLAYER mapping with warning"""
-    import logging
     caplog.set_level(logging.WARNING)
 
     # Using legacy ID should work but log warning
@@ -65,7 +59,6 @@ def test_legacy_coach_mapped_to_lfa_coach(
     caplog
 ):
     """Test COACH → LFA_COACH mapping with warning"""
-    import logging
     caplog.set_level(logging.WARNING)
 
     result = specialization_service.validate_specialization_exists("COACH")
@@ -106,7 +99,6 @@ def test_new_ids_work_without_warning(
     caplog
 ):
     """Test that new IDs work without deprecation warning"""
-    import logging
     caplog.set_level(logging.WARNING)
 
     # Should work without warnings
@@ -137,9 +129,6 @@ def test_enroll_user_with_legacy_id(
     caplog
 ):
     """Test that enroll_user accepts legacy IDs with warning"""
-    import logging
-    from app.models.user import User
-
     caplog.set_level(logging.WARNING)
 
     # Create test user
@@ -167,7 +156,6 @@ def test_get_level_requirements_with_legacy_id(
     caplog
 ):
     """Test that get_level_requirements accepts legacy IDs with warning"""
-    import logging
     caplog.set_level(logging.WARNING)
 
     # Get level requirements with legacy ID

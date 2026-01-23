@@ -3,10 +3,9 @@
 Handles XP and level tracking for Internship specialization
 """
 from sqlalchemy.orm import Session
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from ..models.license import UserLicense
-from ..models.user import User
 
 
 class InternProgressionService:

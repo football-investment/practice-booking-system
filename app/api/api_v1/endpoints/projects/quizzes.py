@@ -11,16 +11,11 @@ This module handles:
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
 
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_or_instructor_user
 from .....models.user import User
-from .....models.project import (
-    Project as ProjectModel,
-    ProjectMilestone,
-    ProjectQuiz
-)
+from .....models.project import Project as ProjectModel
 from .....schemas.project import (
     ProjectQuiz as ProjectQuizSchema,
     ProjectQuizCreate,
@@ -56,7 +51,6 @@ def add_quiz_to_project(
         )
     
     # Verify quiz exists
-    from .....models.quiz import Quiz
     quiz = db.query(Quiz).filter(Quiz.id == quiz_data.quiz_id).first()
     if not quiz:
         raise HTTPException(
@@ -98,7 +92,6 @@ def get_project_quizzes(
     # Convert to response format with quiz details
     result = []
     for pq in project_quizzes:
-        from .....models.quiz import Quiz
         quiz = db.query(Quiz).filter(Quiz.id == pq.quiz_id).first()
         milestone = None
         if pq.milestone_id:
@@ -211,11 +204,9 @@ def get_enrollment_quiz_info(
         }
     
     # Get quiz details
-    from .....models.quiz import Quiz
     quiz = db.query(Quiz).filter(Quiz.id == enrollment_quiz.quiz_id).first()
     
     # Check if user has already completed this quiz for this project
-    from .....models.project import ProjectEnrollmentQuiz
     user_enrollment_quiz = db.query(ProjectEnrollmentQuiz).filter(
         ProjectEnrollmentQuiz.project_id == project_id,
         ProjectEnrollmentQuiz.user_id == current_user.id
@@ -226,7 +217,6 @@ def get_enrollment_quiz_info(
     
     if user_completed:
         # Get the quiz attempt to determine status
-        from .....models.quiz import QuizAttempt
         attempt = db.query(QuizAttempt).filter(
             QuizAttempt.id == user_enrollment_quiz.quiz_attempt_id
         ).first()
@@ -270,10 +260,6 @@ def get_project_waitlist(
         )
     
     # Get all enrollment quiz results for this project, ordered by priority
-    from .....models.project import ProjectEnrollmentQuiz
-    from .....models.quiz import QuizAttempt
-
-    # OPTIMIZED: Eager load user and quiz_attempt relationships to avoid 2N+1 query pattern
     waitlist_data = db.query(ProjectEnrollmentQuiz).options(
         joinedload(ProjectEnrollmentQuiz.user),
         joinedload(ProjectEnrollmentQuiz.quiz_attempt)

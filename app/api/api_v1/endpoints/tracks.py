@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ....dependencies import get_current_user
 from ....database import get_db
-from ....models import User, Track, UserTrackProgress
+from ....models import User, UserTrackProgress
 from ....services.track_service import TrackService, TrackEnrollmentError
 from ....schemas.track import (
     TrackResponse, TrackEnrollmentRequest, TrackEnrollmentResponse,

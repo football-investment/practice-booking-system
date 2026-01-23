@@ -1,0 +1,44 @@
+{
+  "tournaments": [
+    {
+      "code": "TOURN-YOUTH-BUD-FEB",
+      "name": "YOUTH Tournament Budapest - February",
+      "assignment_type": "APPLICATION_BASED",
+      "age_group": "YOUTH",
+      "location": "Budapest Sports Complex",
+      "campus": "Main Campus",
+      "max_players": 10,
+      "enrollment_cost": 500,
+      "start_date": "2026-02-15",
+      "end_date": "2026-02-15",
+      "status": "SEEKING_INSTRUCTOR"
+    },
+    {
+      "code": "TOURN-YOUTH-DEB-MAR",
+      "name": "YOUTH Tournament Debrecen - March",
+      "assignment_type": "APPLICATION_BASED",
+      "age_group": "YOUTH",
+      "location": "Debrecen Training Facility",
+      "campus": "Stadium Campus",
+      "max_players": 12,
+      "enrollment_cost": 400,
+      "start_date": "2026-03-20",
+      "end_date": "2026-03-20",
+      "status": "SEEKING_INSTRUCTOR"
+    },
+    {
+      "code": "TOURN-YOUTH-GYO-APR",
+      "name": "YOUTH Tournament Győr - April",
+      "assignment_type": "OPEN_ASSIGNMENT",
+      "age_group": "YOUTH",
+      "location": "Győr Sports Arena",
+      "campus": "West Campus",
+      "max_players": 8,
+      "enrollment_cost": 600,
+      "start_date": "2026-04-10",
+      "end_date": "2026-04-10",
+      "status": "READY_FOR_ENROLLMENT",
+      "assigned_instructor_email": "grandmaster@lfa.com"
+    }
+  ]
+}

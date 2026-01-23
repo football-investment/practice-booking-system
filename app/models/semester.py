@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey, Table, Enum
+from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, ForeignKey, Table, Enum, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -39,6 +40,10 @@ class Semester(Base):
     status = Column(Enum(SemesterStatus, name='semester_status'), nullable=False, default=SemesterStatus.DRAFT, index=True,
                    comment="Current lifecycle phase of the semester")
 
+    # Tournament-specific status (for tournament lifecycle)
+    tournament_status = Column(String(50), nullable=True, index=True,
+                              comment="Tournament-specific status: DRAFT, SEEKING_INSTRUCTOR, READY_FOR_ENROLLMENT, etc.")
+
     # DEPRECATED: Use 'status' instead
     is_active = Column(Boolean, default=True,
                       comment="DEPRECATED: Use status field instead. Kept for backward compatibility.")
@@ -56,7 +61,7 @@ class Semester(Base):
 
     # 🎯 SPECIALIZATION & AGE GROUP FIELDS (for semester filtering)
     specialization_type = Column(String(50), nullable=True, index=True,
-                                 comment="Specialization type (e.g., LFA_PLAYER_PRE, GANCUJU_PLAYER_YOUTH)")
+                                 comment="Specialization type (SEASON types: LFA_PLAYER_PRE/YOUTH/AMATEUR/PRO, GANCUJU_PLAYER, LFA_COACH, INTERNSHIP, OR user license for tournaments: LFA_FOOTBALL_PLAYER)")
     age_group = Column(String(20), nullable=True, index=True,
                       comment="Age group (PRE, YOUTH, AMATEUR, PRO)")
     theme = Column(String(200), nullable=True,
@@ -65,19 +70,82 @@ class Semester(Base):
                               comment="Focus description (e.g., 'Újévi fogadalmak, friss kezdés')")
 
     # 📍 LOCATION FIELDS (for semester-level location)
-    # Used for LFA_PLAYER (BUDA/PEST split), GANCUJU (city-based), INTERNSHIP (city only)
+    # NEW: Use campus_id FK for most specific location
+    campus_id = Column(Integer, ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True, index=True,
+                      comment="FK to campuses table (most specific location - preferred)")
+
+    # Use location_id FK instead of denormalized city/venue/address fields
+    location_id = Column(Integer, ForeignKey('locations.id', ondelete='SET NULL'), nullable=True, index=True,
+                        comment="FK to locations table (less specific than campus_id, preferred over legacy location_city/venue/address)")
+
+    # DEPRECATED: Legacy location fields - kept for backward compatibility
     location_city = Column(String(100), nullable=True,
-                          comment="City where semester takes place (e.g., 'Budapest', 'Debrecen')")
+                          comment="DEPRECATED: Use campus_id or location_id instead. City where semester takes place")
     location_venue = Column(String(200), nullable=True,
-                           comment="Venue/campus name (e.g., 'Buda Campus', 'Pest Campus')")
+                           comment="DEPRECATED: Use campus_id or location_id instead. Venue/campus name")
     location_address = Column(String(500), nullable=True,
-                             comment="Full address of the primary location")
+                             comment="DEPRECATED: Use campus_id or location_id instead. Full address")
+
+    # 🏆 TOURNAMENT FIELDS (new tournament system)
+    # NEW: FK to tournament_types table (preferred for auto-generation)
+    tournament_type_id = Column(Integer, ForeignKey('tournament_types.id', ondelete='SET NULL'), nullable=True,
+                                comment="FK to tournament_types table (for auto-generating session structure)")
+
+    # DEPRECATED: Legacy tournament_type string field - kept for backward compatibility
+    tournament_type = Column(String(50), nullable=True,
+                            comment="DEPRECATED: Use tournament_type_id instead. Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM")
+
+    participant_type = Column(String(50), nullable=True, default="INDIVIDUAL",
+                             comment="Participant type: INDIVIDUAL, TEAM, MIXED")
+    is_multi_day = Column(Boolean, default=False,
+                         comment="True if tournament spans multiple days")
+
+    # 🔄 SESSION GENERATION TRACKING
+    sessions_generated = Column(Boolean, default=False, nullable=False,
+                               comment="True if tournament sessions have been auto-generated (prevents duplicate generation)")
+    sessions_generated_at = Column(DateTime, nullable=True,
+                                  comment="Timestamp when sessions were auto-generated")
+    enrollment_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
+                                comment="📸 Snapshot of enrollment state before session generation (for regeneration if needed)")
+
+    # ⏱️ TOURNAMENT SCHEDULE CONFIGURATION (set by admin before session generation)
+    match_duration_minutes = Column(Integer, nullable=True,
+                                   comment="Duration of each match in minutes (overrides tournament_type default)")
+    break_duration_minutes = Column(Integer, nullable=True,
+                                  comment="Break time between matches in minutes (overrides tournament_type default)")
+    parallel_fields = Column(Integer, nullable=True, default=1,
+                            comment="Number of parallel fields/pitches available (1-4) for simultaneous matches")
+    format = Column(String(50), nullable=False, default="INDIVIDUAL_RANKING",
+                   comment="Tournament format: HEAD_TO_HEAD (1v1 with scores) or INDIVIDUAL_RANKING (placement-based). Overrides tournament_type default.")
+    scoring_type = Column(String(50), nullable=False, default="PLACEMENT",
+                         comment="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD.")
+
+    # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
+    assignment_type = Column(String(30), nullable=True,
+                            comment="Tournament instructor assignment strategy: OPEN_ASSIGNMENT (admin assigns directly) or APPLICATION_BASED (instructors apply)")
+    max_players = Column(Integer, nullable=True,
+                        comment="Maximum tournament participants (explicit capacity, independent of session capacity sum)")
+
+    # 🎁 REWARD POLICY FIELDS (tournament reward system)
+    reward_policy_name = Column(String(100), nullable=False, default="default",
+                                comment="Name of the reward policy applied to this tournament semester")
+    reward_policy_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
+                                    comment="Immutable snapshot of the reward policy at tournament creation time")
 
     # Relationships
+    campus = relationship("Campus", foreign_keys=[campus_id],
+                         backref="semesters",
+                         doc="Campus where this semester takes place (most specific)")
+    location = relationship("Location", foreign_keys=[location_id],
+                           backref="semesters",
+                           doc="Location where this semester takes place")
     master_instructor = relationship("User", foreign_keys=[master_instructor_id],
                                     backref="mastered_semesters")
     assistant_instructors = relationship("User", secondary=semester_instructors,
                                         backref="assisted_semesters")
+    tournament_type_config = relationship("TournamentType", foreign_keys=[tournament_type_id],
+                                         back_populates="semesters",
+                                         doc="Tournament type configuration (for auto-generating sessions)")
     groups = relationship("Group", back_populates="semester")
     sessions = relationship("Session", back_populates="semester")
     projects = relationship("Project", back_populates="semester")

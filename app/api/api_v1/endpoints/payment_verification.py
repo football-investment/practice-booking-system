@@ -1,5 +1,5 @@
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
+from typing import Any, List
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -9,7 +9,6 @@ from ....dependencies import get_current_admin_user_web
 from ....models.user import User, UserRole
 from ....models.specialization import SpecializationType
 from ....models.license import UserLicense
-from ....schemas.user import User as UserSchema
 
 router = APIRouter()
 

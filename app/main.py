@@ -20,6 +20,7 @@ from .middleware.security import (
     RequestSizeLimitMiddleware
 )
 from .middleware.audit_middleware import AuditMiddleware
+from .middleware.csrf_middleware import CSRFProtectionMiddleware
 from .core.exceptions import (
     http_exception_handler,
     starlette_http_exception_handler,
@@ -103,13 +104,18 @@ if settings.ENABLE_STRUCTURED_LOGGING:
 # Add audit middleware (logs all important actions)
 app.add_middleware(AuditMiddleware)
 
-# Set up CORS middleware
+# Add CSRF protection middleware (SECURITY: Double Submit Cookie pattern)
+# Must be BEFORE CORS middleware to inspect requests first
+app.add_middleware(CSRFProtectionMiddleware)
+
+# Set up CORS middleware (SECURITY: Explicit allowlist to prevent CSRF)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.CORS_ALLOWED_ORIGINS,  # ✅ SECURITY FIX: Explicit allowlist (no wildcards)
+    allow_credentials=True,  # Required for cookie-based auth
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],  # ✅ SECURITY FIX: Explicit methods
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],  # ✅ SECURITY FIX: Explicit headers
+    expose_headers=["X-CSRF-Token"],  # Allow client to read CSRF token from response
 )
 
 # Add exception handlers

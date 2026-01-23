@@ -10,6 +10,10 @@ class NotificationBase(BaseModel):
     type: NotificationType = NotificationType.GENERAL
     related_session_id: Optional[int] = None
     related_booking_id: Optional[int] = None
+    # New fields for instructor job offers
+    link: Optional[str] = None
+    related_semester_id: Optional[int] = None
+    related_request_id: Optional[int] = None
 
 
 class NotificationCreate(NotificationBase):

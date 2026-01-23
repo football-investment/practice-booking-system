@@ -1,0 +1,44 @@
+{
+  "locations": [
+    {
+      "name": "Budapest Sports Complex",
+      "city": "Budapest",
+      "country": "Hungary",
+      "address": "1051 Budapest, Fő utca 1.",
+      "campuses": [
+        {
+          "name": "Main Campus",
+          "address": "Building A"
+        },
+        {
+          "name": "Youth Training Center",
+          "address": "Building B"
+        }
+      ]
+    },
+    {
+      "name": "Debrecen Training Facility",
+      "city": "Debrecen",
+      "country": "Hungary",
+      "address": "4025 Debrecen, Sportkert út 5.",
+      "campuses": [
+        {
+          "name": "Stadium Campus",
+          "address": "Main Stadium"
+        }
+      ]
+    },
+    {
+      "name": "Győr Sports Arena",
+      "city": "Győr",
+      "country": "Hungary",
+      "address": "9021 Győr, Arena utca 10.",
+      "campuses": [
+        {
+          "name": "West Campus",
+          "address": "West Wing"
+        }
+      ]
+    }
+  ]
+}

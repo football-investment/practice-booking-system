@@ -1,15 +1,14 @@
 """
 Football skills assessment endpoints
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import Any, List, Dict
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_admin_user_web
+from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.license import UserLicense
-from .....services.football_skill_service import FootballSkillService
 
 router = APIRouter()
 
@@ -26,9 +25,6 @@ async def get_football_skills(
 
     - **license_id**: UserLicense ID
     """
-    from ....models.license import UserLicense
-    from ....schemas.license import FootballSkillsResponse
-
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 
     if not license:
@@ -104,10 +100,6 @@ async def update_football_skills(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only instructors can update football skills"
         )
-
-    from ....models.license import UserLicense
-    from ....schemas.license import FootballSkillsUpdate
-    from datetime import datetime, timezone
 
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 
@@ -202,9 +194,6 @@ async def get_user_all_football_skills(
             detail="You can only view your own skills"
         )
 
-    from ....models.license import UserLicense
-
-    # Get all LFA Player licenses for this user
     licenses = db.query(UserLicense).filter(
         UserLicense.user_id == user_id,
         UserLicense.specialization_type.like("LFA_PLAYER_%")

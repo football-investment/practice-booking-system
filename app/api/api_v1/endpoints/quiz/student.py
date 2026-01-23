@@ -14,8 +14,7 @@ from .....models.session import Session as SessionModel, SessionType
 from .....models.attendance import Attendance, AttendanceStatus
 from .....models.booking import Booking, BookingStatus
 from .....schemas.quiz import (
-    QuizListItem, QuizPublic, QuizAttemptSummary,
-    UserQuizStatistics, QuizDashboardOverview
+    QuizListItem, QuizPublic, QuizAttemptSummary, UserQuizStatistics, QuizDashboardOverview,
 )
 from .....services.quiz_service import QuizService
 from .helpers import get_quiz_service
@@ -105,9 +104,6 @@ def get_quiz_for_taking(
 
     # 🔒 RULE #5: Validate session-based quiz access (hybrid/virtual only)
     if session_id:
-        from ....models.session import SessionTypel
-        from datetime import datetime, timezone
-
         session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
         if not session:
             raise HTTPException(
@@ -161,12 +157,6 @@ def get_quiz_for_taking(
         )
 
     # 🔒 ACCESS CONTROL: Check if quiz is linked to a session (HYBRID or VIRTUAL)
-    from ....models.quiz import SessionQuiz
-    from ....models.session import Session as SessionModel, SessionType
-    from ....models.attendance import Attendance, AttendanceStatus
-    from ....models.booking import Booking, BookingStatus
-    from datetime import datetime, timezone
-
     session_quiz = db.query(SessionQuiz).filter(
         SessionQuiz.quiz_id == quiz_id,
         SessionQuiz.is_required == True

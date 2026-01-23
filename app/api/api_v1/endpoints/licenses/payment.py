@@ -26,9 +26,6 @@ async def verify_license_payment(
     BEFORE student creates a SemesterEnrollment request.
     """
 
-    from ....models.license import UserLicense
-    from datetime import datetime
-
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 
     if not license:
@@ -82,8 +79,6 @@ async def unverify_license_payment(
 
     This is used when admin needs to revert a payment verification.
     """
-
-    from ....models.license import UserLicense
 
     license = db.query(UserLicense).filter(UserLicense.id == license_id).first()
 

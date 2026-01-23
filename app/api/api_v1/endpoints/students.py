@@ -3,20 +3,16 @@
 REAL DATA IMPLEMENTATION - NO MOCK DATA
 """
 
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, func
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import (
     User, Session as SessionTypel, Project, ProjectEnrollment, 
-    Booking, Semester, Quiz, QuizAttempt
+    Booking, Semester, QuizAttempt
 )
-from app.models.user import UserRole
-from app.services.gamification import GamificationService
 
 router = APIRouter()
 

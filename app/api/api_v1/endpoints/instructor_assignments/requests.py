@@ -1,24 +1,7 @@
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import Any, List, Dict, Optional
-
-from .....database import get_db
-from .....dependencies import get_current_user
-from .....models.user import User
-
 """
-Instructor assignment requests
-"""
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+Instructor Assignment Requests Endpoints
 
-
-"""
-Instructor Assignment Request System API Endpoints
-
-NEW CONCEPT: Demand-driven instructor assignment workflow
+Handles instructor assignment requests from admins.
 
 Flow:
 1. Instructor sets general availability: "Q3 2026, Budapest+Budaörs"
@@ -27,35 +10,25 @@ Flow:
 4. Admin sends assignment request to instructor
 5. Instructor accepts/declines specific semester assignments
 """
-
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from app.database import get_db
-from app.models.instructor_assignment import (
-    InstructorAvailabilityWindow,
+from .....database import get_db
+from .....dependencies import get_current_user
+from .....models.user import User, UserRole
+from .....models.semester import Semester
+from .....models.instructor_assignment import (
     InstructorAssignmentRequest,
     AssignmentRequestStatus
 )
-from app.models.user import User, UserRole
-from app.models.semester import Semester
-from app.models.license import UserLicense
-from app.schemas.instructor_assignment import (
-    InstructorAvailabilityWindowCreate,
-    InstructorAvailabilityWindowUpdate,
-    InstructorAvailabilityWindowResponse,
+from .....schemas.instructor_assignment import (
     InstructorAssignmentRequestCreate,
-    InstructorAssignmentRequestUpdate,
     InstructorAssignmentRequestAccept,
     InstructorAssignmentRequestDecline,
-    InstructorAssignmentRequestResponse,
-    AvailableInstructorInfo,
-    InstructorLicenseInfo,
-    AvailableInstructorsQuery
+    InstructorAssignmentRequestResponse
 )
-from app.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -129,6 +102,23 @@ def create_assignment_request(
     db.add(db_request)
     db.commit()
     db.refresh(db_request)
+
+    # ✅ NEW: Auto-create notification for instructor
+    notification = Notification(
+        user_id=instructor.id,
+        type=NotificationType.JOB_OFFER,
+        title=f"New Job Offer: {semester.name}",
+        message=f"You have a new job offer from {current_user.name} for {semester.name} at {semester.location.name if semester.location else 'TBD'}. "
+                f"Period: {semester.start_date} - {semester.end_date}. "
+                f"{request_data.request_message or 'No additional message.'}",
+        link=f"/instructor-dashboard?tab=inbox",  # Deep link to inbox
+        related_semester_id=semester.id,
+        related_request_id=db_request.id,
+        is_read=False
+    )
+
+    db.add(notification)
+    db.commit()
 
     return db_request
 

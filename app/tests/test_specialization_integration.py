@@ -11,7 +11,7 @@ from ..models.user_progress import Specialization, PlayerLevel, CoachLevel, Inte
 from ..models.specialization import SpecializationType
 from ..core.security import get_password_hash
 
-
+    # Create all 4 specializations (MINIMAL: only id, is_active, created_at)
 @pytest.fixture
 def setup_specializations(db_session: Session):
     """
@@ -20,9 +20,6 @@ def setup_specializations(db_session: Session):
     NOTE: Only creates DB records for FK integrity.
     Content (name, icon, description, levels) comes from JSON configs.
     """
-    from datetime import datetime
-
-    # Create all 4 specializations (MINIMAL: only id, is_active, created_at)
     gancuju_spec = Specialization(
         id="GANCUJU_PLAYER",
         is_active=True,

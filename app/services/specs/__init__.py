@@ -5,12 +5,6 @@ This module provides a factory pattern for instantiating the correct
 specialization service based on the user's specialization type.
 
 Usage:
-    from app.services.specs import get_spec_service
-
-    # Get service for a user
-    service = get_spec_service(user.specialization)
-    can_book, reason = service.can_book_session(user, session, db)
-
 Supported Specializations:
     - LFA_PLAYER_* (PRE, YOUTH, AMATEUR, PRO) → LFAPlayerService
     - GANCUJU_PLAYER_* → GanCujuPlayerService

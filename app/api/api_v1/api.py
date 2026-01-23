@@ -48,18 +48,32 @@ from .endpoints import (
     instructor_assignments,  # 📋 NEW: Add instructor assignment request system
     license_renewal,  # 💰 NEW: Add license renewal system (Fase 2)
     campuses,  # 🏫 NEW: Add campus management system
-    spec_info  # 🎯 NEW: Add spec services information API
+    spec_info,  # 🎯 NEW: Add spec services information API
+    instructor_management,  # 👨‍🏫 NEW: Add two-tier instructor management system
+    session_groups,  # 👥 NEW: Add dynamic session group assignment system
+    tournaments,  # 🏆 NEW: Add one-day tournament generator system
+    tournament_types  # 🎯 NEW: Add tournament type system
 )
 
+from .endpoints.sessions import results as session_results  # 🏆 NEW: Game results management
+
+from .endpoints.semesters import academy_generator  # 🏫 NEW: Add Academy Season generator
+from .endpoints.enrollments import conflict_check  # ⚠️ NEW: Add enrollment conflict detection
+
 from .endpoints.periods import lfa_player_generators  # 🚀 NEW: Add modular LFA_PLAYER period generators
+
+from .endpoints.tournaments import generate_sessions  # 🎯 NEW: Add tournament session generation system
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(semesters.router, prefix="/semesters", tags=["semesters"])
+api_router.include_router(academy_generator.router, prefix="/semesters", tags=["semesters", "academy-season"])  # 🏫 Academy Season generator
+api_router.include_router(conflict_check.router, prefix="/enrollments", tags=["enrollments", "conflict-check"])  # ⚠️ Enrollment conflict detection
 api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
+api_router.include_router(session_results.router, prefix="/sessions", tags=["sessions", "game-results"])  # 🏆 Game results endpoints
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
@@ -295,4 +309,39 @@ api_router.include_router(
     spec_info.router,
     prefix="/spec-info",
     tags=["spec-info"]
+)
+
+# 👨‍🏫 NEW: Add two-tier instructor management system routes
+api_router.include_router(
+    instructor_management.router,
+    prefix="/instructor-management",
+    tags=["instructor-management"]
+)
+
+# 👥 NEW: Add dynamic session group assignment system routes
+api_router.include_router(
+    session_groups.router,
+    prefix="/session-groups",
+    tags=["session-groups"]
+)
+
+# 🏆 NEW: Add one-day tournament generator system routes
+api_router.include_router(
+    tournaments.router,
+    prefix="/tournaments",
+    tags=["tournaments"]
+)
+
+# 🎯 NEW: Add tournament type system routes (admin only)
+api_router.include_router(
+    tournament_types.router,
+    prefix="/tournament-types",
+    tags=["tournament-types"]
+)
+
+# 🎯 NEW: Add tournament session generation system routes (admin only)
+api_router.include_router(
+    generate_sessions.router,
+    prefix="/tournaments",
+    tags=["tournaments", "session-generation"]
 )

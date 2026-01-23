@@ -1,9 +1,7 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from enum import Enum
-
-from ..models.project import ProjectStatus, ProjectEnrollmentStatus, ProjectProgressStatus, MilestoneStatus
 
 
 # Enums for API

@@ -26,9 +26,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime, timezone
 from contextlib import contextmanager
 from threading import Thread
-import time
 
-from app.database import SessionLocal, get_db
+from app.database import SessionLocal
 from app.services.specialization_service import SpecializationService
 from app.services.license_service import LicenseService
 from app.services.progress_license_sync_service import ProgressLicenseSyncService

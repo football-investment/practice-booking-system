@@ -5,8 +5,6 @@ RBAC Testing Fixtures - User Creation and JWT Token Management
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
@@ -19,6 +17,10 @@ from app.main import app
 from app.models.user import User, UserRole
 from app.core.auth import create_access_token
 from app.database import get_db
+
+    from jose import jwt
+    from app.core.config import settings
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 DB_URL = "postgresql://postgres:postgres@localhost:5432/lfa_intern_system"
 
@@ -230,9 +232,6 @@ def get_expired_token(user: User) -> str:
     Returns:
         str: Expired JWT token
     """
-    from jose import jwt
-    from app.core.config import settings
-
     expire = datetime.utcnow() - timedelta(hours=24)  # Expired 24 hours ago
     to_encode = {
         "sub": user.email,
@@ -258,8 +257,6 @@ def get_forged_token(fake_email: str, fake_role: str) -> str:
     Returns:
         str: Forged JWT token (will fail signature validation)
     """
-    from jose import jwt
-
     expire = datetime.utcnow() + timedelta(hours=1)
     to_encode = {
         "sub": fake_email,

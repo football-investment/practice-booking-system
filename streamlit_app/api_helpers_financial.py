@@ -1,6 +1,7 @@
 """
 Financial Management API Helper Functions
 Functions for coupons, invoices, and payment verification
+Bearer token authentication (CSRF-safe)
 """
 
 import requests
@@ -12,15 +13,103 @@ from config import API_BASE_URL, API_TIMEOUT
 # COUPON MANAGEMENT
 # ========================================
 
+def validate_coupon(token: str, coupon_code: str) -> Tuple[bool, str, dict]:
+    """
+    Validate coupon code and get discount info (for student use)
+
+    Args:
+        token: Authentication token
+        coupon_code: Coupon code to validate
+
+    Returns:
+        (success: bool, error: str, data: dict)
+        data = {
+            "code": str,
+            "type": "PERCENTAGE" | "FIXED_AMOUNT" | "CREDITS",
+            "discount_value": float,
+            "description": str,
+            "valid": bool
+        }
+    """
+    try:
+        response = requests.post(  # POST endpoint!
+            f"{API_BASE_URL}/api/v1/coupons/validate/{coupon_code}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, "", response.json()
+        elif response.status_code == 404:
+            return False, "Coupon not found", {}
+        elif response.status_code == 400:
+            error_detail = response.json().get("detail", "Coupon is not valid")
+            return False, error_detail, {}
+        else:
+            return False, "Failed to validate coupon", {}
+
+    except Exception as e:
+        return False, f"Error: {str(e)}", {}
+
+
+def apply_coupon(token: str, coupon_code: str) -> Tuple[bool, str, dict]:
+    """
+    Apply BONUS_CREDITS coupon to user account (instant redemption)
+
+    Args:
+        token: Authentication token
+        coupon_code: Coupon code to apply
+
+    Returns:
+        (success: bool, error: str, data: dict)
+        data = {
+            "message": str,
+            "coupon_code": str,
+            "coupon_type": str,
+            "credits_awarded": int,
+            "new_balance": int
+        }
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/coupons/apply",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"code": coupon_code},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, "", response.json()
+        elif response.status_code == 404:
+            error_detail = response.json().get("detail", {})
+            if isinstance(error_detail, dict):
+                error_msg = error_detail.get("message", "Coupon not found")
+            else:
+                error_msg = str(error_detail)
+            return False, error_msg, {}
+        elif response.status_code == 400:
+            error_detail = response.json().get("detail", {})
+            if isinstance(error_detail, dict):
+                error_msg = error_detail.get("message", "Coupon is not valid")
+            else:
+                error_msg = str(error_detail)
+            return False, error_msg, {}
+        else:
+            return False, "Failed to apply coupon", {}
+
+    except Exception as e:
+        return False, f"Error: {str(e)}", {}
+
+
 def get_coupons(token: str) -> Tuple[bool, Optional[List[Dict]]]:
     """
-    Get all coupons (admin only) - uses cookie auth
+    Get all coupons (admin only)
     Returns: (success, coupons_list)
     """
     try:
         response = requests.get(
             f"{API_BASE_URL}/api/v1/admin/coupons",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
@@ -36,13 +125,13 @@ def get_coupons(token: str) -> Tuple[bool, Optional[List[Dict]]]:
 
 def create_coupon(token: str, coupon_data: Dict) -> Tuple[bool, Optional[str], Optional[Dict]]:
     """
-    Create a new coupon - uses cookie auth
+    Create a new coupon - uses Bearer token auth (not cookie)
     Returns: (success, error_message, coupon_dict)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/admin/coupons",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},  # Bearer token instead of cookie
             json=coupon_data,
             timeout=API_TIMEOUT
         )
@@ -58,13 +147,13 @@ def create_coupon(token: str, coupon_data: Dict) -> Tuple[bool, Optional[str], O
 
 def update_coupon(token: str, coupon_id: int, coupon_data: Dict) -> Tuple[bool, Optional[str], Optional[Dict]]:
     """
-    Update existing coupon - uses cookie auth
+    Update existing coupon
     Returns: (success, error_message, coupon_dict)
     """
     try:
         response = requests.put(
             f"{API_BASE_URL}/api/v1/admin/coupons/{coupon_id}",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             json=coupon_data,
             timeout=API_TIMEOUT
         )
@@ -101,14 +190,14 @@ def delete_coupon(token: str, coupon_id: int) -> Tuple[bool, Optional[str]]:
 
 def toggle_coupon_status(token: str, coupon_id: int) -> Tuple[bool, Optional[str], Optional[Dict]]:
     """
-    Toggle coupon active status - uses cookie auth + PUT method
+    Toggle coupon active status
     Returns: (success, error_message, coupon_dict)
     """
     try:
         # Toggle by updating is_active field (check backend endpoint)
         response = requests.put(
             f"{API_BASE_URL}/api/v1/admin/coupons/{coupon_id}",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             json={"is_active": None},  # Backend will toggle
             timeout=API_TIMEOUT
         )
@@ -128,7 +217,7 @@ def toggle_coupon_status(token: str, coupon_id: int) -> Tuple[bool, Optional[str
 
 def get_invoices(token: str, status_filter: Optional[str] = None) -> Tuple[bool, Optional[List[Dict]]]:
     """
-    Get all invoice requests - uses cookie auth
+    Get all invoice requests
     Returns: (success, invoices_list)
     """
     try:
@@ -139,7 +228,7 @@ def get_invoices(token: str, status_filter: Optional[str] = None) -> Tuple[bool,
 
         response = requests.get(
             url,
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             params=params,
             timeout=API_TIMEOUT
         )
@@ -155,13 +244,13 @@ def get_invoices(token: str, status_filter: Optional[str] = None) -> Tuple[bool,
 
 def verify_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
     """
-    Verify (approve) invoice request - uses cookie auth
+    Verify (approve) invoice request
     Returns: (success, error_message)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/invoices/{invoice_id}/verify",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
@@ -176,13 +265,13 @@ def verify_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
 
 def unverify_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
     """
-    Unverify (revert approval) invoice request - uses cookie auth
+    Unverify (revert approval) invoice request
     Returns: (success, error_message)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/invoices/{invoice_id}/unverify",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
@@ -197,13 +286,13 @@ def unverify_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
 
 def cancel_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
     """
-    Cancel invoice request - uses cookie auth
+    Cancel invoice request
     Returns: (success, error_message)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/invoices/{invoice_id}/cancel",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
@@ -222,7 +311,7 @@ def cancel_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
 
 def get_payment_verifications(token: str, verified: Optional[bool] = None) -> Tuple[bool, Optional[List[Dict]]]:
     """
-    Get payment verification requests (students) - uses cookie auth
+    Get payment verification requests (students)
     Returns: (success, students_list)
     """
     try:
@@ -230,7 +319,7 @@ def get_payment_verifications(token: str, verified: Optional[bool] = None) -> Tu
 
         response = requests.get(
             url,
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
@@ -249,13 +338,13 @@ def get_payment_verifications(token: str, verified: Optional[bool] = None) -> Tu
 
 def verify_payment(token: str, student_id: int, specializations: List[str]) -> Tuple[bool, Optional[str]]:
     """
-    Verify payment for student - uses cookie auth
+    Verify payment for student
     Returns: (success, error_message)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/payment-verification/students/{student_id}/verify",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             json={"specializations": specializations},
             timeout=API_TIMEOUT
         )
@@ -271,13 +360,13 @@ def verify_payment(token: str, student_id: int, specializations: List[str]) -> T
 
 def reject_payment(token: str, student_id: int) -> Tuple[bool, Optional[str]]:
     """
-    Reject/unverify payment for student - uses cookie auth
+    Reject/unverify payment for student
     Returns: (success, error_message)
     """
     try:
         response = requests.post(
             f"{API_BASE_URL}/api/v1/payment-verification/students/{student_id}/unverify",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 

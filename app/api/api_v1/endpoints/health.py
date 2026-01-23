@@ -17,7 +17,7 @@ from app.database import get_db
 from app.services.health_monitor import HealthMonitor
 from app.services.redis_cache import cache
 from app.models.user import User
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import require_admin
 
 
 router = APIRouter()

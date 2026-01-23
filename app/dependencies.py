@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -7,6 +8,7 @@ from .database import get_db
 from .core.auth import verify_token
 from .models.user import User, UserRole
 
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 security_optional = HTTPBearer(auto_error=False)
@@ -91,8 +93,8 @@ async def get_current_user_optional(
         user = db.query(User).filter(User.email == username).first()
         if user and user.is_active:
             return user
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Error verifying optional user token: {e}")
 
     return None
 

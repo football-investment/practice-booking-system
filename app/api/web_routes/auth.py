@@ -71,7 +71,6 @@ async def login_submit(
     )
 
     # Check if student needs age verification (first time login)
-    from ...models.user import UserRole
     redirect_url = "/dashboard"
 
     if user.role == UserRole.STUDENT and user.date_of_birth is None:
@@ -79,15 +78,15 @@ async def login_submit(
         redirect_url = "/age-verification"
         print(f"First-time student login: {user.email} -> redirecting to age verification")
 
-    # Redirect with token in cookie
+    # Redirect with token in cookie (SECURITY: SameSite + Secure flags)
     response = RedirectResponse(url=redirect_url, status_code=303)
     response.set_cookie(
         key="access_token",
         value=f"Bearer {access_token}",
-        httponly=True,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",  # Allow cookie to be sent with form POSTs
+        httponly=settings.COOKIE_HTTPONLY,  # ✅ SECURITY: Prevents XSS cookie theft
+        max_age=settings.COOKIE_MAX_AGE,  # ✅ SECURITY: Explicit expiry (1 hour)
+        secure=settings.COOKIE_SECURE,  # ✅ SECURITY: HTTPS only in production
+        samesite=settings.COOKIE_SAMESITE,  # ✅ SECURITY FIX: "strict" prevents CSRF
         path="/"  # Make cookie available across all paths
     )
     return response
@@ -110,9 +109,6 @@ async def age_verification_page(
     user: User = Depends(get_current_user_web)
 ):
     """Age verification page for first-time students"""
-    from ...models.user import UserRole
-
-    # Only students need age verification
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -138,10 +134,6 @@ async def age_verification_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Process age verification form"""
-    from ...models.user import UserRole
-    from datetime import date
-
-    # Only students need age verification
     if user.role != UserRole.STUDENT:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -213,7 +205,6 @@ async def age_verification_submit(
         )
     except Exception as e:
         print(f"Error during age verification: {e}")
-        import traceback
         traceback.print_exc()
         return templates.TemplateResponse(
             "age_verification.html",

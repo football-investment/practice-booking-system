@@ -72,9 +72,10 @@ class InstructorSpecializationAvailability(Base):
             'instructor_id', 'specialization_type', 'time_period_code', 'year', 'location_city',
             name='uix_instructor_spec_period_year_location'
         ),
-        # Validate time_period_code format
+        # Validate time_period_code format (SQLite-compatible LIKE pattern)
         CheckConstraint(
-            "time_period_code ~ '^(Q[1-4]|M(0[1-9]|1[0-2]))$'",
+            "(time_period_code LIKE 'Q_' AND time_period_code IN ('Q1', 'Q2', 'Q3', 'Q4')) OR "
+            "(time_period_code LIKE 'M__' AND time_period_code >= 'M01' AND time_period_code <= 'M12')",
             name='check_time_period_code_format'
         ),
         # Validate year range

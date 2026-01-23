@@ -10,10 +10,9 @@ Business Rules:
 4. Payment must be verified by admin
 5. Expired licenses become inactive automatically
 """
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from app.models.license import UserLicense
 from app.models.user import User
@@ -23,12 +22,10 @@ from app.models.credit_transaction import CreditTransaction
 
 class InsufficientCreditsError(Exception):
     """Raised when user doesn't have enough credits for renewal."""
-    pass
 
 
 class LicenseNotFoundError(Exception):
     """Raised when license doesn't exist."""
-    pass
 
 
 class LicenseRenewalService:

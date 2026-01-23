@@ -1,20 +1,16 @@
 """
 Session and calendar routes
 """
-from fastapi import APIRouter, Request, Depends, HTTPException, Form, status, Body
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from pathlib import Path
-from datetime import datetime, timezone, date, timedelta
-from typing import Optional, List
-from pydantic import BaseModel
+from datetime import datetime, timedelta
 
 from ...database import get_db
-from ...dependencies import get_current_user_web, get_current_user_optional
+from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
-from .helpers import update_specialization_xp, get_lfa_age_category
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -30,9 +26,6 @@ async def calendar_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display calendar page with all sessions"""
-    from ...models.user import UserRole
-
-    # ONLY students with completed onboarding can access calendar
     if user.role == UserRole.STUDENT and not user.onboarding_completed:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -52,11 +45,6 @@ async def sessions_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display sessions page - role-based UI for Instructor vs Student"""
-    from ...models.session import Session as SessionModel, SessionType
-    from ...models.user import UserRole
-    from datetime import datetime
-
-    # ONLY students with completed onboarding can access sessions
     if user.role == UserRole.STUDENT and not user.onboarding_completed:
         return RedirectResponse(url="/dashboard", status_code=303)
 
@@ -69,9 +57,6 @@ async def sessions_page(
         ).order_by(SessionModel.date_start.asc()).all()  # Chronological order (earliest first)
 
         # Add enrolled count and student reviews for each session
-        from ...models.booking import Booking
-        from ...models.performance_review import InstructorSessionReview
-
         for session in my_sessions:
             enrolled_count = db.query(Booking).filter(
                 Booking.session_id == session.id
@@ -97,9 +82,6 @@ async def sessions_page(
         )
     else:
         # STUDENT VIEW: Show ONLY sessions from APPROVED semesters
-        from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-
-        # Get user's APPROVED semester enrollments
         approved_enrollments = db.query(SemesterEnrollment).filter(
             SemesterEnrollment.user_id == user.id,
             SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
@@ -120,18 +102,12 @@ async def sessions_page(
             upcoming_sessions = []
 
         # Get user's bookings
-        from ...models.booking import Booking
         my_bookings = db.query(Booking).filter(
             Booking.user_id == user.id
         ).all()
         enrolled_session_ids = {b.session_id for b in my_bookings}
 
         # Add enrolled status and instructor name to sessions
-        from datetime import timedelta
-        from zoneinfo import ZoneInfo
-        from ...models.attendance import Attendance
-        from ...models.performance_review import InstructorSessionReview
-
         budapest_tz = ZoneInfo("Europe/Budapest")
         now = datetime.now(budapest_tz).replace(tzinfo=None)  # CRITICAL: Make naive for comparison
 
@@ -163,9 +139,6 @@ async def sessions_page(
             # VIRTUAL session: Check if student completed quiz (for "COMPLETED" badge)
             session.quiz_completed = False
             if session.is_enrolled and session.session_type == SessionType.virtual:
-                from ...models.quiz import Quiz, QuizAttempt, SessionQuiz
-
-                # Get quizzes for this session
                 session_quizzes = db.query(SessionQuiz).filter(
                     SessionQuiz.session_id == session.id
                 ).all()
@@ -200,7 +173,6 @@ async def sessions_page(
             session.enrolled_count = enrolled_count
 
             # Get performance review from instructor (if exists)
-            from ...models.performance_review import StudentPerformanceReview
             session.performance_review = None
             if session.is_enrolled:
                 performance_review = db.query(StudentPerformanceReview).filter(
@@ -229,11 +201,6 @@ async def book_session(
     user: User = Depends(get_current_user_web)
 ):
     """Book a session"""
-    from ...models.session import Session as SessionTypel
-    from ...models.booking import Booking, BookingStatus
-    from datetime import datetime, timedelta, timezone
-
-    # Check if session exists
     session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
     if not session:
         # Redirect back with error
@@ -241,7 +208,6 @@ async def book_session(
 
     # CRITICAL: Cannot book within 12 hours before session start
     # Use Budapest timezone for comparison (sessions are stored in Budapest time)
-    from zoneinfo import ZoneInfo
     budapest_tz = ZoneInfo("Europe/Budapest")
     now = datetime.now(budapest_tz).replace(tzinfo=None)  # Budapest time, naive
     session_start = session.date_start  # Stored as naive Budapest time
@@ -291,11 +257,6 @@ async def cancel_booking(
     user: User = Depends(get_current_user_web)
 ):
     """Cancel a booking"""
-    from ...models.booking import Booking
-    from ...models.session import Session as SessionTypel
-    from ...models.attendance import Attendance
-
-    # Find the booking
     booking = db.query(Booking).filter(
         Booking.user_id == user.id,
         Booking.session_id == session_id
@@ -310,9 +271,6 @@ async def cancel_booking(
         return RedirectResponse(url="/sessions?error=session_not_found", status_code=303)
 
     # Check cancellation deadline - Use Budapest timezone (database stores naive timestamps in local time)
-    from datetime import datetime, timezone, timedelta
-    from zoneinfo import ZoneInfo
-
     budapest_tz = ZoneInfo("Europe/Budapest")
     now = datetime.now(budapest_tz)
 
@@ -337,7 +295,6 @@ async def cancel_booking(
         return RedirectResponse(url=f"/sessions/{session_id}?error=attendance_already_marked", status_code=303)
 
     # Check if student has submitted an instructor review (CRITICAL: cannot cancel after evaluation!)
-    from ...models.performance_review import InstructorSessionReview
     instructor_review = db.query(InstructorSessionReview).filter(
         InstructorSessionReview.session_id == session_id,
         InstructorSessionReview.student_id == user.id
@@ -362,10 +319,6 @@ async def session_details(
     user: User = Depends(get_current_user_web)
 ):
     """Session details page"""
-    from ...models.session import Session as SessionModel
-    from ...models.booking import Booking
-    from ...models.user import UserRole
-
     session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -375,7 +328,6 @@ async def session_details(
     session.instructor_name = instructor.name if instructor else "TBA"
 
     # Get enrolled students with attendance status
-    from ...models.attendance import Attendance
     bookings = db.query(Booking).filter(Booking.session_id == session_id).all()
     enrolled_students = []
     for booking in bookings:
@@ -388,7 +340,6 @@ async def session_details(
             ).first()
 
             # Get attendance history
-            from ...models.attendance import AttendanceHistory
             history = []
             if attendance:
                 history_records = db.query(AttendanceHistory).filter(
@@ -407,7 +358,6 @@ async def session_details(
                     })
 
             # Get existing performance review (if any)
-            from ...models.performance_review import StudentPerformanceReview
             student_review = None
             if attendance:
                 student_review = db.query(StudentPerformanceReview).filter(
@@ -461,7 +411,6 @@ async def session_details(
         # IMPORTANT: Instructor reviews are ONLY for ON-SITE and HYBRID sessions
         # - ON-SITE/HYBRID: Student evaluates instructor after attending (present/late status)
         # - VIRTUAL: NO instructor evaluation (students evaluate quiz/content instead)
-        from ...models.performance_review import InstructorSessionReview
         if my_attendance:
             my_instructor_review = db.query(InstructorSessionReview).filter(
                 InstructorSessionReview.session_id == session_id,
@@ -469,11 +418,6 @@ async def session_details(
             ).first()
 
     # Check if attendance can be marked (only during or after session time)
-    from datetime import datetime, timezone, timedelta
-    from zoneinfo import ZoneInfo
-
-    # IMPORTANT: Database stores timestamps WITHOUT timezone (naive timestamps in local time = Budapest CET/CEST)
-    # We must compare in the same timezone as the database stores (Europe/Budapest)
     budapest_tz = ZoneInfo("Europe/Budapest")
     now = datetime.now(budapest_tz).replace(tzinfo=None)  # CRITICAL: Naive Budapest time for comparison
 
@@ -492,9 +436,6 @@ async def session_details(
     # Load quiz data for HYBRID and VIRTUAL sessions
     session_quizzes = []
     if session.session_type.value in ['hybrid', 'virtual']:
-        from ..models import SessionQuiz, Quiz, QuizQuestion, QuizAttempt
-
-        # Get all quizzes linked to this session
         sq_records = db.query(SessionQuiz).filter(SessionQuiz.session_id == session_id).all()
 
         for sq in sq_records:

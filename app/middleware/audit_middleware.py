@@ -13,7 +13,7 @@ from starlette.responses import Response
 from ..config import settings
 from ..database import SessionLocal
 from ..services.audit_service import AuditService
-from ..models.audit_log import AuditAction
+from ..services.action_determiner import ActionDeterminer
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
@@ -159,81 +159,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
             db.close()
 
     def _determine_action(self, request: Request, response: Response) -> str:
-        """Determine audit action from request"""
-        method = request.method
-        path = str(request.url.path)
+        """
+        Determine audit action from request.
 
-        # Authentication
-        if "/auth/login" in path:
-            if response.status_code == 200:
-                return AuditAction.LOGIN
-            else:
-                return AuditAction.LOGIN_FAILED
-        if "/auth/logout" in path:
-            return AuditAction.LOGOUT
-
-        # Specializations
-        if "/specializations" in path and method in ["POST", "PUT", "PATCH"]:
-            return AuditAction.SPECIALIZATION_SELECTED
-
-        # Licenses
-        if "/licenses" in path:
-            if "pdf" in path or "download" in path:
-                return AuditAction.LICENSE_DOWNLOADED
-            elif "verify" in path:
-                return AuditAction.LICENSE_VERIFIED
-            elif "upgrade" in path:
-                if "approve" in path:
-                    return AuditAction.LICENSE_UPGRADE_APPROVED
-                elif "reject" in path:
-                    return AuditAction.LICENSE_UPGRADE_REJECTED
-                else:
-                    return AuditAction.LICENSE_UPGRADE_REQUESTED
-            elif method == "POST":
-                return AuditAction.LICENSE_ISSUED
-            elif method == "GET":
-                return AuditAction.LICENSE_VIEWED
-            elif method == "DELETE":
-                return AuditAction.LICENSE_REVOKED
-
-        # Projects
-        if "/projects" in path:
-            if "enroll" in path:
-                if method == "POST":
-                    return AuditAction.PROJECT_ENROLLED
-                elif method == "DELETE":
-                    return AuditAction.PROJECT_UNENROLLED
-            elif method == "POST":
-                return AuditAction.PROJECT_CREATED
-            elif method in ["PUT", "PATCH"]:
-                return AuditAction.PROJECT_UPDATED
-            elif method == "DELETE":
-                return AuditAction.PROJECT_DELETED
-
-        # Quizzes
-        if "/quiz" in path:
-            if "/start" in path:
-                return AuditAction.QUIZ_STARTED
-            elif "/submit" in path:
-                return AuditAction.QUIZ_SUBMITTED
-            elif method == "POST":
-                return AuditAction.QUIZ_CREATED
-            elif method in ["PUT", "PATCH"]:
-                return AuditAction.QUIZ_UPDATED
-            elif method == "DELETE":
-                return AuditAction.QUIZ_DELETED
-
-        # Certificates
-        if "/certificates" in path:
-            if "pdf" in path or "download" in path:
-                return AuditAction.CERTIFICATE_DOWNLOADED
-            elif method == "POST":
-                return AuditAction.CERTIFICATE_ISSUED
-            elif method == "GET":
-                return AuditAction.CERTIFICATE_VIEWED
-
-        # Generic fallback
-        return f"{method}_{path}"
+        Delegates to ActionDeterminer service using Strategy Pattern.
+        """
+        determiner = ActionDeterminer()
+        return determiner.determine_action(request, response)
 
     def _extract_resource_info(self, path: str) -> tuple[Optional[str], Optional[int]]:
         """Extract resource type and ID from path"""

@@ -25,11 +25,8 @@ Key Characteristics:
 """
 
 from typing import Tuple, Dict, Optional, List
-from datetime import date, datetime
 from sqlalchemy.orm import Session
 from app.services.specs.base_spec import BaseSpecializationService
-from app.models.user import User
-from app.models.session import Session as SessionModel
 from app.models.license import UserLicense
 from app.models.semester_enrollment import SemesterEnrollment
 

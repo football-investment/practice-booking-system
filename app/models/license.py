@@ -146,6 +146,8 @@ class UserLicense(Base):
                       comment="Whether this license is currently active (can be used for teaching/enrollment)")
 
     # 📅 License Expiration & Renewal (Fase 2)
+    issued_at = Column(DateTime, nullable=True,
+                      comment="Official license issuance date (e.g., 2014-01-01 for Grand Master)")
     expires_at = Column(DateTime, nullable=True,
                        comment="License expiration date (null = no expiration yet, perpetual until first renewal)")
     last_renewed_at = Column(DateTime, nullable=True,
@@ -205,7 +207,10 @@ class UserLicense(Base):
             "specialization_type": self.specialization_type,
             "current_level": self.current_level,
             "max_achieved_level": self.max_achieved_level,
+            "is_active": self.is_active,  # ✅ ADDED: Include is_active flag
             "started_at": self.started_at.isoformat() if self.started_at else None,
+            "issued_at": self.issued_at.isoformat() if self.issued_at else None,  # ✅ License issuance date
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,  # ✅ License expiration date
             "last_advanced_at": self.last_advanced_at.isoformat() if self.last_advanced_at else None,
             "instructor_notes": self.instructor_notes
         }
@@ -270,27 +275,23 @@ class LicenseSystemHelper:
         Returns:
             Maximum level count from DB or fallback default
         """
-        # Try DB first (source of truth)
-        if db:
-            try:
-                from app.models.user_progress import Specialization
-                spec = db.query(Specialization).filter(
-                    Specialization.id == specialization.upper()
-                ).first()
+        # ✅ FIX: spec.max_levels was removed in P0 security fix
+        # Use hardcoded defaults directly (DB table no longer has max_levels column)
 
-                if spec and spec.max_levels:
-                    return spec.max_levels
-            except Exception:
-                # Fallback if DB query fails
-                pass
+        # Normalize specialization_type format (handle both "LFA_COACH" and "COACH")
+        spec_normalized = specialization.upper()
+        if spec_normalized.startswith("LFA_"):
+            spec_normalized = spec_normalized.replace("LFA_FOOTBALL_PLAYER", "PLAYER").replace("LFA_COACH", "COACH")
 
-        # Fallback defaults (should match DB migration seed)
-        max_levels_fallback = {
+        max_levels_map = {
             "COACH": 8,
             "PLAYER": 8,
-            "INTERNSHIP": 3  # FIXED: Was 5, now 3 (DB source of truth)
+            "INTERNSHIP": 3,
+            # Legacy/alternative names
+            "LFA_COACH": 8,
+            "LFA_FOOTBALL_PLAYER": 8
         }
-        return max_levels_fallback.get(specialization.upper(), 1)
+        return max_levels_map.get(spec_normalized, 8)  # Default to 8 if unknown
     
     @staticmethod
     def get_level_metadata(specialization: str, level: int) -> Optional[str]:

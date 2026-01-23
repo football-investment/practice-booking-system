@@ -1,26 +1,19 @@
-"""User specialization operations"""
+"""
+User specialization operations
+
+🎓 Specialization API Endpoints
+Handles specialization selection and information for the LFA education platform
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict
+from pydantic import BaseModel
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.specialization import SpecializationType
-
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-"""
-🎓 Specialization API Endpoints
-Handles specialization selection and information for the LFA education platform
-"""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
-
-from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -46,8 +39,6 @@ async def list_specializations(db: Session = Depends(get_db)):
     2. Load full content from JSON configs
     3. Return merged data
     """
-    from app.services.specialization_service import SpecializationService
-
     service = SpecializationService(db)
     all_specs = service.get_all_specializations()
 
@@ -80,9 +71,6 @@ async def set_user_specialization(
     4. Validate parental consent (for LFA_COACH under 18)
     5. Update user specialization
     """
-    from app.services.specialization_service import SpecializationService
-
-    # STEP 1: Validate enum
     try:
         specialization = SpecializationType(specialization_data.specialization)
     except ValueError:
@@ -133,7 +121,6 @@ async def set_user_specialization(
     print(f"🎓 Specialization updated: {current_user.name} → {specialization.value}")
 
     # Get display info from JSON (HYBRID)
-    from app.services.specialization_config_loader import SpecializationConfigLoader
     loader = SpecializationConfigLoader()
     display_info = loader.get_display_info(specialization)
 

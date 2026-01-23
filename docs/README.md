@@ -1,63 +1,85 @@
-# Documentation
+# 📚 Documentation
 
 This directory contains all project documentation organized by category.
 
-## Directory Structure
+## 📂 Directory Structure
 
-### `/guides`
-User guides, quick start guides, deployment instructions, and how-to documentation.
-
-**Key Files:**
-- `START_HERE.md` - Project overview and getting started
-- `INDITAS.md` - Hungarian version of getting started
-- `LOGIN_GUIDE.md` - Login credentials and access guide
-- `STREAMLIT_QUICK_START.md` - Quick start for Streamlit dashboard
-- `PRODUCTION_DEPLOYMENT_CHECKLIST.md` - Deployment guide
-
-### `/audits`
-System audits, analysis reports, and technical assessments.
-
-**Key Files:**
-- `ADMIN_DASHBOARD_AUDIT_COMPLETE.md` - Complete admin dashboard audit
-- `DATABASE_AUDIT_SUMMARY.md` - Database structure audit
-- `BACKEND_LOGIC_ANALYSIS_COMPLETE.md` - Backend logic analysis
-- `N+1_FIXES_COMPLETE.md` - Performance optimization audit
-
-### `/phases`
-Phase-by-phase implementation completion reports.
-
-**Key Files:**
-- `SPEC_SERVICES_REFACTOR_COMPLETE.md` - Specialization services refactoring
-- `PHASE_4_LFA_COACH_SERVICE_COMPLETE.md` - Coach service implementation
-- `PHASE_5_LFA_INTERNSHIP_SERVICE_COMPLETE.md` - Internship service implementation
-- `PHASE_6_API_INTEGRATION_COMPLETE.md` - API integration completion
-
-### `/completed`
-Completed feature implementation and completion reports.
-
-**Key Files:**
-- `ADMIN_DASHBOARD_COMPLETE_IMPLEMENTATION.md` - Admin dashboard features
-- `CAMPUS_CRUD_COMPLETE.md` - Campus management CRUD
-- `FINANCIAL_MANAGEMENT_COMPLETE.md` - Financial management features
-- `SEMESTER_MANAGEMENT_IMPLEMENTATION_COMPLETE.md` - Semester management
-
-### `/fixes`
-Bug fixes, critical corrections, and hotfix documentation.
-
-**Key Files:**
-- `LFA_PLAYER_SEASON_ENROLLMENT_FIX.md` - Critical season enrollment fix
-- `INTERNSHIP_AGE_CORRECTION_FINAL.md` - Age requirement correction
-- `SESSION_PERSISTENCE_FIX_COMPLETE.md` - Session persistence fix
-- `PAYMENT_VERIFICATION_UI_FIX_COMPLETE.md` - Payment UI fix
-
-### `/archived`
-Archived documentation from previous implementations (CURRENT/, ARCHIVED/, GUIDES/ from old structure).
+```
+docs/
+├── backend/          # Backend code, architecture, audits
+├── tournament/       # Tournament system refactoring documentation
+├── testing/          # Testing guides and E2E documentation
+├── archive/          # Historical summaries and phase completion reports
+└── screenshots/      # UI screenshots for documentation
+```
 
 ---
 
-## Navigation
+## 🏆 Tournament System
 
-- Project Root: `../`
-- Scripts: `../scripts/`
-- Tests: `../tests/`
-- Application Code: `../app/`
+**Location:** `tournament/`
+
+- `TOURNAMENT_SYSTEM_REFACTORING_PLAN.md` - Complete refactoring implementation plan
+- `TOURNAMENT_REFACTORING_PROGRESS.md` - Progress tracking and status updates
+- `TOURNAMENT_COMPLETE_WORKFLOW.md` - Complete workflow documentation
+
+---
+
+## 🔧 Backend Documentation
+
+**Location:** `backend/`
+
+- `BACKEND_AUDIT_SUMMARY.md` - Executive summary of backend audit
+- `BACKEND_TEST_REPORT.md` - Comprehensive test results and coverage
+- `CODE_ORGANIZATION_REPORT.md` - Repository organization audit
+
+---
+
+## 🧪 Testing Documentation
+
+**Location:** `testing/`
+
+- `E2E_TESTING_GUIDE.md` - E2E testing guide
+- `E2E_TESTING_GUIDE_COMPLETE.md` - Complete E2E testing documentation
+- `E2E_TESTING_SUMMARY.md` - E2E test summary
+- `E2E_SETUP_INSTRUCTIONS.md` - Setup instructions for E2E tests
+- `E2E_CURRENT_STATUS.md` - Current status of E2E tests
+- `E2E_DELIVERY_SUMMARY.md` - E2E delivery summary
+- `E2E_FINAL_STATUS_HU.md` - Final E2E status (Hungarian)
+- `E2E_FULL_LIFECYCLE_PLAN.md` - Full E2E lifecycle plan
+- `E2E_UI_EXPLORATION_SUMMARY.md` - UI exploration summary
+- `FRONTEND_TESTING_GUIDE.md` - Frontend testing guide
+- `TESTING_GAP_ANALYSIS.md` - Testing gap analysis
+
+---
+
+## 📦 Archive
+
+**Location:** `archive/`
+
+Historical documents and phase completion summaries:
+
+- `PHASE_1_COMPLETION_SUMMARY.md`
+- `PHASE_2_COMPLETION_SUMMARY.md`
+- `PHASE_3_COMPLETION_SUMMARY.md`
+- `FINAL_SUMMARY.md`
+- `SESSION_SUMMARY_2026-01-03.md`
+- `REGISTRATION_VALIDATION_SUMMARY.md`
+
+---
+
+## 🎯 Quick Links
+
+### Current Active Documentation:
+- **Tournament Refactoring:** [tournament/TOURNAMENT_REFACTORING_PROGRESS.md](tournament/TOURNAMENT_REFACTORING_PROGRESS.md)
+- **Backend Audit:** [backend/BACKEND_AUDIT_SUMMARY.md](backend/BACKEND_AUDIT_SUMMARY.md)
+- **Testing Guide:** [testing/E2E_TESTING_GUIDE_COMPLETE.md](testing/E2E_TESTING_GUIDE_COMPLETE.md)
+
+### For Developers:
+- **Backend Tests:** [backend/BACKEND_TEST_REPORT.md](backend/BACKEND_TEST_REPORT.md)
+- **Code Organization:** [backend/CODE_ORGANIZATION_REPORT.md](backend/CODE_ORGANIZATION_REPORT.md)
+
+---
+
+**Last Updated:** 2026-01-03
+**Maintained By:** Development Team

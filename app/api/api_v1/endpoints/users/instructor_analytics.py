@@ -12,7 +12,7 @@ from .....models.user import User, UserRole
 from .....models.booking import Booking
 from .....models.attendance import Attendance
 from .....models.feedback import Feedback
-from .helpers import calculate_pagination, serialize_enum_value
+from .helpers import serialize_enum_value
 
 router = APIRouter()
 
@@ -35,11 +35,6 @@ def get_instructor_students(
         )
     
     # Import here to avoid circular imports
-    from .....models.project import ProjectEnrollment, ProjectEnrollmentStatus
-    from .....models.session import Session as SessionTypel
-    
-    # Get students enrolled in instructor's projects or sessions
-    # First get all students enrolled in instructor's projects
     project_students = db.query(User).join(
         ProjectEnrollment, User.id == ProjectEnrollment.user_id
     ).join(
@@ -152,10 +147,6 @@ def get_instructor_student_details(
         )
     
     # Import here to avoid circular imports
-    from .....models.project import Project, ProjectEnrollment
-    from .....models.session import Session as SessionTypel
-    
-    # Verify instructor has access to this student (student must be in instructor's projects/sessions)
     has_access = False
     
     # Check project access
@@ -353,20 +344,6 @@ def get_instructor_student_progress(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
-    
-    # Import here to avoid circular imports
-    from .....models.project import Project, ProjectEnrollment
-    from .....models.session import Session as SessionTypel
-    try:
-        from .....models.quiz import QuizAttempt, Quiz
-    except ImportError:
-        QuizAttempt = None
-        Quiz = None
-    try:
-        from .....models.gamification import UserAchievement, Achievement
-    except ImportError:
-        UserAchievement = None
-        Achievement = None
     
     # Verify instructor has access to this student
     has_access = False

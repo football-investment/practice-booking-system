@@ -27,12 +27,10 @@ Key Characteristics:
 - Skills tracking: heading, shooting, crossing, passing, dribbling, ball_control, defending
 """
 
-from typing import Tuple, Dict, Optional, List
-from datetime import date, datetime
+from typing import Tuple, Dict, Optional
+from datetime import date
 from sqlalchemy.orm import Session
 from app.services.specs.base_spec import BaseSpecializationService
-from app.models.user import User
-from app.models.session import Session as SessionModel
 from app.models.license import UserLicense
 from app.models.football_skill_assessment import FootballSkillAssessment
 from app.models.semester_enrollment import SemesterEnrollment

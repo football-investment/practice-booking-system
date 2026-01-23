@@ -5,21 +5,21 @@ List, filter, recommendations, bookings, instructor sessions, calendar
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, and_, or_, case
-from datetime import datetime, date, timezone
+from sqlalchemy import func, and_
+from datetime import datetime, timezone
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
-from .....models.semester import Semester
 from .....models.session import Session as SessionTypel, SessionType
 from .....models.booking import Booking, BookingStatus
-from .....models.attendance import Attendance
-from .....models.feedback import Feedback
 from .....models.specialization import SpecializationType
-from .....schemas.session import SessionWithStats, SessionList
+from .....schemas.session import SessionList
 from .....schemas.booking import BookingWithRelations, BookingList
 from .....services.session_filter_service import SessionFilterService
+from .....services.session_stats_aggregator import SessionStatsAggregator
+from .....services.role_semester_filter_service import RoleSemesterFilterService
+from .....services.session_response_builder import SessionResponseBuilder
 
 router = APIRouter()
 
@@ -38,105 +38,52 @@ def list_sessions(
     include_mixed: bool = Query(True, description="Include mixed specialization sessions")
 ) -> Any:
     """
-    List sessions with pagination and filtering
-    For students: Show sessions from all current active semesters (based on date range)
-    For admin/instructor: Show all sessions or filtered by semester_id
+    List sessions with pagination, filtering, and statistics.
 
-    Multi-semester support: When multiple semesters run concurrently (e.g., different
-    tracks of Fall 2025), students will see sessions from all active semesters.
-    This ensures visibility when users enroll in second semester or concurrent programs.
+    Architecture:
+        - RoleSemesterFilterService: Handles role-based semester filtering
+        - SessionFilterService: Handles specialization filtering
+        - SessionStatsAggregator: Bulk-fetches booking/attendance/rating stats
+        - SessionResponseBuilder: Constructs response with NULL handling
+
+    Role-Based Logic:
+        - Students: Current active semesters (multi-semester support)
+        - Admin: All sessions (optionally filtered by semester_id)
+        - Instructor: Semesters where assigned or PENDING requests
+
+    Specialization:
+        - INTERNSHIP: Simple target_specialization filtering
+        - Other specializations: Intelligent keyword-based filtering
+
+    Performance:
+        - Query count: 5-7 (role-dependent)
+        - N+1 problem eliminated: Bulk GROUP BY queries for stats
+        - Response: SessionList with pre-aggregated statistics
     """
+    # 1. Initialize query
     query = db.query(SessionTypel)
 
-    # Apply role-based semester filtering
-    if current_user.role == UserRole.STUDENT:
-        # 🌐 CRITICAL: Cross-semester logic for Mbappé (LFA Testing)
-        if current_user.email == "mbappe@lfa.com":
-            # Mbappé gets access to ALL sessions across ALL semesters
-            print(f"🌐 Cross-semester access granted for {current_user.name} (LFA Testing)")
-            # No semester restriction for Mbappé - only apply semester_id filter if explicitly requested
-            if semester_id:
-                query = query.filter(SessionTypel.semester_id == semester_id)
-                print(f"🎯 Mbappé filtering by specific semester: {semester_id}")
-            else:
-                print("🌐 Mbappé accessing ALL sessions across ALL semesters")
-        else:
-            # Regular students see sessions from all current active semesters with intelligent filtering
-            if not semester_id:
-                # Get all current active semesters (including parallel tracks)
-                today = date.today()
+    # 2. Apply role-based semester filtering
+    role_filter_service = RoleSemesterFilterService(db)
+    query = role_filter_service.apply_role_semester_filter(query, current_user, semester_id)
 
-                current_semesters = db.query(Semester).filter(
-                    and_(
-                        Semester.start_date <= today,
-                        Semester.end_date >= today,
-                        Semester.is_active == True
-                    )
-                ).all()
+    # 3. Apply specialization filtering
+    if specialization_filter:
+        filter_service = SessionFilterService(db)
+        query = filter_service.apply_specialization_filter(query, current_user, include_mixed)
 
-                if current_semesters:
-                    semester_ids = [s.id for s in current_semesters]
-                    query = query.filter(SessionTypel.semester_id.in_(semester_ids))
-                    print(f"Student seeing sessions from {len(current_semesters)} current semesters: {[s.name for s in current_semesters]}")
-                else:
-                    # Fallback: if no current semesters by date, show most recent semesters
-                    recent_semesters = db.query(Semester).filter(
-                        Semester.is_active == True
-                    ).order_by(Semester.id.desc()).limit(3).all()
-                    if recent_semesters:
-                        semester_ids = [s.id for s in recent_semesters]
-                        query = query.filter(SessionTypel.semester_id.in_(semester_ids))
-                        print(f"Fallback: Student seeing sessions from {len(recent_semesters)} recent semesters")
-            else:
-                # Allow filtering by specific semester for students
-                query = query.filter(SessionTypel.semester_id == semester_id)
-    else:
-        # Admin/Instructor can see all sessions or filter by semester
-        if semester_id:
-            query = query.filter(SessionTypel.semester_id == semester_id)
-
-    # 🎓 NEW: Apply specialization filtering (CRITICAL: Preserves Mbappé logic)
-    # FIX: Only apply to STUDENTS with specialization - skip for admin/instructor
-    if specialization_filter and current_user.role == UserRole.STUDENT and hasattr(current_user, 'has_specialization') and current_user.has_specialization:
-        # Only apply specialization filtering to students who have a specialization
-        # ⚠️ CRITICAL: This preserves Mbappé cross-semester access since he's already handled above
-
-        specialization_conditions = []
-
-        # Sessions with no specific target (accessible to all)
-        specialization_conditions.append(SessionTypel.target_specialization.is_(None))
-
-        # Sessions matching user's specialization
-        if current_user.specialization:
-            specialization_conditions.append(SessionTypel.target_specialization == current_user.specialization)
-
-        # Mixed specialization sessions (if include_mixed is True)
-        if include_mixed:
-            specialization_conditions.append(SessionTypel.mixed_specialization == True)
-
-        query = query.filter(or_(*specialization_conditions))
-
-        if current_user.specialization:
-            print(f"🎓 Specialization filtering applied for {current_user.name}: {current_user.specialization.value}")
-
-    # Apply other filters
+    # 4. Apply additional filters
     if group_id:
         query = query.filter(SessionTypel.group_id == group_id)
     if session_type:
         query = query.filter(SessionTypel.session_type == session_type)
 
-    # Get total count
+    # 5. Get total count
     total = query.count()
 
-    # Apply pagination with ordering (future sessions first, then by start date)
-    # Get current time in UTC and convert to naive for DB comparison
-    # All datetime objects in DB are stored as naive UTC
-    now_utc = datetime.now(timezone.utc)
-    now_naive_utc = now_utc.replace(tzinfo=None)
-
+    # 6. Pagination and ordering
+    now_naive_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     offset = (page - 1) * size
-
-    # Apply intelligent filtering for students, standard ordering for others
     if current_user.role == UserRole.STUDENT:
         # INTERNSHIP users use target_specialization filtering only (already applied above)
         # Other specializations use SessionFilterService for keyword-based filtering
@@ -169,94 +116,14 @@ def list_sessions(
             SessionTypel.date_start.asc()                      # Then by start time (earliest future first)
         ).offset(offset).limit(size).all()
 
-    # 🚀 PERFORMANCE OPTIMIZATION: Pre-fetch all stats with JOIN queries (eliminates N+1 problem)
+    # 7. Fetch statistics (bulk queries, N+1 elimination)
     session_ids = [s.id for s in sessions]
+    stats_aggregator = SessionStatsAggregator(db)
+    stats = stats_aggregator.fetch_stats(session_ids)
 
-    # Fetch booking stats in a single query using GROUP BY
-    booking_stats_query = db.query(
-        Booking.session_id,
-        func.count(Booking.id).label('total_bookings'),
-        func.sum(case((Booking.status == BookingStatus.CONFIRMED, 1), else_=0)).label('confirmed'),
-        func.sum(case((Booking.status == BookingStatus.WAITLISTED, 1), else_=0)).label('waitlisted')
-    ).filter(Booking.session_id.in_(session_ids)).group_by(Booking.session_id).all()
-
-    # Create lookup dict for O(1) access
-    booking_stats_dict = {
-        stat.session_id: {
-            'total': stat.total_bookings,
-            'confirmed': stat.confirmed,
-            'waitlisted': stat.waitlisted
-        } for stat in booking_stats_query
-    }
-
-    # Fetch attendance stats in a single query
-    attendance_stats_query = db.query(
-        Attendance.session_id,
-        func.count(Attendance.id).label('count')
-    ).filter(Attendance.session_id.in_(session_ids)).group_by(Attendance.session_id).all()
-
-    attendance_stats_dict = {stat.session_id: stat.count for stat in attendance_stats_query}
-
-    # Fetch rating stats in a single query
-    rating_stats_query = db.query(
-        Feedback.session_id,
-        func.avg(Feedback.rating).label('avg_rating')
-    ).filter(Feedback.session_id.in_(session_ids)).group_by(Feedback.session_id).all()
-
-    rating_stats_dict = {stat.session_id: float(stat.avg_rating) if stat.avg_rating else None for stat in rating_stats_query}
-
-    # Add statistics
-    session_stats = []
-    for session in sessions:
-        # Get stats from pre-fetched dicts (O(1) lookup)
-        booking_stats = booking_stats_dict.get(session.id, {'total': 0, 'confirmed': 0, 'waitlisted': 0})
-        booking_count = booking_stats['total']
-        confirmed_bookings = booking_stats['confirmed']
-        waitlist_count = booking_stats['waitlisted']
-        attendance_count = attendance_stats_dict.get(session.id, 0)
-        avg_rating = rating_stats_dict.get(session.id, None)
-
-        # FIX: Build session data explicitly to handle NULL values
-        session_data = {
-            "id": session.id,
-            "title": session.title,
-            "description": session.description or "",
-            "date_start": session.date_start,
-            "date_end": session.date_end,
-            "session_type": session.session_type,
-            "capacity": session.capacity if session.capacity is not None else 0,  # FIX: Handle NULL
-            "credit_cost": session.credit_cost if session.credit_cost is not None else 1,  # FIX: Include credit_cost from database
-            "location": session.location,
-            "meeting_link": session.meeting_link,
-            "sport_type": session.sport_type,
-            "level": session.level,
-            "instructor_name": session.instructor_name,
-            "semester_id": session.semester_id,
-            "group_id": session.group_id,
-            "instructor_id": session.instructor_id,
-            "created_at": session.created_at or session.date_start,  # FIX: Handle NULL created_at
-            "updated_at": session.updated_at,
-            "target_specialization": session.target_specialization,
-            "mixed_specialization": session.mixed_specialization if hasattr(session, 'mixed_specialization') else False,
-            "semester": session.semester,
-            "group": session.group,
-            "instructor": session.instructor,
-            "booking_count": booking_count,
-            "confirmed_bookings": confirmed_bookings,
-            "current_bookings": confirmed_bookings,
-            "waitlist_count": waitlist_count,
-            "attendance_count": attendance_count,
-            "average_rating": float(avg_rating) if avg_rating else None
-        }
-
-        session_stats.append(SessionWithStats(**session_data))
-
-    return SessionList(
-        sessions=session_stats,
-        total=total,
-        page=page,
-        size=size
-    )
+    # 8. Build response
+    response_builder = SessionResponseBuilder(db)
+    return response_builder.build_response(sessions, stats, total, page, size)
 
 
 @router.get("/recommendations")
@@ -313,11 +180,13 @@ def get_session_bookings(
     # Convert to response schema
     booking_responses = []
     for booking in bookings:
-        booking_responses.append(BookingWithRelations(
-            **booking.__dict__,
-            user=booking.user,
-            session=booking.session
-        ))
+        # Use model_dump() to properly serialize the Pydantic model with relationships
+        booking_data = {
+            **{k: v for k, v in booking.__dict__.items() if not k.startswith('_')},
+            'user': booking.user,
+            'session': booking.session
+        }
+        booking_responses.append(BookingWithRelations(**booking_data))
 
     return BookingList(
         bookings=booking_responses,

@@ -1,10 +1,20 @@
 from .user import User, UserRole
 from .instructor_specialization import InstructorSpecialization
 from .instructor_availability import InstructorSpecializationAvailability
-from .instructor_assignment import InstructorAvailabilityWindow, InstructorAssignmentRequest, AssignmentRequestStatus
+from .instructor_assignment import (
+    InstructorAvailabilityWindow,
+    InstructorAssignmentRequest,
+    AssignmentRequestStatus,
+    LocationMasterInstructor,
+    InstructorPosition,
+    PositionStatus,
+    PositionApplication,
+    ApplicationStatus,
+    InstructorAssignment
+)
 from .location import Location
 from .campus import Campus
-from .semester import Semester
+from .semester import Semester, SemesterStatus
 from .group import Group, group_users
 from .session import Session, SessionType
 from .booking import Booking, BookingStatus
@@ -25,11 +35,20 @@ from .credit_transaction import CreditTransaction, TransactionType
 from .invoice_request import InvoiceRequest, InvoiceRequestStatus
 from .coupon import Coupon, CouponType
 from .invitation_code import InvitationCode
+from .session_group import SessionGroupAssignment, SessionGroupStudent
+from .audit_log import AuditLog
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
 from .certificate import CertificateTemplate, IssuedCertificate
 from .user_progress import UserTrackProgress, UserModuleProgress, TrackProgressStatus, ModuleProgressStatus
+
+# 🏆 Tournament System
+from .tournament_enums import TournamentType, ParticipantType, TeamMemberRole
+from .tournament_type import TournamentType as TournamentTypeModel  # DB model for tournament types
+from .team import Team, TeamMember, TournamentTeamEnrollment
+from .tournament_ranking import TournamentRanking, TournamentStats, TournamentReward
+from .tournament_status_history import TournamentStatusHistory
 
 # Configure relationships after all models are imported
 configure_relationships()
@@ -43,9 +62,16 @@ __all__ = [
     "InstructorAvailabilityWindow",
     "InstructorAssignmentRequest",
     "AssignmentRequestStatus",
+    "LocationMasterInstructor",
+    "InstructorPosition",
+    "PositionStatus",
+    "PositionApplication",
+    "ApplicationStatus",
+    "InstructorAssignment",
     "Location",
     "Campus",
     "Semester",
+    "SemesterStatus",
     "Group",
     "group_users",
     "Session",
@@ -99,4 +125,19 @@ __all__ = [
     "CouponType",
     "StudentPerformanceReview",
     "InstructorSessionReview",
+    "SessionGroupAssignment",
+    "SessionGroupStudent",
+    "AuditLog",
+    # Tournament System
+    "TournamentType",
+    "TournamentTypeModel",
+    "ParticipantType",
+    "TeamMemberRole",
+    "Team",
+    "TeamMember",
+    "TournamentTeamEnrollment",
+    "TournamentRanking",
+    "TournamentStats",
+    "TournamentReward",
+    "TournamentStatusHistory",
 ]

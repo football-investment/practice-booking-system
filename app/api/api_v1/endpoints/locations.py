@@ -13,6 +13,7 @@ from datetime import datetime
 
 from ....database import get_db
 from ....models.location import Location
+from ....models.campus import Campus
 from ....dependencies import get_current_admin_user
 
 router = APIRouter()
@@ -28,6 +29,9 @@ class LocationCreate(BaseModel):
     city: str
     postal_code: str | None = None
     country: str
+    country_code: str | None = None  # 2-letter ISO code (e.g., HU, AT, SK)
+    location_code: str | None = None  # Unique location identifier (e.g., BDPST)
+    location_type: str = "CENTER"  # NEW: PARTNER or CENTER
     venue: str | None = None
     address: str | None = None
     notes: str | None = None
@@ -40,6 +44,9 @@ class LocationUpdate(BaseModel):
     city: str | None = None
     postal_code: str | None = None
     country: str | None = None
+    country_code: str | None = None
+    location_code: str | None = None
+    location_type: str | None = None  # NEW: PARTNER or CENTER
     venue: str | None = None
     address: str | None = None
     notes: str | None = None
@@ -53,6 +60,9 @@ class LocationResponse(BaseModel):
     city: str
     postal_code: str | None
     country: str
+    country_code: str | None
+    location_code: str | None
+    location_type: str  # NEW: PARTNER or CENTER
     venue: str | None
     address: str | None
     notes: str | None
@@ -147,6 +157,9 @@ async def create_location(
         city=location_data.city,
         postal_code=location_data.postal_code,
         country=location_data.country,
+        country_code=location_data.country_code,  # 🔥 FIX: Add country_code
+        location_code=location_data.location_code,  # 🔥 FIX: Add location_code
+        location_type=location_data.location_type,  # NEW: PARTNER or CENTER
         venue=location_data.venue,
         address=location_data.address,
         notes=location_data.notes,
@@ -173,19 +186,36 @@ async def update_location(
     Update an existing location.
 
     **Admin only**
+
+    **CASCADE INACTIVATION:** If location is being set to inactive (is_active=False),
+    all campuses belonging to this location will also be automatically inactivated.
     """
     location = db.query(Location).filter(Location.id == location_id).first()
 
     if not location:
         raise HTTPException(status_code=404, detail=f"Location with ID {location_id} not found")
 
-    # Update only provided fields
+    # Check if location is being inactivated
     update_data = location_data.model_dump(exclude_unset=True)
+    is_being_inactivated = (
+        'is_active' in update_data and
+        update_data['is_active'] is False and
+        location.is_active is True
+    )
 
+    # Update only provided fields
     for field, value in update_data.items():
         setattr(location, field, value)
 
     location.updated_at = datetime.utcnow()
+
+    # CASCADE: If location is being inactivated, also inactivate all its campuses
+    if is_being_inactivated:
+        campuses = db.query(Campus).filter(Campus.location_id == location_id).all()
+        for campus in campuses:
+            if campus.is_active:  # Only update if currently active
+                campus.is_active = False
+                campus.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(location)
@@ -204,16 +234,27 @@ async def delete_location(
 
     **Admin only**
 
-    Note: This is a soft delete. The location remains in the database but is marked inactive.
+    **CASCADE INACTIVATION:** When a location is deleted (soft-deleted),
+    all campuses belonging to this location will also be automatically inactivated.
+
+    Note: This is a soft delete. The location and its campuses remain in the database
+    but are marked inactive.
     """
     location = db.query(Location).filter(Location.id == location_id).first()
 
     if not location:
         raise HTTPException(status_code=404, detail=f"Location with ID {location_id} not found")
 
-    # Soft delete
+    # Soft delete location
     location.is_active = False
     location.updated_at = datetime.utcnow()
+
+    # CASCADE: Also inactivate all campuses belonging to this location
+    campuses = db.query(Campus).filter(Campus.location_id == location_id).all()
+    for campus in campuses:
+        if campus.is_active:  # Only update if currently active
+            campus.is_active = False
+            campus.updated_at = datetime.utcnow()
 
     db.commit()
 

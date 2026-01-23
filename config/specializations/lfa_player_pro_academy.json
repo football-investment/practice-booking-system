@@ -1,0 +1,93 @@
+{
+  "id": "LFA_PLAYER_PRO_ACADEMY",
+  "name": "LFA Player PRO Academy Season",
+  "description": "Teljes éves Academy Season PRO korosztály számára (14+ év). Július 1 - Június 30 fix időszak, elit professzionális képzés.",
+  "min_age": 14,
+  "max_age": null,
+  "season_type": "academy_annual",
+  "duration": "full_year",
+  "start_date": "July 1",
+  "end_date": "June 30",
+  "cost_credits": 10000,
+  "requires_location_type": "CENTER",
+  "age_groups": [
+    {
+      "name": "PRO Academy",
+      "min_age": 14,
+      "max_age": null,
+      "levels": [1, 2, 3, 4, 5, 6, 7, 8],
+      "description": "Teljes éves elit professzionális képzési program PRO korosztály számára"
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "Professional Trainee",
+      "description": "Profi gyakornok - alapvető profi készségek",
+      "xp_required": 0
+    },
+    {
+      "level": 2,
+      "name": "Pro Development",
+      "description": "Profi fejlesztés - intenzív taktikai munka",
+      "xp_required": 400
+    },
+    {
+      "level": 3,
+      "name": "Elite Pro",
+      "description": "Elit profi - kimagasló teljesítmény",
+      "xp_required": 900
+    },
+    {
+      "level": 4,
+      "name": "First Team Prospect",
+      "description": "Első csapat jelölt - csapatépítő szerep",
+      "xp_required": 1500
+    },
+    {
+      "level": 5,
+      "name": "Professional Leader",
+      "description": "Professzionális vezető - csapatkapitányi készségek",
+      "xp_required": 2300
+    },
+    {
+      "level": 6,
+      "name": "Academy Elite",
+      "description": "Akadémiai elit - teljes körű profi felkészültség",
+      "xp_required": 3300
+    },
+    {
+      "level": 7,
+      "name": "Pre-Contract Professional",
+      "description": "Szerződéskötés előtti profi - karrierpálya előkészítés",
+      "xp_required": 4500
+    },
+    {
+      "level": 8,
+      "name": "Professional Graduate",
+      "description": "Professzionális végzős - teljes PRO szintű játéktudás",
+      "xp_required": 6000
+    }
+  ],
+  "features": [
+    "Teljes éves elkötelezettség (July 1 - June 30)",
+    "Elit 12 hónapos professzionális képzési program",
+    "Heti 5-6 edzés + versenyezési lehetőség",
+    "Csak CENTER helyszíneken elérhető",
+    "Age category lock július 1-jén (egész évre fix)",
+    "Professzionális edzői stáb és infrastruktúra",
+    "Profi szintű taktikai, fizikai és mentális felkészítés",
+    "Folyamatos szakmai értékelés és egyéni karrier terv",
+    "Kapcsolódás professzionális karrierúthoz",
+    "Legmagasabb szintű versenyfelkészítés"
+  ],
+  "enrollment_rules": {
+    "age_lock_date": "July 1",
+    "age_lock_description": "A játékos korosztálya július 1-jén rögzítésre kerül és az egész szezonra érvényes marad",
+    "parallel_enrollment_allowed": true,
+    "can_combine_with": ["TOURNAMENT", "MINI_SEASON"],
+    "location_requirement": "CENTER only",
+    "min_commitment": "full_year",
+    "intensity_level": "elite"
+  }
+}

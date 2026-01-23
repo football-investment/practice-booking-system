@@ -61,28 +61,47 @@ def render_semester_generation(token: str):
         st.error("❌ No active locations available! Please create a location first in the **📍 Locations** tab.")
         return
 
-    # Location selector
+    # Location selector with type info
     st.markdown("#### 📍 Select Location")
-    location_options = {
-        f"{loc['name']} ({loc['city']}, {loc['country']})": loc['id']
-        for loc in active_locations
-    }
+
+    # Enhanced location selector with type info
+    location_options = {}
+    for loc in active_locations:
+        loc_id = loc['id']
+        loc_type = loc.get('location_type', 'PARTNER')
+        type_emoji = "🏢" if loc_type == 'CENTER' else "🤝"
+        label = f"{type_emoji} {loc['name']} ({loc['city']}, {loc['country']}) — {loc_type}"
+
+        location_options[label] = {
+            'id': loc_id,
+            'type': loc_type,
+            'city': loc['city'],
+            'name': loc['name'],
+            'venue': loc.get('venue')
+        }
+
     selected_location_label = st.selectbox(
         "Location",
         list(location_options.keys()),
         key="gen_location_select"
     )
-    gen_location_id = location_options[selected_location_label]
 
-    # Find selected location details
-    selected_location = next(
-        (loc for loc in active_locations if loc['id'] == gen_location_id),
-        None
-    )
-    if selected_location:
-        st.caption(f"🏢 **City:** {selected_location['city']} | **Country:** {selected_location['country']}")
-        if selected_location.get('venue'):
-            st.caption(f"🏟️ **Venue:** {selected_location['venue']}")
+    # Extract location data
+    selected_location_data = location_options[selected_location_label]
+    gen_location_id = selected_location_data['id']
+    location_type = selected_location_data['type']
+    location_city = selected_location_data['city']
+    location_venue = selected_location_data.get('venue')
+
+    # Show location capabilities
+    if location_type == 'CENTER':
+        st.success("🏢 **CENTER Location** → Minden szezon típus elérhető: Tournament, Mini Season, Academy Season")
+    else:
+        st.warning("🤝 **PARTNER Location** → Korlátozott: Tournament és Mini Season elérhető | Academy Season TILTVA")
+
+    st.caption(f"🏢 **Kiválasztott város:** {location_city}")
+    if location_venue:
+        st.caption(f"🏟️ **Venue:** {location_venue}")
 
     st.divider()
 
@@ -95,8 +114,21 @@ def render_semester_generation(token: str):
 
     available_templates = templates_data.get("available_templates", [])
 
+    # ✅ ÚJ: Filter templates based on location type
+    if location_type == 'PARTNER':
+        # Kiszűrjük az Academy Season template-eket
+        original_count = len(available_templates)
+        available_templates = [
+            t for t in available_templates
+            if 'ACADEMY' not in t.get('specialization_type', '').upper()
+        ]
+        filtered_count = original_count - len(available_templates)
+
+        if filtered_count > 0:
+            st.info(f"📌 **Megjegyzés**: {filtered_count} Academy Season template elrejtve (csak CENTER location-ökön elérhető)")
+
     if not available_templates:
-        st.error("❌ No templates available in the system")
+        st.error("❌ Nincs elérhető template ezen a location típuson")
         return
 
     # Extract unique specializations

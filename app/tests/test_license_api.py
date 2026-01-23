@@ -4,13 +4,12 @@ Test License API Endpoints
 Comprehensive tests for GānCuju™️©️ License System API endpoints.
 Tests authentication, authorization, data retrieval, and license advancement workflows.
 """
-import pytest
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.license import LicenseMetadata, UserLicense
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.specialization import SpecializationType
 
 

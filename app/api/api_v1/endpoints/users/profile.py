@@ -12,6 +12,7 @@ from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_user
 from .....core.security import get_password_hash
 from .....models.user import User
+from .....models.license import UserLicense
 from .....schemas.user import User as UserSchema, UserUpdateSelf
 from .....schemas.auth import ResetPassword
 from .helpers import validate_email_unique, validate_nickname
@@ -21,18 +22,18 @@ router = APIRouter()
 
 @router.get("/me", response_model=UserSchema)
 def get_current_user_profile(
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Get current user profile
+    Get current user profile with licenses
     """
-    # Keep interests as JSON string for schema compatibility
-    user_data = current_user.__dict__.copy()
-    # Ensure interests is a string (not parsed to list)
-    if user_data.get('interests') is None:
-        user_data['interests'] = None
-    
-    return user_data
+    # ✅ CRITICAL FIX: Manually load licenses to ensure onboarding_completed is included
+    # Without this, the User model doesn't have licenses relationship defined,
+    # causing infinite onboarding loop
+    licenses = db.query(UserLicense).filter(UserLicense.user_id == current_user.id).all()
+    current_user.licenses = licenses
+    return current_user
 
 
 @router.patch("/me", response_model=UserSchema)

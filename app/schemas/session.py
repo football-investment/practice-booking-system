@@ -23,6 +23,8 @@ class SessionBase(BaseModel):
     group_id: Optional[int] = None  # FIXED: Made optional to allow null values
     instructor_id: Optional[int] = None
     credit_cost: int = 1  # Number of credits required to book this session
+    is_tournament_game: bool = False  # 🏆 Tournament game flag
+    game_type: Optional[str] = None  # Tournament game type (e.g., "Group Stage", "Semifinal", "Final")
 
     @field_validator('meeting_link', mode='before')
     @classmethod
@@ -65,6 +67,8 @@ class SessionUpdate(BaseModel):
     group_id: Optional[int] = None
     instructor_id: Optional[int] = None
     credit_cost: Optional[int] = None  # Number of credits required to book this session
+    is_tournament_game: Optional[bool] = None  # 🏆 Tournament game flag
+    game_type: Optional[str] = None  # Tournament game type (e.g., "Group Stage", "Semifinal", "Final")
 
 
 class Session(SessionBase):

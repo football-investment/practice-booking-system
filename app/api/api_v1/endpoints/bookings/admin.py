@@ -5,7 +5,6 @@ Get all bookings, confirm, cancel, and update attendance
 from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
 from datetime import datetime
 from typing import Optional
 

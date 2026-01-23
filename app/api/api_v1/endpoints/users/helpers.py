@@ -3,7 +3,7 @@ User endpoint helper utilities
 Shared functions for pagination, validation, and statistics
 """
 from typing import Tuple
-from sqlalchemy.orm import Session, Query
+from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 import re
 

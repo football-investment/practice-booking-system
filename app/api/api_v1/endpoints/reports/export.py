@@ -1,19 +1,17 @@
 """
 Data export and system statistics endpoints
 """
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime
 import csv
-from io import StringIO
 
 from .....database import get_db
-from .....dependencies import get_current_admin_or_instructor_user
 from .....models.user import User
 
 from fastapi import Query
-from sqlalchemy import func, and_
+from sqlalchemy import func
 from pydantic import BaseModel
 
 from .....dependencies import get_current_admin_user

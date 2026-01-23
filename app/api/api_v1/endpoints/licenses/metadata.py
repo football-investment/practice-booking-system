@@ -2,12 +2,10 @@
 License metadata endpoints
 """
 from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_admin_user_web
-from .....models.user import User, UserRole
 from .....services.license_service import LicenseService
 
 router = APIRouter()

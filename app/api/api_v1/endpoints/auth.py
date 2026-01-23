@@ -17,6 +17,7 @@ from ....schemas.user import User as UserSchema
 from ....config import settings
 from ....services.audit_service import AuditService
 from ....models.audit_log import AuditAction
+from ....utils.validators import validate_phone_number, validate_address, validate_name
 
 router = APIRouter()
 
@@ -31,8 +32,10 @@ def login(
     """
     print(f"🔍 LOGIN ATTEMPT - Email: {user_credentials.email}")
     print(f"🔍 Password received: '{user_credentials.password}' (length: {len(user_credentials.password)})")
-    
+
+    print(f"🔍 STEP 1: About to query database for user...")
     user = db.query(User).filter(User.email == user_credentials.email).first()
+    print(f"🔍 STEP 2: Database query completed!")
     print(f"🔍 User found: {user is not None}")
     
     if user:
@@ -40,7 +43,6 @@ def login(
         password_check = verify_password(user_credentials.password, user.password_hash)
         print(f"🔍 Password valid: {password_check}")
         print(f"🔍 Password hash: {user.password_hash[:30]}...")
-        
         # Test with expected password
         expected_check = verify_password("password123", user.password_hash)
         print(f"🔍 Expected password123 works: {expected_check}")
@@ -236,11 +238,19 @@ class RegisterWithInvitation(BaseModel):
     """Registration request with invitation code"""
     email: EmailStr
     password: str
-    name: str
-    invitation_code: str
+    name: str  # Keep for backward compatibility
+    first_name: str
+    last_name: str
+    nickname: str
+    phone: str
     date_of_birth: datetime
     nationality: str
     gender: str
+    street_address: str
+    city: str
+    postal_code: str
+    country: str
+    invitation_code: str
 
 
 @router.post("/register-with-invitation", response_model=Token)
@@ -302,11 +312,60 @@ def register_with_invitation(
             detail="Password must be at least 6 characters long"
         )
 
+    # Validate first name
+    is_valid, error = validate_name(registration_data.first_name, "First name")
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
+    # Validate last name
+    is_valid, error = validate_name(registration_data.last_name, "Last name")
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
+    # Validate nickname
+    is_valid, error = validate_name(registration_data.nickname, "Nickname")
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
+    # Validate and format phone number
+    is_valid, formatted_phone, error = validate_phone_number(registration_data.phone)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
+    # Validate address
+    is_valid, error = validate_address(
+        registration_data.street_address,
+        registration_data.city,
+        registration_data.postal_code,
+        registration_data.country
+    )
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
     # Create new user
     new_user = User(
         email=registration_data.email,
         password_hash=get_password_hash(registration_data.password),
-        name=registration_data.name,
+        name=registration_data.name,  # Keep for backward compatibility
+        first_name=registration_data.first_name,
+        last_name=registration_data.last_name,
+        nickname=registration_data.nickname,
+        phone=formatted_phone,  # Use validated and formatted international phone number
         role="STUDENT",
         is_active=True,
         payment_verified=False,
@@ -316,7 +375,11 @@ def register_with_invitation(
         credit_purchased=0,
         date_of_birth=registration_data.date_of_birth,
         nationality=registration_data.nationality,
-        gender=registration_data.gender
+        gender=registration_data.gender,
+        street_address=registration_data.street_address,
+        city=registration_data.city,
+        postal_code=registration_data.postal_code,
+        country=registration_data.country
     )
 
     db.add(new_user)

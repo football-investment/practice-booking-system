@@ -1,0 +1,36 @@
+{
+  "code": "swiss",
+  "display_name": "Swiss System",
+  "description": "Players with similar scores play each other. Fair and flexible format for any player count.",
+  "min_players": 4,
+  "max_players": 64,
+  "requires_power_of_two": false,
+  "session_duration_minutes": 90,
+  "break_between_sessions_minutes": 15,
+  "matches_calculation": "n * rounds / 2",
+  "rounds_calculation": "ceil(log2(n))",
+  "session_naming_pattern": "Round {round_number} - Match {match_number}",
+  "pairing_algorithm": "swiss_pairing",
+  "pairing_rules": [
+    "Round 1: Random or seeded pairing",
+    "Round 2+: Players with similar scores paired together",
+    "Avoid repeat matchups if possible",
+    "Handle odd number of players with byes"
+  ],
+  "placement_rules": {
+    "primary": "total_points",
+    "tiebreakers": ["buchholz_score", "sonneborn_berger", "goal_difference", "goals_scored"]
+  },
+  "config_notes": [
+    "Flexible format - works with any player count",
+    "Each round pairs players of similar strength",
+    "Typical rounds = log2(players) rounded up",
+    "Popular in chess, works well for football too",
+    "No elimination - everyone plays all rounds"
+  ],
+  "bye_handling": {
+    "enabled": true,
+    "points_awarded": 3,
+    "max_byes_per_player": 1
+  }
+}

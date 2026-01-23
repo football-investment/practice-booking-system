@@ -3,10 +3,9 @@ Certificate Service
 Handles automatic certificate generation and verification
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
 
 from ..models import (
     Track, UserTrackProgress, 
@@ -17,7 +16,6 @@ from ..models import (
 
 class CertificateGenerationError(Exception):
     """Custom exception for certificate generation errors"""
-    pass
 
 
 class CertificateService:
@@ -38,11 +36,9 @@ class CertificateService:
             design_template=design_template or self._get_default_template(),
             validation_rules=validation_rules or self._get_default_validation_rules()
         )
-        
         self.db.add(template)
         self.db.commit()
         self.db.refresh(template)
-        
         return template
     
     def _get_default_template(self) -> str:

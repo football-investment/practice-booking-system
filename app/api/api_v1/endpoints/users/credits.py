@@ -6,8 +6,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime, timezone
-import hashlib
 
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_user_web
@@ -26,75 +24,6 @@ async def request_invoice(
     """
     Request invoice for credit purchase - creates InvoiceRequest with unique payment reference (Web cookie auth)
     """
-    from .....models.audit_log import AuditLog, AuditAction
-    from .....models.invoice_request import InvoiceRequest, InvoiceRequestStatus
-
-    # Get requested amount from request body
-    amount = request_data.get("amount", 1000)
-
-    # Get specialization (handle enum or string)
-    specialization = None
-    if current_user.specialization:
-        specialization = current_user.specialization.value if hasattr(current_user.specialization, 'value') else str(current_user.specialization)
-
-    # Generate unique payment reference for THIS invoice
-    # Format: LFA-YYYYMMDD-HHMMSS-ID-HASH (max 30 chars, SWIFT compatible)
-    # Example: LFA-20251203-143052-00001-A3F2
-    # This ensures NO duplicates even with 1000 invoices/day for 1000+ years
-    now = datetime.now(timezone.utc)
-    date_part = now.strftime("%Y%m%d")  # e.g., 20251203
-    time_part = now.strftime("%H%M%S")  # e.g., 143052
-
-    # Get next invoice ID by counting existing invoices + 1
-    invoice_count = db.query(InvoiceRequest).count()
-    next_id = invoice_count + 1
-    id_part = str(next_id).zfill(5)  # e.g., 00001
-
-    # Generate 4-character hash from timestamp + id + user email (only alphanumeric)
-    hash_input = f"{now.timestamp()}{next_id}{current_user.email}{amount}"
-    hash_part = hashlib.md5(hash_input.encode()).hexdigest()[:4].upper()
-
-    payment_reference = f"LFA-{date_part}-{time_part}-{id_part}-{hash_part}"
-
-    # Create InvoiceRequest record
-    invoice_request = InvoiceRequest(
-        user_id=current_user.id,
-        payment_reference=payment_reference,
-        amount_eur=float(amount),
-        credit_amount=amount,
-        specialization=specialization,
-        status="pending"  # EXPLICIT lowercase string to match DB enum
-    )
-    db.add(invoice_request)
-
-    # Create audit log for invoice request
-    audit_log = AuditLog(
-        user_id=current_user.id,
-        action=AuditAction.INVOICE_REQUESTED,
-        resource_type="invoice_request",
-        resource_id=next_id,
-        details={
-            "user_email": current_user.email,
-            "user_name": current_user.name,
-            "specialization": specialization,
-            "credit_amount": amount,
-            "amount_eur": amount,
-            "payment_reference": payment_reference,
-            "message": f"Student requested invoice for {amount} credits ({amount} EUR). Payment reference: {payment_reference}",
-            "timestamp": now.isoformat()
-        }
-    )
-    db.add(audit_log)
-    db.commit()
-
-    return {
-        "status": "success",
-        "message": f"Invoice request sent to admin for {amount} credits. You will receive the invoice via email.",
-        "payment_reference": payment_reference,
-        "invoice_id": next_id
-    }
-
-
 @router.get("/credit-balance")
 async def get_credit_balance(
     request: Request,
@@ -169,9 +98,11 @@ def get_my_credit_transactions(
 
     license_ids = [lic.id for lic in user_licenses]
 
-    # Get transactions for all user's licenses
+    # Get transactions for all user's licenses OR directly for user (for tournament rewards)
+    # Tournament rewards have user_license_id = NULL, so we need to include user_id filter
     transactions_query = db.query(CreditTransaction).filter(
-        CreditTransaction.user_license_id.in_(license_ids)
+        (CreditTransaction.user_license_id.in_(license_ids)) |
+        ((CreditTransaction.user_id == current_user.id) & (CreditTransaction.user_license_id == None))
     ).order_by(CreditTransaction.created_at.desc())
 
     total_count = transactions_query.count()

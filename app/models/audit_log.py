@@ -5,7 +5,6 @@ Tracks all important user actions and system events for security and compliance.
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, func
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
 
 from ..database import Base
 
@@ -101,6 +100,10 @@ class AuditAction:
     SESSION_DELETED = "SESSION_DELETED"
     SESSION_BOOKING_CREATED = "SESSION_BOOKING_CREATED"
     SESSION_BOOKING_CANCELLED = "SESSION_BOOKING_CANCELLED"
+
+    # Tournaments
+    TOURNAMENT_ENROLLED = "TOURNAMENT_ENROLLED"
+    TOURNAMENT_UNENROLLED = "TOURNAMENT_UNENROLLED"
 
     # Certificates
     CERTIFICATE_ISSUED = "CERTIFICATE_ISSUED"

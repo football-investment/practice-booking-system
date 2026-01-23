@@ -8,6 +8,7 @@ import secrets
 import string
 from typing import Dict, Any, Optional
 from api_helpers import update_user
+from api_helpers_general import reset_user_password
 
 
 def render_edit_user_modal(user: Dict[str, Any], token: str) -> bool:
@@ -252,20 +253,22 @@ def render_reset_password_dialog(user: Dict[str, Any], token: str) -> bool:
 
     with col2:
         if st.button("✅ Confirm Reset", key=f"confirm_reset_{user_id}", type="primary", use_container_width=True):
-            # TODO: Implement actual password reset API call
-            # For now, show placeholder
-            st.success(f"🚧 Password reset API endpoint coming soon!")
-            st.info(f"Temporary password: {temp_password}")
+            # Call actual password reset API
+            success, error = reset_user_password(token, user_id, temp_password)
 
-            # In production, this would call:
-            # success, error = reset_user_password(token, user_id, temp_password)
+            if success:
+                st.success(f"✅ Password reset successfully!")
+                st.info(f"**New password:** `{temp_password}`")
+                st.caption("⚠️ Make sure the user saves this password!")
+            else:
+                st.error(f"❌ Failed to reset password: {error}")
 
             # Clean up
             if f"temp_password_{user_id}" in st.session_state:
                 del st.session_state[f"temp_password_{user_id}"]
             del st.session_state[modal_key]
 
-            return True
+            return success
 
     with col3:
         if st.button("❌ Cancel", key=f"cancel_reset_{user_id}", use_container_width=True):

@@ -1,18 +1,29 @@
 """
 GānCuju™© competition and teaching hours endpoints
 """
-from typing import Any, List, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from datetime import datetime, timezone
+from pydantic import BaseModel, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
-from .....models.license import UserLicense
 
 """
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, Field
+import sys
+import os
+
+# Add service layer to path
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.utils.rbac import validate_license_ownership
+from .....services.specs.semester_based.gancuju_player_service import GanCujuPlayerService
 GānCuju™️©️ License Management API Endpoints
 
 Provides REST API endpoints for GānCuju belt/level progression system.
@@ -24,22 +35,6 @@ Level System: 1-8 (numeric levels, not belt names)
 - Level 8: Master
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field
-import sys
-import os
-
-# Add service layer to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../implementation/02_backend_services'))
-
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
-from app.utils.rbac import validate_license_ownership
-from .....services.specs.semester_based.gancuju_player_service import GanCujuPlayerService
 
 router = APIRouter()
 

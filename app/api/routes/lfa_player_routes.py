@@ -11,13 +11,11 @@ NO levels, NO belts, NO XP - ONLY skills with averages.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from typing import Dict
 
 from ...database import get_db
 from ...models.user import User, UserRole
 from ...models.license import UserLicense
 from ...services.football_skill_service import FootballSkillService
-from ...schemas.license import SkillAssessmentCreate, BulkSkillAssessmentCreate
 from ...dependencies import get_current_user_web
 from ...main import templates
 from pydantic import ValidationError

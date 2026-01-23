@@ -1,17 +1,14 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import and_
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Optional, Tuple
-import json
+from typing import List, Dict, Optional
 import random
 import math
 
 from ..models.quiz import (
-    Quiz, QuizQuestion, QuizAttempt, QuizUserAnswer,
-    UserQuestionPerformance, AdaptiveLearningSession, 
-    QuestionMetadata, QuizCategory, QuestionType
+    Quiz, QuizQuestion, UserQuestionPerformance, AdaptiveLearningSession,
+    QuestionMetadata, QuizCategory
 )
-from ..models.user import User
 
 
 class AdaptiveLearningService:
@@ -19,7 +16,6 @@ class AdaptiveLearningService:
     
     def __init__(self, db: Session):
         self.db = db
-        
     def start_adaptive_session(self, user_id: int, category: QuizCategory, 
                                session_duration_seconds: int = 180) -> AdaptiveLearningSession:
         """Új adaptív tanulási session indítása időkorláttal"""
@@ -31,11 +27,9 @@ class AdaptiveLearningService:
             session_time_limit_seconds=session_duration_seconds,
             session_start_time=datetime.now(timezone.utc)
         )
-        
         self.db.add(session)
         self.db.commit()
         self.db.refresh(session)
-        
         return session
     
     def get_next_question(self, user_id: int, session_id: int) -> Optional[Dict]:
@@ -43,10 +37,8 @@ class AdaptiveLearningService:
         session = self.db.query(AdaptiveLearningSession).filter(
             AdaptiveLearningSession.id == session_id
         ).first()
-        
         if not session:
             return None
-            
         # Check if session time limit has expired
         if self._is_session_time_expired(session):
             return {"session_complete": True, "reason": "time_expired"}

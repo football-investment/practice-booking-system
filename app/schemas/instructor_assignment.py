@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Optional
 from enum import Enum
 
-
 class AssignmentRequestStatusEnum(str, Enum):
     """Status of instructor assignment request"""
     PENDING = "PENDING"
@@ -32,7 +31,6 @@ class InstructorAvailabilityWindowBase(BaseModel):
     @classmethod
     def validate_time_period(cls, v: str) -> str:
         """Validate time period format"""
-        import re
         if not re.match(r'^(Q[1-4]|M(0[1-9]|1[0-2]))$', v):
             raise ValueError('time_period must be Q1-Q4 or M01-M12')
         return v
@@ -142,7 +140,6 @@ class AvailableInstructorsQuery(BaseModel):
     @classmethod
     def validate_time_period(cls, v: str) -> str:
         """Validate time period format"""
-        import re
         if not re.match(r'^(Q[1-4]|M(0[1-9]|1[0-2]))$', v):
             raise ValueError('time_period must be Q1-Q4 or M01-M12')
         return v

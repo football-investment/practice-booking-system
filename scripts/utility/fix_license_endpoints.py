@@ -12,11 +12,12 @@ def list_all_licenses(
 ):
     """Get all GānCuju licenses (Admin only)"""
     from app.models.user import UserRole
+        from sqlalchemy import text
+import re
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admin can view all licenses")
 
     try:
-        from sqlalchemy import text
         query = text("SELECT * FROM gancuju_licenses WHERE is_active = TRUE ORDER BY id DESC")
         result = db.execute(query).fetchall()
         return [dict(row._mapping) for row in result]
@@ -33,12 +34,10 @@ def list_all_licenses(
     current_user: User = Depends(get_current_user)
 ):
     """Get all Internship licenses (Admin only)"""
-    from app.models.user import UserRole
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admin can view all licenses")
 
     try:
-        from sqlalchemy import text
         query = text("SELECT * FROM internship_licenses WHERE is_active = TRUE ORDER BY id DESC")
         result = db.execute(query).fetchall()
         return [dict(row._mapping) for row in result]
@@ -55,12 +54,10 @@ def list_all_licenses(
     current_user: User = Depends(get_current_user)
 ):
     """Get all Coach licenses (Admin only)"""
-    from app.models.user import UserRole
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admin can view all licenses")
 
     try:
-        from sqlalchemy import text
         query = text("SELECT * FROM coach_licenses WHERE is_active = TRUE ORDER BY id DESC")
         result = db.execute(query).fetchall()
         return [dict(row._mapping) for row in result]
@@ -70,8 +67,6 @@ def list_all_licenses(
 '''
 
 # Read and modify each file
-import re
-
 files = [
     ('app/api/api_v1/endpoints/gancuju.py', gancuju_get_endpoint, '@router.post("/licenses"'),
     ('app/api/api_v1/endpoints/internship.py', internship_get_endpoint, '@router.post("/licenses"'),

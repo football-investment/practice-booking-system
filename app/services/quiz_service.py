@@ -1,18 +1,16 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, desc
-from datetime import datetime, timedelta
-import random
+from sqlalchemy import and_, desc
+from datetime import datetime
 
 from app.models.quiz import (
     Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, QuizUserAnswer,
-    QuestionType, QuizCategory, QuizDifficulty
+    QuestionType, QuizCategory
 )
 from app.models.user import User
-from app.models.gamification import UserStats
 from app.schemas.quiz import (
-    QuizCreate, QuizUpdate, QuizAttemptStart, QuizAttemptSubmit,
-    QuizUserAnswerCreate, QuizStatistics, UserQuizStatistics
+    QuizCreate, QuizAttemptSubmit,
+    QuizStatistics, UserQuizStatistics
 )
 from app.services.gamification import GamificationService
 
@@ -33,10 +31,8 @@ class QuizService:
             passing_score=quiz_data.passing_score,
             is_active=quiz_data.is_active
         )
-        
         self.db.add(quiz)
         self.db.flush()  # Get the quiz ID
-        
         # Add questions
         for question_data in quiz_data.questions:
             question = QuizQuestion(
@@ -47,7 +43,6 @@ class QuizService:
                 order_index=question_data.order_index,
                 explanation=question_data.explanation
             )
-            
             self.db.add(question)
             self.db.flush()  # Get the question ID
             
@@ -287,7 +282,7 @@ class QuizService:
     
     def _process_enrollment_quiz_if_applicable(self, attempt: QuizAttempt):
         """Check if the completed quiz is an enrollment quiz and process accordingly"""
-        from ..models.project import ProjectQuiz, ProjectEnrollmentQuiz, Project, ProjectEnrollment, ProjectEnrollmentStatus, ProjectProgressStatus
+        from ..models.project import ProjectQuiz, ProjectEnrollmentQuiz, ProjectEnrollment, ProjectEnrollmentStatus, ProjectProgressStatus
         
         # Find if this quiz is used as an enrollment quiz for any project
         enrollment_project_quiz = self.db.query(ProjectQuiz).filter(

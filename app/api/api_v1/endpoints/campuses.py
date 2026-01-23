@@ -2,7 +2,7 @@
 Campus Management Endpoints
 Admin-only CRUD operations for campuses within locations
 """
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_

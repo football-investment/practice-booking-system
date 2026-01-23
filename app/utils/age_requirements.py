@@ -3,7 +3,6 @@ Age-based specialization requirements
 Automatically filters available specializations based on user's age
 """
 from typing import List, Dict, Optional
-from datetime import date
 
 
 def get_available_specializations(age: Optional[int]) -> List[Dict]:
@@ -49,14 +48,12 @@ def get_available_specializations(age: Optional[int]) -> List[Dict]:
 
     # LFA FOOTBALL PLAYER: 5+ with different levels
     if age >= 5:
-        if 5 <= age <= 8:
-            level_info = "Pre Level (Ages 5-8)"
-        elif 9 <= age <= 14:
-            level_info = "Youth Level (Ages 9-14)"
-        elif age == 14 or age == 15:
-            level_info = "Youth or Amateur Level (Age 14+)"
-        elif age >= 14:
-            level_info = "Amateur/Pro Level (Age 14+)"
+        if 5 <= age <= 13:
+            level_info = "Pre Level (Ages 5-13)"
+        elif 14 <= age <= 18:
+            level_info = "Youth Level (Ages 14-18)"
+        elif age > 18:
+            level_info = "Amateur/Pro Level (Age 14+, instructor assigned)"
         else:
             level_info = "Age 5+"
 
@@ -101,6 +98,7 @@ def validate_specialization_for_age(spec_type: str, age: Optional[int]) -> bool:
         "INTERNSHIP": 18,
         "GANCUJU_PLAYER": 5,
         "LFA_FOOTBALL_PLAYER": 5,
+        "LFA_PLAYER": 5,
         "LFA_COACH": 14
     }
 

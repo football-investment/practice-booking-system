@@ -16,7 +16,6 @@ import pytest
 from fastapi.testclient import TestClient
 from fastapi import status
 from datetime import datetime, timedelta, timezone
-from sqlalchemy.orm import Session
 
 from ..main import app
 from ..database import get_db
@@ -26,8 +25,7 @@ from ..models.session import Session as SessionModel, SessionType
 from ..models.booking import Booking, BookingStatus
 from ..models.attendance import Attendance, AttendanceStatus
 from ..models.feedback import Feedback
-from ..core.security import create_access_token
-
+from ..core.auth import create_access_token
 
 @pytest.fixture
 def client(db_session):
@@ -58,8 +56,6 @@ def active_semester(db_session):
 @pytest.fixture
 def instructor_user(db_session, active_semester):
     """Create instructor user for testing"""
-    from ...core.security import get_password_hash
-
     instructor = User(
         name="Test Instructor",
         email="instructor@test.com",
@@ -284,8 +280,6 @@ class TestBookingFlow:
         3. Student submits feedback (within 24h)
         """
         # STEP 0: Create and login student
-        from ...core.security import get_password_hash
-
         student = User(
             name="Booking Test Student",
             email="bookingstudent@test.com",
@@ -371,8 +365,6 @@ class TestBookingFlow:
         - Rule #4 violation: Feedback too late
         """
         # Create student
-        from ...core.security import get_password_hash
-
         student = User(
             name="Rule Test Student",
             email="rulestudent@test.com",
@@ -479,9 +471,6 @@ class TestGamificationFlow:
         3. Achievement is unlocked
         """
         # STEP 0: Create student
-        from ...core.security import get_password_hash
-        from ...services.gamification import calculate_xp_for_attendance
-
         student = User(
             name="Gamification Student",
             email="gamestudent@test.com",
@@ -566,9 +555,6 @@ class TestGamificationFlow:
         - Base 50 + quiz bonus 150 = 200 XP
         - Base 50 + instructor 50 + quiz 150 = 250 XP (max)
         """
-        from ...core.security import get_password_hash
-        from ...services.gamification import calculate_xp_for_attendance
-
         student = User(
             name="XP Test Student",
             email="xpstudent@test.com",

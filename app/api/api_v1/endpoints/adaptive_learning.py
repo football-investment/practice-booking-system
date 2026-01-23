@@ -152,7 +152,6 @@ def submit_answer(
     adaptive_service = AdaptiveLearningService(db)
     
     # Verify answer correctness
-    from ....models.quiz import QuizQuestion, QuizAnswerOption
     question = db.query(QuizQuestion).filter(QuizQuestion.id == request.question_id).first()
     
     if not question:
@@ -187,7 +186,6 @@ def submit_answer(
     )
     
     # Get updated session stats
-    from ....models.quiz import AdaptiveLearningSession
     session = db.query(AdaptiveLearningSession).filter(
         AdaptiveLearningSession.id == session_id
     ).first()
@@ -265,7 +263,6 @@ def get_available_categories(
     categories = []
     for category in QuizCategory:
         # Count available questions
-        from ....models.quiz import Quiz, QuizQuestion
         question_count = db.query(QuizQuestion).join(Quiz).filter(
             Quiz.category == category
         ).count()
@@ -289,10 +286,6 @@ def get_adaptive_leaderboard(
     """
     Get adaptive learning leaderboard
     """
-    from datetime import timedelta
-    from ....models.quiz import AdaptiveLearningSession
-    
-    # Calculate timeframe
     now = datetime.now(timezone.utc)
     if timeframe == "week":
         since = now - timedelta(days=7)

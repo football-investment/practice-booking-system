@@ -1,6 +1,6 @@
 """
 API Helper Functions for Invitation Code Management
-Cookie-based authentication for web interface
+Bearer token authentication (CSRF-safe)
 """
 
 import requests
@@ -19,7 +19,7 @@ def get_invitation_codes(token: str) -> Tuple[bool, Optional[List[Dict]]]:
     try:
         response = requests.get(
             f"{API_BASE_URL}/api/v1/admin/invitation-codes",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 
@@ -67,7 +67,7 @@ def create_invitation_code(
 
         response = requests.post(
             f"{API_BASE_URL}/api/v1/admin/invitation-codes",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             json=payload,
             timeout=API_TIMEOUT
         )
@@ -103,7 +103,7 @@ def delete_invitation_code(token: str, code_id: int) -> Tuple[bool, Optional[str
     try:
         response = requests.delete(
             f"{API_BASE_URL}/api/v1/admin/invitation-codes/{code_id}",
-            cookies={"access_token": token},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )
 

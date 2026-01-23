@@ -18,7 +18,6 @@ class CampusBase(BaseModel):
 
 class CampusCreate(CampusBase):
     """Schema for creating a new campus"""
-    pass
 
 
 class CampusUpdate(BaseModel):

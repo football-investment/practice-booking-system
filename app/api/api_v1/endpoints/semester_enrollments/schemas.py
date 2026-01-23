@@ -33,9 +33,15 @@ class EnrollmentResponse(BaseModel):
     payment_verified: bool
     payment_verified_at: Optional[datetime]
     is_active: bool
+    request_status: str  # APPROVED, PENDING, REJECTED, WITHDRAWN
     enrolled_at: datetime
 
 
 class EnrollmentRejection(BaseModel):
     """Request to reject an enrollment with optional reason"""
     reason: Optional[str] = Field(None, description="Rejection reason")
+
+
+class CategoryOverride(BaseModel):
+    """Request to override age category for a student enrollment"""
+    age_category: str = Field(..., description="New age category (PRE, YOUTH, AMATEUR, PRO)")

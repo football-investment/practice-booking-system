@@ -3,16 +3,11 @@
 Handles license progression, advancement, and marketing content delivery
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
-from ..models.license import (
-    LicenseMetadata, UserLicense, LicenseProgression, 
-    LicenseType, LicenseSystemHelper
-)
+from ..models.license import LicenseMetadata, UserLicense, LicenseProgression, LicenseSystemHelper
 from ..models.user import User
-from ..models.specialization import SpecializationType
 
 
 class LicenseService:
@@ -24,7 +19,6 @@ class LicenseService:
     def get_all_license_metadata(self, specialization: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all license metadata, optionally filtered by specialization"""
         query = self.db.query(LicenseMetadata)
-        
         if specialization:
             query = query.filter(LicenseMetadata.specialization_type == specialization.upper())
         
@@ -32,7 +26,6 @@ class LicenseService:
             LicenseMetadata.specialization_type,
             LicenseMetadata.level_number
         ).all()
-        
         return [meta.to_dict() for meta in metadata]
 
     def get_license_metadata_by_level(self, specialization: str, level: int) -> Optional[Dict[str, Any]]:
@@ -41,7 +34,6 @@ class LicenseService:
             LicenseMetadata.specialization_type == specialization.upper(),
             LicenseMetadata.level_number == level
         ).first()
-        
         return metadata.to_dict() if metadata else None
 
     def get_user_licenses(self, user_id: int) -> List[Dict[str, Any]]:
@@ -49,7 +41,6 @@ class LicenseService:
         user_licenses = self.db.query(UserLicense).filter(
             UserLicense.user_id == user_id
         ).all()
-        
         result = []
         for license in user_licenses:
             license_data = license.to_dict()
@@ -157,7 +148,6 @@ class LicenseService:
         level_changed = (old_level != target_level)
         if level_changed:
             try:
-                from app.services.progress_license_sync_service import ProgressLicenseSyncService
                 sync_service = ProgressLicenseSyncService(self.db)
                 sync_result = sync_service.sync_license_to_progress(
                     user_id=user_id,
@@ -165,14 +155,12 @@ class LicenseService:
                 )
                 if not sync_result.get('success'):
                     # Log warning but don't fail the advancement
-                    import logging
                     logger = logging.getLogger(__name__)
                     logger.warning(
                         f"Auto-sync (License→Progress) failed for user {user_id}, {specialization}: {sync_result.get('message')}"
                     )
             except Exception as e:
                 # Log error but don't fail the license advancement
-                import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"Auto-sync exception for user {user_id}: {str(e)}")
 

@@ -33,12 +33,6 @@ def start_quiz_attempt(
         )
 
     # 🔒 ACCESS CONTROL: Same checks as get_quiz_for_taking
-    from ....models.quiz import SessionQuiz
-    from ....models.session import Session as SessionModel, SessionType
-    from ....models.attendance import Attendance, AttendanceStatus
-    from ....models.booking import Booking, BookingStatus
-    from datetime import datetime, timezone
-
     session_quiz = db.query(SessionQuiz).filter(
         SessionQuiz.quiz_id == attempt_data.quiz_id,
         SessionQuiz.is_required == True
@@ -139,7 +133,6 @@ def submit_quiz_attempt(
         # 🆕 HOOK 1: AUTOMATIC COMPETENCY ASSESSMENT
         # ==========================================
         # Use SEPARATE session to avoid transaction conflicts
-        from ....database import SessionLocal
         hook_db = None
 
         try:
@@ -177,7 +170,6 @@ def submit_quiz_attempt(
 
         except Exception as e:
             # Log error but don't fail quiz submission
-            import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error in post-quiz hooks for user {current_user.id}: {e}")
             if hook_db:
@@ -192,7 +184,6 @@ def submit_quiz_attempt(
         # ==========================================
         # 🏆 GAMIFICATION: Check for achievement unlocks
         # ==========================================
-        from ....services.gamification import GamificationService
         gamification_service = GamificationService(db)
         try:
             # Check for quiz completion achievement
@@ -221,12 +212,6 @@ def submit_quiz_attempt(
         # ==========================================
         # If this quiz is linked to a VIRTUAL session, mark automatic attendance
         try:
-            from ....models.quiz import SessionQuiz
-            from ....models.session import Session as SessionModel
-            from ....models.attendance import Attendance
-            from datetime import datetime, timezone
-
-            # Find if this quiz is linked to any session
             session_quiz = db.query(SessionQuiz).filter(
                 SessionQuiz.quiz_id == attempt.quiz_id,
                 SessionQuiz.is_required == True
@@ -248,7 +233,6 @@ def submit_quiz_attempt(
 
                     if existing_attendance:
                         # Update to present + auto-confirm (VIRTUAL sessions don't need manual confirmation)
-                        from ....models.attendance import AttendanceStatus, ConfirmationStatus
                         existing_attendance.status = AttendanceStatus.present
                         existing_attendance.check_in_time = datetime.now(timezone.utc)
                         existing_attendance.confirmation_status = ConfirmationStatus.confirmed
@@ -265,7 +249,6 @@ def submit_quiz_attempt(
                         print(f"✅ AUTO-ATTENDANCE: {current_user.email} marked present + auto-confirmed for VIRTUAL session: {session.title}")
                     else:
                         # Create new attendance record with auto-confirmation
-                        from ....models.attendance import AttendanceStatus, ConfirmationStatus
                         new_attendance = Attendance(
                             user_id=current_user.id,
                             session_id=session.id,

@@ -11,11 +11,11 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import sessionmaker
 
 # Add the project root to the path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from app.database import get_db
 from app.models import (
     User, UserRole, Project, ProjectStatus, ProjectEnrollment, ProjectEnrollmentStatus,
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
     Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, Session, Semester, Booking,
     Feedback, UserAchievement, UserStats, QuestionType,
     Message, Notification
@@ -127,7 +127,6 @@ def create_comprehensive_test_data():
         enrollment_count = 0
         for i, student in enumerate(students[:15]):  # Limit to first 15 students
             # Each student enrolls in 1-3 random projects
-            import random
             num_projects = random.randint(1, 3)
             student_projects = random.sample(created_projects, num_projects)
             
@@ -399,7 +398,6 @@ def create_comprehensive_test_data():
         booking_count = 0
         for session in created_sessions[:5]:  # Book first 5 sessions
             # Book 3-8 students randomly per session
-            import random
             num_bookings = random.randint(3, min(8, len(students)))
             session_students = random.sample(students, num_bookings)
             

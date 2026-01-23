@@ -78,11 +78,12 @@ def render_campus_action_buttons(campus: Dict, location_id: int, token: str):
 
 def render_edit_campus_modal(campus: Dict, location_id: int, token: str):
     """Edit campus modal"""
-    from api_helpers import update_campus
+    from api_helpers_general import update_campus
 
     campus_id = campus.get('id')
 
-    with st.dialog(f"✏️ Edit Campus: {campus.get('name')}"):
+    @st.dialog(f"✏️ Edit Campus: {campus.get('name')}")
+    def edit_modal():
         with st.form(f"edit_campus_form_{campus_id}"):
             name = st.text_input("Campus Name *", value=campus.get('name', ''))
             venue = st.text_input("Venue", value=campus.get('venue', ''))
@@ -121,17 +122,20 @@ def render_edit_campus_modal(campus: Dict, location_id: int, token: str):
                     else:
                         st.error(f"❌ Failed to update campus: {error}")
 
+    edit_modal()
+
 
 def render_campus_status_toggle_confirmation(campus: Dict, token: str):
     """Campus status toggle confirmation dialog"""
-    from api_helpers import toggle_campus_status
+    from api_helpers_general import toggle_campus_status
 
     campus_id = campus.get('id')
     campus_name = campus.get('name', 'Unknown Campus')
     target_status = st.session_state.get(f'target_campus_status_{campus_id}', True)
     action = "activate" if target_status else "deactivate"
 
-    with st.dialog(f"{'🟢 Activate' if target_status else '🔴 Deactivate'} Campus"):
+    @st.dialog(f"{'🟢 Activate' if target_status else '🔴 Deactivate'} Campus")
+    def toggle_modal():
         st.warning(f"Are you sure you want to {action} campus **{campus_name}**?")
 
         col1, col2 = st.columns(2)
@@ -153,15 +157,18 @@ def render_campus_status_toggle_confirmation(campus: Dict, token: str):
                 del st.session_state[f'target_campus_status_{campus_id}']
                 st.rerun()
 
+    toggle_modal()
+
 
 def render_delete_campus_confirmation(campus: Dict, token: str):
     """Campus delete confirmation dialog"""
-    from api_helpers import delete_campus
+    from api_helpers_general import delete_campus
 
     campus_id = campus.get('id')
     campus_name = campus.get('name', 'Unknown Campus')
 
-    with st.dialog("🗑️ Delete Campus"):
+    @st.dialog("🗑️ Delete Campus")
+    def delete_modal():
         st.error(f"⚠️ Are you sure you want to delete campus **{campus_name}**?")
         st.caption("This is a soft delete - the campus will be deactivated but data will be retained.")
 
@@ -182,13 +189,16 @@ def render_delete_campus_confirmation(campus: Dict, token: str):
                 del st.session_state[f'delete_campus_confirmation_{campus_id}']
                 st.rerun()
 
+    delete_modal()
+
 
 def render_view_campus_details(campus: Dict):
     """Campus details view modal"""
     campus_id = campus.get('id')
     campus_name = campus.get('name', 'Unknown Campus')
 
-    with st.dialog(f"👁️ Campus Details: {campus_name}"):
+    @st.dialog(f"👁️ Campus Details: {campus_name}")
+    def view_modal():
         st.markdown("### 🏫 Basic Information")
         st.markdown(f"**ID:** {campus.get('id', 'N/A')}")
         st.markdown(f"**Name:** {campus.get('name', 'N/A')}")
@@ -214,3 +224,5 @@ def render_view_campus_details(campus: Dict):
         if st.button("✅ Close", use_container_width=True):
             del st.session_state[f'view_campus_modal_{campus_id}']
             st.rerun()
+
+    view_modal()

@@ -4,7 +4,6 @@ Public Profile API Endpoints
 FIFA/Football Manager style player profiles for LFA students.
 Instructor profiles showing licenses and qualifications.
 """
-from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text

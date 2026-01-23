@@ -1,5 +1,4 @@
-import pytest
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from ..core.auth import create_access_token, create_refresh_token, verify_token
 from ..core.security import get_password_hash, verify_password

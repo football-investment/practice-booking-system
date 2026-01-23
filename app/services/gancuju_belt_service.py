@@ -3,12 +3,11 @@
 Handles belt progression tracking for Gancuju Player specialization
 """
 from sqlalchemy.orm import Session
-from typing import Dict, List, Optional
+from typing import List, Optional
 from datetime import datetime, timezone
 
 from ..models.belt_promotion import BeltPromotion
 from ..models.license import UserLicense
-from ..models.user import User
 
 
 class GancujuBeltService:

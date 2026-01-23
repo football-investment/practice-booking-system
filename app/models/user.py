@@ -20,6 +20,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     nickname = Column(String, nullable=True)
+
+    # 🆕 NEW: Separate first/last name for better data structure
+    first_name = Column(String, nullable=True, comment="User first name (given name)")
+    last_name = Column(String, nullable=True, comment="User last name (family name)")
+
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.STUDENT)
@@ -37,6 +42,12 @@ class User(Base):
     nationality = Column(String, nullable=True, comment="User's nationality (e.g., Hungarian, American)")
     gender = Column(String, nullable=True, comment="User's gender (Male, Female, Other, Prefer not to say)")
     current_location = Column(String, nullable=True, comment="User's current location (e.g., Budapest, Hungary)")
+
+    # 🆕 NEW: Address fields for invoicing and registration
+    street_address = Column(String, nullable=True, comment="Street address (e.g., Main Street 123)")
+    city = Column(String, nullable=True, comment="City name")
+    postal_code = Column(String, nullable=True, comment="Postal/ZIP code")
+    country = Column(String, nullable=True, comment="Country name")
     
     # 🎓 NEW: Specialization field (nullable for backward compatibility)
     specialization = Column(
@@ -82,6 +93,14 @@ class User(Base):
         nullable=True,
         unique=True,
         comment="Unique payment reference code for credit purchases (közlemény)"
+    )
+
+    # ⭐ XP SYSTEM: Experience Points (separate from credits)
+    xp_balance = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Current XP (Experience Points) - earned through training and tournaments"
     )
 
     # 📄 NEW: NDA acceptance fields
@@ -172,6 +191,20 @@ class User(Base):
         back_populates="created_by_admin"
     )
 
+    # 💰 Credit transaction relationships (user-level rewards and purchases)
+    credit_transactions = relationship(
+        "CreditTransaction",
+        foreign_keys="CreditTransaction.user_id",
+        back_populates="user"
+    )
+
+    # ⭐ XP transaction relationships (experience points history)
+    xp_transactions = relationship(
+        "XPTransaction",
+        foreign_keys="XPTransaction.user_id",
+        back_populates="user"
+    )
+
     # 🎓 NEW: Specialization helper properties and methods
     @property
     def specialization_display(self) -> str:
@@ -179,7 +212,6 @@ class User(Base):
         if not self.specialization:
             return "Nincs kiválasztva"
 
-        from app.services.specialization_config_loader import SpecializationConfigLoader
         loader = SpecializationConfigLoader()
         try:
             display_info = loader.get_display_info(self.specialization)
@@ -193,7 +225,6 @@ class User(Base):
         if not self.specialization:
             return "❓"
 
-        from app.services.specialization_config_loader import SpecializationConfigLoader
         loader = SpecializationConfigLoader()
         try:
             display_info = loader.get_display_info(self.specialization)
@@ -288,11 +319,6 @@ class User(Base):
         Returns:
             SemesterEnrollment or None
         """
-        from .semester import Semester
-        from .semester_enrollment import SemesterEnrollment
-        from .license import UserLicense
-
-        # Admins and instructors don't need enrollments
         if self.role in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
             return None
 
@@ -452,8 +478,6 @@ class User(Base):
 
         Note: This method only creates the object. You must commit() separately!
         """
-        from .instructor_specialization import InstructorSpecialization
-
         if self.role != UserRole.INSTRUCTOR:
             raise ValueError("Only instructors can have teaching specializations")
 

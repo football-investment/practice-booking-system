@@ -1,0 +1,92 @@
+{
+  "id": "LFA_PLAYER_YOUTH_ACADEMY",
+  "name": "LFA Player YOUTH Academy Season",
+  "description": "Teljes éves Academy Season YOUTH korosztály számára (14-18 év). Július 1 - Június 30 fix időszak, intenzív versenyfelkészítés.",
+  "min_age": 14,
+  "max_age": 18,
+  "season_type": "academy_annual",
+  "duration": "full_year",
+  "start_date": "July 1",
+  "end_date": "June 30",
+  "cost_credits": 7000,
+  "requires_location_type": "CENTER",
+  "age_groups": [
+    {
+      "name": "YOUTH Academy",
+      "min_age": 14,
+      "max_age": 18,
+      "levels": [1, 2, 3, 4, 5, 6, 7, 8],
+      "description": "Teljes éves elit fejlesztési program YOUTH korosztály számára"
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "Foundation Player",
+      "description": "Alapozó játékos - versenyalapok",
+      "xp_required": 0
+    },
+    {
+      "level": 2,
+      "name": "Development Player",
+      "description": "Fejlődő játékos - taktikai tudatosság",
+      "xp_required": 300
+    },
+    {
+      "level": 3,
+      "name": "Competitive Player",
+      "description": "Versenyképes játékos - mérkőzés tapasztalat",
+      "xp_required": 700
+    },
+    {
+      "level": 4,
+      "name": "Advanced Player",
+      "description": "Haladó játékos - pozíció specializáció",
+      "xp_required": 1200
+    },
+    {
+      "level": 5,
+      "name": "Elite Player",
+      "description": "Elit játékos - csapat vezető szerep",
+      "xp_required": 1800
+    },
+    {
+      "level": 6,
+      "name": "Academy Star",
+      "description": "Akadémiai sztár - kiemelkedő teljesítmény",
+      "xp_required": 2500
+    },
+    {
+      "level": 7,
+      "name": "Pre-Professional",
+      "description": "Profi előkészítő - átmeneti szint",
+      "xp_required": 3300
+    },
+    {
+      "level": 8,
+      "name": "Academy Graduate",
+      "description": "Akadémiai végzős - teljes játéktudás YOUTH szinten",
+      "xp_required": 4200
+    }
+  ],
+  "features": [
+    "Teljes éves elkötelezettség (July 1 - June 30)",
+    "Intenzív 12 hónapos versenyfelkészítés",
+    "Heti 3-4 edzés + hétvégi mérkőzések",
+    "Csak CENTER helyszíneken elérhető",
+    "Age category lock július 1-jén (egész évre fix)",
+    "Profi akadémiai környezet",
+    "Rendszeres versenyezési lehetőség",
+    "Folyamatos szakmai értékelés és egyéni fejlesztési terv",
+    "Átmeneti út az amatőr/profi felé"
+  ],
+  "enrollment_rules": {
+    "age_lock_date": "July 1",
+    "age_lock_description": "A játékos korosztálya július 1-jén rögzítésre kerül és az egész szezonra érvényes marad",
+    "parallel_enrollment_allowed": true,
+    "can_combine_with": ["TOURNAMENT", "MINI_SEASON"],
+    "location_requirement": "CENTER only",
+    "min_commitment": "full_year",
+    "intensity_level": "high"
+  }
+}

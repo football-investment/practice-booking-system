@@ -2,7 +2,7 @@
 License schemas for API validation
 """
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, Dict, List
+from typing import Optional, List
 from datetime import datetime
 
 

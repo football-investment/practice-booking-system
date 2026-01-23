@@ -3,8 +3,8 @@ Adaptive Learning Service
 Personalized learning recommendations based on user behavior and performance
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import text, func
-from datetime import datetime, timedelta
+from sqlalchemy import text
+from datetime import datetime
 from typing import List, Dict, Optional
 import logging
 
