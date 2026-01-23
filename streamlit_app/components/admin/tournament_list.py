@@ -282,7 +282,7 @@ def render_tournament_list(token: str):
                         st.caption(f"   • Parallel Fields: {parallel_fields} pitch{'es' if parallel_fields > 1 else ''}")
 
             with col3:
-                btn_col1, btn_col2, btn_col3 = st.columns(3)
+                btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
                 with btn_col1:
                     if st.button("✏️", key=f"edit_tournament_{tournament['id']}", help="Edit tournament"):
                         st.session_state['edit_tournament_id'] = tournament['id']
@@ -298,6 +298,15 @@ def render_tournament_list(token: str):
                             st.session_state['edit_schedule_tournament_name'] = tournament.get('name', 'Unknown')
                             show_edit_schedule_dialog()
                 with btn_col3:
+                    # Cancel Tournament button (refund flow) - available before COMPLETED
+                    can_cancel = tournament.get('tournament_status') not in ['COMPLETED', 'CANCELLED']
+                    if can_cancel:
+                        if st.button("❌", key=f"cancel_tournament_{tournament['id']}", help="Cancel tournament with refunds"):
+                            st.session_state['cancel_tournament_id'] = tournament['id']
+                            st.session_state['cancel_tournament_name'] = tournament.get('name', 'Untitled')
+                            st.session_state['cancel_tournament_status'] = tournament.get('tournament_status', 'N/A')
+                            show_cancel_tournament_dialog()
+                with btn_col4:
                     if st.button("🗑️", key=f"delete_tournament_{tournament['id']}", help="Delete tournament"):
                         st.session_state['delete_tournament_id'] = tournament['id']
                         st.session_state['delete_tournament_name'] = tournament.get('name', 'Untitled')
@@ -2025,6 +2034,129 @@ def show_delete_tournament_dialog():
                 del st.session_state['delete_tournament_id']
             if 'delete_tournament_name' in st.session_state:
                 del st.session_state['delete_tournament_name']
+            st.rerun()
+
+
+@st.dialog("❌ Cancel Tournament with Refunds")
+def show_cancel_tournament_dialog():
+    """
+    Show confirmation dialog for cancelling a tournament with automatic refunds.
+
+    This triggers the POST /api/v1/tournaments/{id}/cancel endpoint which:
+    - Refunds all APPROVED enrollments (full credit restoration)
+    - Auto-rejects all PENDING enrollments
+    - Marks tournament as CANCELLED
+    - Creates full audit trail
+    """
+    tournament_id = st.session_state.get('cancel_tournament_id')
+    tournament_name = st.session_state.get('cancel_tournament_name', 'Untitled')
+    tournament_status = st.session_state.get('cancel_tournament_status', 'N/A')
+
+    st.warning(f"⚠️ **Cancel Tournament**: {tournament_name}")
+    st.write(f"**Current Status**: {tournament_status}")
+    st.divider()
+
+    st.info("""
+    **What happens when you cancel:**
+
+    ✅ **APPROVED enrollments** → Full credit refund
+    ✅ **PENDING enrollments** → Auto-rejected (no payment yet)
+    ✅ **Tournament status** → CANCELLED
+    ✅ **Audit trail** → Full transaction history created
+
+    💡 *Players will receive their enrollment fees back automatically.*
+    """)
+
+    # Cancellation reason (required)
+    reason = st.text_area(
+        "Cancellation Reason *",
+        placeholder="e.g., Insufficient instructor availability, Venue unavailable, Weather conditions",
+        help="Required: Explain why this tournament is being cancelled"
+    )
+
+    # Notification option
+    notify_participants = st.checkbox(
+        "Send notification to participants",
+        value=True,
+        help="Notify enrolled players about cancellation and refund"
+    )
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✓ Confirm Cancellation", type="primary", use_container_width=True, disabled=not reason):
+            token = st.session_state.get('token')
+            if not token:
+                st.error("❌ Authentication token not found. Please log in again.")
+                return
+
+            if not reason or len(reason.strip()) == 0:
+                st.error("❌ Cancellation reason is required")
+                return
+
+            # Call CANCEL API endpoint
+            with st.spinner("Processing cancellation and refunds..."):
+                response = requests.post(
+                    f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/cancel",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={
+                        "reason": reason.strip(),
+                        "notify_participants": notify_participants
+                    },
+                    timeout=API_TIMEOUT
+                )
+
+            if response.status_code == 200:
+                data = response.json()
+                refunds_count = data.get('refunds_processed', {}).get('count', 0)
+                total_refunded = data.get('refunds_processed', {}).get('total_credits_refunded', 0)
+                rejected_count = data.get('enrollments_rejected', {}).get('count', 0)
+
+                st.success(f"✅ Tournament '{tournament_name}' cancelled successfully!")
+                st.info(f"""
+                **Cancellation Summary:**
+                - 💰 **Refunds Processed**: {refunds_count} enrollments ({total_refunded} credits total)
+                - ❌ **Auto-Rejected**: {rejected_count} pending enrollments
+                - 📋 **Status**: Tournament marked as CANCELLED
+                """)
+
+                # Clear session state
+                if 'cancel_tournament_id' in st.session_state:
+                    del st.session_state['cancel_tournament_id']
+                if 'cancel_tournament_name' in st.session_state:
+                    del st.session_state['cancel_tournament_name']
+                if 'cancel_tournament_status' in st.session_state:
+                    del st.session_state['cancel_tournament_status']
+
+                time_module.sleep(2)
+                st.rerun()
+
+            elif response.status_code == 400:
+                error_detail = response.json().get('detail', {})
+                error_msg = error_detail.get('message', 'Bad request')
+                st.error(f"❌ Cannot cancel tournament: {error_msg}")
+            elif response.status_code == 403:
+                st.error("❌ Permission denied. Only admins can cancel tournaments.")
+            elif response.status_code == 404:
+                st.error(f"❌ Tournament not found (ID: {tournament_id})")
+            else:
+                st.error(f"❌ Failed to cancel tournament. Server error: {response.status_code}")
+                try:
+                    st.json(response.json())
+                except:
+                    pass
+
+    with col2:
+        if st.button("↩️ Go Back", use_container_width=True):
+            # Clear session state
+            if 'cancel_tournament_id' in st.session_state:
+                del st.session_state['cancel_tournament_id']
+            if 'cancel_tournament_name' in st.session_state:
+                del st.session_state['cancel_tournament_name']
+            if 'cancel_tournament_status' in st.session_state:
+                del st.session_state['cancel_tournament_status']
             st.rerun()
 
 
