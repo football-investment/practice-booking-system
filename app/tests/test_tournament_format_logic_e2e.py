@@ -168,12 +168,12 @@ def test_individual_ranking_tournament_creation_and_validation(client: TestClien
 
 
 def test_head_to_head_tournament_requires_type(client: TestClient, db_session, admin_token: str):
-    db = db_session
     """
     Test HEAD_TO_HEAD tournament:
     1. tournament_type_id is REQUIRED
     2. Validation rejects NULL tournament_type_id if format is HEAD_TO_HEAD
     """
+    db = db_session
     # ============================================================================
     # STEP 1: Create HEAD_TO_HEAD without tournament_type_id (SHOULD FAIL)
     # ============================================================================

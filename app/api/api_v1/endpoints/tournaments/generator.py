@@ -74,10 +74,7 @@ class TournamentGenerateRequest(BaseModel):
         None,
         description="Instructor ID (ALWAYS None at creation - instructor assigned AFTER via Tournament Management)"
     )
-    tournament_type_id: Optional[int] = Field(
-        None,
-        description="Tournament type ID (e.g., knockout, league, swiss) - ONLY for HEAD_TO_HEAD format"
-    )
+    # ✅ CRITICAL: format MUST be defined BEFORE tournament_type_id for validator to work
     format: Literal["INDIVIDUAL_RANKING", "HEAD_TO_HEAD"] = Field(
         "HEAD_TO_HEAD",
         description="Tournament format: INDIVIDUAL_RANKING (all compete, ranked by result) or HEAD_TO_HEAD (1v1 matches)"
@@ -85,6 +82,10 @@ class TournamentGenerateRequest(BaseModel):
     scoring_type: str = Field(
         "PLACEMENT",
         description="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD."
+    )
+    tournament_type_id: Optional[int] = Field(
+        None,
+        description="Tournament type ID (e.g., knockout, league, swiss) - ONLY for HEAD_TO_HEAD format"
     )
 
     @validator('tournament_type_id')
