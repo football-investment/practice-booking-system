@@ -734,6 +734,11 @@ class TournamentUpdateRequest(BaseModel):
     participant_type: Optional[str] = Field(None, description="Participant type (INDIVIDUAL, TEAM, MIXED)")
     tournament_type_id: Optional[int] = Field(None, description="Tournament type ID (⚠️ WARNING: Can only change if no sessions generated)")
     tournament_status: Optional[str] = Field(None, description="Tournament status (⚠️ ADMIN OVERRIDE: Bypasses state machine validation)")
+    # ✅ NEW: Tournament format and scoring configuration
+    format: Optional[str] = Field(None, description="Tournament format (HEAD_TO_HEAD or INDIVIDUAL_RANKING)")
+    scoring_type: Optional[str] = Field(None, description="Scoring type (TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT)")
+    measurement_unit: Optional[str] = Field(None, description="Measurement unit (seconds, meters, points, etc.)")
+    ranking_direction: Optional[str] = Field(None, description="Ranking direction (ASC = lowest wins, DESC = highest wins)")
 
 
 @router.patch("/{tournament_id}", status_code=status.HTTP_200_OK)
@@ -915,6 +920,26 @@ def update_tournament(
             "admin_override": True
         }
         tournament.tournament_status = request.tournament_status
+
+    # ✅ NEW: Update format (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
+    if request.format is not None:
+        updates["format"] = {"old": tournament.format, "new": request.format}
+        tournament.format = request.format
+
+    # ✅ NEW: Update scoring_type (TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT)
+    if request.scoring_type is not None:
+        updates["scoring_type"] = {"old": tournament.scoring_type, "new": request.scoring_type}
+        tournament.scoring_type = request.scoring_type
+
+    # ✅ NEW: Update measurement_unit (seconds, meters, points, etc.)
+    if request.measurement_unit is not None:
+        updates["measurement_unit"] = {"old": tournament.measurement_unit, "new": request.measurement_unit}
+        tournament.measurement_unit = request.measurement_unit
+
+    # ✅ NEW: Update ranking_direction (ASC/DESC)
+    if request.ranking_direction is not None:
+        updates["ranking_direction"] = {"old": tournament.ranking_direction, "new": request.ranking_direction}
+        tournament.ranking_direction = request.ranking_direction
 
     # If no updates, return early
     if not updates:

@@ -79,7 +79,9 @@ class TournamentService:
         instructor_id: Optional[int] = None,
         tournament_type_id: Optional[int] = None,  # ✅ ONLY for HEAD_TO_HEAD
         format: str = "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
-        scoring_type: str = "PLACEMENT"  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+        scoring_type: str = "PLACEMENT",  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+        measurement_unit: Optional[str] = None,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
+        ranking_direction: Optional[str] = None  # ✅ NEW: Ranking direction (ASC/DESC)
     ) -> Semester:
         """DEPRECATED: Use app.services.tournament.create_tournament_semester instead"""
         return _create_tournament_semester(
@@ -89,7 +91,9 @@ class TournamentService:
             assignment_type, max_players, enrollment_cost, instructor_id,
             tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
             format,  # ✅ NEW: Tournament format
-            scoring_type  # ✅ NEW: Scoring type
+            scoring_type,  # ✅ NEW: Scoring type
+            measurement_unit,  # ✅ NEW: Measurement unit
+            ranking_direction  # ✅ NEW: Ranking direction
         )
 
     @staticmethod

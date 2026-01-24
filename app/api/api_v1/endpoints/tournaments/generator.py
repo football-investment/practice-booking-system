@@ -81,12 +81,95 @@ class TournamentGenerateRequest(BaseModel):
     )
     scoring_type: str = Field(
         "PLACEMENT",
-        description="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD."
+        description="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, SCORE_BASED, DISTANCE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD."
+    )
+    measurement_unit: Optional[str] = Field(
+        None,
+        description="Unit of measurement for INDIVIDUAL_RANKING: seconds/minutes (TIME_BASED), meters/centimeters (DISTANCE_BASED), points/repetitions (SCORE_BASED). NULL for PLACEMENT or HEAD_TO_HEAD."
+    )
+    ranking_direction: Optional[str] = Field(
+        None,
+        description="Ranking direction for INDIVIDUAL_RANKING: ASC (lowest wins), DESC (highest wins). HEAD_TO_HEAD always DESC. NULL for PLACEMENT."
     )
     tournament_type_id: Optional[int] = Field(
         None,
         description="Tournament type ID (e.g., knockout, league, swiss) - ONLY for HEAD_TO_HEAD format"
     )
+
+    @validator('measurement_unit')
+    def validate_measurement_unit(cls, v, values):
+        """
+        Validate measurement_unit consistency with scoring_type:
+        - TIME_BASED: 'seconds', 'minutes', 'hours'
+        - DISTANCE_BASED: 'meters', 'centimeters', 'kilometers'
+        - SCORE_BASED: 'points', 'repetitions', 'goals'
+        - PLACEMENT: NULL (not applicable)
+        """
+        scoring_type = values.get('scoring_type', 'PLACEMENT')
+        format_val = values.get('format', 'HEAD_TO_HEAD')
+
+        # HEAD_TO_HEAD: measurement_unit not used
+        if format_val == "HEAD_TO_HEAD":
+            return None
+
+        # PLACEMENT: measurement_unit not applicable
+        if scoring_type == "PLACEMENT":
+            return None
+
+        # For TIME_BASED, DISTANCE_BASED, SCORE_BASED: validate unit
+        valid_units = {
+            'TIME_BASED': ['seconds', 'minutes', 'hours'],
+            'DISTANCE_BASED': ['meters', 'centimeters', 'kilometers'],
+            'SCORE_BASED': ['points', 'repetitions', 'goals']
+        }
+
+        if scoring_type in valid_units:
+            if v is None:
+                raise ValueError(
+                    f"{scoring_type} requires a measurement_unit. "
+                    f"Valid options: {', '.join(valid_units[scoring_type])}"
+                )
+            if v not in valid_units[scoring_type]:
+                raise ValueError(
+                    f"Invalid measurement_unit '{v}' for {scoring_type}. "
+                    f"Valid options: {', '.join(valid_units[scoring_type])}"
+                )
+
+        return v
+
+    @validator('ranking_direction')
+    def validate_ranking_direction(cls, v, values):
+        """
+        Validate ranking_direction:
+        - INDIVIDUAL_RANKING (non-PLACEMENT): ASC or DESC required
+        - PLACEMENT: NULL (not applicable)
+        - HEAD_TO_HEAD: DESC (fixed)
+        """
+        format_val = values.get('format', 'HEAD_TO_HEAD')
+        scoring_type = values.get('scoring_type', 'PLACEMENT')
+
+        # HEAD_TO_HEAD: Always DESC
+        if format_val == "HEAD_TO_HEAD":
+            return "DESC"
+
+        # PLACEMENT: NULL
+        if scoring_type == "PLACEMENT":
+            return None
+
+        # INDIVIDUAL_RANKING (non-PLACEMENT): ASC or DESC required
+        if format_val == "INDIVIDUAL_RANKING" and scoring_type != "PLACEMENT":
+            if v is None:
+                raise ValueError(
+                    f"{scoring_type} requires a ranking_direction. "
+                    "Valid options: ASC (lowest wins), DESC (highest wins)"
+                )
+            if v not in ['ASC', 'DESC']:
+                raise ValueError(
+                    f"Invalid ranking_direction '{v}'. "
+                    "Valid options: ASC (lowest wins), DESC (highest wins)"
+                )
+
+        return v
 
     @validator('tournament_type_id')
     def validate_format_and_type_consistency(cls, v, values):
@@ -270,7 +353,9 @@ def generate_tournament(
             instructor_id=request.instructor_id,
             tournament_type_id=request.tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
             format=request.format,  # ✅ NEW: Tournament format
-            scoring_type=request.scoring_type  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+            scoring_type=request.scoring_type,  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+            measurement_unit=request.measurement_unit,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
+            ranking_direction=request.ranking_direction  # ✅ NEW: Ranking direction (ASC/DESC)
         )
 
         print(f"🔍 DEBUG: Tournament semester created successfully: {semester.id}")

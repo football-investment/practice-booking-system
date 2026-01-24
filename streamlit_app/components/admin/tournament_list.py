@@ -179,7 +179,40 @@ def render_tournament_list(token: str):
                 except:
                     pass
 
-            col1, col2, col3 = st.columns([2, 2, 1])
+            # Action buttons at top
+            btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
+            with btn_col1:
+                if st.button("✏️", key=f"edit_tournament_{tournament['id']}", help="Edit tournament"):
+                    st.session_state['edit_tournament_id'] = tournament['id']
+                    st.session_state['edit_tournament_data'] = tournament
+                    show_edit_tournament_dialog()
+            with btn_col2:
+                # Show schedule edit button BEFORE session generation (admin sets schedule as INPUT for generator)
+                # Available until enrollment starts (user requirement: "bármikor lehet változtatni! amig nem keződik el jelntkezés!")
+                enrollment_started = tournament.get('tournament_status') in ['ENROLLMENT_OPEN', 'IN_PROGRESS', 'COMPLETED']
+                if not enrollment_started:
+                    if st.button("⚙️", key=f"edit_schedule_{tournament['id']}", help="Edit match schedule"):
+                        st.session_state['edit_schedule_tournament_id'] = tournament['id']
+                        st.session_state['edit_schedule_tournament_name'] = tournament.get('name', 'Unknown')
+                        show_edit_schedule_dialog()
+            with btn_col3:
+                # Cancel Tournament button (refund flow) - available before COMPLETED
+                can_cancel = tournament.get('tournament_status') not in ['COMPLETED', 'CANCELLED']
+                if can_cancel:
+                    if st.button("❌", key=f"cancel_tournament_{tournament['id']}", help="Cancel tournament with refunds"):
+                        st.session_state['cancel_tournament_id'] = tournament['id']
+                        st.session_state['cancel_tournament_name'] = tournament.get('name', 'Untitled')
+                        st.session_state['cancel_tournament_status'] = tournament.get('tournament_status', 'N/A')
+                        show_cancel_tournament_dialog()
+            with btn_col4:
+                if st.button("🗑️", key=f"delete_tournament_{tournament['id']}", help="Delete tournament"):
+                    st.session_state['delete_tournament_id'] = tournament['id']
+                    st.session_state['delete_tournament_name'] = tournament.get('name', 'Untitled')
+                    show_delete_tournament_dialog()
+
+            st.divider()
+
+            col1, col2 = st.columns(2)
 
             with col1:
                 st.write(f"**Status**: {tournament.get('status', 'N/A')}")
@@ -268,49 +301,25 @@ def render_tournament_list(token: str):
                 parallel_fields = tournament.get('parallel_fields')
                 tournament_format = tournament.get('format', 'INDIVIDUAL_RANKING')
                 scoring_type = tournament.get('scoring_type', 'PLACEMENT')
+                measurement_unit = tournament.get('measurement_unit')
+                ranking_direction = tournament.get('ranking_direction')
                 if match_duration or break_duration or parallel_fields or tournament_format:
                     st.divider()
                     st.caption("⚙️ **Match Schedule Configuration**")
                     st.caption(f"   • Format: **{tournament_format}**")
                     if tournament_format == "INDIVIDUAL_RANKING":
                         st.caption(f"   • Scoring Type: **{scoring_type}**")
+                        if measurement_unit:
+                            st.caption(f"   • Measurement Unit: **{measurement_unit}**")
+                        if ranking_direction:
+                            winner_text = "Lowest wins" if ranking_direction == "ASC" else "Highest wins"
+                            st.caption(f"   • Winner Determination: **{ranking_direction}** ({winner_text})")
                     if match_duration:
                         st.caption(f"   • Match Duration: {match_duration} min")
                     if break_duration:
                         st.caption(f"   • Break Duration: {break_duration} min")
                     if parallel_fields:
                         st.caption(f"   • Parallel Fields: {parallel_fields} pitch{'es' if parallel_fields > 1 else ''}")
-
-            with col3:
-                btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
-                with btn_col1:
-                    if st.button("✏️", key=f"edit_tournament_{tournament['id']}", help="Edit tournament"):
-                        st.session_state['edit_tournament_id'] = tournament['id']
-                        st.session_state['edit_tournament_data'] = tournament
-                        show_edit_tournament_dialog()
-                with btn_col2:
-                    # Show schedule edit button BEFORE session generation (admin sets schedule as INPUT for generator)
-                    # Available until enrollment starts (user requirement: "bármikor lehet változtatni! amig nem keződik el jelntkezés!")
-                    enrollment_started = tournament.get('tournament_status') in ['ENROLLMENT_OPEN', 'IN_PROGRESS', 'COMPLETED']
-                    if not enrollment_started:
-                        if st.button("⚙️", key=f"edit_schedule_{tournament['id']}", help="Edit match schedule"):
-                            st.session_state['edit_schedule_tournament_id'] = tournament['id']
-                            st.session_state['edit_schedule_tournament_name'] = tournament.get('name', 'Unknown')
-                            show_edit_schedule_dialog()
-                with btn_col3:
-                    # Cancel Tournament button (refund flow) - available before COMPLETED
-                    can_cancel = tournament.get('tournament_status') not in ['COMPLETED', 'CANCELLED']
-                    if can_cancel:
-                        if st.button("❌", key=f"cancel_tournament_{tournament['id']}", help="Cancel tournament with refunds"):
-                            st.session_state['cancel_tournament_id'] = tournament['id']
-                            st.session_state['cancel_tournament_name'] = tournament.get('name', 'Untitled')
-                            st.session_state['cancel_tournament_status'] = tournament.get('tournament_status', 'N/A')
-                            show_cancel_tournament_dialog()
-                with btn_col4:
-                    if st.button("🗑️", key=f"delete_tournament_{tournament['id']}", help="Delete tournament"):
-                        st.session_state['delete_tournament_id'] = tournament['id']
-                        st.session_state['delete_tournament_name'] = tournament.get('name', 'Untitled')
-                        show_delete_tournament_dialog()
 
             # ========================================================================
             # TOURNAMENT STATUS ACTIONS
@@ -1489,13 +1498,26 @@ def show_edit_tournament_dialog():
     # Tournament Type & Settings
     st.subheader("🏆 Tournament Type & Settings")
 
-    # ✅ Get current tournament format
+    # ✅ Format Selector
     current_format = tournament_data.get('format', 'HEAD_TO_HEAD')
+    format_options = ["INDIVIDUAL_RANKING", "HEAD_TO_HEAD"]
+    format_index = format_options.index(current_format) if current_format in format_options else 1
+
+    new_format = st.selectbox(
+        "Tournament Format",
+        options=format_options,
+        index=format_index,
+        key="tournament_format_select",
+        help="INDIVIDUAL_RANKING: All players compete, ranked by result (time/score/distance). HEAD_TO_HEAD: 1v1 matches with tournament structure."
+    )
 
     # 🎯 Tournament Type Selector (ONLY for HEAD_TO_HEAD format)
     token = st.session_state.get('token')
 
-    if current_format == "HEAD_TO_HEAD":
+    # ✅ Initialize current_tournament_type_id for both formats
+    current_tournament_type_id = tournament_data.get('tournament_type_id')
+
+    if new_format == "HEAD_TO_HEAD":
         # Fetch available tournament types
         try:
             import requests
@@ -1513,8 +1535,6 @@ def show_edit_tournament_dialog():
         except:
             tournament_type_options = {}
             st.error("❌ Error loading tournament types")
-
-        current_tournament_type_id = tournament_data.get('tournament_type_id')
 
         if tournament_type_options:
             # Create selectbox with tournament type names
@@ -1560,6 +1580,96 @@ def show_edit_tournament_dialog():
 
         Ranking is based on the **Scoring Type** configured below.
         """)
+
+    # Scoring Type selector (unified for both formats)
+    st.markdown("### Scoring Type")
+    scoring_options = ["PLACEMENT", "TIME_BASED", "DISTANCE_BASED", "SCORE_BASED"]
+    current_scoring = tournament_data.get('scoring_type', 'PLACEMENT')
+
+    if current_scoring not in scoring_options:
+        current_scoring = "PLACEMENT"
+
+    if new_format == "INDIVIDUAL_RANKING":
+        is_disabled = False
+        help_text = """INDIVIDUAL_RANKING measurement types:
+• PLACEMENT: Manual ranking (1st, 2nd, 3rd...)
+• TIME_BASED: Timed events (100m sprint, plank hold)
+• DISTANCE_BASED: Distance events (long jump, shot put)
+• SCORE_BASED: Point-based events (push-ups, accuracy score)
+
+Winner determined by Ranking Direction (ASC/DESC) configured below."""
+    else:
+        # HEAD_TO_HEAD: Always SCORE_BASED (locked)
+        current_scoring = "SCORE_BASED"
+        is_disabled = True
+        help_text = "HEAD_TO_HEAD format: Scoring type is locked to SCORE_BASED (points from 1v1 matches). Only INDIVIDUAL_RANKING allows different measurement types."
+
+    new_scoring_type = st.selectbox(
+        "Measurement Unit",
+        options=scoring_options,
+        index=scoring_options.index(current_scoring),
+        key="tournament_scoring_type_select",
+        disabled=is_disabled,
+        help=help_text
+    )
+
+    # Show info for PLACEMENT (winning logic configured via ranking_direction below)
+    if new_format == "INDIVIDUAL_RANKING" and new_scoring_type == "PLACEMENT":
+        st.caption("🏆 **Manual ranking** (1st place beats 2nd place)")
+
+    # Measurement Unit selector (only for non-PLACEMENT INDIVIDUAL_RANKING)
+    new_measurement_unit = None
+    if new_format == "INDIVIDUAL_RANKING" and new_scoring_type != "PLACEMENT":
+        st.markdown("#### Measurement Unit")
+
+        # Define valid units for each scoring type
+        unit_options = {
+            'TIME_BASED': ['seconds', 'minutes', 'hours'],
+            'DISTANCE_BASED': ['meters', 'centimeters', 'kilometers'],
+            'SCORE_BASED': ['points', 'repetitions', 'goals']
+        }
+
+        available_units = unit_options.get(new_scoring_type, [])
+        current_unit = tournament_data.get('measurement_unit')
+
+        # Determine default index
+        if current_unit in available_units:
+            unit_index = available_units.index(current_unit)
+        else:
+            unit_index = 0  # Default to first option
+
+        new_measurement_unit = st.selectbox(
+            "Unit of Measurement",
+            options=available_units,
+            index=unit_index,
+            key="tournament_measurement_unit_select",
+            help=f"Select the unit for measuring {new_scoring_type.replace('_', ' ').lower()} results"
+        )
+
+        # Ranking Direction selector
+        st.markdown("#### Ranking Direction")
+        ranking_options = ["ASC", "DESC"]
+        current_ranking = tournament_data.get('ranking_direction', 'DESC')
+
+        if current_ranking not in ranking_options:
+            current_ranking = "DESC"
+
+        new_ranking_direction = st.selectbox(
+            "Winner Determination",
+            options=ranking_options,
+            index=ranking_options.index(current_ranking),
+            key="tournament_ranking_direction_select",
+            format_func=lambda x: "ASC (Lowest wins)" if x == "ASC" else "DESC (Highest wins)",
+            help="ASC: Lowest value wins (e.g., 100m sprint). DESC: Highest value wins (e.g., plank hold)"
+        )
+
+        # Show example based on selection
+        if new_ranking_direction == "ASC":
+            st.caption("⬇️ **Lowest wins**: 10.5s beats 11.2s, 4.8m loses to 4.2m")
+        else:
+            st.caption("⬆️ **Highest wins**: 120s beats 90s, 5.2m beats 4.8m")
+    else:
+        new_ranking_direction = None
 
     st.divider()
 
@@ -1730,6 +1840,10 @@ def show_edit_tournament_dialog():
                 "name": new_name,
                 "start_date": new_start_date.isoformat(),
                 "end_date": new_end_date.isoformat(),
+                "format": new_format,
+                "scoring_type": new_scoring_type,
+                "measurement_unit": new_measurement_unit,
+                "ranking_direction": new_ranking_direction,
                 "specialization_type": new_specialization_type,
                 "age_group": new_age_group,
                 "assignment_type": new_assignment_type,
@@ -1738,8 +1852,10 @@ def show_edit_tournament_dialog():
                 "participant_type": new_participant_type
             }
 
-            # ⚠️ Add tournament_type_id if it changed (and no sessions exist)
-            if tournament_type_changed:
+            # ⚠️ Add tournament_type_id (respecting format logic)
+            if new_format == "INDIVIDUAL_RANKING":
+                update_data["tournament_type_id"] = None
+            else:
                 update_data["tournament_type_id"] = new_tournament_type_id
 
             # ✅ FIX: Only include tournament_status if it actually changed
@@ -2661,8 +2777,7 @@ def show_edit_schedule_dialog():
         display_format = current_format if current_format else default_format
         display_scoring_type = current_scoring_type if current_scoring_type else "PLACEMENT"
 
-        st.caption(f"📊 Current start date: {current_start.strftime('%Y-%m-%d') if current_start else 'Not set'}")
-        st.caption(f"🏆 Current format: {display_format}")
+        st.caption(f"🏆 Tournament format: {display_format}")
         if display_format == "INDIVIDUAL_RANKING":
             st.caption(f"📏 Current scoring type: {display_scoring_type}")
         st.caption(f"⏱️ Current match duration: {display_match_duration} min")
@@ -2679,41 +2794,89 @@ def show_edit_schedule_dialog():
 
     st.divider()
 
-    # Schedule inputs
-    col1, col2 = st.columns(2)
+    # Scoring Type selector - unified for both formats
+    st.markdown("#### Scoring Type")
+    scoring_options = ["PLACEMENT", "TIME_BASED", "DISTANCE_BASED", "SCORE_BASED"]
 
-    with col1:
-        new_start_date = st.date_input(
-            "Tournament Start Date",
-            value=current_start if current_start else date.today(),
-            key="schedule_start_date"
-        )
-
-    with col2:
-        tournament_format = st.selectbox(
-            "Tournament Format",
-            options=["INDIVIDUAL_RANKING", "HEAD_TO_HEAD"],
-            index=0 if display_format == "INDIVIDUAL_RANKING" else 1,
-            key="schedule_format",
-            help="INDIVIDUAL_RANKING: Placement-based results (e.g., 1st, 2nd, 3rd). HEAD_TO_HEAD: 1v1 matches with scores."
-        )
-
-    # Show scoring type selector only for INDIVIDUAL_RANKING
-    if tournament_format == "INDIVIDUAL_RANKING":
-        st.markdown("#### Scoring Type (for INDIVIDUAL_RANKING)")
-        scoring_options = ["PLACEMENT", "TIME_BASED", "DISTANCE_BASED", "SCORE_BASED"]
-        current_index = scoring_options.index(display_scoring_type) if display_scoring_type in scoring_options else 0
-        scoring_type = st.selectbox(
-            "Measurement Unit",
-            options=scoring_options,
-            index=current_index,
-            key="schedule_scoring_type",
-            help="PLACEMENT: Ranking (1st, 2nd, 3rd). TIME_BASED: Seconds/minutes. DISTANCE_BASED: Meters. SCORE_BASED: Points."
-        )
+    # Determine current scoring type
+    if display_format == "INDIVIDUAL_RANKING":
+        current_scoring = display_scoring_type if display_scoring_type in scoring_options else "PLACEMENT"
+        is_disabled = False
+        help_text = """INDIVIDUAL_RANKING measurement types:
+• PLACEMENT: Manual ranking (1st, 2nd, 3rd...) - lower rank = better
+• TIME_BASED: Timed events (100m sprint, lap time) - LOWEST time wins
+• DISTANCE_BASED: Distance events (long jump, plank hold duration) - HIGHEST distance/duration wins
+• SCORE_BASED: Point-based events (push-ups, accuracy score) - HIGHEST score wins"""
     else:
-        # For HEAD_TO_HEAD, default to SCORE_BASED
-        scoring_type = "SCORE_BASED"
+        # HEAD_TO_HEAD: Always SCORE_BASED (locked)
+        current_scoring = "SCORE_BASED"
+        is_disabled = True
+        help_text = "HEAD_TO_HEAD format: Scoring type is locked to SCORE_BASED (points from 1v1 matches). Only INDIVIDUAL_RANKING allows different measurement types."
 
+    current_index = scoring_options.index(current_scoring)
+    scoring_type = st.selectbox(
+        "Measurement Unit",
+        options=scoring_options,
+        index=current_index,
+        key="schedule_scoring_type",
+        disabled=is_disabled,
+        help=help_text
+    )
+
+    # Show winning logic info for INDIVIDUAL_RANKING
+    if display_format == "INDIVIDUAL_RANKING":
+        if scoring_type == "TIME_BASED":
+            st.caption("⏱️ **Lowest time wins** (e.g., 100m sprint: 10.5s beats 11.2s)")
+        elif scoring_type == "DISTANCE_BASED":
+            st.caption("📏 **Highest distance/duration wins** (e.g., plank: 120s beats 90s, long jump: 5.2m beats 4.8m)")
+        elif scoring_type == "SCORE_BASED":
+            st.caption("🎯 **Highest score wins** (e.g., push-ups: 50 reps beats 40 reps)")
+        elif scoring_type == "PLACEMENT":
+            st.caption("🏆 **Manual ranking** (1st place beats 2nd place)")
+
+    # Measurement Unit selector (only for non-PLACEMENT INDIVIDUAL_RANKING)
+    measurement_unit = None
+    if display_format == "INDIVIDUAL_RANKING" and scoring_type != "PLACEMENT":
+        st.markdown("#### Measurement Unit")
+
+        # Define valid units for each scoring type
+        unit_options = {
+            'TIME_BASED': ['seconds', 'minutes', 'hours'],
+            'DISTANCE_BASED': ['meters', 'centimeters', 'kilometers'],
+            'SCORE_BASED': ['points', 'repetitions', 'goals']
+        }
+
+        available_units = unit_options.get(scoring_type, [])
+
+        # Get current measurement_unit from database
+        try:
+            db_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+            conn = psycopg2.connect(db_url)
+            cursor = conn.cursor()
+            cursor.execute("SELECT measurement_unit FROM semesters WHERE id = %s", (tournament_id,))
+            result = cursor.fetchone()
+            current_unit = result[0] if result else None
+            cursor.close()
+            conn.close()
+        except:
+            current_unit = None
+
+        # Determine default index
+        if current_unit in available_units:
+            unit_index = available_units.index(current_unit)
+        else:
+            unit_index = 0  # Default to first option
+
+        measurement_unit = st.selectbox(
+            "Unit of Measurement",
+            options=available_units,
+            index=unit_index,
+            key="schedule_measurement_unit",
+            help=f"Select the unit for measuring {scoring_type.replace('_', ' ').lower()} results"
+        )
+
+    st.divider()
+    st.markdown("#### Match Schedule Settings")
     col3, col4, col5 = st.columns(3)
 
     with col3:
@@ -2762,14 +2925,13 @@ def show_edit_schedule_dialog():
                 cursor.execute("""
                     UPDATE semesters
                     SET
-                        start_date = %s,
                         match_duration_minutes = %s,
                         break_duration_minutes = %s,
                         parallel_fields = %s,
-                        format = %s,
-                        scoring_type = %s
+                        scoring_type = %s,
+                        measurement_unit = %s
                     WHERE id = %s
-                """, (new_start_date, match_duration, break_duration, parallel_fields, tournament_format, scoring_type, tournament_id))
+                """, (match_duration, break_duration, parallel_fields, scoring_type, measurement_unit, tournament_id))
 
                 conn.commit()
                 cursor.close()

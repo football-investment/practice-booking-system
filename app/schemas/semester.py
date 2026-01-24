@@ -23,6 +23,10 @@ class SemesterBase(BaseModel):
     assignment_type: Optional[str] = None  # 🔥 FIX: Add assignment_type for tournaments
     max_players: Optional[int] = None  # 🔥 FIX: Add max_players for tournaments
     tournament_type_id: Optional[int] = None  # FK to tournament_types table
+    format: Optional[str] = None  # Tournament format: HEAD_TO_HEAD or INDIVIDUAL_RANKING
+    scoring_type: Optional[str] = None  # Scoring type: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT
+    measurement_unit: Optional[str] = None  # Measurement unit for INDIVIDUAL_RANKING
+    ranking_direction: Optional[str] = None  # Ranking direction: ASC (lowest wins) or DESC (highest wins)
 
 
 class SemesterCreate(SemesterBase):
@@ -52,6 +56,10 @@ class SemesterUpdate(BaseModel):
     participant_type: Optional[str] = None
     is_multi_day: Optional[bool] = None
     tournament_status: Optional[str] = None
+    format: Optional[str] = None  # Tournament format
+    scoring_type: Optional[str] = None  # Scoring type
+    measurement_unit: Optional[str] = None  # Measurement unit
+    ranking_direction: Optional[str] = None  # Ranking direction
 
 
 class Semester(SemesterBase):
@@ -80,6 +88,8 @@ class SemesterWithStats(Semester):
     parallel_fields: Optional[int] = None  # Number of parallel fields/pitches (1-4)
     format: Optional[str] = "INDIVIDUAL_RANKING"  # Tournament format: HEAD_TO_HEAD or INDIVIDUAL_RANKING
     scoring_type: Optional[str] = "PLACEMENT"  # Scoring type: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT
+    measurement_unit: Optional[str] = None  # Measurement unit for INDIVIDUAL_RANKING (seconds, meters, points, etc.)
+    ranking_direction: Optional[str] = None  # Ranking direction: ASC (lowest wins) or DESC (highest wins)
     enrollment_snapshot: Optional[dict] = None  # 📸 Enrollment state snapshot before session generation
 
 

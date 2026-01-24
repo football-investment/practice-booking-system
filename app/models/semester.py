@@ -119,6 +119,10 @@ class Semester(Base):
                    comment="Tournament format: HEAD_TO_HEAD (1v1 with scores) or INDIVIDUAL_RANKING (placement-based). Overrides tournament_type default.")
     scoring_type = Column(String(50), nullable=False, default="PLACEMENT",
                          comment="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD.")
+    measurement_unit = Column(String(50), nullable=True,
+                             comment="Unit of measurement for INDIVIDUAL_RANKING results: seconds/minutes (TIME_BASED), meters/centimeters (DISTANCE_BASED), points/repetitions (SCORE_BASED). NULL for PLACEMENT or HEAD_TO_HEAD.")
+    ranking_direction = Column(String(10), nullable=True,
+                               comment="Ranking direction for INDIVIDUAL_RANKING: ASC (lowest wins, e.g. 100m sprint), DESC (highest wins, e.g. plank). HEAD_TO_HEAD always DESC. NULL for PLACEMENT.")
 
     # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
     assignment_type = Column(String(30), nullable=True,

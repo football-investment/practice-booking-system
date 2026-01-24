@@ -40,7 +40,9 @@ def create_tournament_semester(
     instructor_id: Optional[int] = None,
     tournament_type_id: Optional[int] = None,  # ✅ ONLY for HEAD_TO_HEAD
     format: str = "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
-    scoring_type: str = "PLACEMENT"  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+    scoring_type: str = "PLACEMENT",  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+    measurement_unit: Optional[str] = None,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
+    ranking_direction: Optional[str] = None  # ✅ NEW: Ranking direction (ASC/DESC)
 ) -> Semester:
     """
     Create a 1-day semester for tournament (Admin only)
@@ -128,7 +130,9 @@ def create_tournament_semester(
         enrollment_cost=enrollment_cost,
         tournament_type_id=tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
         format=format,  # ✅ NEW: Tournament format (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
-        scoring_type=scoring_type  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+        scoring_type=scoring_type,  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
+        measurement_unit=measurement_unit,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
+        ranking_direction=ranking_direction  # ✅ NEW: Ranking direction (ASC/DESC)
     )
 
     # ✅ CRITICAL: Validate format and tournament_type_id consistency

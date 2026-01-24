@@ -259,6 +259,81 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
 
     st.divider()
 
+    # 🎯 Tournament Format Selector (OUTSIDE form for real-time updates)
+    st.subheader("🎯 Tournament Format")
+    tournament_format = st.selectbox(
+        "Format *",
+        options=["HEAD_TO_HEAD", "INDIVIDUAL_RANKING"],
+        index=0,
+        key="tournament_format_selector",
+        help="INDIVIDUAL_RANKING: All players compete, ranked by result. HEAD_TO_HEAD: 1v1 matches with tournament structure."
+    )
+
+    # ============================================================================
+    # INDIVIDUAL_RANKING: Scoring Configuration (OUTSIDE form for real-time updates)
+    # ============================================================================
+    scoring_type = "PLACEMENT"
+    measurement_unit = None
+    ranking_direction = None
+
+    if tournament_format == "INDIVIDUAL_RANKING":
+        st.divider()
+        st.subheader("📊 Scoring Configuration")
+
+        # Scoring Type selector
+        scoring_type = st.selectbox(
+            "Scoring Type *",
+            options=["PLACEMENT", "TIME_BASED", "DISTANCE_BASED", "SCORE_BASED"],
+            index=0,
+            key="scoring_type_selector",
+            help="""INDIVIDUAL_RANKING measurement types:
+• PLACEMENT: Manual ranking (1st, 2nd, 3rd...)
+• TIME_BASED: Timed events (100m sprint, plank hold)
+• DISTANCE_BASED: Distance events (long jump, shot put)
+• SCORE_BASED: Point-based events (push-ups, accuracy score)
+
+Winner determined by Ranking Direction (ASC/DESC) configured below."""
+        )
+
+        # Measurement Unit selector (only for non-PLACEMENT)
+        if scoring_type != "PLACEMENT":
+            unit_options = {
+                'TIME_BASED': ['seconds', 'minutes', 'hours'],
+                'DISTANCE_BASED': ['meters', 'centimeters', 'kilometers'],
+                'SCORE_BASED': ['points', 'repetitions', 'goals']
+            }
+
+            available_units = unit_options.get(scoring_type, [])
+            measurement_unit = st.selectbox(
+                "Measurement Unit *",
+                options=available_units,
+                index=0,
+                key="measurement_unit_selector",
+                help=f"Select the unit for measuring {scoring_type.replace('_', ' ').lower()} results"
+            )
+
+            # Ranking Direction selector
+            ranking_direction = st.selectbox(
+                "Winner Determination *",
+                options=["ASC", "DESC"],
+                index=1,  # Default to DESC
+                key="ranking_direction_selector",
+                format_func=lambda x: "ASC (Lowest wins)" if x == "ASC" else "DESC (Highest wins)",
+                help="ASC: Lowest value wins (e.g., 100m sprint). DESC: Highest value wins (e.g., plank hold)"
+            )
+
+            # Show example based on selection
+            if ranking_direction == "ASC":
+                st.caption("⬇️ **Lowest wins**: 10.5s beats 11.2s, 4.8m loses to 4.2m")
+            else:
+                st.caption("⬆️ **Highest wins**: 120s beats 90s, 5.2m beats 4.8m")
+        else:
+            st.caption("🏆 **Manual ranking** (1st place beats 2nd place)")
+            measurement_unit = None
+            ranking_direction = None
+
+    st.divider()
+
     # NOW the form starts - with location_id, campus_id, and reward policy already selected above
     with st.form("create_tournament_form"):
         # Basic info
@@ -351,87 +426,90 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
 
 
         # ⚠️ BUSINESS LOGIC: Sessions can be auto-generated OR configured manually
-        # 🎯 Tournament Type Selector (NEW - PHASE 3)
-        st.divider()
-        st.subheader("🎯 Tournament Type Configuration")
+        # ============================================================================
+        # HEAD_TO_HEAD: Tournament Type Configuration
+        # ============================================================================
+        selected_tournament_type = None
 
-        # Fetch tournament types
-        success, error, tournament_types = get_tournament_types(st.session_state.token)
+        if tournament_format == "HEAD_TO_HEAD":
+            st.divider()
+            st.subheader("🏆 Tournament Type Configuration")
 
-        selected_tournament_type = None  # Initialize
+            # Fetch tournament types
+            success, error, tournament_types = get_tournament_types(st.session_state.token)
 
-        if success and tournament_types:
-            # Add "None (Manual Setup)" option
-            type_options = ["None (Manual Configuration)"] + [
-                f"{tt['display_name']} ({tt['code']})"
-                for tt in tournament_types
-            ]
+            if success and tournament_types:
+                # Add "None (Manual Setup)" option
+                type_options = ["None (Manual Configuration)"] + [
+                    f"{tt['display_name']} ({tt['code']})"
+                    for tt in tournament_types
+                ]
 
-            selected_type_display = st.selectbox(
-                "Tournament Type",
-                options=type_options,
-                key="tournament_type_selector",
-                help="Select a tournament type for automatic session generation, or choose Manual Configuration to add sessions later"
-            )
-
-            # Parse selected tournament type
-            if selected_type_display == "None (Manual Configuration)":
-                selected_tournament_type = None
-                st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
-            else:
-                # Find matching tournament type
-                selected_tournament_type = next(
-                    (tt for tt in tournament_types
-                     if f"{tt['display_name']} ({tt['code']})" == selected_type_display),
-                    None
+                selected_type_display = st.selectbox(
+                    "Tournament Type",
+                    options=type_options,
+                    key="tournament_type_selector",
+                    help="Select a tournament type for automatic session generation, or choose Manual Configuration to add sessions later"
                 )
 
-                if selected_tournament_type:
-                    # Show tournament type details
-                    st.success(f"✅ Selected: **{selected_tournament_type['display_name']}**")
+                # Parse selected tournament type
+                if selected_type_display == "None (Manual Configuration)":
+                    selected_tournament_type = None
+                    st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
+                else:
+                    # Find matching tournament type
+                    selected_tournament_type = next(
+                        (tt for tt in tournament_types
+                         if f"{tt['display_name']} ({tt['code']})" == selected_type_display),
+                        None
+                    )
 
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.caption(f"**Min Players:** {selected_tournament_type['min_players']}")
-                        if selected_tournament_type['max_players']:
-                            st.caption(f"**Max Players:** {selected_tournament_type['max_players']}")
-                        else:
-                            st.caption(f"**Max Players:** Unlimited")
+                    if selected_tournament_type:
+                        # Show tournament type details
+                        st.success(f"✅ Selected: **{selected_tournament_type['display_name']}**")
 
-                    with col2:
-                        if selected_tournament_type['requires_power_of_two']:
-                            st.caption("⚠️ **Requires power-of-2 players** (4, 8, 16, 32, 64)")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.caption(f"**Min Players:** {selected_tournament_type['min_players']}")
+                            if selected_tournament_type['max_players']:
+                                st.caption(f"**Max Players:** {selected_tournament_type['max_players']}")
+                            else:
+                                st.caption(f"**Max Players:** Unlimited")
 
-                    # Show duration estimate if max_players is set
-                    if max_players >= selected_tournament_type['min_players']:
-                        # Estimate tournament duration
-                        est_success, est_error, estimate = estimate_tournament_duration(
-                            st.session_state.token,
-                            selected_tournament_type['id'],
-                            max_players,
-                            parallel_fields=1  # Default to 1 field
-                        )
+                        with col2:
+                            if selected_tournament_type['requires_power_of_two']:
+                                st.caption("⚠️ **Requires power-of-2 players** (4, 8, 16, 32, 64)")
 
-                        if est_success:
-                            st.info(
-                                f"📊 **Estimated Duration:** {estimate['total_matches']} matches, "
-                                f"{estimate['total_rounds']} rounds, "
-                                f"~{estimate['estimated_duration_minutes']} minutes "
-                                f"({estimate['estimated_duration_days']:.2f} days with 1 field)"
+                        # Show duration estimate if max_players is set
+                        if max_players >= selected_tournament_type['min_players']:
+                            # Estimate tournament duration
+                            est_success, est_error, estimate = estimate_tournament_duration(
+                                st.session_state.token,
+                                selected_tournament_type['id'],
+                                max_players,
+                                parallel_fields=1  # Default to 1 field
                             )
-                        else:
-                            st.warning(f"⚠️ Could not estimate duration: {est_error}")
-                    else:
-                        st.warning(
-                            f"⚠️ Max players ({max_players}) is below minimum required "
-                            f"({selected_tournament_type['min_players']}) for this tournament type"
-                        )
 
-                    st.info("🔄 **Sessions will be auto-generated** after enrollment closes (when tournament status changes to IN_PROGRESS)")
-        else:
-            st.error(f"❌ Failed to load tournament types: {error}")
-            selected_tournament_type = None
-            st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
+                            if est_success:
+                                st.info(
+                                    f"📊 **Estimated Duration:** {estimate['total_matches']} matches, "
+                                    f"{estimate['total_rounds']} rounds, "
+                                    f"~{estimate['estimated_duration_minutes']} minutes "
+                                    f"({estimate['estimated_duration_days']:.2f} days with 1 field)"
+                                )
+                            else:
+                                st.warning(f"⚠️ Could not estimate duration: {est_error}")
+                        else:
+                            st.warning(
+                                f"⚠️ Max players ({max_players}) is below minimum required "
+                                f"({selected_tournament_type['min_players']}) for this tournament type"
+                            )
+
+                        st.info("🔄 **Sessions will be auto-generated** after enrollment closes (when tournament status changes to IN_PROGRESS)")
+            else:
+                st.error(f"❌ Failed to load tournament types: {error}")
+                selected_tournament_type = None
+                st.info("📋 **Sessions will be configured manually** in Tournament Management after creation.")
 
         # Submit button
         st.divider()
@@ -482,8 +560,13 @@ def _render_create_tournament_form(templates: Dict[str, Any]):
             assignment_type=assignment_type,
             max_players=max_players,
             enrollment_cost=enrollment_cost,
-            # 🎯 NEW PHASE 3: Tournament type for auto-generation
-            tournament_type_id=selected_tournament_type['id'] if selected_tournament_type else None
+            # 🎯 NEW: Tournament format and type
+            format=tournament_format,
+            tournament_type_id=selected_tournament_type['id'] if selected_tournament_type else None,
+            # 🎯 NEW: INDIVIDUAL_RANKING scoring configuration
+            scoring_type=scoring_type,
+            measurement_unit=measurement_unit,
+            ranking_direction=ranking_direction
         )
 
 
@@ -500,8 +583,13 @@ def _create_tournament(
     assignment_type: str = "APPLICATION_BASED",
     max_players: int = 20,
     enrollment_cost: int = 500,
-    # 🎯 NEW PHASE 3: Tournament type for auto-generation
-    tournament_type_id: Optional[int] = None
+    # 🎯 NEW: Tournament format and type
+    format: str = "HEAD_TO_HEAD",
+    tournament_type_id: Optional[int] = None,
+    # 🎯 NEW: INDIVIDUAL_RANKING scoring configuration
+    scoring_type: str = "PLACEMENT",
+    measurement_unit: Optional[str] = None,
+    ranking_direction: Optional[str] = None
 ):
     """
     Create tournament via API
@@ -526,8 +614,13 @@ def _create_tournament(
             "assignment_type": assignment_type,
             "max_players": max_players,
             "enrollment_cost": enrollment_cost,
-            # 🎯 NEW PHASE 3: Tournament type for auto-generation
+            # 🎯 NEW: Tournament format and type
+            "format": format,
             "tournament_type_id": tournament_type_id,
+            # 🎯 NEW: INDIVIDUAL_RANKING scoring configuration
+            "scoring_type": scoring_type,
+            "measurement_unit": measurement_unit,
+            "ranking_direction": ranking_direction,
             # ⚠️ BUSINESS LOGIC: instructor_id is None at creation
             # Instructor assignment happens AFTER via Tournament Management:
             # - OPEN_ASSIGNMENT: Admin invites specific instructor
