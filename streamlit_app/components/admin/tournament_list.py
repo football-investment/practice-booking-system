@@ -770,6 +770,31 @@ def render_tournament_list(token: str):
     
                                         st.write("")  # Spacing
 
+                                # Fetch player names for ALL sessions (league + swiss)
+                                user_names = {}
+                                try:
+                                    import requests
+                                    all_participant_ids = set()
+                                    # Collect participant IDs from both league and swiss sessions
+                                    for session in league_sessions + swiss_sessions:
+                                        all_participant_ids.update(session.get('participant_user_ids', []))
+
+                                    # Fetch user details
+                                    for user_id in all_participant_ids:
+                                        try:
+                                            user_response = requests.get(
+                                                f"{API_BASE_URL}/api/v1/users/{user_id}",
+                                                headers={"Authorization": f"Bearer {token}"},
+                                                timeout=API_TIMEOUT
+                                            )
+                                            if user_response.status_code == 200:
+                                                user_data = user_response.json()
+                                                user_names[user_id] = user_data.get('name', f'User {user_id}')
+                                        except:
+                                            user_names[user_id] = f'User {user_id}'
+                                except:
+                                    user_names = {}
+
                                 # ============================================================
                                 # LEAGUE ROUNDS (INDIVIDUAL_RANKING)
                                 # ============================================================
@@ -777,30 +802,6 @@ def render_tournament_list(token: str):
                                     st.divider()
                                     st.markdown("### 📊 League - Individual Ranking Rounds")
                                     st.caption("All players compete together in each round")
-
-                                    # Fetch player names for display
-                                    try:
-                                        import requests
-                                        all_participant_ids = set()
-                                        for session in league_sessions:
-                                            all_participant_ids.update(session.get('participant_user_ids', []))
-
-                                        # Fetch user details
-                                        user_names = {}
-                                        for user_id in all_participant_ids:
-                                            try:
-                                                user_response = requests.get(
-                                                    f"{API_BASE_URL}/api/v1/users/{user_id}",
-                                                    headers={"Authorization": f"Bearer {token}"},
-                                                    timeout=API_TIMEOUT
-                                                )
-                                                if user_response.status_code == 200:
-                                                    user_data = user_response.json()
-                                                    user_names[user_id] = user_data.get('name', f'User {user_id}')
-                                            except:
-                                                user_names[user_id] = f'User {user_id}'
-                                    except:
-                                        user_names = {}
 
                                     for session in sorted(league_sessions, key=lambda x: x.get('round_number', x.get('tournament_round', 0))):
                                         round_num = session.get('round_number') or session.get('tournament_round', 'N/A')
@@ -1488,62 +1489,77 @@ def show_edit_tournament_dialog():
     # Tournament Type & Settings
     st.subheader("🏆 Tournament Type & Settings")
 
-    # 🎯 Tournament Type Selector (DANGEROUS - warns about session regeneration)
+    # ✅ Get current tournament format
+    current_format = tournament_data.get('format', 'HEAD_TO_HEAD')
+
+    # 🎯 Tournament Type Selector (ONLY for HEAD_TO_HEAD format)
     token = st.session_state.get('token')
 
-    # Fetch available tournament types
-    try:
-        import requests
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournament-types/",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-        if response.status_code == 200:
-            tournament_types = response.json()
-            tournament_type_options = {t['id']: t['display_name'] for t in tournament_types}
-        else:
-            tournament_type_options = {}
-            st.error("❌ Failed to load tournament types")
-    except:
-        tournament_type_options = {}
-        st.error("❌ Error loading tournament types")
-
-    current_tournament_type_id = tournament_data.get('tournament_type_id')
-
-    if tournament_type_options:
-        # Create selectbox with tournament type names
-        type_ids = list(tournament_type_options.keys())
-        type_names = list(tournament_type_options.values())
-
+    if current_format == "HEAD_TO_HEAD":
+        # Fetch available tournament types
         try:
-            current_index = type_ids.index(current_tournament_type_id) if current_tournament_type_id else 0
+            import requests
+            response = requests.get(
+                f"{API_BASE_URL}/api/v1/tournament-types/",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=API_TIMEOUT
+            )
+            if response.status_code == 200:
+                tournament_types = response.json()
+                tournament_type_options = {t['id']: t['display_name'] for t in tournament_types}
+            else:
+                tournament_type_options = {}
+                st.error("❌ Failed to load tournament types")
         except:
-            current_index = 0
+            tournament_type_options = {}
+            st.error("❌ Error loading tournament types")
 
-        new_tournament_type_id = st.selectbox(
-            "Tournament Type",
-            options=type_ids,
-            format_func=lambda x: tournament_type_options[x],
-            index=current_index,
-            key="tournament_type_select",
-            help="⚠️ Changing tournament type will require regenerating sessions!"
-        )
+        current_tournament_type_id = tournament_data.get('tournament_type_id')
 
-        # ⚠️ WARNING if tournament type changed
-        if new_tournament_type_id != current_tournament_type_id:
-            st.warning("""
-            ⚠️ **WARNING: Tournament Type Change Detected**
+        if tournament_type_options:
+            # Create selectbox with tournament type names
+            type_ids = list(tournament_type_options.keys())
+            type_names = list(tournament_type_options.values())
 
-            Changing the tournament type will:
-            - Delete all existing sessions for this tournament
-            - Require regenerating sessions with the new structure
-            - Reset all match results and standings
+            try:
+                current_index = type_ids.index(current_tournament_type_id) if current_tournament_type_id else 0
+            except:
+                current_index = 0
 
-            This action should only be done if the tournament has not started yet!
-            """)
+            new_tournament_type_id = st.selectbox(
+                "Tournament Type (HEAD_TO_HEAD)",
+                options=type_ids,
+                format_func=lambda x: tournament_type_options[x],
+                index=current_index,
+                key="tournament_type_select",
+                help="Swiss, League, Knockout, or Group+Knockout structure for 1v1 matches"
+            )
+
+            # ⚠️ WARNING if tournament type changed
+            if new_tournament_type_id != current_tournament_type_id:
+                st.warning("""
+                ⚠️ **WARNING: Tournament Type Change Detected**
+
+                Changing the tournament type will:
+                - Delete all existing sessions for this tournament
+                - Require regenerating sessions with the new structure
+                - Reset all match results and standings
+
+                This action should only be done if the tournament has not started yet!
+                """)
+        else:
+            new_tournament_type_id = current_tournament_type_id
     else:
-        new_tournament_type_id = current_tournament_type_id
+        # INDIVIDUAL_RANKING: No tournament type needed
+        new_tournament_type_id = None
+        st.info("""
+        ℹ️ **INDIVIDUAL_RANKING Format**
+
+        This tournament uses a simple competition format where all players compete together
+        and are ranked by their results. No tournament structure (Swiss, League, etc.) is needed.
+
+        Ranking is based on the **Scoring Type** configured below.
+        """)
 
     st.divider()
 

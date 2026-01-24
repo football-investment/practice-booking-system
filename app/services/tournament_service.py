@@ -77,7 +77,9 @@ class TournamentService:
         max_players: Optional[int] = None,
         enrollment_cost: int = 500,
         instructor_id: Optional[int] = None,
-        tournament_type_id: Optional[int] = None  # ✅ E2E Test: Support tournament types
+        tournament_type_id: Optional[int] = None,  # ✅ ONLY for HEAD_TO_HEAD
+        format: str = "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
+        scoring_type: str = "PLACEMENT"  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
     ) -> Semester:
         """DEPRECATED: Use app.services.tournament.create_tournament_semester instead"""
         return _create_tournament_semester(
@@ -85,7 +87,9 @@ class TournamentService:
             campus_id, location_id, age_group, reward_policy_name,
             custom_reward_policy,  # ✅ Pass custom reward policy
             assignment_type, max_players, enrollment_cost, instructor_id,
-            tournament_type_id  # ✅ E2E Test: Pass tournament type through
+            tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
+            format,  # ✅ NEW: Tournament format
+            scoring_type  # ✅ NEW: Scoring type
         )
 
     @staticmethod

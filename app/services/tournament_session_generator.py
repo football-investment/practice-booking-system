@@ -40,9 +40,17 @@ class TournamentSessionGenerator:
         if tournament.sessions_generated:
             return False, f"Sessions already generated at {tournament.sessions_generated_at}"
 
-        # Check if tournament has a type configured
-        if not tournament.tournament_type_id:
-            return False, "Tournament type not configured"
+        # ✅ Check format-specific requirements
+        if tournament.format == "HEAD_TO_HEAD":
+            # HEAD_TO_HEAD requires tournament type
+            if not tournament.tournament_type_id:
+                return False, "HEAD_TO_HEAD tournaments require a tournament type (Swiss, League, Knockout, etc.)"
+        elif tournament.format == "INDIVIDUAL_RANKING":
+            # INDIVIDUAL_RANKING should NOT have tournament type
+            if tournament.tournament_type_id is not None:
+                return False, "INDIVIDUAL_RANKING tournaments cannot have a tournament type"
+        else:
+            return False, f"Invalid tournament format: {tournament.format}"
 
         # Check if enrollment is closed (tournament status must be IN_PROGRESS or later)
         if tournament.tournament_status not in ["IN_PROGRESS", "COMPLETED"]:
@@ -55,8 +63,14 @@ class TournamentSessionGenerator:
             SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
         ).count()
 
-        if active_enrollment_count < 4:
-            return False, f"Not enough players enrolled. Need at least 4, have {active_enrollment_count}"
+        # Different minimum player requirements based on format
+        if tournament.format == "INDIVIDUAL_RANKING":
+            min_players = 2  # INDIVIDUAL_RANKING needs at least 2 players
+        else:
+            min_players = 4  # HEAD_TO_HEAD tournaments typically need at least 4
+
+        if active_enrollment_count < min_players:
+            return False, f"Not enough players enrolled. Need at least {min_players}, have {active_enrollment_count}"
 
         return True, "Ready for session generation"
 
@@ -84,11 +98,8 @@ class TournamentSessionGenerator:
         if not can_generate:
             return False, reason, []
 
-        # Fetch tournament and config
+        # Fetch tournament
         tournament = self.db.query(Semester).filter(Semester.id == tournament_id).first()
-        tournament_type = self.db.query(TournamentType).filter(
-            TournamentType.id == tournament.tournament_type_id
-        ).first()
 
         # Get enrolled player count
         player_count = self.db.query(SemesterEnrollment).filter(
@@ -97,34 +108,52 @@ class TournamentSessionGenerator:
             SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
         ).count()
 
-        # Validate player count against tournament type constraints
-        is_valid, error_msg = tournament_type.validate_player_count(player_count)
-        if not is_valid:
-            return False, error_msg, []
+        # ✅ CRITICAL: Check tournament format
+        if tournament.format == "INDIVIDUAL_RANKING":
+            # INDIVIDUAL_RANKING: No tournament type needed, simple competition
+            if player_count < 2:
+                return False, f"Not enough players. Need at least 2, have {player_count}", []
 
-        # Generate session structure based on tournament type
-        if tournament_type.code == "league":
-            sessions = self._generate_league_sessions(
-                tournament, tournament_type, player_count, parallel_fields,
-                session_duration_minutes, break_minutes
-            )
-        elif tournament_type.code == "knockout":
-            sessions = self._generate_knockout_sessions(
-                tournament, tournament_type, player_count, parallel_fields,
-                session_duration_minutes, break_minutes
-            )
-        elif tournament_type.code == "group_knockout":
-            sessions = self._generate_group_knockout_sessions(
-                tournament, tournament_type, player_count, parallel_fields,
-                session_duration_minutes, break_minutes
-            )
-        elif tournament_type.code == "swiss":
-            sessions = self._generate_swiss_sessions(
-                tournament, tournament_type, player_count, parallel_fields,
-                session_duration_minutes, break_minutes
+            sessions = self._generate_individual_ranking_sessions(
+                tournament, player_count, session_duration_minutes
             )
         else:
-            return False, f"Unknown tournament type: {tournament_type.code}", []
+            # HEAD_TO_HEAD: Requires tournament type (Swiss, League, Knockout, etc.)
+            tournament_type = self.db.query(TournamentType).filter(
+                TournamentType.id == tournament.tournament_type_id
+            ).first()
+
+            if not tournament_type:
+                return False, "HEAD_TO_HEAD tournaments require a tournament type", []
+
+            # Validate player count against tournament type constraints
+            is_valid, error_msg = tournament_type.validate_player_count(player_count)
+            if not is_valid:
+                return False, error_msg, []
+
+            # Generate session structure based on tournament type
+            if tournament_type.code == "league":
+                sessions = self._generate_league_sessions(
+                    tournament, tournament_type, player_count, parallel_fields,
+                    session_duration_minutes, break_minutes
+                )
+            elif tournament_type.code == "knockout":
+                sessions = self._generate_knockout_sessions(
+                    tournament, tournament_type, player_count, parallel_fields,
+                    session_duration_minutes, break_minutes
+                )
+            elif tournament_type.code == "group_knockout":
+                sessions = self._generate_group_knockout_sessions(
+                    tournament, tournament_type, player_count, parallel_fields,
+                    session_duration_minutes, break_minutes
+                )
+            elif tournament_type.code == "swiss":
+                sessions = self._generate_swiss_sessions(
+                    tournament, tournament_type, player_count, parallel_fields,
+                    session_duration_minutes, break_minutes
+                )
+            else:
+                return False, f"Unknown tournament type: {tournament_type.code}", []
 
         # Get all enrolled players
         enrolled_players = self.db.query(SemesterEnrollment).filter(
@@ -180,8 +209,9 @@ class TournamentSessionGenerator:
         """
         sessions = []
 
-        # ✅ NEW: Use tournament_type.format to determine match structure
-        tournament_format = getattr(config, 'format', 'INDIVIDUAL_RANKING')
+        # ✅ Use tournament.format (from Semester table) to determine match structure
+        # This is set by admin in UI and stored in semesters.format column
+        tournament_format = tournament.format
 
         if tournament_format == 'HEAD_TO_HEAD':
             # ✅ HEAD_TO_HEAD: Traditional round robin (1v1 pairings)
@@ -227,9 +257,9 @@ class TournamentSessionGenerator:
                     'participant_filter': None,
                     'group_identifier': None,
                     'pod_tier': None,
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata
-                    'match_format': 'INDIVIDUAL_RANKING',
-                    'scoring_type': 'PLACEMENT',
+                    # ✅ MATCH STRUCTURE: Format and scoring metadata (from tournament config)
+                    'match_format': tournament.format,
+                    'scoring_type': tournament.scoring_type,
                     'structure_config': {
                         'expected_participants': player_count,
                         'ranking_criteria': 'final_placement'
@@ -468,9 +498,9 @@ class TournamentSessionGenerator:
                     'participant_filter': None,
                     'group_identifier': None,
                     'pod_tier': None,
-                    # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format
-                    'match_format': 'HEAD_TO_HEAD',
-                    'scoring_type': 'SCORE_BASED',
+                    # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format (from tournament config)
+                    'match_format': tournament.format,  # Should be HEAD_TO_HEAD
+                    'scoring_type': tournament.scoring_type,  # Usually SCORE_BASED for HEAD_TO_HEAD
                     'structure_config': {
                         'expected_participants': 2,
                         'match_type': 'round_robin',
@@ -577,9 +607,9 @@ class TournamentSessionGenerator:
                     'participant_filter': None,
                     'group_identifier': None,
                     'pod_tier': round_num,  # Tier indicates knockout stage level
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata
-                    'match_format': 'INDIVIDUAL_RANKING',  # All compete together, ranked by placement
-                    'scoring_type': 'PLACEMENT',
+                    # ✅ MATCH STRUCTURE: Format and scoring metadata (from tournament config)
+                    'match_format': tournament.format,
+                    'scoring_type': tournament.scoring_type,
                     'structure_config': {
                         'expected_participants': player_count,
                         'round_name': round_name,
@@ -619,9 +649,9 @@ class TournamentSessionGenerator:
                 'participant_filter': None,
                 'group_identifier': None,
                 'pod_tier': total_rounds,  # Same tier as finals
-                # ✅ MATCH STRUCTURE: Format and scoring metadata
-                'match_format': 'INDIVIDUAL_RANKING',
-                'scoring_type': 'PLACEMENT',
+                # ✅ MATCH STRUCTURE: Format and scoring metadata (from tournament config)
+                'match_format': tournament.format,
+                'scoring_type': tournament.scoring_type,
                 'structure_config': {
                     'expected_participants': player_count,
                     'round_name': '3rd Place Playoff',
@@ -740,9 +770,9 @@ class TournamentSessionGenerator:
                             'expected_participants': 2,
                             'participant_filter': 'group_membership',
                             'pod_tier': None,
-                            # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format
-                            'match_format': 'HEAD_TO_HEAD',
-                            'scoring_type': 'SCORE_BASED',
+                            # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format (from tournament config)
+                            'match_format': tournament.format,  # Should be HEAD_TO_HEAD
+                            'scoring_type': tournament.scoring_type,
                             'structure_config': {
                                 'group': group_name,
                                 'group_size': group_size,
@@ -783,9 +813,9 @@ class TournamentSessionGenerator:
                         'expected_participants': len(group_participant_ids),
                         'participant_filter': 'group_membership',
                         'pod_tier': None,
-                        # ✅ MATCH STRUCTURE: Format and scoring metadata
-                        'match_format': 'INDIVIDUAL_RANKING',  # Within group
-                        'scoring_type': 'PLACEMENT',
+                        # ✅ MATCH STRUCTURE: Format and scoring metadata (from tournament config)
+                        'match_format': tournament.format,  # Should be INDIVIDUAL_RANKING for group stage
+                        'scoring_type': tournament.scoring_type,
                         'structure_config': {
                             'group': group_name,
                             'group_size': len(group_participant_ids),
@@ -842,9 +872,9 @@ class TournamentSessionGenerator:
                     'participant_filter': 'seeded_qualifiers',
                     'group_identifier': None,
                     'pod_tier': None,
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata
+                    # ✅ MATCH STRUCTURE: Format and scoring metadata (play-in is always HEAD_TO_HEAD)
                     'match_format': 'HEAD_TO_HEAD',  # 1v1 elimination
-                    'scoring_type': 'PLACEMENT',
+                    'scoring_type': tournament.scoring_type,
                     'structure_config': {
                         'expected_participants': 2,
                         'round_name': 'Play-in Round',
@@ -925,9 +955,9 @@ class TournamentSessionGenerator:
                     'participant_filter': 'seeded_qualifiers',
                     'group_identifier': None,
                     'pod_tier': None,
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata
+                    # ✅ MATCH STRUCTURE: Format and scoring metadata (business logic: finals use HEAD_TO_HEAD)
                     'match_format': 'HEAD_TO_HEAD' if round_num >= knockout_rounds - 1 else 'INDIVIDUAL_RANKING',
-                    'scoring_type': 'PLACEMENT',
+                    'scoring_type': tournament.scoring_type,
                     'structure_config': {
                         'expected_participants': players_in_round,
                         'round_name': round_name,
@@ -971,9 +1001,9 @@ class TournamentSessionGenerator:
                 'participant_filter': 'semifinal_losers',
                 'group_identifier': None,
                 'pod_tier': None,
-                # ✅ MATCH STRUCTURE: Format and scoring metadata
+                # ✅ MATCH STRUCTURE: Format and scoring metadata (bronze is always HEAD_TO_HEAD)
                 'match_format': 'HEAD_TO_HEAD',
-                'scoring_type': 'PLACEMENT',
+                'scoring_type': tournament.scoring_type,
                 'structure_config': {
                     'expected_participants': 2,
                     'round_name': '3rd Place Match',
@@ -997,17 +1027,14 @@ class TournamentSessionGenerator:
         """
         Generate Swiss system sessions
 
-        ✅ UNIFIED RANKING: Performance-based pods (top performers vs top, middle vs middle, etc.)
+        Two modes based on tournament.format:
+        1. INDIVIDUAL_RANKING: Performance-based pods (top performers vs top, middle vs middle)
+        2. HEAD_TO_HEAD: 1v1 Swiss pairings (similar score players paired together)
 
         Typical rounds = log2(n) rounded up
-        Pod size configurable (default: 4 players per pod)
         """
         sessions = []
         total_rounds = math.ceil(math.log2(player_count))
-
-        # Get pod configuration from config (default: 4 players per pod)
-        pod_size = config.config.get('pod_size', 4)
-        pods_count = max(1, player_count // pod_size)
 
         # ✅ Get enrolled players for participant_user_ids
         enrolled_players = self.db.query(SemesterEnrollment).filter(
@@ -1019,53 +1046,202 @@ class TournamentSessionGenerator:
 
         current_time = tournament.start_date
 
-        for round_num in range(1, total_rounds + 1):
-            # In Swiss System, players are divided into performance-based pods after Round 1
-            for pod_num in range(1, pods_count + 1):
-                session_start = current_time
-                session_end = session_start + timedelta(minutes=session_duration)
+        if tournament.format == 'HEAD_TO_HEAD':
+            # ============================================================================
+            # HEAD_TO_HEAD MODE: 1v1 Swiss Pairings
+            # ============================================================================
+            # Round 1: Random/seeded pairing
+            # Round 2+: Pair players with similar scores (Swiss pairing algorithm)
 
-                # Pod tier naming: Pod 1 = Top performers, Pod 2 = Mid-tier, etc.
-                pod_name = f"Pod {pod_num}" if pods_count > 1 else "Main"
+            field_slots = [current_time for _ in range(parallel_fields)]
 
-                sessions.append({
-                    'title': f'{tournament.name} - Round {round_num} - {pod_name}',
-                    'description': f'Swiss system round {round_num} - {pod_name} ({pod_size} players)',
-                    'date_start': session_start,
-                    'date_end': session_end,
-                    'game_type': f'Round {round_num}',
-                    'tournament_phase': 'Swiss System',
-                    'tournament_round': round_num,
-                    'tournament_match_number': pod_num,
-                    'location': tournament.location_venue or 'TBD',
-                    'session_type': 'on_site',
-                    # ✅ UNIFIED RANKING: Swiss performance pod metadata
-                    'ranking_mode': 'PERFORMANCE_POD',
-                    'round_number': round_num,  # ✅ MANDATORY: Round number for fixtures display
-                    'expected_participants': pod_size,
-                    'participant_filter': 'dynamic_swiss_pairing',
-                    'group_identifier': None,
-                    'pod_tier': pod_num,  # Pod tier (1=top performers, 2=middle, etc.)
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata
-                    'match_format': 'INDIVIDUAL_RANKING',  # Pod members compete together
-                    'scoring_type': 'PLACEMENT',
-                    'structure_config': {
-                        'pod': pod_num,
-                        'pod_size': pod_size,
+            for round_num in range(1, total_rounds + 1):
+                # Generate 1v1 pairings for this round
+                # Round 1: Simple sequential pairing (can be randomized later)
+                # Round 2+: Would need performance-based pairing (placeholder for now)
+
+                match_num = 1
+                for i in range(0, len(player_ids), 2):
+                    if i + 1 >= len(player_ids):
+                        # Odd number of players - last player gets a BYE
+                        break
+
+                    player1_id = player_ids[i]
+                    player2_id = player_ids[i + 1]
+
+                    # Assign to next available field
+                    field_index = (match_num - 1) % parallel_fields
+                    session_start = field_slots[field_index]
+                    session_end = session_start + timedelta(minutes=session_duration)
+
+                    sessions.append({
+                        'title': f'{tournament.name} - Round {round_num} - Match {match_num}',
+                        'description': f'Swiss Round {round_num} - 1v1 match',
+                        'date_start': session_start,
+                        'date_end': session_end,
+                        'game_type': f'Round {round_num}',
+                        'tournament_phase': 'Swiss System',
+                        'tournament_round': round_num,
+                        'tournament_match_number': match_num,
+                        'location': tournament.location_venue or 'TBD',
+                        'session_type': 'on_site',
+                        # ✅ HEAD_TO_HEAD: 1v1 match metadata
+                        'ranking_mode': 'PERFORMANCE_PAIRING',
+                        'round_number': round_num,
+                        'expected_participants': 2,
+                        'participant_filter': 'swiss_pairing',
+                        'group_identifier': None,
+                        'pod_tier': None,  # No pods in HEAD_TO_HEAD
+                        # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format
+                        'match_format': tournament.format,
+                        'scoring_type': tournament.scoring_type,
+                        'structure_config': {
+                            'expected_participants': 2,
+                            'pairing_type': 'random' if round_num == 1 else 'performance_based'
+                        },
+                        # ✅ Explicit 1v1 participants
+                        'participant_user_ids': [player1_id, player2_id]
+                    })
+
+                    # Update field slot time
+                    field_slots[field_index] = session_end + timedelta(minutes=break_minutes)
+                    match_num += 1
+
+                # Move to next round - wait for all fields to finish
+                current_time = max(field_slots) + timedelta(minutes=break_minutes)
+                field_slots = [current_time for _ in range(parallel_fields)]
+
+        else:
+            # ============================================================================
+            # INDIVIDUAL_RANKING MODE: Performance-based pods
+            # ============================================================================
+            # Get pod configuration from config (default: 4 players per pod)
+            pod_size = config.config.get('pod_size', 4)
+            pods_count = max(1, player_count // pod_size)
+
+            for round_num in range(1, total_rounds + 1):
+                # In Swiss System, players are divided into performance-based pods after Round 1
+                for pod_num in range(1, pods_count + 1):
+                    session_start = current_time
+                    session_end = session_start + timedelta(minutes=session_duration)
+
+                    # Pod tier naming: Pod 1 = Top performers, Pod 2 = Mid-tier, etc.
+                    pod_name = f"Pod {pod_num}" if pods_count > 1 else "Main"
+
+                    sessions.append({
+                        'title': f'{tournament.name} - Round {round_num} - {pod_name}',
+                        'description': f'Swiss system round {round_num} - {pod_name} ({pod_size} players)',
+                        'date_start': session_start,
+                        'date_end': session_end,
+                        'game_type': f'Round {round_num}',
+                        'tournament_phase': 'Swiss System',
+                        'tournament_round': round_num,
+                        'tournament_match_number': pod_num,
+                        'location': tournament.location_venue or 'TBD',
+                        'session_type': 'on_site',
+                        # ✅ UNIFIED RANKING: Swiss performance pod metadata
+                        'ranking_mode': 'PERFORMANCE_POD',
+                        'round_number': round_num,
                         'expected_participants': pod_size,
-                        'performance_tier': pod_num
-                    },
-                    # ✅ FIX: Add participant_user_ids - Initially all players in Round 1, then dynamic allocation by performance
-                    'participant_user_ids': player_ids if round_num == 1 else player_ids[(pod_num-1)*pod_size:pod_num*pod_size] if len(player_ids) >= pod_num*pod_size else player_ids[(pod_num-1)*pod_size:]
-                })
+                        'participant_filter': 'dynamic_swiss_pairing',
+                        'group_identifier': None,
+                        'pod_tier': pod_num,  # Pod tier (1=top performers, 2=middle, etc.)
+                        # ✅ MATCH STRUCTURE: INDIVIDUAL_RANKING format
+                        'match_format': tournament.format,
+                        'scoring_type': tournament.scoring_type,
+                        'structure_config': {
+                            'pod': pod_num,
+                            'pod_size': pod_size,
+                            'expected_participants': pod_size,
+                            'performance_tier': pod_num
+                        },
+                        # ✅ FIX: Add participant_user_ids - Initially all players in Round 1, then dynamic allocation by performance
+                        'participant_user_ids': player_ids if round_num == 1 else player_ids[(pod_num-1)*pod_size:pod_num*pod_size] if len(player_ids) >= pod_num*pod_size else player_ids[(pod_num-1)*pod_size:]
+                    })
 
-                # Schedule parallel pods
-                if pod_num % parallel_fields != 0:
-                    continue
-                else:
-                    current_time += timedelta(minutes=session_duration + break_minutes)
+                    # Schedule parallel pods
+                    if pod_num % parallel_fields != 0:
+                        continue
+                    else:
+                        current_time += timedelta(minutes=session_duration + break_minutes)
 
-            # Break between rounds
-            current_time += timedelta(minutes=break_minutes * 2)
+                # Break between rounds
+                current_time += timedelta(minutes=break_minutes * 2)
+
+        return sessions
+
+    def _generate_individual_ranking_sessions(
+        self,
+        tournament: Semester,
+        player_count: int,
+        session_duration: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate INDIVIDUAL_RANKING sessions (simple competition format)
+
+        INDIVIDUAL_RANKING tournaments have NO tournament type structure.
+        All players compete in a simple competition and are ranked by their results:
+        - TIME_BASED: Lowest time wins (e.g., 100m sprint)
+        - SCORE_BASED: Highest score wins (e.g., push-ups in 1 minute)
+        - DISTANCE_BASED: Longest distance wins (e.g., long jump)
+        - PLACEMENT: Manual placement (1st, 2nd, 3rd...)
+
+        This generates a single session where all players compete.
+        """
+        sessions = []
+
+        # Get enrolled players
+        enrolled_players = self.db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tournament.id,
+            SemesterEnrollment.is_active == True,
+            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+        ).all()
+        player_ids = [enrollment.user_id for enrollment in enrolled_players]
+
+        # Single competition session for all players
+        session_start = tournament.start_date
+        session_end = session_start + timedelta(minutes=session_duration)
+
+        # Determine description based on scoring type
+        scoring_descriptions = {
+            'TIME_BASED': 'All players compete - lowest time wins',
+            'SCORE_BASED': 'All players compete - highest score wins',
+            'DISTANCE_BASED': 'All players compete - longest distance wins',
+            'PLACEMENT': 'All players compete - ranked by placement'
+        }
+        description = scoring_descriptions.get(
+            tournament.scoring_type,
+            'All players compete and are ranked'
+        )
+
+        sessions.append({
+            'title': f'{tournament.name} - Competition',
+            'description': description,
+            'date_start': session_start,
+            'date_end': session_end,
+            'game_type': 'Individual Ranking Competition',
+            'tournament_phase': 'INDIVIDUAL_RANKING',
+            'tournament_round': 1,
+            'tournament_match_number': 1,
+            'location': tournament.location_venue or 'TBD',
+            'session_type': 'on_site',
+            # ✅ INDIVIDUAL_RANKING metadata
+            'ranking_mode': 'ALL_PARTICIPANTS',
+            'round_number': 1,
+            'expected_participants': player_count,
+            'participant_filter': None,
+            'group_identifier': None,
+            'pod_tier': None,
+            # ✅ MATCH STRUCTURE: INDIVIDUAL_RANKING with scoring type
+            'match_format': tournament.format,  # INDIVIDUAL_RANKING
+            'scoring_type': tournament.scoring_type,  # TIME_BASED, SCORE_BASED, etc.
+            'structure_config': {
+                'expected_participants': player_count,
+                'scoring_method': tournament.scoring_type,
+                'description': description
+            },
+            # ✅ All enrolled players participate
+            'participant_user_ids': player_ids
+        })
 
         return sessions

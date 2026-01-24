@@ -150,3 +150,26 @@ class Semester(Base):
     sessions = relationship("Session", back_populates="semester")
     projects = relationship("Project", back_populates="semester")
     enrollments = relationship("SemesterEnrollment", back_populates="semester", cascade="all, delete-orphan")
+
+    def validate_tournament_format_logic(self):
+        """
+        Validate tournament format and type consistency:
+        - INDIVIDUAL_RANKING: tournament_type_id MUST be NULL (no structure needed)
+        - HEAD_TO_HEAD: tournament_type_id MUST be set (Swiss, League, Knockout, etc.)
+        """
+        if self.format == "INDIVIDUAL_RANKING":
+            if self.tournament_type_id is not None:
+                raise ValueError(
+                    "INDIVIDUAL_RANKING tournaments cannot have a tournament_type. "
+                    "INDIVIDUAL_RANKING is a simple competition format where all players compete "
+                    "and are ranked by their results (time, score, distance, or placement). "
+                    "Set tournament_type_id to NULL."
+                )
+        elif self.format == "HEAD_TO_HEAD":
+            if self.tournament_type_id is None:
+                raise ValueError(
+                    "HEAD_TO_HEAD tournaments MUST have a tournament_type (Swiss, Round Robin, Knockout, etc.). "
+                    "Tournament type defines how 1v1 matches are structured and scheduled."
+                )
+        else:
+            raise ValueError(f"Invalid format: {self.format}. Must be 'INDIVIDUAL_RANKING' or 'HEAD_TO_HEAD'.")

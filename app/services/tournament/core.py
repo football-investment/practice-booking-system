@@ -38,7 +38,9 @@ def create_tournament_semester(
     max_players: Optional[int] = None,
     enrollment_cost: int = 500,
     instructor_id: Optional[int] = None,
-    tournament_type_id: Optional[int] = None  # ✅ E2E Test: Support tournament types
+    tournament_type_id: Optional[int] = None,  # ✅ ONLY for HEAD_TO_HEAD
+    format: str = "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
+    scoring_type: str = "PLACEMENT"  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
 ) -> Semester:
     """
     Create a 1-day semester for tournament (Admin only)
@@ -124,8 +126,15 @@ def create_tournament_semester(
         assignment_type=assignment_type,
         max_players=max_players,
         enrollment_cost=enrollment_cost,
-        tournament_type_id=tournament_type_id  # ✅ E2E Test: Support tournament types
+        tournament_type_id=tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
+        format=format,  # ✅ NEW: Tournament format (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
+        scoring_type=scoring_type  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
     )
+
+    # ✅ CRITICAL: Validate format and tournament_type_id consistency
+    # INDIVIDUAL_RANKING: tournament_type_id MUST be NULL
+    # HEAD_TO_HEAD: tournament_type_id MUST be set
+    semester.validate_tournament_format_logic()
 
     db.add(semester)
     db.commit()

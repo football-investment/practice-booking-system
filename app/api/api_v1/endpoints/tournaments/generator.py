@@ -76,8 +76,39 @@ class TournamentGenerateRequest(BaseModel):
     )
     tournament_type_id: Optional[int] = Field(
         None,
-        description="Tournament type ID (e.g., knockout, league, swiss) - defines match generation logic"
+        description="Tournament type ID (e.g., knockout, league, swiss) - ONLY for HEAD_TO_HEAD format"
     )
+    format: Literal["INDIVIDUAL_RANKING", "HEAD_TO_HEAD"] = Field(
+        "HEAD_TO_HEAD",
+        description="Tournament format: INDIVIDUAL_RANKING (all compete, ranked by result) or HEAD_TO_HEAD (1v1 matches)"
+    )
+    scoring_type: str = Field(
+        "PLACEMENT",
+        description="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD."
+    )
+
+    @validator('tournament_type_id')
+    def validate_format_and_type_consistency(cls, v, values):
+        """
+        Validate format and tournament_type_id consistency:
+        - INDIVIDUAL_RANKING: tournament_type_id MUST be None
+        - HEAD_TO_HEAD: tournament_type_id MUST be set
+        """
+        format_val = values.get('format', 'HEAD_TO_HEAD')
+
+        if format_val == "INDIVIDUAL_RANKING":
+            if v is not None:
+                raise ValueError(
+                    "INDIVIDUAL_RANKING tournaments cannot have a tournament_type. "
+                    "Set tournament_type_id to null."
+                )
+        elif format_val == "HEAD_TO_HEAD":
+            if v is None:
+                raise ValueError(
+                    "HEAD_TO_HEAD tournaments MUST have a tournament_type (Swiss, League, Knockout, etc.). "
+                    "Please select a tournament type."
+                )
+        return v
 
     @validator('instructor_id')
     def validate_instructor_at_creation(cls, v, values):
@@ -236,7 +267,9 @@ def generate_tournament(
             max_players=request.max_players,
             enrollment_cost=request.enrollment_cost,
             instructor_id=request.instructor_id,
-            tournament_type_id=request.tournament_type_id  # ✅ E2E Test: Support tournament types
+            tournament_type_id=request.tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
+            format=request.format,  # ✅ NEW: Tournament format
+            scoring_type=request.scoring_type  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
         )
 
         print(f"🔍 DEBUG: Tournament semester created successfully: {semester.id}")
