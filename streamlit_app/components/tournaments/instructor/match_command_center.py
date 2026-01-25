@@ -18,6 +18,87 @@ import streamlit as st
 import requests
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+import re
+
+
+# ============================================================================
+# TIME FORMAT PARSER
+# ============================================================================
+
+def parse_time_format(time_str: str) -> float:
+    """
+    Parse MM:SS.CC time format to total seconds.
+
+    Supported formats:
+    - MM:SS.CC (e.g., "1:30.45" = 90.45 seconds)
+    - MM:SS (e.g., "1:30" = 90.0 seconds)
+    - SS.CC (e.g., "10.5" = 10.5 seconds)
+    - SS (e.g., "10" = 10.0 seconds)
+    - M:SS.CC (e.g., "1:05.5" = 65.5 seconds)
+
+    Args:
+        time_str: Time string in MM:SS.CC format
+
+    Returns:
+        Total seconds as float
+
+    Raises:
+        ValueError: If format is invalid
+    """
+    # Clean input: strip whitespace and remove any extra spaces
+    time_str = time_str.strip().replace(' ', '')
+
+    if not time_str:
+        raise ValueError("Empty input")
+
+    # Try parsing as pure decimal number first (e.g., "10.5", "45")
+    if ':' not in time_str:
+        try:
+            seconds = float(time_str)
+            if seconds < 0:
+                raise ValueError("Time cannot be negative")
+            return seconds
+        except ValueError:
+            raise ValueError("Invalid number format")
+
+    # Parse MM:SS or MM:SS.CC format
+    parts = time_str.split(':')
+
+    if len(parts) != 2:
+        raise ValueError("Use MM:SS.CC format (e.g., 1:30.45)")
+
+    try:
+        minutes = int(parts[0])
+        seconds = float(parts[1])
+    except ValueError:
+        raise ValueError("Invalid time format")
+
+    # Validate
+    if minutes < 0 or seconds < 0:
+        raise ValueError("Time cannot be negative")
+
+    if seconds >= 60:
+        raise ValueError("Seconds must be < 60")
+
+    total_seconds = minutes * 60 + seconds
+
+    return total_seconds
+
+
+def format_time_display(total_seconds: float) -> str:
+    """
+    Convert total seconds to MM:SS.CC display format.
+
+    Args:
+        total_seconds: Total time in seconds
+
+    Returns:
+        Formatted time string (e.g., "1:30.45")
+    """
+    minutes = int(total_seconds // 60)
+    seconds = total_seconds % 60
+
+    return f"{minutes}:{seconds:05.2f}"
 
 
 # ============================================================================
@@ -64,6 +145,97 @@ def mark_attendance(token: str, session_id: int, user_id: int, status: str) -> t
         return True, "Attendance marked successfully"
     else:
         return False, response.json().get("detail", "Failed to mark attendance")
+
+
+def get_rounds_status(
+    token: str,
+    tournament_id: int,
+    session_id: int
+) -> Optional[Dict[str, Any]]:
+    """
+    🔄 Get rounds status for INDIVIDUAL_RANKING session.
+
+    Returns:
+    - total_rounds: Total number of rounds
+    - completed_rounds: Number of rounds with results
+    - pending_rounds: List of round numbers without results
+    - round_results: All recorded results by round
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"http://localhost:8000/api/v1/tournaments/{tournament_id}/sessions/{session_id}/rounds"
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"❌ Failed to get rounds status: {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"❌ Exception getting rounds status: {str(e)}")
+        return None
+
+
+def submit_round_results(
+    token: str,
+    tournament_id: int,
+    session_id: int,
+    round_number: int,
+    results: Dict[str, str],
+    notes: Optional[str] = None
+) -> tuple[bool, str]:
+    """
+    🔄 Submit results for a specific round in INDIVIDUAL_RANKING tournament.
+
+    Args:
+        results: Dict of user_id -> measured_value (e.g., {"123": "12.5s", "456": "95"})
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "round_number": round_number,
+        "results": results,
+        "notes": notes
+    }
+
+    url = f"http://localhost:8000/api/v1/tournaments/{tournament_id}/sessions/{session_id}/rounds/{round_number}/submit-results"
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code in [200, 201]:
+        return True, "Round results recorded successfully"
+    else:
+        error_detail = response.json().get("detail", "Failed to submit round results")
+        return False, error_detail
+
+
+def finalize_individual_ranking_session(
+    token: str,
+    tournament_id: int,
+    session_id: int
+) -> tuple[bool, str, Optional[Dict[str, Any]]]:
+    """
+    🏆 Finalize INDIVIDUAL_RANKING session and calculate final rankings.
+
+    This endpoint:
+    - Validates all rounds are completed
+    - Aggregates results across all rounds
+    - Calculates final rankings based on ranking_direction
+    - Saves to game_results and TournamentRanking table
+
+    Returns:
+        (success, message, response_data)
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"http://localhost:8000/api/v1/tournaments/{tournament_id}/sessions/{session_id}/finalize"
+
+    response = requests.post(url, headers=headers)
+
+    if response.status_code in [200, 201]:
+        data = response.json()
+        return True, data.get("message", "Session finalized successfully"), data
+    else:
+        error_detail = response.json().get("detail", "Failed to finalize session")
+        return False, error_detail, None
 
 
 def submit_match_results(
@@ -447,16 +619,776 @@ def render_individual_ranking_form(
     present_participants: List[Dict[str, Any]]
 ):
     """
-    ✅ INDIVIDUAL_RANKING: Placement-based result entry
+    ✅ INDIVIDUAL_RANKING: Measured value entry for INDIVIDUAL_RANKING tournaments
 
-    All participants compete together in a single match/session.
-    User assigns placement (1st, 2nd, 3rd, 4th, etc.) to each participant.
+    For INDIVIDUAL_RANKING tournaments (format="INDIVIDUAL_RANKING"), the system records
+    measured performance values (e.g., seconds, meters, points) directly.
+
+    The ranking is then calculated automatically based on:
+    - measurement_unit (e.g., "seconds", "meters", "points")
+    - ranking_direction (ASC = lower is better, DESC = higher is better)
 
     Backend Flow:
-    1. User submits placements → [{"user_id": X, "placement": 1}, {"user_id": Y, "placement": 2}, ...]
-    2. Backend validates placements (no duplicates, all participants ranked)
-    3. Backend stores results in game_results JSON field
-    4. Points are calculated based on placement (1st=3pts, 2nd=2pts, 3rd=1pt, etc.)
+    1. User submits measured values → [{"user_id": X, "measured_value": 10.5}, ...]
+    2. Backend stores measured_value in TournamentRanking.points
+    3. Backend calculates ranks based on ranking_direction
+    """
+    session_id = match['session_id']
+
+    # Get tournament metadata
+    tournament_format = match.get('tournament_format', 'HEAD_TO_HEAD')
+    measurement_unit = match.get('measurement_unit')
+    ranking_direction = match.get('ranking_direction', 'DESC')
+
+    # Check if this is an INDIVIDUAL_RANKING tournament
+    if tournament_format == 'INDIVIDUAL_RANKING':
+        # ✅ NEW: Measured value entry for INDIVIDUAL_RANKING tournaments
+        render_measured_value_entry(
+            token=token,
+            tournament_id=tournament_id,
+            match=match,
+            present_participants=present_participants,
+            measurement_unit=measurement_unit,
+            ranking_direction=ranking_direction
+        )
+    else:
+        # Legacy placement-based entry for HEAD_TO_HEAD tournaments with INDIVIDUAL_RANKING match_format
+        render_placement_based_entry(
+            token=token,
+            tournament_id=tournament_id,
+            match=match,
+            present_participants=present_participants
+        )
+
+
+def render_rounds_based_entry(
+    token: str,
+    tournament_id: int,
+    match: Dict[str, Any],
+    present_participants: List[Dict[str, Any]],
+    measurement_unit: str,
+    ranking_direction: str
+):
+    """
+    🔄 NEW ARCHITECTURE: Rounds-based entry for INDIVIDUAL_RANKING tournaments.
+
+    Instead of treating each round as a separate session, all rounds are stored
+    in a single session's rounds_data field.
+
+    UI Features:
+    - Shows completed rounds (read-only)
+    - Shows current round for data entry
+    - Shows pending rounds (grayed out)
+    - Instructor can reload page and continue where they left off
+    - Idempotent: Can re-submit a round to correct mistakes
+    """
+    session_id = match['session_id']
+
+    # Get rounds status from backend
+    rounds_status = get_rounds_status(token, tournament_id, session_id)
+
+    if not rounds_status:
+        st.error("❌ Failed to load rounds status from backend")
+        return
+
+    total_rounds = rounds_status['total_rounds']
+    completed_rounds = rounds_status['completed_rounds']
+    pending_rounds = rounds_status['pending_rounds']
+    round_results = rounds_status['round_results']
+    is_complete = rounds_status['is_complete']
+
+    # Determine current round (first pending, or last completed if all done)
+    if pending_rounds:
+        current_round = pending_rounds[0]
+    elif completed_rounds > 0:
+        current_round = completed_rounds  # Show last completed round
+    else:
+        current_round = 1
+
+    # Display round progress
+    st.markdown(f"### 🔄 Round {current_round} of {total_rounds}")
+
+    progress_percentage = (completed_rounds / total_rounds) * 100
+    st.progress(progress_percentage / 100)
+    st.caption(f"✅ Completed: {completed_rounds} | ⏳ Remaining: {len(pending_rounds)}")
+
+    # Show tabs for all rounds
+    round_tabs = st.tabs([f"Round {i}" for i in range(1, total_rounds + 1)])
+
+    for round_num in range(1, total_rounds + 1):
+        with round_tabs[round_num - 1]:
+            is_completed = str(round_num) in round_results
+            is_current = round_num == current_round
+            is_pending = round_num in pending_rounds and round_num != current_round
+
+            if is_completed and not is_current:
+                # COMPLETED ROUND: Read-only display
+                st.success(f"✅ Round {round_num} completed")
+                results = round_results[str(round_num)]
+
+                st.markdown("#### Results:")
+                for user_id_str, value_str in results.items():
+                    # Find participant name
+                    participant = next((p for p in present_participants if str(p['user_id']) == user_id_str), None)
+                    name = participant['name'] if participant else f"User {user_id_str}"
+                    st.caption(f"**{name}**: {value_str}")
+
+            elif is_current:
+                # CURRENT ROUND: Allow data entry
+                if is_completed:
+                    st.info(f"ℹ️ Round {round_num} is completed. You can re-submit to update results (idempotent).")
+                else:
+                    st.info(f"📝 Recording results for Round {round_num}")
+
+                # Render input form for current round
+                _render_round_input_form(
+                    token, tournament_id, session_id, round_num,
+                    present_participants, measurement_unit, ranking_direction,
+                    existing_results=round_results.get(str(round_num))
+                )
+
+            else:
+                # PENDING ROUND: Grayed out
+                st.caption(f"⏳ Round {round_num} - Not started yet")
+
+    # ============================================================================
+    # 🏆 FINALIZE SESSION: Show button when all rounds completed
+    # ============================================================================
+    if completed_rounds == total_rounds and not pending_rounds:
+        st.markdown("---")
+        st.markdown("### 🏆 Tournament Complete")
+
+        # Check if session is already finalized
+        session_finalized = match.get('game_results') is not None
+
+        if session_finalized:
+            st.success("✅ This session has been finalized!")
+            st.info("Final rankings have been calculated and saved to the leaderboard.")
+
+            # Allow re-finalization to update rankings (e.g., after system updates)
+            st.caption("💡 Click below to recalculate rankings (e.g., after data corrections)")
+            button_label = "🔄 Re-calculate Rankings"
+            button_type = "secondary"
+        else:
+            st.info(f"📊 All {total_rounds} rounds completed! Click the button below to calculate final rankings.")
+            button_label = "🏁 Finalize Session & Calculate Rankings"
+            button_type = "primary"
+
+        # Explain aggregation logic
+        if ranking_direction == "ASC":
+            aggregation_text = "🔽 **Lowest (best) time** from all rounds will determine the winner."
+        else:
+            aggregation_text = "🔼 **Highest score** from all rounds will determine the winner."
+
+        st.caption(aggregation_text)
+
+        # Finalize/Re-finalize button (always shown)
+        if st.button(button_label, type=button_type, use_container_width=True):
+            with st.spinner("Calculating final rankings..."):
+                success, message, response_data = finalize_individual_ranking_session(
+                    token, tournament_id, session_id
+                )
+
+            if success:
+                st.success(message)
+
+                # Display dual rankings
+                if response_data:
+                    col1, col2 = st.columns(2)
+
+                    # Performance Rankings (Best Individual Time)
+                    if 'performance_rankings' in response_data:
+                        with col1:
+                            st.markdown("#### 🏃 Best Individual Performance")
+                            st.caption("Fastest time across all rounds")
+                            rankings = response_data['performance_rankings']
+
+                            for rank_entry in rankings:
+                                rank = rank_entry['rank']
+                                user_id = rank_entry['user_id']
+                                final_value = rank_entry['final_value']
+                                unit = rank_entry.get('measurement_unit', '')
+
+                                # Find participant name
+                                participant = next((p for p in present_participants if p['user_id'] == user_id), None)
+                                name = participant['name'] if participant else f"User {user_id}"
+
+                                # Medal emoji for top 3
+                                if rank == 1:
+                                    medal = "🥇"
+                                elif rank == 2:
+                                    medal = "🥈"
+                                elif rank == 3:
+                                    medal = "🥉"
+                                else:
+                                    medal = f"#{rank}"
+
+                                st.markdown(f"**{medal} {name}**: {final_value} {unit}")
+
+                    # Wins Rankings (Most Round Victories)
+                    if 'wins_rankings' in response_data:
+                        with col2:
+                            st.markdown("#### 🏆 Most Round Victories")
+                            st.caption("Most 1st place finishes")
+                            rankings = response_data['wins_rankings']
+
+                            for rank_entry in rankings:
+                                rank = rank_entry['rank']
+                                user_id = rank_entry['user_id']
+                                wins = rank_entry['wins']
+                                total = rank_entry.get('total_rounds', 0)
+
+                                # Find participant name
+                                participant = next((p for p in present_participants if p['user_id'] == user_id), None)
+                                name = participant['name'] if participant else f"User {user_id}"
+
+                                # Medal emoji for top 3
+                                if rank == 1:
+                                    medal = "🥇"
+                                elif rank == 2:
+                                    medal = "🥈"
+                                elif rank == 3:
+                                    medal = "🥉"
+                                else:
+                                    medal = f"#{rank}"
+
+                                st.markdown(f"**{medal} {name}**: {wins}/{total} wins")
+
+                st.balloons()
+                st.rerun()
+            else:
+                st.error(f"❌ {message}")
+
+
+def _render_round_input_form(
+    token: str,
+    tournament_id: int,
+    session_id: int,
+    round_number: int,
+    present_participants: List[Dict[str, Any]],
+    measurement_unit: str,
+    ranking_direction: str,
+    existing_results: Optional[Dict[str, str]] = None
+):
+    """
+    Render input form for a specific round.
+
+    Args:
+        existing_results: Previous results for this round (for idempotent re-submission)
+    """
+    # Initialize session state for measured values
+    state_key = f"round_{session_id}_{round_number}_values"
+    if state_key not in st.session_state:
+        # Pre-populate with existing results if available
+        if existing_results:
+            st.session_state[state_key] = {
+                int(user_id): float(value.rstrip('s').rstrip(' points').rstrip(' meters'))
+                for user_id, value in existing_results.items()
+            }
+        else:
+            st.session_state[state_key] = {}
+
+    # Display info
+    direction_text = "🔽 Lower is better" if ranking_direction == "ASC" else "🔼 Higher is better"
+    unit_display = measurement_unit or "value"
+
+    # Create example based on measurement unit
+    is_time_measurement = unit_display.lower() in ["seconds", "sec", "s", "minutes", "min", "m"]
+
+    if is_time_measurement:
+        example_text = '''**How to enter time:**
+Use the three input boxes for each participant:
+• **Perc** (minutes): 0-59
+• **Másodperc** (seconds): 0-59
+• **Századmásodperc** (hundredths): 0-99
+
+Example: 1 min 30.45 sec = Perc: 1, Másodperc: 30, Századmásodperc: 45'''
+    elif unit_display.lower() in ["meters", "m", "metres"]:
+        example_text = 'Enter distance in meters. Example: `15.2` for 15.2 meters'
+    elif unit_display.lower() in ["points", "pts", "score"]:
+        example_text = 'Enter score/points. Example: `95` for 95 points'
+    else:
+        example_text = f'Enter numeric values in {unit_display}'
+
+    st.info(f"""
+    ℹ️ **Recording Performance Metrics**
+
+    📏 **Measurement Unit**: **{unit_display.upper()}**
+
+    📊 **Ranking Method**: {direction_text}
+
+    💡 **How to enter values**:
+    {example_text}
+    """)
+
+    st.markdown("#### Enter Performance Values")
+    st.caption(f"Record measured values for all {len(present_participants)} participants")
+
+    measured_values_dict = st.session_state[state_key]
+
+    # Input fields for each participant
+    for participant in present_participants:
+        user_id = participant['user_id']
+
+        st.markdown(f"**{participant['name']}**")
+
+        if is_time_measurement:
+            # Time input with separate boxes
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+            # Get existing value if available
+            existing_value = measured_values_dict.get(user_id, 0.0)
+            existing_minutes = int(existing_value // 60)
+            remaining_seconds = existing_value % 60
+            existing_seconds = int(remaining_seconds)
+            existing_hundredths = int((remaining_seconds - existing_seconds) * 100)
+
+            with col1:
+                minutes = st.number_input(
+                    "Perc",
+                    min_value=0,
+                    max_value=59,
+                    step=1,
+                    value=existing_minutes,
+                    key=f"min_{session_id}_{round_number}_{user_id}",
+                    help="Perc (0-59)"
+                )
+
+            with col2:
+                seconds = st.number_input(
+                    "Másodperc",
+                    min_value=0,
+                    max_value=59,
+                    step=1,
+                    value=existing_seconds,
+                    key=f"sec_{session_id}_{round_number}_{user_id}",
+                    help="Másodperc (0-59)"
+                )
+
+            with col3:
+                hundredths = st.number_input(
+                    "Századmásodperc",
+                    min_value=0,
+                    max_value=99,
+                    step=1,
+                    value=existing_hundredths,
+                    key=f"hun_{session_id}_{round_number}_{user_id}",
+                    help="Századmásodperc (0-99)"
+                )
+
+            with col4:
+                # Calculate total time
+                total_seconds = minutes * 60 + seconds + (hundredths / 100.0)
+
+                if total_seconds > 0:
+                    st.metric("Össz", f"{total_seconds:.2f}s")
+                    measured_values_dict[user_id] = total_seconds
+                else:
+                    st.caption("⏱️ 0.00s")
+                    if user_id in measured_values_dict:
+                        del measured_values_dict[user_id]
+
+        else:
+            # Regular numeric input
+            col1, col2 = st.columns([2, 1])
+
+            existing_value = measured_values_dict.get(user_id, 0.0)
+
+            with col1:
+                value = st.number_input(
+                    f"Value ({unit_display})",
+                    min_value=0.0,
+                    step=0.01,
+                    format="%.2f",
+                    value=existing_value,
+                    key=f"measured_{session_id}_{round_number}_{user_id}",
+                    help=f"Enter the measured value in {unit_display}",
+                    placeholder=f"0.00"
+                )
+
+            with col2:
+                if value > 0:
+                    st.metric("Érték", f"{value:.2f}")
+
+            if value > 0:
+                measured_values_dict[user_id] = value
+            elif user_id in measured_values_dict:
+                del measured_values_dict[user_id]
+
+        st.markdown("---")
+
+    st.markdown("")  # Extra spacing
+
+    # Check if all participants have values
+    all_entered = len(measured_values_dict) == len(present_participants)
+
+    if not all_entered:
+        st.warning(f"⚠️ Please enter values for all {len(present_participants)} participants ({len(measured_values_dict)}/{len(present_participants)} completed)")
+
+    # Show preview
+    if measured_values_dict:
+        st.markdown("#### 📊 Performance Preview")
+
+        # Convert to list for sorting
+        preview_list = [
+            {"user_id": uid, "value": val, "name": next((p['name'] for p in present_participants if p['user_id'] == uid), f"User {uid}")}
+            for uid, val in measured_values_dict.items()
+        ]
+
+        # Sort based on ranking direction
+        if ranking_direction == "ASC":
+            sorted_preview = sorted(preview_list, key=lambda x: x['value'])
+        else:
+            sorted_preview = sorted(preview_list, key=lambda x: x['value'], reverse=True)
+
+        for idx, entry in enumerate(sorted_preview, 1):
+            medal = "🥇" if idx == 1 else ("🥈" if idx == 2 else ("🥉" if idx == 3 else f"{idx}."))
+
+            if is_time_measurement:
+                value_display = f"**{format_time_display(entry['value'])}**"
+            else:
+                value_display = f"**{entry['value']:.2f}** {unit_display}"
+
+            col1, col2, col3 = st.columns([1, 3, 1])
+            with col1:
+                st.caption(medal)
+            with col2:
+                st.caption(entry['name'])
+            with col3:
+                st.caption(value_display)
+
+    # Optional notes
+    notes = st.text_area(
+        "Round Notes (Optional)",
+        key=f"notes_{session_id}_{round_number}",
+        placeholder="Any observations for this round..."
+    )
+
+    # Submit button
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        button_clicked = st.button(
+            f"🏅 Submit Round {round_number} Results",
+            type="primary",
+            disabled=(not all_entered),
+            use_container_width=True,
+            key=f"submit_{session_id}_{round_number}"
+        )
+
+        if button_clicked:
+            # Convert to backend format: user_id -> "value + unit"
+            results_dict = {}
+            for user_id, value in measured_values_dict.items():
+                if is_time_measurement:
+                    results_dict[str(user_id)] = f"{value:.2f}s"
+                elif unit_display.lower() in ["meters", "m", "metres"]:
+                    results_dict[str(user_id)] = f"{value:.2f} meters"
+                elif unit_display.lower() in ["points", "pts", "score"]:
+                    results_dict[str(user_id)] = f"{value:.0f} points"
+                else:
+                    results_dict[str(user_id)] = f"{value:.2f}"
+
+            # Submit to backend
+            success, msg = submit_round_results(
+                token, tournament_id, session_id, round_number,
+                results_dict, notes if notes else None
+            )
+
+            if success:
+                st.success(f"✅ Round {round_number} results recorded!")
+                # Clear state
+                if state_key in st.session_state:
+                    del st.session_state[state_key]
+                st.rerun()
+            else:
+                st.error(f"❌ {msg}")
+
+    with col2:
+        if st.button(
+            "🔄 Reset Form",
+            use_container_width=True,
+            key=f"reset_{session_id}_{round_number}"
+        ):
+            st.session_state[state_key] = {}
+            st.rerun()
+
+
+def render_measured_value_entry(
+    token: str,
+    tournament_id: int,
+    match: Dict[str, Any],
+    present_participants: List[Dict[str, Any]],
+    measurement_unit: str,
+    ranking_direction: str
+):
+    """
+    ✅ NEW: Measured value entry for INDIVIDUAL_RANKING tournaments
+
+    Examples:
+    - 100m Sprint: measurement_unit="seconds", ranking_direction="ASC" (lower is better)
+    - Long Jump: measurement_unit="meters", ranking_direction="DESC" (higher is better)
+    - Skill Challenge: measurement_unit="points", ranking_direction="DESC" (higher is better)
+    """
+    session_id = match['session_id']
+
+    # 🔄 Check if this session has rounds_data (new architecture)
+    rounds_data = match.get('rounds_data', {})
+    total_rounds = rounds_data.get('total_rounds', 0)
+
+    if total_rounds > 0:
+        # NEW ARCHITECTURE: Rounds-based entry
+        render_rounds_based_entry(
+            token, tournament_id, match, present_participants,
+            measurement_unit, ranking_direction
+        )
+        return
+
+    # LEGACY: Single session entry (fallback for old tournaments)
+
+    # Initialize session state for measured values
+    if f"measured_values_{session_id}" not in st.session_state:
+        st.session_state[f"measured_values_{session_id}"] = {}
+
+    # Display info
+    direction_text = "🔽 Lower is better" if ranking_direction == "ASC" else "🔼 Higher is better"
+    unit_display = measurement_unit or "value"
+
+    # Create example based on measurement unit
+    is_time_measurement = unit_display.lower() in ["seconds", "sec", "s", "minutes", "min", "m"]
+
+    if is_time_measurement:
+        example_text = '''**How to enter time:**
+Use the three input boxes for each participant:
+• **Perc** (minutes): 0-59
+• **Másodperc** (seconds): 0-59
+• **Századmásodperc** (hundredths): 0-99
+
+Example: 1 min 30.45 sec = Perc: 1, Másodperc: 30, Századmásodperc: 45'''
+    elif unit_display.lower() in ["meters", "m", "metres"]:
+        example_text = 'Enter distance in meters. Example: `15.2` for 15.2 meters'
+    elif unit_display.lower() in ["points", "pts", "score"]:
+        example_text = 'Enter score/points. Example: `95` for 95 points'
+    else:
+        example_text = f'Enter numeric values in {unit_display}'
+
+    st.info(f"""
+    ℹ️ **Recording Performance Metrics**
+
+    📏 **Measurement Unit**: **{unit_display.upper()}**
+
+    📊 **Ranking Method**: {direction_text}
+
+    💡 **How to enter values**:
+    {example_text}
+    """)
+
+    st.markdown("#### Enter Performance Values")
+    st.caption(f"Record measured values for all {len(present_participants)} participants")
+
+    measured_values = st.session_state[f"measured_values_{session_id}"]
+
+    # Input fields for each participant
+    for participant in present_participants:
+        user_id = participant['user_id']
+
+        st.markdown(f"**{participant['name']}**")
+
+        if is_time_measurement:
+            # Time input with separate boxes for minutes, seconds, hundredths
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+            with col1:
+                minutes = st.number_input(
+                    "Perc",
+                    min_value=0,
+                    max_value=59,
+                    step=1,
+                    key=f"min_{session_id}_{user_id}",
+                    help="Perc (0-59)"
+                )
+
+            with col2:
+                seconds = st.number_input(
+                    "Másodperc",
+                    min_value=0,
+                    max_value=59,
+                    step=1,
+                    key=f"sec_{session_id}_{user_id}",
+                    help="Másodperc (0-59)"
+                )
+
+            with col3:
+                hundredths = st.number_input(
+                    "Századmásodperc",
+                    min_value=0,
+                    max_value=99,
+                    step=1,
+                    key=f"hun_{session_id}_{user_id}",
+                    help="Századmásodperc (0-99)"
+                )
+
+            with col4:
+                # Calculate total time
+                total_seconds = minutes * 60 + seconds + (hundredths / 100.0)
+
+                if total_seconds > 0:
+                    st.metric("Össz", f"{total_seconds:.2f}s")
+
+                    # Store value
+                    measured_values[user_id] = {
+                        "user_id": user_id,
+                        "name": participant['name'],
+                        "measured_value": total_seconds
+                    }
+                else:
+                    st.caption("⏱️ 0.00s")
+                    # Remove if exists
+                    if user_id in measured_values:
+                        del measured_values[user_id]
+
+        else:
+            # Regular numeric input for non-time measurements
+            col1, col2 = st.columns([2, 1])
+
+            with col1:
+                value = st.number_input(
+                    f"Value ({unit_display})",
+                    min_value=0.0,
+                    step=0.01,
+                    format="%.2f",
+                    key=f"measured_{session_id}_{user_id}",
+                    help=f"Enter the measured value in {unit_display}",
+                    placeholder=f"0.00"
+                )
+
+            with col2:
+                if value > 0:
+                    st.metric("Érték", f"{value:.2f}")
+
+            if value > 0:
+                measured_values[user_id] = {
+                    "user_id": user_id,
+                    "name": participant['name'],
+                    "measured_value": value
+                }
+            elif user_id in measured_values:
+                del measured_values[user_id]
+
+        st.markdown("---")
+
+    st.markdown("")  # Extra spacing
+
+    # Check if all participants have values
+    all_entered = len(measured_values) == len(present_participants)
+
+    if not all_entered:
+        st.warning(f"⚠️ Please enter values for all {len(present_participants)} participants ({len(measured_values)}/{len(present_participants)} completed)")
+
+    # Show preview (sorted by performance)
+    if measured_values:
+        st.markdown("#### 📊 Performance Preview")
+
+        # Sort by measured value based on ranking_direction
+        if ranking_direction == "ASC":
+            # Lower is better (e.g., time)
+            sorted_values = sorted(measured_values.values(), key=lambda x: x['measured_value'])
+        else:
+            # Higher is better (e.g., score, distance)
+            sorted_values = sorted(measured_values.values(), key=lambda x: x['measured_value'], reverse=True)
+
+        for idx, entry in enumerate(sorted_values, 1):
+            value = entry['measured_value']
+            name = entry['name']
+
+            # Medal for top 3
+            if idx == 1:
+                medal = "🥇"
+            elif idx == 2:
+                medal = "🥈"
+            elif idx == 3:
+                medal = "🥉"
+            else:
+                medal = f"{idx}."
+
+            # Format value display
+            if is_time_measurement:
+                value_display = f"**{format_time_display(value)}**"
+            else:
+                value_display = f"**{value:.2f}** {unit_display}"
+
+            col1, col2, col3 = st.columns([1, 3, 1])
+            with col1:
+                st.caption(medal)
+            with col2:
+                st.caption(name)
+            with col3:
+                st.caption(value_display)
+
+    # Optional match notes
+    match_notes = st.text_area(
+        "Match Notes (Optional)",
+        key=f"notes_{session_id}",
+        placeholder="Any additional observations or comments..."
+    )
+
+    # Validation and submit
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button(
+            "🏅 Submit Results",
+            type="primary",
+            disabled=(not all_entered),
+            use_container_width=True
+        ):
+            # Convert measured values to backend format
+            results_list = [
+                {
+                    "user_id": p['user_id'],
+                    "measured_value": p['measured_value']
+                }
+                for p in measured_values.values()
+            ]
+
+            # Submit to backend
+            success, msg = submit_match_results(
+                token,
+                tournament_id,
+                session_id,
+                results_list,
+                match_notes if match_notes else None
+            )
+
+            if success:
+                st.success("✅ Results recorded! Advancing to next match...")
+                # Clear measured values from session state
+                del st.session_state[f"measured_values_{session_id}"]
+                st.rerun()
+            else:
+                st.error(f"❌ {msg}")
+
+    with col2:
+        if st.button("🔄 Reset Form", use_container_width=True):
+            st.session_state[f"measured_values_{session_id}"] = {}
+            st.rerun()
+
+
+def render_placement_based_entry(
+    token: str,
+    tournament_id: int,
+    match: Dict[str, Any],
+    present_participants: List[Dict[str, Any]]
+):
+    """
+    Legacy placement-based entry for HEAD_TO_HEAD tournaments with INDIVIDUAL_RANKING match_format
+
+    This is used when tournament.format = "HEAD_TO_HEAD" but match_format = "INDIVIDUAL_RANKING".
+    In this case, we use the old placement system (1st, 2nd, 3rd) and award points.
     """
     session_id = match['session_id']
 
@@ -1354,8 +2286,55 @@ def render_leaderboard_sidebar(token: str, tournament_id: int):
 
         return
 
-    # Display global rankings (fallback if no group standings)
-    if leaderboard:
+    # ============================================================================
+    # 🏃 INDIVIDUAL_RANKING: Show dual rankings side-by-side
+    # ============================================================================
+    tournament_format = leaderboard_data.get('tournament_format', 'HEAD_TO_HEAD')
+    performance_rankings = leaderboard_data.get('performance_rankings')
+    wins_rankings = leaderboard_data.get('wins_rankings')
+
+    if tournament_format == "INDIVIDUAL_RANKING" and performance_rankings and wins_rankings:
+        # Show dual rankings in two columns
+        col1, col2 = st.columns(2)
+
+        # 🏃 Performance Rankings (Best Individual Time)
+        with col1:
+            st.markdown("#### 🏃 Best Performance")
+            st.caption("Fastest time across all rounds")
+
+            for rank_entry in performance_rankings[:10]:  # Top 10
+                rank = rank_entry['rank']
+                user_id = rank_entry['user_id']
+                final_value = rank_entry['final_value']
+                unit = rank_entry.get('measurement_unit', '')
+
+                # Find user name from leaderboard
+                user_name = next((p['name'] for p in leaderboard if p['user_id'] == user_id), f"User {user_id}")
+
+                medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}."
+                st.markdown(f"**{medal} {user_name}**: {final_value} {unit}")
+
+        # 🏆 Wins Rankings (Most Round Victories)
+        with col2:
+            st.markdown("#### 🏆 Most Wins")
+            st.caption("Most 1st place finishes")
+
+            for rank_entry in wins_rankings[:10]:  # Top 10
+                rank = rank_entry['rank']
+                user_id = rank_entry['user_id']
+                wins = rank_entry['wins']
+                total = rank_entry.get('total_rounds', 0)
+
+                # Find user name from leaderboard
+                user_name = next((p['name'] for p in leaderboard if p['user_id'] == user_id), f"User {user_id}")
+
+                medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}."
+                st.markdown(f"**{medal} {user_name}**: {wins}/{total} wins")
+
+    # ============================================================================
+    # Display global rankings (fallback for HEAD_TO_HEAD tournaments)
+    # ============================================================================
+    elif leaderboard:
         for entry in leaderboard[:10]:  # Top 10
             rank = entry['rank']
             medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}."
@@ -1484,16 +2463,31 @@ def render_final_leaderboard(token: str, tournament_id: int):
 
     import pandas as pd
 
-    df = pd.DataFrame([
-        {
-            "Rank": entry['rank'],
-            "Player": entry['name'],
-            "Points": entry['points'],
-            "Wins": entry.get('wins', 0),
-            "Losses": entry.get('losses', 0),
-            "Draws": entry.get('draws', 0)
-        }
-        for entry in leaderboard
-    ])
+    # Check tournament format from leaderboard_data
+    tournament_format = leaderboard_data.get('tournament_format', 'HEAD_TO_HEAD')
+
+    if tournament_format == 'INDIVIDUAL_RANKING':
+        # INDIVIDUAL_RANKING: Show only Rank, Player, Points
+        df = pd.DataFrame([
+            {
+                "Rank": entry['rank'],
+                "Player": entry['name'],
+                "Performance": entry['points']
+            }
+            for entry in leaderboard
+        ])
+    else:
+        # HEAD_TO_HEAD: Show full stats with Wins/Losses/Draws
+        df = pd.DataFrame([
+            {
+                "Rank": entry['rank'],
+                "Player": entry['name'],
+                "Points": entry['points'],
+                "Wins": entry.get('wins', 0),
+                "Losses": entry.get('losses', 0),
+                "Draws": entry.get('draws', 0)
+            }
+            for entry in leaderboard
+        ])
 
     st.dataframe(df, use_container_width=True, hide_index=True)

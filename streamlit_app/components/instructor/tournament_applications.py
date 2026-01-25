@@ -299,10 +299,10 @@ def render_my_tournaments_tab(token: str, user: Dict):
                 st.caption("Apply to tournaments in the 'Open Tournaments' tab")
                 return
 
-            # Separate by status
-            upcoming = [t for t in my_tournaments if t.get('status') in ['INSTRUCTOR_ASSIGNED', 'READY_FOR_ENROLLMENT', 'ENROLLING']]
-            ongoing = [t for t in my_tournaments if t.get('status') == 'ONGOING']
-            completed = [t for t in my_tournaments if t.get('status') == 'COMPLETED']
+            # Separate by tournament_status (new field)
+            upcoming = [t for t in my_tournaments if t.get('tournament_status') in ['DRAFT', 'READY', 'IN_PROGRESS']]
+            ongoing = [t for t in my_tournaments if t.get('tournament_status') == 'IN_PROGRESS']
+            completed = [t for t in my_tournaments if t.get('tournament_status') in ['COMPLETED', 'REWARDS_DISTRIBUTED']]
 
             # Stats
             stats_col1, stats_col2, stats_col3 = st.columns(3)

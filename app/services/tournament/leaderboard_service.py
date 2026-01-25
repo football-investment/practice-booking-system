@@ -9,13 +9,14 @@ from typing import List, Optional, Dict
 from decimal import Decimal
 
 from app.models import (
-    TournamentRanking, 
-    User, 
-    Team, 
+    TournamentRanking,
+    User,
+    Team,
     Attendance,
     AttendanceStatus,
     Session as SessionModel,
-    ParticipantType
+    ParticipantType,
+    Semester
 )
 
 
@@ -97,23 +98,58 @@ def update_ranking_from_result(
 
 
 def calculate_ranks(db: Session, tournament_id: int) -> List[TournamentRanking]:
-    """Recalculate all ranks for a tournament"""
-    
-    # Get all rankings for this tournament, ordered by points (desc), then wins
-    rankings = db.query(TournamentRanking).filter(
+    """
+    Recalculate all ranks for a tournament
+
+    Ranking logic depends on tournament format:
+    - HEAD_TO_HEAD: Rank by points (desc), wins (desc), losses (asc)
+    - INDIVIDUAL_RANKING: Rank by points based on ranking_direction
+      - ASC (ranking_direction='ASC'): Lower points = better (e.g., fastest time)
+      - DESC (ranking_direction='DESC'): Higher points = better (e.g., highest score)
+    """
+
+    # Get tournament to check format and ranking direction
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        return []
+
+    tournament_format = tournament.format or "HEAD_TO_HEAD"
+    ranking_direction = tournament.ranking_direction or "DESC"
+
+    # Get all rankings for this tournament
+    query = db.query(TournamentRanking).filter(
         TournamentRanking.tournament_id == tournament_id
-    ).order_by(
-        desc(TournamentRanking.points),
-        desc(TournamentRanking.wins),
-        TournamentRanking.losses  # fewer losses = better
-    ).all()
-    
+    )
+
+    # Order based on tournament format
+    if tournament_format == "INDIVIDUAL_RANKING":
+        # For INDIVIDUAL_RANKING, use ranking_direction
+        if ranking_direction == "ASC":
+            # Lower is better (e.g., fastest time, shortest distance)
+            rankings = query.order_by(
+                TournamentRanking.points.asc(),
+                TournamentRanking.user_id  # Tiebreaker: earlier user_id
+            ).all()
+        else:  # DESC
+            # Higher is better (e.g., highest score, longest distance)
+            rankings = query.order_by(
+                desc(TournamentRanking.points),
+                TournamentRanking.user_id  # Tiebreaker: earlier user_id
+            ).all()
+    else:
+        # HEAD_TO_HEAD: Traditional points-based ranking
+        rankings = query.order_by(
+            desc(TournamentRanking.points),
+            desc(TournamentRanking.wins),
+            TournamentRanking.losses  # fewer losses = better
+        ).all()
+
     # Assign ranks
     for idx, ranking in enumerate(rankings, start=1):
         ranking.rank = idx
-    
+
     db.commit()
-    
+
     return rankings
 
 

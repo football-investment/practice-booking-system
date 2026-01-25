@@ -104,11 +104,26 @@ async def get_active_match(
     from app.models.attendance import Attendance
     from sqlalchemy.orm import joinedload
 
-    active_session = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-        SessionModel.game_results == None
-    ).order_by(SessionModel.id).first()  # ✅ FIX: Order by ID for consistent match sequence (all sessions have same date_start with parallel fields)
+    # ============================================================================
+    # 🔄 SPECIAL CASE: INDIVIDUAL_RANKING with finalized results
+    # ============================================================================
+    # For INDIVIDUAL_RANKING tournaments, we want to show the finalized session
+    # until the admin closes the tournament (tournament_status = "COMPLETED")
+    # This allows instructors to review final results before tournament closure
+
+    if tournament.format == "INDIVIDUAL_RANKING" and tournament.tournament_status != "COMPLETED":
+        # Get the ONLY session (INDIVIDUAL_RANKING has exactly 1 session)
+        active_session = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True
+        ).order_by(SessionModel.id).first()
+    else:
+        # Legacy: Get first session without results
+        active_session = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True,
+            SessionModel.game_results == None
+        ).order_by(SessionModel.id).first()
 
     if not active_session:
         # No more matches to process
@@ -212,16 +227,23 @@ async def get_active_match(
     ]
 
     # ✅ NEW: Calculate tournament progress
-    total_matches = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True
-    ).count()
+    # 🔄 For INDIVIDUAL_RANKING with rounds: count rounds, not sessions
+    if tournament.format == "INDIVIDUAL_RANKING" and active_session.rounds_data:
+        rounds_data = active_session.rounds_data
+        total_matches = rounds_data.get('total_rounds', 1)
+        completed_matches = rounds_data.get('completed_rounds', 0)
+    else:
+        # Legacy: count sessions
+        total_matches = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True
+        ).count()
 
-    completed_matches = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-        SessionModel.game_results != None
-    ).count()
+        completed_matches = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True,
+            SessionModel.game_results != None
+        ).count()
 
     # ============================================================================
     # RETURN ACTIVE MATCH DATA
@@ -253,7 +275,15 @@ async def get_active_match(
             # ✅ MATCH STRUCTURE: Format and scoring metadata
             "match_format": active_session.match_format or 'INDIVIDUAL_RANKING',  # Backward compatibility
             "scoring_type": active_session.scoring_type or 'PLACEMENT',
-            "structure_config": active_session.structure_config
+            "structure_config": active_session.structure_config,
+            # 🔄 ROUNDS DATA: Multi-round results for INDIVIDUAL_RANKING
+            "rounds_data": active_session.rounds_data if active_session.rounds_data else {},
+            # ✅ TOURNAMENT METADATA: For INDIVIDUAL_RANKING tournaments
+            "tournament_format": tournament.format,
+            "measurement_unit": tournament.measurement_unit,
+            "ranking_direction": tournament.ranking_direction,
+            # 🏆 FINALIZATION STATUS: Check if session is finalized
+            "game_results": active_session.game_results
         },
         "upcoming_matches": upcoming_matches,
         "tournament_id": tournament_id,
@@ -264,6 +294,7 @@ async def get_active_match(
     }
 
 
+@router.get("/{tournament_id}/leaderboard")
 async def get_tournament_leaderboard(
     tournament_id: int,
     current_user: User = Depends(get_current_user),
@@ -320,6 +351,7 @@ async def get_tournament_leaderboard(
     rankings = db.execute(
         text("""
         SELECT
+            tr.rank,
             tr.user_id,
             u.name as user_name,
             u.email as user_email,
@@ -331,15 +363,15 @@ async def get_tournament_leaderboard(
         FROM tournament_rankings tr
         JOIN users u ON tr.user_id = u.id
         WHERE tr.tournament_id = :tournament_id
-        ORDER BY COALESCE(tr.points, 0) DESC, u.name ASC
+        ORDER BY tr.rank NULLS LAST, u.name ASC
         """),
         {"tournament_id": tournament_id}
     ).fetchall()
 
     leaderboard = []
-    for rank, row in enumerate(rankings, start=1):
+    for row in rankings:
         leaderboard.append({
-            "rank": rank,
+            "rank": row.rank,
             "user_id": row.user_id,
             "name": row.user_name,
             "email": row.user_email,
@@ -619,15 +651,43 @@ async def get_tournament_leaderboard(
                     })
 
     # ============================================================================
+    # 🏃 INDIVIDUAL_RANKING: Get dual rankings from session.game_results
+    # ============================================================================
+    performance_rankings = None
+    wins_rankings = None
+
+    if tournament.format == "INDIVIDUAL_RANKING":
+        # Get the session (INDIVIDUAL_RANKING has exactly 1 session)
+        individual_session = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True
+        ).first()
+
+        if individual_session and individual_session.game_results:
+            import json
+            game_results_data = individual_session.game_results
+
+            # Parse if string
+            if isinstance(game_results_data, str):
+                game_results_data = json.loads(game_results_data)
+
+            # Extract dual rankings
+            performance_rankings = game_results_data.get('performance_rankings', [])
+            wins_rankings = game_results_data.get('wins_rankings', [])
+
+    # ============================================================================
     # RETURN LEADERBOARD
     # ============================================================================
     return {
         "tournament_id": tournament_id,
         "tournament_name": tournament.name,
+        "tournament_format": tournament.format or "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
         "leaderboard": leaderboard,
         "group_standings": group_standings if group_standings else None,  # ✅ NEW
         "group_stage_finalized": group_stage_finalized,  # ✅ NEW
         "final_standings": final_standings,  # ✅ NEW
+        "performance_rankings": performance_rankings,  # 🏃 NEW: Best individual performance
+        "wins_rankings": wins_rankings,  # 🏆 NEW: Most round victories
         "total_participants": len(leaderboard),
         "total_matches": total_matches,
         "completed_matches": completed_matches,

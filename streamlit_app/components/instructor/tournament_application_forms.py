@@ -438,8 +438,14 @@ def render_my_tournament_card(token: str, tournament: Dict):
 
         st.divider()
 
+        # 🔍 DEBUG PANEL
+        with st.expander("🔍 DEBUG: Tournament Status Check", expanded=True):
+            st.write(f"**tournament_status**: `{tournament.get('tournament_status')}`")
+            st.write(f"**status (old)**: `{tournament.get('status')}`")
+            st.write(f"**Check passed**: {tournament.get('tournament_status') in ['COMPLETED', 'REWARDS_DISTRIBUTED']}")
+
         # ✅ NEW: Show detailed info for COMPLETED tournaments
-        if status == 'COMPLETED' or tournament.get('tournament_status') == 'REWARDS_DISTRIBUTED':
+        if tournament.get('tournament_status') in ['COMPLETED', 'REWARDS_DISTRIBUTED']:
             # Get leaderboard with final standings
             try:
                 leaderboard_response = requests.get(
@@ -448,9 +454,14 @@ def render_my_tournament_card(token: str, tournament: Dict):
                     timeout=API_TIMEOUT
                 )
 
+                st.write(f"**🔍 DEBUG: Leaderboard API Response Status**: {leaderboard_response.status_code}")
+
                 if leaderboard_response.status_code == 200:
                     leaderboard_data = leaderboard_response.json()
                     final_standings = leaderboard_data.get('final_standings')
+
+                    st.write(f"**🔍 DEBUG: final_standings**: {final_standings is not None}")
+                    st.write(f"**🔍 DEBUG: leaderboard keys**: {list(leaderboard_data.keys())}")
 
                     # ========================================
                     # SHOW GROUP STAGE & KNOCKOUT BRACKET
@@ -533,9 +544,57 @@ def render_my_tournament_card(token: str, tournament: Dict):
                     st.divider()
 
                     # ========================================
-                    # FINAL STANDINGS
+                    # FINAL STANDINGS (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
                     # ========================================
-                    if final_standings:
+                    tournament_format = leaderboard_data.get('tournament_format', 'HEAD_TO_HEAD')
+                    performance_rankings = leaderboard_data.get('performance_rankings')
+                    wins_rankings = leaderboard_data.get('wins_rankings')
+
+                    if tournament_format == 'INDIVIDUAL_RANKING' and performance_rankings:
+                        # ========================================
+                        # INDIVIDUAL_RANKING: Show dual rankings
+                        # ========================================
+                        st.markdown("### 🏆 Final Rankings")
+
+                        col1, col2 = st.columns(2)
+
+                        # 🏃 Best Performance
+                        with col1:
+                            st.markdown("#### 🏃 Best Performance")
+                            st.caption("Best individual value across all rounds")
+
+                            for rank_entry in performance_rankings[:10]:
+                                rank = rank_entry['rank']
+                                user_id = rank_entry['user_id']
+                                final_value = rank_entry['final_value']
+                                unit = rank_entry.get('measurement_unit', '')
+
+                                # Get user name from leaderboard
+                                leaderboard = leaderboard_data.get('leaderboard', [])
+                                user_name = next((p['name'] for p in leaderboard if p['user_id'] == user_id), f"User {user_id}")
+
+                                medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"{rank}.")
+                                st.markdown(f"**{medal} {user_name}**: {final_value} {unit}")
+
+                        # 🏆 Most Wins
+                        with col2:
+                            st.markdown("#### 🏆 Most Wins")
+                            st.caption("Most 1st place finishes")
+
+                            for rank_entry in wins_rankings[:10]:
+                                rank = rank_entry['rank']
+                                user_id = rank_entry['user_id']
+                                wins = rank_entry['wins']
+                                total = rank_entry.get('total_rounds', 0)
+
+                                # Get user name from leaderboard
+                                leaderboard = leaderboard_data.get('leaderboard', [])
+                                user_name = next((p['name'] for p in leaderboard if p['user_id'] == user_id), f"User {user_id}")
+
+                                medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"{rank}.")
+                                st.markdown(f"**{medal} {user_name}**: {wins}/{total} wins")
+
+                    elif final_standings:
                         st.markdown("### 🏆 Final Standings")
 
                         # Podium (Top 3)

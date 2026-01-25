@@ -20,6 +20,7 @@ Extracted from instructor.py as part of P0-1 refactoring (2026-01-23)
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.orm.attributes import flag_modified
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 from datetime import datetime
@@ -69,6 +70,29 @@ class SubmitMatchResultsRequest(BaseModel):
     - SKILL_RATING: [{"user_id": 1, "rating": 8.5, "criteria_scores": {...}}, ...]  # Extension point
     """
     results: list[Dict[str, Any]]
+    notes: Optional[str] = None
+
+
+class SubmitRoundResultsRequest(BaseModel):
+    """
+    🔄 Round-based results submission for INDIVIDUAL_RANKING tournaments.
+
+    This endpoint is idempotent - submitting the same round multiple times will overwrite previous results.
+
+    Example for TIME_BASED:
+    {
+        "round_number": 1,
+        "results": {"123": "12.5s", "456": "13.2s"}
+    }
+
+    Example for SCORE_BASED:
+    {
+        "round_number": 2,
+        "results": {"123": "95", "456": "87"}
+    }
+    """
+    round_number: int
+    results: Dict[str, str]  # user_id -> measured_value (e.g., "12.5s", "95 points")
     notes: Optional[str] = None
 
 
@@ -154,7 +178,7 @@ def submit_structured_match_results(
     # ============================================================================
     # PROCESS RESULTS USING RESULT PROCESSOR
     # ============================================================================
-    processor = ResultProcessor()
+    processor = ResultProcessor(db)
 
     try:
         result = processor.process_match_results(
@@ -727,4 +751,501 @@ def finalize_tournament(
         "message": "Tournament finalized successfully",
         "final_rankings": final_rankings,
         "tournament_status": "COMPLETED"
+    }
+
+
+# ============================================================================
+# 🔄 ROUND-BASED RESULTS (INDIVIDUAL_RANKING with multiple rounds)
+# ============================================================================
+
+@router.post("/{tournament_id}/sessions/{session_id}/rounds/{round_number}/submit-results")
+def submit_round_results(
+    tournament_id: int,
+    session_id: int,
+    round_number: int,
+    request: SubmitRoundResultsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    🔄 Submit results for a specific round in an INDIVIDUAL_RANKING tournament.
+
+    This endpoint is **idempotent** - submitting the same round multiple times will overwrite previous results.
+
+    Authorization:
+    - INSTRUCTOR assigned to tournament
+    - ADMIN
+
+    Workflow:
+    1. Validate session exists and belongs to tournament
+    2. Validate session is INDIVIDUAL_RANKING format
+    3. Validate round_number is within range (1 to total_rounds)
+    4. Update rounds_data.round_results[round_number] with new results
+    5. Update rounds_data.completed_rounds count
+    6. Return updated rounds_data
+
+    Example Request:
+    POST /api/v1/tournaments/18/sessions/187/rounds/1/submit-results
+    {
+        "round_number": 1,
+        "results": {
+            "123": "12.5s",
+            "456": "13.2s",
+            "789": "14.1s"
+        },
+        "notes": "Good weather, fast times"
+    }
+    """
+    # Verify tournament exists
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tournament {tournament_id} not found"
+        )
+
+    # Verify session exists and belongs to tournament
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.semester_id == tournament_id
+    ).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found in tournament {tournament_id}"
+        )
+
+    # Verify session is INDIVIDUAL_RANKING
+    if session.match_format != "INDIVIDUAL_RANKING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Round-based results only supported for INDIVIDUAL_RANKING tournaments (session format: {session.match_format})"
+        )
+
+    # Authorization check
+    if current_user.role not in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only instructors and admins can submit round results"
+        )
+
+    # Verify instructor is assigned to this tournament
+    if current_user.role == UserRole.INSTRUCTOR and session.instructor_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not the assigned instructor for this session"
+        )
+
+    # Get current rounds_data
+    rounds_data = session.rounds_data or {}
+    total_rounds = rounds_data.get('total_rounds', 1)
+
+    # Validate round_number
+    if round_number < 1 or round_number > total_rounds:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid round_number {round_number}. Must be between 1 and {total_rounds}"
+        )
+
+    # Ensure rounds_data structure exists
+    if 'round_results' not in rounds_data:
+        rounds_data['round_results'] = {}
+
+    # Update round results (idempotent - overwrites if exists)
+    rounds_data['round_results'][str(round_number)] = request.results
+
+    # Update completed_rounds count (count of unique round keys)
+    rounds_data['completed_rounds'] = len(rounds_data['round_results'])
+
+    # Save updated rounds_data
+    session.rounds_data = rounds_data
+
+    # ✅ CRITICAL: Tell SQLAlchemy that JSONB field was modified (required for dict mutations)
+    flag_modified(session, 'rounds_data')
+
+    db.commit()
+    db.refresh(session)
+
+    return {
+        "success": True,
+        "message": f"Round {round_number} results saved successfully",
+        "session_id": session_id,
+        "round_number": round_number,
+        "rounds_data": session.rounds_data,
+        "notes": request.notes
+    }
+
+
+@router.get("/{tournament_id}/sessions/{session_id}/rounds")
+def get_rounds_status(
+    tournament_id: int,
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    🔍 Get rounds status for an INDIVIDUAL_RANKING session.
+
+    Returns:
+    - total_rounds: Total number of rounds configured
+    - completed_rounds: Number of rounds with results recorded
+    - round_results: All recorded results by round
+    - pending_rounds: List of round numbers without results
+    """
+    # Verify tournament exists
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tournament {tournament_id} not found"
+        )
+
+    # Verify session exists and belongs to tournament
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.semester_id == tournament_id
+    ).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found in tournament {tournament_id}"
+        )
+
+    # Verify session is INDIVIDUAL_RANKING
+    if session.match_format != "INDIVIDUAL_RANKING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Round status only available for INDIVIDUAL_RANKING tournaments (session format: {session.match_format})"
+        )
+
+    # Get rounds_data
+    rounds_data = session.rounds_data or {}
+    total_rounds = rounds_data.get('total_rounds', 1)
+    completed_rounds = rounds_data.get('completed_rounds', 0)
+    round_results = rounds_data.get('round_results', {})
+
+    # Calculate pending rounds
+    completed_round_numbers = set(int(r) for r in round_results.keys())
+    all_rounds = set(range(1, total_rounds + 1))
+    pending_rounds = sorted(list(all_rounds - completed_round_numbers))
+
+    return {
+        "session_id": session_id,
+        "tournament_id": tournament_id,
+        "match_format": session.match_format,
+        "total_rounds": total_rounds,
+        "completed_rounds": completed_rounds,
+        "pending_rounds": pending_rounds,
+        "round_results": round_results,
+        "is_complete": completed_rounds == total_rounds
+    }
+
+
+@router.post("/{tournament_id}/sessions/{session_id}/finalize")
+def finalize_individual_ranking_session(
+    tournament_id: int,
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    🏆 Finalize INDIVIDUAL_RANKING session and calculate final rankings.
+
+    This endpoint:
+    1. Validates all rounds are completed
+    2. Aggregates results across all rounds (e.g., sum of times, average score, best time)
+    3. Calculates final rankings based on tournament.ranking_direction:
+       - ASC: Lowest value wins (e.g., fastest time)
+       - DESC: Highest value wins (e.g., highest score)
+    4. Saves final rankings to session.game_results
+    5. Updates TournamentRanking table with final results
+    6. Updates tournament status if all sessions finalized
+
+    Authorization: INSTRUCTOR (assigned) or ADMIN
+
+    Example Use Cases:
+    - Time-based (ASC): Best (lowest) time across all rounds wins
+    - Score-based (DESC): Highest total score across all rounds wins
+    - Distance-based (DESC): Longest total distance across all rounds wins
+    """
+    # ============================================================================
+    # AUTHORIZATION
+    # ============================================================================
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tournament {tournament_id} not found"
+        )
+
+    session = db.query(SessionModel).filter(
+        SessionModel.id == session_id,
+        SessionModel.semester_id == tournament_id
+    ).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found in tournament {tournament_id}"
+        )
+
+    # Authorization check
+    if current_user.role not in [UserRole.ADMIN, UserRole.INSTRUCTOR]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only instructors and admins can finalize sessions"
+        )
+
+    if current_user.role == UserRole.INSTRUCTOR and session.instructor_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not the assigned instructor for this session"
+        )
+
+    # ============================================================================
+    # VALIDATE SESSION TYPE
+    # ============================================================================
+    if session.match_format != "INDIVIDUAL_RANKING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Finalization only supported for INDIVIDUAL_RANKING sessions (current format: {session.match_format})"
+        )
+
+    if tournament.format != "INDIVIDUAL_RANKING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Finalization only supported for INDIVIDUAL_RANKING tournaments (current format: {tournament.format})"
+        )
+
+    # ============================================================================
+    # VALIDATE ALL ROUNDS COMPLETED
+    # ============================================================================
+    rounds_data = session.rounds_data or {}
+    total_rounds = rounds_data.get('total_rounds', 1)
+    completed_rounds = rounds_data.get('completed_rounds', 0)
+    round_results = rounds_data.get('round_results', {})
+
+    if completed_rounds < total_rounds:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot finalize: {total_rounds - completed_rounds} rounds remaining. All rounds must be completed first."
+        )
+
+    # ============================================================================
+    # AGGREGATE RESULTS ACROSS ALL ROUNDS
+    # ============================================================================
+    from decimal import Decimal
+    import re
+
+    # Structure: {user_id: [value1, value2, value3, ...]}
+    user_round_values = {}
+
+    for round_num, results_dict in round_results.items():
+        for user_id_str, measured_value_str in results_dict.items():
+            user_id = int(user_id_str)
+
+            # Parse measured value (e.g., "12.5s", "95 points", "15.2 meters")
+            # Extract numeric value
+            numeric_match = re.search(r'[\d.]+', measured_value_str)
+            if not numeric_match:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Cannot parse measured value '{measured_value_str}' for user {user_id} in round {round_num}"
+                )
+
+            numeric_value = Decimal(numeric_match.group())
+
+            if user_id not in user_round_values:
+                user_round_values[user_id] = []
+            user_round_values[user_id].append(numeric_value)
+
+    # ============================================================================
+    # CALCULATE FINAL AGGREGATE VALUE FOR EACH USER
+    # ============================================================================
+    # Aggregation logic: Use BEST value (for time-based: min, for score-based: max)
+    ranking_direction = tournament.ranking_direction or "ASC"
+    scoring_type = tournament.scoring_type or "TIME_BASED"
+
+    user_final_values = {}
+
+    for user_id, values in user_round_values.items():
+        if ranking_direction == "ASC":
+            # ASC: Lowest is best (e.g., fastest time) → take MIN
+            final_value = min(values)
+        else:
+            # DESC: Highest is best (e.g., highest score) → take MAX
+            final_value = max(values)
+
+        user_final_values[user_id] = final_value
+
+    # ============================================================================
+    # CALCULATE PRIMARY RANKING: Best Individual Performance
+    # ============================================================================
+    # Sort by final value based on ranking_direction
+    if ranking_direction == "ASC":
+        # Sort ascending (lowest first)
+        sorted_users_performance = sorted(user_final_values.items(), key=lambda x: x[1])
+    else:
+        # Sort descending (highest first)
+        sorted_users_performance = sorted(user_final_values.items(), key=lambda x: x[1], reverse=True)
+
+    # Assign ranks (handle ties by giving same rank)
+    performance_rankings = []
+    current_rank = 1
+    prev_value = None
+
+    for i, (user_id, final_value) in enumerate(sorted_users_performance):
+        if prev_value is not None and final_value != prev_value:
+            current_rank = i + 1
+
+        performance_rankings.append({
+            "user_id": user_id,
+            "rank": current_rank,
+            "final_value": float(final_value),
+            "measurement_unit": tournament.measurement_unit or "units"
+        })
+
+        prev_value = final_value
+
+    # ============================================================================
+    # CALCULATE SECONDARY RANKING: Most Round Wins
+    # ============================================================================
+    # Count how many times each user won a round (had the best value in that round)
+    user_round_wins = {user_id: 0 for user_id in user_round_values.keys()}
+
+    for round_num, results_dict in round_results.items():
+        # Parse all values in this round
+        round_values = {}
+        for user_id_str, measured_value_str in results_dict.items():
+            user_id = int(user_id_str)
+            numeric_match = re.search(r'[\d.]+', measured_value_str)
+            if numeric_match:
+                round_values[user_id] = Decimal(numeric_match.group())
+
+        # Find winner(s) of this round
+        if round_values:
+            if ranking_direction == "ASC":
+                best_value = min(round_values.values())
+            else:
+                best_value = max(round_values.values())
+
+            # Award win to user(s) with best value (handle ties)
+            for user_id, value in round_values.items():
+                if value == best_value:
+                    user_round_wins[user_id] += 1
+
+    # Sort by number of wins (descending)
+    sorted_users_wins = sorted(user_round_wins.items(), key=lambda x: x[1], reverse=True)
+
+    # Assign ranks based on wins
+    wins_rankings = []
+    current_rank = 1
+    prev_wins = None
+
+    for i, (user_id, wins) in enumerate(sorted_users_wins):
+        if prev_wins is not None and wins < prev_wins:
+            current_rank = i + 1
+
+        wins_rankings.append({
+            "user_id": user_id,
+            "rank": current_rank,
+            "wins": wins,
+            "total_rounds": total_rounds
+        })
+
+        prev_wins = wins
+
+    # Use performance ranking as primary
+    derived_rankings = performance_rankings
+
+    # ============================================================================
+    # SAVE TO session.game_results
+    # ============================================================================
+    recorded_at = datetime.utcnow().isoformat()
+    game_results = {
+        "recorded_at": recorded_at,
+        "recorded_by": current_user.id,
+        "recorded_by_name": current_user.name or current_user.email,
+        "tournament_format": "INDIVIDUAL_RANKING",
+        "scoring_type": scoring_type,
+        "measurement_unit": tournament.measurement_unit,
+        "ranking_direction": ranking_direction,
+        "total_rounds": total_rounds,
+        "aggregation_method": "BEST_VALUE",
+        "rounds_data": rounds_data,
+        # 🏆 DUAL RANKING SYSTEM
+        "derived_rankings": derived_rankings,  # Primary: Best individual performance
+        "performance_rankings": performance_rankings,  # Best individual value (fastest time)
+        "wins_rankings": wins_rankings  # Most round wins (most 1st places)
+    }
+
+    session.game_results = json.dumps(game_results)
+
+    # ============================================================================
+    # UPDATE TournamentRanking TABLE
+    # ============================================================================
+    from app.services.tournament.leaderboard_service import get_or_create_ranking, calculate_ranks
+
+    for ranking_entry in derived_rankings:
+        user_id = ranking_entry["user_id"]
+        final_value = ranking_entry["final_value"]
+
+        # Get or create ranking entry
+        ranking = get_or_create_ranking(
+            db=db,
+            tournament_id=tournament.id,
+            user_id=user_id,
+            participant_type="INDIVIDUAL"
+        )
+
+        # Store final aggregate value in points field
+        ranking.points = Decimal(str(final_value))
+
+    db.flush()
+
+    # Recalculate ranks across entire tournament
+    calculate_ranks(db, tournament.id)
+
+    db.commit()
+    db.refresh(session)
+
+    # ============================================================================
+    # CHECK IF ALL SESSIONS FINALIZED
+    # ============================================================================
+    # ⚠️ NOTE: For INDIVIDUAL_RANKING tournaments, we do NOT automatically set
+    # tournament_status to "COMPLETED". The admin must explicitly close the tournament
+    # via the tournament lifecycle endpoint. This allows instructors to review
+    # final results before tournament closure.
+
+    all_tournament_sessions = db.query(SessionModel).filter(
+        SessionModel.semester_id == tournament_id,
+        SessionModel.is_tournament_game == True
+    ).all()
+
+    unfinalized_sessions = [s for s in all_tournament_sessions if not s.game_results]
+
+    if not unfinalized_sessions:
+        # All sessions finalized, but keep tournament open for admin review
+        return {
+            "success": True,
+            "message": "🏆 Session finalized! All sessions completed. Awaiting admin closure.",
+            "session_id": session.id,
+            "tournament_id": tournament_id,
+            "final_rankings": derived_rankings,
+            "performance_rankings": performance_rankings,
+            "wins_rankings": wins_rankings,
+            "tournament_status": tournament.tournament_status,
+            "all_sessions_finalized": True
+        }
+
+    return {
+        "success": True,
+        "message": f"✅ Session finalized successfully! {len(unfinalized_sessions)} sessions remaining.",
+        "session_id": session.id,
+        "tournament_id": tournament_id,
+        "final_rankings": derived_rankings,
+        "performance_rankings": performance_rankings,
+        "wins_rankings": wins_rankings,
+        "tournament_status": tournament.tournament_status,
+        "all_sessions_finalized": False,
+        "remaining_sessions": len(unfinalized_sessions)
     }
