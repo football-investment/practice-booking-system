@@ -1,12 +1,19 @@
 """
 LFA Football Player Onboarding
-3-step wizard for collecting date_of_birth, position, skills, and motivation
+5-step wizard: Profile, Position, Skills (4 categories), Goals
 """
 
 import streamlit as st
-from datetime import date  # ✅ NEW: For date_of_birth input
+import sys
+import os
+from datetime import date
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY
 from api_helpers_general import get_current_user, submit_lfa_player_onboarding
+from app.skills_config import SKILL_CATEGORIES, get_all_skill_keys
 
 # Page configuration
 st.set_page_config(
@@ -44,9 +51,12 @@ if user.get('role') != 'student':
 
 # Check if user has LFA_FOOTBALL_PLAYER license
 user_licenses = user.get('licenses', [])
+
+# ✅ FIX: Select ACTIVE license only (not the first one!)
 lfa_license = next(
     (lic for lic in user_licenses
-     if lic.get('specialization_type') == 'LFA_FOOTBALL_PLAYER'),
+     if lic.get('specialization_type') == 'LFA_FOOTBALL_PLAYER'
+     and lic.get('is_active') == True),  # ✅ CRITICAL: Filter by is_active!
     None
 )
 
@@ -62,25 +72,18 @@ if lfa_license.get('onboarding_completed', False):
     st.switch_page("pages/LFA_Player_Dashboard.py")
     st.stop()
 
-# Initialize session state for wizard
+# Initialize session state for wizard (5 steps: profile, position, 4 skill categories, goals)
+TOTAL_STEPS = 6  # 1: Profile+Position, 2-5: Skills (4 categories), 6: Goals
+
 if 'onboarding_step' not in st.session_state:
     st.session_state.onboarding_step = 1
-if 'onboarding_date_of_birth' not in st.session_state:
-    st.session_state.onboarding_date_of_birth = None  # ✅ NEW: Birth date
 if 'onboarding_position' not in st.session_state:
     st.session_state.onboarding_position = None
 if 'onboarding_skills' not in st.session_state:
-    st.session_state.onboarding_skills = {
-        'heading': 5,
-        'shooting': 5,
-        'passing': 5,
-        'dribbling': 5,
-        'defending': 5,
-        'physical': 5
-    }
+    # Initialize all 36 skills with default value 50
+    st.session_state.onboarding_skills = {skill_key: 50 for skill_key in get_all_skill_keys()}
 if 'onboarding_goals' not in st.session_state:
     st.session_state.onboarding_goals = ""
-# Motivation field removed - not needed in onboarding
 
 # ============================================================================
 # SIDEBAR - Progress Indicator
@@ -94,26 +97,31 @@ with st.sidebar:
 
     # Progress indicator
     current_step = st.session_state.onboarding_step
-    st.markdown(f"**Progress: Step {current_step}/3**")
+    st.markdown(f"**Progress: Step {current_step}/{TOTAL_STEPS}**")
 
     # Progress bar
-    progress = current_step / 3
+    progress = current_step / TOTAL_STEPS
     st.progress(progress)
 
     st.markdown("")
 
     # Step indicators
-    step_status = ["⚪", "⚪", "⚪"]
-    if current_step >= 1:
-        step_status[0] = "✅" if current_step > 1 else "🔵"
-    if current_step >= 2:
-        step_status[1] = "✅" if current_step > 2 else "🔵"
-    if current_step >= 3:
-        step_status[2] = "🔵"
+    step_labels = [
+        "Position",
+        "🟦 Outfield Skills",
+        "🟨 Set Pieces",
+        "🟩 Mental Skills",
+        "🟥 Physical Skills",
+        "Goals"
+    ]
 
-    st.markdown(f"{step_status[0]} Step 1: Position Selection")
-    st.markdown(f"{step_status[1]} Step 2: Skills Assessment")
-    st.markdown(f"{step_status[2]} Step 3: Goals & Motivation")
+    for idx, label in enumerate(step_labels, start=1):
+        if current_step > idx:
+            st.markdown(f"✅ Step {idx}: {label}")
+        elif current_step == idx:
+            st.markdown(f"🔵 Step {idx}: {label}")
+        else:
+            st.markdown(f"⚪ Step {idx}: {label}")
 
     st.markdown("---")
 
@@ -127,6 +135,34 @@ with st.sidebar:
 
 st.markdown("""
 <style>
+    .skill-card {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .skill-header {
+        font-weight: 600;
+        color: #1a1a2e;
+        margin-bottom: 0.25rem;
+        font-size: 1.05rem;
+    }
+
+    .skill-description {
+        color: #666;
+        font-size: 0.85rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+
+    .category-header {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
     .position-card {
         background: white;
         border: 3px solid #e0e0e0;
@@ -147,30 +183,6 @@ st.markdown("""
         border-color: #667eea;
         background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
     }
-
-    .position-icon {
-        font-size: 3rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .position-name {
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: #1a1a2e;
-    }
-
-    .skill-label {
-        font-weight: 600;
-        color: #1a1a2e;
-        margin-bottom: 0.5rem;
-    }
-
-    .skill-description {
-        color: #666;
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
-        margin-bottom: 1rem;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -179,12 +191,12 @@ st.markdown("""
 # ============================================================================
 
 st.title("⚽ LFA Football Player Onboarding")
-st.markdown("Complete these 3 steps to start your football training journey!")
+st.markdown(f"Complete these {TOTAL_STEPS} steps to start your football training journey!")
 
 st.divider()
 
 # ============================================================================
-# STEP 1: Basic Info & Position Selection
+# STEP 1: Profile & Position Selection
 # ============================================================================
 
 if st.session_state.onboarding_step == 1:
@@ -193,7 +205,7 @@ if st.session_state.onboarding_step == 1:
 
     st.markdown("")
 
-    # ✅ READ-ONLY: Show birth date from user profile
+    # READ-ONLY: Show birth date from user profile
     user_dob = user.get('date_of_birth')
 
     if user_dob:
@@ -289,7 +301,7 @@ if st.session_state.onboarding_step == 1:
 
     st.divider()
 
-    # Validation for Next button (only position required now)
+    # Validation for Next button
     can_continue = st.session_state.onboarding_position is not None
 
     if not can_continue:
@@ -304,66 +316,43 @@ if st.session_state.onboarding_step == 1:
             st.rerun()
 
 # ============================================================================
-# STEP 2: Skills Self-Assessment
+# STEPS 2-5: Skills Self-Assessment (4 Categories)
 # ============================================================================
 
-elif st.session_state.onboarding_step == 2:
-    st.markdown("### Step 2: Self-Assessment")
-    st.markdown("Rate your current skill level in each area (0 = Beginner, 10 = Expert):")
+elif 2 <= st.session_state.onboarding_step <= 5:
+    # Map step to category index
+    category_idx = st.session_state.onboarding_step - 2  # Step 2 → category 0, etc.
+    category = SKILL_CATEGORIES[category_idx]
+
+    st.markdown(f"### Step {st.session_state.onboarding_step}: {category['emoji']} {category['name_hu']}")
+    st.markdown(f"Rate your current ability in each skill (0 = Beginner, 100 = Expert):")
 
     st.markdown("")
 
-    skills_info = [
-        {
-            'key': 'heading',
-            'label': '🎯 Heading',
-            'desc': 'Ability to control and direct the ball with your head'
-        },
-        {
-            'key': 'shooting',
-            'label': '⚡ Shooting',
-            'desc': 'Power and accuracy when striking the ball at goal'
-        },
-        {
-            'key': 'passing',
-            'label': '🎯 Passing',
-            'desc': 'Precision and vision in distributing the ball to teammates'
-        },
-        {
-            'key': 'dribbling',
-            'label': '🏃 Dribbling',
-            'desc': 'Ball control and ability to move past opponents'
-        },
-        {
-            'key': 'defending',
-            'label': '🛡️ Defending',
-            'desc': 'Tackling, positioning, and defensive awareness'
-        },
-        {
-            'key': 'physical',
-            'label': '💪 Physical',
-            'desc': 'Strength, stamina, and overall fitness level'
-        }
-    ]
+    # Display all skills in this category
+    for skill in category['skills']:
+        st.markdown(f"<div class='skill-card'>", unsafe_allow_html=True)
+        st.markdown(f"<div class='skill-header'>{skill['name_hu']} ({skill['name_en']})</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='skill-description'>{skill['description_hu']}</div>", unsafe_allow_html=True)
 
-    for skill in skills_info:
-        st.markdown(f"**{skill['label']}**")
-        st.caption(skill['desc'])
-
+        # Slider for skill rating (0-100)
         st.session_state.onboarding_skills[skill['key']] = st.slider(
-            f"Rate your {skill['key']} (0-10)",
+            f"Rate your {skill['key']} (0-100)",
             min_value=0,
-            max_value=10,
+            max_value=100,
             value=st.session_state.onboarding_skills[skill['key']],
+            step=5,
             key=f"slider_{skill['key']}",
             label_visibility="collapsed"
         )
 
+        st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("")
 
-    # Show average
-    avg_skill = sum(st.session_state.onboarding_skills.values()) / len(st.session_state.onboarding_skills)
-    st.info(f"📊 Your average skill level: **{avg_skill:.1f}/10** ({avg_skill*10:.0f}%)")
+    # Show category average
+    category_skills = [skill['key'] for skill in category['skills']]
+    category_avg = sum(st.session_state.onboarding_skills[sk] for sk in category_skills) / len(category_skills)
+    st.info(f"📊 {category['emoji']} Category Average: **{category_avg:.1f}/100**")
 
     st.divider()
 
@@ -372,23 +361,37 @@ elif st.session_state.onboarding_step == 2:
 
     with col1:
         if st.button("← Back", use_container_width=True):
-            st.session_state.onboarding_step = 1
+            st.session_state.onboarding_step -= 1
             st.rerun()
 
     with col3:
-        if st.button("Next →", use_container_width=True, type="primary"):
-            st.session_state.onboarding_step = 3
+        next_label = "Next →" if st.session_state.onboarding_step < 5 else "Next →"
+        if st.button(next_label, use_container_width=True, type="primary"):
+            st.session_state.onboarding_step += 1
             st.rerun()
 
 # ============================================================================
-# STEP 3: Goals & Motivation
+# STEP 6: Goals & Motivation
 # ============================================================================
 
-elif st.session_state.onboarding_step == 3:
-    st.markdown("### Step 3: Goals & Motivation")
+elif st.session_state.onboarding_step == 6:
+    st.markdown("### Step 6: Goals & Motivation")
     st.markdown("Tell us about your football aspirations:")
 
     st.markdown("")
+
+    # Show overall skill summary
+    st.markdown("**📊 Your Skill Profile Summary**")
+
+    for category in SKILL_CATEGORIES:
+        category_skills = [skill['key'] for skill in category['skills']]
+        category_avg = sum(st.session_state.onboarding_skills[sk] for sk in category_skills) / len(category_skills)
+        st.markdown(f"{category['emoji']} **{category['name_hu']}**: {category_avg:.1f}/100")
+
+    overall_avg = sum(st.session_state.onboarding_skills.values()) / len(st.session_state.onboarding_skills)
+    st.info(f"🎯 **Overall Average**: {overall_avg:.1f}/100")
+
+    st.divider()
 
     # Goals dropdown
     st.markdown("**What are your football goals?**")
@@ -424,20 +427,20 @@ elif st.session_state.onboarding_step == 3:
 
     with col1:
         if st.button("← Back", use_container_width=True):
-            st.session_state.onboarding_step = 2
+            st.session_state.onboarding_step = 5
             st.rerun()
 
     with col3:
         if st.button("🚀 Complete Onboarding", use_container_width=True, type="primary", disabled=not is_valid):
-            # Submit to backend (NO birth date - already in user profile!)
+            # Submit to backend
             with st.spinner("Submitting your onboarding data..."):
                 success, error, response = submit_lfa_player_onboarding(
                     token=token,
-                    date_of_birth=None,  # ❌ REMOVED: Birth date already in user.date_of_birth!
+                    date_of_birth=None,  # Already in user profile
                     position=st.session_state.onboarding_position,
-                    skills=st.session_state.onboarding_skills,
+                    skills=st.session_state.onboarding_skills,  # All 36 skills, 0-100 scale
                     goals=st.session_state.onboarding_goals,
-                    motivation=""  # Empty - motivation field removed from onboarding
+                    motivation=""  # Empty - motivation field removed
                 )
 
                 if success:

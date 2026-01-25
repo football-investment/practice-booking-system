@@ -28,10 +28,15 @@ def get_current_user_profile(
     """
     Get current user profile with licenses
     """
-    # ✅ CRITICAL FIX: Manually load licenses to ensure onboarding_completed is included
-    # Without this, the User model doesn't have licenses relationship defined,
-    # causing infinite onboarding loop
-    licenses = db.query(UserLicense).filter(UserLicense.user_id == current_user.id).all()
+    # ✅ CRITICAL FIX: Return ACTIVE licenses first, sorted by is_active DESC
+    # This ensures frontend always receives active licenses before inactive ones
+    # Without proper ordering, frontend may select inactive license first
+    licenses = (
+        db.query(UserLicense)
+        .filter(UserLicense.user_id == current_user.id)
+        .order_by(UserLicense.is_active.desc(), UserLicense.id.asc())
+        .all()
+    )
     current_user.licenses = licenses
     return current_user
 
