@@ -39,19 +39,24 @@ def calculate_skill_value_from_placement(
     baseline: float,
     placement: int,
     total_players: int,
-    tournament_count: int
+    tournament_count: int,
+    skill_weight: float = 1.0
 ) -> float:
     """
-    Calculate realistic skill value based on tournament placement.
+    Calculate realistic skill value based on tournament placement with weight multiplier.
 
     Args:
         baseline: Initial skill value from onboarding (0-100)
         placement: Player's placement in tournament (1 = best)
         total_players: Total number of players in tournament
         tournament_count: Number of tournaments completed for this skill
+        skill_weight: Skill reactivity multiplier (0.1-5.0, default=1.0)
+                      - weight > 1.0: Skill reacts MORE strongly to placement
+                      - weight = 1.0: Normal reactivity
+                      - weight < 1.0: Skill reacts LESS strongly to placement
 
     Returns:
-        New skill value (40-100)
+        New skill value (40-100+)
 
     Formula:
         1. Calculate percentile: (placement - 1) / (total_players - 1)
@@ -68,18 +73,23 @@ def calculate_skill_value_from_placement(
            - 3rd tournament: 25% baseline, 75% placement
            - etc.
 
+        4. Apply skill weight multiplier:
+           - Calculate delta from baseline
+           - Multiply delta by skill_weight
+           - Add weighted delta back to baseline
+
     Examples:
-        >>> # Player finishes 1st out of 10 (baseline=70, first tournament)
-        >>> calculate_skill_value_from_placement(70, 1, 10, 1)
-        85.0  # (70*0.5 + 100*0.5)
+        >>> # Player finishes 1st out of 10 (baseline=70, first tournament, weight=1.0)
+        >>> calculate_skill_value_from_placement(70, 1, 10, 1, 1.0)
+        85.0  # (70*0.5 + 100*0.5) = 85.0, delta = +15.0
 
-        >>> # Player finishes 10th out of 10 (baseline=70, first tournament)
-        >>> calculate_skill_value_from_placement(70, 10, 10, 1)
-        55.0  # (70*0.5 + 40*0.5)
+        >>> # Same but with weight=2.0 (double reactivity)
+        >>> calculate_skill_value_from_placement(70, 1, 10, 1, 2.0)
+        100.0  # delta = +15.0 * 2.0 = +30.0, result = 70 + 30 = 100.0
 
-        >>> # Player finishes 1st out of 10 (baseline=70, third tournament)
-        >>> calculate_skill_value_from_placement(70, 1, 10, 3)
-        92.5  # (70*0.25 + 100*0.75)
+        >>> # Same but with weight=0.5 (half reactivity)
+        >>> calculate_skill_value_from_placement(70, 1, 10, 1, 0.5)
+        77.5  # delta = +15.0 * 0.5 = +7.5, result = 70 + 7.5 = 77.5
     """
     # Handle edge case: single player tournament
     if total_players == 1:
@@ -97,8 +107,18 @@ def calculate_skill_value_from_placement(
     baseline_weight = 1.0 / (tournament_count + 1)
     placement_weight = tournament_count / (tournament_count + 1)
 
-    # Weighted average
-    new_skill = (baseline * baseline_weight) + (placement_skill * placement_weight)
+    # Weighted average (before applying skill weight multiplier)
+    new_skill_base = (baseline * baseline_weight) + (placement_skill * placement_weight)
+
+    # 🎯 NEW: Apply skill weight multiplier
+    # Calculate delta from baseline
+    delta = new_skill_base - baseline
+
+    # Multiply delta by skill_weight
+    weighted_delta = delta * skill_weight
+
+    # Final skill value = baseline + weighted delta
+    new_skill = baseline + weighted_delta
 
     return round(new_skill, 1)
 
@@ -236,14 +256,15 @@ def calculate_tournament_skill_contribution(
         reward_config = tournament.reward_config
         skill_mappings = reward_config.get("skill_mappings", [])
 
-        # Get list of enabled skills for this tournament
-        tournament_skills = [
-            mapping["skill"]
-            for mapping in skill_mappings
-            if mapping.get("enabled", False) and mapping["skill"] in skill_keys
-        ]
+        # Build dict of enabled skills with their weights
+        tournament_skills_with_weights = {}
+        for mapping in skill_mappings:
+            if mapping.get("enabled", False) and mapping["skill"] in skill_keys:
+                skill_key = mapping["skill"]
+                weight = mapping.get("weight", 1.0)  # Default to 1.0 if not specified
+                tournament_skills_with_weights[skill_key] = weight
 
-        if not tournament_skills:
+        if not tournament_skills_with_weights:
             continue
 
         # Get placement data
@@ -261,20 +282,21 @@ def calculate_tournament_skill_contribution(
         if total_players == 0:
             continue
 
-        # Update each affected skill
-        for skill_key in tournament_skills:
+        # Update each affected skill with its weight
+        for skill_key, skill_weight in tournament_skills_with_weights.items():
             if skill_key not in skill_data:
                 continue
 
             baseline = skill_data[skill_key]["baseline"]
             current_count = skill_tournament_counts[skill_key]
 
-            # Calculate new skill value based on this tournament
+            # 🎯 NEW: Calculate new skill value with weight multiplier
             new_value = calculate_skill_value_from_placement(
                 baseline=baseline,
                 placement=placement,
                 total_players=total_players,
-                tournament_count=current_count + 1
+                tournament_count=current_count + 1,
+                skill_weight=skill_weight  # Apply weight multiplier
             )
 
             # Update skill data

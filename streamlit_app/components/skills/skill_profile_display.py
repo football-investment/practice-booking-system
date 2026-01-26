@@ -15,8 +15,9 @@ import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Add project root to path for accessing app module
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, project_root)
 
 from app.skills_config import SKILL_CATEGORIES
 

@@ -125,7 +125,36 @@ def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig]
     🔒 VALIDATION: At least 1 skill must be selected for tournament.
     """
     st.markdown("#### ⚠️ SKILL SELECTION (REQUIRED) ⚠️")
-    st.caption("Select at least 1 skill for this tournament:")
+    st.caption("Select at least 1 skill for this tournament")
+
+    # 🎯 NEW: Explanation of weight functionality
+    with st.expander("ℹ️ How do skill weights work?", expanded=False):
+        st.markdown("""
+        **Skill Weight Multiplier** controls how strongly each skill reacts to tournament placement:
+
+        - **Weight = 1.0** (Default): Normal reactivity
+          - Example: 1st place → +15 points, Last place → -15 points
+
+        - **Weight > 1.0**: Skill reacts MORE strongly
+          - Weight = 2.0 → Double delta (+30 / -30)
+          - Weight = 1.5 → 50% stronger delta (+22.5 / -22.5)
+          - **Use for**: Primary skills being tested (e.g., Sprint Speed in a speed test)
+
+        - **Weight < 1.0**: Skill reacts LESS strongly
+          - Weight = 0.5 → Half delta (+7.5 / -7.5)
+          - Weight = 0.3 → 30% of normal delta (+4.5 / -4.5)
+          - **Use for**: Secondary skills being observed (e.g., Stamina in a technical drill)
+
+        **💡 Practical Example:**
+        ```
+        Tournament: "Speed & Endurance Test"
+        - Sprint Speed (weight=2.0) → Primary focus, double impact
+        - Stamina (weight=1.5) → Important, 50% bonus impact
+        - Agility (weight=0.5) → Observed, half impact
+        ```
+        """)
+
+    st.markdown("")  # Spacing
 
     # Get initial enabled skills
     initial_skills = {}
@@ -176,13 +205,14 @@ def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig]
             with col2:
                 if enabled:
                     weight = st.number_input(
-                        "Weight",
+                        "Weight (1.0 = normal)",
                         min_value=0.1,
                         max_value=5.0,
                         value=float(initial_weight),
                         step=0.1,
                         key=f"skill_weight_{skill_name}",
-                        label_visibility="collapsed"
+                        label_visibility="collapsed",
+                        help="Skill reactivity multiplier: >1.0 = stronger reaction, <1.0 = weaker reaction"
                     )
                 else:
                     weight = default_weight

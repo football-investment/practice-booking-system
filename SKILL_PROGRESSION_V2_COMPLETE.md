@@ -12,19 +12,36 @@
 
 Skills can both **INCREASE** (top finishes) and **DECREASE** (bottom finishes) based on tournament placement.
 
+### 🆕 Skill Weight Multiplier (V2.1)
+
+Each skill can have a **weight multiplier** (0.1 - 5.0) that controls reactivity:
+- **Weight > 1.0**: Skill reacts MORE strongly to placement (e.g., 2.0 = double delta)
+- **Weight = 1.0**: Normal reactivity (default)
+- **Weight < 1.0**: Skill reacts LESS strongly to placement (e.g., 0.5 = half delta)
+
 ### Key Formula
 
 ```
 1st place → 95-100 skill value
 Last place → 40-50 skill value
 
-New Skill = (Baseline × baseline_weight) + (Placement Value × placement_weight)
+Base Calculation:
+  new_skill_base = (Baseline × baseline_weight) + (Placement Value × placement_weight)
 
-Where:
-  baseline_weight = 1 / (tournament_count + 1)
-  placement_weight = tournament_count / (tournament_count + 1)
+  Where:
+    baseline_weight = 1 / (tournament_count + 1)
+    placement_weight = tournament_count / (tournament_count + 1)
 
-More tournaments = trust placement more, less = trust baseline more
+Skill Weight Multiplier:
+  delta = new_skill_base - baseline
+  weighted_delta = delta × skill_weight
+  final_skill = baseline + weighted_delta
+
+Example:
+  Baseline: 70, 1st place → base delta = +15
+  - Weight 1.0: 70 + (15 × 1.0) = 85.0 ✅
+  - Weight 2.0: 70 + (15 × 2.0) = 100.0 🔥 (double impact)
+  - Weight 0.5: 70 + (15 × 0.5) = 77.5 💧 (half impact)
 ```
 
 ---
