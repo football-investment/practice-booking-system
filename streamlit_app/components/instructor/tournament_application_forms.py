@@ -648,8 +648,8 @@ def render_my_tournament_card(token: str, tournament: Dict):
                             rank_icon = {1: "🥇", 2: "🥈", 3: "🥉"}.get(player['rank'], f"{player['rank']}.")
                             rankings_data.append({
                                 "Rank": rank_icon,
-                                "Player": player['player_name'],
-                                "Points": player.get('points', 0)
+                                "Player": player.get('name', player.get('player_name', 'Unknown')),  # ✅ FIX: Use 'name' from API
+                                "Title": player.get('title', '')  # ✅ Show title (Champion, Runner-up, etc.)
                             })
 
                         if rankings_data:
