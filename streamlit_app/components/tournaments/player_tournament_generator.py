@@ -329,15 +329,26 @@ Winner determined by Ranking Direction (ASC/DESC) configured below."""
             )
 
         with col3:
-            # Enrollment Cost
-            enrollment_cost = st.number_input(
-                "Price (Credits) *",
-                min_value=0,
-                value=500,
-                step=50,
-                key="enrollment_cost_input",
-                help="Enrollment fee in credits"
+            # Enrollment Cost with Free option
+            is_free = st.checkbox(
+                "🆓 Free Tournament",
+                value=False,
+                key="is_free_tournament",
+                help="Check this to make the tournament free (0 credits)"
             )
+
+            if is_free:
+                enrollment_cost = 0
+                st.info("💎 Price: **FREE** (0 credits)")
+            else:
+                enrollment_cost = st.number_input(
+                    "Price (Credits) *",
+                    min_value=1,
+                    value=500,
+                    step=50,
+                    key="enrollment_cost_input",
+                    help="Enrollment fee in credits"
+                )
 
 
         # ⚠️ BUSINESS LOGIC: Sessions can be auto-generated OR configured manually

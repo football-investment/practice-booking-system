@@ -67,8 +67,8 @@ class TournamentGenerateRequest(BaseModel):
     )
     enrollment_cost: int = Field(
         ...,
-        gt=0,
-        description="Enrollment fee in credits (explicit pricing, no default)"
+        ge=0,
+        description="Enrollment fee in credits (0 = FREE, >0 = paid tournament)"
     )
     instructor_id: Optional[int] = Field(
         None,
