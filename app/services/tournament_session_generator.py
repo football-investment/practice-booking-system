@@ -569,18 +569,28 @@ class TournamentSessionGenerator:
         """
         Generate knockout (single elimination) sessions
 
-        ✅ UNIFIED RANKING: All players participate in each round and are ranked.
-        The tier (round level) affects point distribution, but everyone competes.
+        ✅ HEAD_TO_HEAD: Each match is 1v1 (2 players)
+        ✅ BRACKET PROGRESSION: Winners advance, losers eliminated
+        ✅ SEEDING: Round 1 uses enrollment order, later rounds use match results
 
-        Total matches = n - 1 rounds (progressive elimination structure)
+        Total matches = n - 1 (e.g., 8 players → 7 matches: 4 QF + 2 SF + 1 Final)
         """
         sessions = []
         total_rounds = math.ceil(math.log2(player_count))
         round_names = config.config.get('round_names', {})
 
-        current_time = tournament.start_date
-        match_counter = 1
+        # ✅ Get enrolled players for initial seeding (Round 1 only)
+        enrolled_players = self.db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tournament.id,
+            SemesterEnrollment.is_active == True,
+            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+        ).order_by(SemesterEnrollment.created_at).all()
 
+        player_ids = [enrollment.user_id for enrollment in enrolled_players]
+
+        current_time = tournament.start_date
+
+        # ✅ Generate bracket structure (all rounds)
         for round_num in range(1, total_rounds + 1):
             players_in_round = player_count // (2 ** (round_num - 1))
             matches_in_round = players_in_round // 2
@@ -591,9 +601,28 @@ class TournamentSessionGenerator:
                 session_start = current_time
                 session_end = session_start + timedelta(minutes=session_duration)
 
+                # ✅ SEEDING LOGIC:
+                # Round 1: Assign players using bracket seeding (1 vs n, 2 vs n-1, etc.)
+                # Round 2+: participant_user_ids = None (determined by previous round results)
+                if round_num == 1:
+                    # ✅ BRACKET SEEDING: Standard single-elimination pairing
+                    # Match 1: Seed 1 vs Seed N
+                    # Match 2: Seed 2 vs Seed N-1
+                    # etc.
+                    seed1_index = (match_in_round - 1)
+                    seed2_index = players_in_round - match_in_round
+
+                    player1_id = player_ids[seed1_index] if seed1_index < len(player_ids) else None
+                    player2_id = player_ids[seed2_index] if seed2_index < len(player_ids) else None
+
+                    participant_ids = [player1_id, player2_id] if player1_id and player2_id else None
+                else:
+                    # ✅ Later rounds: participants determined by previous match results
+                    participant_ids = None
+
                 sessions.append({
                     'title': f'{tournament.name} - {round_name} - Match {match_in_round}',
-                    'description': f'All {player_count} players compete - {round_name} tier',
+                    'description': f'Head-to-head knockout match - {round_name}',
                     'date_start': session_start,
                     'date_end': session_end,
                     'game_type': round_name,
@@ -602,40 +631,39 @@ class TournamentSessionGenerator:
                     'tournament_match_number': match_in_round,
                     'location': tournament.location_venue or 'TBD',
                     'session_type': 'on_site',
-                    # ✅ UNIFIED RANKING: Tiered ranking metadata (all players compete, tier affects points)
-                    'ranking_mode': 'TIERED',
-                    'round_number': round_num,  # ✅ MANDATORY: Round number for fixtures display
-                    'expected_participants': player_count,
+                    # ✅ HEAD_TO_HEAD: 1v1 match metadata
+                    'ranking_mode': 'HEAD_TO_HEAD',
+                    'round_number': round_num,
+                    'expected_participants': 2,  # ✅ FIX: Always 2 players per match
                     'participant_filter': None,
                     'group_identifier': None,
-                    'pod_tier': round_num,  # Tier indicates knockout stage level
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata (from tournament config)
+                    # ✅ MATCH STRUCTURE: Format and scoring metadata
                     'match_format': tournament.format,
                     'scoring_type': tournament.scoring_type,
                     'structure_config': {
-                        'expected_participants': player_count,
                         'round_name': round_name,
-                        'tier': round_num
-                    }
+                        'round_number': round_num,
+                        'match_number': match_in_round,
+                        'total_matches_in_round': matches_in_round
+                    },
+                    # ✅ CRITICAL: Explicit participants (None for rounds 2+)
+                    'participant_user_ids': participant_ids
                 })
 
-                match_counter += 1
-
-                # If we have parallel fields, schedule next match at same time
+                # Schedule parallel fields
                 if match_in_round % parallel_fields != 0:
                     continue
                 else:
-                    # Move to next time slot
                     current_time += timedelta(minutes=session_duration + break_minutes)
 
             # Break between rounds
             current_time += timedelta(minutes=break_minutes * 2)
 
-        # Add 3rd place playoff if configured
+        # ✅ Add 3rd place playoff if configured
         if config.config.get('third_place_playoff'):
             sessions.append({
                 'title': f'{tournament.name} - 3rd Place Playoff',
-                'description': 'All players compete for 3rd place tier',
+                'description': 'Bronze medal match - losers of semifinals',
                 'date_start': current_time,
                 'date_end': current_time + timedelta(minutes=session_duration),
                 'game_type': '3rd Place Playoff',
@@ -644,21 +672,22 @@ class TournamentSessionGenerator:
                 'tournament_match_number': 999,  # Special match number
                 'location': tournament.location_venue or 'TBD',
                 'session_type': 'on_site',
-                # ✅ UNIFIED RANKING: 3rd place playoff metadata
-                'ranking_mode': 'TIERED',
-                'round_number': total_rounds,  # ✅ MANDATORY: Round number for fixtures display
-                'expected_participants': player_count,
+                # ✅ HEAD_TO_HEAD: 1v1 match
+                'ranking_mode': 'HEAD_TO_HEAD',
+                'round_number': total_rounds,
+                'expected_participants': 2,  # ✅ FIX: 2 players (losers of semifinals)
                 'participant_filter': None,
                 'group_identifier': None,
-                'pod_tier': total_rounds,  # Same tier as finals
-                # ✅ MATCH STRUCTURE: Format and scoring metadata (from tournament config)
+                # ✅ MATCH STRUCTURE
                 'match_format': tournament.format,
                 'scoring_type': tournament.scoring_type,
                 'structure_config': {
-                    'expected_participants': player_count,
                     'round_name': '3rd Place Playoff',
-                    'tier': total_rounds
-                }
+                    'round_number': total_rounds,
+                    'is_bronze_match': True
+                },
+                # ✅ Participants determined after semifinals
+                'participant_user_ids': None
             })
 
         return sessions
