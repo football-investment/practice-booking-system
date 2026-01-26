@@ -574,17 +574,29 @@ async def get_tournament_leaderboard(
                 if isinstance(final_results, str):
                     final_results = json.loads(final_results)
 
-                final_rankings = final_results.get('derived_rankings', [])
-
-                # Get winner and runner-up from final
+                # Get winner and runner-up from final using raw_results
                 champion_id = None
                 runner_up_id = None
 
-                for r in final_rankings:
-                    if r['rank'] == 1:
-                        champion_id = r['user_id']
-                    elif r['rank'] == 2:
-                        runner_up_id = r['user_id']
+                raw_results = final_results.get('raw_results', [])
+
+                if len(raw_results) == 2 and 'score' in raw_results[0]:
+                    # SCORE_BASED format
+                    p1_id = raw_results[0]['user_id']
+                    p1_score = raw_results[0]['score']
+                    p2_id = raw_results[1]['user_id']
+                    p2_score = raw_results[1]['score']
+
+                    if p1_score > p2_score:
+                        champion_id = p1_id  # Winner = Champion
+                        runner_up_id = p2_id  # Loser = Runner-up
+                    elif p2_score > p1_score:
+                        champion_id = p2_id
+                        runner_up_id = p1_id
+                    else:
+                        # Tie - use first as champion
+                        champion_id = p1_id
+                        runner_up_id = p2_id
 
                 # Get 3rd and 4th from bronze match
                 third_place_id = None
@@ -595,13 +607,26 @@ async def get_tournament_leaderboard(
                     if isinstance(bronze_results, str):
                         bronze_results = json.loads(bronze_results)
 
-                    bronze_rankings = bronze_results.get('derived_rankings', [])
+                    # Use raw_results to determine winner/loser of bronze match
+                    raw_results = bronze_results.get('raw_results', [])
 
-                    for r in bronze_rankings:
-                        if r['rank'] == 1:
-                            third_place_id = r['user_id']
-                        elif r['rank'] == 2:
-                            fourth_place_id = r['user_id']
+                    if len(raw_results) == 2 and 'score' in raw_results[0]:
+                        # SCORE_BASED format
+                        p1_id = raw_results[0]['user_id']
+                        p1_score = raw_results[0]['score']
+                        p2_id = raw_results[1]['user_id']
+                        p2_score = raw_results[1]['score']
+
+                        if p1_score > p2_score:
+                            third_place_id = p1_id  # Winner = 3rd place
+                            fourth_place_id = p2_id  # Loser = 4th place
+                        elif p2_score > p1_score:
+                            third_place_id = p2_id
+                            fourth_place_id = p1_id
+                        else:
+                            # Tie - use first as 3rd
+                            third_place_id = p1_id
+                            fourth_place_id = p2_id
 
                 # Build final standings with user details
                 from app.models.user import User as UserModel
