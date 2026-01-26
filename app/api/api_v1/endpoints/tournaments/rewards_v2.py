@@ -74,7 +74,8 @@ def distribute_tournament_rewards_v2(
 
     # Distribute rewards using orchestrator
     try:
-        reward_policy = request.reward_policy or RewardPolicy()
+        # Pass reward_policy as-is (None means load from config)
+        reward_policy = request.reward_policy
 
         result = orchestrator.distribute_rewards_for_tournament(
             db=db,
@@ -92,13 +93,13 @@ def distribute_tournament_rewards_v2(
 
         record_status_change(
             db=db,
-            semester_id=tournament_id,
+            tournament_id=tournament_id,
             old_status=old_status,
             new_status="REWARDS_DISTRIBUTED",
             changed_by=current_user.id,
-            notes=f"Rewards distributed: {result.total_participants} participants, "
-                  f"{result.distribution_summary.get('total_badges_awarded', 0)} badges, "
-                  f"{result.distribution_summary.get('total_xp_awarded', 0)} XP"
+            reason=f"Rewards distributed: {result.total_participants} participants, "
+                   f"{result.distribution_summary.get('total_badges_awarded', 0)} badges, "
+                   f"{result.distribution_summary.get('total_xp_awarded', 0)} XP"
         )
 
         db.commit()

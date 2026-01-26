@@ -283,6 +283,43 @@ def record_tournament_participation(
             # Update user's XP balance
             user.xp_balance = new_balance
 
+    # Create credit transaction and update credit balance (if credits awarded)
+    if credits > 0:
+        from app.models.user import User
+        from app.models.credit_transaction import CreditTransaction
+
+        tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+        tournament_name = tournament.name if tournament else f"Tournament #{tournament_id}"
+
+        # Get user's current credit balance
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            current_credit_balance = user.credit_balance or 0
+            new_credit_balance = current_credit_balance + credits
+
+            # Determine rank display
+            if placement == 1:
+                rank_display = "#1"
+            elif placement == 2:
+                rank_display = "#2"
+            elif placement == 3:
+                rank_display = "#3"
+            else:
+                rank_display = f"#{placement}" if placement else "participation"
+
+            credit_transaction = CreditTransaction(
+                user_id=user_id,
+                transaction_type="TOURNAMENT_REWARD",
+                amount=credits,
+                balance_after=new_credit_balance,
+                description=f"Tournament '{tournament_name}' - Rank {rank_display} reward",
+                semester_id=tournament_id
+            )
+            db.add(credit_transaction)
+
+            # Update user's credit balance
+            user.credit_balance = new_credit_balance
+
     return participation
 
 
