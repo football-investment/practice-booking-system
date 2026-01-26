@@ -71,8 +71,10 @@ if not st.session_state.show_register:
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        email = st.text_input("Email", value="", placeholder="admin@lfa.com", key="login_email")
-        password = st.text_input("Password", type="password", value="", placeholder="Enter password", key="login_password")
+        # Note: Streamlit text_input already has autocomplete enabled by default
+        # Password managers should detect type="password" automatically
+        email = st.text_input("Email", value="", placeholder="admin@lfa.com", key="login_email", label_visibility="visible")
+        password = st.text_input("Password", type="password", value="", placeholder="Enter password", key="login_password", label_visibility="visible")
 
         if st.button("🔐 Login", use_container_width=True, type="primary"):
             if email and password:

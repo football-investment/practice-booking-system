@@ -183,7 +183,7 @@ def enroll_in_tournament(
         )
 
     # 8.5. Check credit balance (use user-level credit_balance, not license-level)
-    enrollment_cost = tournament.enrollment_cost or 500
+    enrollment_cost = tournament.enrollment_cost if tournament.enrollment_cost is not None else 500
     if current_user.credit_balance < enrollment_cost:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -407,7 +407,7 @@ def unenroll_from_tournament(
         )
 
     # 5. Calculate refund (50% penalty)
-    enrollment_cost = tournament.enrollment_cost or 500
+    enrollment_cost = tournament.enrollment_cost if tournament.enrollment_cost is not None else 500
     refund_amount = enrollment_cost // 2  # 50% refund
     penalty_amount = enrollment_cost - refund_amount  # 50% penalty
 
