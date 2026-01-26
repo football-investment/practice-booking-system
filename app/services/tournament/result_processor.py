@@ -420,10 +420,29 @@ class ResultProcessor:
 
         db.flush()
 
-        return {
+        # ========================================================================
+        # KNOCKOUT PROGRESSION: Auto-create next round matches
+        # ========================================================================
+        knockout_info = None
+        if session.tournament_phase == "Knockout Stage":
+            from app.services.tournament.knockout_progression_service import KnockoutProgressionService
+            knockout_service = KnockoutProgressionService(db)
+            knockout_info = knockout_service.process_knockout_progression(
+                session=session,
+                tournament=tournament,
+                game_results=game_results
+            )
+
+        result = {
             "derived_rankings": derived_rankings,
             "recorded_at": recorded_at
         }
+
+        # Include knockout progression info if available
+        if knockout_info:
+            result["knockout_progression"] = knockout_info
+
+        return result
 
     # ========================================================================
     # Legacy Processing Method (for non-tournament contexts)
