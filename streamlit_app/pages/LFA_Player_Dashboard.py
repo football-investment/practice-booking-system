@@ -627,289 +627,413 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# PLAYER INFO SECTION
+# TAB RENDER FUNCTIONS
 # ============================================================================
 
-st.markdown("### 👤 Player Information")
+def render_home_tab():
+    """Render Home/Overview tab with quick stats and recent activity"""
 
-col1, col2, col3, col4 = st.columns(4)
+    # Player Info Section
+    st.markdown("### 👤 Player Information")
 
-with col1:
-    st.markdown("**Age**")
-    if age:
-        st.markdown(f"<h2 style='color: #1e3a8a; margin: 0;'>{age} years</h2>", unsafe_allow_html=True)
-    else:
-        st.warning("Age not set. Please update your profile.")
+    col1, col2, col3, col4 = st.columns(4)
 
-with col2:
-    st.markdown("**Category**")
-    if age_category and category_info:
-        st.markdown(f"""
-        <div class="age-category-badge {category_info['color']}">
-            {category_info['emoji']} {age_category}
-        </div>
-        """, unsafe_allow_html=True)
-        st.caption(category_info['description'])
-    else:
-        st.warning("Category unavailable")
-
-with col3:
-    st.markdown("**Position**")
-    if motivation_data and 'position' in motivation_data:
-        position = motivation_data['position']
-        st.markdown(f"""
-        <div class="position-badge">
-            {position}
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("Position not set")
-
-with col4:
-    st.markdown("**Experience**")
-    user_xp = user.get('xp_balance', 0)
-    st.markdown(f"<h2 style='color: #16a34a; margin: 0;'>⭐ {user_xp} XP</h2>", unsafe_allow_html=True)
-    st.caption("Total experience earned")
-
-st.divider()
-
-# ============================================================================
-# DYNAMIC SKILL PROGRESSION SECTION (V2)
-# ============================================================================
-
-try:
-    from components.skills.skill_profile_display import render_skill_profile
-
-    # Render dynamic skill profile with tournament/assessment tracking
-    render_skill_profile(token, API_BASE_URL)
-
-except Exception as e:
-    st.error(f"Error loading skill profile: {e}")
-
-    # Fallback to static skills if dynamic fails
-    if motivation_data and 'initial_self_assessment' in motivation_data:
-        st.markdown("### ⚡ Your Football Skills")
-        st.caption("Self-assessment from onboarding (static view)")
-
-        skills = motivation_data['initial_self_assessment']
-
-        # Display skills in 2 columns
-        col1, col2 = st.columns(2)
-
-        skill_names = list(skills.keys())
-        mid_point = len(skill_names) // 2
-
-        with col1:
-            for skill_name in skill_names[:mid_point]:
-                skill_value = skills[skill_name]
-                percentage = (skill_value / 10) * 100
-
-                st.markdown(f"**{skill_name.title()}**")
-                st.markdown(f"""
-                <div class="skill-bar">
-                    <div class="skill-fill" style="width: {percentage}%;">
-                        {skill_value}/10
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        with col2:
-            for skill_name in skill_names[mid_point:]:
-                skill_value = skills[skill_name]
-                percentage = (skill_value / 10) * 100
-
-                st.markdown(f"**{skill_name.title()}**")
-                st.markdown(f"""
-                <div class="skill-bar">
-                    <div class="skill-fill" style="width: {percentage}%;">
-                        {skill_value}/10
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-        # Average skill level
-        if 'average_skill_level' in motivation_data:
-            avg_skill = motivation_data['average_skill_level']
-            st.markdown("---")
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.metric("Average Skill Level", f"{avg_skill:.1f}/100", help="Based on your self-assessment")
-
-st.divider()
-
-# ============================================================================
-# ACHIEVEMENT BADGES SECTION (V2 - Tournament Rewards)
-# ============================================================================
-
-user_id = user.get('id')
-if user_id:
-    try:
-        from components.rewards.badge_showcase import render_badge_summary_widget
-        from components.rewards.badge_card import render_badge_grid
-        from api_helpers_tournaments import get_user_badges
-
-        # Header with summary widget
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown("### 🏆 Tournament Achievements")
-        with col2:
-            render_badge_summary_widget(user_id, token, compact=True)
-
-        # Fetch all badges
-        success, error, badges_data = get_user_badges(token, user_id, limit=100)
-
-        if success and badges_data:
-            all_badges = badges_data.get('badges', [])
-
-            if all_badges:
-                # Sort by earned_at (newest first)
-                sorted_badges = sorted(
-                    all_badges,
-                    key=lambda b: b.get('earned_at', ''),
-                    reverse=True
-                )
-
-                # Show latest 3 badges
-                st.markdown("#### 🆕 Latest Badges")
-                latest_badges = sorted_badges[:3]
-                render_badge_grid(latest_badges, columns=3, size="compact")
-
-                # Show all badges in expander if more than 3
-                if len(all_badges) > 3:
-                    with st.expander(f"📋 View All Badges ({len(all_badges)})"):
-                        render_badge_grid(all_badges, columns=4, size="normal")
-            else:
-                st.info("🏆 No badges earned yet. Participate in tournaments to earn your first badge!")
+    with col1:
+        st.markdown("**Age**")
+        if age:
+            st.markdown(f"<h2 style='color: #1e3a8a; margin: 0;'>{age} years</h2>", unsafe_allow_html=True)
         else:
+            st.warning("Age not set. Please update your profile.")
+
+    with col2:
+        st.markdown("**Category**")
+        if age_category and category_info:
+            st.markdown(f"""
+            <div class="age-category-badge {category_info['color']}">
+                {category_info['emoji']} {age_category}
+            </div>
+            """, unsafe_allow_html=True)
+            st.caption(category_info['description'])
+        else:
+            st.warning("Category unavailable")
+
+    with col3:
+        st.markdown("**Position**")
+        if motivation_data and 'position' in motivation_data:
+            position = motivation_data['position']
+            st.markdown(f"""
+            <div class="position-badge">
+                {position}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("Position not set")
+
+    with col4:
+        st.markdown("**Experience**")
+        user_xp = user.get('xp_balance', 0)
+        st.markdown(f"<h2 style='color: #16a34a; margin: 0;'>⭐ {user_xp} XP</h2>", unsafe_allow_html=True)
+        st.caption("Total experience earned")
+
+    st.divider()
+
+    # Quick Stats Section
+    st.markdown("### 📊 Quick Stats")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        user_credits = user.get('credit_balance', 0)
+        st.metric("💰 Credits", f"{user_credits:,}")
+
+    with col2:
+        user_xp = user.get('xp_balance', 0)
+        st.metric("⭐ Experience", f"{user_xp:,} XP")
+
+    with col3:
+        # Average skill level (if available)
+        if motivation_data and 'average_skill_level' in motivation_data:
+            avg_skill = motivation_data['average_skill_level']
+            st.metric("📈 Avg Skill", f"{avg_skill:.1f}/100")
+        else:
+            st.metric("📈 Avg Skill", "N/A")
+
+    st.divider()
+
+    # Recent Achievements
+    user_id = user.get('id')
+    if user_id:
+        try:
+            from components.rewards.badge_showcase import render_badge_summary_widget
+            from components.rewards.badge_card import render_badge_grid
+            from api_helpers_tournaments import get_user_badges
+
+            # Header with summary widget
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown("### 🏆 Recent Achievements")
+            with col2:
+                render_badge_summary_widget(user_id, token, compact=True)
+
+            # Fetch latest badges
+            success, error, badges_data = get_user_badges(token, user_id, limit=100)
+
+            if success and badges_data:
+                all_badges = badges_data.get('badges', [])
+
+                if all_badges:
+                    # Sort by earned_at (newest first)
+                    sorted_badges = sorted(
+                        all_badges,
+                        key=lambda b: b.get('earned_at', ''),
+                        reverse=True
+                    )
+
+                    # Show latest 3 badges only
+                    st.markdown("#### 🆕 Latest Badges")
+                    latest_badges = sorted_badges[:3]
+                    render_badge_grid(latest_badges, columns=3, size="compact")
+                else:
+                    st.info("🏆 No badges earned yet. Participate in tournaments to earn your first badge!")
+            else:
+                st.caption("🏆 Earn badges by participating in tournaments!")
+
+        except Exception as e:
             st.caption("🏆 Earn badges by participating in tournaments!")
 
+    st.divider()
+
+    # Upcoming Sessions Preview
+    st.markdown("### 📆 Next Sessions (Preview)")
+    st.info("🚧 **Session schedule coming soon!**\n\nHere you will see:\n- Your next 3-5 training sessions\n- Location and time details\n- Instructor information\n- Check-in status")
+
+
+def render_skills_tab():
+    """Render Skills & Progression tab"""
+
+    try:
+        from components.skills.skill_profile_display import render_skill_profile
+
+        # Render dynamic skill profile with tournament/assessment tracking
+        render_skill_profile(token, API_BASE_URL)
+
     except Exception as e:
-        # Silent fail - badges are optional feature
-        st.caption("🏆 Earn badges by participating in tournaments!")
+        st.error(f"Error loading skill profile: {e}")
 
-st.divider()
+        # Fallback to static skills if dynamic fails
+        if motivation_data and 'initial_self_assessment' in motivation_data:
+            st.markdown("### ⚡ Your Football Skills")
+            st.caption("Self-assessment from onboarding (static view)")
 
-# ============================================================================
-# SEMESTER ENROLLMENT SECTION - Three-Tier Parallel Enrollment
-# ============================================================================
+            skills = motivation_data['initial_self_assessment']
 
-st.markdown("### 📅 Training Programs")
+            # Display skills in 2 columns
+            col1, col2 = st.columns(2)
 
-if age_category and category_info:
-    st.info(f"**{category_info['emoji']} {category_info['name']}** - {category_info['frequency']}")
-else:
-    st.warning("⚠️ Age category not determined. Please set your date of birth in your profile.")
+            skill_names = list(skills.keys())
+            mid_point = len(skill_names) // 2
 
-# Import enrollment helpers
-success, error, schedule_data = get_user_schedule(token)
+            with col1:
+                for skill_name in skill_names[:mid_point]:
+                    skill_value = skills[skill_name]
+                    percentage = (skill_value / 10) * 100
 
-if not success:
-    st.error(f"Failed to load schedule: {error}")
-elif schedule_data:
-    # Get enrollments grouped by type
-    enrollments = schedule_data.get("enrollments", [])
-    grouped_enrollments = get_enrollments_by_type(enrollments)
+                    st.markdown(f"**{skill_name.title()}**")
+                    st.markdown(f"""
+                    <div class="skill-bar">
+                        <div class="skill-fill" style="width: {percentage}%;">
+                            {skill_value}/10
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-    # Summary header
-    total_sessions = schedule_data.get("total_sessions", 0)
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
-                padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 1.5rem;">
-        <h3 style="margin: 0; color: white;">📅 Your Schedule</h3>
-        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">
-            {len(enrollments)} active enrollment(s) | {total_sessions} total session(s)
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+            with col2:
+                for skill_name in skill_names[mid_point:]:
+                    skill_value = skills[skill_name]
+                    percentage = (skill_value / 10) * 100
 
-    # Four-tab interface
-    tab1, tab2, tab3, tab4 = st.tabs([
-        f"🏆 My Tournaments ({len(grouped_enrollments['TOURNAMENT'])})",
-        f"🌍 Browse Tournaments",
-        f"📅 Mini Seasons ({len(grouped_enrollments['MINI_SEASON'])})",
-        f"🏫 Academy Season ({len(grouped_enrollments['ACADEMY_SEASON'])})"
-    ])
+                    st.markdown(f"**{skill_name.title()}**")
+                    st.markdown(f"""
+                    <div class="skill-bar">
+                        <div class="skill-fill" style="width: {percentage}%;">
+                            {skill_value}/10
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-    with tab1:
-        st.markdown("#### 🏆 My Tournament Enrollments")
-        st.caption("One-day competitive events you're enrolled in")
+            # Average skill level
+            if 'average_skill_level' in motivation_data:
+                avg_skill = motivation_data['average_skill_level']
+                st.markdown("---")
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    st.metric("Average Skill Level", f"{avg_skill:.1f}/100", help="Based on your self-assessment")
 
-        if grouped_enrollments['TOURNAMENT']:
-            for enrollment in grouped_enrollments['TOURNAMENT']:
-                _display_enrollment_card(enrollment, "🏆")
-        else:
-            st.info("No active tournament enrollments.\n\nTournaments are one-day competitive events. Browse available tournaments in the '🌍 Browse Tournaments' tab.")
 
-    with tab2:
-        st.markdown("#### 🌍 Browse Worldwide Tournaments")
-        st.caption("Discover and enroll in competitive football tournaments")
+def render_tournaments_tab():
+    """Render Tournaments & Events tab with nested tabs"""
 
-        render_tournament_browser(token, user)
+    # All Badges Section (moved from Home)
+    user_id = user.get('id')
+    if user_id:
+        try:
+            from components.rewards.badge_showcase import render_badge_summary_widget
+            from components.rewards.badge_card import render_badge_grid
+            from api_helpers_tournaments import get_user_badges
 
-    with tab3:
-        st.markdown("#### 📅 Mini Season Enrollments")
-        st.caption("Monthly (PRE) or Quarterly (YOUTH) training programs")
+            # Header with summary widget
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown("### 🏆 Tournament Achievements")
+            with col2:
+                render_badge_summary_widget(user_id, token, compact=True)
 
-        if grouped_enrollments['MINI_SEASON']:
-            for enrollment in grouped_enrollments['MINI_SEASON']:
-                _display_enrollment_card(enrollment, "📅")
-        else:
-            st.info("No active mini season enrollments.\n\nMini Seasons are short-term structured training programs:\n- PRE: Monthly cycles (M01-M12)\n- YOUTH: Quarterly cycles (Q1-Q4)")
+            # Fetch all badges
+            success, error, badges_data = get_user_badges(token, user_id, limit=100)
 
-    with tab4:
-        st.markdown("#### 🏫 Academy Season Enrollments")
-        st.caption("Full-year commitment (July 1 - June 30)")
+            if success and badges_data:
+                all_badges = badges_data.get('badges', [])
 
-        if grouped_enrollments['ACADEMY_SEASON']:
-            for enrollment in grouped_enrollments['ACADEMY_SEASON']:
-                _display_enrollment_card(enrollment, "🏫")
-        else:
-            st.info("No active academy season enrollments.\n\nAcademy Season is a full-year intensive program:\n- Duration: July 1 to June 30\n- Only available at CENTER locations\n- Higher cost, comprehensive training\n- Age category locked at season start")
-else:
-    st.info("📭 No enrollments yet. Enroll in a training program to get started!")
+                if all_badges:
+                    # Sort by earned_at (newest first)
+                    sorted_badges = sorted(
+                        all_badges,
+                        key=lambda b: b.get('earned_at', ''),
+                        reverse=True
+                    )
 
-st.divider()
+                    # Show all badges in grid
+                    render_badge_grid(all_badges, columns=4, size="normal")
+                else:
+                    st.info("🏆 No badges earned yet. Participate in tournaments to earn your first badge!")
+            else:
+                st.caption("🏆 Earn badges by participating in tournaments!")
 
-# ============================================================================
-# UPCOMING SESSIONS SECTION
-# ============================================================================
+        except Exception as e:
+            st.caption("🏆 Earn badges by participating in tournaments!")
 
-st.markdown("### 📆 Upcoming Sessions")
+    st.divider()
 
-# TODO: Add upcoming sessions display
-st.info("🚧 **Session schedule coming soon!**\n\nHere you will see:\n- Your next training sessions\n- Location and time details\n- Instructor information\n- Check-in status")
+    # Training Programs Section with nested tabs
+    st.markdown("### 📅 Training Programs")
 
-st.divider()
+    if age_category and category_info:
+        st.info(f"**{category_info['emoji']} {category_info['name']}** - {category_info['frequency']}")
+    else:
+        st.warning("⚠️ Age category not determined. Please set your date of birth in your profile.")
 
-# ============================================================================
-# MOTIVATION & GOALS
-# ============================================================================
+    # Import enrollment helpers
+    success, error, schedule_data = get_user_schedule(token)
 
-if motivation_data and ('goals' in motivation_data or 'motivation' in motivation_data):
-    st.markdown("### 🎯 Your Goals & Motivation")
+    if not success:
+        st.error(f"Failed to load schedule: {error}")
+    elif schedule_data:
+        # Get enrollments grouped by type
+        enrollments = schedule_data.get("enrollments", [])
+        grouped_enrollments = get_enrollments_by_type(enrollments)
 
+        # Summary header
+        total_sessions = schedule_data.get("total_sessions", 0)
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
+                    padding: 1.5rem; border-radius: 12px; color: white; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; color: white;">📅 Your Schedule</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">
+                {len(enrollments)} active enrollment(s) | {total_sessions} total session(s)
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Four-tab interface (nested tabs)
+        tab1, tab2, tab3, tab4 = st.tabs([
+            f"🏆 My Tournaments ({len(grouped_enrollments['TOURNAMENT'])})",
+            f"🌍 Browse Tournaments",
+            f"📅 Mini Seasons ({len(grouped_enrollments['MINI_SEASON'])})",
+            f"🏫 Academy Season ({len(grouped_enrollments['ACADEMY_SEASON'])})"
+        ])
+
+        with tab1:
+            st.markdown("#### 🏆 My Tournament Enrollments")
+            st.caption("One-day competitive events you're enrolled in")
+
+            if grouped_enrollments['TOURNAMENT']:
+                for enrollment in grouped_enrollments['TOURNAMENT']:
+                    _display_enrollment_card(enrollment, "🏆")
+            else:
+                st.info("No active tournament enrollments.\n\nTournaments are one-day competitive events. Browse available tournaments in the '🌍 Browse Tournaments' tab.")
+
+        with tab2:
+            st.markdown("#### 🌍 Browse Worldwide Tournaments")
+            st.caption("Discover and enroll in competitive football tournaments")
+
+            render_tournament_browser(token, user)
+
+        with tab3:
+            st.markdown("#### 📅 Mini Season Enrollments")
+            st.caption("Monthly (PRE) or Quarterly (YOUTH) training programs")
+
+            if grouped_enrollments['MINI_SEASON']:
+                for enrollment in grouped_enrollments['MINI_SEASON']:
+                    _display_enrollment_card(enrollment, "📅")
+            else:
+                st.info("No active mini season enrollments.\n\nMini Seasons are short-term structured training programs:\n- PRE: Monthly cycles (M01-M12)\n- YOUTH: Quarterly cycles (Q1-Q4)")
+
+        with tab4:
+            st.markdown("#### 🏫 Academy Season Enrollments")
+            st.caption("Full-year commitment (July 1 - June 30)")
+
+            if grouped_enrollments['ACADEMY_SEASON']:
+                for enrollment in grouped_enrollments['ACADEMY_SEASON']:
+                    _display_enrollment_card(enrollment, "🏫")
+            else:
+                st.info("No active academy season enrollments.\n\nAcademy Season is a full-year intensive program:\n- Duration: July 1 to June 30\n- Only available at CENTER locations\n- Higher cost, comprehensive training\n- Age category locked at season start")
+    else:
+        st.info("📭 No enrollments yet. Enroll in a training program to get started!")
+
+
+def render_schedule_tab():
+    """Render Schedule & Sessions tab"""
+
+    st.markdown("### 📆 Upcoming Sessions")
+
+    # TODO: Add upcoming sessions display
+    st.info("🚧 **Session schedule coming soon!**\n\nHere you will see:\n- Your next training sessions\n- Location and time details\n- Instructor information\n- Check-in status")
+
+
+def render_profile_tab():
+    """Render Profile & Settings tab"""
+
+    st.markdown("### 👤 Personal Information")
+
+    # Display current user info
     col1, col2 = st.columns(2)
 
     with col1:
-        if 'goals' in motivation_data and motivation_data['goals']:
-            # Map goal keys to human-readable text
-            goals_map = {
-                "improve_skills": "Improve my technical skills",
-                "play_higher_level": "Play at a higher competitive level",
-                "become_professional": "Become a professional player",
-                "team_football": "Join a football team",
-                "fitness_health": "Stay fit and healthy through football",
-                "enjoy_game": "Simply enjoy playing the game"
-            }
-            goal_text = goals_map.get(motivation_data['goals'], motivation_data['goals'])
+        st.markdown("**Name**")
+        st.info(user.get('name', 'N/A'))
 
-            st.markdown("**Goals**")
-            st.info(goal_text)
+        st.markdown("**Email**")
+        st.info(user.get('email', 'N/A'))
 
     with col2:
-        if 'motivation' in motivation_data and motivation_data['motivation']:
-            st.markdown("**Motivation**")
-            st.success(motivation_data['motivation'])
+        st.markdown("**Role**")
+        st.info(user.get('role', 'N/A').title())
+
+        st.markdown("**License Level**")
+        st.info(f"Level {lfa_license.get('current_level', 1)}")
+
+    st.divider()
+
+    # Goals & Motivation
+    if motivation_data and ('goals' in motivation_data or 'motivation' in motivation_data):
+        st.markdown("### 🎯 Your Goals & Motivation")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if 'goals' in motivation_data and motivation_data['goals']:
+                # Map goal keys to human-readable text
+                goals_map = {
+                    "improve_skills": "Improve my technical skills",
+                    "play_higher_level": "Play at a higher competitive level",
+                    "become_professional": "Become a professional player",
+                    "team_football": "Join a football team",
+                    "fitness_health": "Stay fit and healthy through football",
+                    "enjoy_game": "Simply enjoy playing the game"
+                }
+                goal_text = goals_map.get(motivation_data['goals'], motivation_data['goals'])
+
+                st.markdown("**Goals**")
+                st.info(goal_text)
+
+        with col2:
+            if 'motivation' in motivation_data and motivation_data['motivation']:
+                st.markdown("**Motivation**")
+                st.success(motivation_data['motivation'])
+
+    st.divider()
+
+    # Account Summary
+    st.markdown("### ⚙️ Account Summary")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("💰 Credit Balance", f"{user.get('credit_balance', 0):,}")
+
+    with col2:
+        st.metric("⭐ XP Balance", f"{user.get('xp_balance', 0):,}")
+
+    with col3:
+        st.metric("📋 License Level", lfa_license.get('current_level', 1))
+
+
+# ============================================================================
+# TAB NAVIGATION
+# ============================================================================
+
+# Create main tabs
+tab_home, tab_skills, tab_tournaments, tab_schedule, tab_profile = st.tabs([
+    "📊 Home",
+    "⚽ Skills",
+    "🏆 Tournaments",
+    "📅 Schedule",
+    "👤 Profile"
+])
+
+with tab_home:
+    render_home_tab()
+
+with tab_skills:
+    render_skills_tab()
+
+with tab_tournaments:
+    render_tournaments_tab()
+
+with tab_schedule:
+    render_schedule_tab()
+
+with tab_profile:
+    render_profile_tab()
 
 # ============================================================================
 # DIALOGS (triggered by session state)
