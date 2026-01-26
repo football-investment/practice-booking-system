@@ -76,13 +76,16 @@ PLACEMENT_BADGE_OPTIONS = {
 # Template Loader
 # ============================================================================
 
-def render_template_selector() -> Optional[TournamentRewardConfig]:
+def render_template_selector(key_prefix: str = "") -> Optional[TournamentRewardConfig]:
     """
     Render template selector dropdown.
     Returns selected template config or None.
 
     ⚠️ IMPORTANT: Template switching does NOT auto-enable skills.
     All templates have skills disabled by default.
+
+    Args:
+        key_prefix: Prefix for widget keys to avoid duplicates
     """
     st.markdown("#### 📋 Reward Template")
 
@@ -97,7 +100,7 @@ def render_template_selector() -> Optional[TournamentRewardConfig]:
         "Select reward template",
         options=list(template_options.keys()),
         format_func=lambda x: f"{x} - {template_options[x]}",
-        key="reward_template_selector"
+        key=f"{key_prefix}reward_template_selector"
     )
 
     if selected_template == "Custom":
@@ -117,12 +120,16 @@ def render_template_selector() -> Optional[TournamentRewardConfig]:
 # Skill Mapping Editor
 # ============================================================================
 
-def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig] = None) -> tuple[List[SkillMappingConfig], bool]:
+def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig] = None, key_prefix: str = "") -> tuple[List[SkillMappingConfig], bool]:
     """
     Render skill mapping checkboxes with validation (NEW: 29 skills from skills_config.py).
     Returns (list of enabled skill mappings, is_valid).
 
     🔒 VALIDATION: At least 1 skill must be selected for tournament.
+
+    Args:
+        initial_config: Existing reward config to pre-fill values
+        key_prefix: Prefix for widget keys to avoid duplicates
     """
     st.markdown("#### ⚠️ SKILL SELECTION (REQUIRED) ⚠️")
     st.caption("Select at least 1 skill for this tournament")
@@ -199,7 +206,7 @@ def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig]
                 enabled = st.checkbox(
                     display_label,
                     value=is_enabled,
-                    key=f"skill_{skill_name}"
+                    key=f"{key_prefix}skill_{skill_name}"
                 )
 
             with col2:
@@ -210,7 +217,7 @@ def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig]
                         max_value=5.0,
                         value=float(initial_weight),
                         step=0.1,
-                        key=f"skill_weight_{skill_name}",
+                        key=f"{key_prefix}skill_weight_{skill_name}",
                         label_visibility="collapsed",
                         help="Skill reactivity multiplier: >1.0 = stronger reaction, <1.0 = weaker reaction"
                     )
@@ -248,11 +255,18 @@ def render_skill_mapping_editor(initial_config: Optional[TournamentRewardConfig]
 def render_badge_config_editor(
     placement: str,
     title: str,
-    initial_config: Optional[PlacementRewardConfig] = None
+    initial_config: Optional[PlacementRewardConfig] = None,
+    key_prefix: str = ""
 ) -> PlacementRewardConfig:
     """
     Render badge configuration for a specific placement.
     Returns PlacementRewardConfig with selected badges and settings.
+
+    Args:
+        placement: Placement identifier (e.g., "1st_place", "2nd_place")
+        title: Display title for this placement
+        initial_config: Existing reward config to pre-fill values
+        key_prefix: Prefix for widget keys to avoid duplicates
     """
     st.markdown(f"#### {title}")
 
@@ -281,7 +295,7 @@ def render_badge_config_editor(
         enabled = st.checkbox(
             f"{badge_option['icon']} {badge_option['title']} ({badge_option['rarity']})",
             value=is_enabled,
-            key=f"badge_{placement}_{badge_type}",
+            key=f"{key_prefix}badge_{placement}_{badge_type}",
             help=badge_option.get("description", "")
         )
 
@@ -308,7 +322,7 @@ def render_badge_config_editor(
             max_value=10000,
             value=initial_credits,
             step=50,
-            key=f"credits_{placement}"
+            key=f"{key_prefix}credits_{placement}"
         )
     with col2:
         xp_multiplier = st.number_input(
@@ -317,7 +331,7 @@ def render_badge_config_editor(
             max_value=5.0,
             value=float(initial_xp_mult),
             step=0.1,
-            key=f"xp_mult_{placement}"
+            key=f"{key_prefix}xp_mult_{placement}"
         )
 
     return PlacementRewardConfig(
@@ -331,12 +345,13 @@ def render_badge_config_editor(
 # Main Reward Config Editor
 # ============================================================================
 
-def render_reward_config_editor(initial_config: Optional[Dict[str, Any]] = None) -> tuple[Optional[TournamentRewardConfig], bool]:
+def render_reward_config_editor(initial_config: Optional[Dict[str, Any]] = None, key_prefix: str = "") -> tuple[Optional[TournamentRewardConfig], bool]:
     """
     Main reward configuration editor.
 
     Args:
         initial_config: Existing reward config dict (from tournament metadata)
+        key_prefix: Prefix for widget keys to avoid duplicates when multiple editors exist
 
     Returns:
         (TournamentRewardConfig if valid, is_valid)
@@ -355,15 +370,16 @@ def render_reward_config_editor(initial_config: Optional[Dict[str, Any]] = None)
             st.warning(f"⚠️ Could not parse existing config: {str(e)}")
 
     # Template selector
-    template_config = render_template_selector()
+    template_config = render_template_selector(key_prefix=key_prefix)
 
-    # Use template config as base, or initial config, or fresh config
-    base_config = template_config or parsed_config
+    # Use EXISTING config as base if available, otherwise use template
+    # This ensures when editing existing tournaments, we show their current config
+    base_config = parsed_config or template_config
 
     st.markdown("---")
 
     # Skill mapping editor with validation
-    skill_mappings, is_valid = render_skill_mapping_editor(base_config)
+    skill_mappings, is_valid = render_skill_mapping_editor(base_config, key_prefix=key_prefix)
 
     st.markdown("---")
 
@@ -374,35 +390,40 @@ def render_reward_config_editor(initial_config: Optional[Dict[str, Any]] = None)
         first_place = render_badge_config_editor(
             "1st_place",
             "🥇 1st Place",
-            base_config.first_place if base_config else None
+            base_config.first_place if base_config else None,
+            key_prefix=key_prefix
         )
 
     with st.expander("🥈 2nd Place Rewards"):
         second_place = render_badge_config_editor(
             "2nd_place",
             "🥈 2nd Place",
-            base_config.second_place if base_config else None
+            base_config.second_place if base_config else None,
+            key_prefix=key_prefix
         )
 
     with st.expander("🥉 3rd Place Rewards"):
         third_place = render_badge_config_editor(
             "3rd_place",
             "🥉 3rd Place",
-            base_config.third_place if base_config else None
+            base_config.third_place if base_config else None,
+            key_prefix=key_prefix
         )
 
     with st.expander("🌟 Top 25% Rewards"):
         top_25_percent = render_badge_config_editor(
             "top_25_percent",
             "🌟 Top 25% (Dynamic)",
-            base_config.top_25_percent if base_config else None
+            base_config.top_25_percent if base_config else None,
+            key_prefix=key_prefix
         )
 
     with st.expander("⚽ Participation Rewards"):
         participation = render_badge_config_editor(
             "participation",
             "⚽ All Participants",
-            base_config.participation if base_config else None
+            base_config.participation if base_config else None,
+            key_prefix=key_prefix
         )
 
     # Build final config

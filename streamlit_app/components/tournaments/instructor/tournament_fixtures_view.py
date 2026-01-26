@@ -12,6 +12,12 @@ import streamlit as st
 import requests
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import config
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from config import API_TIMEOUT
 
 
 def get_tournament_sessions(token: str, tournament_id: int) -> Optional[List[Dict[str, Any]]]:
@@ -20,7 +26,7 @@ def get_tournament_sessions(token: str, tournament_id: int) -> Optional[List[Dic
     try:
         url = f"http://localhost:8000/api/v1/tournaments/{tournament_id}/sessions"
         st.write(f"🔍 DEBUG: Attempting to fetch from: {url}")  # DEBUG
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=API_TIMEOUT)
         st.write(f"🔍 DEBUG: Response status: {response.status_code}")  # DEBUG
         if response.status_code == 200:
             data = response.json()

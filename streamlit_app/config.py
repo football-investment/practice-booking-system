@@ -10,7 +10,7 @@ import streamlit as st
 
 # API Configuration - SECURE: Environment-based with localhost fallback
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-API_TIMEOUT = int(os.getenv("API_TIMEOUT", "10"))  # Default timeout for API requests
+API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))  # Default timeout for API requests
 
 # Environment detection
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")

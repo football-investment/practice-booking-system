@@ -82,7 +82,8 @@ class SemesterWithStats(Semester):
     sessions_generated: Optional[bool] = None  # Tournament sessions auto-generation flag
     sessions_generated_at: Optional[datetime] = None  # When sessions were generated
     reward_policy_name: Optional[str] = None  # Reward policy identifier
-    reward_policy_snapshot: Optional[dict] = None  # Complete reward policy configuration
+    reward_policy_snapshot: Optional[dict] = None  # Complete reward policy configuration (V1)
+    reward_config: Optional[dict] = None  # V2 reward configuration with skills & badges
     match_duration_minutes: Optional[int] = None  # Match duration configuration for tournaments
     break_duration_minutes: Optional[int] = None  # Break duration configuration for tournaments
     parallel_fields: Optional[int] = None  # Number of parallel fields/pitches (1-4)

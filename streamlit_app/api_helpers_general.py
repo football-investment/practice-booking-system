@@ -325,7 +325,7 @@ def get_campuses_by_location(token: str, location_id: int, include_inactive: boo
     try:
         url = f"{API_BASE_URL}/api/v1/admin/locations/{location_id}/campuses"
         params = {"include_inactive": include_inactive}
-        response = requests.get(url, headers={"Authorization": f"Bearer {token}"}, params=params, timeout=10)
+        response = requests.get(url, headers={"Authorization": f"Bearer {token}"}, params=params, timeout=API_TIMEOUT)
 
         if response.status_code == 200:
             return True, response.json()
@@ -340,7 +340,7 @@ def update_campus(token: str, campus_id: int, data: Dict) -> Tuple[bool, Optiona
     """Update campus"""
     try:
         url = f"{API_BASE_URL}/api/v1/admin/campuses/{campus_id}"
-        response = requests.put(url, json=data, headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        response = requests.put(url, json=data, headers={"Authorization": f"Bearer {token}"}, timeout=API_TIMEOUT)
 
         if response.status_code == 200:
             return True, None, response.json()
@@ -355,7 +355,7 @@ def delete_campus(token: str, campus_id: int) -> Tuple[bool, Optional[str]]:
     """Delete campus (soft delete)"""
     try:
         url = f"{API_BASE_URL}/api/v1/admin/campuses/{campus_id}"
-        response = requests.delete(url, headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        response = requests.delete(url, headers={"Authorization": f"Bearer {token}"}, timeout=API_TIMEOUT)
 
         if response.status_code == 204:
             return True, None
@@ -370,7 +370,7 @@ def create_campus(token: str, location_id: int, data: Dict) -> Tuple[bool, Optio
     """Create new campus within a location"""
     try:
         url = f"{API_BASE_URL}/api/v1/admin/locations/{location_id}/campuses"
-        response = requests.post(url, json=data, headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        response = requests.post(url, json=data, headers={"Authorization": f"Bearer {token}"}, timeout=API_TIMEOUT)
 
         if response.status_code == 201:
             return True, None, response.json()

@@ -420,17 +420,6 @@ class ResultProcessor:
 
         db.flush()
 
-        # ============================================================================
-        # KNOCKOUT PROGRESSION: Advance winner to next round
-        # ============================================================================
-        if session.tournament_phase == "Knockout Stage":
-            self._advance_knockout_winner(
-                db=db,
-                session=session,
-                tournament=tournament,
-                rankings=rankings
-            )
-
         return {
             "derived_rankings": derived_rankings,
             "recorded_at": recorded_at
@@ -930,69 +919,3 @@ rankings = result_processor.process_results(
     results=results
 )
 """
-
-    def _advance_knockout_winner(
-        self,
-        db: Session,
-        session: SessionModel,
-        tournament: Semester,
-        rankings: List[Tuple[int, int]]
-    ) -> None:
-        """
-        🏆 Advance knockout winner to next round.
-
-        After a knockout match completes, this function:
-        1. Identifies the winner (rank 1)
-        2. Finds the next round match that needs this winner
-        3. Updates next round's participant_user_ids
-
-        Knockout Structure Logic:
-        - Semifinal winners → Final
-        - Final winner → Champion (no next match)
-
-        Args:
-            db: Database session
-            session: Current completed knockout match
-            tournament: Tournament (Semester)
-            rankings: [(user_id, rank), ...] - winner has rank=1
-        """
-        # Get the winner (rank 1)
-        winner = next((user_id for user_id, rank in rankings if rank == 1), None)
-
-        if not winner:
-            print(f"⚠️ No winner found for knockout match {session.id}")
-            return
-
-        # Determine next round
-        current_round = session.tournament_round
-        if not current_round:
-            print(f"⚠️ No tournament_round set for session {session.id}")
-            return
-
-        next_round = current_round + 1
-
-        # Find the next match that this winner should advance to
-        # For semifinals (Round of 4), there are 2 matches advancing to 1 Final
-        # For Final (Round of 2), there is no next match
-
-        next_match = db.query(SessionModel).filter(
-            SessionModel.semester_id == tournament.id,
-            SessionModel.tournament_phase == "Knockout Stage",
-            SessionModel.tournament_round == next_round
-        ).order_by(SessionModel.id).first()
-
-        if not next_match:
-            # This is the Final - no next match
-            print(f"✅ Match {session.id} is the Final. Winner: user_id {winner}")
-            return
-
-        # Update next match's participant_user_ids
-        if next_match.participant_user_ids is None:
-            next_match.participant_user_ids = [winner]
-        elif winner not in next_match.participant_user_ids:
-            next_match.participant_user_ids.append(winner)
-
-        db.flush()
-
-        print(f"✅ Advanced user_id {winner} to next round (session {next_match.id})")
-        print(f"   Next match participants: {next_match.participant_user_ids}")

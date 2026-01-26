@@ -26,7 +26,8 @@ from api_helpers_tournaments import (
     get_tournament_enrollment_count,
     generate_tournament_sessions,
     preview_tournament_sessions,
-    delete_generated_sessions
+    delete_generated_sessions,
+    save_tournament_reward_config
 )
 from components.admin.tournament_constants import GAME_TYPE_OPTIONS
 from components.admin.tournament_approval import render_instructor_applications_section
@@ -35,6 +36,7 @@ from components.admin.tournament_creation import (
     show_close_enrollment_dialog,
     show_start_tournament_dialog
 )
+from components.admin.reward_config_editor import render_reward_config_editor
 
 
 def get_user_names_from_db(user_ids: List[int]) -> Dict[int, str]:
@@ -230,7 +232,7 @@ def render_tournament_list(token: str):
                     pass
 
             # Action buttons at top
-            btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
+            btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns(5)
             with btn_col1:
                 if st.button("✏️", key=f"edit_tournament_{tournament['id']}", help="Edit tournament"):
                     st.session_state['edit_tournament_id'] = tournament['id']
@@ -246,6 +248,16 @@ def render_tournament_list(token: str):
                         st.session_state['edit_schedule_tournament_name'] = tournament.get('name', 'Unknown')
                         show_edit_schedule_dialog()
             with btn_col3:
+                # Reward Config edit button (always available)
+                reward_config = tournament.get('reward_config')
+                button_label = "🎁" if reward_config else "➕"
+                button_help = "Edit reward configuration (skills & badges)" if reward_config else "Add reward configuration"
+                if st.button(button_label, key=f"reward_config_{tournament['id']}", help=button_help):
+                    st.session_state['edit_reward_config_tournament_id'] = tournament['id']
+                    st.session_state['edit_reward_config_tournament_name'] = tournament.get('name', 'Unknown')
+                    st.session_state['edit_reward_config_existing'] = reward_config
+                    st.rerun()
+            with btn_col4:
                 # Cancel Tournament button (refund flow) - available before COMPLETED
                 can_cancel = tournament.get('tournament_status') not in ['COMPLETED', 'CANCELLED']
                 if can_cancel:
@@ -254,7 +266,7 @@ def render_tournament_list(token: str):
                         st.session_state['cancel_tournament_name'] = tournament.get('name', 'Untitled')
                         st.session_state['cancel_tournament_status'] = tournament.get('tournament_status', 'N/A')
                         show_cancel_tournament_dialog()
-            with btn_col4:
+            with btn_col5:
                 if st.button("🗑️", key=f"delete_tournament_{tournament['id']}", help="Delete tournament"):
                     st.session_state['delete_tournament_id'] = tournament['id']
                     st.session_state['delete_tournament_name'] = tournament.get('name', 'Untitled')
@@ -476,6 +488,15 @@ def render_tournament_list(token: str):
             reward_policy_snapshot = tournament.get('reward_policy_snapshot')
             reward_config = tournament.get('reward_config')
 
+            # 🐛 DEBUG: Show what we received
+            st.write(f"🐛 DEBUG: reward_policy_snapshot exists: {reward_policy_snapshot is not None}")
+            st.write(f"🐛 DEBUG: reward_config exists: {reward_config is not None}")
+            if reward_config:
+                st.write(f"🐛 DEBUG: reward_config type: {type(reward_config)}")
+                st.write(f"🐛 DEBUG: reward_config keys: {list(reward_config.keys()) if isinstance(reward_config, dict) else 'NOT A DICT'}")
+                skill_mappings = reward_config.get('skill_mappings', []) if isinstance(reward_config, dict) else []
+                st.write(f"🐛 DEBUG: skill_mappings count: {len(skill_mappings)}")
+
             # Show rewards if either V1 snapshot or V2 config exists
             if reward_policy_snapshot or reward_config:
                 st.caption("🎁 **Reward Configuration Details**")
@@ -563,6 +584,11 @@ def render_tournament_list(token: str):
                             with st.expander(f"{category} ({len(skills)} skills)"):
                                 for skill in skills:
                                     st.write(f"• {skill}")
+            else:
+                # No reward config exists - show info message
+                st.divider()
+                st.caption("🎁 **Reward Configuration Details**")
+                st.info("⚠️ No V2 reward configuration set for this tournament. Use the ➕ button at the top to add one.")
 
             # Show schedule configuration if set
             match_duration = tournament.get('match_duration_minutes')
@@ -1475,6 +1501,9 @@ def render_tournament_list(token: str):
 
     if 'edit_schedule_tournament_id' in st.session_state:
         show_edit_schedule_dialog()
+
+    if 'edit_reward_config_tournament_id' in st.session_state:
+        show_edit_reward_config_dialog(token)
 
     # ============================================================================
     # ENROLLMENT VIEWER MODALS: Check if any enrollment viewer modals should be opened
@@ -3290,6 +3319,78 @@ def show_edit_schedule_dialog():
             if 'edit_schedule_tournament_name' in st.session_state:
                 del st.session_state['edit_schedule_tournament_name']
             st.rerun()
+
+
+@st.dialog("🎁 Edit Reward Configuration", width="large")
+def show_edit_reward_config_dialog(token: str):
+    """
+    Dialog for editing tournament reward configuration (skills, weights, badges).
+    Allows admin to modify reward config AFTER tournament creation.
+
+    User requirement: "elméletileg admin tud mindent változtatni!!! utolag is modosíthatoak a skillek és a weight is!"
+    """
+    tournament_id = st.session_state.get('edit_reward_config_tournament_id')
+    tournament_name = st.session_state.get('edit_reward_config_tournament_name', 'Unknown')
+    existing_config = st.session_state.get('edit_reward_config_existing')
+
+    st.write(f"**Tournament**: {tournament_name}")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    # Render the reward config editor with existing config
+    # Use unique key_prefix to avoid conflicts with tournament generator form
+    reward_config, is_valid = render_reward_config_editor(initial_config=existing_config, key_prefix=f"dialog_{tournament_id}_")
+
+    st.divider()
+
+    # Action buttons
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("💾 Save Configuration", type="primary", disabled=not is_valid, width="stretch"):
+            if reward_config and is_valid:
+                # Convert to dict for API
+                config_dict = reward_config.model_dump(mode="json")
+
+                # Save via API
+                success, error, saved_config = save_tournament_reward_config(
+                    token,
+                    tournament_id,
+                    config_dict
+                )
+
+                if success:
+                    st.success("✅ Reward configuration saved successfully!")
+                    time_module.sleep(1)
+
+                    # Clear session state and close dialog
+                    if 'edit_reward_config_tournament_id' in st.session_state:
+                        del st.session_state['edit_reward_config_tournament_id']
+                    if 'edit_reward_config_tournament_name' in st.session_state:
+                        del st.session_state['edit_reward_config_tournament_name']
+                    if 'edit_reward_config_existing' in st.session_state:
+                        del st.session_state['edit_reward_config_existing']
+
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to save configuration: {error}")
+            else:
+                st.warning("⚠️ Please select at least 1 skill to enable configuration")
+
+    with col2:
+        if st.button("❌ Cancel", width="stretch"):
+            # Clear session state and close dialog
+            if 'edit_reward_config_tournament_id' in st.session_state:
+                del st.session_state['edit_reward_config_tournament_id']
+            if 'edit_reward_config_tournament_name' in st.session_state:
+                del st.session_state['edit_reward_config_tournament_name']
+            if 'edit_reward_config_existing' in st.session_state:
+                del st.session_state['edit_reward_config_existing']
+            st.rerun()
+
+    # Show validation warning
+    if not is_valid:
+        st.warning("⚠️ At least 1 skill must be selected to save the configuration")
 
 
 @st.dialog("👥 Enrolled Players")

@@ -71,22 +71,8 @@ def test_head_to_head_ranking():
         print(f"✅ Player A: {player_a_name} (ID: {player_a_id})")
         print(f"✅ Player B: {player_b_name} (ID: {player_b_id})")
 
-        # Step 3: Clear existing rankings for clean test
-        print("\n[3] Clearing existing rankings for test players...")
-        db.execute(text("""
-            DELETE FROM tournament_rankings
-            WHERE tournament_id = :tournament_id
-            AND user_id IN (:player_a_id, :player_b_id)
-        """), {
-            "tournament_id": tournament_id,
-            "player_a_id": player_a_id,
-            "player_b_id": player_b_id
-        })
-        db.commit()
-        print("✅ Cleared existing rankings")
-
-        # Step 4: Find a tournament session with game results
-        print("\n[4] Finding tournament session...")
+        # Step 3: Find a tournament session with game results
+        print("\n[3] Finding tournament session...")
         result = db.execute(text("""
             SELECT id, game_results
             FROM sessions
@@ -109,8 +95,8 @@ def test_head_to_head_ranking():
         print(f"✅ Found session ID: {session_id}")
         print(f"   Game results: {game_results}")
 
-        # Step 5: Check ranking updates
-        print("\n[5] Checking tournament_rankings table...")
+        # Step 4: Check ranking updates
+        print("\n[4] Checking tournament_rankings table...")
         result = db.execute(text("""
             SELECT
                 user_id,
@@ -153,7 +139,7 @@ def test_head_to_head_ranking():
             print(f"  Goals: {goals_for} for, {goals_against} against")
             print(f"  Goal Diff: {goals_for - goals_against}")
 
-        # Step 6: Validate results
+        # Step 5: Validate results
         print("\n" + "=" * 80)
         print("VALIDATION")
         print("=" * 80)

@@ -12,7 +12,7 @@ from typing import Dict, Any, List
 
 from .....database import get_db
 from .....models.semester import Semester
-from .....models.user import User
+from .....models.user import User, UserRole
 from .....dependencies import get_current_active_user
 from .....schemas.reward_config import TournamentRewardConfig, REWARD_CONFIG_TEMPLATES
 
@@ -89,7 +89,7 @@ def save_tournament_reward_config(
         400: If validation fails (no enabled skills, invalid config, etc.)
     """
     # Check if user is admin
-    if current_user.role != "ADMIN":
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admins can configure tournament rewards")
 
     # Get tournament

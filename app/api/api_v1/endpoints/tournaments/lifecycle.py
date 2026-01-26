@@ -345,6 +345,16 @@ def transition_tournament_status(
     # AUTO-GENERATE SESSIONS when transitioning to IN_PROGRESS
     # ============================================================================
     if request.new_status == "IN_PROGRESS":
+        # 📸 SAVE REWARD POLICY SNAPSHOT FIRST (lock reward_config for this tournament)
+        # This MUST happen BEFORE session generation and ALWAYS when entering IN_PROGRESS
+        # This prevents admin from changing reward config after tournament starts
+        if tournament.reward_config and not tournament.reward_policy_snapshot:
+            tournament.reward_policy_snapshot = tournament.reward_config
+            db.flush()
+            print(f"📸 REWARD POLICY SNAPSHOT saved for tournament {tournament_id}:")
+            print(f"   Skills: {len(tournament.reward_config.get('skill_mappings', []))}")
+            print(f"   Template: {tournament.reward_config.get('template_name', 'Custom')}")
+
         # Check if we need to regenerate sessions
         from app.models.session import Session as SessionModel
 
@@ -423,7 +433,7 @@ def transition_tournament_status(
                 }
             }
 
-            # 💾 SAVE SNAPSHOT to database
+            # 💾 SAVE ENROLLMENT SNAPSHOT to database
             tournament.enrollment_snapshot = enrollment_snapshot
             db.flush()  # Save snapshot immediately before session generation
 

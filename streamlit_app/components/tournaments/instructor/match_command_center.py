@@ -18,6 +18,12 @@ import streamlit as st
 import requests
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import config
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from config import API_TIMEOUT
 import re
 
 
@@ -111,7 +117,7 @@ def get_active_match(token: str, tournament_id: int) -> Optional[Dict[str, Any]]
     try:
         url = f"http://localhost:8000/api/v1/tournaments/{tournament_id}/active-match"
         st.write(f"🌐 Calling: {url}")  # DEBUG in UI
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=API_TIMEOUT)
         st.write(f"📡 Response: {response.status_code}")  # DEBUG in UI
         if response.status_code == 200:
             return response.json()
