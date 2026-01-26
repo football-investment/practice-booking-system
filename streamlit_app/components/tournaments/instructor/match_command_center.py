@@ -1594,32 +1594,60 @@ def render_head_to_head_form(
             {"user_id": player_b['user_id'], "score": score_b}
         ]
 
-    else:  # WIN_LOSS
-        # Winner selection
-        st.markdown("##### Select Winner")
+    else:  # WIN_LOSS → Changed to SCORE_BASED
+        # Score input for both players
+        st.markdown("##### Match Result")
+        st.caption("Enter the final score for each player")
 
-        winner_choice = st.radio(
-            "Who won?",
-            options=[player_a['name'], player_b['name'], "Draw/Tie"],
-            key=f"winner_{session_id}",
-            horizontal=True
-        )
+        col_a, col_b = st.columns(2)
 
-        if winner_choice == player_a['name']:
-            results_list = [
-                {"user_id": player_a['user_id'], "result": "WIN"},
-                {"user_id": player_b['user_id'], "result": "LOSS"}
-            ]
-        elif winner_choice == player_b['name']:
-            results_list = [
-                {"user_id": player_b['user_id'], "result": "WIN"},
-                {"user_id": player_a['user_id'], "result": "LOSS"}
-            ]
-        else:  # Draw
-            results_list = [
-                {"user_id": player_a['user_id'], "result": "DRAW"},
-                {"user_id": player_b['user_id'], "result": "DRAW"}
-            ]
+        with col_a:
+            st.markdown(f"**{player_a['name']}**")
+            score_a = st.number_input(
+                "Score",
+                min_value=0,
+                max_value=100,
+                value=0,
+                step=1,
+                key=f"score_a_{session_id}",
+                label_visibility="collapsed"
+            )
+
+        with col_b:
+            st.markdown(f"**{player_b['name']}**")
+            score_b = st.number_input(
+                "Score",
+                min_value=0,
+                max_value=100,
+                value=0,
+                step=1,
+                key=f"score_b_{session_id}",
+                label_visibility="collapsed"
+            )
+
+        # Build SCORE_BASED results
+        results_list = [
+            {
+                "user_id": player_a['user_id'],
+                "score": score_a,
+                "opponent_score": score_b
+            },
+            {
+                "user_id": player_b['user_id'],
+                "score": score_b,
+                "opponent_score": score_a
+            }
+        ]
+
+        # Show predicted winner
+        if score_a > score_b:
+            st.success(f"✅ Winner: **{player_a['name']}** ({score_a} - {score_b})")
+        elif score_b > score_a:
+            st.success(f"✅ Winner: **{player_b['name']}** ({score_b} - {score_a})")
+        elif score_a == score_b and score_a > 0:
+            st.info(f"🤝 Draw/Tie ({score_a} - {score_b})")
+        else:
+            st.warning("⚠️ Enter scores to determine winner")
 
     # Optional match notes
     match_notes = st.text_area(

@@ -341,6 +341,15 @@ class ResultProcessor:
         from app.services.tournament.points_calculator_service import PointsCalculatorService
         points_calculator = PointsCalculatorService(db)
 
+        # Extract scores from raw_results if SCORE_BASED
+        scores_map = {}
+        if raw_results and len(raw_results) > 0 and "score" in raw_results[0]:
+            for result in raw_results:
+                scores_map[result["user_id"]] = {
+                    "goals_for": result.get("score", 0),
+                    "goals_against": result.get("opponent_score", 0)
+                }
+
         for user_id, rank in rankings:
             points = points_calculator.calculate_points(
                 session_id=session.id,
@@ -358,6 +367,21 @@ class ResultProcessor:
 
             # Add points to total
             ranking.points += Decimal(str(points))
+
+            # Update wins/losses/draws based on rank
+            if len(rankings) == 2:  # HEAD_TO_HEAD 1v1
+                if rank == 1:
+                    ranking.wins += 1
+                elif rank == 2:
+                    ranking.losses += 1
+                else:
+                    # Both rank 1 = tie
+                    ranking.draws += 1
+
+            # Update goals for/against if SCORE_BASED
+            if user_id in scores_map:
+                ranking.goals_for += scores_map[user_id]["goals_for"]
+                ranking.goals_against += scores_map[user_id]["goals_against"]
 
         db.flush()
 
