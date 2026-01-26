@@ -544,6 +544,18 @@ async def get_tournament_leaderboard(
 
         if any(s.participant_user_ids for s in knockout_sessions):
             group_stage_finalized = True
+    else:
+        # ✅ NEW: For pure KNOCKOUT tournaments (no group stage)
+        # Check if tournament phase is "Knockout" - if so, bracket is always "finalized"
+        knockout_sessions = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True,
+            SessionModel.tournament_phase == "Knockout"
+        ).all()
+
+        if knockout_sessions:
+            # Pure knockout tournament - bracket is finalized from the start
+            group_stage_finalized = True
 
     # ============================================================================
     # CALCULATE FINAL STANDINGS (for knockout tournaments that are complete)
@@ -701,6 +713,76 @@ async def get_tournament_leaderboard(
             wins_rankings = game_results_data.get('wins_rankings', [])
 
     # ============================================================================
+    # ✅ NEW: BUILD KNOCKOUT BRACKET STRUCTURE (for pure knockout tournaments)
+    # ============================================================================
+    knockout_bracket = None
+
+    if group_stage_finalized and knockout_sessions and not group_sessions:
+        # Pure knockout tournament - build bracket from sessions
+        from collections import defaultdict
+
+        # Group sessions by round
+        rounds = defaultdict(list)
+        for session in knockout_sessions:
+            round_num = session.tournament_round or 1
+            rounds[round_num].append(session)
+
+        # Build bracket structure
+        bracket_rounds = []
+        for round_num in sorted(rounds.keys()):
+            matches = []
+            for session in sorted(rounds[round_num], key=lambda s: s.tournament_match_number or 0):
+                match_data = {
+                    'session_id': session.id,
+                    'title': session.title,
+                    'round_name': session.game_type,
+                    'match_number': session.tournament_match_number,
+                    'participants': [],
+                    'winner': None,
+                    'completed': session.game_results is not None
+                }
+
+                # Add participant details
+                if session.participant_user_ids:
+                    from app.models.user import User as UserModel
+                    for user_id in session.participant_user_ids:
+                        user = db.query(UserModel).filter(UserModel.id == user_id).first()
+                        if user:
+                            match_data['participants'].append({
+                                'user_id': user_id,
+                                'name': user.name or user.email
+                            })
+
+                # If match is completed, determine winner
+                if session.game_results:
+                    results = session.game_results
+                    if isinstance(results, str):
+                        import json
+                        results = json.loads(results)
+
+                    raw_results = results.get('raw_results', [])
+                    if len(raw_results) == 2 and 'score' in raw_results[0]:
+                        p1_id = raw_results[0]['user_id']
+                        p1_score = raw_results[0]['score']
+                        p2_id = raw_results[1]['user_id']
+                        p2_score = raw_results[1]['score']
+
+                        if p1_score > p2_score:
+                            match_data['winner'] = p1_id
+                        elif p2_score > p1_score:
+                            match_data['winner'] = p2_id
+
+                matches.append(match_data)
+
+            bracket_rounds.append({
+                'round': round_num,
+                'round_name': matches[0]['round_name'] if matches else f'Round {round_num}',
+                'matches': matches
+            })
+
+        knockout_bracket = bracket_rounds
+
+    # ============================================================================
     # RETURN LEADERBOARD
     # ============================================================================
     return {
@@ -710,6 +792,7 @@ async def get_tournament_leaderboard(
         "leaderboard": leaderboard,
         "group_standings": group_standings if group_standings else None,  # ✅ NEW
         "group_stage_finalized": group_stage_finalized,  # ✅ NEW
+        "knockout_bracket": knockout_bracket,  # ✅ NEW: Bracket structure for pure knockout
         "final_standings": final_standings,  # ✅ NEW
         "performance_rankings": performance_rankings,  # 🏃 NEW: Best individual performance
         "wins_rankings": wins_rankings,  # 🏆 NEW: Most round victories

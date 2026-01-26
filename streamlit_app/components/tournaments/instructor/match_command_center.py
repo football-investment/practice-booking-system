@@ -2127,58 +2127,134 @@ def render_group_results_table(group_standings: dict):
 # ============================================================================
 
 def render_knockout_bracket(leaderboard_data: dict):
-    """Display knockout bracket (like World Cup/Euro style)"""
+    """Display knockout bracket (supports both pure knockout and group+knockout)"""
     st.markdown("### 🏆 Knockout Stage Bracket")
-    st.info("✅ Group stage finalized! Top 2 from each group advance to knockout rounds.")
-    st.markdown("---")
 
-    # Get user names from group standings
-    user_names = {}
-    if leaderboard_data.get('group_standings'):
-        for group_id, standings in leaderboard_data['group_standings'].items():
-            for player in standings:
-                user_names[player['user_id']] = player['name']
+    # Check if this is pure knockout or group+knockout
+    group_standings = leaderboard_data.get('group_standings')
+    knockout_bracket = leaderboard_data.get('knockout_bracket')
 
-    # Hardcoded bracket structure for 4-player knockout (2 semifinals + 1 final)
-    # In real implementation, this would be fetched from API
-
-    st.markdown("#### ⚔️ Semifinals")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("**Match 1**")
-        # Get top 2 from each group
-        groups = sorted(leaderboard_data['group_standings'].items())
-        if len(groups) >= 2:
-            a1_id = groups[0][1][0]['user_id']  # Group A winner
-            b2_id = groups[1][1][1]['user_id'] if len(groups[1][1]) >= 2 else None  # Group B runner-up
-
-            if a1_id and b2_id:
-                st.markdown(f"🥇 **{user_names.get(a1_id)}** (Group A #1)")
-                st.markdown("*vs*")
-                st.markdown(f"🥈 **{user_names.get(b2_id)}** (Group B #2)")
-            else:
-                st.markdown("*TBD*")
-
-    with col2:
-        st.markdown("**Match 2**")
-        if len(groups) >= 2:
-            b1_id = groups[1][1][0]['user_id']  # Group B winner
-            a2_id = groups[0][1][1]['user_id'] if len(groups[0][1]) >= 2 else None  # Group A runner-up
-
-            if b1_id and a2_id:
-                st.markdown(f"🥇 **{user_names.get(b1_id)}** (Group B #1)")
-                st.markdown("*vs*")
-                st.markdown(f"🥈 **{user_names.get(a2_id)}** (Group A #2)")
-            else:
-                st.markdown("*TBD*")
+    if group_standings:
+        st.info("✅ Group stage finalized! Top 2 from each group advance to knockout rounds.")
+    else:
+        st.info("✅ Single elimination tournament - seeded bracket")
 
     st.markdown("---")
 
-    st.markdown("#### 🥇 Final")
-    st.markdown("*Winners from Semifinals will compete for the championship*")
-    st.markdown("🏆 **TBD** vs **TBD**")
+    # ✅ NEW: Use bracket data from API
+    if knockout_bracket:
+        # Display each round
+        for round_data in knockout_bracket:
+            round_num = round_data['round']
+            round_name = round_data['round_name']
+            matches = round_data['matches']
+
+            # Special icon for each round type
+            if 'final' in round_name.lower() and '3rd' not in round_name.lower():
+                icon = "🏆"
+            elif '3rd' in round_name.lower() or 'bronze' in round_name.lower():
+                icon = "🥉"
+            elif 'semi' in round_name.lower():
+                icon = "⚔️"
+            else:
+                icon = "🎯"
+
+            st.markdown(f"#### {icon} {round_name}")
+
+            # Display matches in columns (max 4 per row)
+            num_matches = len(matches)
+            cols_per_row = min(4, num_matches)
+
+            if cols_per_row > 0:
+                cols = st.columns(cols_per_row)
+
+                for idx, match in enumerate(matches):
+                    with cols[idx % cols_per_row]:
+                        match_number = match.get('match_number', idx + 1)
+                        participants = match.get('participants', [])
+                        winner = match.get('winner')
+                        completed = match.get('completed', False)
+
+                        st.markdown(f"**Match {match_number}**")
+
+                        if participants and len(participants) >= 2:
+                            # Show actual participants
+                            p1 = participants[0]
+                            p2 = participants[1]
+
+                            # Highlight winner if match is completed
+                            if completed and winner:
+                                if winner == p1['user_id']:
+                                    st.markdown(f"✅ **{p1['name']}** (Winner)")
+                                    st.markdown(f"❌ {p2['name']}")
+                                elif winner == p2['user_id']:
+                                    st.markdown(f"❌ {p1['name']}")
+                                    st.markdown(f"✅ **{p2['name']}** (Winner)")
+                                else:
+                                    # No winner yet
+                                    st.markdown(f"🔵 **{p1['name']}**")
+                                    st.markdown("*vs*")
+                                    st.markdown(f"🔵 **{p2['name']}**")
+                            else:
+                                # Match not completed yet
+                                st.markdown(f"🔵 **{p1['name']}**")
+                                st.markdown("*vs*")
+                                st.markdown(f"🔵 **{p2['name']}**")
+                        else:
+                            # Participants TBD (determined by previous round)
+                            st.markdown("🔄 *TBD*")
+                            st.caption("Winner from previous round")
+
+                        st.markdown("---")
+
+            st.markdown("")  # Add spacing between rounds
+
+    else:
+        # ✅ FALLBACK: Old hardcoded logic for group+knockout (legacy support)
+        # Get user names from group standings
+        user_names = {}
+        if group_standings:
+            for group_id, standings in group_standings.items():
+                for player in standings:
+                    user_names[player['user_id']] = player['name']
+
+        st.markdown("#### ⚔️ Semifinals")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**Match 1**")
+            # Get top 2 from each group
+            groups = sorted(group_standings.items())
+            if len(groups) >= 2:
+                a1_id = groups[0][1][0]['user_id']  # Group A winner
+                b2_id = groups[1][1][1]['user_id'] if len(groups[1][1]) >= 2 else None  # Group B runner-up
+
+                if a1_id and b2_id:
+                    st.markdown(f"🥇 **{user_names.get(a1_id)}** (Group A #1)")
+                    st.markdown("*vs*")
+                    st.markdown(f"🥈 **{user_names.get(b2_id)}** (Group B #2)")
+                else:
+                    st.markdown("*TBD*")
+
+        with col2:
+            st.markdown("**Match 2**")
+            if len(groups) >= 2:
+                b1_id = groups[1][1][0]['user_id']  # Group B winner
+                a2_id = groups[0][1][1]['user_id'] if len(groups[0][1]) >= 2 else None  # Group A runner-up
+
+                if b1_id and a2_id:
+                    st.markdown(f"🥇 **{user_names.get(b1_id)}** (Group B #1)")
+                    st.markdown("*vs*")
+                    st.markdown(f"🥈 **{user_names.get(a2_id)}** (Group A #2)")
+                else:
+                    st.markdown("*TBD*")
+
+        st.markdown("---")
+
+        st.markdown("#### 🥇 Final")
+        st.markdown("*Winners from Semifinals will compete for the championship*")
+        st.markdown("🏆 **TBD** vs **TBD**")
 
 
 # ============================================================================
@@ -2197,6 +2273,7 @@ def render_leaderboard_sidebar(token: str, tournament_id: int):
 
     leaderboard = leaderboard_data.get("leaderboard", [])
     group_standings = leaderboard_data.get("group_standings")  # ✅ NEW
+    knockout_bracket = leaderboard_data.get("knockout_bracket")  # ✅ NEW: Pure knockout tournaments
 
     # Progress bar
     total = leaderboard_data.get("total_matches", 0)
@@ -2211,9 +2288,13 @@ def render_leaderboard_sidebar(token: str, tournament_id: int):
     # ✅ Check if group stage is finalized (from leaderboard response)
     group_stage_finalized = leaderboard_data.get("group_stage_finalized", False)
 
-    # ✅ NEW: Show group standings OR knockout bracket
-    if group_standings and group_stage_finalized:
-        # Show knockout bracket instead of group standings
+    # ✅ NEW: Show knockout bracket (for pure knockout or group+knockout tournaments)
+    if knockout_bracket and group_stage_finalized:
+        # Pure knockout tournament or group stage finalized → show bracket
+        render_knockout_bracket(leaderboard_data)
+        return
+    elif group_standings and group_stage_finalized:
+        # Group stage finalized but no bracket yet (should not happen)
         render_knockout_bracket(leaderboard_data)
         return
     elif group_standings:
