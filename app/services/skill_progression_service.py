@@ -127,7 +127,21 @@ def get_baseline_skills(db: Session, user_id: int) -> Dict[str, float]:
 
     Returns:
         Dict of skill_key → baseline_value (0-100)
-        Missing skills default to DEFAULT_BASELINE
+
+    ⚠️ FALLBACK BEHAVIOR FOR MISSING SKILLS:
+        If a skill is NOT found in UserLicense.football_skills, it defaults to DEFAULT_BASELINE (50.0).
+        This is INTENTIONAL and handles cases where:
+        - User completed onboarding with old skill set (before migration to 29 skills)
+        - User's onboarding data is incomplete
+        - New skills were added to system after user onboarding
+
+        The DEFAULT_BASELINE (50.0) represents "neutral" skill level - neither strong nor weak.
+        Tournament placements will then adjust this value up or down based on performance.
+
+    Example:
+        User has onboarding data: {"ball_control": 70, "dribbling": 65}
+        System now has 29 skills total.
+        Result: {"ball_control": 70.0, "dribbling": 65.0, "speed": 50.0, ...other skills... → 50.0}
     """
     # Get active LFA_FOOTBALL_PLAYER license
     license = db.query(UserLicense).filter(
@@ -137,12 +151,13 @@ def get_baseline_skills(db: Session, user_id: int) -> Dict[str, float]:
     ).first()
 
     if not license or not license.football_skills:
-        # No onboarding data, return defaults
+        # 🔒 GUARD: No onboarding data at all → return all skills at DEFAULT_BASELINE
         return {skill_key: DEFAULT_BASELINE for skill_key in get_all_skill_keys()}
 
     baseline_skills = {}
     for skill_key in get_all_skill_keys():
-        # Handle both old format (direct values) and new format (dict with baseline)
+        # ⚠️ FALLBACK: Missing skill defaults to DEFAULT_BASELINE (50.0)
+        # This is INTENTIONAL - allows graceful handling of skill migrations
         skill_value = license.football_skills.get(skill_key, DEFAULT_BASELINE)
 
         if isinstance(skill_value, dict):

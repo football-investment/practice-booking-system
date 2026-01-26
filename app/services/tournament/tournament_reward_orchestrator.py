@@ -27,7 +27,7 @@ from app.schemas.reward_config import TournamentRewardConfig
 # Import both service modules
 from app.services.tournament import tournament_participation_service as participation_service
 from app.services.tournament import tournament_badge_service as badge_service
-from app.services.skill_progression_service import SkillProgressionService
+from app.services import skill_progression_service
 
 logger = logging.getLogger(__name__)
 
@@ -250,19 +250,16 @@ def distribute_rewards_for_user(
             UserLicense.is_active == True
         ).first()
 
+        # 🔥 V2 SKILL PROGRESSION: Skills are calculated on-the-fly from tournament placements
+        # No need to "apply" deltas - get_skill_profile() automatically calculates from all participations
         if active_license and participation_record:
-            skill_service = SkillProgressionService(db)
-            skill_service.apply_tournament_skill_deltas(
-                user_license_id=active_license.id,
-                tournament_participation_id=participation_record.id
-            )
             logger.info(
-                f"Applied skill deltas to player profile: "
-                f"user_id={user_id}, license_id={active_license.id}"
+                f"✅ V2: Skills will be calculated dynamically from placement: "
+                f"user_id={user_id}, license_id={active_license.id}, placement={participation_record.placement}"
             )
         else:
             logger.warning(
-                f"Could not apply skill deltas: "
+                f"Could not track skill progression: "
                 f"user_id={user_id}, has_license={active_license is not None}, "
                 f"has_participation={participation_record is not None}"
             )
