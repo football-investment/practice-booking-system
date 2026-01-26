@@ -288,6 +288,12 @@ def get_leaderboard(token: str, tournament_id: int) -> Optional[Dict[str, Any]]:
     )
     if response.status_code == 200:
         return response.json()
+
+    # ✅ DEBUG: Log why leaderboard failed
+    print(f"❌ get_leaderboard FAILED for tournament {tournament_id}")
+    print(f"   Status code: {response.status_code}")
+    print(f"   Response: {response.text[:500]}")
+
     return None
 
 
