@@ -471,6 +471,99 @@ def render_tournament_list(token: str):
                     if snapshot_count > 0:
                         st.write(f"   • Enrollment Snapshot: {snapshot_count} entries")
 
+            # 🎁 DETAILED REWARD CONFIGURATION DISPLAY
+            st.divider()
+            reward_policy_snapshot = tournament.get('reward_policy_snapshot')
+            reward_config = tournament.get('reward_config')
+
+            # Show rewards if either V1 snapshot or V2 config exists
+            if reward_policy_snapshot or reward_config:
+                st.caption("🎁 **Reward Configuration Details**")
+
+                # V1 Policy Snapshot (Placement Rewards - XP & Credits)
+                if reward_policy_snapshot and isinstance(reward_policy_snapshot, dict):
+                    placement_rewards = reward_policy_snapshot.get('placement_rewards', {})
+
+                    if placement_rewards:
+                        col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+
+                        with col_r1:
+                            st.caption("🥇 **1st Place**")
+                            first = placement_rewards.get('1ST', {})
+                            if first:
+                                st.write(f"⭐ {first.get('xp', 0)} XP")
+                                st.write(f"💎 {first.get('credits', 0)} credits")
+
+                        with col_r2:
+                            st.caption("🥈 **2nd Place**")
+                            second = placement_rewards.get('2ND', {})
+                            if second:
+                                st.write(f"⭐ {second.get('xp', 0)} XP")
+                                st.write(f"💎 {second.get('credits', 0)} credits")
+
+                        with col_r3:
+                            st.caption("🥉 **3rd Place**")
+                            third = placement_rewards.get('3RD', {})
+                            if third:
+                                st.write(f"⭐ {third.get('xp', 0)} XP")
+                                st.write(f"💎 {third.get('credits', 0)} credits")
+
+                        with col_r4:
+                            st.caption("⚽ **Participant**")
+                            participant = placement_rewards.get('PARTICIPANT', {})
+                            if participant:
+                                st.write(f"⭐ {participant.get('xp', 0)} XP")
+                                st.write(f"💎 {participant.get('credits', 0)} credits")
+
+                # V2 Config (Badges & Skills)
+                if reward_config and isinstance(reward_config, dict):
+                    st.divider()
+
+                    # Badge Configuration
+                    badge_config = reward_config.get('badge_config', {})
+                    if badge_config:
+                        st.caption("🏅 **Badge Configuration**")
+
+                        col_b1, col_b2, col_b3 = st.columns(3)
+
+                        with col_b1:
+                            first_badges = badge_config.get('first_place', {}).get('badge_ids', [])
+                            if first_badges:
+                                st.write(f"🥇 1st: {len(first_badges)} badges")
+
+                        with col_b2:
+                            second_badges = badge_config.get('second_place', {}).get('badge_ids', [])
+                            if second_badges:
+                                st.write(f"🥈 2nd: {len(second_badges)} badges")
+
+                        with col_b3:
+                            third_badges = badge_config.get('third_place', {}).get('badge_ids', [])
+                            if third_badges:
+                                st.write(f"🥉 3rd: {len(third_badges)} badges")
+
+                    # Skill Mappings
+                    skill_mappings = reward_config.get('skill_mappings', [])
+                    if skill_mappings:
+                        st.caption(f"⚽ **Skill Configuration** ({len(skill_mappings)} skills)")
+
+                        # Group skills by category
+                        skill_categories = {}
+                        for mapping in skill_mappings:
+                            if mapping.get('enabled', False):
+                                category = mapping.get('category', 'Other')
+                                weight = mapping.get('weight', 1.0)
+                                skill_name = mapping.get('skill', 'Unknown')
+
+                                if category not in skill_categories:
+                                    skill_categories[category] = []
+                                skill_categories[category].append(f"{skill_name} (×{weight})")
+
+                        # Display skills by category
+                        for category, skills in skill_categories.items():
+                            with st.expander(f"{category} ({len(skills)} skills)"):
+                                for skill in skills:
+                                    st.write(f"• {skill}")
+
             # Show schedule configuration if set
             match_duration = tournament.get('match_duration_minutes')
             break_duration = tournament.get('break_duration_minutes')
