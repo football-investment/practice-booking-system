@@ -68,45 +68,36 @@ def render_reward_distribution_section(token: str, tournament: Dict):
                         rewards_count = result.get('rewards_distributed_count', 0)
                         summary = result.get('summary', {})
 
+                        # ✅ NEW: Always show beautiful summary, just different message
                         if rewards_count == 0:
                             # Already distributed - show info (NO animation)
-                            st.info(f"ℹ️ **Rewards were already distributed for {tournament_name}**")
-                            st.caption("Previously distributed rewards:")
-
-                            col_a, col_b, col_c, col_d = st.columns(4)
-                            with col_a:
-                                st.metric("👥 Participants", result.get('total_participants', 0))
-                            with col_b:
-                                st.metric("⭐ Total XP", summary.get('total_xp_awarded', 0))
-                            with col_c:
-                                st.metric("💰 Total Credits", summary.get('total_credits_awarded', 0))
-                            with col_d:
-                                st.metric("🏆 Badges", summary.get('total_badges_awarded', 0))
-
+                            st.success(f"✅ **Rewards Distribution Summary for {tournament_name}**")
+                            st.caption("💡 Rewards were previously distributed. Summary displayed below:")
                         else:
                             # New distribution - show success (WITH animation)
                             st.success(f"✅ **Rewards distributed successfully to {rewards_count} participants!**")
                             st.balloons()
 
-                            # Display distribution summary
-                            col_a, col_b, col_c, col_d = st.columns(4)
+                        # Display distribution summary (ALWAYS shown now)
+                        col_a, col_b, col_c, col_d = st.columns(4)
 
-                            with col_a:
-                                st.metric("👥 Participants", rewards_count)
+                        with col_a:
+                            participants = rewards_count if rewards_count > 0 else result.get('total_participants', 0)
+                            st.metric("👥 Participants", participants)
 
-                            with col_b:
-                                total_xp = summary.get('total_xp_awarded', 0)
-                                st.metric("⭐ Total XP", total_xp)
+                        with col_b:
+                            total_xp = summary.get('total_xp_awarded', 0)
+                            st.metric("⭐ Total XP", total_xp)
 
-                            with col_c:
-                                total_credits = summary.get('total_credits_awarded', 0)
-                                st.metric("💰 Total Credits", total_credits)
+                        with col_c:
+                            total_credits = summary.get('total_credits_awarded', 0)
+                            st.metric("💰 Total Credits", total_credits)
 
-                            with col_d:
-                                total_badges = summary.get('total_badges_awarded', 0)
-                                st.metric("🏆 Badges", total_badges)
+                        with col_d:
+                            total_badges = summary.get('total_badges_awarded', 0)
+                            st.metric("🏆 Badges", total_badges)
 
-                            st.info("ℹ️ Rewards distributed. Participants can view their badges and XP breakdown in their profiles.")
+                        st.info("ℹ️ Rewards distributed. Participants can view their badges and XP breakdown in their profiles.")
 
                     else:
                         st.error(f"❌ Distribution failed: {error}")
