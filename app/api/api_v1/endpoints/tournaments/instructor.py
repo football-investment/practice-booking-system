@@ -560,6 +560,7 @@ async def get_tournament_leaderboard(
     # ============================================================================
     # CALCULATE FINAL STANDINGS (for knockout tournaments that are complete)
     # ============================================================================
+    import json  # ✅ FIX: Ensure json is available in this scope
     final_standings = None
 
     if group_stage_finalized and knockout_sessions:
