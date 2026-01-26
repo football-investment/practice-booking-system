@@ -597,6 +597,10 @@ def render_my_tournament_card(token: str, tournament: Dict):
                     elif final_standings:
                         st.markdown("### 🏆 Final Standings")
 
+                        # ✅ DEBUG: Show raw data structure
+                        with st.expander("🔍 DEBUG: Final Standings Raw Data"):
+                            st.json(final_standings)
+
                         # Podium (Top 3)
                         col1, col2, col3 = st.columns(3)
 
@@ -610,7 +614,7 @@ def render_my_tournament_card(token: str, tournament: Dict):
                                     f"<div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); "
                                     f"border-radius: 10px; margin: 10px 0;'>"
                                     f"<div style='font-size: 3em;'>🥇</div>"
-                                    f"<div style='font-weight: bold; font-size: 1.2em; margin-top: 5px;'>{champion['player_name']}</div>"
+                                    f"<div style='font-weight: bold; font-size: 1.2em; margin-top: 5px;'>{champion.get('name', champion.get('player_name', 'Unknown'))}</div>"
                                     f"<div style='font-size: 0.9em; opacity: 0.9;'>Champion</div>"
                                     f"</div>",
                                     unsafe_allow_html=True
@@ -622,7 +626,7 @@ def render_my_tournament_card(token: str, tournament: Dict):
                                     f"<div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%); "
                                     f"border-radius: 10px; margin: 10px 0; margin-top: 40px;'>"
                                     f"<div style='font-size: 2.5em;'>🥈</div>"
-                                    f"<div style='font-weight: bold; font-size: 1.1em; margin-top: 5px;'>{runner_up['player_name']}</div>"
+                                    f"<div style='font-weight: bold; font-size: 1.1em; margin-top: 5px;'>{runner_up.get('name', runner_up.get('player_name', 'Unknown'))}</div>"
                                     f"<div style='font-size: 0.85em; opacity: 0.9;'>Runner-up</div>"
                                     f"</div>",
                                     unsafe_allow_html=True
@@ -634,7 +638,7 @@ def render_my_tournament_card(token: str, tournament: Dict):
                                     f"<div style='text-align: center; padding: 15px; background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%); "
                                     f"border-radius: 10px; margin: 10px 0; margin-top: 40px;'>"
                                     f"<div style='font-size: 2.5em;'>🥉</div>"
-                                    f"<div style='font-weight: bold; font-size: 1.1em; margin-top: 5px;'>{third_place['player_name']}</div>"
+                                    f"<div style='font-weight: bold; font-size: 1.1em; margin-top: 5px;'>{third_place.get('name', third_place.get('player_name', 'Unknown'))}</div>"
                                     f"<div style='font-size: 0.85em; opacity: 0.9;'>Third Place</div>"
                                     f"</div>",
                                     unsafe_allow_html=True

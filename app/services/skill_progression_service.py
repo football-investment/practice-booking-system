@@ -31,7 +31,8 @@ from ..skills_config import SKILL_CATEGORIES
 
 # Configuration constants
 MIN_SKILL_VALUE = 40.0  # Worst possible skill value (last place)
-MAX_SKILL_VALUE = 100.0  # Best possible skill value (1st place)
+MAX_SKILL_VALUE = 100.0  # Best possible skill value (1st place) - used for percentile mapping
+MAX_SKILL_CAP = 99.0  # Hard cap for final skill values (business rule)
 DEFAULT_BASELINE = 50.0  # Default if no onboarding data
 
 
@@ -56,7 +57,7 @@ def calculate_skill_value_from_placement(
                       - weight < 1.0: Skill reacts LESS strongly to placement
 
     Returns:
-        New skill value (40-100+)
+        New skill value (40-99, hard capped at 99)
 
     Formula:
         1. Calculate percentile: (placement - 1) / (total_players - 1)
@@ -83,9 +84,9 @@ def calculate_skill_value_from_placement(
         >>> calculate_skill_value_from_placement(70, 1, 10, 1, 1.0)
         85.0  # (70*0.5 + 100*0.5) = 85.0, delta = +15.0
 
-        >>> # Same but with weight=2.0 (double reactivity)
+        >>> # Same but with weight=2.0 (double reactivity) - would be 100.0 but capped at 99.0
         >>> calculate_skill_value_from_placement(70, 1, 10, 1, 2.0)
-        100.0  # delta = +15.0 * 2.0 = +30.0, result = 70 + 30 = 100.0
+        99.0  # delta = +15.0 * 2.0 = +30.0, result = 70 + 30 = 100.0 → capped at 99.0
 
         >>> # Same but with weight=0.5 (half reactivity)
         >>> calculate_skill_value_from_placement(70, 1, 10, 1, 0.5)
@@ -120,7 +121,11 @@ def calculate_skill_value_from_placement(
     # Final skill value = baseline + weighted delta
     new_skill = baseline + weighted_delta
 
-    return round(new_skill, 1)
+    # 🚨 BUSINESS RULE: Cap at MAX_SKILL_CAP (99.0)
+    # Also ensure minimum of MIN_SKILL_VALUE (40.0)
+    new_skill_capped = max(MIN_SKILL_VALUE, min(MAX_SKILL_CAP, new_skill))
+
+    return round(new_skill_capped, 1)
 
 
 def get_all_skill_keys() -> List[str]:
