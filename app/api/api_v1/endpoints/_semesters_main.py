@@ -283,7 +283,7 @@ def delete_semester(
         SemesterEnrollment.is_active == True
     ).all()
 
-    enrollment_cost = semester.enrollment_cost or 500
+    enrollment_cost = semester.enrollment_cost if semester.enrollment_cost is not None else 500
     refunded_users_count = 0
 
     for enrollment in enrollments:

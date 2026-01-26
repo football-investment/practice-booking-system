@@ -181,7 +181,7 @@ def list_available_tournaments(
             "status": tournament.status.value,
             "age_group": tournament.age_group,
             "specialization_type": tournament.specialization_type,
-            "enrollment_cost": tournament.enrollment_cost or 500,
+            "enrollment_cost": tournament.enrollment_cost if tournament.enrollment_cost is not None else 500,
             "location_id": tournament.location_id,
             "campus_id": tournament.campus_id,
             "master_instructor_id": tournament.master_instructor_id,
