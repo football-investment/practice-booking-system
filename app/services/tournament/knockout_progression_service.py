@@ -427,11 +427,14 @@ class KnockoutProgressionService:
         updated_sessions = []
 
         # Find existing Final match
+        # ✅ FIX: Match "Final" but exclude "Quarter-finals", "Semi-finals", "Bronze", "3rd Place"
         final_match = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
                 SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
                 SessionModel.title.ilike("%final%"),
+                ~SessionModel.title.ilike("%quarter-final%"),
+                ~SessionModel.title.ilike("%semi-final%"),
                 ~SessionModel.title.ilike("%bronze%"),
                 ~SessionModel.title.ilike("%3rd%")
             )
