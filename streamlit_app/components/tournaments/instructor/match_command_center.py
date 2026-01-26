@@ -1963,18 +1963,31 @@ def render_knockout_results_bracket(token: str, tournament_id: int, leaderboard_
     """Display knockout bracket results in pyramid style (bottom-up to final)"""
     # KNOCKOUT STAGE VIEWING NOT YET IMPLEMENTED
     # Endpoint GET /api/v1/tournaments/{id}/sessions is in backlog
-    st.info("🚧 **Knockout Stage Results Display Coming Soon**")
-    st.markdown("""
+
+    # Check if this is a pure knockout tournament (no group stage)
+    has_group_stage = bool(leaderboard_data.get("group_standings"))
+
+    st.info("🚧 **Tournament Bracket Visualization Coming Soon**")
+
+    available_features = [
+        "✅ Final standings with podium",
+        "✅ Match recording and scoring",
+        "✅ Leaderboard rankings"
+    ]
+
+    if has_group_stage:
+        available_features.insert(0, "✅ Group Stage Results")
+
+    st.markdown(f"""
     The knockout bracket visualization is currently under development.
 
     **Available Now:**
-    - ✅ Group Stage Results (see above)
-    - ✅ Match recording and scoring
-    - ✅ Leaderboard rankings
+    {chr(10).join(f'    - {feature}' for feature in available_features)}
 
     **Coming Soon:**
-    - 🚧 Knockout bracket progression
-    - 🚧 Semifinal & Final results display
+    - 🚧 Interactive bracket diagram
+    - 🚧 Match-by-match progression view
+    - 🚧 Detailed match results
     """)
     return
 
@@ -2533,15 +2546,18 @@ def render_final_leaderboard(token: str, tournament_id: int):
         st.markdown("---")
 
         # ✅ Display knockout bracket with results
-        st.markdown("### 🏆 Knockout Stage Results")
+        # Dynamic title based on whether tournament has group stage
+        has_group_stage = bool(leaderboard_data.get("group_standings"))
+        bracket_title = "🏆 Knockout Stage Results" if has_group_stage else "🏆 Tournament Bracket"
+        st.markdown(f"### {bracket_title}")
         render_knockout_results_bracket(token, tournament_id, leaderboard_data)
 
         st.markdown("---")
 
-        # ✅ Display group stage results
-        st.markdown("### 🔤 Group Stage Results")
+        # ✅ Display group stage results (only if this tournament had a group stage)
         group_standings = leaderboard_data.get("group_standings")
         if group_standings:
+            st.markdown("### 🔤 Group Stage Results")
             render_group_results_table(group_standings)
 
         return
