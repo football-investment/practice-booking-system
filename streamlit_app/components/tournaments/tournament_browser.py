@@ -176,8 +176,12 @@ def _render_tournament_card(tournament: dict, token: str, user: dict):
                       {enrollment_count}/{tournament_data.get('max_players', 'N/A')} enrolled
                     """)
 
-        # Cost
-        st.markdown(f"**💰 Cost:** {tournament_data['enrollment_cost']} credits")
+        # Cost (show FREE for 0 cost tournaments)
+        cost = tournament_data['enrollment_cost']
+        if cost == 0:
+            st.markdown("**💰 Cost:** 🆓 **FREE** (0 credits)")
+        else:
+            st.markdown(f"**💰 Cost:** {cost} credits")
 
         # Enrollment button
         if is_enrolled:
@@ -233,9 +237,16 @@ def _handle_enrollment(tournament_id: int, tournament_data: dict, token: str, us
         st.markdown(f"### 🏆 {tournament_data['name']}")
         st.markdown(f"**Date:** {tournament_data['start_date']}")
         st.markdown(f"**Age Category:** {tournament_data['age_group']}")
-        st.markdown(f"**Cost:** {enrollment_cost} credits")
-        st.markdown(f"**Your Balance:** {credit_balance} credits")
-        st.markdown(f"**Remaining:** {credit_balance - enrollment_cost} credits")
+
+        # Show cost (special handling for FREE tournaments)
+        if enrollment_cost == 0:
+            st.markdown("**Cost:** 🆓 **FREE** (0 credits)")
+            st.markdown(f"**Your Balance:** {credit_balance} credits")
+            st.markdown(f"**Remaining:** {credit_balance} credits (no charge)")
+        else:
+            st.markdown(f"**Cost:** {enrollment_cost} credits")
+            st.markdown(f"**Your Balance:** {credit_balance} credits")
+            st.markdown(f"**Remaining:** {credit_balance - enrollment_cost} credits")
 
         st.divider()
 
