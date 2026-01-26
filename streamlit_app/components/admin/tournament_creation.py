@@ -18,17 +18,19 @@ from config import API_BASE_URL, API_TIMEOUT
 
 def render_reward_distribution_section(token: str, tournament: Dict):
     """
-    Render reward distribution section for COMPLETED tournaments.
+    Render reward distribution section for COMPLETED tournaments (V2 - Unified System).
 
     Shows:
     - Tournament completion status
     - Reward distribution button
-    - Distribution results
+    - Distribution results with skill points, XP breakdown, and badges
     """
+    from api_helpers_tournaments import distribute_tournament_rewards_v2
+
     tournament_id = tournament.get('id')
     tournament_name = tournament.get('name', 'Unknown')
 
-    st.subheader("🎁 Reward Distribution")
+    st.subheader("🎁 Reward Distribution (V2)")
 
     # Check if rewards already distributed
     reward_policy = tournament.get('reward_policy_snapshot')
@@ -47,74 +49,67 @@ def render_reward_distribution_section(token: str, tournament: Dict):
 
     with col2:
         if st.button(
-            "🎁 Distribute Rewards",
+            "🎁 Distribute Rewards (V2)",
             key=f"distribute_{tournament_id}",
             use_container_width=True,
             type="primary",
-            help="Distribute XP and credits to tournament participants based on rankings"
+            help="Distribute skill points, XP, credits, and achievement badges"
         ):
-            # Call distribute rewards endpoint
+            # Call V2 distribute rewards endpoint
             try:
                 with st.spinner("Distributing rewards..."):
-                    response = requests.post(
-                        f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
-                        headers={"Authorization": f"Bearer {token}"},
-                        json={"reason": f"Reward distribution for tournament: {tournament_name}"},
-                        timeout=API_TIMEOUT
+                    success, error, result = distribute_tournament_rewards_v2(
+                        token,
+                        tournament_id,
+                        force_redistribution=False  # Idempotent mode
                     )
 
-                    if response.status_code == 200:
-                        result = response.json()
+                    if success and result.get('success'):
+                        rewards_count = result.get('rewards_distributed_count', 0)
+                        summary = result.get('summary', {})
 
-                        st.success(f"✅ **{result.get('message', 'Rewards distributed successfully!')}**")
+                        if rewards_count == 0:
+                            # Already distributed - show info (NO animation)
+                            st.info(f"ℹ️ **Rewards were already distributed for {tournament_name}**")
+                            st.caption("Previously distributed rewards:")
 
-                        # Display distribution summary
-                        col_a, col_b, col_c = st.columns(3)
+                            col_a, col_b, col_c, col_d = st.columns(4)
+                            with col_a:
+                                st.metric("👥 Participants", result.get('total_participants', 0))
+                            with col_b:
+                                st.metric("⭐ Total XP", summary.get('total_xp_awarded', 0))
+                            with col_c:
+                                st.metric("💰 Total Credits", summary.get('total_credits_awarded', 0))
+                            with col_d:
+                                st.metric("🏆 Badges", summary.get('total_badges_awarded', 0))
 
-                        with col_a:
-                            st.metric(
-                                "👥 Participants",
-                                result.get('rewards_distributed', 0)
-                            )
+                        else:
+                            # New distribution - show success (WITH animation)
+                            st.success(f"✅ **Rewards distributed successfully to {rewards_count} participants!**")
+                            st.balloons()
 
-                        with col_b:
-                            st.metric(
-                                "⭐ Total XP",
-                                result.get('total_xp_awarded', 0)
-                            )
+                            # Display distribution summary
+                            col_a, col_b, col_c, col_d = st.columns(4)
 
-                        with col_c:
-                            st.metric(
-                                "💰 Total Credits",
-                                result.get('total_credits_awarded', 0)
-                            )
+                            with col_a:
+                                st.metric("👥 Participants", rewards_count)
 
-                        # Show individual rewards if available
-                        if 'rewards' in result and result['rewards']:
-                            st.divider()
-                            st.subheader("🏆 Individual Rewards")
+                            with col_b:
+                                total_xp = summary.get('total_xp_awarded', 0)
+                                st.metric("⭐ Total XP", total_xp)
 
-                            for reward in result['rewards']:
-                                rank = reward.get('rank', 'N/A')
-                                player_name = reward.get('player_name', 'Unknown')
-                                player_email = reward.get('player_email', '')
-                                xp = reward.get('xp', 0)
-                                credits = reward.get('credits', 0)
+                            with col_c:
+                                total_credits = summary.get('total_credits_awarded', 0)
+                                st.metric("💰 Total Credits", total_credits)
 
-                                # Medal emoji based on rank
-                                medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🎖️"
+                            with col_d:
+                                total_badges = summary.get('total_badges_awarded', 0)
+                                st.metric("🏆 Badges", total_badges)
 
-                                st.markdown(
-                                    f"{medal} **#{rank} - {player_name}** ({player_email}): "
-                                    f"**+{credits} credits**, +{xp} XP"
-                                )
-
-                        st.info("ℹ️ Rewards have been distributed. Refresh the page to see updated tournament status.")
+                            st.info("ℹ️ Rewards distributed. Participants can view their badges and XP breakdown in their profiles.")
 
                     else:
-                        error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-                        error_msg = error_data.get('detail', response.text)
-                        st.error(f"❌ Distribution failed: {error_msg}")
+                        st.error(f"❌ Distribution failed: {error}")
 
             except Exception as e:
                 st.error(f"❌ Error distributing rewards: {str(e)}")

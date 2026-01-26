@@ -113,12 +113,24 @@ def render_skill_card(
                 unsafe_allow_html=True
             )
 
-            # Level display
-            delta_display = f"+{total_delta:.1f}" if total_delta > 0 else ""
+            # Level display with color-coded delta (NEW V2: supports negative values)
+            if total_delta > 0:
+                delta_display = f"+{total_delta:.1f}"
+                delta_color = "#10b981"  # Green for positive
+                delta_arrow = "🔼"
+            elif total_delta < 0:
+                delta_display = f"{total_delta:.1f}"  # Already has minus sign
+                delta_color = "#ef4444"  # Red for negative
+                delta_arrow = "🔻"
+            else:
+                delta_display = ""
+                delta_color = "#6b7280"  # Gray for no change
+                delta_arrow = ""
+
             st.markdown(
                 f"<p style='font-size: 1.5rem; margin: 0.25rem 0;'>"
                 f"<strong>{current_level:.1f}</strong> / 100 "
-                f"<span style='color: #10b981; font-size: 1rem;'>{delta_display}</span>"
+                f"<span style='color: {delta_color}; font-size: 1rem;'>{delta_arrow} {delta_display}</span>"
                 f"</p>",
                 unsafe_allow_html=True
             )
@@ -145,35 +157,39 @@ def render_skill_card(
         # Progress bar
         st.progress(progress_percent)
 
-        # Breakdown (optional)
-        if show_breakdown and total_delta > 0:
+        # Breakdown (optional) - NEW V2: shows negative deltas too
+        if show_breakdown and total_delta != 0:
             with st.expander("📊 Skill Breakdown", expanded=False):
                 st.markdown(f"**Baseline (Onboarding):** {baseline:.1f}")
 
-                if tournament_delta > 0:
+                if tournament_delta != 0:
+                    delta_sign = "+" if tournament_delta > 0 else ""
+                    delta_color = "#10b981" if tournament_delta > 0 else "#ef4444"
                     st.markdown(
-                        f"**Tournament Contribution:** +{tournament_delta:.1f} "
+                        f"**Tournament Contribution:** "
+                        f"<span style='color: {delta_color};'>{delta_sign}{tournament_delta:.1f}</span> "
                         f"<span style='color: #6b7280;'>({tournament_count} tournaments)</span>",
                         unsafe_allow_html=True
                     )
 
-                if assessment_delta > 0:
+                if assessment_delta != 0:
+                    delta_sign = "+" if assessment_delta > 0 else ""
+                    delta_color = "#10b981" if assessment_delta > 0 else "#ef4444"
                     st.markdown(
-                        f"**Assessment Contribution:** +{assessment_delta:.1f} "
+                        f"**Assessment Contribution:** "
+                        f"<span style='color: {delta_color};'>{delta_sign}{assessment_delta:.1f}</span> "
                         f"<span style='color: #6b7280;'>({assessment_count} assessments)</span>",
                         unsafe_allow_html=True
                     )
 
-                # Calculate remaining capacity
-                tournament_remaining = max(0, 15.0 - tournament_delta)
-                assessment_remaining = max(0, 10.0 - assessment_delta)
-
-                if tournament_remaining > 0 or assessment_remaining > 0:
-                    st.markdown("**Growth Potential:**")
-                    if tournament_remaining > 0:
-                        st.markdown(f"- Tournament: +{tournament_remaining:.1f} available")
-                    if assessment_remaining > 0:
-                        st.markdown(f"- Assessment: +{assessment_remaining:.1f} available")
+                # NEW V2: No growth caps, skills are placement-based
+                st.markdown(
+                    "<p style='color: #6b7280; font-size: 0.875rem; margin-top: 0.5rem;'>"
+                    "💡 Skills reflect your tournament placement. "
+                    "Top finishes increase skills, bottom finishes decrease them."
+                    "</p>",
+                    unsafe_allow_html=True
+                )
 
         st.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
@@ -273,6 +289,8 @@ def render_skill_growth_bar_chart(skills: Dict[str, Dict]):
     """
     Render bar chart showing skill growth (tournament vs assessment)
 
+    NEW V2: Shows both positive and negative deltas with color coding
+
     Args:
         skills: Dict of skill_name -> skill_data
     """
@@ -283,24 +301,24 @@ def render_skill_growth_bar_chart(skills: Dict[str, Dict]):
     if not skills:
         return
 
-    # Filter skills with growth
-    skills_with_growth = {
+    # Filter skills with ANY change (positive or negative)
+    skills_with_change = {
         name: data for name, data in skills.items()
-        if data.get("total_delta", 0.0) > 0
+        if data.get("total_delta", 0.0) != 0
     }
 
-    if not skills_with_growth:
-        st.info("No skill growth yet. Participate in tournaments to improve!")
+    if not skills_with_change:
+        st.info("No skill changes yet. Participate in tournaments to see your skill progression!")
         return
 
-    # Prepare data
+    # Prepare data (NEW V2: sort by absolute value, supports negative deltas)
     skill_names = []
     tournament_deltas = []
     assessment_deltas = []
 
     for skill_name, skill_data in sorted(
-        skills_with_growth.items(),
-        key=lambda x: x[1].get("total_delta", 0.0),
+        skills_with_change.items(),
+        key=lambda x: abs(x[1].get("total_delta", 0.0)),
         reverse=True
     ):
         display_name = skill_name.replace("_", " ").title()
@@ -311,23 +329,25 @@ def render_skill_growth_bar_chart(skills: Dict[str, Dict]):
     # Create figure
     fig = go.Figure()
 
-    # Add tournament bars
+    # Add tournament bars with color based on positive/negative
+    tournament_colors = ['#3b82f6' if v >= 0 else '#ef4444' for v in tournament_deltas]
     fig.add_trace(go.Bar(
         name='Tournament',
         x=skill_names,
         y=tournament_deltas,
-        marker_color='#3b82f6',
-        text=[f"+{v:.1f}" for v in tournament_deltas],
+        marker_color=tournament_colors,
+        text=[f"+{v:.1f}" if v > 0 else f"{v:.1f}" for v in tournament_deltas],
         textposition='auto'
     ))
 
-    # Add assessment bars
+    # Add assessment bars with color based on positive/negative
+    assessment_colors = ['#10b981' if v >= 0 else '#ef4444' for v in assessment_deltas]
     fig.add_trace(go.Bar(
         name='Assessment',
         x=skill_names,
         y=assessment_deltas,
-        marker_color='#10b981',
-        text=[f"+{v:.1f}" for v in assessment_deltas],
+        marker_color=assessment_colors,
+        text=[f"+{v:.1f}" if v > 0 else f"{v:.1f}" for v in assessment_deltas],
         textposition='auto'
     ))
 

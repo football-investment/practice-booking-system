@@ -32,6 +32,7 @@ from .performance_review import StudentPerformanceReview, InstructorSessionRevie
 from .football_skill_assessment import FootballSkillAssessment
 from .belt_promotion import BeltPromotion
 from .credit_transaction import CreditTransaction, TransactionType
+from .xp_transaction import XPTransaction
 from .invoice_request import InvoiceRequest, InvoiceRequestStatus
 from .coupon import Coupon, CouponType
 from .invitation_code import InvitationCode
@@ -49,6 +50,15 @@ from .tournament_type import TournamentType as TournamentTypeModel  # DB model f
 from .team import Team, TeamMember, TournamentTeamEnrollment
 from .tournament_ranking import TournamentRanking, TournamentStats, TournamentReward
 from .tournament_status_history import TournamentStatusHistory
+from .tournament_achievement import (
+    TournamentSkillMapping,
+    TournamentParticipation,
+    TournamentBadge,
+    TournamentBadgeType,
+    TournamentBadgeCategory,
+    TournamentBadgeRarity,
+    SkillPointConversionRate
+)
 
 # Configure relationships after all models are imported
 configure_relationships()
@@ -119,6 +129,7 @@ __all__ = [
     "BeltPromotion",
     "CreditTransaction",
     "TransactionType",
+    "XPTransaction",
     "InvoiceRequest",
     "InvoiceRequestStatus",
     "Coupon",
@@ -140,4 +151,11 @@ __all__ = [
     "TournamentStats",
     "TournamentReward",
     "TournamentStatusHistory",
+    "TournamentSkillMapping",
+    "TournamentParticipation",
+    "TournamentBadge",
+    "TournamentBadgeType",
+    "TournamentBadgeCategory",
+    "TournamentBadgeRarity",
+    "SkillPointConversionRate",
 ]

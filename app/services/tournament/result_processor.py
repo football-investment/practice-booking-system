@@ -12,10 +12,16 @@ providing a clean separation between:
 Architecture Flow:
     Match Results → ResultProcessor → Derived Rankings → PointsCalculatorService → Tournament Points
 """
-from typing import List, Tuple, Dict, Optional, Protocol
+from typing import List, Tuple, Dict, Optional, Protocol, Any
 from sqlalchemy.orm import Session
+from datetime import datetime
+from decimal import Decimal
 
 from app.models.match_structure import MatchFormat, ScoringType, MatchStructure, MatchResult
+from app.models.session import Session as SessionModel
+from app.models.semester import Semester
+from app.models.tournament_ranking import TournamentRanking
+from app.services.tournament.leaderboard_service import get_or_create_ranking, calculate_ranks
 
 
 # ============================================================================
@@ -124,7 +130,279 @@ class ResultProcessor:
         self._skill_rating_processor = processor
 
     # ========================================================================
-    # Main Processing Method
+    # Main Match Results Processing (with TournamentRanking updates)
+    # ========================================================================
+
+    def process_match_results(
+        self,
+        db: Session,
+        session: SessionModel,
+        tournament: Semester,
+        raw_results: List[Dict[str, Any]],
+        match_notes: Optional[str] = None,
+        recorded_by_user_id: Optional[int] = None,
+        recorded_by_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process match results and update TournamentRanking table.
+
+        This is the main entry point for recording match results. It:
+        1. Validates raw results based on tournament format
+        2. For INDIVIDUAL_RANKING: Stores measured values directly in TournamentRanking.points
+        3. For HEAD_TO_HEAD: Derives rankings and calculates points
+        4. Updates session.game_results JSONB field
+        5. Recalculates tournament ranks
+
+        Args:
+            db: Database session
+            session: Tournament session/match
+            tournament: Tournament (Semester)
+            raw_results: Raw result data (format depends on tournament.format)
+            match_notes: Optional notes about the match
+            recorded_by_user_id: ID of user recording results
+            recorded_by_name: Name of user recording results
+
+        Returns:
+            Dict with derived_rankings and metadata
+        """
+        tournament_format = tournament.format or "HEAD_TO_HEAD"
+        match_format = session.match_format or "INDIVIDUAL_RANKING"
+
+        # Handle INDIVIDUAL_RANKING tournaments (measured values)
+        if tournament_format == "INDIVIDUAL_RANKING":
+            return self._process_individual_ranking_tournament(
+                db=db,
+                session=session,
+                tournament=tournament,
+                raw_results=raw_results,
+                match_notes=match_notes,
+                recorded_by_user_id=recorded_by_user_id,
+                recorded_by_name=recorded_by_name
+            )
+
+        # Handle HEAD_TO_HEAD tournaments (match results)
+        elif tournament_format == "HEAD_TO_HEAD":
+            return self._process_head_to_head_tournament(
+                db=db,
+                session=session,
+                tournament=tournament,
+                raw_results=raw_results,
+                match_notes=match_notes,
+                recorded_by_user_id=recorded_by_user_id,
+                recorded_by_name=recorded_by_name
+            )
+
+        else:
+            raise ValueError(f"Unsupported tournament format: {tournament_format}")
+
+    def _process_individual_ranking_tournament(
+        self,
+        db: Session,
+        session: SessionModel,
+        tournament: Semester,
+        raw_results: List[Dict[str, Any]],
+        match_notes: Optional[str] = None,
+        recorded_by_user_id: Optional[int] = None,
+        recorded_by_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process INDIVIDUAL_RANKING tournament results.
+
+        For INDIVIDUAL_RANKING tournaments, the instructor records measured performance values
+        (e.g., "10.5 seconds", "95 points", "15.2 meters") which are stored directly
+        in TournamentRanking.points. The ranking is then calculated based on ranking_direction.
+
+        Input format:
+            [
+                {"user_id": 1, "measured_value": 10.5},  # e.g., 10.5 seconds
+                {"user_id": 2, "measured_value": 11.2},  # e.g., 11.2 seconds
+                {"user_id": 3, "measured_value": 10.8},  # e.g., 10.8 seconds
+            ]
+
+        Args:
+            db: Database session
+            session: Tournament session
+            tournament: Tournament (Semester)
+            raw_results: List of {user_id, measured_value}
+            match_notes: Optional notes
+            recorded_by_user_id: Recorder ID
+            recorded_by_name: Recorder name
+
+        Returns:
+            Dict with derived_rankings and metadata
+        """
+        # Validate input format
+        for result in raw_results:
+            if "user_id" not in result or "measured_value" not in result:
+                raise ValueError(
+                    "INDIVIDUAL_RANKING results must include 'user_id' and 'measured_value'. "
+                    f"Example: [{{'user_id': 1, 'measured_value': 10.5}}]"
+                )
+
+        # Store measured values in TournamentRanking.points
+        for result in raw_results:
+            user_id = result["user_id"]
+            measured_value = result["measured_value"]
+
+            # Get or create ranking entry
+            ranking = get_or_create_ranking(
+                db=db,
+                tournament_id=tournament.id,
+                user_id=user_id,
+                participant_type="INDIVIDUAL"
+            )
+
+            # Store measured value directly in points field
+            ranking.points = Decimal(str(measured_value))
+
+        db.flush()
+
+        # Recalculate ranks based on measured values and ranking_direction
+        calculate_ranks(db, tournament.id)
+
+        # Get updated rankings for response
+        rankings_updated = db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == tournament.id,
+            TournamentRanking.user_id.in_([r["user_id"] for r in raw_results])
+        ).all()
+
+        derived_rankings = [
+            {
+                "user_id": ranking.user_id,
+                "rank": ranking.rank,
+                "measured_value": float(ranking.points)
+            }
+            for ranking in rankings_updated
+        ]
+
+        # Store results in session.game_results
+        recorded_at = datetime.utcnow().isoformat()
+        game_results = {
+            "recorded_at": recorded_at,
+            "recorded_by": recorded_by_user_id,
+            "recorded_by_name": recorded_by_name,
+            "match_notes": match_notes,
+            "tournament_format": "INDIVIDUAL_RANKING",
+            "measurement_unit": tournament.measurement_unit,
+            "ranking_direction": tournament.ranking_direction,
+            "raw_results": raw_results,
+            "derived_rankings": derived_rankings
+        }
+
+        import json
+        session.game_results = json.dumps(game_results)
+
+        db.flush()
+
+        return {
+            "derived_rankings": derived_rankings,
+            "recorded_at": recorded_at
+        }
+
+    def _process_head_to_head_tournament(
+        self,
+        db: Session,
+        session: SessionModel,
+        tournament: Semester,
+        raw_results: List[Dict[str, Any]],
+        match_notes: Optional[str] = None,
+        recorded_by_user_id: Optional[int] = None,
+        recorded_by_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process HEAD_TO_HEAD tournament results.
+
+        For HEAD_TO_HEAD tournaments, the system derives rankings from match results
+        and calculates points based on placement.
+
+        Args:
+            db: Database session
+            session: Tournament session
+            tournament: Tournament (Semester)
+            raw_results: Match result data
+            match_notes: Optional notes
+            recorded_by_user_id: Recorder ID
+            recorded_by_name: Recorder name
+
+        Returns:
+            Dict with derived_rankings and metadata
+        """
+        # Use existing process_results logic for HEAD_TO_HEAD
+        match_format = session.match_format or "HEAD_TO_HEAD"
+
+        # Derive rankings from match results
+        rankings = self.process_results(
+            session_id=session.id,
+            match_format=match_format,
+            results=raw_results
+        )
+
+        # Calculate and store points
+        from app.services.tournament.points_calculator_service import PointsCalculatorService
+        points_calculator = PointsCalculatorService(db)
+
+        for user_id, rank in rankings:
+            points = points_calculator.calculate_points(
+                session_id=session.id,
+                user_id=user_id,
+                rank=rank
+            )
+
+            # Get or create ranking entry
+            ranking = get_or_create_ranking(
+                db=db,
+                tournament_id=tournament.id,
+                user_id=user_id,
+                participant_type="INDIVIDUAL"
+            )
+
+            # Add points to total
+            ranking.points += Decimal(str(points))
+
+        db.flush()
+
+        # Recalculate ranks
+        calculate_ranks(db, tournament.id)
+
+        # Get updated rankings for response
+        rankings_updated = db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == tournament.id,
+            TournamentRanking.user_id.in_([user_id for user_id, _ in rankings])
+        ).all()
+
+        derived_rankings = [
+            {
+                "user_id": ranking.user_id,
+                "rank": ranking.rank,
+                "points": float(ranking.points)
+            }
+            for ranking in rankings_updated
+        ]
+
+        # Store results in session.game_results
+        recorded_at = datetime.utcnow().isoformat()
+        game_results = {
+            "recorded_at": recorded_at,
+            "recorded_by": recorded_by_user_id,
+            "recorded_by_name": recorded_by_name,
+            "match_notes": match_notes,
+            "tournament_format": "HEAD_TO_HEAD",
+            "raw_results": raw_results,
+            "derived_rankings": derived_rankings
+        }
+
+        import json
+        session.game_results = json.dumps(game_results)
+
+        db.flush()
+
+        return {
+            "derived_rankings": derived_rankings,
+            "recorded_at": recorded_at
+        }
+
+    # ========================================================================
+    # Legacy Processing Method (for non-tournament contexts)
     # ========================================================================
 
     def process_results(

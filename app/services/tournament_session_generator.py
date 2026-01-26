@@ -79,7 +79,8 @@ class TournamentSessionGenerator:
         tournament_id: int,
         parallel_fields: int = 1,
         session_duration_minutes: int = 90,
-        break_minutes: int = 15
+        break_minutes: int = 15,
+        number_of_rounds: int = 1
     ) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
         Generate all tournament sessions based on tournament type and enrolled player count
@@ -89,6 +90,7 @@ class TournamentSessionGenerator:
             parallel_fields: Number of fields available for parallel matches
             session_duration_minutes: Duration of each session
             break_minutes: Break time between sessions
+            number_of_rounds: Number of rounds for INDIVIDUAL_RANKING tournaments (1-10)
 
         Returns:
             (success, message, sessions_created)
@@ -115,7 +117,7 @@ class TournamentSessionGenerator:
                 return False, f"Not enough players. Need at least 2, have {player_count}", []
 
             sessions = self._generate_individual_ranking_sessions(
-                tournament, player_count, session_duration_minutes
+                tournament, player_count, session_duration_minutes, break_minutes, number_of_rounds
             )
         else:
             # HEAD_TO_HEAD: Requires tournament type (Swiss, League, Knockout, etc.)
@@ -1174,19 +1176,22 @@ class TournamentSessionGenerator:
         self,
         tournament: Semester,
         player_count: int,
-        session_duration: int
+        session_duration: int,
+        break_minutes: int = 15,
+        number_of_rounds: int = 1
     ) -> List[Dict[str, Any]]:
         """
         Generate INDIVIDUAL_RANKING sessions (simple competition format)
 
         INDIVIDUAL_RANKING tournaments have NO tournament type structure.
         All players compete in a simple competition and are ranked by their results:
-        - TIME_BASED: Lowest time wins (e.g., 100m sprint)
+        - TIME_BASED: Lowest time wins (e.g., 100m sprint - 3 rounds, best time counts)
         - SCORE_BASED: Highest score wins (e.g., push-ups in 1 minute)
         - DISTANCE_BASED: Longest distance wins (e.g., long jump)
         - PLACEMENT: Manual placement (1st, 2nd, 3rd...)
 
-        This generates a single session where all players compete.
+        Args:
+            number_of_rounds: Number of rounds to generate (1-10). For example, 100m sprint with 3 attempts.
         """
         sessions = []
 
@@ -1198,30 +1203,40 @@ class TournamentSessionGenerator:
         ).all()
         player_ids = [enrollment.user_id for enrollment in enrolled_players]
 
-        # Single competition session for all players
+        # 🔄 NEW ARCHITECTURE: Create 1 session for ALL rounds (not N sessions)
+        # Total duration = (number_of_rounds * session_duration) + ((number_of_rounds - 1) * break_minutes)
+        total_duration = (number_of_rounds * session_duration) + ((number_of_rounds - 1) * break_minutes)
+
         session_start = tournament.start_date
-        session_end = session_start + timedelta(minutes=session_duration)
+        session_end = session_start + timedelta(minutes=total_duration)
 
         # Determine description based on scoring type
         scoring_descriptions = {
-            'TIME_BASED': 'All players compete - lowest time wins',
-            'SCORE_BASED': 'All players compete - highest score wins',
-            'DISTANCE_BASED': 'All players compete - longest distance wins',
-            'PLACEMENT': 'All players compete - ranked by placement'
+            'TIME_BASED': f'{number_of_rounds} rounds - All players compete - lowest time wins',
+            'SCORE_BASED': f'{number_of_rounds} rounds - All players compete - highest score wins',
+            'DISTANCE_BASED': f'{number_of_rounds} rounds - All players compete - longest distance wins',
+            'PLACEMENT': f'{number_of_rounds} rounds - All players compete - ranked by placement'
         }
         description = scoring_descriptions.get(
             tournament.scoring_type,
-            'All players compete and are ranked'
+            f'{number_of_rounds} rounds - All players compete and are ranked'
         )
 
+        # Initialize rounds_data structure
+        rounds_data = {
+            'total_rounds': number_of_rounds,
+            'completed_rounds': 0,
+            'round_results': {}  # Will store: {'1': {'user_123': '12.5s', ...}, '2': {...}}
+        }
+
         sessions.append({
-            'title': f'{tournament.name} - Competition',
+            'title': f'{tournament.name}',
             'description': description,
             'date_start': session_start,
             'date_end': session_end,
             'game_type': 'Individual Ranking Competition',
             'tournament_phase': 'INDIVIDUAL_RANKING',
-            'tournament_round': 1,
+            'tournament_round': 1,  # Always 1 since this session contains all rounds
             'tournament_match_number': 1,
             'location': tournament.location_venue or 'TBD',
             'session_type': 'on_site',
@@ -1238,10 +1253,13 @@ class TournamentSessionGenerator:
             'structure_config': {
                 'expected_participants': player_count,
                 'scoring_method': tournament.scoring_type,
-                'description': description
+                'description': description,
+                'number_of_rounds': number_of_rounds
             },
             # ✅ All enrolled players participate
-            'participant_user_ids': player_ids
+            'participant_user_ids': player_ids,
+            # 🔄 NEW: Rounds data for multi-round tracking
+            'rounds_data': rounds_data
         })
 
         return sessions

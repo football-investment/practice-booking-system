@@ -188,6 +188,16 @@ class Session(Base):
         comment="Match structure configuration (pairings, teams, performance criteria, etc.)"
     )
 
+    # 🔄 ROUNDS DATA: Multi-round results storage (INDIVIDUAL_RANKING tournaments)
+    rounds_data = Column(
+        JSONB,
+        nullable=False,
+        default={},
+        server_default='{}',
+        comment="Round-by-round results for INDIVIDUAL_RANKING tournaments. "
+                "Structure: {'total_rounds': 3, 'completed_rounds': 1, 'round_results': {'1': {'user_123': '12.5s', 'user_456': '13.2s'}}}"
+    )
+
     # ✅ MATCH PARTICIPANTS: Explicit participant list (NOT runtime filtering!)
     participant_user_ids = Column(
         ARRAY(Integer),

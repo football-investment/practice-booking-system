@@ -28,6 +28,7 @@ class SessionGenerationRequest(BaseModel):
     parallel_fields: int = Field(default=1, ge=1, le=10, description="Number of fields available for parallel matches")
     session_duration_minutes: int = Field(default=90, ge=1, le=180, description="Duration of each session in minutes (business allows 1-5 min matches)")
     break_minutes: int = Field(default=15, ge=0, le=60, description="Break time between sessions in minutes")
+    number_of_rounds: int = Field(default=1, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (e.g., 3 attempts for 100m sprint)")
 
 
 class SessionPreview(BaseModel):
@@ -263,13 +264,15 @@ def generate_tournament_sessions(
     session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else request.session_duration_minutes
     break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else request.break_minutes
     parallel_fields = tournament.parallel_fields if tournament.parallel_fields else request.parallel_fields
+    number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else request.number_of_rounds
 
     # Generate sessions
     success, message, sessions_created = generator.generate_sessions(
         tournament_id=tournament_id,
         parallel_fields=parallel_fields,
         session_duration_minutes=session_duration,
-        break_minutes=break_duration
+        break_minutes=break_duration,
+        number_of_rounds=number_of_rounds
     )
 
     if not success:

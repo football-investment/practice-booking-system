@@ -123,6 +123,8 @@ class Semester(Base):
                              comment="Unit of measurement for INDIVIDUAL_RANKING results: seconds/minutes (TIME_BASED), meters/centimeters (DISTANCE_BASED), points/repetitions (SCORE_BASED). NULL for PLACEMENT or HEAD_TO_HEAD.")
     ranking_direction = Column(String(10), nullable=True,
                                comment="Ranking direction for INDIVIDUAL_RANKING: ASC (lowest wins, e.g. 100m sprint), DESC (highest wins, e.g. plank). HEAD_TO_HEAD always DESC. NULL for PLACEMENT.")
+    number_of_rounds = Column(Integer, nullable=True, default=1,
+                             comment="Number of rounds for INDIVIDUAL_RANKING tournaments (1-10). Each round is a separate session. HEAD_TO_HEAD ignores this.")
 
     # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
     assignment_type = Column(String(30), nullable=True,
@@ -135,6 +137,8 @@ class Semester(Base):
                                 comment="Name of the reward policy applied to this tournament semester")
     reward_policy_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
                                     comment="Immutable snapshot of the reward policy at tournament creation time")
+    reward_config = Column(JSONB, nullable=True,
+                          comment="Detailed reward configuration (skill mappings, badge configs, credit bonuses). Uses TournamentRewardConfig schema.")
 
     # Relationships
     campus = relationship("Campus", foreign_keys=[campus_id],
@@ -154,6 +158,11 @@ class Semester(Base):
     sessions = relationship("Session", back_populates="semester")
     projects = relationship("Project", back_populates="semester")
     enrollments = relationship("SemesterEnrollment", back_populates="semester", cascade="all, delete-orphan")
+
+    # 🏆 Tournament participation & badge relationships
+    skill_mappings = relationship("TournamentSkillMapping", back_populates="tournament", cascade="all, delete-orphan")
+    participations = relationship("TournamentParticipation", back_populates="tournament", cascade="all, delete-orphan")
+    badges = relationship("TournamentBadge", back_populates="tournament", cascade="all, delete-orphan")
 
     def validate_tournament_format_logic(self):
         """

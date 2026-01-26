@@ -235,35 +235,36 @@ async def lfa_player_onboarding_submit(
 ):
     """
     Process LFA Player onboarding questionnaire
-    Saves: date_of_birth, position, self-assessment skills, motivation
+    NEW: Accepts 36 skills on 0-100 scale, writes directly to football_skills
+    Saves: position, skills (36 skills, 0-100 scale), goals
     """
     try:
-        form = await request.form()
+        # Parse JSON body
+        body = await request.json()
 
         # Get form data
-        position = form.get("position")
-        motivation = form.get("motivation", "")
-        goals = form.get("goals", "")
-        date_of_birth_str = form.get("date_of_birth")  # ✅ NEW: Get birth date
+        position = body.get("position")
+        goals = body.get("goals", "")
+        motivation = body.get("motivation", "")
+        skills = body.get("skills", {})  # NEW: All 36 skills, 0-100 scale
 
-        # Self-assessment scores (0-10)
-        skills = {
-            "heading": int(form.get("skill_heading", 5)),
-            "shooting": int(form.get("skill_shooting", 5)),
-            "passing": int(form.get("skill_passing", 5)),
-            "dribbling": int(form.get("skill_dribbling", 5)),
-            "defending": int(form.get("skill_defending", 5)),
-            "physical": int(form.get("skill_physical", 5))
-        }
+        print(f"📥 Onboarding submit for {user.email}: {len(skills)} skills received")
 
         # Validate position
         valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
         if position not in valid_positions:
             raise ValueError(f"Invalid position: {position}")
 
-        # ❌ REMOVED: date_of_birth is NO LONGER updated here!
-        # It should already exist in user profile from /auth/register-with-invitation
-        # If it doesn't exist, the frontend will show an error and redirect to My Profile
+        # Validate skills (must have all 36 skills)
+        from app.skills_config import get_all_skill_keys
+        expected_skills = set(get_all_skill_keys())
+        received_skills = set(skills.keys())
+
+        if received_skills != expected_skills:
+            missing = expected_skills - received_skills
+            extra = received_skills - expected_skills
+            print(f"⚠️ Skill mismatch: missing={missing}, extra={extra}")
+            # Don't fail, just log - allow submission with whatever skills we have
 
         # Get user's LFA Player license
         license = db.query(UserLicense).filter(
@@ -274,15 +275,28 @@ async def lfa_player_onboarding_submit(
         if not license:
             raise ValueError("LFA Player license not found")
 
-        # Calculate initial average skill level (convert to percentage)
-        average_skill = sum(skills.values()) / len(skills) / 10 * 100  # Convert 0-10 to 0-100%
+        # NEW: Write skills directly to football_skills in engine-compatible format
+        football_skills = {}
+        for skill_key, baseline_value in skills.items():
+            football_skills[skill_key] = {
+                "current_level": float(baseline_value),
+                "baseline": float(baseline_value),
+                "total_delta": 0.0,
+                "tournament_delta": 0.0,
+                "assessment_delta": 0.0,
+                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "assessment_count": 0,
+                "tournament_count": 0
+            }
 
-        # Store position, goals, and initial self-assessment in motivation_scores JSON field
+        license.football_skills = football_skills
+
+        # Store metadata in motivation_scores for backward compatibility
+        average_skill = sum(skills.values()) / len(skills) if skills else 50.0
         license.motivation_scores = {
             "position": position,
             "goals": goals,
             "motivation": motivation,
-            "initial_self_assessment": skills,
             "average_skill_level": round(average_skill, 1),
             "onboarding_completed_at": datetime.now(timezone.utc).isoformat()
         }
@@ -295,27 +309,25 @@ async def lfa_player_onboarding_submit(
         license.onboarding_completed = True
         license.onboarding_completed_at = datetime.now(timezone.utc)
 
+        # Flag JSONB field as modified
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(license, 'football_skills')
+        flag_modified(license, 'motivation_scores')
+
         db.commit()
         db.refresh(user)
         db.refresh(license)
 
-        print(f"✅ LFA Player onboarding completed for {user.email}: Position={position}, Avg Skill={average_skill:.1f}%")
+        print(f"✅ LFA Player onboarding completed for {user.email}: Position={position}, {len(skills)} skills saved, Avg={average_skill:.1f}")
 
-        # Redirect to dashboard
-        return RedirectResponse(url="/dashboard", status_code=303)
+        # Return JSON response for Streamlit API call
+        return {"success": True, "message": "Onboarding completed successfully"}
 
     except Exception as e:
         db.rollback()
         print(f"Error processing LFA Player onboarding: {e}")
         print(traceback.format_exc())
-        return templates.TemplateResponse(
-            "lfa_player_onboarding.html",
-            {
-                "request": request,
-                "user": user,
-                "error": f"An error occurred: {str(e)}"
-            }
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/onboarding/start", response_class=HTMLResponse)

@@ -8,7 +8,8 @@ from datetime import datetime
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY
 from api_helpers_general import get_current_user, get_credit_transactions, get_my_invoices
 from components.credits.credit_purchase_form import render_credit_purchase_form
-from components.credits.coupon_redemption import render_coupon_redemption
+from components.credits.purchase_coupon_form import render_purchase_coupon_form
+from components.credits.bonus_code_redemption import render_bonus_code_redemption
 
 # Page configuration
 st.set_page_config(
@@ -89,18 +90,21 @@ with tab1:
     # Reuse existing credit purchase form component
     render_credit_purchase_form(token)
 
+    # Purchase coupon form (for discounts and bonus credits during purchase)
+    render_purchase_coupon_form()
+
 # ========================================
-# TAB 2: REDEEM COUPON
+# TAB 2: REDEEM BONUS CODE
 # ========================================
 with tab2:
-    st.markdown("### Redeem Coupon")
-    st.caption("Apply BONUS_CREDITS coupons for instant credits")
+    st.markdown("### Redeem Bonus Code")
+    st.caption("Redeem bonus codes for instant free credits (no purchase required)")
 
     # Show current balance
     st.info(f"**Current Balance:** {user.get('credit_balance', 0)} credits")
 
-    # Render coupon redemption form
-    render_coupon_redemption(token)
+    # Render bonus code redemption form
+    render_bonus_code_redemption(token)
 
 # ========================================
 # TAB 3: TRANSACTION HISTORY

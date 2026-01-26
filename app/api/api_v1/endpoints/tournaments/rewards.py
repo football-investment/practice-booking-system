@@ -13,6 +13,7 @@ from app.dependencies import get_current_user
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
+from app.models.tournament_achievement import TournamentParticipation
 from app.models.credit_transaction import CreditTransaction, TransactionType
 from app.models.xp_transaction import XPTransaction
 
@@ -535,13 +536,26 @@ def get_tournament_rankings(
         TournamentRanking.tournament_id == tournament_id
     ).order_by(TournamentRanking.rank).all()
 
-    # Include user details
+    # Include user details and reward data from tournament_participations
     from sqlalchemy.orm import joinedload
     rankings = db.query(TournamentRanking).options(
         joinedload(TournamentRanking.user)
     ).filter(
         TournamentRanking.tournament_id == tournament_id
     ).order_by(TournamentRanking.rank).all()
+
+    # Fetch reward data from tournament_participations
+    participation_rewards = {}
+    participations = db.query(TournamentParticipation).filter(
+        TournamentParticipation.semester_id == tournament_id
+    ).all()
+
+    for p in participations:
+        participation_rewards[p.user_id] = {
+            "credits_awarded": p.credits_awarded,
+            "xp_awarded": p.xp_awarded,
+            "skill_points_awarded": p.skill_points_awarded or {}
+        }
 
     return {
         "tournament_id": tournament_id,
@@ -554,7 +568,11 @@ def get_tournament_rankings(
                 "user_name": r.user.name if r.user else None,
                 "user_email": r.user.email if r.user else None,
                 "points": float(r.points) if r.points else 0,
-                "updated_at": r.updated_at.isoformat() if r.updated_at else None
+                "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+                # Add reward data
+                "credits_awarded": participation_rewards.get(r.user_id, {}).get("credits_awarded", 0),
+                "xp_awarded": participation_rewards.get(r.user_id, {}).get("xp_awarded", 0),
+                "skill_points_awarded": participation_rewards.get(r.user_id, {}).get("skill_points_awarded", {})
             }
             for r in rankings
         ],

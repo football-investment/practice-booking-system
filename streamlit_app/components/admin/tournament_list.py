@@ -237,7 +237,12 @@ def render_tournament_list(token: str):
                 st.write(f"**End**: {tournament.get('end_date', 'N/A')}")
 
             with col2:
-                st.write(f"**🏆 Tournament Type**: {tournament_type_name}")
+                # Show Tournament Type (use format if tournament_type_id is NULL)
+                if tournament_type_id:
+                    st.write(f"**🏆 Tournament Type**: {tournament_type_name}")
+                else:
+                    # INDIVIDUAL_RANKING tournaments don't have tournament_type_id
+                    st.write(f"**🏆 Tournament Format**: {tournament.get('format', 'INDIVIDUAL_RANKING')}")
                 st.write(f"**Age Category**: {tournament.get('age_group', 'N/A')}")
 
                 # Highlight assignment type
@@ -267,11 +272,11 @@ def render_tournament_list(token: str):
 
                 # Note: tournament_type_name and min_players_requirement already fetched above
 
-                # Color code based on requirements with helpful tooltips
+                # Color code based on requirements with helpful tooltips + View Enrollments button
                 if isinstance(min_players_requirement, int):
                     if enrollment_count < min_players_requirement:
                         # Below minimum - show red indicator with explanation
-                        col_enroll, col_info = st.columns([4, 1])
+                        col_enroll, col_info, col_btn = st.columns([3, 1, 1])
                         with col_enroll:
                             st.write(f"**Enrollments**: 🔴 {enrollment_count}/{max_players}")
                         with col_info:
@@ -279,10 +284,14 @@ def render_tournament_list(token: str):
                                 f"ℹ️",
                                 help=f"Minimum {min_players_requirement} players required to start this tournament type. Currently {min_players_requirement - enrollment_count} more needed."
                             )
+                        with col_btn:
+                            if st.button("👥", key=f"view_enrollments_{tournament['id']}", help="View enrolled players"):
+                                st.session_state[f'show_enrollments_modal_{tournament["id"]}'] = True
+                                st.rerun()
                         st.caption(f"⚠️ Need {min_players_requirement - enrollment_count} more players to start!")
                     else:
                         # Meets minimum - show green indicator
-                        col_enroll, col_info = st.columns([4, 1])
+                        col_enroll, col_info, col_btn = st.columns([3, 1, 1])
                         with col_enroll:
                             st.write(f"**Enrollments**: ✅ {enrollment_count}/{max_players}")
                         with col_info:
@@ -290,8 +299,18 @@ def render_tournament_list(token: str):
                                 f"ℹ️",
                                 help=f"Minimum requirement met ({min_players_requirement} players). Tournament can be started."
                             )
+                        with col_btn:
+                            if st.button("👥", key=f"view_enrollments_{tournament['id']}", help="View enrolled players"):
+                                st.session_state[f'show_enrollments_modal_{tournament["id"]}'] = True
+                                st.rerun()
                 else:
-                    st.write(f"**Enrollments**: {enrollment_count}/{max_players}")
+                    col_enroll, col_btn = st.columns([4, 1])
+                    with col_enroll:
+                        st.write(f"**Enrollments**: {enrollment_count}/{max_players}")
+                    with col_btn:
+                        if st.button("👥", key=f"view_enrollments_{tournament['id']}", help="View enrolled players"):
+                            st.session_state[f'show_enrollments_modal_{tournament["id"]}'] = True
+                            st.rerun()
 
                 st.write(f"**Enrollment Cost**: {tournament.get('enrollment_cost', 0)} credits")
 
@@ -299,6 +318,7 @@ def render_tournament_list(token: str):
                 match_duration = tournament.get('match_duration_minutes')
                 break_duration = tournament.get('break_duration_minutes')
                 parallel_fields = tournament.get('parallel_fields')
+                number_of_rounds = tournament.get('number_of_rounds')
                 tournament_format = tournament.get('format', 'INDIVIDUAL_RANKING')
                 scoring_type = tournament.get('scoring_type', 'PLACEMENT')
                 measurement_unit = tournament.get('measurement_unit')
@@ -314,6 +334,8 @@ def render_tournament_list(token: str):
                         if ranking_direction:
                             winner_text = "Lowest wins" if ranking_direction == "ASC" else "Highest wins"
                             st.caption(f"   • Winner Determination: **{ranking_direction}** ({winner_text})")
+                        if number_of_rounds is not None:
+                            st.caption(f"   • Number of Rounds: **{number_of_rounds}** round{'s' if number_of_rounds > 1 else ''}")
                     if match_duration:
                         st.caption(f"   • Match Duration: {match_duration} min")
                     if break_duration:
@@ -1164,25 +1186,24 @@ def render_tournament_list(token: str):
                                     player_name = ranking.get('user_name', 'Unknown')
                                     player_email = ranking.get('user_email', '')
                                     points = ranking.get('points', 0)
-    
-                                    # Get reward info from policy
-                                    reward_policy = tournament.get('reward_policy_snapshot', {})
-                                    placement_rewards = reward_policy.get('placement_rewards', {})
-    
-                                    # Map rank to reward tier
-                                    reward_tier_map = {1: '1ST', 2: '2ND', 3: '3RD'}
-                                    tier = reward_tier_map.get(rank, 'PARTICIPANT')
-                                    reward = placement_rewards.get(tier, {'credits': 0, 'xp': 0})
-    
-                                    credits = reward.get('credits', 0)
-                                    xp = reward.get('xp', 0)
-    
+
+                                    # Get reward info from API (includes actual distributed rewards)
+                                    credits = ranking.get('credits_awarded', 0)
+                                    xp = ranking.get('xp_awarded', 0)
+                                    skill_points = ranking.get('skill_points_awarded', {})
+
                                     # Medal emoji
                                     medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🎖️"
-    
+
+                                    # Format skill points
+                                    skill_text = ""
+                                    if skill_points:
+                                        skill_items = [f"{skill}: {pts:.1f}" for skill, pts in skill_points.items()]
+                                        skill_text = f" | Skills: {', '.join(skill_items)}"
+
                                     st.markdown(
                                         f"{medal} **#{rank} - {player_name}** ({player_email}): "
-                                        f"**{points} points** → Rewarded: **+{credits} credits**, +{xp} XP"
+                                        f"**{points} points** → Rewarded: **+{credits} credits**, +{xp} XP{skill_text}"
                                     )
                             else:
                                 st.warning(f"⚠️ Could not fetch rankings data - Status: {response.status_code}")
@@ -1205,6 +1226,14 @@ def render_tournament_list(token: str):
 
     if 'edit_schedule_tournament_id' in st.session_state:
         show_edit_schedule_dialog()
+
+    # ============================================================================
+    # ENROLLMENT VIEWER MODALS: Check if any enrollment viewer modals should be opened
+    # ============================================================================
+    for tournament in tournaments:
+        tournament_id = tournament['id']
+        if st.session_state.get(f'show_enrollments_modal_{tournament_id}'):
+            show_enrollment_viewer_modal(token, tournament_id, tournament.get('name', 'Unknown'))
 
 
 def render_game_type_manager(token: str):
@@ -2344,6 +2373,35 @@ def show_generate_sessions_dialog():
         help="Break time between consecutive matches"
     )
 
+    # Conditional: Number of rounds (only for INDIVIDUAL_RANKING tournaments)
+    number_of_rounds = 1  # Default for HEAD_TO_HEAD
+
+    # Check if tournament is INDIVIDUAL_RANKING (tournament_type_id is None)
+    if tournament_type_id is None:
+        # Fetch saved number_of_rounds from database
+        try:
+            import psycopg2
+            db_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+            conn = psycopg2.connect(db_url)
+            cursor = conn.cursor()
+            cursor.execute("SELECT number_of_rounds FROM semesters WHERE id = %s", (tournament_id,))
+            result = cursor.fetchone()
+            saved_rounds = result[0] if result and result[0] else 1
+            cursor.close()
+            conn.close()
+        except:
+            saved_rounds = 1
+
+        st.info("🏃 **INDIVIDUAL_RANKING Tournament** - You can specify multiple rounds (e.g., 3 attempts for 100m sprint)")
+        number_of_rounds = st.number_input(
+            "Number of Rounds",
+            min_value=1,
+            max_value=10,
+            value=saved_rounds,
+            step=1,
+            help="Number of rounds for individual ranking (e.g., 3 attempts for 100m sprint, best time counts)"
+        )
+
     # ============================================================================
     # 🔍 DEBUG PANEL: Show request parameters being sent to backend
     # ============================================================================
@@ -2355,9 +2413,10 @@ def show_generate_sessions_dialog():
             "tournament_name": tournament_name,
             "parallel_fields": parallel_fields,
             "session_duration_minutes": session_duration,
-            "break_minutes": break_minutes
+            "break_minutes": break_minutes,
+            "number_of_rounds": number_of_rounds
         })
-        st.info("ℹ️ **Backend Validation Rules:**\n- `session_duration_minutes` must be ≥ 1 and ≤ 180 (business allows 1-5 min matches)\n- `parallel_fields` must be ≥ 1 and ≤ 10\n- `break_minutes` must be ≥ 0 and ≤ 60")
+        st.info("ℹ️ **Backend Validation Rules:**\n- `session_duration_minutes` must be ≥ 1 and ≤ 180 (business allows 1-5 min matches)\n- `parallel_fields` must be ≥ 1 and ≤ 10\n- `break_minutes` must be ≥ 0 and ≤ 60\n- `number_of_rounds` must be ≥ 1 and ≤ 10 (INDIVIDUAL_RANKING only)")
 
     st.divider()
     st.warning("⚠️ **CRITICAL**: Once generated, sessions cannot be automatically deleted. You must reset them manually if needed.")
@@ -2378,7 +2437,8 @@ def show_generate_sessions_dialog():
                 tournament_id,
                 parallel_fields=parallel_fields,
                 session_duration_minutes=session_duration,
-                break_minutes=break_minutes
+                break_minutes=break_minutes,
+                number_of_rounds=number_of_rounds
             )
 
             if success:
@@ -2725,7 +2785,8 @@ def show_edit_schedule_dialog():
                 parallel_fields,
                 tournament_type_id,
                 format,
-                scoring_type
+                scoring_type,
+                number_of_rounds
             FROM semesters
             WHERE id = %s
         """, (tournament_id,))
@@ -2740,6 +2801,7 @@ def show_edit_schedule_dialog():
             tournament_type_id = result[4]
             current_format = result[5]
             current_scoring_type = result[6]
+            current_number_of_rounds = result[7]
         else:
             current_start = date.today()
             current_match_duration = None
@@ -2748,6 +2810,7 @@ def show_edit_schedule_dialog():
             tournament_type_id = None
             current_format = "INDIVIDUAL_RANKING"
             current_scoring_type = "PLACEMENT"
+            current_number_of_rounds = None
 
         # Get default values from tournament type if available
         default_match_duration = 90
@@ -2776,10 +2839,12 @@ def show_edit_schedule_dialog():
         display_parallel_fields = current_parallel_fields if current_parallel_fields else 1
         display_format = current_format if current_format else default_format
         display_scoring_type = current_scoring_type if current_scoring_type else "PLACEMENT"
+        display_number_of_rounds = current_number_of_rounds if current_number_of_rounds else 1
 
         st.caption(f"🏆 Tournament format: {display_format}")
         if display_format == "INDIVIDUAL_RANKING":
             st.caption(f"📏 Current scoring type: {display_scoring_type}")
+            st.caption(f"🔄 Current number of rounds: {display_number_of_rounds}")
         st.caption(f"⏱️ Current match duration: {display_match_duration} min")
         st.caption(f"⏸️ Current break duration: {display_break_duration} min")
         st.caption(f"⚽ Current parallel fields: {display_parallel_fields}")
@@ -2791,6 +2856,7 @@ def show_edit_schedule_dialog():
         display_break_duration = 15
         display_parallel_fields = 1
         display_format = "INDIVIDUAL_RANKING"
+        display_number_of_rounds = 1
 
     st.divider()
 
@@ -2877,6 +2943,21 @@ def show_edit_schedule_dialog():
 
     st.divider()
     st.markdown("#### Match Schedule Settings")
+
+    # Number of rounds (ONLY for INDIVIDUAL_RANKING)
+    number_of_rounds = 1  # Default for HEAD_TO_HEAD
+    if display_format == "INDIVIDUAL_RANKING":
+        st.info("🔄 **Multiple Rounds**: Specify how many attempts each player gets (e.g., 3 attempts for 100m sprint)")
+        number_of_rounds = st.number_input(
+            "Number of Rounds",
+            min_value=1,
+            max_value=10,
+            value=display_number_of_rounds,
+            key="schedule_number_of_rounds",
+            help="How many rounds/attempts each player gets. Best result counts for final ranking."
+        )
+        st.divider()
+
     col3, col4, col5 = st.columns(3)
 
     with col3:
@@ -2929,9 +3010,10 @@ def show_edit_schedule_dialog():
                         break_duration_minutes = %s,
                         parallel_fields = %s,
                         scoring_type = %s,
-                        measurement_unit = %s
+                        measurement_unit = %s,
+                        number_of_rounds = %s
                     WHERE id = %s
-                """, (match_duration, break_duration, parallel_fields, scoring_type, measurement_unit, tournament_id))
+                """, (match_duration, break_duration, parallel_fields, scoring_type, measurement_unit, number_of_rounds, tournament_id))
 
                 conn.commit()
                 cursor.close()
@@ -2959,3 +3041,117 @@ def show_edit_schedule_dialog():
             if 'edit_schedule_tournament_name' in st.session_state:
                 del st.session_state['edit_schedule_tournament_name']
             st.rerun()
+
+
+@st.dialog("👥 Enrolled Players")
+def show_enrollment_viewer_modal(token: str, tournament_id: int, tournament_name: str):
+    """
+    Display modal with list of enrolled players for a tournament
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+        tournament_name: Tournament name for display
+    """
+    st.write(f"**Tournament**: {tournament_name}")
+    st.write(f"**Tournament ID**: {tournament_id}")
+    st.divider()
+
+    try:
+        # Fetch enrollments from API
+        url = f"{API_BASE_URL}/api/v1/semester-enrollments/semesters/{tournament_id}/enrollments"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            enrollments = response.json()
+
+            if not enrollments:
+                st.info("No enrollments yet for this tournament")
+            else:
+                # Count active approved enrollments
+                active_approved = [
+                    e for e in enrollments
+                    if e.get('request_status', '').upper() == 'APPROVED' and e.get('is_active') is True
+                ]
+
+                st.metric("Total Enrollments", len(enrollments))
+                st.metric("Active & Approved", len(active_approved))
+                st.divider()
+
+                # Display enrollments in a table format
+                st.markdown("### 📋 Enrollment List")
+
+                for idx, enrollment in enumerate(enrollments, 1):
+                    user_email = enrollment.get('user_email', 'Unknown')
+                    user_name = enrollment.get('user_name', 'N/A')
+                    status = enrollment.get('request_status', 'N/A')
+                    is_active = enrollment.get('is_active', False)
+                    enrollment_date = enrollment.get('enrollment_date', 'N/A')
+                    payment_verified = enrollment.get('payment_verified', False)
+
+                    # Format enrollment date
+                    if enrollment_date and enrollment_date != 'N/A':
+                        try:
+                            from datetime import datetime
+                            dt = datetime.fromisoformat(enrollment_date.replace('Z', '+00:00'))
+                            enrollment_date_str = dt.strftime('%Y-%m-%d %H:%M')
+                        except:
+                            enrollment_date_str = enrollment_date
+                    else:
+                        enrollment_date_str = 'N/A'
+
+                    # Status indicator
+                    if status.upper() == 'APPROVED' and is_active:
+                        status_emoji = "✅"
+                        status_text = "Active"
+                    elif status.upper() == 'APPROVED' and not is_active:
+                        status_emoji = "⏸️"
+                        status_text = "Approved (Inactive)"
+                    elif status.upper() == 'PENDING':
+                        status_emoji = "⏳"
+                        status_text = "Pending"
+                    elif status.upper() == 'REJECTED':
+                        status_emoji = "❌"
+                        status_text = "Rejected"
+                    else:
+                        status_emoji = "❓"
+                        status_text = status
+
+                    # Payment indicator
+                    payment_emoji = "💳" if payment_verified else "⏳"
+
+                    with st.container():
+                        col1, col2, col3 = st.columns([3, 2, 2])
+
+                        with col1:
+                            st.markdown(f"**{idx}. {user_name}**")
+                            st.caption(f"📧 {user_email}")
+
+                        with col2:
+                            st.write(f"{status_emoji} {status_text}")
+                            st.caption(f"{payment_emoji} Payment: {'Verified' if payment_verified else 'Pending'}")
+
+                        with col3:
+                            st.caption(f"📅 Enrolled:")
+                            st.caption(f"{enrollment_date_str}")
+
+                        st.divider()
+        else:
+            st.error(f"Failed to fetch enrollments: HTTP {response.status_code}")
+            st.code(response.text)
+
+    except Exception as e:
+        st.error(f"Error fetching enrollments: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+    # Close button
+    if st.button("✅ Close", use_container_width=True, type="primary"):
+        # Clear session state flag
+        if f'show_enrollments_modal_{tournament_id}' in st.session_state:
+            del st.session_state[f'show_enrollments_modal_{tournament_id}']
+        st.rerun()

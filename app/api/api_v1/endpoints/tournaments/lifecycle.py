@@ -311,77 +311,157 @@ def transition_tournament_status(
     db.flush()
 
     # ============================================================================
+    # AUTO-DELETE SESSIONS when transitioning from IN_PROGRESS to ENROLLMENT_CLOSED
+    # ============================================================================
+    if old_status == "IN_PROGRESS" and request.new_status == "ENROLLMENT_CLOSED":
+        if tournament.sessions_generated:
+            from app.models.session import Session as SessionModel
+            from app.models.attendance import Attendance
+
+            # Get session IDs to delete
+            session_ids = [s.id for s in db.query(SessionModel).filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.auto_generated == True
+            ).all()]
+
+            if session_ids:
+                # Delete attendance records first
+                db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).delete(synchronize_session=False)
+
+                # Delete sessions
+                deleted_count = db.query(SessionModel).filter(
+                    SessionModel.semester_id == tournament_id,
+                    SessionModel.auto_generated == True
+                ).delete(synchronize_session=False)
+
+                # Reset flags
+                tournament.sessions_generated = False
+                tournament.sessions_generated_at = None
+                db.flush()
+
+                print(f"🗑️ Auto-deleted {deleted_count} sessions when tournament reverted to ENROLLMENT_CLOSED")
+
+    # ============================================================================
     # AUTO-GENERATE SESSIONS when transitioning to IN_PROGRESS
     # ============================================================================
-    if request.new_status == "IN_PROGRESS" and not tournament.sessions_generated:
-        # 📸 SNAPSHOT: Save enrollment state BEFORE session generation
-        # This allows regeneration if something goes wrong
-        from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+    if request.new_status == "IN_PROGRESS":
+        # Check if we need to regenerate sessions
+        from app.models.session import Session as SessionModel
 
-        enrolled_players = db.query(SemesterEnrollment).filter(
-            SemesterEnrollment.semester_id == tournament_id,
-            SemesterEnrollment.is_active == True,
-            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
-        ).all()
+        current_session_count = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.auto_generated == True
+        ).count()
 
-        enrollment_snapshot = {
-            "timestamp": datetime.now().isoformat(),
-            "total_enrolled": len(enrolled_players),
-            "player_ids": [e.user_id for e in enrolled_players],
-            "player_details": [
-                {
-                    "user_id": e.user_id,
-                    "enrollment_id": e.id,
-                    "payment_verified": e.payment_verified,
-                    "enrolled_at": e.created_at.isoformat() if e.created_at else None
-                }
-                for e in enrolled_players
-            ],
-            "schedule_config": {
-                "match_duration_minutes": tournament.match_duration_minutes,
-                "break_duration_minutes": tournament.break_duration_minutes,
-                "parallel_fields": tournament.parallel_fields,
-                "tournament_type_id": tournament.tournament_type_id
-            }
-        }
-
-        # 💾 SAVE SNAPSHOT to database
-        tournament.enrollment_snapshot = enrollment_snapshot
-        db.flush()  # Save snapshot immediately before session generation
-
-        print(f"📸 ENROLLMENT SNAPSHOT saved for tournament {tournament_id}:")
-        print(f"   Players: {len(enrolled_players)}")
-        print(f"   Config: {enrollment_snapshot['schedule_config']}")
-
-        # Auto-generate tournament sessions using default parameters
-        from app.services.tournament_session_generator import TournamentSessionGenerator
-
-        generator = TournamentSessionGenerator(db)
-
-        # Check if can generate
-        can_generate, reason = generator.can_generate_sessions(tournament_id)
-
-        if can_generate:
-            # Use semester's saved schedule configuration if available, otherwise use defaults
-            # Admin sets these via schedule editor BEFORE generating sessions
-            session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
-            break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else 15
-            parallel_fields = tournament.parallel_fields if tournament.parallel_fields else 1
-
-            # Generate sessions (durations and parallel fields from semester config or defaults)
-            success, message, sessions_created = generator.generate_sessions(
-                tournament_id=tournament_id,
-                parallel_fields=parallel_fields,
-                session_duration_minutes=session_duration,
-                break_minutes=break_duration
-            )
-
-            if success:
-                print(f"✅ Auto-generated {len(sessions_created)} sessions for tournament {tournament_id}")
-            else:
-                print(f"⚠️ Failed to auto-generate sessions: {message}")
+        # 🔄 NEW: INDIVIDUAL_RANKING always expects 1 session (rounds stored in rounds_data)
+        # HEAD_TO_HEAD expects N sessions based on tournament type
+        if tournament.format == "INDIVIDUAL_RANKING":
+            expected_session_count = 1
         else:
-            print(f"⚠️ Cannot auto-generate sessions: {reason}")
+            # HEAD_TO_HEAD: session count depends on tournament type (calculated by generator)
+            expected_session_count = None  # Can't predict without running generator
+
+        # Regenerate if: (1) not generated yet, OR (2) session count doesn't match expected (for INDIVIDUAL_RANKING)
+        if tournament.format == "INDIVIDUAL_RANKING":
+            needs_regeneration = (not tournament.sessions_generated) or (current_session_count != expected_session_count)
+        else:
+            # HEAD_TO_HEAD: just check if not generated yet
+            needs_regeneration = not tournament.sessions_generated
+
+        if needs_regeneration and current_session_count > 0:
+            # Reset flags FIRST (before deletion) so can_generate_sessions() sees the correct state
+            tournament.sessions_generated = False
+            tournament.sessions_generated_at = None
+            db.flush()
+
+            # Delete existing sessions
+            from app.models.attendance import Attendance
+
+            session_ids = [s.id for s in db.query(SessionModel).filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.auto_generated == True
+            ).all()]
+
+            if session_ids:
+                db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).delete(synchronize_session=False)
+                deleted_count = db.query(SessionModel).filter(
+                    SessionModel.semester_id == tournament_id,
+                    SessionModel.auto_generated == True
+                ).delete(synchronize_session=False)
+                db.flush()
+                print(f"🗑️ Deleted {deleted_count} old sessions (mismatch: had {current_session_count}, need {expected_session_count})")
+
+        if needs_regeneration:
+            # 📸 SNAPSHOT: Save enrollment state BEFORE session generation
+            # This allows regeneration if something goes wrong
+            from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+
+            enrolled_players = db.query(SemesterEnrollment).filter(
+                SemesterEnrollment.semester_id == tournament_id,
+                SemesterEnrollment.is_active == True,
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+            ).all()
+
+            enrollment_snapshot = {
+                "timestamp": datetime.now().isoformat(),
+                "total_enrolled": len(enrolled_players),
+                "player_ids": [e.user_id for e in enrolled_players],
+                "player_details": [
+                    {
+                        "user_id": e.user_id,
+                        "enrollment_id": e.id,
+                        "payment_verified": e.payment_verified,
+                        "enrolled_at": e.created_at.isoformat() if e.created_at else None
+                    }
+                    for e in enrolled_players
+                ],
+                "schedule_config": {
+                    "match_duration_minutes": tournament.match_duration_minutes,
+                    "break_duration_minutes": tournament.break_duration_minutes,
+                    "parallel_fields": tournament.parallel_fields,
+                    "tournament_type_id": tournament.tournament_type_id
+                }
+            }
+
+            # 💾 SAVE SNAPSHOT to database
+            tournament.enrollment_snapshot = enrollment_snapshot
+            db.flush()  # Save snapshot immediately before session generation
+
+            print(f"📸 ENROLLMENT SNAPSHOT saved for tournament {tournament_id}:")
+            print(f"   Players: {len(enrolled_players)}")
+            print(f"   Config: {enrollment_snapshot['schedule_config']}")
+
+            # Auto-generate tournament sessions using default parameters
+            from app.services.tournament_session_generator import TournamentSessionGenerator
+
+            generator = TournamentSessionGenerator(db)
+
+            # Check if can generate
+            can_generate, reason = generator.can_generate_sessions(tournament_id)
+
+            if can_generate:
+                # Use semester's saved schedule configuration if available, otherwise use defaults
+                # Admin sets these via schedule editor BEFORE generating sessions
+                session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
+                break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else 15
+                parallel_fields = tournament.parallel_fields if tournament.parallel_fields else 1
+                number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else 1
+
+                # Generate sessions (durations and parallel fields from semester config or defaults)
+                success, message, sessions_created = generator.generate_sessions(
+                    tournament_id=tournament_id,
+                    parallel_fields=parallel_fields,
+                    session_duration_minutes=session_duration,
+                    break_minutes=break_duration,
+                    number_of_rounds=number_of_rounds
+                )
+
+                if success:
+                    print(f"✅ Auto-generated {len(sessions_created)} sessions for tournament {tournament_id}")
+                else:
+                    print(f"⚠️ Failed to auto-generate sessions: {message}")
+            else:
+                print(f"⚠️ Cannot auto-generate sessions: {reason}")
 
     # Record status history
     record_status_change(
@@ -739,6 +819,7 @@ class TournamentUpdateRequest(BaseModel):
     scoring_type: Optional[str] = Field(None, description="Scoring type (TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT)")
     measurement_unit: Optional[str] = Field(None, description="Measurement unit (seconds, meters, points, etc.)")
     ranking_direction: Optional[str] = Field(None, description="Ranking direction (ASC = lowest wins, DESC = highest wins)")
+    number_of_rounds: Optional[int] = Field(None, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (⚠️ WARNING: Triggers session regeneration if changed)")
 
 
 @router.patch("/{tournament_id}", status_code=status.HTTP_200_OK)
@@ -913,13 +994,48 @@ def update_tournament(
                 detail=f"Invalid tournament_status: {request.tournament_status}. Must be one of {list(VALID_TRANSITIONS.keys())}"
             )
 
+        # Store old status before changing
+        old_tournament_status = tournament.tournament_status
+
         # ✅ ADMIN OVERRIDE: Allow ANY status transition (no validation)
         updates["tournament_status"] = {
-            "old": tournament.tournament_status,
+            "old": old_tournament_status,
             "new": request.tournament_status,
             "admin_override": True
         }
         tournament.tournament_status = request.tournament_status
+        db.flush()
+
+        # ⚠️ TRIGGER AUTO-GENERATION if transitioning to IN_PROGRESS
+        if request.tournament_status == "IN_PROGRESS" and not tournament.sessions_generated:
+            from app.services.tournament_session_generator import TournamentSessionGenerator
+
+            generator = TournamentSessionGenerator(db)
+            can_generate, reason = generator.can_generate_sessions(tournament.id)
+
+            if can_generate:
+                session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
+                break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else 15
+                parallel_fields = tournament.parallel_fields if tournament.parallel_fields else 1
+                number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else 1
+
+                success, message, sessions_created = generator.generate_sessions(
+                    tournament_id=tournament.id,
+                    parallel_fields=parallel_fields,
+                    session_duration_minutes=session_duration,
+                    break_minutes=break_duration,
+                    number_of_rounds=number_of_rounds
+                )
+
+                if success:
+                    updates["sessions_auto_generated"] = {
+                        "count": len(sessions_created),
+                        "rounds": number_of_rounds
+                    }
+                else:
+                    updates["session_generation_failed"] = message
+            else:
+                updates["session_generation_skipped"] = reason
 
     # ✅ NEW: Update format (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
     if request.format is not None:
@@ -940,6 +1056,44 @@ def update_tournament(
     if request.ranking_direction is not None:
         updates["ranking_direction"] = {"old": tournament.ranking_direction, "new": request.ranking_direction}
         tournament.ranking_direction = request.ranking_direction
+
+    # ⚠️ NEW: Update number_of_rounds (AUTO-REGENERATES sessions if changed)
+    if request.number_of_rounds is not None:
+        old_rounds = tournament.number_of_rounds
+
+        # ✅ AUTO-DELETE and MARK for regeneration if rounds changed and sessions exist
+        if tournament.sessions_generated and old_rounds != request.number_of_rounds:
+            from app.models.session import Session as SessionModel
+            from app.models.attendance import Attendance
+
+            # Get session IDs to delete
+            session_ids = [s.id for s in db.query(SessionModel).filter(
+                SessionModel.semester_id == tournament.id,
+                SessionModel.auto_generated == True
+            ).all()]
+
+            if session_ids:
+                # Delete attendance records first
+                db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).delete(synchronize_session=False)
+
+                # Delete sessions
+                deleted_count = db.query(SessionModel).filter(
+                    SessionModel.semester_id == tournament.id,
+                    SessionModel.auto_generated == True
+                ).delete(synchronize_session=False)
+
+                # Reset flags so lifecycle can regenerate
+                tournament.sessions_generated = False
+                tournament.sessions_generated_at = None
+
+                updates["sessions_deleted"] = {
+                    "count": deleted_count,
+                    "reason": f"number_of_rounds changed from {old_rounds} to {request.number_of_rounds}",
+                    "note": "Sessions will auto-regenerate when tournament starts (status → IN_PROGRESS)"
+                }
+
+        updates["number_of_rounds"] = {"old": old_rounds, "new": request.number_of_rounds}
+        tournament.number_of_rounds = request.number_of_rounds
 
     # If no updates, return early
     if not updates:

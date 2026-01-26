@@ -662,8 +662,11 @@ def render_my_tournament_card(token: str, tournament: Dict):
             if tournament.get('tournament_status') == 'REWARDS_DISTRIBUTED':
                 st.markdown("---")
                 st.markdown("### 💰 Distributed Rewards")
+                # TODO: Migrate to V2 endpoint to display badges and skill point breakdown
 
                 try:
+                    # Currently uses V1 endpoint - returns flat structure with credits_awarded, xp_awarded
+                    # Future: Use /rewards-v2 endpoint to get TournamentRewardResult with nested structure
                     rewards_response = requests.get(
                         f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distributed-rewards",
                         headers={"Authorization": f"Bearer {token}"},

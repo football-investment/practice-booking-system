@@ -12,7 +12,7 @@ from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY,
 from api_helpers_general import get_current_user, unlock_specialization
 from components.credits.credit_purchase_button import render_credit_purchase_button
 from components.credits.credit_purchase_form import render_credit_purchase_form
-from components.credits.coupon_redemption import render_coupon_redemption
+from components.credits.bonus_code_redemption import render_bonus_code_redemption
 
 # Page configuration
 st.set_page_config(
@@ -407,11 +407,11 @@ for idx, spec in enumerate(specializations):
 if st.session_state.get('show_credit_purchase', False):
     render_credit_purchase_form(token)
 
-# Coupon redemption form (always show below specializations)
+# Bonus code redemption form (always show below specializations)
 st.divider()
-st.markdown("### 🎁 Have a Coupon Code?")
-st.caption("Redeem your BONUS_CREDITS coupon to instantly add credits")
-render_coupon_redemption(token)
+st.markdown("### 🎁 Have a Bonus Code?")
+st.caption("Redeem bonus codes for instant free credits (no purchase required)")
+render_bonus_code_redemption(token)
 
 st.divider()
 

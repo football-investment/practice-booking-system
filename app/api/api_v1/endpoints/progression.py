@@ -1,9 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
+from app.models.license import UserLicense
 from app.dependencies import get_current_user
+from app.services import skill_progression_service
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -234,7 +236,7 @@ def update_user_progress(
 @router.get("/systems")
 def get_progression_systems():
     """Get all progression system definitions"""
-    
+
     # Add UI metadata to the systems
     enhanced_systems = {
         "internship": {
@@ -248,7 +250,7 @@ def get_progression_systems():
         },
         "coach": {
             **PROGRESSION_SYSTEMS["coach"],
-            "id": "coach", 
+            "id": "coach",
             "title": "Coach Track",
             "subtitle": "LFA Edzői Specializáció",
             "emoji": "👨‍🏫",
@@ -258,15 +260,112 @@ def get_progression_systems():
         "gancuju": {
             **PROGRESSION_SYSTEMS["gancuju"],
             "id": "gancuju",
-            "title": "GānCuju™️©️ Track", 
+            "title": "GānCuju™️©️ Track",
             "subtitle": "8 Szintű Játékos Fejlesztési Rendszer",
             "emoji": "⚽",
             "color": "#4F46E5",
             "gradient": "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
         }
     }
-    
+
     return {
         "systems": enhanced_systems,
         "semester_counts": SEMESTER_COUNTS
     }
+
+
+# ============================================================================
+# SKILL PROFILE ENDPOINT - Dynamic Skill Progression
+# ============================================================================
+
+class SkillData(BaseModel):
+    """Individual skill progression data"""
+    current_level: float
+    baseline: float
+    total_delta: float
+    last_updated: str
+    assessment_count: int
+    tournament_count: int
+    tier: str
+    tier_emoji: str
+
+
+class SkillProfileResponse(BaseModel):
+    """Complete skill profile with dynamic calculations"""
+    user_license_id: int
+    specialization: str
+    skills: Dict[str, SkillData]
+    average_level: float
+    total_assessments: int
+    total_tournaments: int
+
+
+@router.get("/skill-profile", response_model=SkillProfileResponse)
+def get_skill_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get player's dynamic skill profile with placement-based calculation
+
+    NEW V2 System:
+        - Skills calculated from tournament placement (not points)
+        - Can both INCREASE and DECREASE based on performance
+        - 1st place → ~95-100, Last place → ~40-50
+        - Weighted average: baseline + placement-based value
+
+    Returns:
+        - Current skill levels (baseline + tournament deltas)
+        - Baseline values from onboarding
+        - Tournament participation count per skill
+        - Assessment count per skill
+        - Average skill level (dynamically calculated)
+        - Skill tiers (BEGINNER, DEVELOPING, INTERMEDIATE, ADVANCED, MASTER)
+    """
+    # Get active LFA_FOOTBALL_PLAYER license
+    license = db.query(UserLicense).filter(
+        UserLicense.user_id == current_user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True
+    ).first()
+
+    if not license:
+        raise HTTPException(
+            status_code=404,
+            detail="No active LFA Player license found. Please complete onboarding first."
+        )
+
+    # Get skill profile using NEW placement-based system
+    profile_data = skill_progression_service.get_skill_profile(db, current_user.id)
+
+    skills = profile_data.get("skills", {})
+    average_level = profile_data.get("average_level", 0.0)
+    total_tournaments = profile_data.get("total_tournaments", 0)
+    total_assessments = profile_data.get("total_assessments", 0)
+
+    # Build response with tier info
+    skills_response = {}
+    for skill_name, skill_data in skills.items():
+        current_level = skill_data.get("current_level", 0.0)
+        tier = skill_data.get("tier", "BEGINNER")
+        tier_emoji = skill_data.get("tier_emoji", "🌱")
+
+        skills_response[skill_name] = SkillData(
+            current_level=current_level,
+            baseline=skill_data.get("baseline", 0.0),
+            total_delta=skill_data.get("total_delta", 0.0),
+            last_updated="",  # Not tracked in V2
+            assessment_count=skill_data.get("assessment_count", 0),
+            tournament_count=skill_data.get("tournament_count", 0),
+            tier=tier,
+            tier_emoji=tier_emoji
+        )
+
+    return SkillProfileResponse(
+        user_license_id=license.id,
+        specialization=license.specialization_type,
+        skills=skills_response,
+        average_level=average_level,
+        total_assessments=total_assessments,
+        total_tournaments=total_tournaments
+    )

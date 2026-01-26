@@ -205,6 +205,18 @@ class User(Base):
         back_populates="user"
     )
 
+    # 🏆 Tournament participation & badge relationships
+    tournament_participations = relationship(
+        "TournamentParticipation",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    tournament_badges = relationship(
+        "TournamentBadge",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     # 🎓 NEW: Specialization helper properties and methods
     @property
     def specialization_display(self) -> str:

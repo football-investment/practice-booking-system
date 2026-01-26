@@ -278,6 +278,9 @@ def distribute_tournament_rewards(
     """
     Distribute rewards to tournament participants based on rankings (Admin only)
 
+    ⚠️ LEGACY V1 ENDPOINT - Use distribute_tournament_rewards_v2() instead
+    This endpoint returns flat structure and does not include badge data.
+
     Args:
         token: API authentication token
         tournament_id: Tournament ID to distribute rewards for
@@ -292,6 +295,215 @@ def distribute_tournament_rewards(
         response = requests.post(
             f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
             headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def distribute_tournament_rewards_v2(
+    token: str,
+    tournament_id: int,
+    force_redistribution: bool = False
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Distribute rewards using V2 unified system (Admin only)
+
+    ✅ V2 ENDPOINT - Returns TournamentRewardResult with nested structure
+    Includes both participation rewards (skill/XP) and visual badges.
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament ID to distribute rewards for
+        force_redistribution: Allow re-distribution if already distributed
+
+    Returns:
+        Tuple of (success, error_message, distribution_result)
+        - success: True if distribution succeeded
+        - error_message: Error message if failed, None if succeeded
+        - distribution_result: Dict with nested structure:
+          {
+            "success": bool,
+            "tournament_id": int,
+            "tournament_name": str,
+            "total_participants": int,
+            "rewards_distributed_count": int,  # 0 if already distributed
+            "summary": {
+              "total_xp_awarded": int,
+              "total_credits_awarded": int,
+              "total_badges_awarded": int
+            },
+            "distributed_at": str,
+            "message": str
+          }
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards-v2",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "tournament_id": tournament_id,
+                "force_redistribution": force_redistribution
+            },
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def get_user_tournament_rewards(
+    token: str,
+    tournament_id: int,
+    user_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Get reward details for specific user in tournament
+
+    Returns TournamentRewardResult with participation and badge data.
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament ID
+        user_id: User ID to get rewards for
+
+    Returns:
+        Tuple of (success, error_message, reward_data)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - reward_data: Dict with structure:
+          {
+            "user_id": int,
+            "tournament_id": int,
+            "tournament_name": str,
+            "participation": {
+              "placement": int,
+              "skill_points": [{"skill_name": str, "points": float, "category": str}],
+              "base_xp": int,
+              "bonus_xp": int,
+              "total_xp": int,
+              "credits": int
+            },
+            "badges": {
+              "badges": [{"type": str, "category": str, "title": str, "icon": str, "rarity": str}],
+              "total_badges_earned": int,
+              "rarest_badge": str
+            },
+            "distributed_at": str
+          }
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/rewards/{user_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def get_user_badge_showcase(
+    token: str,
+    user_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Get badge showcase for user profile
+
+    Returns organized badge display with featured badges and sections.
+
+    Args:
+        token: API authentication token
+        user_id: User ID to get badge showcase for
+
+    Returns:
+        Tuple of (success, error_message, showcase_data)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - showcase_data: Dict with user_id and showcase structure
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/badges/showcase/{user_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def get_user_badges(
+    token: str,
+    user_id: int,
+    tournament_id: Optional[int] = None,
+    limit: int = 100
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Get all badges for user (optionally filtered by tournament)
+
+    Args:
+        token: API authentication token
+        user_id: User ID to get badges for
+        tournament_id: Optional tournament ID to filter badges
+        limit: Maximum number of badges to return
+
+    Returns:
+        Tuple of (success, error_message, badges_data)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - badges_data: Dict with user_id, total_badges, and badges list
+    """
+    try:
+        params = {"limit": limit}
+        if tournament_id:
+            params['tournament_id'] = tournament_id
+
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/badges/user/{user_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            params=params,
             timeout=API_TIMEOUT
         )
 
@@ -503,7 +715,8 @@ def generate_tournament_sessions(
     tournament_id: int,
     parallel_fields: int = 1,
     session_duration_minutes: int = 90,
-    break_minutes: int = 15
+    break_minutes: int = 15,
+    number_of_rounds: int = 1
 ) -> Tuple[bool, Optional[str], Dict[str, Any]]:
     """
     Generate tournament sessions based on tournament type and enrolled player count
@@ -516,6 +729,7 @@ def generate_tournament_sessions(
         parallel_fields: Number of fields available for parallel matches
         session_duration_minutes: Duration of each session
         break_minutes: Break time between sessions
+        number_of_rounds: Number of rounds for INDIVIDUAL_RANKING tournaments (1-10)
 
     Returns:
         Tuple of (success, error_message, generation_data)
@@ -531,7 +745,8 @@ def generate_tournament_sessions(
             json={
                 "parallel_fields": parallel_fields,
                 "session_duration_minutes": session_duration_minutes,
-                "break_minutes": break_minutes
+                "break_minutes": break_minutes,
+                "number_of_rounds": number_of_rounds
             },
             timeout=API_TIMEOUT
         )
@@ -614,6 +829,199 @@ def delete_generated_sessions(
     try:
         response = requests.delete(
             f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/sessions",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+# ============================================================================
+# 🎁 REWARD CONFIGURATION HELPERS (PHASE 2.2)
+# ============================================================================
+
+def get_reward_config_templates(token: str) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Get all available reward configuration templates (Admin only)
+
+    Args:
+        token: API authentication token
+
+    Returns:
+        Tuple of (success, error_message, templates_dict)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - templates_dict: Dict of template_name -> template_config
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/templates",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def get_tournament_reward_config(
+    token: str,
+    tournament_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Get reward configuration for a specific tournament
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+
+    Returns:
+        Tuple of (success, error_message, reward_config)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - reward_config: Reward configuration dict or empty dict if not configured
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def save_tournament_reward_config(
+    token: str,
+    tournament_id: int,
+    reward_config: Dict[str, Any]
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Save reward configuration for a tournament (Admin only)
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+        reward_config: Reward configuration dict (from TournamentRewardConfig.model_dump())
+
+    Returns:
+        Tuple of (success, error_message, saved_config)
+        - success: True if save succeeded
+        - error_message: Error message if failed, None if succeeded
+        - saved_config: Saved reward configuration dict
+    """
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config",
+            headers={"Authorization": f"Bearer {token}"},
+            json=reward_config,
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def delete_tournament_reward_config(
+    token: str,
+    tournament_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Delete reward configuration for a tournament (reset to default)
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+
+    Returns:
+        Tuple of (success, error_message, result)
+        - success: True if deletion succeeded
+        - error_message: Error message if failed, None if succeeded
+        - result: Success message dict
+    """
+    try:
+        response = requests.delete(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            return True, None, response.json()
+        else:
+            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+            error_msg = error_data.get('detail', response.text)
+            return False, error_msg, {}
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", {}
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", {}
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", {}
+
+
+def preview_tournament_reward_distribution(
+    token: str,
+    tournament_id: int
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    """
+    Preview estimated reward distribution for a tournament
+
+    Args:
+        token: API authentication token
+        tournament_id: Tournament (semester) ID
+
+    Returns:
+        Tuple of (success, error_message, preview_data)
+        - success: True if API call succeeded
+        - error_message: Error message if failed, None if succeeded
+        - preview_data: Dict with estimated reward summary
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config/preview",
             headers={"Authorization": f"Bearer {token}"},
             timeout=API_TIMEOUT
         )

@@ -336,25 +336,74 @@ def _display_enrollment_card(enrollment: dict, icon: str):
                                 tx.get('semester_id') == semester_id
                             ]
 
-                            if tournament_rewards:
+                            if tournament_rewards or tournament_status == "REWARDS_DISTRIBUTED":
                                 st.markdown("---")
-                                st.markdown("#### 💰 Rewards Received")
+                                st.markdown("#### 💰 Rewards & Badges")
 
-                                total_credits = sum(tx.get('amount', 0) for tx in tournament_rewards)
+                                # Try to fetch V2 reward data (includes badges)
+                                from api_helpers_tournaments import get_user_tournament_rewards
+                                reward_success, reward_error, reward_data = get_user_tournament_rewards(
+                                    token, semester_id, user_id
+                                )
 
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.metric("💎 Credits Earned", f"+{total_credits}")
-                                with col2:
-                                    # TODO: XP tracking not implemented yet
-                                    st.caption("⭐ XP: Coming soon")
+                                if reward_success and reward_data:
+                                    # V2 reward data available
+                                    participation = reward_data.get('participation', {})
+                                    badges = reward_data.get('badges', {})
 
-                                # Show transaction details
-                                with st.expander("📜 Transaction Details", expanded=False):
-                                    for tx in tournament_rewards:
-                                        st.caption(f"• {tx.get('description', 'Reward')} - **{tx.get('amount')} credits**")
-                            else:
-                                st.info("ℹ️ No rewards distributed yet for this tournament")
+                                    # Show XP and Credits
+                                    col1, col2, col3 = st.columns(3)
+                                    with col1:
+                                        total_xp = participation.get('total_xp', 0)
+                                        st.metric("⭐ XP Earned", f"+{total_xp}")
+                                    with col2:
+                                        credits = participation.get('credits', 0)
+                                        st.metric("💎 Credits Earned", f"+{credits}")
+                                    with col3:
+                                        badge_count = badges.get('total_badges_earned', 0)
+                                        st.metric("🏆 Badges", badge_count)
+
+                                    # Show badges
+                                    badge_list = badges.get('badges', [])
+                                    if badge_list:
+                                        st.markdown("##### 🏆 Badges Earned")
+                                        from components.rewards.badge_card import render_badge_grid
+                                        render_badge_grid(badge_list, columns=3, size="normal", show_empty_state=False)
+
+                                    # Show XP breakdown in expander
+                                    with st.expander("📊 XP Breakdown", expanded=False):
+                                        base_xp = participation.get('base_xp', 0)
+                                        bonus_xp = participation.get('bonus_xp', 0)
+                                        st.caption(f"Base XP (Placement): **{base_xp}**")
+                                        st.caption(f"Bonus XP (Skill Points): **{bonus_xp}**")
+                                        st.caption(f"**Total: {total_xp} XP**")
+
+                                        # Show skill points if available
+                                        skill_points = participation.get('skill_points', [])
+                                        if skill_points:
+                                            st.markdown("**Skill Points Earned:**")
+                                            for sp in skill_points:
+                                                skill_name = sp.get('skill_name', 'Unknown')
+                                                points = sp.get('points', 0)
+                                                category = sp.get('category', '')
+                                                st.caption(f"• {skill_name.title()}: **{points:.1f}** ({category})")
+
+                                elif tournament_rewards:
+                                    # Fallback to V1 data (legacy)
+                                    total_credits = sum(tx.get('amount', 0) for tx in tournament_rewards)
+
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.metric("💎 Credits Earned", f"+{total_credits}")
+                                    with col2:
+                                        st.caption("⭐ XP: Upgrade to V2 for details")
+
+                                    # Show transaction details
+                                    with st.expander("📜 Transaction Details", expanded=False):
+                                        for tx in tournament_rewards:
+                                            st.caption(f"• {tx.get('description', 'Reward')} - **{tx.get('amount')} credits**")
+                                else:
+                                    st.info("ℹ️ No rewards distributed yet for this tournament")
 
                 except Exception as e:
                     st.warning(f"⚠️ Could not load tournament results: {str(e)}")
@@ -508,8 +557,8 @@ with st.sidebar:
     # Navigation buttons
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("🏠 Hub", disabled=True, use_container_width=True):
-            pass  # Already on Hub
+        if st.button("🏠 Home", use_container_width=True, help="Back to main home page"):
+            st.switch_page("🏠_Home.py")
     with col2:
         if st.button("👤 Profile", use_container_width=True):
             st.switch_page("pages/My_Profile.py")
@@ -625,56 +674,118 @@ with col4:
 st.divider()
 
 # ============================================================================
-# SKILLS SECTION
+# DYNAMIC SKILL PROGRESSION SECTION (V2)
 # ============================================================================
 
-if motivation_data and 'initial_self_assessment' in motivation_data:
-    st.markdown("### ⚡ Your Football Skills")
-    st.caption("Self-assessment from onboarding")
+try:
+    from components.skills.skill_profile_display import render_skill_profile
 
-    skills = motivation_data['initial_self_assessment']
+    # Render dynamic skill profile with tournament/assessment tracking
+    render_skill_profile(token, API_BASE_URL)
 
-    # Display skills in 2 columns
-    col1, col2 = st.columns(2)
+except Exception as e:
+    st.error(f"Error loading skill profile: {e}")
 
-    skill_names = list(skills.keys())
-    mid_point = len(skill_names) // 2
+    # Fallback to static skills if dynamic fails
+    if motivation_data and 'initial_self_assessment' in motivation_data:
+        st.markdown("### ⚡ Your Football Skills")
+        st.caption("Self-assessment from onboarding (static view)")
 
-    with col1:
-        for skill_name in skill_names[:mid_point]:
-            skill_value = skills[skill_name]
-            percentage = (skill_value / 10) * 100
+        skills = motivation_data['initial_self_assessment']
 
-            st.markdown(f"**{skill_name.title()}**")
-            st.markdown(f"""
-            <div class="skill-bar">
-                <div class="skill-fill" style="width: {percentage}%;">
-                    {skill_value}/10
+        # Display skills in 2 columns
+        col1, col2 = st.columns(2)
+
+        skill_names = list(skills.keys())
+        mid_point = len(skill_names) // 2
+
+        with col1:
+            for skill_name in skill_names[:mid_point]:
+                skill_value = skills[skill_name]
+                percentage = (skill_value / 10) * 100
+
+                st.markdown(f"**{skill_name.title()}**")
+                st.markdown(f"""
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width: {percentage}%;">
+                        {skill_value}/10
+                    </div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
-    with col2:
-        for skill_name in skill_names[mid_point:]:
-            skill_value = skills[skill_name]
-            percentage = (skill_value / 10) * 100
-
-            st.markdown(f"**{skill_name.title()}**")
-            st.markdown(f"""
-            <div class="skill-bar">
-                <div class="skill-fill" style="width: {percentage}%;">
-                    {skill_value}/10
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # Average skill level
-    if 'average_skill_level' in motivation_data:
-        avg_skill = motivation_data['average_skill_level']
-        st.markdown("---")
-        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            st.metric("Average Skill Level", f"{avg_skill:.1f}/100", help="Based on your self-assessment")
+            for skill_name in skill_names[mid_point:]:
+                skill_value = skills[skill_name]
+                percentage = (skill_value / 10) * 100
+
+                st.markdown(f"**{skill_name.title()}**")
+                st.markdown(f"""
+                <div class="skill-bar">
+                    <div class="skill-fill" style="width: {percentage}%;">
+                        {skill_value}/10
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # Average skill level
+        if 'average_skill_level' in motivation_data:
+            avg_skill = motivation_data['average_skill_level']
+            st.markdown("---")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.metric("Average Skill Level", f"{avg_skill:.1f}/100", help="Based on your self-assessment")
+
+st.divider()
+
+# ============================================================================
+# ACHIEVEMENT BADGES SECTION (V2 - Tournament Rewards)
+# ============================================================================
+
+user_id = user.get('id')
+if user_id:
+    try:
+        from components.rewards.badge_showcase import render_badge_summary_widget
+        from components.rewards.badge_card import render_badge_grid
+        from api_helpers_tournaments import get_user_badges
+
+        # Header with summary widget
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown("### 🏆 Tournament Achievements")
+        with col2:
+            render_badge_summary_widget(user_id, token, compact=True)
+
+        # Fetch all badges
+        success, error, badges_data = get_user_badges(token, user_id, limit=100)
+
+        if success and badges_data:
+            all_badges = badges_data.get('badges', [])
+
+            if all_badges:
+                # Sort by earned_at (newest first)
+                sorted_badges = sorted(
+                    all_badges,
+                    key=lambda b: b.get('earned_at', ''),
+                    reverse=True
+                )
+
+                # Show latest 3 badges
+                st.markdown("#### 🆕 Latest Badges")
+                latest_badges = sorted_badges[:3]
+                render_badge_grid(latest_badges, columns=3, size="compact")
+
+                # Show all badges in expander if more than 3
+                if len(all_badges) > 3:
+                    with st.expander(f"📋 View All Badges ({len(all_badges)})"):
+                        render_badge_grid(all_badges, columns=4, size="normal")
+            else:
+                st.info("🏆 No badges earned yet. Participate in tournaments to earn your first badge!")
+        else:
+            st.caption("🏆 Earn badges by participating in tournaments!")
+
+    except Exception as e:
+        # Silent fail - badges are optional feature
+        st.caption("🏆 Earn badges by participating in tournaments!")
 
 st.divider()
 
