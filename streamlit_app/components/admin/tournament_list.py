@@ -312,36 +312,122 @@ def render_tournament_list(token: str):
                             st.session_state[f'show_enrollments_modal_{tournament["id"]}'] = True
                             st.rerun()
 
-                st.write(f"**Enrollment Cost**: {tournament.get('enrollment_cost', 0)} credits")
+                # Show enrollment cost with FREE indicator
+                enrollment_cost = tournament.get('enrollment_cost', 0)
+                if enrollment_cost == 0:
+                    st.write(f"**Enrollment Cost**: 🆓 **FREE** (0 credits)")
+                else:
+                    st.write(f"**Enrollment Cost**: {enrollment_cost} credits")
 
-                # Show schedule configuration if set
-                match_duration = tournament.get('match_duration_minutes')
-                break_duration = tournament.get('break_duration_minutes')
-                parallel_fields = tournament.get('parallel_fields')
-                number_of_rounds = tournament.get('number_of_rounds')
-                tournament_format = tournament.get('format', 'INDIVIDUAL_RANKING')
-                scoring_type = tournament.get('scoring_type', 'PLACEMENT')
-                measurement_unit = tournament.get('measurement_unit')
-                ranking_direction = tournament.get('ranking_direction')
-                if match_duration or break_duration or parallel_fields or tournament_format:
-                    st.divider()
-                    st.caption("⚙️ **Match Schedule Configuration**")
-                    st.caption(f"   • Format: **{tournament_format}**")
-                    if tournament_format == "INDIVIDUAL_RANKING":
-                        st.caption(f"   • Scoring Type: **{scoring_type}**")
-                        if measurement_unit:
-                            st.caption(f"   • Measurement Unit: **{measurement_unit}**")
-                        if ranking_direction:
-                            winner_text = "Lowest wins" if ranking_direction == "ASC" else "Highest wins"
-                            st.caption(f"   • Winner Determination: **{ranking_direction}** ({winner_text})")
-                        if number_of_rounds is not None:
-                            st.caption(f"   • Number of Rounds: **{number_of_rounds}** round{'s' if number_of_rounds > 1 else ''}")
-                    if match_duration:
-                        st.caption(f"   • Match Duration: {match_duration} min")
-                    if break_duration:
-                        st.caption(f"   • Break Duration: {break_duration} min")
-                    if parallel_fields:
-                        st.caption(f"   • Parallel Fields: {parallel_fields} pitch{'es' if parallel_fields > 1 else ''}")
+            # 📍 LOCATION & VENUE DETAILS
+            st.divider()
+            col_loc1, col_loc2 = st.columns(2)
+            with col_loc1:
+                # Location info
+                location_id = tournament.get('location_id')
+                campus_id = tournament.get('campus_id')
+                location_city = tournament.get('location_city', 'N/A')
+                location_venue = tournament.get('location_venue', 'N/A')
+
+                st.caption("📍 **Location & Venue**")
+                if location_id:
+                    st.write(f"   • Location ID: {location_id}")
+                if campus_id:
+                    st.write(f"   • Campus ID: {campus_id}")
+                st.write(f"   • City: **{location_city}**")
+                st.write(f"   • Venue: **{location_venue}**")
+
+                location_address = tournament.get('location_address')
+                if location_address:
+                    st.write(f"   • Address: {location_address}")
+
+            with col_loc2:
+                # Reward & Configuration info
+                st.caption("🎁 **Rewards & Config**")
+                reward_policy_name = tournament.get('reward_policy_name', 'N/A')
+                st.write(f"   • Reward Policy: **{reward_policy_name}**")
+
+                # Check if reward_config (V2) exists
+                reward_config = tournament.get('reward_config')
+                if reward_config:
+                    skill_count = len(reward_config.get('skill_mappings', []))
+                    st.write(f"   • V2 Config: ✅ ({skill_count} skills)")
+                else:
+                    st.write(f"   • V2 Config: ❌ Not configured")
+
+                # Specialization
+                specialization_type = tournament.get('specialization_type', 'N/A')
+                st.write(f"   • Specialization: **{specialization_type}**")
+
+                # Theme & Focus
+                theme = tournament.get('theme')
+                focus_description = tournament.get('focus_description')
+                if theme:
+                    st.write(f"   • Theme: {theme}")
+                if focus_description:
+                    st.write(f"   • Focus: {focus_description}")
+
+            # 📊 LIFECYCLE & METADATA
+            st.divider()
+            col_meta1, col_meta2 = st.columns(2)
+            with col_meta1:
+                st.caption("📅 **Lifecycle Info**")
+                created_at = tournament.get('created_at', 'N/A')
+                updated_at = tournament.get('updated_at', 'N/A')
+                st.write(f"   • Created: {created_at}")
+                st.write(f"   • Updated: {updated_at}")
+
+                sessions_generated = tournament.get('sessions_generated', False)
+                sessions_generated_at = tournament.get('sessions_generated_at')
+                if sessions_generated:
+                    st.write(f"   • Sessions: ✅ Generated")
+                    if sessions_generated_at:
+                        st.write(f"   • Generated At: {sessions_generated_at}")
+                else:
+                    st.write(f"   • Sessions: ⏳ Not generated yet")
+
+            with col_meta2:
+                st.caption("⚙️ **Configuration Details**")
+                participant_type = tournament.get('participant_type')
+                is_multi_day = tournament.get('is_multi_day', False)
+
+                if participant_type:
+                    st.write(f"   • Participant Type: {participant_type}")
+                st.write(f"   • Multi-day: {'✅ Yes' if is_multi_day else '❌ No'}")
+
+                # Show enrollment snapshot count if exists
+                enrollment_snapshot = tournament.get('enrollment_snapshot')
+                if enrollment_snapshot and isinstance(enrollment_snapshot, dict):
+                    snapshot_count = len(enrollment_snapshot.get('enrollments', []))
+                    st.write(f"   • Enrollment Snapshot: {snapshot_count} entries")
+
+            # Show schedule configuration if set
+            match_duration = tournament.get('match_duration_minutes')
+            break_duration = tournament.get('break_duration_minutes')
+            parallel_fields = tournament.get('parallel_fields')
+            number_of_rounds = tournament.get('number_of_rounds')
+            tournament_format = tournament.get('format', 'INDIVIDUAL_RANKING')
+            scoring_type = tournament.get('scoring_type', 'PLACEMENT')
+            measurement_unit = tournament.get('measurement_unit')
+            ranking_direction = tournament.get('ranking_direction')
+            if match_duration or break_duration or parallel_fields or tournament_format:
+                st.caption("⚙️ **Match Schedule Configuration**")
+                st.caption(f"   • Format: **{tournament_format}**")
+                if tournament_format == "INDIVIDUAL_RANKING":
+                    st.caption(f"   • Scoring Type: **{scoring_type}**")
+                    if measurement_unit:
+                        st.caption(f"   • Measurement Unit: **{measurement_unit}**")
+                    if ranking_direction:
+                        winner_text = "Lowest wins" if ranking_direction == "ASC" else "Highest wins"
+                        st.caption(f"   • Winner Determination: **{ranking_direction}** ({winner_text})")
+                    if number_of_rounds is not None:
+                        st.caption(f"   • Number of Rounds: **{number_of_rounds}** round{'s' if number_of_rounds > 1 else ''}")
+                if match_duration:
+                    st.caption(f"   • Match Duration: {match_duration} min")
+                if break_duration:
+                    st.caption(f"   • Break Duration: {break_duration} min")
+                if parallel_fields:
+                    st.caption(f"   • Parallel Fields: {parallel_fields} pitch{'es' if parallel_fields > 1 else ''}")
 
             # ========================================================================
             # TOURNAMENT STATUS ACTIONS
