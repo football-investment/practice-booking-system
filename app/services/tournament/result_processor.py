@@ -424,7 +424,8 @@ class ResultProcessor:
         # KNOCKOUT PROGRESSION: Auto-create next round matches
         # ========================================================================
         knockout_info = None
-        if session.tournament_phase == "Knockout Stage":
+        # ✅ Support both "Knockout Stage" (group+knockout) and "Knockout" (pure knockout)
+        if session.tournament_phase in ["Knockout Stage", "Knockout"]:
             from app.services.tournament.knockout_progression_service import KnockoutProgressionService
             knockout_service = KnockoutProgressionService(db)
             knockout_info = knockout_service.process_knockout_progression(

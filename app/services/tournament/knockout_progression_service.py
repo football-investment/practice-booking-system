@@ -40,19 +40,56 @@ class KnockoutProgressionService:
         Returns:
             Dict with created sessions info, or None if no progression needed
         """
-        # Only process if this is a knockout match
-        if session.tournament_phase != "Knockout Stage":
+        # ✅ Only process if this is a knockout match (support both phase names)
+        if session.tournament_phase not in ["Knockout Stage", "Knockout"]:
             return None
+
+        # ✅ NEW: Determine tournament structure to handle progression correctly
+        # Check total number of knockout rounds to identify tournament size
+        total_rounds = self.db.query(SessionModel.tournament_round).filter(
+            and_(
+                SessionModel.semester_id == tournament.id,
+                SessionModel.is_tournament_game == True,
+                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"])
+            )
+        ).distinct().count()
 
         # Check which round this is
         round_num = session.tournament_round
 
-        if round_num == 1:
-            # This is a semifinal - check if both semifinals are complete
-            return self._handle_semifinal_completion(session, tournament, game_results)
+        # ✅ NEW: Handle different tournament sizes dynamically
+        # - 4 players: 2 rounds (R1=Semis, R2=Final+Bronze)
+        # - 8 players: 3 rounds (R1=Quarters, R2=Semis, R3=Final+Bronze)
+        # - 16 players: 4 rounds (R1=R16, R2=Quarters, R3=Semis, R4=Final+Bronze)
 
-        # Add more round handling here if needed (quarterfinals, etc.)
-        return None
+        # Check if all matches in current round are complete
+        all_matches_in_round = self.db.query(SessionModel).filter(
+            and_(
+                SessionModel.semester_id == tournament.id,
+                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.tournament_round == round_num,
+                SessionModel.is_tournament_game == True,
+                # Exclude bronze match from count (it has same round as final)
+                ~SessionModel.title.ilike("%bronze%"),
+                ~SessionModel.title.ilike("%3rd%")
+            )
+        ).all()
+
+        completed_count = sum(1 for m in all_matches_in_round if m.game_results)
+
+        if completed_count < len(all_matches_in_round):
+            return {
+                "message": f"Match completed. Waiting for other matches in round {round_num} ({completed_count}/{len(all_matches_in_round)} done)"
+            }
+
+        # All matches in this round complete - create next round matches
+        return self._handle_round_completion(
+            round_num=round_num,
+            total_rounds=total_rounds,
+            completed_matches=all_matches_in_round,
+            tournament=tournament,
+            tournament_phase=session.tournament_phase
+        )
 
     def _handle_semifinal_completion(
         self,
@@ -245,3 +282,199 @@ class KnockoutProgressionService:
         self.db.add(final_session)
         self.db.flush()
         return final_session
+
+    def _handle_round_completion(
+        self,
+        round_num: int,
+        total_rounds: int,
+        completed_matches: List[SessionModel],
+        tournament: Semester,
+        tournament_phase: str
+    ) -> Dict[str, Any]:
+        """
+        ✅ NEW: Handle completion of any knockout round dynamically.
+
+        Determines winners from completed matches and updates participant_user_ids
+        for existing next-round matches (which were pre-generated with NULL participants).
+
+        Args:
+            round_num: Current round number (1 = first round)
+            total_rounds: Total rounds in tournament
+            completed_matches: All completed matches from this round
+            tournament: Tournament object
+            tournament_phase: "Knockout Stage" or "Knockout"
+
+        Returns:
+            Dict with progression status and updated sessions
+        """
+        # Determine winners from completed matches
+        winners = []
+        losers = []
+
+        for match in completed_matches:
+            if not match.game_results:
+                continue
+
+            # Parse game_results
+            results = json.loads(match.game_results) if isinstance(match.game_results, str) else match.game_results
+            raw_results = results.get("raw_results", [])
+
+            if len(raw_results) == 2 and "score" in raw_results[0]:
+                # SCORE_BASED format
+                p1_id = raw_results[0]["user_id"]
+                p1_score = raw_results[0]["score"]
+                p2_id = raw_results[1]["user_id"]
+                p2_score = raw_results[1]["score"]
+
+                if p1_score > p2_score:
+                    winners.append(p1_id)
+                    losers.append(p2_id)
+                elif p2_score > p1_score:
+                    winners.append(p2_id)
+                    losers.append(p1_id)
+                else:
+                    # Tie - use tiebreaker or first player
+                    winners.append(p1_id)
+                    losers.append(p2_id)
+
+        # Check if this is the final round (before final+bronze)
+        is_final_round = (round_num == total_rounds - 1)
+
+        if is_final_round:
+            # This is semifinals - create/update Final and Bronze matches
+            return self._update_final_and_bronze(
+                winners=winners,
+                losers=losers,
+                tournament=tournament,
+                tournament_phase=tournament_phase,
+                reference_session=completed_matches[0]
+            )
+        else:
+            # This is earlier round (QF, R16, etc.) - update next round matches
+            return self._update_next_round_matches(
+                round_num=round_num,
+                winners=winners,
+                tournament=tournament,
+                tournament_phase=tournament_phase
+            )
+
+    def _update_next_round_matches(
+        self,
+        round_num: int,
+        winners: List[int],
+        tournament: Semester,
+        tournament_phase: str
+    ) -> Dict[str, Any]:
+        """
+        ✅ NEW: Update participant_user_ids for next round matches.
+
+        Next round matches already exist (created during tournament generation),
+        but participant_user_ids is NULL. We populate them with winners.
+        """
+        next_round = round_num + 1
+
+        # Get next round matches (ordered by match_number)
+        next_round_matches = self.db.query(SessionModel).filter(
+            and_(
+                SessionModel.semester_id == tournament.id,
+                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.tournament_round == next_round,
+                SessionModel.is_tournament_game == True,
+                ~SessionModel.title.ilike("%bronze%"),
+                ~SessionModel.title.ilike("%3rd%")
+            )
+        ).order_by(SessionModel.tournament_match_number).all()
+
+        if not next_round_matches:
+            return {"message": f"⚠️ No next round matches found for round {next_round}"}
+
+        # Pair winners into matches (winner[0] vs winner[1], winner[2] vs winner[3], etc.)
+        updated_sessions = []
+        for idx, match in enumerate(next_round_matches):
+            # Calculate which winners go into this match
+            p1_idx = idx * 2
+            p2_idx = idx * 2 + 1
+
+            if p1_idx < len(winners) and p2_idx < len(winners):
+                match.participant_user_ids = [winners[p1_idx], winners[p2_idx]]
+                updated_sessions.append({
+                    "session_id": match.id,
+                    "title": match.title,
+                    "participants": [winners[p1_idx], winners[p2_idx]]
+                })
+
+        self.db.commit()
+
+        return {
+            "message": f"✅ Round {round_num} complete! Updated {len(updated_sessions)} matches for round {next_round}",
+            "updated_sessions": updated_sessions
+        }
+
+    def _update_final_and_bronze(
+        self,
+        winners: List[int],
+        losers: List[int],
+        tournament: Semester,
+        tournament_phase: str,
+        reference_session: SessionModel
+    ) -> Dict[str, Any]:
+        """
+        ✅ NEW: Update Final and Bronze match participants after semifinals.
+
+        These matches were already created during tournament generation,
+        but participant_user_ids is NULL. We populate them with winners/losers.
+        """
+        updated_sessions = []
+
+        # Find existing Final match
+        final_match = self.db.query(SessionModel).filter(
+            and_(
+                SessionModel.semester_id == tournament.id,
+                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.title.ilike("%final%"),
+                ~SessionModel.title.ilike("%bronze%"),
+                ~SessionModel.title.ilike("%3rd%")
+            )
+        ).first()
+
+        if final_match and len(winners) >= 2:
+            final_match.participant_user_ids = winners[:2]
+            updated_sessions.append({
+                "type": "final",
+                "session_id": final_match.id,
+                "participants": winners[:2]
+            })
+
+        # Find existing Bronze match
+        bronze_match = self.db.query(SessionModel).filter(
+            and_(
+                SessionModel.semester_id == tournament.id,
+                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.title.ilike("%bronze%")
+            )
+        ).first()
+
+        # Alternative: Check for "3rd Place" in title
+        if not bronze_match:
+            bronze_match = self.db.query(SessionModel).filter(
+                and_(
+                    SessionModel.semester_id == tournament.id,
+                    SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                    SessionModel.title.ilike("%3rd%")
+                )
+            ).first()
+
+        if bronze_match and len(losers) >= 2:
+            bronze_match.participant_user_ids = losers[:2]
+            updated_sessions.append({
+                "type": "bronze",
+                "session_id": bronze_match.id,
+                "participants": losers[:2]
+            })
+
+        self.db.commit()
+
+        return {
+            "message": f"✅ Semifinals complete! Updated {len(updated_sessions)} final round matches",
+            "updated_sessions": updated_sessions
+        }
