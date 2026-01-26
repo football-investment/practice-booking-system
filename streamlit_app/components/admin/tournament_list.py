@@ -138,6 +138,56 @@ def get_tournament_sessions_from_db(tournament_id: int) -> List[Dict]:
         return []
 
 
+def get_location_info(location_id: int) -> Dict[str, str]:
+    """
+    Fetch location name and city from database by ID.
+    Returns: {'name': 'Location Name', 'city': 'City Name'}
+    """
+    try:
+        db_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+        conn = psycopg2.connect(db_url)
+        cursor = conn.cursor()
+
+        query = "SELECT name, city FROM locations WHERE id = %s"
+        cursor.execute(query, (location_id,))
+        row = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if row:
+            return {'name': row[0], 'city': row[1]}
+        return {}
+
+    except Exception:
+        return {}
+
+
+def get_campus_info(campus_id: int) -> Dict[str, str]:
+    """
+    Fetch campus name and address from database by ID.
+    Returns: {'name': 'Campus Name', 'address': 'Full Address'}
+    """
+    try:
+        db_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+        conn = psycopg2.connect(db_url)
+        cursor = conn.cursor()
+
+        query = "SELECT name, address FROM campuses WHERE id = %s"
+        cursor.execute(query, (campus_id,))
+        row = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if row:
+            return {'name': row[0], 'address': row[1]}
+        return {}
+
+    except Exception:
+        return {}
+
+
 def render_tournament_list(token: str):
     """Display list of all tournaments"""
 
@@ -319,87 +369,107 @@ def render_tournament_list(token: str):
                 else:
                     st.write(f"**Enrollment Cost**: {enrollment_cost} credits")
 
-            # 📍 LOCATION & VENUE DETAILS
-            st.divider()
-            col_loc1, col_loc2 = st.columns(2)
-            with col_loc1:
-                # Location info
-                location_id = tournament.get('location_id')
-                campus_id = tournament.get('campus_id')
-                location_city = tournament.get('location_city', 'N/A')
-                location_venue = tournament.get('location_venue', 'N/A')
+            # 📍 LOCATION & VENUE DETAILS (only if data exists)
+            location_id = tournament.get('location_id')
+            campus_id = tournament.get('campus_id')
 
-                st.caption("📍 **Location & Venue**")
-                if location_id:
-                    st.write(f"   • Location ID: {location_id}")
-                if campus_id:
-                    st.write(f"   • Campus ID: {campus_id}")
-                st.write(f"   • City: **{location_city}**")
-                st.write(f"   • Venue: **{location_venue}**")
+            # Fetch actual location and campus data
+            location_info = get_location_info(location_id) if location_id else {}
+            campus_info = get_campus_info(campus_id) if campus_id else {}
 
-                location_address = tournament.get('location_address')
-                if location_address:
-                    st.write(f"   • Address: {location_address}")
+            # Only show section if we have location or campus data
+            if location_info or campus_info:
+                st.divider()
+                col_loc1, col_loc2 = st.columns(2)
+                with col_loc1:
+                    st.caption("📍 **Location & Venue**")
 
-            with col_loc2:
-                # Reward & Configuration info
-                st.caption("🎁 **Rewards & Config**")
-                reward_policy_name = tournament.get('reward_policy_name', 'N/A')
-                st.write(f"   • Reward Policy: **{reward_policy_name}**")
+                    # Show location name and city
+                    if location_info:
+                        location_name = location_info.get('name')
+                        location_city = location_info.get('city')
+                        if location_name:
+                            st.write(f"   • Location: **{location_name}**")
+                        if location_city:
+                            st.write(f"   • City: **{location_city}**")
 
-                # Check if reward_config (V2) exists
-                reward_config = tournament.get('reward_config')
-                if reward_config:
-                    skill_count = len(reward_config.get('skill_mappings', []))
-                    st.write(f"   • V2 Config: ✅ ({skill_count} skills)")
-                else:
-                    st.write(f"   • V2 Config: ❌ Not configured")
+                    # Show campus name and address
+                    if campus_info:
+                        campus_name = campus_info.get('name')
+                        campus_address = campus_info.get('address')
+                        if campus_name:
+                            st.write(f"   • Campus: **{campus_name}**")
+                        if campus_address:
+                            st.write(f"   • Address: {campus_address}")
 
-                # Specialization
-                specialization_type = tournament.get('specialization_type', 'N/A')
-                st.write(f"   • Specialization: **{specialization_type}**")
+                with col_loc2:
+                    # Reward & Configuration info
+                    st.caption("🎁 **Rewards & Config**")
 
-                # Theme & Focus
-                theme = tournament.get('theme')
-                focus_description = tournament.get('focus_description')
-                if theme:
-                    st.write(f"   • Theme: {theme}")
-                if focus_description:
-                    st.write(f"   • Focus: {focus_description}")
+                    # Always show reward policy (required field)
+                    reward_policy_name = tournament.get('reward_policy_name', 'default')
+                    st.write(f"   • Reward Policy: **{reward_policy_name}**")
 
-            # 📊 LIFECYCLE & METADATA
+                    # Show V2 config ONLY if exists
+                    reward_config = tournament.get('reward_config')
+                    if reward_config:
+                        skill_count = len(reward_config.get('skill_mappings', []))
+                        st.write(f"   • V2 Config: ✅ ({skill_count} skills)")
+
+                    # Always show specialization (required field)
+                    specialization_type = tournament.get('specialization_type', 'LFA_FOOTBALL_PLAYER')
+                    st.write(f"   • Specialization: **{specialization_type}**")
+
+                    # Show theme & focus ONLY if configured
+                    theme = tournament.get('theme')
+                    focus_description = tournament.get('focus_description')
+                    if theme and theme.strip():
+                        st.write(f"   • Theme: {theme}")
+                    if focus_description and focus_description.strip():
+                        st.write(f"   • Focus: {focus_description}")
+
+            # 📊 LIFECYCLE & METADATA (always show - admin needs timestamps)
             st.divider()
             col_meta1, col_meta2 = st.columns(2)
             with col_meta1:
                 st.caption("📅 **Lifecycle Info**")
-                created_at = tournament.get('created_at', 'N/A')
-                updated_at = tournament.get('updated_at', 'N/A')
-                st.write(f"   • Created: {created_at}")
-                st.write(f"   • Updated: {updated_at}")
 
+                # Always show created/updated timestamps
+                created_at = tournament.get('created_at')
+                updated_at = tournament.get('updated_at')
+                if created_at:
+                    st.write(f"   • Created: {created_at}")
+                if updated_at:
+                    st.write(f"   • Updated: {updated_at}")
+
+                # Sessions generation status
                 sessions_generated = tournament.get('sessions_generated', False)
                 sessions_generated_at = tournament.get('sessions_generated_at')
                 if sessions_generated:
                     st.write(f"   • Sessions: ✅ Generated")
                     if sessions_generated_at:
-                        st.write(f"   • Generated At: {sessions_generated_at}")
+                        st.write(f"   • At: {sessions_generated_at}")
                 else:
                     st.write(f"   • Sessions: ⏳ Not generated yet")
 
             with col_meta2:
                 st.caption("⚙️ **Configuration Details**")
-                participant_type = tournament.get('participant_type')
-                is_multi_day = tournament.get('is_multi_day', False)
 
+                # Participant type (only if set)
+                participant_type = tournament.get('participant_type')
                 if participant_type:
                     st.write(f"   • Participant Type: {participant_type}")
+
+                # Multi-day indicator (always show)
+                is_multi_day = tournament.get('is_multi_day', False)
                 st.write(f"   • Multi-day: {'✅ Yes' if is_multi_day else '❌ No'}")
 
-                # Show enrollment snapshot count if exists
+                # Enrollment snapshot (only if exists)
                 enrollment_snapshot = tournament.get('enrollment_snapshot')
                 if enrollment_snapshot and isinstance(enrollment_snapshot, dict):
                     snapshot_count = len(enrollment_snapshot.get('enrollments', []))
-                    st.write(f"   • Enrollment Snapshot: {snapshot_count} entries")
+                    if snapshot_count > 0:
+                        st.write(f"   • Enrollment Snapshot: {snapshot_count} entries")
 
             # Show schedule configuration if set
             match_duration = tournament.get('match_duration_minutes')
