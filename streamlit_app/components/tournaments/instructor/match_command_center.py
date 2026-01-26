@@ -1955,29 +1955,25 @@ def render_time_based_form(
 
 def render_knockout_results_bracket(token: str, tournament_id: int, leaderboard_data: dict):
     """Display knockout bracket results in pyramid style (bottom-up to final)"""
-    import requests
-    from config import API_BASE_URL
+    # KNOCKOUT STAGE VIEWING NOT YET IMPLEMENTED
+    # Endpoint GET /api/v1/tournaments/{id}/sessions is in backlog
+    st.info("🚧 **Knockout Stage Results Display Coming Soon**")
+    st.markdown("""
+    The knockout bracket visualization is currently under development.
 
-    # Fetch tournament sessions
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/sessions",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10
-        )
+    **Available Now:**
+    - ✅ Group Stage Results (see above)
+    - ✅ Match recording and scoring
+    - ✅ Leaderboard rankings
 
-        if response.status_code == 200:
-            sessions = response.json()
-        else:
-            st.error(f"❌ Failed to load sessions: HTTP {response.status_code}")
-            st.code(response.text)
-            return
-    except Exception as e:
-        st.error(f"❌ Error loading sessions: {str(e)}")
-        return
+    **Coming Soon:**
+    - 🚧 Knockout bracket progression
+    - 🚧 Semifinal & Final results display
+    """)
+    return
 
-    # Filter knockout sessions
-    knockout_sessions = [s for s in sessions if s.get('tournament_phase') == 'Knockout Stage']
+    # Filter knockout sessions (placeholder for future implementation)
+    knockout_sessions = []
 
     if not knockout_sessions:
         st.warning(f"⚠️ No knockout matches found. Total sessions loaded: {len(sessions)}")
