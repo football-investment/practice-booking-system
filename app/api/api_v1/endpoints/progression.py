@@ -283,6 +283,8 @@ class SkillData(BaseModel):
     current_level: float
     baseline: float
     total_delta: float
+    tournament_delta: Optional[float] = None  # Breakdown: tournament contribution
+    assessment_delta: Optional[float] = None  # Breakdown: assessment contribution
     last_updated: str
     assessment_count: int
     tournament_count: int
@@ -354,6 +356,8 @@ def get_skill_profile(
             current_level=current_level,
             baseline=skill_data.get("baseline", 0.0),
             total_delta=skill_data.get("total_delta", 0.0),
+            tournament_delta=skill_data.get("tournament_delta"),  # NEW: breakdown data
+            assessment_delta=skill_data.get("assessment_delta"),  # NEW: breakdown data
             last_updated="",  # Not tracked in V2
             assessment_count=skill_data.get("assessment_count", 0),
             tournament_count=skill_data.get("tournament_count", 0),
