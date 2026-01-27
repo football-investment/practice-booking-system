@@ -55,6 +55,8 @@ from .endpoints import (
     tournament_types  # 🎯 NEW: Add tournament type system
 )
 
+from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test system
+
 from .endpoints.sessions import results as session_results  # 🏆 NEW: Game results management
 
 from .endpoints.semesters import academy_generator  # 🏫 NEW: Add Academy Season generator
@@ -344,4 +346,11 @@ api_router.include_router(
     generate_sessions.router,
     prefix="/tournaments",
     tags=["tournaments", "session-generation"]
+)
+
+# 🧪 NEW: Add sandbox test system routes (admin only)
+api_router.include_router(
+    sandbox.router,
+    prefix="/sandbox",
+    tags=["sandbox-testing"]
 )

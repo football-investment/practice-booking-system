@@ -179,6 +179,10 @@ def get_baseline_skills(db: Session, user_id: int) -> Dict[str, float]:
         # 🔒 GUARD: No onboarding data at all → return all skills at DEFAULT_BASELINE
         return {skill_key: DEFAULT_BASELINE for skill_key in get_all_skill_keys()}
 
+    # 🔒 GUARD: Ensure football_skills is a dict
+    if not isinstance(license.football_skills, dict):
+        return {skill_key: DEFAULT_BASELINE for skill_key in get_all_skill_keys()}
+
     baseline_skills = {}
     for skill_key in get_all_skill_keys():
         # ⚠️ FALLBACK: Missing skill defaults to DEFAULT_BASELINE (50.0)
@@ -263,11 +267,21 @@ def calculate_tournament_skill_contribution(
 
         # Build dict of enabled skills with their weights
         tournament_skills_with_weights = {}
-        for mapping in skill_mappings:
-            if mapping.get("enabled", False) and mapping["skill"] in skill_keys:
-                skill_key = mapping["skill"]
-                weight = mapping.get("weight", 1.0)  # Default to 1.0 if not specified
-                tournament_skills_with_weights[skill_key] = weight
+
+        # 🔒 GUARD: Handle both list and dict formats for skill_mappings
+        if isinstance(skill_mappings, list):
+            # New format: [{"skill": "passing", "enabled": true, "weight": 1.0}, ...]
+            for mapping in skill_mappings:
+                if mapping.get("enabled", False) and mapping["skill"] in skill_keys:
+                    skill_key = mapping["skill"]
+                    weight = mapping.get("weight", 1.0)  # Default to 1.0 if not specified
+                    tournament_skills_with_weights[skill_key] = weight
+        elif isinstance(skill_mappings, dict):
+            # Old format: {"passing": {...}, "dribbling": {...}}
+            # Just mark all skills in the dict as enabled with weight 1.0
+            for skill_key in skill_mappings.keys():
+                if skill_key in skill_keys:
+                    tournament_skills_with_weights[skill_key] = 1.0
 
         if not tournament_skills_with_weights:
             continue
