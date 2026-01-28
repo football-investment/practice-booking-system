@@ -78,22 +78,12 @@ class Semester(Base):
     location_id = Column(Integer, ForeignKey('locations.id', ondelete='SET NULL'), nullable=True, index=True,
                         comment="FK to locations table (less specific than campus_id, preferred over legacy location_city/venue/address)")
 
-    # DEPRECATED: Legacy location fields - kept for backward compatibility
-    location_city = Column(String(100), nullable=True,
-                          comment="DEPRECATED: Use campus_id or location_id instead. City where semester takes place")
-    location_venue = Column(String(200), nullable=True,
-                           comment="DEPRECATED: Use campus_id or location_id instead. Venue/campus name")
-    location_address = Column(String(500), nullable=True,
-                             comment="DEPRECATED: Use campus_id or location_id instead. Full address")
 
     # 🏆 TOURNAMENT FIELDS (new tournament system)
     # NEW: FK to tournament_types table (preferred for auto-generation)
     tournament_type_id = Column(Integer, ForeignKey('tournament_types.id', ondelete='SET NULL'), nullable=True,
                                 comment="FK to tournament_types table (for auto-generating session structure)")
 
-    # DEPRECATED: Legacy tournament_type string field - kept for backward compatibility
-    tournament_type = Column(String(50), nullable=True,
-                            comment="DEPRECATED: Use tournament_type_id instead. Tournament format: LEAGUE, KNOCKOUT, ROUND_ROBIN, CUSTOM")
 
     participant_type = Column(String(50), nullable=True, default="INDIVIDUAL",
                              comment="Participant type: INDIVIDUAL, TEAM, MIXED")
@@ -115,8 +105,6 @@ class Semester(Base):
                                   comment="Break time between matches in minutes (overrides tournament_type default)")
     parallel_fields = Column(Integer, nullable=True, default=1,
                             comment="Number of parallel fields/pitches available (1-4) for simultaneous matches")
-    format = Column(String(50), nullable=False, default="INDIVIDUAL_RANKING",
-                   comment="Tournament format: HEAD_TO_HEAD (1v1 with scores) or INDIVIDUAL_RANKING (placement-based). Overrides tournament_type default.")
     scoring_type = Column(String(50), nullable=False, default="PLACEMENT",
                          comment="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD.")
     measurement_unit = Column(String(50), nullable=True,
@@ -140,6 +128,17 @@ class Semester(Base):
     reward_config = Column(JSONB, nullable=True,
                           comment="Detailed reward configuration (skill mappings, badge configs, credit bonuses). Uses TournamentRewardConfig schema.")
 
+    # 🎮 GAME CONFIGURATION FIELDS (tournament simulation rules)
+    game_preset_id = Column(Integer, ForeignKey("game_presets.id", name="fk_semesters_game_preset"),
+                           nullable=True, index=True,
+                           comment="Reference to pre-configured game type (e.g., GanFootvolley, Stole My Goal). Preset defines default skills, weights, and match rules.")
+
+    game_config = Column(JSONB, nullable=True,
+                        comment="Merged game configuration (preset + overrides). Final configuration used for tournament simulation. Includes match probabilities, ranking rules, skill weights, and simulation options.")
+
+    game_config_overrides = Column(JSONB, nullable=True, index=True,
+                                   comment="Custom overrides applied to preset configuration. Tracks what was customized from the base preset. NULL if using preset defaults.")
+
     # Relationships
     campus = relationship("Campus", foreign_keys=[campus_id],
                          backref="semesters",
@@ -154,6 +153,9 @@ class Semester(Base):
     tournament_type_config = relationship("TournamentType", foreign_keys=[tournament_type_id],
                                          back_populates="semesters",
                                          doc="Tournament type configuration (for auto-generating sessions)")
+    game_preset = relationship("GamePreset", foreign_keys=[game_preset_id],
+                              back_populates="semesters",
+                              doc="Pre-configured game type defining skills, weights, and match rules")
     groups = relationship("Group", back_populates="semester")
     sessions = relationship("Session", back_populates="semester")
     projects = relationship("Project", back_populates="semester")
@@ -163,6 +165,33 @@ class Semester(Base):
     skill_mappings = relationship("TournamentSkillMapping", back_populates="tournament", cascade="all, delete-orphan")
     participations = relationship("TournamentParticipation", back_populates="tournament", cascade="all, delete-orphan")
     badges = relationship("TournamentBadge", back_populates="tournament", cascade="all, delete-orphan")
+
+    @property
+    def format(self) -> str:
+        """
+        Derive tournament format from tournament_type.format (single source of truth).
+
+        Priority:
+        1. tournament_type.format (if tournament_type_id is set)
+        2. game_preset's format_config (if game_preset_id is set)
+        3. Default: INDIVIDUAL_RANKING
+
+        Returns:
+            str: Either "HEAD_TO_HEAD" or "INDIVIDUAL_RANKING"
+        """
+        # Priority 1: tournament_type.format (preferred)
+        if self.tournament_type_id and self.tournament_type_config:
+            return self.tournament_type_config.format
+
+        # Priority 2: game_preset's format_config
+        if self.game_preset_id and self.game_preset:
+            format_config = self.game_preset.game_config.get('format_config', {})
+            if format_config:
+                # format_config is a dict with format as key: {"HEAD_TO_HEAD": {...}} or {"INDIVIDUAL_RANKING": {...}}
+                return list(format_config.keys())[0]
+
+        # Priority 3: Default
+        return "INDIVIDUAL_RANKING"
 
     def validate_tournament_format_logic(self):
         """
