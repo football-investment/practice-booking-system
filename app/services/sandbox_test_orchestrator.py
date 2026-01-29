@@ -188,9 +188,9 @@ class SandboxTestOrchestrator:
             raise ValueError(error_msg)
 
         # Build reward config
-        reward_config = self._build_reward_config(skills_to_test)
+        reward_config_data = self._build_reward_config(skills_to_test)
 
-        # Create tournament
+        # Create tournament (P1: without reward_config, will be added as separate entity)
         tournament = Semester(
             code=f"SANDBOX-{self.test_run_id}",
             name=f"SANDBOX-TEST-{tournament_type_code.upper()}-{self.start_time.strftime('%Y-%m-%d')}",
@@ -199,9 +199,7 @@ class SandboxTestOrchestrator:
             is_active=True,
             tournament_type_id=tournament_type.id,
             tournament_status="DRAFT",
-            format=tournament_type.format,
-            max_players=player_count,
-            reward_config=reward_config
+            max_players=player_count
         )
 
         self.db.add(tournament)
@@ -209,9 +207,19 @@ class SandboxTestOrchestrator:
         self.db.refresh(tournament)
 
         self.tournament_id = tournament.id
-        self.execution_steps.append(f"Tournament created (ID: {self.tournament_id}, Status: DRAFT)")
 
-        logger.info(f"✅ Tournament created: ID={self.tournament_id}")
+        # 🎁 P1: Create separate TournamentRewardConfig
+        from app.models.tournament_reward_config import TournamentRewardConfig
+        reward_config_obj = TournamentRewardConfig(
+            semester_id=tournament.id,
+            reward_policy_name="sandbox_test",
+            reward_config=reward_config_data
+        )
+        self.db.add(reward_config_obj)
+        self.db.commit()
+
+        self.execution_steps.append(f"Tournament created (ID: {self.tournament_id}, Status: DRAFT)")
+        logger.info(f"✅ Tournament created: ID={self.tournament_id}, Reward config: sandbox_test")
 
     def _build_reward_config(self, skills_to_test: List[str]) -> Dict:
         """Build reward config with skill mappings"""

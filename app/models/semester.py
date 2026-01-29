@@ -121,12 +121,9 @@ class Semester(Base):
                         comment="Maximum tournament participants (explicit capacity, independent of session capacity sum)")
 
     # 🎁 REWARD POLICY FIELDS (tournament reward system)
-    reward_policy_name = Column(String(100), nullable=False, default="default",
-                                comment="Name of the reward policy applied to this tournament semester")
-    reward_policy_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
-                                    comment="Immutable snapshot of the reward policy at tournament creation time")
-    reward_config = Column(JSONB, nullable=True,
-                          comment="Detailed reward configuration (skill mappings, badge configs, credit bonuses). Uses TournamentRewardConfig schema.")
+    # ⚠️ DEPRECATED in P1: reward_config moved to separate table (tournament_reward_configs)
+    # Use reward_config_obj relationship instead
+    # reward_config @property provides backward compatibility
 
     # 🎮 GAME CONFIGURATION FIELDS (tournament simulation rules)
     game_preset_id = Column(Integer, ForeignKey("game_presets.id", name="fk_semesters_game_preset"),
@@ -165,6 +162,15 @@ class Semester(Base):
     skill_mappings = relationship("TournamentSkillMapping", back_populates="tournament", cascade="all, delete-orphan")
     participations = relationship("TournamentParticipation", back_populates="tournament", cascade="all, delete-orphan")
     badges = relationship("TournamentBadge", back_populates="tournament", cascade="all, delete-orphan")
+
+    # 🎁 Reward configuration (P1: separate table)
+    reward_config_obj = relationship(
+        "TournamentRewardConfig",
+        uselist=False,
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+        doc="Reward configuration for this tournament (1:1 relationship)"
+    )
 
     @property
     def format(self) -> str:
@@ -215,3 +221,46 @@ class Semester(Base):
                 )
         else:
             raise ValueError(f"Invalid format: {self.format}. Must be 'INDIVIDUAL_RANKING' or 'HEAD_TO_HEAD'.")
+
+    # ========================================================================
+    # 🎁 P1 REFACTORING: BACKWARD COMPATIBILITY PROPERTIES
+    # ========================================================================
+
+    @property
+    def reward_config(self) -> dict:
+        """
+        Backward compatible property for reward_config.
+
+        🔄 P1 Refactoring: reward_config moved to separate table.
+        This property provides transparent access to the new structure.
+
+        Returns:
+            Dict: Reward configuration (TournamentRewardConfig schema)
+        """
+        if self.reward_config_obj:
+            return self.reward_config_obj.reward_config or {}
+        return {}
+
+    @property
+    def reward_policy_name(self) -> str:
+        """
+        Backward compatible property for reward_policy_name.
+
+        Returns:
+            str: Reward policy name (default: "default")
+        """
+        if self.reward_config_obj:
+            return self.reward_config_obj.reward_policy_name
+        return "default"
+
+    @property
+    def reward_policy_snapshot(self) -> dict:
+        """
+        Backward compatible property for reward_policy_snapshot.
+
+        Returns:
+            Dict: Reward policy snapshot (or empty dict)
+        """
+        if self.reward_config_obj:
+            return self.reward_config_obj.reward_policy_snapshot or {}
+        return {}

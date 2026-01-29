@@ -12,6 +12,7 @@ from typing import Dict, Any, List
 
 from .....database import get_db
 from .....models.semester import Semester
+from .....models.tournament_reward_config import TournamentRewardConfig as TournamentRewardConfigModel
 from .....models.user import User, UserRole
 from .....dependencies import get_current_active_user
 from .....schemas.reward_config import TournamentRewardConfig, REWARD_CONFIG_TEMPLATES
@@ -110,15 +111,28 @@ def save_tournament_reward_config(
     try:
         config_dict = reward_config.model_dump(mode="json")
 
-        # Save to tournament
-        tournament.reward_config = config_dict
+        # 🎁 P1: Create or update TournamentRewardConfig (separate table)
+        reward_config_obj = db.query(TournamentRewardConfigModel).filter(
+            TournamentRewardConfigModel.semester_id == tournament_id
+        ).first()
 
-        # Also update reward_policy_name for consistency
-        tournament.reward_policy_name = reward_config.template_name or "Custom"
+        if reward_config_obj:
+            # Update existing
+            reward_config_obj.reward_policy_name = reward_config.template_name or "Custom"
+            reward_config_obj.reward_config = config_dict
+        else:
+            # Create new
+            reward_config_obj = TournamentRewardConfigModel(
+                semester_id=tournament_id,
+                reward_policy_name=reward_config.template_name or "Custom",
+                reward_config=config_dict
+            )
+            db.add(reward_config_obj)
 
         db.commit()
         db.refresh(tournament)
 
+        # Return config via property (backward compatible)
         return tournament.reward_config
 
     except Exception as e:

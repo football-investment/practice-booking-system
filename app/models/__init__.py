@@ -47,9 +47,11 @@ from .user_progress import UserTrackProgress, UserModuleProgress, TrackProgressS
 # 🏆 Tournament System
 from .tournament_enums import TournamentType, ParticipantType, TeamMemberRole
 from .tournament_type import TournamentType as TournamentTypeModel  # DB model for tournament types
+from .game_preset import GamePreset  # Game preset configurations
 from .team import Team, TeamMember, TournamentTeamEnrollment
 from .tournament_ranking import TournamentRanking, TournamentStats, TournamentReward
 from .tournament_status_history import TournamentStatusHistory
+from .tournament_reward_config import TournamentRewardConfig  # P1: Separate reward config table
 from .tournament_achievement import (
     TournamentSkillMapping,
     TournamentParticipation,
@@ -142,6 +144,7 @@ __all__ = [
     # Tournament System
     "TournamentType",
     "TournamentTypeModel",
+    "GamePreset",
     "ParticipantType",
     "TeamMemberRole",
     "Team",
@@ -151,6 +154,7 @@ __all__ = [
     "TournamentStats",
     "TournamentReward",
     "TournamentStatusHistory",
+    "TournamentRewardConfig",
     "TournamentSkillMapping",
     "TournamentParticipation",
     "TournamentBadge",
