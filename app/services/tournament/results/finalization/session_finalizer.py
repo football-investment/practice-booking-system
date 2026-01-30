@@ -1,0 +1,263 @@
+"""
+Individual Ranking Session Finalizer
+
+Handles finalization of INDIVIDUAL_RANKING sessions with multiple rounds.
+Extracted from match_results.py as part of P2 decomposition.
+"""
+
+from typing import Dict, List, Any
+from sqlalchemy.orm import Session
+from datetime import datetime
+from decimal import Decimal
+import json
+
+from app.models.semester import Semester
+from app.models.session import Session as SessionModel
+from app.services.tournament.results.calculators import RankingAggregator
+from app.services.tournament.leaderboard_service import (
+    get_or_create_ranking,
+    calculate_ranks
+)
+
+
+class SessionFinalizer:
+    """
+    Finalize INDIVIDUAL_RANKING session and calculate final rankings.
+
+    Responsibilities:
+    1. Validate all rounds are completed
+    2. Aggregate results across all rounds
+    3. Calculate final rankings (performance-based and wins-based)
+    4. Save final rankings to session.game_results
+    5. Update TournamentRanking table
+    """
+
+    def __init__(self, db: Session):
+        """
+        Initialize finalizer with database session.
+
+        Args:
+            db: SQLAlchemy database session
+        """
+        self.db = db
+        self.ranking_aggregator = RankingAggregator()
+
+    def validate_all_rounds_completed(
+        self,
+        rounds_data: Dict[str, Any]
+    ) -> tuple[bool, str]:
+        """
+        Validate that all rounds are completed.
+
+        Args:
+            rounds_data: Session rounds_data JSONB field
+
+        Returns:
+            Tuple of (is_valid, error_message)
+            - is_valid: True if all rounds completed
+            - error_message: Error message if not valid, empty string otherwise
+        """
+        total_rounds = rounds_data.get('total_rounds', 1)
+        completed_rounds = rounds_data.get('completed_rounds', 0)
+
+        if completed_rounds < total_rounds:
+            remaining = total_rounds - completed_rounds
+            return False, f"Cannot finalize: {remaining} rounds remaining. All rounds must be completed first."
+
+        return True, ""
+
+    def update_tournament_rankings(
+        self,
+        tournament_id: int,
+        derived_rankings: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Update TournamentRanking table with final results.
+
+        Args:
+            tournament_id: Tournament ID
+            derived_rankings: List of ranking entries with user_id and final_value
+        """
+        for ranking_entry in derived_rankings:
+            user_id = ranking_entry["user_id"]
+            final_value = ranking_entry["final_value"]
+
+            # Get or create ranking entry
+            ranking = get_or_create_ranking(
+                db=self.db,
+                tournament_id=tournament_id,
+                user_id=user_id,
+                participant_type="INDIVIDUAL"
+            )
+
+            # Store final aggregate value in points field
+            ranking.points = Decimal(str(final_value))
+
+        self.db.flush()
+
+        # Recalculate ranks across entire tournament
+        calculate_ranks(self.db, tournament_id)
+
+    def check_all_sessions_finalized(
+        self,
+        tournament_id: int,
+        current_session_id: int
+    ) -> tuple[bool, int]:
+        """
+        Check if all tournament sessions are finalized.
+
+        Args:
+            tournament_id: Tournament ID
+            current_session_id: Current session ID (to exclude from count)
+
+        Returns:
+            Tuple of (all_finalized, unfinalized_count)
+        """
+        all_sessions = self.db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True
+        ).all()
+
+        unfinalized_sessions = [
+            s for s in all_sessions
+            if not s.game_results
+        ]
+
+        return len(unfinalized_sessions) == 0, len(unfinalized_sessions)
+
+    def finalize(
+        self,
+        tournament: Semester,
+        session: SessionModel,
+        recorded_by_id: int,
+        recorded_by_name: str
+    ) -> Dict[str, Any]:
+        """
+        Finalize INDIVIDUAL_RANKING session and calculate final rankings.
+
+        Args:
+            tournament: Tournament (Semester) instance
+            session: Session instance to finalize
+            recorded_by_id: User ID of person finalizing
+            recorded_by_name: Name of person finalizing
+
+        Returns:
+            Result dict with success status and rankings
+
+        Raises:
+            ValueError: If validation fails
+
+        Example result:
+            {
+                "success": True,
+                "message": "Session finalized successfully",
+                "session_id": 123,
+                "tournament_id": 456,
+                "final_rankings": [...],
+                "performance_rankings": [...],
+                "wins_rankings": [...],
+                "tournament_status": "IN_PROGRESS",
+                "all_sessions_finalized": False,
+                "remaining_sessions": 2
+            }
+        """
+        # Validate session type
+        if session.match_format != "INDIVIDUAL_RANKING":
+            raise ValueError(
+                f"Finalization only supported for INDIVIDUAL_RANKING sessions "
+                f"(current format: {session.match_format})"
+            )
+
+        if tournament.format != "INDIVIDUAL_RANKING":
+            raise ValueError(
+                f"Finalization only supported for INDIVIDUAL_RANKING tournaments "
+                f"(current format: {tournament.format})"
+            )
+
+        # Get rounds data
+        rounds_data = session.rounds_data or {}
+        total_rounds = rounds_data.get('total_rounds', 1)
+        round_results = rounds_data.get('round_results', {})
+
+        # Validate all rounds completed
+        is_valid, error_message = self.validate_all_rounds_completed(rounds_data)
+        if not is_valid:
+            raise ValueError(error_message)
+
+        # Get tournament configuration
+        ranking_direction = tournament.ranking_direction or "ASC"
+        scoring_type = tournament.scoring_type or "TIME_BASED"
+        measurement_unit = tournament.measurement_unit or "units"
+
+        # Aggregate rankings across all rounds
+        performance_rankings, wins_rankings = self.ranking_aggregator.aggregate_rankings(
+            round_results=round_results,
+            ranking_direction=ranking_direction,
+            total_rounds=total_rounds,
+            measurement_unit=measurement_unit
+        )
+
+        # Use performance ranking as primary
+        derived_rankings = performance_rankings
+
+        # Save to session.game_results
+        recorded_at = datetime.utcnow().isoformat()
+        game_results = {
+            "recorded_at": recorded_at,
+            "recorded_by": recorded_by_id,
+            "recorded_by_name": recorded_by_name,
+            "tournament_format": "INDIVIDUAL_RANKING",
+            "scoring_type": scoring_type,
+            "measurement_unit": measurement_unit,
+            "ranking_direction": ranking_direction,
+            "total_rounds": total_rounds,
+            "aggregation_method": "BEST_VALUE",
+            "rounds_data": rounds_data,
+            # Dual ranking system
+            "derived_rankings": derived_rankings,
+            "performance_rankings": performance_rankings,
+            "wins_rankings": wins_rankings
+        }
+
+        session.game_results = json.dumps(game_results)
+
+        # Update tournament rankings
+        self.update_tournament_rankings(tournament.id, derived_rankings)
+
+        self.db.commit()
+        self.db.refresh(session)
+
+        # Check if all sessions finalized
+        all_finalized, unfinalized_count = self.check_all_sessions_finalized(
+            tournament.id, session.id
+        )
+
+        if all_finalized:
+            return {
+                "success": True,
+                "message": "Session finalized! All sessions completed. Awaiting admin closure.",
+                "session_id": session.id,
+                "tournament_id": tournament.id,
+                "final_rankings": derived_rankings,
+                "performance_rankings": performance_rankings,
+                "wins_rankings": wins_rankings,
+                "tournament_status": tournament.tournament_status,
+                "all_sessions_finalized": True
+            }
+
+        return {
+            "success": True,
+            "message": f"Session finalized successfully! {unfinalized_count} sessions remaining.",
+            "session_id": session.id,
+            "tournament_id": tournament.id,
+            "final_rankings": derived_rankings,
+            "performance_rankings": performance_rankings,
+            "wins_rankings": wins_rankings,
+            "tournament_status": tournament.tournament_status,
+            "all_sessions_finalized": False,
+            "remaining_sessions": unfinalized_count
+        }
+
+
+# Export main class
+__all__ = ["SessionFinalizer"]
