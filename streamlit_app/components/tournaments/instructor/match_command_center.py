@@ -20,7 +20,7 @@ parent_dir = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from streamlit_components.core.api_client import api_client
-from streamlit_components.core.auth import require_auth
+from streamlit_components.core.auth import AuthManager
 from streamlit_components.layouts import Card
 from streamlit_components.feedback import Loading, Success, Error
 
@@ -181,8 +181,7 @@ def main():
     st.set_page_config(page_title="Match Command Center", layout="wide")
 
     # Authentication
-    token = require_auth()
-    if not token:
+    if not AuthManager.is_authenticated():
         st.warning("Please log in to access match command center")
         return
 

@@ -116,11 +116,11 @@ def render_home_screen():
     st.markdown("### Quick Stats")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total Sandbox Tournaments", stats['total'], data_testid="metric_total")
+        st.metric("Total Sandbox Tournaments", stats['total'])
     with col2:
-        st.metric("Completed", stats['completed'], data_testid="metric_completed")
+        st.metric("Completed", stats['completed'])
     with col3:
-        st.metric("In Progress", stats['in_progress'], data_testid="metric_in_progress")
+        st.metric("In Progress", stats['in_progress'])
 
 
 def render_configuration_screen():

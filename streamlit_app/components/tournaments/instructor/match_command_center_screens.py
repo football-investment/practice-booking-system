@@ -9,7 +9,7 @@ import streamlit as st
 from typing import Dict, Any, List
 from streamlit_components.layouts import Card, SingleColumnForm
 from streamlit_components.feedback import Loading, Success, Error
-from match_command_center_helpers import (
+from components.tournaments.instructor.match_command_center_helpers import (
     parse_time_format,
     format_time_display,
     mark_attendance,

@@ -9,7 +9,7 @@ import streamlit as st
 from typing import Dict
 from streamlit_components.layouts import Card, SingleColumnForm
 from streamlit_components.feedback import Loading, Success, Error
-from tournament_list_helpers import (
+from components.admin.tournament_list_helpers import (
     update_tournament,
     generate_tournament_sessions,
     preview_tournament_sessions,

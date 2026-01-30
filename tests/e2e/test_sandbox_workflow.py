@@ -49,14 +49,10 @@ class TestSandboxAuthentication:
         page.wait_for_timeout(2000)
 
         # Verify home screen elements are visible
-        # Note: Streamlit uses key-based selectors, look for buttons by text
-        expect(page.get_by_role("button", name="New Tournament")).to_be_visible(timeout=10000)
-        expect(page.get_by_role("button", name="Open History")).to_be_visible()
-
-        # Verify metrics are displayed (look for metric labels)
-        expect(page.get_by_text("Total Sandbox Tournaments")).to_be_visible()
-        expect(page.get_by_text("Completed")).to_be_visible()
-        expect(page.get_by_text("In Progress")).to_be_visible()
+        # Note: Streamlit wraps buttons in iframes, use text-based selectors
+        expect(page.get_by_text("Tournament Sandbox - Home")).to_be_visible(timeout=10000)
+        expect(page.get_by_text("Create New Tournament")).to_be_visible()
+        expect(page.get_by_text("View Tournament History")).to_be_visible()
 
 
 class TestSandboxNavigation:

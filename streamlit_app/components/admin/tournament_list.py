@@ -13,7 +13,7 @@ parent_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from streamlit_components.core.api_client import api_client
-from streamlit_components.core.auth import require_auth
+from streamlit_components.core.auth import AuthManager
 from streamlit_components.layouts import Card, SingleColumnForm
 from streamlit_components.feedback import Loading, Success, Error
 
@@ -273,8 +273,7 @@ def main():
     st.title("🏆 Tournament List")
 
     # Authentication
-    token = require_auth()
-    if not token:
+    if not AuthManager.is_authenticated():
         st.warning("Please log in to access tournament management")
         return
 

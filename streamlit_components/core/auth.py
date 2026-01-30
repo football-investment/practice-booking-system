@@ -79,11 +79,16 @@ class AuthManager:
             True if login successful, False otherwise
         """
         try:
-            # Call login endpoint
-            response = api_client.post("/auth/login", data={
-                "username": email,  # FastAPI OAuth2 uses 'username' field
-                "password": password
-            })
+            # Call login endpoint with form data (OAuth2 requirement)
+            # IMPORTANT: Use /api/v1/auth/login/form (CSRF exempt) not /auth/login
+            response = api_client.post(
+                "/api/v1/auth/login/form",
+                data={
+                    "username": email,  # FastAPI OAuth2 uses 'username' field
+                    "password": password
+                },
+                form_data=True  # Send as form data, not JSON
+            )
 
             # Store token and user data
             st.session_state[AuthManager.TOKEN_KEY] = response.get("access_token")
@@ -93,7 +98,7 @@ class AuthManager:
             return True
 
         except APIError as e:
-            st.error(f"Login failed: {e.message}")
+            st.error(f"Login failed: {e.status_code}: {e.message}")
             return False
 
     @staticmethod
