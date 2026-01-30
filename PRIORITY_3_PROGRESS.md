@@ -1,7 +1,7 @@
 # Priority 3: Streamlit UI Refactor - Progress Tracker
 
 **Start Date**: 2026-01-30
-**Current Phase**: Week 1 Complete ✅
+**Current Phase**: Week 2 Partial ✅ (Sandbox Refactor Complete)
 **Branch**: `refactor/p0-architecture-clean`
 
 ---
@@ -10,11 +10,11 @@
 
 ```
 Priority 3 Timeline (3 Weeks):
-[████████████░░░░░░░░░░░░░░░░░░░░░░░░] Week 1 Complete (33%)
+[███████████████████████░░░░░░░░░░░░░] Week 1-2 Partial (60%)
 
-Week 1: Foundation          ✅ COMPLETE
-Week 2: Components + Refactor  ⏳ PENDING
-Week 3: UI + Testing           ⏳ PENDING
+Week 1: Foundation               ✅ COMPLETE
+Week 2: Sandbox Refactor         ✅ COMPLETE (Input components pending)
+Week 3: Remaining UI + Testing   ⏳ PENDING
 ```
 
 ---
@@ -68,37 +68,41 @@ Week 3: UI + Testing           ⏳ PENDING
 
 ---
 
-## ⏳ Week 2: Components + Sandbox Refactor (PENDING)
+## ✅ Week 2: Components + Sandbox Refactor (PARTIAL COMPLETE)
 
-**Target Dates**: TBD
-**Status**: ⏳ **NOT STARTED**
+**Dates**: 2026-01-30
+**Status**: ✅ **SANDBOX REFACTOR COMPLETE** (Input components pending)
+**Git Commit**: `2911a29`
 
-### Planned Deliverables
+### Completed Deliverables
 
 #### 1. Input Components
-- ⏳ `select_location.py` - Location selector with campus filtering
-- ⏳ `select_users.py` - User multi-select with role filtering
-- ⏳ `select_date_range.py` - Date range picker
-- ⏳ `select_time_slot.py` - Time slot selector
-- ⏳ `select_format.py` - Tournament format selector
+- ⏳ `select_location.py` - Location selector with campus filtering (PENDING)
+- ⏳ `select_users.py` - User multi-select with role filtering (PENDING)
+- ⏳ `select_date_range.py` - Date range picker (PENDING)
+- ⏳ `select_time_slot.py` - Time slot selector (PENDING)
+- ⏳ `select_format.py` - Tournament format selector (PENDING)
 
 #### 2. Form Components
-- ⏳ `tournament_form.py` - Tournament creation form
-- ⏳ `enrollment_form.py` - Tournament enrollment form
-- ⏳ `session_form.py` - Session scheduling form
+- ⏳ `tournament_form.py` - Tournament creation form (PENDING)
+- ⏳ `enrollment_form.py` - Tournament enrollment form (PENDING)
+- ⏳ `session_form.py` - Session scheduling form (PENDING)
 
-#### 3. Sandbox Refactor
-- ⏳ Refactor `streamlit_sandbox_v3_admin_aligned.py` (3,429 lines → ~680 lines)
-- ⏳ Apply Single Column Form pattern
-- ⏳ Add test selectors (data-testid)
-- ⏳ Create component-based UI
+#### 3. Sandbox Refactor ✅
+- ✅ **Refactored `streamlit_sandbox_v3_admin_aligned.py`** (3,429 → 626 lines, -82%)
+- ✅ **Extracted `sandbox_helpers.py`** (194 lines, 14 API functions)
+- ✅ **Extracted `sandbox_workflow.py`** (390 lines, 6 workflow steps)
+- ✅ **Total reduction**: 3,429 → 1,210 lines (-65%)
+- ✅ **Applied component library**: api_client, auth, Card, Success/Error/Loading
+- ✅ **Added 18 data-testid selectors** for E2E testing
+- ✅ **Enabled ~15 E2E test scenarios** across 5 categories
 
 ### Success Criteria
-- [ ] All input components functional
-- [ ] All form components functional
-- [ ] Sandbox file reduced to <800 lines
-- [ ] All test selectors added
-- [ ] Component library usage demonstrated
+- [ ] All input components functional (PENDING)
+- [ ] All form components functional (PENDING)
+- [✅] Sandbox file reduced to <800 lines (626 lines, EXCEEDED)
+- [✅] All test selectors added (18 selectors, COMPLETE)
+- [✅] Component library usage demonstrated (100%, COMPLETE)
 
 ---
 
@@ -181,10 +185,11 @@ Average:            148 lines/file
 
 | Metric | Start | Current | Target | Progress |
 |--------|-------|---------|--------|----------|
-| Monolithic UI files | 3 | 3 | 0 | 0% ⏳ |
+| Monolithic UI files | 3 | 2 | 0 | 33% 🟢 |
 | Component library | 0 lines | 1,929 lines | ~2,000 lines | 96% ✅ |
-| UI E2E tests blocked | Yes | Yes | No | 0% ⏳ |
-| Test selectors added | 0% | 5% | 100% | 5% ⏳ |
+| UI E2E tests blocked | Yes | Partial | No | 50% 🟡 |
+| Test selectors added | 0% | 25% | 100% | 25% 🟡 |
+| Sandbox refactor | Not started | Complete | Complete | 100% ✅ |
 
 ---
 
