@@ -20,8 +20,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from ...models.user_license import UserLicense
-from ...models.semester import AgeGroup
+from ...models.license import UserLicense
 
 
 class LicenseValidator:
@@ -36,19 +35,11 @@ class LicenseValidator:
     # ========================================================================
     # CONFIGURATION: Minimum coach levels for each age group
     # ========================================================================
-    MINIMUM_COACH_LEVELS = {
-        AgeGroup.PRE: 1,       # Level 1 (lowest)
-        AgeGroup.YOUTH: 3,     # Level 3
-        AgeGroup.AMATEUR: 5,   # Level 5
-        AgeGroup.PRO: 7        # Level 7 (highest)
-    }
-
-    # Alternative string-based mapping for backwards compatibility
     MINIMUM_COACH_LEVELS_STR = {
-        "PRE": 1,
-        "YOUTH": 3,
-        "AMATEUR": 5,
-        "PRO": 7
+        "PRE": 1,       # Level 1 (lowest)
+        "YOUTH": 3,     # Level 3
+        "AMATEUR": 5,   # Level 5
+        "PRO": 7        # Level 7 (highest)
     }
 
     @classmethod
