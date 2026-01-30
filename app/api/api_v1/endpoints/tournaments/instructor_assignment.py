@@ -243,96 +243,21 @@ def apply_to_tournament(
     - 404 NOT FOUND: Tournament not found
     - 400 BAD REQUEST: Invalid tournament status or duplicate application
     """
-    # ============================================================================
-    # VALIDATION 1: Current user is INSTRUCTOR
-    # ============================================================================
-    if current_user.role != UserRole.INSTRUCTOR:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only instructors can apply to tournaments",
-                "current_role": current_user.role.value,
-                "required_role": "INSTRUCTOR"
-            }
-        )
+    # REFACTORED: Use shared services
+    require_instructor(current_user)
 
-    # ============================================================================
-    # VALIDATION 2: Current user has LFA_COACH license
-    # ============================================================================
-    # Get the HIGHEST level coach license for this user
-    # (Instructors may have multiple LFA_COACH licenses with different levels)
-    coach_license = db.query(UserLicense).filter(
-        UserLicense.user_id == current_user.id,
-        UserLicense.specialization_type == "LFA_COACH"
-    ).order_by(UserLicense.current_level.desc()).first()
+    tournament_repo = TournamentRepository(db)
+    tournament = tournament_repo.get_or_404(tournament_id)
 
-    if not coach_license:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "license_required",
-                "message": "Instructor must have LFA_COACH license to apply to tournaments",
-                "user_id": current_user.id,
-                "user_email": current_user.email,
-                "required_license": "LFA_COACH"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 2B: Coach level must be sufficient for tournament category
-    # ============================================================================
-    # Note: We need to check the tournament first to get its category
-    # Moving this validation after tournament existence check (see VALIDATION 3B below)
-
-    # ============================================================================
-    # VALIDATION 3: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 3B: Coach level must be sufficient for tournament age group
-    # ============================================================================
-    # Define minimum required coach levels for each age group
-    MINIMUM_COACH_LEVELS = {
-        "PRE": 1,       # Level 1 (lowest)
-        "YOUTH": 3,     # Level 3
-        "AMATEUR": 5,   # Level 5
-        "PRO": 7        # Level 7 (highest)
-    }
-
-    tournament_age_group = tournament.age_group
-    required_level = MINIMUM_COACH_LEVELS.get(tournament_age_group)
-
-    if required_level is None:
-        # Tournament age group not recognized - log warning but allow (backward compatibility)
-        pass
-    elif coach_license.current_level < required_level:
-        # Coach level is insufficient for this tournament age group
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "insufficient_coach_level",
-                "message": f"Your coach level ({coach_license.current_level}) is insufficient for {tournament_age_group} age group tournaments. Minimum required: Level {required_level}",
-                "user_id": current_user.id,
-                "user_email": current_user.email,
-                "current_coach_level": coach_license.current_level,
-                "required_coach_level": required_level,
-                "tournament_age_group": tournament_age_group,
-                "tournament_id": tournament_id,
-                "tournament_name": tournament.name
-            }
-        )
+    # Validate coach license with age group check
+    LicenseValidator.validate_coach_license(
+        db,
+        current_user.id,
+        age_group=tournament.age_group,
+        user_email=current_user.email,
+        tournament_id=tournament_id,
+        tournament_name=tournament.name
+    )
 
     # ============================================================================
     # VALIDATION 4: Tournament must be APPLICATION_BASED (not OPEN_ASSIGNMENT)
@@ -463,34 +388,11 @@ def approve_instructor_application(
     - 404 NOT FOUND: Tournament or application not found
     - 400 BAD REQUEST: Invalid status or already processed
     """
-    # ============================================================================
-    # VALIDATION 1: Current user is ADMIN
-    # ============================================================================
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only admins can approve instructor applications",
-                "current_role": current_user.role.value,
-                "required_role": "ADMIN"
-            }
-        )
+    # REFACTORED: Use shared services
+    require_admin(current_user)
 
-    # ============================================================================
-    # VALIDATION 2: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
+    tournament_repo = TournamentRepository(db)
+    tournament = tournament_repo.get_or_404(tournament_id)
 
     # ============================================================================
     # VALIDATION 3: Tournament must be APPLICATION_BASED (not OPEN_ASSIGNMENT)
@@ -573,9 +475,9 @@ def approve_instructor_application(
     tournament.master_instructor_id = application.instructor_id
     tournament.tournament_status = "INSTRUCTOR_CONFIRMED"
 
-    # Record status history
-    record_status_change(
-        db=db,
+    # REFACTORED: Use StatusHistoryRecorder
+    recorder = StatusHistoryRecorder(db)
+    recorder.record_status_change(
         tournament_id=tournament.id,
         old_status=old_tournament_status,
         new_status="INSTRUCTOR_CONFIRMED",
@@ -708,33 +610,10 @@ def get_instructor_applications(
     ```
     """
     # ============================================================================
-    # VALIDATION 1: Current user is ADMIN
+    # VALIDATION: Admin auth + Tournament exists (using shared services)
     # ============================================================================
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only admins can view instructor applications",
-                "current_role": current_user.role.value,
-                "required_role": "ADMIN"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 2: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
+    require_admin(current_user)
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # ============================================================================
     # FETCH: All applications for this tournament
@@ -804,33 +683,10 @@ def get_my_tournament_application(
     ```
     """
     # ============================================================================
-    # VALIDATION 1: Current user is INSTRUCTOR
+    # VALIDATION: Instructor auth + Tournament exists (using shared services)
     # ============================================================================
-    if current_user.role != UserRole.INSTRUCTOR:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only instructors can view their applications",
-                "current_role": current_user.role.value,
-                "required_role": "INSTRUCTOR"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 2: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
+    require_instructor(current_user)
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # ============================================================================
     # FETCH: Application for this tournament by current instructor
@@ -910,18 +766,9 @@ def get_my_instructor_applications(
     ```
     """
     # ============================================================================
-    # VALIDATION 1: Current user is INSTRUCTOR
+    # VALIDATION: Instructor auth (using shared services)
     # ============================================================================
-    if current_user.role != UserRole.INSTRUCTOR:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only instructors can view their own applications",
-                "current_role": current_user.role.value,
-                "required_role": "INSTRUCTOR"
-            }
-        )
+    require_instructor(current_user, detail="Only instructors can view their own applications")
 
     # ============================================================================
     # FETCH: All applications by this instructor
@@ -1001,33 +848,10 @@ def direct_assign_instructor(
     - 400 BAD REQUEST: Invalid status or license missing
     """
     # ============================================================================
-    # VALIDATION 1: Current user is ADMIN
+    # VALIDATION: Admin auth + Tournament exists (using shared services)
     # ============================================================================
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only admins can directly assign instructors",
-                "current_role": current_user.role.value,
-                "required_role": "ADMIN"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 2: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
+    require_admin(current_user, detail="Only admins can directly assign instructors")
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # ============================================================================
     # VALIDATION 3: Tournament status is SEEKING_INSTRUCTOR
@@ -1072,59 +896,17 @@ def direct_assign_instructor(
         )
 
     # ============================================================================
-    # VALIDATION 5: Instructor has LFA_COACH license
+    # VALIDATION 5: Instructor has LFA_COACH license + sufficient level (using shared services)
     # ============================================================================
-    # Get the HIGHEST level coach license for this instructor
-    # (Instructors may have multiple LFA_COACH licenses with different levels)
-    coach_license = db.query(UserLicense).filter(
-        UserLicense.user_id == instructor.id,
-        UserLicense.specialization_type == "LFA_COACH"
-    ).order_by(UserLicense.current_level.desc()).first()
+    coach_license = LicenseValidator.validate_coach_license(
+        db=db,
+        user_id=instructor.id,
+        age_group=tournament.age_group,
+        user_email=instructor.email,
+        tournament_id=tournament_id,
+        tournament_name=tournament.name
+    )
 
-    if not coach_license:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "license_required",
-                "message": "Instructor must have LFA_COACH license",
-                "instructor_id": instructor.id,
-                "instructor_email": instructor.email,
-                "required_license": "LFA_COACH"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 5B: Coach level must be sufficient for tournament category
-    # ============================================================================
-    MINIMUM_COACH_LEVELS = {
-        "PRE": 1,       # Level 1 (lowest)
-        "YOUTH": 3,     # Level 3
-        "AMATEUR": 5,   # Level 5
-        "PRO": 7        # Level 7 (highest)
-    }
-
-    tournament_age_group = tournament.age_group
-    required_level = MINIMUM_COACH_LEVELS.get(tournament_age_group)
-
-    if required_level is None:
-        # Tournament age group not recognized - log warning but allow (backward compatibility)
-        pass
-    elif coach_license.current_level < required_level:
-        # Coach level is insufficient for this tournament age group
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": "insufficient_coach_level",
-                "message": f"Instructor's coach level ({coach_license.current_level}) is insufficient for {tournament_age_group} age group tournaments. Minimum required: Level {required_level}",
-                "instructor_id": instructor.id,
-                "instructor_email": instructor.email,
-                "current_coach_level": coach_license.current_level,
-                "required_coach_level": required_level,
-                "tournament_age_group": tournament_age_group,
-                "tournament_id": tournament_id,
-                "tournament_name": tournament.name
-            }
-        )
 
     # ============================================================================
     # VALIDATION 6: Check for existing ACCEPTED assignment
@@ -1168,9 +950,9 @@ def direct_assign_instructor(
     tournament.master_instructor_id = instructor.id
     tournament.tournament_status = "PENDING_INSTRUCTOR_ACCEPTANCE"
 
-    # Record status change in history
-    record_status_change(
-        db=db,
+    # Record status change in history (using shared service)
+    recorder = StatusHistoryRecorder(db)
+    recorder.record_status_change(
         tournament_id=tournament.id,
         old_status=old_status,
         new_status="PENDING_INSTRUCTOR_ACCEPTANCE",
@@ -1261,33 +1043,10 @@ def decline_instructor_application(
     - 400 BAD REQUEST: Invalid status or already processed
     """
     # ============================================================================
-    # VALIDATION 1: Current user is ADMIN
+    # VALIDATION: Admin auth + Tournament exists (using shared services)
     # ============================================================================
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only admins can decline instructor applications",
-                "current_role": current_user.role.value,
-                "required_role": "ADMIN"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 2: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
+    require_admin(current_user, detail="Only admins can decline instructor applications")
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # ============================================================================
     # VALIDATION 3: Application exists and belongs to tournament
