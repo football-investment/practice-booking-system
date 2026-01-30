@@ -20,7 +20,8 @@ from datetime import date, timedelta, datetime
 import os
 import time
 
-    import psycopg2
+import psycopg2
+
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
