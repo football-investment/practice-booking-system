@@ -31,11 +31,9 @@ See: REFACTORING_IMPLEMENTATION_PLAN.md
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
-import json
 
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -45,52 +43,16 @@ from app.models.license import UserLicense
 from app.models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus
 from app.dependencies import get_current_user
 
+# Shared services - refactored imports
+from app.services.shared import (
+    require_admin,
+    require_instructor,
+    LicenseValidator,
+    StatusHistoryRecorder
+)
+from app.repositories import TournamentRepository
+
 router = APIRouter()
-
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-def record_status_change(
-    db: Session,
-    tournament_id: int,
-    old_status: Optional[str],
-    new_status: str,
-    changed_by: int,
-    reason: Optional[str] = None,
-    metadata: Optional[dict] = None
-) -> None:
-    """
-    Record a status change in tournament_status_history table
-
-    Args:
-        db: Database session
-        tournament_id: Tournament ID
-        old_status: Previous status (None for creation)
-        new_status: New status
-        changed_by: User ID who made the change
-        reason: Optional reason for change
-        metadata: Optional metadata dict
-    """
-    # Convert metadata dict to JSON string if provided
-    metadata_json = json.dumps(metadata) if metadata is not None else None
-
-    db.execute(
-        text("""
-        INSERT INTO tournament_status_history
-        (tournament_id, old_status, new_status, changed_by, reason, extra_metadata)
-        VALUES (:tournament_id, :old_status, :new_status, :changed_by, :reason, :extra_metadata)
-        """),
-        {
-            "tournament_id": tournament_id,
-            "old_status": old_status,
-            "new_status": new_status,
-            "changed_by": changed_by,
-            "reason": reason,
-            "extra_metadata": metadata_json
-        }
-    )
 
 
 # ============================================================================
@@ -172,54 +134,12 @@ def accept_instructor_assignment(
     - 404 NOT FOUND: Tournament not found
     - 400 BAD REQUEST: Tournament is not in valid status for acceptance
     """
-    # ============================================================================
-    # VALIDATION 1: Current user is INSTRUCTOR
-    # ============================================================================
-    if current_user.role != UserRole.INSTRUCTOR:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "authorization_error",
-                "message": "Only instructors can accept tournament assignments",
-                "current_role": current_user.role.value,
-                "required_role": "INSTRUCTOR"
-            }
-        )
+    # REFACTORED: Use shared services
+    require_instructor(current_user)
+    LicenseValidator.get_coach_license(db, current_user.id, raise_if_missing=True)
 
-    # ============================================================================
-    # VALIDATION 2: Current user has LFA_COACH license
-    # ============================================================================
-    coach_license = db.query(UserLicense).filter(
-        UserLicense.user_id == current_user.id,
-        UserLicense.specialization_type == "LFA_COACH"
-    ).first()
-
-    if not coach_license:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "license_required",
-                "message": "Instructor must have LFA_COACH license to lead tournaments",
-                "user_id": current_user.id,
-                "user_email": current_user.email,
-                "required_license": "LFA_COACH"
-            }
-        )
-
-    # ============================================================================
-    # VALIDATION 3: Tournament exists
-    # ============================================================================
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": "tournament_not_found",
-                "message": f"Tournament {tournament_id} not found",
-                "tournament_id": tournament_id
-            }
-        )
+    tournament_repo = TournamentRepository(db)
+    tournament = tournament_repo.get_or_404(tournament_id)
 
     # ============================================================================
     # VALIDATION 4: Tournament status allows instructor acceptance
