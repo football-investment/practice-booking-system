@@ -25,12 +25,14 @@ class TestConfig(BaseModel):
     """Optional test configuration"""
     performance_variation: str = Field(default="MEDIUM", pattern="^(LOW|MEDIUM|HIGH)$")
     ranking_distribution: str = Field(default="NORMAL", pattern="^(NORMAL|TOP_HEAVY|BOTTOM_HEAVY)$")
+    game_preset_id: Optional[int] = Field(default=None, description="Game preset ID (P3)")
+    game_config_overrides: Optional[dict] = Field(default=None, description="Game config overrides (P3)")
 
 
 class RunTestRequest(BaseModel):
     """Request schema for sandbox test"""
     tournament_type: str = Field(..., description="Tournament type code (league, knockout, hybrid)")
-    skills_to_test: list[str] = Field(..., min_items=1, max_items=4, description="Skills to test (1-4)")
+    skills_to_test: list[str] = Field(..., min_items=1, max_items=20, description="Skills to test (1-20)")
     player_count: int = Field(..., ge=4, le=16, description="Number of synthetic players (4-16)")
     test_config: Optional[TestConfig] = Field(default_factory=TestConfig)
 
@@ -64,9 +66,9 @@ def run_sandbox_test(
 
     **Parameters**:
     - tournament_type: Tournament format (league, knockout, hybrid)
-    - skills_to_test: List of skills to validate (1-4 skills)
+    - skills_to_test: List of skills to validate (1-20 skills)
     - player_count: Number of synthetic players (4-16)
-    - test_config: Optional configuration (performance variation, ranking distribution)
+    - test_config: Optional configuration (performance variation, ranking distribution, game preset)
 
     **Returns**: Complete test results with verdict, skill progression, and performers
     """
@@ -97,8 +99,15 @@ def run_sandbox_test(
             detail=error_msg
         )
 
-    # Validate skills (basic check - could be expanded)
-    valid_skills = ["passing", "dribbling", "shooting", "defending", "physical", "pace"]
+    # Validate skills using skills_config.py
+    from app.skills_config import SKILL_CATEGORIES
+
+    # Extract all valid skill keys from skills_config.py
+    valid_skills = []
+    for category in SKILL_CATEGORIES:
+        for skill_def in category["skills"]:
+            valid_skills.append(skill_def["key"])
+
     for skill in request.skills_to_test:
         if skill not in valid_skills:
             raise HTTPException(
@@ -115,7 +124,9 @@ def run_sandbox_test(
             skills_to_test=request.skills_to_test,
             player_count=request.player_count,
             performance_variation=request.test_config.performance_variation,
-            ranking_distribution=request.test_config.ranking_distribution
+            ranking_distribution=request.test_config.ranking_distribution,
+            game_preset_id=request.test_config.game_preset_id,  # P3
+            game_config_overrides=request.test_config.game_config_overrides  # P3
         )
 
         logger.info(

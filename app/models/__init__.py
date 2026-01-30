@@ -51,7 +51,9 @@ from .game_preset import GamePreset  # Game preset configurations
 from .team import Team, TeamMember, TournamentTeamEnrollment
 from .tournament_ranking import TournamentRanking, TournamentStats, TournamentReward
 from .tournament_status_history import TournamentStatusHistory
+from .tournament_configuration import TournamentConfiguration  # P2: Separate tournament config table
 from .tournament_reward_config import TournamentRewardConfig  # P1: Separate reward config table
+from .game_configuration import GameConfiguration  # P3: Separate game config table
 from .tournament_achievement import (
     TournamentSkillMapping,
     TournamentParticipation,
@@ -154,7 +156,9 @@ __all__ = [
     "TournamentStats",
     "TournamentReward",
     "TournamentStatusHistory",
+    "TournamentConfiguration",
     "TournamentRewardConfig",
+    "GameConfiguration",
     "TournamentSkillMapping",
     "TournamentParticipation",
     "TournamentBadge",

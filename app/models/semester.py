@@ -79,46 +79,16 @@ class Semester(Base):
                         comment="FK to locations table (less specific than campus_id, preferred over legacy location_city/venue/address)")
 
 
-    # 🏆 TOURNAMENT FIELDS (new tournament system)
-    # NEW: FK to tournament_types table (preferred for auto-generation)
-    tournament_type_id = Column(Integer, ForeignKey('tournament_types.id', ondelete='SET NULL'), nullable=True,
-                                comment="FK to tournament_types table (for auto-generating session structure)")
-
-
-    participant_type = Column(String(50), nullable=True, default="INDIVIDUAL",
-                             comment="Participant type: INDIVIDUAL, TEAM, MIXED")
-    is_multi_day = Column(Boolean, default=False,
-                         comment="True if tournament spans multiple days")
-
-    # 🔄 SESSION GENERATION TRACKING
-    sessions_generated = Column(Boolean, default=False, nullable=False,
-                               comment="True if tournament sessions have been auto-generated (prevents duplicate generation)")
-    sessions_generated_at = Column(DateTime, nullable=True,
-                                  comment="Timestamp when sessions were auto-generated")
-    enrollment_snapshot = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True,
-                                comment="📸 Snapshot of enrollment state before session generation (for regeneration if needed)")
-
-    # ⏱️ TOURNAMENT SCHEDULE CONFIGURATION (set by admin before session generation)
-    match_duration_minutes = Column(Integer, nullable=True,
-                                   comment="Duration of each match in minutes (overrides tournament_type default)")
-    break_duration_minutes = Column(Integer, nullable=True,
-                                  comment="Break time between matches in minutes (overrides tournament_type default)")
-    parallel_fields = Column(Integer, nullable=True, default=1,
-                            comment="Number of parallel fields/pitches available (1-4) for simultaneous matches")
-    scoring_type = Column(String(50), nullable=False, default="PLACEMENT",
-                         comment="Scoring type for INDIVIDUAL_RANKING: TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT. Ignored for HEAD_TO_HEAD.")
-    measurement_unit = Column(String(50), nullable=True,
-                             comment="Unit of measurement for INDIVIDUAL_RANKING results: seconds/minutes (TIME_BASED), meters/centimeters (DISTANCE_BASED), points/repetitions (SCORE_BASED). NULL for PLACEMENT or HEAD_TO_HEAD.")
-    ranking_direction = Column(String(10), nullable=True,
-                               comment="Ranking direction for INDIVIDUAL_RANKING: ASC (lowest wins, e.g. 100m sprint), DESC (highest wins, e.g. plank). HEAD_TO_HEAD always DESC. NULL for PLACEMENT.")
-    number_of_rounds = Column(Integer, nullable=True, default=1,
-                             comment="Number of rounds for INDIVIDUAL_RANKING tournaments (1-10). Each round is a separate session. HEAD_TO_HEAD ignores this.")
-
-    # 🎯 TOURNAMENT ASSIGNMENT & CAPACITY (explicit business attributes)
-    assignment_type = Column(String(30), nullable=True,
-                            comment="Tournament instructor assignment strategy: OPEN_ASSIGNMENT (admin assigns directly) or APPLICATION_BASED (instructors apply)")
-    max_players = Column(Integer, nullable=True,
-                        comment="Maximum tournament participants (explicit capacity, independent of session capacity sum)")
+    # 🏆 TOURNAMENT CONFIGURATION FIELDS (P2 refactoring)
+    # ⚠️ DEPRECATED in P2: All tournament configuration moved to separate table (tournament_configurations)
+    # Use tournament_config_obj relationship instead
+    # Configuration properties (@property) provide backward compatibility
+    #
+    # Moved fields:
+    # - tournament_type_id, participant_type, is_multi_day, max_players
+    # - match_duration_minutes, break_duration_minutes, parallel_fields
+    # - scoring_type, measurement_unit, ranking_direction, number_of_rounds
+    # - assignment_type, sessions_generated, sessions_generated_at, enrollment_snapshot
 
     # 🎁 REWARD POLICY FIELDS (tournament reward system)
     # ⚠️ DEPRECATED in P1: reward_config moved to separate table (tournament_reward_configs)
@@ -126,15 +96,12 @@ class Semester(Base):
     # reward_config @property provides backward compatibility
 
     # 🎮 GAME CONFIGURATION FIELDS (tournament simulation rules)
-    game_preset_id = Column(Integer, ForeignKey("game_presets.id", name="fk_semesters_game_preset"),
-                           nullable=True, index=True,
-                           comment="Reference to pre-configured game type (e.g., GanFootvolley, Stole My Goal). Preset defines default skills, weights, and match rules.")
-
-    game_config = Column(JSONB, nullable=True,
-                        comment="Merged game configuration (preset + overrides). Final configuration used for tournament simulation. Includes match probabilities, ranking rules, skill weights, and simulation options.")
-
-    game_config_overrides = Column(JSONB, nullable=True, index=True,
-                                   comment="Custom overrides applied to preset configuration. Tracks what was customized from the base preset. NULL if using preset defaults.")
+    # ⚠️ DEPRECATED in P3: All game configuration moved to separate table (game_configurations)
+    # Use game_config_obj relationship instead
+    # Configuration properties (@property) provide backward compatibility
+    #
+    # Moved fields:
+    # - game_preset_id, game_config, game_config_overrides
 
     # Relationships
     campus = relationship("Campus", foreign_keys=[campus_id],
@@ -147,12 +114,6 @@ class Semester(Base):
                                     backref="mastered_semesters")
     assistant_instructors = relationship("User", secondary=semester_instructors,
                                         backref="assisted_semesters")
-    tournament_type_config = relationship("TournamentType", foreign_keys=[tournament_type_id],
-                                         back_populates="semesters",
-                                         doc="Tournament type configuration (for auto-generating sessions)")
-    game_preset = relationship("GamePreset", foreign_keys=[game_preset_id],
-                              back_populates="semesters",
-                              doc="Pre-configured game type defining skills, weights, and match rules")
     groups = relationship("Group", back_populates="semester")
     sessions = relationship("Session", back_populates="semester")
     projects = relationship("Project", back_populates="semester")
@@ -163,6 +124,15 @@ class Semester(Base):
     participations = relationship("TournamentParticipation", back_populates="tournament", cascade="all, delete-orphan")
     badges = relationship("TournamentBadge", back_populates="tournament", cascade="all, delete-orphan")
 
+    # 🏆 Tournament configuration (P2: separate table)
+    tournament_config_obj = relationship(
+        "TournamentConfiguration",
+        uselist=False,
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+        doc="Tournament configuration (1:1 relationship)"
+    )
+
     # 🎁 Reward configuration (P1: separate table)
     reward_config_obj = relationship(
         "TournamentRewardConfig",
@@ -172,26 +142,39 @@ class Semester(Base):
         doc="Reward configuration for this tournament (1:1 relationship)"
     )
 
+    # 🎮 Game configuration (P3: separate table)
+    game_config_obj = relationship(
+        "GameConfiguration",
+        uselist=False,
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+        doc="Game configuration for this tournament (1:1 relationship)"
+    )
+
     @property
     def format(self) -> str:
         """
         Derive tournament format from tournament_type.format (single source of truth).
 
+        🔄 P2 Refactoring: tournament_type_id moved to TournamentConfiguration table.
+        🔄 P3 Refactoring: game_preset_id moved to GameConfiguration table.
+
         Priority:
-        1. tournament_type.format (if tournament_type_id is set)
-        2. game_preset's format_config (if game_preset_id is set)
+        1. tournament_type.format (via tournament_config_obj.tournament_type)
+        2. game_preset's format_config (via game_config_obj.game_preset)
         3. Default: INDIVIDUAL_RANKING
 
         Returns:
             str: Either "HEAD_TO_HEAD" or "INDIVIDUAL_RANKING"
         """
-        # Priority 1: tournament_type.format (preferred)
-        if self.tournament_type_id and self.tournament_type_config:
-            return self.tournament_type_config.format
+        # Priority 1: tournament_type.format (via P2 config relationship)
+        if self.tournament_config_obj:
+            if self.tournament_config_obj.tournament_type_id and self.tournament_config_obj.tournament_type:
+                return self.tournament_config_obj.tournament_type.format
 
-        # Priority 2: game_preset's format_config
-        if self.game_preset_id and self.game_preset:
-            format_config = self.game_preset.game_config.get('format_config', {})
+        # Priority 2: game_preset's format_config (via P3 game config relationship)
+        if self.game_config_obj and self.game_config_obj.game_preset_id and self.game_config_obj.game_preset:
+            format_config = self.game_config_obj.game_preset.game_config.get('format_config', {})
             if format_config:
                 # format_config is a dict with format as key: {"HEAD_TO_HEAD": {...}} or {"INDIVIDUAL_RANKING": {...}}
                 return list(format_config.keys())[0]
@@ -223,7 +206,116 @@ class Semester(Base):
             raise ValueError(f"Invalid format: {self.format}. Must be 'INDIVIDUAL_RANKING' or 'HEAD_TO_HEAD'.")
 
     # ========================================================================
-    # 🎁 P1 REFACTORING: BACKWARD COMPATIBILITY PROPERTIES
+    # 🏆 P2 REFACTORING: BACKWARD COMPATIBILITY PROPERTIES (Tournament Configuration)
+    # ========================================================================
+
+    @property
+    def tournament_type_id(self) -> int:
+        """Backward compatible property for tournament_type_id (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.tournament_type_id
+        return None
+
+    @property
+    def participant_type(self) -> str:
+        """Backward compatible property for participant_type (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.participant_type
+        return "INDIVIDUAL"
+
+    @property
+    def is_multi_day(self) -> bool:
+        """Backward compatible property for is_multi_day (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.is_multi_day
+        return False
+
+    @property
+    def max_players(self) -> int:
+        """Backward compatible property for max_players (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.max_players
+        return None
+
+    @property
+    def match_duration_minutes(self) -> int:
+        """Backward compatible property for match_duration_minutes (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.match_duration_minutes
+        return None
+
+    @property
+    def break_duration_minutes(self) -> int:
+        """Backward compatible property for break_duration_minutes (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.break_duration_minutes
+        return None
+
+    @property
+    def parallel_fields(self) -> int:
+        """Backward compatible property for parallel_fields (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.parallel_fields
+        return 1
+
+    @property
+    def scoring_type(self) -> str:
+        """Backward compatible property for scoring_type (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.scoring_type
+        return "PLACEMENT"
+
+    @property
+    def measurement_unit(self) -> str:
+        """Backward compatible property for measurement_unit (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.measurement_unit
+        return None
+
+    @property
+    def ranking_direction(self) -> str:
+        """Backward compatible property for ranking_direction (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.ranking_direction
+        return None
+
+    @property
+    def number_of_rounds(self) -> int:
+        """Backward compatible property for number_of_rounds (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.number_of_rounds
+        return 1
+
+    @property
+    def assignment_type(self) -> str:
+        """Backward compatible property for assignment_type (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.assignment_type
+        return None
+
+    @property
+    def sessions_generated(self) -> bool:
+        """Backward compatible property for sessions_generated (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.sessions_generated
+        return False
+
+    @property
+    def sessions_generated_at(self):
+        """Backward compatible property for sessions_generated_at (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.sessions_generated_at
+        return None
+
+    @property
+    def enrollment_snapshot(self) -> dict:
+        """Backward compatible property for enrollment_snapshot (P2)"""
+        if self.tournament_config_obj:
+            return self.tournament_config_obj.enrollment_snapshot or {}
+        return {}
+
+    # ========================================================================
+    # 🎁 P1 REFACTORING: BACKWARD COMPATIBILITY PROPERTIES (Reward Configuration)
     # ========================================================================
 
     @property
@@ -264,3 +356,50 @@ class Semester(Base):
         if self.reward_config_obj:
             return self.reward_config_obj.reward_policy_snapshot or {}
         return {}
+
+    # ========================================================================
+    # 🎮 P3 REFACTORING: BACKWARD COMPATIBILITY PROPERTIES (Game Configuration)
+    # ========================================================================
+
+    @property
+    def game_preset_id(self) -> int:
+        """Backward compatible property for game_preset_id (P3)"""
+        if self.game_config_obj:
+            return self.game_config_obj.game_preset_id
+        return None
+
+    @property
+    def game_config(self) -> dict:
+        """
+        Backward compatible property for game_config (P3).
+
+        Returns:
+            Dict: Merged game configuration (or empty dict)
+        """
+        if self.game_config_obj:
+            return self.game_config_obj.game_config or {}
+        return {}
+
+    @property
+    def game_config_overrides(self) -> dict:
+        """
+        Backward compatible property for game_config_overrides (P3).
+
+        Returns:
+            Dict: Game configuration overrides (or empty dict)
+        """
+        if self.game_config_obj:
+            return self.game_config_obj.game_config_overrides or {}
+        return {}
+
+    @property
+    def game_preset(self):
+        """
+        Backward compatible property for game_preset relationship (P3).
+
+        Returns:
+            GamePreset: Game preset object (or None)
+        """
+        if self.game_config_obj:
+            return self.game_config_obj.game_preset
+        return None

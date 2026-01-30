@@ -51,7 +51,9 @@ class SandboxTestOrchestrator:
         skills_to_test: List[str],
         player_count: int,
         performance_variation: str = "MEDIUM",
-        ranking_distribution: str = "NORMAL"
+        ranking_distribution: str = "NORMAL",
+        game_preset_id: Optional[int] = None,
+        game_config_overrides: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """
         Execute complete sandbox test
@@ -62,6 +64,8 @@ class SandboxTestOrchestrator:
             player_count: Number of synthetic players (4-16)
             performance_variation: LOW, MEDIUM, HIGH
             ranking_distribution: NORMAL, TOP_HEAVY, BOTTOM_HEAVY
+            game_preset_id: Optional game preset ID (P3)
+            game_config_overrides: Optional game config overrides (P3)
 
         Returns:
             Complete test results including verdict, skill progression, top/bottom performers
@@ -69,11 +73,17 @@ class SandboxTestOrchestrator:
         self.start_time = datetime.now()
         self.test_run_id = f"sandbox-{self.start_time.strftime('%Y-%m-%d-%H-%M-%S')}-{random.randint(1000, 9999)}"
 
-        logger.info(f"🧪 Starting sandbox test: {self.test_run_id}")
+        logger.info(f"🧪 Starting sandbox test: {self.test_run_id} (preset={game_preset_id})")
 
         try:
             # Step 1: Create tournament
-            self._create_tournament(tournament_type_code, skills_to_test, player_count)
+            self._create_tournament(
+                tournament_type_code,
+                skills_to_test,
+                player_count,
+                game_preset_id,
+                game_config_overrides
+            )
 
             # Step 2: Enroll participants
             enrolled_users = self._enroll_participants(player_count)
@@ -169,10 +179,12 @@ class SandboxTestOrchestrator:
         self,
         tournament_type_code: str,
         skills_to_test: List[str],
-        player_count: int
+        player_count: int,
+        game_preset_id: Optional[int] = None,
+        game_config_overrides: Optional[Dict] = None
     ) -> None:
-        """Create temporary tournament with reward config"""
-        logger.info(f"📋 Creating tournament: type={tournament_type_code}, players={player_count}")
+        """Create temporary tournament with P1+P2+P3 separated configurations"""
+        logger.info(f"📋 Creating tournament: type={tournament_type_code}, players={player_count}, preset={game_preset_id}")
 
         # Get tournament type
         tournament_type = self.db.query(TournamentType).filter(
@@ -190,16 +202,14 @@ class SandboxTestOrchestrator:
         # Build reward config
         reward_config_data = self._build_reward_config(skills_to_test)
 
-        # Create tournament (P1: without reward_config, will be added as separate entity)
+        # Create tournament (P2: without configuration fields, will be added as separate entity)
         tournament = Semester(
             code=f"SANDBOX-{self.test_run_id}",
             name=f"SANDBOX-TEST-{tournament_type_code.upper()}-{self.start_time.strftime('%Y-%m-%d')}",
             start_date=datetime.now().date(),
             end_date=(datetime.now() + timedelta(days=30)).date(),
             is_active=True,
-            tournament_type_id=tournament_type.id,
-            tournament_status="DRAFT",
-            max_players=player_count
+            tournament_status="DRAFT"
         )
 
         self.db.add(tournament)
@@ -207,6 +217,23 @@ class SandboxTestOrchestrator:
         self.db.refresh(tournament)
 
         self.tournament_id = tournament.id
+
+        # 🏆 P2: Create separate TournamentConfiguration
+        from app.models.tournament_configuration import TournamentConfiguration
+        tournament_config_obj = TournamentConfiguration(
+            semester_id=tournament.id,
+            tournament_type_id=tournament_type.id,
+            participant_type="INDIVIDUAL",
+            is_multi_day=False,
+            max_players=player_count,
+            parallel_fields=1,
+            scoring_type="PLACEMENT",
+            number_of_rounds=1,
+            assignment_type="OPEN_ASSIGNMENT",
+            sessions_generated=False
+        )
+        self.db.add(tournament_config_obj)
+        self.db.commit()
 
         # 🎁 P1: Create separate TournamentRewardConfig
         from app.models.tournament_reward_config import TournamentRewardConfig
@@ -218,8 +245,77 @@ class SandboxTestOrchestrator:
         self.db.add(reward_config_obj)
         self.db.commit()
 
+        # 🎮 P3: Create separate GameConfiguration
+        from app.models.game_configuration import GameConfiguration
+        from app.models.game_preset import GamePreset
+
+        # If game preset is provided, use it as template
+        final_game_config = None
+        if game_preset_id:
+            preset = self.db.query(GamePreset).filter(GamePreset.id == game_preset_id).first()
+            if preset:
+                logger.info(f"🎮 Using game preset: {preset.name} (ID: {game_preset_id})")
+
+                # Start with preset config
+                final_game_config = preset.game_config.copy()
+
+                # Apply overrides if provided
+                if game_config_overrides:
+                    logger.info(f"🔧 Applying game config overrides: {list(game_config_overrides.keys())}")
+
+                    # Override skill config
+                    if "skill_config" in game_config_overrides:
+                        final_game_config.setdefault("skill_config", {}).update(
+                            game_config_overrides["skill_config"]
+                        )
+
+                    # Override simulation config (match probabilities, etc.)
+                    if "simulation_config" in game_config_overrides:
+                        final_game_config.setdefault("simulation_config", {}).update(
+                            game_config_overrides["simulation_config"]
+                        )
+            else:
+                logger.warning(f"⚠️ Game preset {game_preset_id} not found, using basic config")
+
+        # If no preset or preset not found, build basic game config
+        if not final_game_config:
+            final_game_config = {
+                "version": "1.0",
+                "skill_config": {
+                    "skills_tested": skills_to_test,
+                    "skill_weights": {skill: 1.0 / len(skills_to_test) for skill in skills_to_test},
+                    "skill_impact_on_matches": True
+                },
+                "format_config": {
+                    tournament_type.format: {
+                        "ranking_rules": {
+                            "primary": "points",
+                            "tiebreakers": ["goal_difference", "goals_for", "user_id"]
+                        }
+                    }
+                },
+                "simulation_config": {
+                    "player_selection": "auto",
+                    "ranking_distribution": "NORMAL",
+                    "performance_variation": "MEDIUM"
+                },
+                "metadata": {
+                    "game_category": "sandbox_test",
+                    "difficulty_level": "intermediate"
+                }
+            }
+
+        game_config_obj = GameConfiguration(
+            semester_id=tournament.id,
+            game_preset_id=game_preset_id,
+            game_config=final_game_config,
+            game_config_overrides=game_config_overrides
+        )
+        self.db.add(game_config_obj)
+        self.db.commit()
+
         self.execution_steps.append(f"Tournament created (ID: {self.tournament_id}, Status: DRAFT)")
-        logger.info(f"✅ Tournament created: ID={self.tournament_id}, Reward config: sandbox_test")
+        logger.info(f"✅ Tournament created: ID={self.tournament_id}, Config: P2+P3, Reward: P1")
 
     def _build_reward_config(self, skills_to_test: List[str]) -> Dict:
         """Build reward config with skill mappings"""
@@ -262,8 +358,20 @@ class SandboxTestOrchestrator:
         """Enroll synthetic participants"""
         logger.info(f"👥 Enrolling {player_count} participants")
 
+        # DEBUG: Log pool size vs requested count
+        logger.info(f"🔍 DEBUG: TEST_USER_POOL size={len(TEST_USER_POOL)}, requested={player_count}")
+        logger.info(f"🔍 DEBUG: TEST_USER_POOL={TEST_USER_POOL}")
+
+        # Validate pool size
+        if player_count > len(TEST_USER_POOL):
+            raise ValueError(
+                f"Cannot sample {player_count} users from pool of {len(TEST_USER_POOL)}. "
+                f"Pool: {TEST_USER_POOL}"
+            )
+
         # Select random users from test pool
         selected_users = random.sample(TEST_USER_POOL, player_count)
+        logger.info(f"🔍 DEBUG: Selected users from pool: {selected_users}")
 
         # Get active licenses for each user
         from app.models.license import UserLicense

@@ -45,7 +45,10 @@ class TournamentType(Base):
     config = Column(JSON, nullable=False)
 
     # Relationships
-    semesters = relationship("Semester", back_populates="tournament_type_config")
+    # P2: tournament_type is now accessed via TournamentConfiguration, not directly from Semester
+    # Old relationship: semesters = relationship("Semester", back_populates="tournament_type_config")
+    # New relationship path: TournamentConfiguration.tournament_type
+    tournament_configurations = relationship("TournamentConfiguration", back_populates="tournament_type")
 
     def __repr__(self):
         return f"<TournamentType(code='{self.code}', display_name='{self.display_name}')>"

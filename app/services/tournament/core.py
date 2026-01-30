@@ -109,6 +109,7 @@ def create_tournament_semester(
     status = SemesterStatus.SEEKING_INSTRUCTOR
     tournament_status = "SEEKING_INSTRUCTOR"
 
+    # P2: Create tournament WITHOUT configuration fields (will be added as separate entity)
     semester = Semester(
         code=code,
         name=name,
@@ -122,26 +123,61 @@ def create_tournament_semester(
         age_group=age_group,
         campus_id=campus_id,
         location_id=location_id,
-        reward_policy_name=reward_policy_name,
-        reward_policy_snapshot=reward_policy,  # Immutable snapshot of policy
-        # 🎯 NEW: Explicit business attributes
-        assignment_type=assignment_type,
-        max_players=max_players,
-        enrollment_cost=enrollment_cost,
+        enrollment_cost=enrollment_cost
+    )
+
+    db.add(semester)
+    db.commit()
+    db.refresh(semester)
+
+    # 🏆 P2: Create separate TournamentConfiguration
+    from app.models.tournament_configuration import TournamentConfiguration
+    tournament_config_obj = TournamentConfiguration(
+        semester_id=semester.id,
         tournament_type_id=tournament_type_id,  # ✅ ONLY for HEAD_TO_HEAD
-        format=format,  # ✅ NEW: Tournament format (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
+        participant_type="INDIVIDUAL",
+        is_multi_day=False,
+        max_players=max_players,
+        parallel_fields=1,
         scoring_type=scoring_type,  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
         measurement_unit=measurement_unit,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
-        ranking_direction=ranking_direction  # ✅ NEW: Ranking direction (ASC/DESC)
+        ranking_direction=ranking_direction,  # ✅ NEW: Ranking direction (ASC/DESC)
+        number_of_rounds=1,
+        assignment_type=assignment_type,
+        sessions_generated=False
     )
+    db.add(tournament_config_obj)
+    db.commit()
+    db.refresh(tournament_config_obj)
 
     # ✅ CRITICAL: Validate format and tournament_type_id consistency
     # INDIVIDUAL_RANKING: tournament_type_id MUST be NULL
     # HEAD_TO_HEAD: tournament_type_id MUST be set
-    semester.validate_tournament_format_logic()
+    # Access via backward-compatible property
+    if semester.format == "INDIVIDUAL_RANKING":
+        if semester.tournament_type_id is not None:
+            raise ValueError(
+                "INDIVIDUAL_RANKING tournaments cannot have a tournament_type. "
+                "Set tournament_type_id to null."
+            )
+    elif semester.format == "HEAD_TO_HEAD":
+        if semester.tournament_type_id is None:
+            raise ValueError(
+                "HEAD_TO_HEAD tournaments MUST have a tournament_type (Swiss, League, Knockout, etc.)."
+            )
 
-    db.add(semester)
+    # 🎁 P1: Create separate TournamentRewardConfig
+    from app.models.tournament_reward_config import TournamentRewardConfig
+    reward_config_obj = TournamentRewardConfig(
+        semester_id=semester.id,
+        reward_policy_name=reward_policy_name,
+        reward_policy_snapshot=reward_policy,  # Immutable snapshot of policy
+        reward_config=reward_policy  # Store the actual config
+    )
+    db.add(reward_config_obj)
     db.commit()
+
+    # Refresh to load relationships
     db.refresh(semester)
 
     return semester

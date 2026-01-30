@@ -52,10 +52,12 @@ from .endpoints import (
     instructor_management,  # 👨‍🏫 NEW: Add two-tier instructor management system
     session_groups,  # 👥 NEW: Add dynamic session group assignment system
     tournaments,  # 🏆 NEW: Add one-day tournament generator system
-    tournament_types  # 🎯 NEW: Add tournament type system
+    tournament_types,  # 🎯 NEW: Add tournament type system
+    game_presets  # 🎮 P3: Add game preset system
 )
 
 from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test system
+from .endpoints.sandbox import data as sandbox_data  # 🧪 NEW: Add sandbox data endpoints
 
 from .endpoints.sessions import results as session_results  # 🏆 NEW: Game results management
 
@@ -341,6 +343,13 @@ api_router.include_router(
     tags=["tournament-types"]
 )
 
+# 🎮 P3: Add game preset system routes
+api_router.include_router(
+    game_presets.router,
+    prefix="/game-presets",
+    tags=["game-presets"]
+)
+
 # 🎯 NEW: Add tournament session generation system routes (admin only)
 api_router.include_router(
     generate_sessions.router,
@@ -353,4 +362,11 @@ api_router.include_router(
     sandbox.router,
     prefix="/sandbox",
     tags=["sandbox-testing"]
+)
+
+# 🧪 NEW: Add sandbox data endpoints (admin only)
+api_router.include_router(
+    sandbox_data.router,
+    prefix="/sandbox",
+    tags=["sandbox-data"]
 )
