@@ -10,7 +10,7 @@ from .lifecycle import router as lifecycle_router
 from .rewards import router as rewards_router
 from .rewards_v2 import router as rewards_v2_router  # 🆕 V2: Unified reward system (badges + skill/XP)
 from .reward_config import router as reward_config_router  # 🎁 Reward configuration (templates, save/load)
-from .match_results import router as match_results_router  # ✅ P0-1 Phase 1: Match results extraction
+from .results import router as results_router  # ✅ P2: Modular match results (submission, rounds, finalization)
 from .instructor_assignment import router as instructor_assignment_router  # ✅ P0-1 Phase 3: Instructor assignment lifecycle
 from .cancellation import router as cancellation_router  # ✅ Feature: Tournament cancellation & refund
 
@@ -22,7 +22,7 @@ router.include_router(available_router)
 router.include_router(enroll_router)
 router.include_router(instructor_router)  # Thin router (queries, debug)
 router.include_router(instructor_assignment_router)  # ✅ P0-1 Phase 3: Assignment lifecycle (apply, approve, accept, decline)
-router.include_router(match_results_router)  # ✅ P0-1 Phase 1: Match results (submit, finalize)
+router.include_router(results_router)  # ✅ P2: Modular match results (submission, rounds, finalization)
 router.include_router(cancellation_router)  # ✅ Feature: Tournament cancellation & refund
 router.include_router(rewards_router)  # Rewards & ranking endpoints (legacy)
 router.include_router(rewards_v2_router)  # 🆕 V2: Unified reward system (badges + skill/XP)
