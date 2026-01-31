@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.dependencies import get_current_admin_user
+from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
 from app.models.user import User
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
@@ -299,12 +299,12 @@ def generate_tournament_sessions(
 def get_tournament_sessions(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user)
 ) -> List[Dict[str, Any]]:
     """
     Get all sessions for a tournament
 
-    **Authorization:** Admin only
+    **Authorization:** Admin or Instructor
 
     Returns:
         List of session dictionaries with all session details including participant names
