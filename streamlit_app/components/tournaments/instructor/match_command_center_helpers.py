@@ -83,12 +83,24 @@ def get_rounds_status(session_id: int) -> Optional[Dict]:
         return None
 
 
-def submit_round_results(session_id: int, round_number: int, results: List[Dict]) -> bool:
-    """Submit results for a round"""
+def submit_round_results(tournament_id: int, session_id: int, round_number: int, results: Dict[str, str]) -> bool:
+    """
+    Submit results for a round in an INDIVIDUAL_RANKING tournament.
+
+    Args:
+        tournament_id: Tournament ID
+        session_id: Session ID
+        round_number: Round number (1, 2, 3, ...)
+        results: Dict mapping user_id (str) to measured value (str), e.g., {"123": "12.5s", "456": "95"}
+    """
     try:
         api_client.post(
-            f"/api/v1/sessions/{session_id}/rounds/{round_number}/results",
-            data={"results": results}
+            f"/api/v1/tournaments/{tournament_id}/sessions/{session_id}/rounds/{round_number}/submit-results",
+            data={
+                "round_number": round_number,
+                "results": results,
+                "notes": None
+            }
         )
         Success.message(f"Round {round_number} results submitted!")
         return True

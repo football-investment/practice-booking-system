@@ -89,8 +89,8 @@ def render_results_step(tournament_id: int, match: Dict[str, Any]):
         if scoring_type == 'RANK_BASED':
             render_individual_ranking_form(match)
         elif scoring_type == 'ROUNDS_BASED':
-            num_rounds = match.get('structure_config', {}).get('num_rounds', 3)
-            render_rounds_based_entry(match, num_rounds)
+            num_rounds = match.get('structure_config', {}).get('number_of_rounds', 3)
+            render_rounds_based_entry(tournament_id, match, num_rounds)
         elif scoring_type == 'MEASURED_VALUE':
             metric_name = match.get('structure_config', {}).get('metric_name', 'Distance')
             metric_unit = match.get('structure_config', {}).get('metric_unit', 'meters')

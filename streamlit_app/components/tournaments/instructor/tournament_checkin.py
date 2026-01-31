@@ -22,8 +22,8 @@ import streamlit as st
 from datetime import datetime, timedelta
 from typing import Dict, List
 import time
-from api_helpers import get_sessions
-from api_helpers_session_groups import (
+from streamlit_app.api_helpers_general import get_sessions
+from streamlit_app.api_helpers_session_groups import (
     get_session_bookings,
     get_session_attendance,
     mark_student_attendance,
@@ -32,7 +32,7 @@ from api_helpers_session_groups import (
     move_student_to_group,
     delete_session_groups
 )
-from api_helpers_tournaments import get_tournament_enrollment_count
+from streamlit_app.api_helpers_tournaments import get_tournament_enrollment_count
 from components.sessions.shared.attendance_core import (
     calculate_attendance_summary,
     render_attendance_status_badge

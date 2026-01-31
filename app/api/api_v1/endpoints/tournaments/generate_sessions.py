@@ -17,6 +17,7 @@ from app.dependencies import get_current_admin_user
 from app.models.user import User
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
+from app.models.session import Session as SessionModel
 from app.services.tournament_session_generator import TournamentSessionGenerator
 
 
@@ -292,6 +293,79 @@ def generate_tournament_sessions(
         sessions_generated_count=len(sessions_created),
         sessions=sessions_created
     )
+
+
+@router.get("/{tournament_id}/sessions", response_model=List[Dict[str, Any]])
+def get_tournament_sessions(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+) -> List[Dict[str, Any]]:
+    """
+    Get all sessions for a tournament
+
+    **Authorization:** Admin only
+
+    Returns:
+        List of session dictionaries with all session details including participant names
+    """
+    from app.models.user import User as UserModel
+    from app.models.attendance import Attendance
+
+    # Fetch all sessions for this tournament
+    sessions = db.query(SessionModel).filter(
+        SessionModel.semester_id == tournament_id
+    ).order_by(SessionModel.date_start).all()
+
+    # Convert to dict format
+    sessions_list = []
+    for session in sessions:
+        # Fetch participant details with names
+        participants = []
+        if session.participant_user_ids:
+            users = db.query(UserModel).filter(
+                UserModel.id.in_(session.participant_user_ids)
+            ).all()
+
+            for user in users:
+                # Check attendance status
+                attendance = db.query(Attendance).filter(
+                    Attendance.session_id == session.id,
+                    Attendance.user_id == user.id
+                ).first()
+
+                participants.append({
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "attendance_status": attendance.status.value if attendance else "PENDING",
+                    "is_present": attendance.status.value == "PRESENT" if attendance else False
+                })
+
+        sessions_list.append({
+            "id": session.id,
+            "title": session.title,
+            "description": session.description,
+            "date_start": session.date_start.isoformat() if session.date_start else None,
+            "date_end": session.date_end.isoformat() if session.date_end else None,
+            "game_type": session.game_type,
+            "tournament_phase": session.tournament_phase,
+            "tournament_round": session.tournament_round,
+            "tournament_match_number": session.tournament_match_number,
+            "location": session.location,
+            "session_type": session.session_type,
+            "capacity": session.capacity,
+            "is_tournament_game": session.is_tournament_game,
+            "auto_generated": session.auto_generated,
+            "match_format": session.match_format,
+            "scoring_type": session.scoring_type,
+            "structure_config": session.structure_config,
+            "participant_user_ids": session.participant_user_ids,
+            "participants": participants,  # ✅ NEW: Full participant details with names
+            "rounds_data": session.rounds_data
+        })
+
+    return sessions_list
 
 
 @router.delete("/{tournament_id}/sessions", response_model=Dict[str, Any])

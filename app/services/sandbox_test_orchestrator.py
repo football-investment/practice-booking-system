@@ -220,15 +220,47 @@ class SandboxTestOrchestrator:
 
         # 🏆 P2: Create separate TournamentConfiguration
         from app.models.tournament_configuration import TournamentConfiguration
+
+        # Extract INDIVIDUAL scoring config from game_config_overrides if present
+        scoring_type = "PLACEMENT"  # default
+        number_of_rounds = 1  # default
+        measurement_unit = None
+        ranking_direction = None
+        is_individual_ranking = False
+
+        if game_config_overrides and "individual_config" in game_config_overrides:
+            individual_config = game_config_overrides["individual_config"]
+            scoring_type = individual_config.get("scoring_type", "PLACEMENT")
+            number_of_rounds = individual_config.get("number_of_rounds", 1)
+            measurement_unit = individual_config.get("measurement_unit")
+            ranking_direction = individual_config.get("ranking_direction")
+            is_individual_ranking = True
+            logger.info(f"🎯 Applying INDIVIDUAL config: scoring_type={scoring_type}, rounds={number_of_rounds}, unit={measurement_unit}, direction={ranking_direction}")
+
+        # 🎯 CRITICAL FIX: INDIVIDUAL_RANKING tournaments MUST NOT have tournament_type_id
+        # The Semester.format property has a fallback chain:
+        # 1. tournament_type.format (if tournament_type_id is set)
+        # 2. game_preset.format_config (if game_preset_id is set)
+        # 3. Default: "INDIVIDUAL_RANKING"
+        # For INDIVIDUAL tournaments, we use the default fallback (tournament_type_id=NULL)
+        # For HEAD_TO_HEAD tournaments, we use the requested tournament type (league, knockout, etc.)
+        if is_individual_ranking:
+            tournament_type_id_value = None  # NULL for INDIVIDUAL_RANKING
+            logger.info(f"🔄 Setting tournament_type_id=NULL for INDIVIDUAL_RANKING tournament (format will use default fallback)")
+        else:
+            tournament_type_id_value = tournament_type.id  # Set for HEAD_TO_HEAD tournaments
+
         tournament_config_obj = TournamentConfiguration(
             semester_id=tournament.id,
-            tournament_type_id=tournament_type.id,
+            tournament_type_id=tournament_type_id_value,
             participant_type="INDIVIDUAL",
             is_multi_day=False,
             max_players=player_count,
             parallel_fields=1,
-            scoring_type="PLACEMENT",
-            number_of_rounds=1,
+            scoring_type=scoring_type,
+            number_of_rounds=number_of_rounds,
+            measurement_unit=measurement_unit,
+            ranking_direction=ranking_direction,
             assignment_type="OPEN_ASSIGNMENT",
             sessions_generated=False
         )
@@ -305,9 +337,18 @@ class SandboxTestOrchestrator:
                 }
             }
 
+        # 🎯 CRITICAL FIX: INDIVIDUAL_RANKING tournaments should NOT have game_preset_id
+        # because game presets contain format_config that might override the format property
+        # to HEAD_TO_HEAD instead of INDIVIDUAL_RANKING
+        if is_individual_ranking:
+            logger.info(f"🔄 Setting game_preset_id=NULL for INDIVIDUAL_RANKING tournament (to avoid format override)")
+            game_preset_id_value = None
+        else:
+            game_preset_id_value = game_preset_id
+
         game_config_obj = GameConfiguration(
             semester_id=tournament.id,
-            game_preset_id=game_preset_id,
+            game_preset_id=game_preset_id_value,
             game_config=final_game_config,
             game_config_overrides=game_config_overrides
         )

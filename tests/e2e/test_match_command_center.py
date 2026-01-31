@@ -8,7 +8,7 @@ Following UI_REFACTOR_PATTERN.md - minimum 5-10 tests per refactored file.
 import pytest
 from playwright.sync_api import Page, expect
 
-MATCH_CENTER_URL = "http://localhost:8502"
+MATCH_CENTER_URL = "http://localhost:8503"
 
 
 class TestMatchCenterAuthentication:
@@ -19,8 +19,8 @@ class TestMatchCenterAuthentication:
         page.goto(MATCH_CENTER_URL)
         page.wait_for_timeout(2000)
 
-        # Verify match command center loads
-        expect(page.get_by_text("Match Command Center")).to_be_visible(timeout=10000)
+        # Verify match command center loads (includes emoji)
+        expect(page.get_by_text("🎮 Match Command Center")).to_be_visible(timeout=10000)
 
 
 class TestActiveMatchDisplay:
@@ -122,8 +122,8 @@ class TestLeaderboard:
         page.goto(MATCH_CENTER_URL)
         page.wait_for_timeout(3000)
 
-        # Verify leaderboard header
-        expect(page.get_by_text("Live Leaderboard")).to_be_visible()
+        # Verify leaderboard header (includes emoji)
+        expect(page.get_by_text("🏆 Live Leaderboard")).to_be_visible()
 
     def test_leaderboard_standings(self, page: Page):
         """Test leaderboard standings display"""
@@ -172,8 +172,8 @@ class TestCompleteMatchWorkflow:
         page.goto(MATCH_CENTER_URL)
         page.wait_for_timeout(3000)
 
-        # Step 1: Verify match center loads
-        expect(page.get_by_text("Match Command Center")).to_be_visible()
+        # Step 1: Verify match center loads (includes emoji)
+        expect(page.get_by_text("🎮 Match Command Center")).to_be_visible()
 
         # Step 2: Mark attendance (if in attendance phase)
         present_button = page.locator('button[key^="btn_present_"]').first
