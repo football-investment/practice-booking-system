@@ -92,15 +92,6 @@ async def dashboard(
             # Extract location suffix (BUDA, PEST, BUDAPEST, city names)
             location_match = re.search(r'_(BUDA|PEST|BUDAPEST|DEBRECEN|SZEGED|MISKOLC|GYOR)$', code, re.IGNORECASE)
             if location_match:
-                location_suffix = location_match.group(1)
-                # Set location_venue if not already set in DB
-                if not semester.location_venue:
-                    if location_suffix.upper() in ['BUDA', 'PEST']:
-                        semester.location_venue = f"{location_suffix.capitalize()} Campus"
-                        semester.location_city = "Budapest"
-                    else:
-                        semester.location_city = location_suffix.capitalize()
-
                 # Remove location suffix for specialization extraction
                 code_without_location = code[:location_match.start()]
             else:

@@ -11,6 +11,7 @@ from datetime import datetime, timezone, date
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...services.tournament.session_generation import get_tournament_venue
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -112,15 +113,6 @@ async def admin_enrollments_page(
         # Extract location suffix (BUDA, PEST, BUDAPEST, city names)
         location_match = re.search(r'_(BUDA|PEST|BUDAPEST|DEBRECEN|SZEGED|MISKOLC|GYOR)$', code, re.IGNORECASE)
         if location_match:
-            location_suffix = location_match.group(1)
-            # Set location_venue if not already set in DB
-            if not semester.location_venue:
-                if location_suffix.upper() in ['BUDA', 'PEST']:
-                    semester.location_venue = f"{location_suffix.capitalize()} Campus"
-                    semester.location_city = "Budapest"
-                else:
-                    semester.location_city = location_suffix.capitalize()
-
             # Remove location suffix for specialization extraction
             code_without_location = code[:location_match.start()]
         else:
@@ -160,18 +152,23 @@ async def admin_enrollments_page(
         # Get all active semesters for this specialization type
         spec_semesters = [s for s in active_semesters if s.specialization_type == spec_type.value]
 
-        # Group by location_venue within this specialization
+        # Group by venue within this specialization (using helper function)
         location_groups = defaultdict(list)
+
+        # Eager load location relationships for helper function
+        for semester in spec_semesters:
+            db.refresh(semester, ['location', 'campus'])
 
         # First, add enrollments to their locations
         for enrollment in spec_enrollments:
-            # Get the location_venue from the semester
-            location_key = enrollment.semester.location_venue if enrollment.semester.location_venue else "No Location"
+            # Get venue using helper function with fallback chain
+            db.refresh(enrollment.semester, ['location', 'campus'])
+            location_key = get_tournament_venue(enrollment.semester)
             location_groups[location_key].append(enrollment)
 
         # Then, ensure EVERY active semester location has a group (even if empty)
         for semester in spec_semesters:
-            location_key = semester.location_venue if semester.location_venue else "No Location"
+            location_key = get_tournament_venue(semester)
             if location_key not in location_groups:
                 location_groups[location_key] = []
 
