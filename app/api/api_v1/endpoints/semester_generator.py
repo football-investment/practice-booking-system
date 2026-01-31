@@ -352,9 +352,7 @@ async def generate_semesters(
 
     # Assign location to all generated semesters
     for semester in semesters:
-        semester.location_city = location.city
-        semester.location_venue = location.venue
-        semester.location_address = location.address
+        semester.location_id = location.id
         db.add(semester)
 
     db.commit()
