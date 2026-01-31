@@ -203,13 +203,17 @@ class SandboxTestOrchestrator:
         reward_config_data = self._build_reward_config(skills_to_test)
 
         # Create tournament (P2: without configuration fields, will be added as separate entity)
+        # 🆓 CRITICAL FIX: Set enrollment_cost=0 for sandbox tournaments
+        # Prevents credit deductions during testing and ensures clean audit trail
+        # See: CRITICAL_FINDING_SANDBOX_CREDIT_LEAK.md for details
         tournament = Semester(
             code=f"SANDBOX-{self.test_run_id}",
             name=f"SANDBOX-TEST-{tournament_type_code.upper()}-{self.start_time.strftime('%Y-%m-%d')}",
             start_date=datetime.now().date(),
             end_date=(datetime.now() + timedelta(days=30)).date(),
             is_active=True,
-            tournament_status="DRAFT"
+            tournament_status="DRAFT",
+            enrollment_cost=0  # 🆓 FREE for testing - no credit deductions!
         )
 
         self.db.add(tournament)
