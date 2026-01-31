@@ -388,14 +388,15 @@ class SandboxTestOrchestrator:
                 continue
 
             # Create enrollment record with user_license_id
-            from app.models.semester_enrollment import SemesterEnrollment
+            from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 
             enrollment = SemesterEnrollment(
                 user_id=user_id,
                 semester_id=self.tournament_id,
                 user_license_id=active_license.id,
                 is_active=True,
-                payment_verified=True
+                payment_verified=True,
+                request_status=EnrollmentStatus.APPROVED  # Sandbox: auto-approve enrollments
             )
             self.db.add(enrollment)
 
