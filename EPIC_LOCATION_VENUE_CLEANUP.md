@@ -2,8 +2,8 @@
 
 **Epic ID**: EPIC-2026-W05-location-venue-cleanup
 **Created**: 2026-01-31
-**Status**: 🟡 IN PROGRESS - Sprint 3 Active
-**Priority**: Medium
+**Status**: ⏸️ PAUSED - Critical path complete, remaining sprints deferred
+**Priority**: Low (downgraded from Medium)
 **Owner**: Claude Sonnet 4.5
 
 ---
@@ -56,12 +56,15 @@ Complete migration from deprecated `location_venue` field to proper FK relations
 **Priority**: 🔴 HIGH
 **Estimated**: 3-4 hours
 **Scope**: API layer migration
-**Status**: 🟡 ACTIVE - Investigation Phase
+**Status**: ✅ COMPLETE
 **Started**: 2026-01-31
+**Completed**: 2026-01-31
+**Actual Time**: ~2.5 hours
 
-**Active Documents**:
-- [ACTIVE_SPRINT_3.md](ACTIVE_SPRINT_3.md) - Sprint progress tracking
-- [ISSUE_LOCATION_VENUE_API.md](ISSUE_LOCATION_VENUE_API.md) - Issue tracking
+**Archived Documents**:
+- [.sprints/2026-01-31-api-location-venue/ACTIVE_SPRINT_3.md](.sprints/2026-01-31-api-location-venue/ACTIVE_SPRINT_3.md)
+- [.sprints/2026-01-31-api-location-venue/ISSUE_LOCATION_VENUE_API.md](.sprints/2026-01-31-api-location-venue/ISSUE_LOCATION_VENUE_API.md)
+- [.sprints/2026-01-31-api-location-venue/README.md](.sprints/2026-01-31-api-location-venue/README.md)
 
 **Tasks**:
 - [ ] Update `app/schemas/semester.py` - Add `campus` and `location` relationships
@@ -80,10 +83,19 @@ Complete migration from deprecated `location_venue` field to proper FK relations
 ---
 
 ### Sprint 4: Streamlit UI Migration
-**Priority**: 🟡 MEDIUM
+**Priority**: 🟡 MEDIUM → 🟢 LOW
 **Estimated**: 2-3 hours
 **Scope**: Frontend components
-**Status**: ⏳ BACKLOG - Awaiting Sprint 3 completion
+**Status**: 🗓️ DEFERRED - Non-blocking, scheduled for future sprint
+**Decision Date**: 2026-01-31
+
+**Deferral Rationale**:
+- ✅ **Critical path complete**: API layer clean (Sprint 3)
+- ✅ **No production risk**: Backward compatibility maintained
+- ✅ **Low impact**: Only 4 occurrences in admin UI (internal use)
+- ✅ **Not blocking**: AttributeError eliminated in API layer
+- 📊 **Higher priorities exist**: P3 Week 3, sandbox testing, etc.
+- ⏱️ **Can wait**: UI cleanup scheduled when capacity allows
 
 **Tasks**:
 - [ ] Migrate `streamlit_app/components/admin/overview_tab.py` (1 occurrence)
@@ -102,7 +114,7 @@ Complete migration from deprecated `location_venue` field to proper FK relations
 **Priority**: 🟢 LOW
 **Estimated**: 2 hours
 **Scope**: Admin scripts and dashboards
-**Status**: ⏳ BACKLOG - Awaiting Sprint 3 completion
+**Status**: 🗓️ DEFERRED - Low priority maintenance work
 
 **Tasks**:
 - [ ] Migrate `scripts/dashboards/unified_workflow_dashboard.py` (9 occurrences)
@@ -120,7 +132,7 @@ Complete migration from deprecated `location_venue` field to proper FK relations
 **Priority**: 🟢 LOW
 **Estimated**: 1 hour
 **Scope**: Cleanup deprecated files
-**Status**: ⏳ BACKLOG - Awaiting Sprint 3 completion
+**Status**: 🗓️ DEFERRED - Low priority maintenance work
 
 **Tasks**:
 - [ ] Investigate `app/services/tournament_session_generator_ORIGINAL.py`
