@@ -11,6 +11,7 @@ from app.models.tournament_type import TournamentType
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..algorithms import RoundRobinPairing
+from ..utils import get_tournament_venue
 
 
 class LeagueGenerator(BaseFormatGenerator):
@@ -75,7 +76,7 @@ class LeagueGenerator(BaseFormatGenerator):
                     'tournament_phase': 'League - Multi-Player Ranking',
                     'tournament_round': round_num,
                     'tournament_match_number': round_num,
-                    'location': tournament.location_venue or 'TBD',
+                    'location': get_tournament_venue(tournament),
                     'session_type': 'on_site',
                     # ✅ UNIFIED RANKING: Ranking metadata
                     'ranking_mode': 'ALL_PARTICIPANTS',
@@ -160,7 +161,7 @@ class LeagueGenerator(BaseFormatGenerator):
                     'tournament_phase': 'League - Round Robin',
                     'tournament_round': round_num,
                     'tournament_match_number': match_num,
-                    'location': tournament.location_venue or 'TBD',
+                    'location': get_tournament_venue(tournament),
                     'session_type': 'on_site',
                     # ✅ HEAD_TO_HEAD: 1v1 match metadata
                     'ranking_mode': 'ALL_PARTICIPANTS',

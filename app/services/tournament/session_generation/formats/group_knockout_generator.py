@@ -12,6 +12,7 @@ from app.models.tournament_type import TournamentType
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..algorithms import RoundRobinPairing, GroupDistribution, KnockoutBracket
+from ..utils import get_tournament_venue
 
 
 class GroupKnockoutGenerator(BaseFormatGenerator):
@@ -120,7 +121,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                             'tournament_phase': 'Group Stage',
                             'tournament_round': round_num,
                             'tournament_match_number': match_num,
-                            'location': tournament.location_venue or 'TBD',
+                            'location': get_tournament_venue(tournament),
                             'session_type': 'on_site',
                             # ✅ HEAD_TO_HEAD: Group stage metadata
                             'ranking_mode': 'GROUP_ISOLATED',
@@ -163,7 +164,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                         'tournament_phase': 'Group Stage',
                         'tournament_round': round_num,
                         'tournament_match_number': (group_num - 1) * group_rounds + round_num,
-                        'location': tournament.location_venue or 'TBD',
+                        'location': get_tournament_venue(tournament),
                         'session_type': 'on_site',
                         # ✅ UNIFIED RANKING: Group isolation metadata
                         'ranking_mode': 'GROUP_ISOLATED',
@@ -222,7 +223,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                     'tournament_phase': 'Knockout Stage',
                     'tournament_round': 0,  # Play-in is round 0
                     'tournament_match_number': match_num,
-                    'location': tournament.location_venue or 'TBD',
+                    'location': get_tournament_venue(tournament),
                     'session_type': 'on_site',
                     # ✅ UNIFIED RANKING: Play-in metadata
                     'ranking_mode': 'QUALIFIED_ONLY',
@@ -305,7 +306,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                     'tournament_phase': 'Knockout Stage',
                     'tournament_round': round_num,
                     'tournament_match_number': match_in_round,
-                    'location': tournament.location_venue or 'TBD',
+                    'location': get_tournament_venue(tournament),
                     'session_type': 'on_site',
                     # ✅ UNIFIED RANKING: Knockout stage metadata
                     'ranking_mode': 'QUALIFIED_ONLY',
@@ -351,7 +352,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                 'tournament_phase': 'Knockout Stage',
                 'tournament_round': knockout_rounds + 1,  # After final
                 'tournament_match_number': 1,
-                'location': tournament.location_venue or 'TBD',
+                'location': get_tournament_venue(tournament),
                 'session_type': 'on_site',
                 # ✅ UNIFIED RANKING: Bronze match metadata
                 'ranking_mode': 'QUALIFIED_ONLY',

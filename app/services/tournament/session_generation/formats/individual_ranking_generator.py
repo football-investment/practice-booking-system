@@ -9,6 +9,7 @@ from datetime import timedelta
 from app.models.semester import Semester
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
+from ..utils import get_tournament_venue
 
 
 class IndividualRankingGenerator(BaseFormatGenerator):
@@ -85,7 +86,7 @@ class IndividualRankingGenerator(BaseFormatGenerator):
             'tournament_phase': 'INDIVIDUAL_RANKING',
             'tournament_round': 1,  # Always 1 since this session contains all rounds
             'tournament_match_number': 1,
-            'location': tournament.location_venue or 'TBD',
+            'location': get_tournament_venue(tournament),
             'session_type': 'on_site',
             # ✅ INDIVIDUAL_RANKING metadata
             'ranking_mode': 'ALL_PARTICIPANTS',

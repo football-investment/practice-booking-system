@@ -11,6 +11,7 @@ from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
+from ..utils import get_tournament_venue
 
 
 class SwissGenerator(BaseFormatGenerator):
@@ -87,7 +88,7 @@ class SwissGenerator(BaseFormatGenerator):
                         'tournament_phase': 'Swiss System',
                         'tournament_round': round_num,
                         'tournament_match_number': match_num,
-                        'location': tournament.location_venue or 'TBD',
+                        'location': get_tournament_venue(tournament),
                         'session_type': 'on_site',
                         # ✅ HEAD_TO_HEAD: 1v1 match metadata
                         'ranking_mode': 'PERFORMANCE_PAIRING',
@@ -141,7 +142,7 @@ class SwissGenerator(BaseFormatGenerator):
                         'tournament_phase': 'Swiss System',
                         'tournament_round': round_num,
                         'tournament_match_number': pod_num,
-                        'location': tournament.location_venue or 'TBD',
+                        'location': get_tournament_venue(tournament),
                         'session_type': 'on_site',
                         # ✅ UNIFIED RANKING: Swiss performance pod metadata
                         'ranking_mode': 'PERFORMANCE_POD',
