@@ -3,7 +3,7 @@
 **Sprint ID**: 2026-W05-location-venue-api
 **Epic**: EPIC-2026-W05-location-venue-cleanup
 **Started**: 2026-01-31
-**Status**: 🟡 ACTIVE - Investigation Phase
+**Status**: 🟡 ACTIVE - Ready for Phase 2 (Implementation)
 **Priority**: 🔴 CRITICAL
 
 ---
@@ -36,11 +36,11 @@ Migrate all `location_venue` usage in **API layer** (Pydantic schemas, endpoints
 
 ## 📦 Deliverables
 
-### Phase 1: Investigation (Current)
-- [ ] Complete usage analysis for all 19 API occurrences
-- [ ] Document migration strategy for each file
-- [ ] Identify backward compatibility requirements
-- [ ] Create commit with ONLY investigation documentation
+### Phase 1: Investigation ✅ COMPLETE
+- [x] Complete usage analysis for all 19 API occurrences
+- [x] Document migration strategy for each file
+- [x] Identify backward compatibility requirements
+- [x] Create commit with ONLY investigation documentation
 
 ### Phase 2: Schema Deprecation
 - [ ] Add `@deprecated` decorator to `semester.py` schema
@@ -71,7 +71,7 @@ Migrate all `location_venue` usage in **API layer** (Pydantic schemas, endpoints
 ## 📊 Progress Tracking
 
 **Total**: 19 occurrences
-**Investigated**: 0 / 19
+**Investigated**: 19 / 19 ✅
 **Migrated**: 0 / 19
 **Tested**: 0 / 19
 
@@ -80,42 +80,61 @@ Migrate all `location_venue` usage in **API layer** (Pydantic schemas, endpoints
 #### 1. Pydantic Schema (1 occurrence)
 **File**: `app/schemas/semester.py`
 - [ ] Line 21: `location_venue: Optional[str] = None`
-- **Strategy**: TBD (investigation phase)
+- **Strategy**: Mark as `@deprecated`, keep for backward compatibility, add comment pointing to `location_id` + `campus_id`
+- **Risk**: LOW - Schema already has `location_id` and `campus_id` fields in `SemesterUpdate` (lines 51-52)
+- **Note**: `SemesterBase` defines deprecated fields (lines 20-22), but `SemesterUpdate` uses new FK fields
 
 #### 2. LFA Player Generators (8 occurrences)
 **File**: `app/api/api_v1/endpoints/periods/lfa_player_generators.py`
-- [ ] Line 146: `semester.location_venue = location.venue`
-- [ ] Line 161: `location_venue=location.venue,`
-- [ ] Line 252: `semester.location_venue = location.venue`
-- [ ] Line 267: `location_venue=location.venue,`
-- [ ] Line 352: `semester.location_venue = location.venue`
-- [ ] Line 367: `location_venue=location.venue,`
-- [ ] Line 451: `semester.location_venue = location.venue`
-- [ ] Line 466: `location_venue=location.venue,`
-- **Strategy**: TBD (investigation phase)
+- [ ] Line 146: `semester.location_venue = location.venue` (PRE update path)
+- [ ] Line 161: `location_venue=location.venue,` (PRE create path)
+- [ ] Line 252: `semester.location_venue = location.venue` (YOUTH update path)
+- [ ] Line 267: `location_venue=location.venue,` (YOUTH create path)
+- [ ] Line 352: `semester.location_venue = location.venue` (AMATEUR update path)
+- [ ] Line 367: `location_venue=location.venue,` (AMATEUR create path)
+- [ ] Line 451: `semester.location_venue = location.venue` (PRO update path)
+- [ ] Line 466: `location_venue=location.venue,` (PRO create path)
+- **Pattern**: Setting deprecated field from `location.venue`
+- **Strategy**: Remove lines, use FK relationship instead: `semester.location_id = location.id`
+- **Risk**: MEDIUM - Also assigns `location_city` and `location_address` (all 3 deprecated fields together)
+- **Note**: All 4 endpoints (PRE/YOUTH/AMATEUR/PRO) follow IDENTICAL pattern
 
 #### 3. Semester Generator (1 occurrence)
 **File**: `app/api/api_v1/endpoints/semester_generator.py`
 - [ ] Line 356: `semester.location_venue = location.venue`
-- **Strategy**: TBD (investigation phase)
+- **Pattern**: Assigns location data to ALL generated semesters in a loop
+- **Strategy**: Remove line, FK relationship already assigned via `location_id`
+- **Risk**: LOW - Also assigns `location_city` and `location_address` (lines 355, 357)
+- **Note**: Same pattern as LFA generators, but in a loop for all cycle types
 
 #### 4. Dashboard Web Route (3 occurrences)
 **File**: `app/api/web_routes/dashboard.py`
-- [ ] Line 96: Comment
+- [ ] Line 96: Comment - `# Set location_venue if not already set in DB`
 - [ ] Line 97: `if not semester.location_venue:`
 - [ ] Line 99: `semester.location_venue = f"{location_suffix.capitalize()} Campus"`
-- **Strategy**: TBD (investigation phase)
+- **Context**: Fallback venue generation for admin dashboard display (lines 92-103)
+- **Pattern**: Regex extracts location suffix from semester code, then sets venue if missing
+- **Strategy**: Remove entire block (lines 96-100), remove `location_venue` references
+- **Risk**: LOW - Admin dashboard only, not user-facing
+- **Note**: Also sets `location_city` on line 100
 
 #### 5. Admin Web Route (7 occurrences)
 **File**: `app/api/web_routes/admin.py`
-- [ ] Line 116: Comment
+- [ ] Line 116: Comment - `# Set location_venue if not already set in DB`
 - [ ] Line 117: `if not semester.location_venue:`
 - [ ] Line 119: `semester.location_venue = f"{location_suffix.capitalize()} Campus"`
-- [ ] Line 163: Comment
-- [ ] Line 168: Comment
+- [ ] Line 163: Comment - `# Group by location_venue within this specialization`
+- [ ] Line 168: Comment - `# Get the location_venue from the semester`
 - [ ] Line 169: `location_key = enrollment.semester.location_venue if enrollment.semester.location_venue else "No Location"`
 - [ ] Line 174: `location_key = semester.location_venue if semester.location_venue else "No Location"`
-- **Strategy**: TBD (investigation phase)
+- **Context**: Admin enrollments page - groups enrollments by specialization + location
+- **Pattern 1** (lines 116-122): Same fallback logic as dashboard.py
+- **Pattern 2** (lines 163-190): Groups enrollments by `location_venue` for display
+- **Strategy**:
+  - Remove fallback block (lines 116-122)
+  - Replace `location_venue` grouping with `get_tournament_venue()` helper
+- **Risk**: MEDIUM - UI grouping logic, affects admin panel display
+- **Note**: Grouping creates `spec_location_groups[location_venue]` dict structure
 
 ---
 
@@ -149,22 +168,165 @@ Migrate all `location_venue` usage in **API layer** (Pydantic schemas, endpoints
 
 ## 📝 Investigation Notes
 
-**To be filled during Phase 1**:
+**Phase 1: COMPLETE** ✅ (2026-01-31)
 
-### Migration Strategy Options
-- **Option A**: Use `get_tournament_venue()` helper (Sprint 2 pattern)
-- **Option B**: Use relationship properties directly (`campus.venue`, `location.city`)
-- **Option C**: Add computed property to Semester model
+### Key Findings
 
-### Backward Compatibility
-- API responses: Need to include both old and new fields?
-- Database: Column already removed in P2
-- Frontend: Does UI expect `location_venue` in responses?
+#### 1. Database Status
+- ✅ **Column removed**: `location_venue`, `location_city`, `location_address` removed from `semesters` table in P2
+- ✅ **New FKs in place**: `location_id` and `campus_id` available
+- ⚠️ **Code still assigns**: Endpoints try to assign to non-existent columns (will cause AttributeError)
 
-### Dependencies
-- Does Streamlit UI read `location_venue` from API responses?
-- Do scripts consume API with this field?
-- Are there webhook/external consumers?
+#### 2. Usage Patterns Discovered
+
+**Pattern A: Direct Assignment (9 occurrences)**
+- LFA generators (8x): `semester.location_venue = location.venue`
+- Semester generator (1x): Same pattern in loop
+- **Issue**: Assigns to deleted column → AttributeError risk
+- **Fix**: Remove assignment, use `semester.location_id = location.id` instead
+
+**Pattern B: Fallback Logic (6 occurrences)**
+- Dashboard + Admin routes: `if not semester.location_venue: semester.location_venue = ...`
+- **Issue**: Reads from deleted column → AttributeError
+- **Fix**: Remove entire fallback block
+
+**Pattern C: Display/Grouping (2 occurrences)**
+- Admin route: `location_key = enrollment.semester.location_venue or "No Location"`
+- **Issue**: Reads from deleted column for UI grouping
+- **Fix**: Replace with `get_tournament_venue(semester)` helper
+
+**Pattern D: Schema Definition (1 occurrence)**
+- Pydantic: `location_venue: Optional[str] = None`
+- **Issue**: API contract includes deprecated field
+- **Fix**: Keep field but mark as deprecated with comment
+
+**Pattern E: Comments (2 occurrences)**
+- Just documentation comments
+- **Fix**: Update comments to reference new fields
+
+#### 3. Migration Strategy (CHOSEN)
+
+**Approach**: Hybrid removal + helper function
+- **Endpoints (9 occurrences)**: Remove deprecated assignments, use `location_id` FK
+- **Web Routes (4 occurrences)**: Remove fallback blocks entirely
+- **Web Routes Grouping (2 occurrences)**: Use `get_tournament_venue()` helper
+- **Schema (1 occurrence)**: Add deprecation comment, keep field for now
+- **Comments (3 occurrences)**: Update to reference new FK fields
+
+**Why NOT Option A (helper everywhere)**:
+- Endpoints don't need computed venue string - they assign FK relationships
+- Helper only needed where venue display string is required
+
+**Why NOT Option B (direct relationships)**:
+- Need fallback chain (campus.venue → location.city → TBD)
+- Helper already exists from Sprint 2
+
+**Why NOT Option C (computed property)**:
+- Would require model changes (out of scope)
+- Helper function already solves this
+
+### Backward Compatibility Analysis
+
+#### API Contract Impact
+- ✅ **Low risk**: Schema keeps `location_venue` field (marked deprecated)
+- ✅ **No breaking changes**: API responses unchanged (field stays in schema)
+- ⚠️ **Future work**: Schema field should eventually be removed (Sprint 4+)
+
+#### Database Compatibility
+- ✅ **Already handled**: P2 removed columns, FK migration complete
+- ✅ **No rollback needed**: Code should stop trying to write to deleted columns
+
+#### Frontend/Consumer Impact
+- ❓ **Unknown**: Streamlit UI may read `location_venue` from API responses
+- ✅ **Mitigation**: Schema keeps field, so API responses still valid structure
+- 📋 **Sprint 4**: Will handle UI migration explicitly
+
+#### External Dependencies
+- ✅ **Admin routes**: Internal only (admin panel)
+- ✅ **Dashboard routes**: Internal only (web UI)
+- ✅ **LFA generators**: Internal API (period generation)
+- ✅ **No webhooks**: No external consumers identified
+
+### Risk Assessment
+
+#### HIGH RISK (None identified)
+- No high-risk changes
+
+#### MEDIUM RISK (2 areas)
+1. **Admin Enrollments Grouping** (admin.py:169, 174)
+   - Groups enrollments by `location_venue` for UI display
+   - Changing grouping key may affect UI rendering
+   - **Mitigation**: Use helper to generate same string format
+
+2. **LFA Generators** (lfa_player_generators.py:146-466)
+   - 8 occurrences across 4 endpoints
+   - Also assigns `location_city` and `location_address` (all 3 deprecated together)
+   - **Mitigation**: Remove all 3 assignments at once
+
+#### LOW RISK (3 areas)
+1. **Schema Deprecation** (semester.py:21)
+   - Field kept in schema, just marked deprecated
+   - No breaking changes
+
+2. **Semester Generator** (semester_generator.py:356)
+   - Same pattern as LFA generators
+   - Single occurrence in loop
+
+3. **Dashboard Fallback** (dashboard.py:96-100)
+   - Admin dashboard only
+   - Fallback logic no longer needed (FK provides location)
+
+### Implementation Order (Phases 2-5)
+
+**Phase 2: Schema Deprecation**
+- Add deprecation comment to `location_venue` field
+- Document new fields (`location_id`, `campus_id`)
+- **Files**: `app/schemas/semester.py` (1 file)
+- **Commit**: "chore(schema): Mark location_venue as deprecated"
+
+**Phase 3: Endpoint Migration**
+- Remove deprecated assignments in LFA generators (8 occurrences)
+- Remove deprecated assignments in semester generator (1 occurrence)
+- Also remove `location_city` and `location_address` assignments
+- **Files**: `lfa_player_generators.py`, `semester_generator.py` (2 files)
+- **Commit**: "refactor(endpoints): Remove deprecated location field assignments"
+
+**Phase 4: Web Route Migration**
+- Remove fallback blocks in dashboard.py (3 occurrences)
+- Remove fallback blocks in admin.py (3 occurrences)
+- Replace grouping logic in admin.py with helper (2 occurrences)
+- Import `get_tournament_venue` from session generation utils
+- **Files**: `dashboard.py`, `admin.py` (2 files)
+- **Commit**: "refactor(web-routes): Migrate location_venue display to helper"
+
+**Phase 5: Validation**
+- Run E2E tests
+- Verify admin panel displays correctly
+- Verify dashboard displays correctly
+- Verify semester generation endpoints work
+- **Commit**: "docs(sprint3): Phase 5 validation results"
+
+### Open Questions (RESOLVED)
+
+❓ **Q1**: Does Pydantic schema need `location_venue` for backward compatibility?
+✅ **A1**: YES - Keep field in schema for now, mark as deprecated. Remove in future sprint when consumers updated.
+
+❓ **Q2**: Should we use `get_tournament_venue()` helper everywhere?
+✅ **A2**: NO - Only use where display string needed (web routes grouping). Endpoints use FK directly.
+
+❓ **Q3**: Need eager loading for web routes?
+✅ **A3**: YES - Admin/dashboard routes will need `db.refresh(semester, ['location', 'campus'])` before calling helper.
+
+❓ **Q4**: Can we remove all 3 deprecated fields together (`location_venue`, `location_city`, `location_address`)?
+✅ **A4**: YES - All 3 assigned together in same pattern. Remove all 3 in Phase 3.
+
+### Sprint 2 Lessons Applied
+
+✅ **Investigation first**: Complete analysis before code changes
+✅ **Separate commits**: Each phase gets its own commit
+✅ **Helper function pattern**: Reuse `get_tournament_venue()` from Sprint 2
+✅ **Eager loading**: Add where needed to prevent N+1 queries
+✅ **Minimal changes**: Only touch files in scope, no refactoring
 
 ---
 
