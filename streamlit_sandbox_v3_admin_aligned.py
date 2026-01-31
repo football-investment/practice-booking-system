@@ -138,6 +138,46 @@ def render_configuration_screen():
     """Tournament configuration screen with game preset selection"""
     st.title("Sandbox Tournament Test (Admin-Aligned)", anchor=False)
 
+    # ===================================================================
+    # TEMPLATE MANAGEMENT FUNCTIONS
+    # ===================================================================
+
+    def get_templates() -> Dict[str, Dict]:
+        """Get all saved templates from session state"""
+        if 'templates' not in st.session_state:
+            st.session_state['templates'] = {}
+        return st.session_state['templates']
+
+    def save_template(template_name: str, config: Dict):
+        """Save tournament config as template"""
+        templates = get_templates()
+        templates[template_name] = {
+            'name': template_name,
+            'created_at': datetime.now().isoformat(),
+            'config': config
+        }
+        st.session_state['templates'] = templates
+
+    def load_template(template_name: str) -> Dict:
+        """Load template config"""
+        templates = get_templates()
+        template = templates.get(template_name)
+        return template['config'] if template else {}
+
+    def delete_template(template_name: str):
+        """Delete template"""
+        templates = get_templates()
+        if template_name in templates:
+            del templates[template_name]
+            st.session_state['templates'] = templates
+
+    def list_template_names() -> list:
+        """Get list of template names sorted by creation date (newest first)"""
+        templates = get_templates()
+        return sorted(templates.keys(),
+                      key=lambda name: templates[name]['created_at'],
+                      reverse=True)
+
     # Authentication check
     if not auth.is_authenticated():
         st.info("Admin Login Required")
@@ -224,11 +264,127 @@ def render_configuration_screen():
 
     st.markdown("---")
 
+    # === TOURNAMENT TEMPLATES ===
+    st.markdown("### 📋 Tournament Templates")
+
+    template_names = list_template_names()
+
+    if not template_names:
+        st.info("⚠️ No saved templates. Templates are stored in this browser session only and will be lost on refresh.")
+        st.caption("Fill out the form below and save it as a template for quick reuse.")
+    else:
+        st.info("⚠️ Templates are stored in this browser session only and will be lost on refresh.")
+
+        col1, col2, col3 = st.columns([3, 1, 1])
+
+        with col1:
+            selected_template = st.selectbox(
+                "Select a template to load",
+                options=["(None - Start Fresh)", *template_names],
+                key="template_selector",
+                help="Choose a saved template to auto-fill the configuration form"
+            )
+
+        with col2:
+            load_disabled = selected_template == "(None - Start Fresh)"
+            if st.button(
+                "Load Template",
+                disabled=load_disabled,
+                key="btn_load_template",
+                use_container_width=True,
+                type="primary"
+            ):
+                config = load_template(selected_template)
+                st.session_state['loaded_template_config'] = config
+                Success.toast(f"Template '{selected_template}' loaded!")
+                st.rerun()
+
+        with col3:
+            if st.button(
+                "Manage",
+                key="btn_manage_templates",
+                use_container_width=True
+            ):
+                st.session_state['show_manage_templates'] = True
+                st.rerun()
+
+    # MANAGE TEMPLATES DIALOG
+    if st.session_state.get('show_manage_templates', False):
+        @st.dialog("📋 Manage Templates", width="large")
+        def manage_templates_dialog():
+            st.markdown("View and manage your saved tournament templates.")
+
+            templates = get_templates()
+            template_names_list = list_template_names()
+
+            if not template_names_list:
+                st.info("No templates saved yet.")
+            else:
+                st.markdown(f"**Total Templates**: {len(template_names_list)}")
+                st.markdown("---")
+
+                for template_name in template_names_list:
+                    template = templates[template_name]
+                    config = template['config']
+                    created_at = template['created_at']
+
+                    # Template card
+                    col1, col2, col3 = st.columns([3, 1, 1])
+
+                    with col1:
+                        st.markdown(f"**{template_name}**")
+                        st.caption(
+                            f"Age: {config.get('age_group', 'N/A')} | "
+                            f"Format: {config.get('tournament_format', 'N/A')} | "
+                            f"Skills: {len(config.get('skills_to_test', []))} | "
+                            f"Created: {created_at[:10]}"
+                        )
+
+                    with col2:
+                        if st.button(
+                            "Load",
+                            key=f"btn_load_manage_{template_name}",
+                            use_container_width=True,
+                            type="primary"
+                        ):
+                            st.session_state['loaded_template_config'] = config
+                            st.session_state['show_manage_templates'] = False
+                            Success.toast(f"Template '{template_name}' loaded!")
+                            st.rerun()
+
+                    with col3:
+                        if st.button(
+                            "Delete",
+                            key=f"btn_delete_{template_name}",
+                            use_container_width=True
+                        ):
+                            delete_template(template_name)
+                            Success.toast(f"Template '{template_name}' deleted")
+                            st.rerun()
+
+                    # Expandable details
+                    with st.expander("View Details"):
+                        st.json(config)
+
+                    st.markdown("---")
+
+            # Close button
+            if st.button("Close", key="btn_close_manage_templates", use_container_width=True):
+                st.session_state['show_manage_templates'] = False
+                st.rerun()
+
+        manage_templates_dialog()
+
+    st.markdown("---")
+
     # === TOURNAMENT CONFIGURATION ===
     selected_preset = next((p for p in sorted_presets if p['id'] == st.session_state.selected_preset_id), None)
 
     if selected_preset:
         st.markdown("### Tournament Configuration")
+
+        # Get loaded template config (for pre-filling form fields)
+        loaded_config = st.session_state.get('loaded_template_config', {})
 
         form = SingleColumnForm(
             "tournament_config",
@@ -242,7 +398,7 @@ def render_configuration_screen():
 
             tournament_name = st.text_input(
                 "Tournament Name",
-                value="LFA Sandbox Tournament",
+                value=loaded_config.get('tournament_name', "LFA Sandbox Tournament"),
                 key=form.field_key("tournament_name")
             )
 
@@ -250,9 +406,19 @@ def render_configuration_screen():
             with col1:
                 location_list = fetch_locations()
                 location_names = [loc['name'] for loc in location_list]
+
+                # Pre-fill location from template
+                loaded_location_id = loaded_config.get('location_id')
+                default_location_index = 0
+                if loaded_location_id:
+                    loaded_location = next((loc for loc in location_list if loc['id'] == loaded_location_id), None)
+                    if loaded_location and loaded_location['name'] in location_names:
+                        default_location_index = location_names.index(loaded_location['name'])
+
                 selected_location_name = st.selectbox(
                     "Location",
                     location_names,
+                    index=default_location_index,
                     key=form.field_key("location")
                 )
 
@@ -262,9 +428,19 @@ def render_configuration_screen():
                     if selected_location:
                         campus_list = fetch_campuses_by_location(selected_location['id'])
                         campus_names = [c['name'] for c in campus_list]
+
+                        # Pre-fill campus from template
+                        loaded_campus_id = loaded_config.get('campus_id')
+                        default_campus_index = 0
+                        if loaded_campus_id:
+                            loaded_campus = next((c for c in campus_list if c['id'] == loaded_campus_id), None)
+                            if loaded_campus and loaded_campus['name'] in campus_names:
+                                default_campus_index = campus_names.index(loaded_campus['name'])
+
                         selected_campus = st.selectbox(
                             "Campus",
                             campus_names,
+                            index=default_campus_index,
                             key=form.field_key("campus")
                         )
 
@@ -273,29 +449,50 @@ def render_configuration_screen():
 
             col1, col2 = st.columns(2)
             with col1:
+                # Pre-fill age group from template
+                loaded_age_group = loaded_config.get('age_group')
+                age_group_index = AGE_GROUPS.index(loaded_age_group) if loaded_age_group in AGE_GROUPS else 0
+
                 age_group = st.selectbox(
                     "Age Group",
                     AGE_GROUPS,
+                    index=age_group_index,
                     key=form.field_key("age_group")
                 )
+
+                # Pre-fill tournament format from template
+                loaded_format = loaded_config.get('tournament_format')
+                format_index = TOURNAMENT_FORMATS.index(loaded_format) if loaded_format in TOURNAMENT_FORMATS else 0
+
                 tournament_format = st.selectbox(
                     "Tournament Format",
                     TOURNAMENT_FORMATS,
+                    index=format_index,
                     key=form.field_key("tournament_format"),
                     help="League (round-robin), Knockout (elimination), or Hybrid (league + knockout)"
                 )
 
             with col2:
+                # Pre-fill assignment type from template
+                loaded_assignment = loaded_config.get('assignment_type')
+                assignment_index = ASSIGNMENT_TYPES.index(loaded_assignment) if loaded_assignment in ASSIGNMENT_TYPES else 0
+
                 assignment_type = st.selectbox(
                     "Assignment Type",
                     ASSIGNMENT_TYPES,
+                    index=assignment_index,
                     key=form.field_key("assignment_type")
                 )
 
             # Scoring Mode - moved outside columns to give it full width
+            # Pre-fill scoring mode from template
+            loaded_scoring = loaded_config.get('scoring_mode')
+            scoring_index = SCORING_MODES.index(loaded_scoring) if loaded_scoring in SCORING_MODES else 0
+
             scoring_mode = st.selectbox(
                 "Scoring Mode",
                 SCORING_MODES,
+                index=scoring_index,
                 key=form.field_key("scoring_mode"),
                 help="Head-to-Head (1v1 matches with wins/draws/losses) or Individual (performance-based scoring)"
             )
@@ -378,11 +575,12 @@ def render_configuration_screen():
                 ranking_direction = None
                 measurement_unit = None
 
+            # Pre-fill max players from template
             max_players = st.number_input(
                 "Max Players",
                 min_value=2,
                 max_value=100,
-                value=10,
+                value=loaded_config.get('max_players', 10),
                 key=form.field_key("max_players")
             )
 
@@ -391,15 +589,21 @@ def render_configuration_screen():
 
             col1, col2 = st.columns(2)
             with col1:
+                # Pre-fill start date from template
+                loaded_start = loaded_config.get('start_date')
+                start_default = datetime.fromisoformat(loaded_start).date() if loaded_start else date.today()
                 start_date = st.date_input(
                     "Start Date",
-                    value=date.today(),
+                    value=start_default,
                     key=form.field_key("start_date")
                 )
             with col2:
+                # Pre-fill end date from template
+                loaded_end = loaded_config.get('end_date')
+                end_default = datetime.fromisoformat(loaded_end).date() if loaded_end else date.today()
                 end_date = st.date_input(
                     "End Date",
-                    value=date.today(),
+                    value=end_default,
                     key=form.field_key("end_date")
                 )
 
@@ -409,8 +613,13 @@ def render_configuration_screen():
             user_list = fetch_users(limit=100)
 
             # Initialize session state for participant toggles
+            # Pre-populate from loaded template
             if "participant_toggles" not in st.session_state:
-                st.session_state.participant_toggles = {}
+                loaded_participants = loaded_config.get('selected_users', [])
+                st.session_state.participant_toggles = {
+                    user['id']: user['id'] in loaded_participants
+                    for user in user_list
+                }
 
             selected_user_ids = []
 
@@ -448,11 +657,16 @@ def render_configuration_screen():
 
             col1, col2, col3 = st.columns(3)
             with col1:
+                # Pre-fill rewards from template
+                loaded_rewards = loaded_config.get('rewards', {})
+                first_xp_default = loaded_rewards.get('first_place', {}).get('xp', 500)
+                first_credits_default = loaded_rewards.get('first_place', {}).get('credits', 100)
+
                 first_place_xp = st.number_input(
                     "🥇 1st XP",
                     min_value=0,
                     max_value=2000,
-                    value=500,
+                    value=first_xp_default,
                     step=50,
                     key=form.field_key("first_xp")
                 )
@@ -460,17 +674,20 @@ def render_configuration_screen():
                     "1st Credits",
                     min_value=0,
                     max_value=500,
-                    value=100,
+                    value=first_credits_default,
                     step=10,
                     key=form.field_key("first_credits")
                 )
 
             with col2:
+                second_xp_default = loaded_rewards.get('second_place', {}).get('xp', 300)
+                second_credits_default = loaded_rewards.get('second_place', {}).get('credits', 50)
+
                 second_place_xp = st.number_input(
                     "🥈 2nd XP",
                     min_value=0,
                     max_value=2000,
-                    value=300,
+                    value=second_xp_default,
                     step=50,
                     key=form.field_key("second_xp")
                 )
@@ -478,17 +695,20 @@ def render_configuration_screen():
                     "2nd Credits",
                     min_value=0,
                     max_value=500,
-                    value=50,
+                    value=second_credits_default,
                     step=10,
                     key=form.field_key("second_credits")
                 )
 
             with col3:
+                third_xp_default = loaded_rewards.get('third_place', {}).get('xp', 200)
+                third_credits_default = loaded_rewards.get('third_place', {}).get('credits', 25)
+
                 third_place_xp = st.number_input(
                     "🥉 3rd XP",
                     min_value=0,
                     max_value=2000,
-                    value=200,
+                    value=third_xp_default,
                     step=50,
                     key=form.field_key("third_xp")
                 )
@@ -496,7 +716,7 @@ def render_configuration_screen():
                     "3rd Credits",
                     min_value=0,
                     max_value=500,
-                    value=25,
+                    value=third_credits_default,
                     step=5,
                     key=form.field_key("third_credits")
                 )
@@ -505,34 +725,134 @@ def render_configuration_screen():
 
             col1, col2 = st.columns(2)
             with col1:
+                participation_xp_default = loaded_rewards.get('participation', {}).get('xp', 50)
                 participation_xp = st.number_input(
                     "Participation XP",
                     min_value=0,
                     max_value=500,
-                    value=50,
+                    value=participation_xp_default,
                     step=10,
                     key=form.field_key("participation_xp"),
                     help="XP for all participants"
                 )
             with col2:
+                session_base_xp_default = loaded_rewards.get('session_base_xp', 50)
                 base_session_xp = st.number_input(
                     "Session Base XP",
                     min_value=0,
                     max_value=200,
-                    value=50,
+                    value=session_base_xp_default,
                     step=10,
                     key=form.field_key("session_base_xp"),
                     help="Base XP per session attendance"
                 )
 
-            # Submit Button
+            # Submit Button + Save Template
             st.markdown("---")
-            if st.button(
-                "Start Instructor Workflow",
-                type="primary",
-                use_container_width=True,
-                key="btn_start_workflow"
-            ):
+
+            col1, col2 = st.columns([1, 1])
+
+            with col1:
+                if st.button(
+                    "💾 Save as Template",
+                    key="btn_save_template",
+                    use_container_width=True,
+                    help="Save current configuration as a reusable template"
+                ):
+                    st.session_state['show_save_template_dialog'] = True
+                    # Build current config to save
+                    selected_location = next((loc for loc in location_list if loc['name'] == selected_location_name), None)
+                    location_id = selected_location['id'] if selected_location else None
+                    selected_campus_obj = next((c for c in campus_list if c['name'] == selected_campus), None) if selected_location else None
+                    campus_id = selected_campus_obj['id'] if selected_campus_obj else None
+
+                    game_config = selected_preset.get('game_config', {})
+                    skill_config = game_config.get('skill_config', {})
+                    preset_skills = skill_config.get('skills_tested', [])
+
+                    st.session_state['config_to_save'] = {
+                        'tournament_name': tournament_name,
+                        'tournament_format': tournament_format,
+                        'scoring_mode': scoring_mode,
+                        'number_of_rounds': number_of_rounds if scoring_mode == "INDIVIDUAL" else None,
+                        'scoring_type': scoring_type if scoring_mode == "INDIVIDUAL" else None,
+                        'ranking_direction': ranking_direction if scoring_mode == "INDIVIDUAL" else None,
+                        'measurement_unit': measurement_unit if scoring_mode == "INDIVIDUAL" else None,
+                        'age_group': age_group,
+                        'assignment_type': assignment_type,
+                        'max_players': max_players,
+                        'skills_to_test': preset_skills,
+                        'location_id': location_id,
+                        'campus_id': campus_id,
+                        'start_date': start_date.isoformat(),
+                        'end_date': end_date.isoformat(),
+                        'game_preset_id': selected_preset['id'],
+                        'performance_variation': 'MEDIUM',
+                        'ranking_distribution': 'NORMAL',
+                        'selected_users': selected_user_ids,
+                        'rewards': {
+                            'first_place': {'xp': first_place_xp, 'credits': first_place_credits},
+                            'second_place': {'xp': second_place_xp, 'credits': second_place_credits},
+                            'third_place': {'xp': third_place_xp, 'credits': third_place_credits},
+                            'participation': {'xp': participation_xp, 'credits': 0},
+                            'session_base_xp': base_session_xp
+                        }
+                    }
+                    st.rerun()
+
+            with col2:
+                start_workflow_clicked = st.button(
+                    "Start Instructor Workflow",
+                    type="primary",
+                    use_container_width=True,
+                    key="btn_start_workflow"
+                )
+
+            # SAVE TEMPLATE DIALOG
+            if st.session_state.get('show_save_template_dialog', False):
+                @st.dialog("💾 Save as Template")
+                def save_template_dialog():
+                    st.markdown("Save the current tournament configuration as a reusable template.")
+
+                    template_name = st.text_input(
+                        "Template Name",
+                        placeholder="e.g., YOUTH Budapest Weekly",
+                        key="input_template_name",
+                        help="Choose a descriptive name for this template"
+                    )
+
+                    # Name validation
+                    existing_names = list_template_names()
+                    name_exists = template_name in existing_names
+
+                    if name_exists and template_name:
+                        Error.message(f"Template '{template_name}' already exists. Choose a different name.")
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        if st.button("Cancel", key="btn_cancel_save_template", use_container_width=True):
+                            st.session_state['show_save_template_dialog'] = False
+                            st.rerun()
+
+                    with col2:
+                        save_disabled = not template_name or name_exists
+                        if st.button(
+                            "Save Template",
+                            type="primary",
+                            disabled=save_disabled,
+                            key="btn_confirm_save_template",
+                            use_container_width=True
+                        ):
+                            config_to_save = st.session_state.get('config_to_save', {})
+                            save_template(template_name, config_to_save)
+                            Success.message(f"Template '{template_name}' saved!")
+                            st.session_state['show_save_template_dialog'] = False
+                            st.rerun()
+
+                save_template_dialog()
+
+            if start_workflow_clicked:
                 # Get skills from selected preset (correct path: game_config.skill_config.skills_tested)
                 game_config = selected_preset.get('game_config', {})
                 skill_config = game_config.get('skill_config', {})
