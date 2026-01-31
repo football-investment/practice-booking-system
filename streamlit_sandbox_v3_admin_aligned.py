@@ -1037,6 +1037,32 @@ def _render_tournament_card(tournament: Dict):
         with col3:
             st.metric("Type", tournament.get('type', 'N/A'))
 
+        # Action buttons
+        st.markdown("---")
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
+
+        with col_btn1:
+            if st.button("📋 Resume Workflow", key=f"btn_resume_{tournament.get('id')}", use_container_width=True):
+                # Load tournament into session state and navigate to instructor workflow
+                st.session_state.tournament_id = tournament.get('id')
+                st.session_state.screen = 'instructor_workflow'
+                st.session_state.workflow_step = 3  # Start at Step 3 (Attendance) by default
+                st.rerun()
+
+        with col_btn2:
+            if st.button("📊 View Results", key=f"btn_results_{tournament.get('id')}", use_container_width=True):
+                st.session_state.tournament_id = tournament.get('id')
+                st.session_state.screen = 'instructor_workflow'
+                st.session_state.workflow_step = 4  # Jump to Step 4 (Results)
+                st.rerun()
+
+        with col_btn3:
+            if st.button("🏆 Leaderboard", key=f"btn_leaderboard_{tournament.get('id')}", use_container_width=True):
+                st.session_state.tournament_id = tournament.get('id')
+                st.session_state.screen = 'instructor_workflow'
+                st.session_state.workflow_step = 5  # Jump to Step 5 (Leaderboard)
+                st.rerun()
+
         with st.expander("Details"):
             st.json(tournament)
 
