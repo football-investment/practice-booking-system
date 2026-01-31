@@ -76,8 +76,16 @@ def render_skill_config_editor(game_config: Dict, preset_id: Optional[int] = Non
     skill_multipliers = {}
     total_multiplier = 0.0
 
-    # Get existing weights as multipliers (scale up from 0.0-1.0 to easier numbers)
+    # Get existing weights (already normalized 0.0-1.0)
     existing_weights = skill_config.get("skill_weights", {})
+
+    # Initialize widget state for checkboxes if Edit mode just opened
+    # NOTE: Do NOT initialize weight values in session state!
+    # Let the widget's value parameter handle defaults to prevent stale values
+    for skill_key in preset_skills:
+        checkbox_key = f"{key_prefix}_skill_{skill_key}"
+        if checkbox_key not in st.session_state:
+            st.session_state[checkbox_key] = True
 
     for category in SKILL_CATEGORIES:
         category_emoji = category["emoji"]
@@ -105,17 +113,17 @@ def render_skill_config_editor(game_config: Dict, preset_id: Optional[int] = Non
 
                 with col_weight:
                     if selected:
-                        # Convert existing weight to multiplier (scale by 10 for easier input)
-                        default_multiplier = existing_weights.get(skill_key, 1.0 / max(len(preset_skills), 1)) * 10.0
+                        # Use existing weight as-is, or default to 1.0
+                        default_multiplier = existing_weights.get(skill_key, 1.0)
 
                         multiplier = st.number_input(
                             f"Weight",
                             min_value=0.0,
-                            max_value=100.0,
+                            max_value=10.0,
                             value=float(default_multiplier),
-                            step=0.5,
+                            step=0.1,
                             key=f"{key_prefix}_weight_{skill_key}",
-                            help=f"Relative importance (default: {default_multiplier:.1f})",
+                            help=f"Relative importance (will be normalized to sum 1.0)",
                             label_visibility="collapsed"
                         )
                         skill_multipliers[skill_key] = multiplier

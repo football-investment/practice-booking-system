@@ -34,8 +34,8 @@ from sandbox_helpers import (
 # Constants
 AGE_GROUPS = ["PRE", "YOUTH", "AMATEUR", "PRO"]
 ASSIGNMENT_TYPES = ["OPEN_ASSIGNMENT", "MANUAL_ASSIGNMENT", "INVITE_ONLY"]
-FORMATS = ["HEAD_TO_HEAD", "INDIVIDUAL_RANKING"]
-TOURNAMENT_TYPES = ["league", "knockout", "hybrid", "None"]
+TOURNAMENT_FORMATS = ["league", "knockout", "hybrid"]
+SCORING_MODES = ["HEAD_TO_HEAD", "INDIVIDUAL"]
 
 # Convert skill categories to display format
 SKILL_CATEGORIES = {}
@@ -50,6 +50,17 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# Session state cleanup for terminology refactor
+# Clear old config keys if they exist (FORMATS, format, tournament_type)
+if 'config' in st.session_state:
+    config = st.session_state['config']
+    if isinstance(config, dict):
+        # Check if using old terminology
+        if 'format' in config or 'tournament_type' in config:
+            # Clear entire config to force fresh start
+            del st.session_state['config']
+            st.rerun()
 
 
 def render_home_screen():
@@ -267,10 +278,11 @@ def render_configuration_screen():
                     AGE_GROUPS,
                     key=form.field_key("age_group")
                 )
-                tournament_type = st.selectbox(
-                    "Tournament Type",
-                    TOURNAMENT_TYPES,
-                    key=form.field_key("tournament_type")
+                tournament_format = st.selectbox(
+                    "Tournament Format",
+                    TOURNAMENT_FORMATS,
+                    key=form.field_key("tournament_format"),
+                    help="League (round-robin), Knockout (elimination), or Hybrid (league + knockout)"
                 )
 
             with col2:
@@ -279,11 +291,92 @@ def render_configuration_screen():
                     ASSIGNMENT_TYPES,
                     key=form.field_key("assignment_type")
                 )
-                format_type = st.selectbox(
-                    "Format",
-                    FORMATS,
-                    key=form.field_key("format")
-                )
+
+            # Scoring Mode - moved outside columns to give it full width
+            scoring_mode = st.selectbox(
+                "Scoring Mode",
+                SCORING_MODES,
+                key=form.field_key("scoring_mode"),
+                help="Head-to-Head (1v1 matches with wins/draws/losses) or Individual (performance-based scoring)"
+            )
+
+            # INDIVIDUAL scoring configuration
+            if scoring_mode == "INDIVIDUAL":
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    number_of_rounds = st.number_input(
+                        "Number of Rounds",
+                        min_value=1,
+                        max_value=20,
+                        value=3,
+                        key=form.field_key("number_of_rounds"),
+                        help="How many rounds to play (each player competes in each round)"
+                    )
+
+                    # Scoring Type - how performance is measured
+                    scoring_type = st.selectbox(
+                        "Scoring Type",
+                        ["TIME_BASED", "SCORE_BASED", "DISTANCE_BASED", "PLACEMENT"],
+                        key=form.field_key("scoring_type"),
+                        help="How performance is measured"
+                    )
+
+                with col2:
+                    # Track previous scoring_type to detect changes
+                    prev_scoring_key = "prev_scoring_type"
+                    if prev_scoring_key not in st.session_state:
+                        st.session_state[prev_scoring_key] = scoring_type
+
+                    # Auto-update measurement unit when scoring type changes
+                    measurement_unit_key = form.field_key("measurement_unit")
+                    if st.session_state[prev_scoring_key] != scoring_type:
+                        # Scoring type changed - update measurement unit automatically
+                        if scoring_type == "TIME_BASED":
+                            st.session_state[measurement_unit_key] = "seconds"
+                        elif scoring_type == "DISTANCE_BASED":
+                            st.session_state[measurement_unit_key] = "meters"
+                        elif scoring_type == "SCORE_BASED":
+                            st.session_state[measurement_unit_key] = "points"
+                        elif scoring_type == "PLACEMENT":
+                            st.session_state[measurement_unit_key] = ""
+
+                        st.session_state[prev_scoring_key] = scoring_type
+
+                    # Ranking Direction - which direction wins
+                    ranking_direction_option = st.selectbox(
+                        "Ranking Direction",
+                        ["ASC (Lower is better)", "DESC (Higher is better)"],
+                        index=0 if scoring_type == "TIME_BASED" else 1,
+                        key=form.field_key("ranking_direction"),
+                        help="Which direction determines winner"
+                    )
+                    ranking_direction = ranking_direction_option.split()[0]  # Extract "ASC" or "DESC"
+
+                    # Measurement Unit (conditional on scoring type)
+                    if scoring_type != "PLACEMENT":
+                        # Initialize default value if not in session state
+                        if measurement_unit_key not in st.session_state:
+                            if scoring_type == "TIME_BASED":
+                                st.session_state[measurement_unit_key] = "seconds"
+                            elif scoring_type == "DISTANCE_BASED":
+                                st.session_state[measurement_unit_key] = "meters"
+                            else:  # SCORE_BASED
+                                st.session_state[measurement_unit_key] = "points"
+
+                        measurement_unit = st.text_input(
+                            "Measurement Unit",
+                            key=measurement_unit_key,
+                            help="Unit of measurement (e.g., seconds, meters, points, repetitions)"
+                        )
+                    else:
+                        measurement_unit = None
+            else:
+                # HEAD_TO_HEAD mode - no additional config needed
+                number_of_rounds = None
+                scoring_type = None
+                ranking_direction = None
+                measurement_unit = None
 
             max_players = st.number_input(
                 "Max Players",
@@ -292,24 +385,6 @@ def render_configuration_screen():
                 value=10,
                 key=form.field_key("max_players")
             )
-
-            # Skills Section
-            form.section("Skills Configuration")
-
-            st.markdown("**Select Skills to Test:**")
-            selected_skills = []
-
-            for category_name, skills in SKILL_CATEGORIES.items():
-                with st.expander(category_name):
-                    for skill in skills:
-                        if st.checkbox(
-                            skill.replace('_', ' ').title(),
-                            key=f"skill_{skill}"
-                        ):
-                            selected_skills.append(skill)
-
-            if not selected_skills:
-                st.warning("Please select at least one skill")
 
             # Schedule Section
             form.section("Schedule")
@@ -328,29 +403,188 @@ def render_configuration_screen():
                     key=form.field_key("end_date")
                 )
 
+            # Participants Section
+            form.section("Participants")
+
+            user_list = fetch_users(limit=100)
+
+            # Initialize session state for participant toggles
+            if "participant_toggles" not in st.session_state:
+                st.session_state.participant_toggles = {}
+
+            selected_user_ids = []
+
+            # Simple compact list with toggle switches
+            for user in user_list:
+                user_id = user['id']
+                user_email = user['email']
+                user_name = user.get('name', 'N/A')
+                user_role = user.get('role', 'N/A')
+
+                col1, col2 = st.columns([5, 1])
+
+                with col1:
+                    st.caption(f"{user_email} • {user_name} ({user_role})")
+
+                with col2:
+                    # Toggle switch (on/off button)
+                    toggle_key = f"participant_{user_id}"
+                    is_selected = st.toggle(
+                        "",
+                        value=st.session_state.participant_toggles.get(user_id, False),
+                        key=toggle_key
+                    )
+                    st.session_state.participant_toggles[user_id] = is_selected
+
+                    if is_selected:
+                        selected_user_ids.append(user_id)
+
+            st.caption(f"✅ {len(selected_user_ids)} selected")
+
+            # Rewards Section
+            form.section("Rewards")
+
+            st.markdown("**Tournament Placement Rewards:**")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                first_place_xp = st.number_input(
+                    "🥇 1st XP",
+                    min_value=0,
+                    max_value=2000,
+                    value=500,
+                    step=50,
+                    key=form.field_key("first_xp")
+                )
+                first_place_credits = st.number_input(
+                    "1st Credits",
+                    min_value=0,
+                    max_value=500,
+                    value=100,
+                    step=10,
+                    key=form.field_key("first_credits")
+                )
+
+            with col2:
+                second_place_xp = st.number_input(
+                    "🥈 2nd XP",
+                    min_value=0,
+                    max_value=2000,
+                    value=300,
+                    step=50,
+                    key=form.field_key("second_xp")
+                )
+                second_place_credits = st.number_input(
+                    "2nd Credits",
+                    min_value=0,
+                    max_value=500,
+                    value=50,
+                    step=10,
+                    key=form.field_key("second_credits")
+                )
+
+            with col3:
+                third_place_xp = st.number_input(
+                    "🥉 3rd XP",
+                    min_value=0,
+                    max_value=2000,
+                    value=200,
+                    step=50,
+                    key=form.field_key("third_xp")
+                )
+                third_place_credits = st.number_input(
+                    "3rd Credits",
+                    min_value=0,
+                    max_value=500,
+                    value=25,
+                    step=5,
+                    key=form.field_key("third_credits")
+                )
+
+            st.markdown("**Participation Rewards:**")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                participation_xp = st.number_input(
+                    "Participation XP",
+                    min_value=0,
+                    max_value=500,
+                    value=50,
+                    step=10,
+                    key=form.field_key("participation_xp"),
+                    help="XP for all participants"
+                )
+            with col2:
+                base_session_xp = st.number_input(
+                    "Session Base XP",
+                    min_value=0,
+                    max_value=200,
+                    value=50,
+                    step=10,
+                    key=form.field_key("session_base_xp"),
+                    help="Base XP per session attendance"
+                )
+
             # Submit Button
             st.markdown("---")
             if st.button(
                 "Start Instructor Workflow",
                 type="primary",
                 use_container_width=True,
-                key="btn_start_workflow",
-                disabled=not selected_skills
+                key="btn_start_workflow"
             ):
+                # Get skills from selected preset (correct path: game_config.skill_config.skills_tested)
+                game_config = selected_preset.get('game_config', {})
+                skill_config = game_config.get('skill_config', {})
+                preset_skills = skill_config.get('skills_tested', [])
+
+                # Get location and campus IDs
+                selected_location = next((loc for loc in location_list if loc['name'] == selected_location_name), None)
+                location_id = selected_location['id'] if selected_location else None
+                selected_campus_obj = next((c for c in campus_list if c['name'] == selected_campus), None) if selected_location else None
+                campus_id = selected_campus_obj['id'] if selected_campus_obj else None
+
                 # Build configuration
                 config = {
                     'tournament_name': tournament_name,
-                    'tournament_type': tournament_type,
+                    'tournament_format': tournament_format,
+                    'scoring_mode': scoring_mode,
+                    'number_of_rounds': number_of_rounds if scoring_mode == "INDIVIDUAL" else None,
+                    'scoring_type': scoring_type if scoring_mode == "INDIVIDUAL" else None,
+                    'ranking_direction': ranking_direction if scoring_mode == "INDIVIDUAL" else None,
+                    'measurement_unit': measurement_unit if scoring_mode == "INDIVIDUAL" else None,
                     'age_group': age_group,
                     'assignment_type': assignment_type,
-                    'format': format_type,
                     'max_players': max_players,
-                    'skills_to_test': selected_skills,
+                    'skills_to_test': preset_skills,
+                    'location_id': location_id,
+                    'campus_id': campus_id,
                     'start_date': start_date.isoformat(),
                     'end_date': end_date.isoformat(),
                     'game_preset_id': selected_preset['id'],
                     'performance_variation': 'MEDIUM',
-                    'ranking_distribution': 'NORMAL'
+                    'ranking_distribution': 'NORMAL',
+                    'selected_users': selected_user_ids,
+                    # Placement Rewards (backend-compatible structure)
+                    'rewards': {
+                        'first_place': {
+                            'xp': first_place_xp,
+                            'credits': first_place_credits
+                        },
+                        'second_place': {
+                            'xp': second_place_xp,
+                            'credits': second_place_credits
+                        },
+                        'third_place': {
+                            'xp': third_place_xp,
+                            'credits': third_place_credits
+                        },
+                        'participation': {
+                            'xp': participation_xp,
+                            'credits': 0
+                        },
+                        'session_base_xp': base_session_xp
+                    }
                 }
 
                 # Store config and move to workflow
@@ -505,6 +739,25 @@ def _render_preset_create_form(*form_components):
     st.markdown("---")
 
 
+def _clear_preset_widget_state(preset_id: int):
+    """Clear all widget state for a preset to force reload from JSON"""
+    from app.skills_config import SKILL_CATEGORIES
+
+    key_prefix = f"preset_{preset_id}"
+
+    # Clear all skill checkbox and weight widget keys
+    for category in SKILL_CATEGORIES:
+        for skill_def in category["skills"]:
+            skill_key = skill_def["key"]
+            checkbox_key = f"{key_prefix}_skill_{skill_key}"
+            weight_key = f"{key_prefix}_weight_{skill_key}"
+
+            if checkbox_key in st.session_state:
+                del st.session_state[checkbox_key]
+            if weight_key in st.session_state:
+                del st.session_state[weight_key]
+
+
 def _render_preset_list_item(preset: Dict, *form_components):
     """Render a single preset in the list"""
     preset_id = preset['id']
@@ -544,12 +797,53 @@ def _render_preset_list_item(preset: Dict, *form_components):
     with col4:
         if st.session_state.editing_preset_id == preset_id:
             if st.button("Cancel", key=f"btn_cancel_edit_{preset_id}"):
+                _clear_preset_widget_state(preset_id)
                 st.session_state.editing_preset_id = None
                 st.rerun()
         else:
             if st.button("Edit", key=f"btn_edit_preset_{preset_id}"):
+                # Clear widget state to load fresh values from JSON
+                _clear_preset_widget_state(preset_id)
                 st.session_state.editing_preset_id = preset_id
                 st.rerun()
+
+    # EDIT MODE: Show skill configuration editor when editing
+    if st.session_state.editing_preset_id == preset_id:
+        st.markdown("---")
+        st.markdown(f"### Editing: {preset_name}")
+
+        # Reload preset from JSON to get latest data
+        from sandbox_helpers import fetch_preset_details
+        fresh_preset = fetch_preset_details(preset_id)
+        if not fresh_preset:
+            st.error(f"Failed to reload preset {preset_id}")
+            return
+
+        # Render skill configuration editor if provided
+        if len(form_components) >= 2:
+            render_skill_config_editor = form_components[1]
+            updated_config = render_skill_config_editor(fresh_preset.get('game_config', {}), preset_id=preset_id)
+
+            # Save button
+            st.markdown("---")
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("💾 Save Changes", key=f"btn_save_preset_{preset_id}", type="primary", use_container_width=True):
+                    # Update preset with new skill configuration
+                    update_data = {
+                        "skill_config": updated_config
+                    }
+                    if update_preset(preset_id, update_data):
+                        # Clear widget state for this preset to force reload from JSON
+                        _clear_preset_widget_state(preset_id)
+                        st.session_state.editing_preset_id = None
+                        st.rerun()
+            with col2:
+                if st.button("Cancel", key=f"btn_cancel_save_{preset_id}", use_container_width=True):
+                    # Clear widget state to discard changes
+                    _clear_preset_widget_state(preset_id)
+                    st.session_state.editing_preset_id = None
+                    st.rerun()
 
 
 def main():
