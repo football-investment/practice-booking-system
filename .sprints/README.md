@@ -45,9 +45,27 @@ This directory contains archived sprint documentation for completed work.
 - Eager loading to prevent N+1 queries
 - ~1.5 hours (50% under estimate)
 
+### 2026-01-31 (Sprint 3): API Schema & Endpoints Migration
+**Status**: ✅ COMPLETED
+**Location**: `.sprints/2026-01-31-api-location-venue/`
+**Commits**: 1c268d9, 42aa8d5, b7e708f, 8b886e1, 038b59b
+**Summary**: Migrated all location_venue usage from API layer (schemas, endpoints, web routes)
+
+**Documents**:
+- `ACTIVE_SPRINT_3.md` - Complete sprint tracking with all 5 phases
+- `ISSUE_LOCATION_VENUE_API.md` - Issue tracking and implementation plan
+
+**Highlights**:
+- 19/19 API occurrences migrated
+- 5 phases: Investigation → Schema → Endpoints → Web Routes → Validation
+- Schema deprecation (backward compatible)
+- Endpoint FK migration (9 occurrences)
+- Web route helper integration (10 occurrences)
+- ~2.5 hours (under 3-4h estimate)
+
 ---
 
 ## Active Sprints
 
 **Current Sprint**: None (all complete)
-**Active Tickets**: Check root directory for new `ISSUE_*.md` files
+**Active Tickets**: Check root directory for `EPIC_*.md` and `BACKLOG_*.md` files
