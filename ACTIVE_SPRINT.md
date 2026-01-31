@@ -57,28 +57,40 @@ AttributeError: 'Semester' object has no attribute 'location_venue'
 
 ## 📊 Progress Tracking
 
-### Phase 1: Investigation ⏳
-- [ ] Search all session generators for `location_venue` usage
-- [ ] Identify all affected files
-- [ ] Document current location access patterns
+### Phase 1: Investigation ✅ COMPLETE
+- [x] Search all session generators for `location_venue` usage → **12 occurrences found**
+- [x] Identify all affected files → **5 files mapped**
+- [x] Document current location access patterns → **All use same pattern**
 
-### Phase 2: Implementation ⏳
-- [ ] Update league_generator.py
-- [ ] Update knockout_generator.py (if affected)
-- [ ] Update swiss_generator.py (if affected)
-- [ ] Update group_knockout_generator.py (if affected)
-- [ ] Update individual_ranking_generator.py (if affected)
+**Key Findings**:
+- **12 total occurrences** across **5 generator files**
+- **league_generator.py**: 2 occurrences (lines 78, 163)
+- **knockout_generator.py**: 2 occurrences (lines 94, 135)
+- **swiss_generator.py**: 2 occurrences (lines 90, 144)
+- **group_knockout_generator.py**: 5 occurrences (lines 123, 166, 225, 308, 354)
+- **individual_ranking_generator.py**: 1 occurrence (line 88)
+- **Pattern**: All use `tournament.location_venue or 'TBD'`
+- **Recommended Fix**: Helper function with `campus.venue → location.city → 'TBD'` fallback
+
+### Phase 2: Implementation ⏳ READY TO START
+- [ ] Create `get_tournament_venue()` helper function
+- [ ] Update league_generator.py (2 locations)
+- [ ] Update knockout_generator.py (2 locations)
+- [ ] Update swiss_generator.py (2 locations)
+- [ ] Update group_knockout_generator.py (5 locations)
+- [ ] Update individual_ranking_generator.py (1 location)
 - [ ] Add eager loading to prevent N+1 queries
 
-### Phase 3: Testing ⏳
-- [ ] Unit test: Location fallback logic
-- [ ] Integration test: Sandbox flow with location data
-- [ ] Regression test: Verify existing tournaments
-- [ ] Validate session generation completes
+### Phase 3: Testing ⏳ PENDING
+- [ ] Unit test: Helper function fallback logic
+- [ ] Integration test: Sandbox flow with campus.venue
+- [ ] Integration test: Sandbox flow with location.city fallback
+- [ ] Validate session generation completes without AttributeError
 
-### Phase 4: Documentation ⏳
-- [ ] Update ISSUE_LOCATION_VENUE_DEPRECATED.md with resolution
-- [ ] Create commit with clear message
+### Phase 4: Documentation ⏳ PENDING
+- [ ] Update ISSUE_LOCATION_VENUE_DEPRECATED.md with final resolution
+- [ ] Create commit with investigation findings
+- [ ] Create commit with implementation
 - [ ] Archive sprint when complete
 
 ---

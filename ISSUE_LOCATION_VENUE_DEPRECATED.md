@@ -93,73 +93,182 @@ campus = relationship("Campus", foreign_keys=[campus_id], backref="semesters")
 location = relationship("Location", foreign_keys=[location_id], backref="semesters")
 ```
 
+### Location Model (app/models/location.py:31-43)
+```python
+class Location(Base):
+    """LFA Education Center locations (city-level)"""
+    __tablename__ = "locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    city = Column(String(100), nullable=False, unique=True)
+    venue = Column(String(200), nullable=True)  # ⚠️ DEPRECATED - moved to Campus model
+    address = Column(String(500), nullable=True)
+    # ... other fields
+```
+
+**⚠️ Important**: `Location.venue` is also DEPRECATED (will be moved to Campus model)
+
+### Campus Model (app/models/campus.py:20-33)
+```python
+class Campus(Base):
+    """Campus/Venue model - specific facility within a location"""
+    __tablename__ = "campuses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    name = Column(String, nullable=False)  # e.g., "Buda Campus"
+    venue = Column(String, nullable=True)  # ✅ Venue info here
+    address = Column(String, nullable=True)
+    # ... other fields
+```
+
+**Hierarchy**:
+```
+Location (City)
+  └── Campus (Venue/Facility)
+        └── Session (held at Campus)
+```
+
+**Recommended Fallback Chain**:
+1. `tournament.campus.venue` (most specific) ✅
+2. `tournament.location.city` (fallback to city name) ✅
+3. `'TBD'` (if neither set)
+
 ---
 
 ## Affected Files
 
-Search for `location_venue` usage:
+### ✅ Investigation Complete (2026-01-31)
 
+**Search Command**:
 ```bash
-grep -rn "location_venue" app/services/tournament/session_generation/
+grep -rn "location_venue" app/services/tournament/session_generation/ --include="*.py"
 ```
 
-**Files to Fix**:
-1. `app/services/tournament/session_generation/formats/league_generator.py`
-2. `app/services/tournament/session_generation/formats/knockout_generator.py` (potentially)
-3. `app/services/tournament/session_generation/formats/swiss_generator.py` (potentially)
-4. `app/services/tournament/session_generation/formats/group_knockout_generator.py` (potentially)
-5. `app/services/tournament/session_generation/formats/individual_ranking_generator.py` (potentially)
+**Results**: **12 occurrences** across **5 files**
+
+**Complete Usage Map**:
+
+1. **league_generator.py** (2 occurrences)
+   - Line 78: Individual ranking format session
+   - Line 163: Head-to-head match session
+
+2. **knockout_generator.py** (2 occurrences)
+   - Line 94: Knockout match session
+   - Line 135: Finals/playoff session
+
+3. **swiss_generator.py** (2 occurrences)
+   - Line 90: Swiss round session
+   - Line 144: Swiss playoff session
+
+4. **group_knockout_generator.py** (5 occurrences)
+   - Line 123: Group stage match
+   - Line 166: Group stage match (variant)
+   - Line 225: Knockout stage match
+   - Line 308: Finals match
+   - Line 354: Playoff match
+
+5. **individual_ranking_generator.py** (1 occurrence)
+   - Line 88: Individual performance session
+
+**Pattern**: All usages follow same format:
+```python
+'location': tournament.location_venue or 'TBD',
+```
 
 ---
 
 ## Proposed Solution
 
-### Option A: Use location relationship (Preferred)
+### ✅ Investigation Findings (2026-01-31)
 
+**Total Changes Required**: 12 occurrences across 5 files
+
+**Current Pattern** (all 12 locations):
 ```python
-# BEFORE (league_generator.py:163)
 'location': tournament.location_venue or 'TBD',
-
-# AFTER
-'location': tournament.location.venue if tournament.location else 'TBD',
 ```
 
-**Pros**: Uses proper FK relationship, type-safe
-**Cons**: Requires eager loading or N+1 query handling
+**Decision Matrix**:
 
-### Option B: Use campus relationship (Most specific)
+| Option | Changes | N+1 Risk | Complexity | Refactoring Intent |
+|--------|---------|----------|------------|-------------------|
+| A: @property | 0 (backward compat) | Low | Low | ❌ Hides migration |
+| B: location.city | 12 | Medium | Low | ⚠️ Less specific |
+| C: campus.venue fallback | 12 | High | Medium | ✅ Best practice |
 
-```python
-'location': tournament.campus.venue if tournament.campus else (
-    tournament.location.venue if tournament.location else 'TBD'
-)
-```
+---
 
-**Pros**: Provides most specific location, follows P2 refactoring intent
-**Cons**: More complex fallback chain
-
-### Option C: Add @property for backward compatibility
+### Option A: Add @property (Quick Fix)
 
 ```python
 # In app/models/semester.py
 @property
 def location_venue(self) -> str:
     """Backward compatibility property for location venue"""
-    if self.campus:
+    if self.campus and self.campus.venue:
         return self.campus.venue
-    if self.location:
-        return self.location.venue
+    if self.location and self.location.city:
+        return self.location.city
     return 'TBD'
 ```
 
-**Pros**: Minimal changes to generators, maintains API compatibility
-**Cons**: Hides refactoring intent, may encourage deprecated patterns
+**Pros**:
+- Zero generator changes required
+- Maintains API compatibility
+- Quick to implement (< 30 min)
+
+**Cons**:
+- Hides P2 refactoring intent
+- May encourage continued use of deprecated pattern
+- Doesn't require eager loading awareness
+
+**⚠️ Note**: Location.venue is ALSO deprecated, so can't use it
+
+---
+
+### Option B: Use campus.venue with Fallback (Recommended)
+
+```python
+# BEFORE (all 12 locations)
+'location': tournament.location_venue or 'TBD',
+
+# AFTER
+'location': get_tournament_venue(tournament),
+```
+
+**Helper function**:
+```python
+def get_tournament_venue(tournament: Semester) -> str:
+    """Get tournament venue with proper fallback chain"""
+    if tournament.campus:
+        if tournament.campus.venue:
+            return tournament.campus.venue
+        if tournament.campus.name:
+            return f"{tournament.campus.name} ({tournament.campus.location.city})"
+
+    if tournament.location:
+        return tournament.location.city  # Fallback to city name
+
+    return 'TBD'
+```
+
+**Pros**:
+- Follows P2 refactoring intent
+- Most specific location information
+- Centralized logic (DRY)
+- Explicit eager loading requirement
+
+**Cons**:
+- Requires changes to all 12 locations
+- Need eager loading to prevent N+1 queries
+- More implementation effort (2-3 hours)
 
 ---
 
 ## Recommended Approach
 
-**Option A** (Use location relationship) with eager loading optimization:
+**Option B** (campus.venue fallback) with eager loading optimization:
 
 1. Update all session generators to use `tournament.location.venue`
 2. Add eager loading in `TournamentSessionGenerator.generate_sessions()`:
@@ -184,13 +293,35 @@ def location_venue(self) -> str:
 
 ## Implementation Checklist
 
-- [ ] Search all session generators for `location_venue` references
-- [ ] Replace with proper FK relationship access
-- [ ] Add eager loading to prevent N+1 queries
-- [ ] Create helper function for location fallback logic
-- [ ] Update tests to verify location data in generated sessions
-- [ ] Validate with sandbox flow end-to-end
-- [ ] Check for similar deprecated field usage (location_city, location_address)
+### ✅ Phase 1: Investigation (COMPLETE)
+- [x] Search all session generators for `location_venue` references → 12 found
+- [x] Identify all affected files → 5 files mapped
+- [x] Document current location access patterns → All use same pattern
+- [x] Review Location/Campus model structure → Hierarchy documented
+- [x] Determine recommended approach → Option B (helper function)
+
+### ⏳ Phase 2: Implementation (PENDING)
+- [ ] Create `get_tournament_venue()` helper function
+- [ ] Update league_generator.py (2 locations)
+- [ ] Update knockout_generator.py (2 locations)
+- [ ] Update swiss_generator.py (2 locations)
+- [ ] Update group_knockout_generator.py (5 locations)
+- [ ] Update individual_ranking_generator.py (1 location)
+- [ ] Add eager loading in TournamentSessionGenerator.generate_sessions()
+- [ ] Verify no other deprecated location field usage
+
+### ⏳ Phase 3: Testing (PENDING)
+- [ ] Unit test: Helper function fallback logic
+- [ ] Integration test: Sandbox flow with campus.venue
+- [ ] Integration test: Sandbox flow with location.city fallback
+- [ ] Regression test: Verify existing tournaments
+- [ ] Validate session generation completes without AttributeError
+
+### ⏳ Phase 4: Documentation (PENDING)
+- [ ] Update ISSUE_LOCATION_VENUE_DEPRECATED.md with resolution
+- [ ] Document eager loading requirements
+- [ ] Create commit with clear message
+- [ ] Update ACTIVE_SPRINT.md progress
 
 ---
 
@@ -226,15 +357,28 @@ def location_venue(self) -> str:
 
 ## Estimated Effort
 
-**Time**: 2-3 hours
-- Code changes: 1 hour
-- Testing: 1 hour
-- Documentation: 30 minutes
+### ✅ Revised Estimate (Post-Investigation)
 
-**Complexity**: Low-Medium
-- Straightforward field migration
-- Multiple files to update
-- Needs careful null handling
+**Total Time**: 2.5-3 hours
+
+**Breakdown**:
+- ✅ Investigation: 30 min (COMPLETE)
+- ⏳ Helper function: 20 min
+- ⏳ Update 5 generators (12 locations): 40 min
+- ⏳ Eager loading: 15 min
+- ⏳ Testing: 45 min
+- ⏳ Documentation: 30 min
+
+**Complexity**: Medium
+- ✅ Pattern is consistent across all 12 locations (simplifies implementation)
+- ⚠️ 5 separate files need changes (requires careful testing)
+- ⚠️ Eager loading critical to prevent N+1 queries
+- ⚠️ Need null-safe fallback chain
+
+**Risk Assessment**:
+- 🟢 Low Risk: All usages follow same pattern
+- 🟡 Medium Risk: Need to ensure eager loading works
+- 🟡 Medium Risk: Testing all 5 generator formats
 
 ---
 
