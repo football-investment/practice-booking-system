@@ -17,6 +17,8 @@ class SemesterBase(BaseModel):
     age_group: Optional[str] = None
     theme: Optional[str] = None
     focus_description: Optional[str] = None
+    # ⚠️ DEPRECATED: Use location_id + campus_id FKs instead (P2 refactoring)
+    # These fields are kept for backward compatibility but should not be used in new code
     location_city: Optional[str] = None
     location_venue: Optional[str] = None
     location_address: Optional[str] = None
