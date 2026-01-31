@@ -82,6 +82,10 @@ class TournamentSessionGenerator:
         # Fetch tournament
         tournament = self.tournament_repo.get_or_404(tournament_id)
 
+        # Eager load location relationships to prevent N+1 queries
+        # Required for get_tournament_venue() helper function
+        self.db.refresh(tournament, ['location', 'campus'])
+
         # Get enrolled player count
         player_count = self.db.query(SemesterEnrollment).filter(
             SemesterEnrollment.semester_id == tournament_id,

@@ -31,6 +31,7 @@ from .algorithms import (
     GroupDistribution,
     KnockoutBracket,
 )
+from .utils import get_tournament_venue
 
 __all__ = [
     # Main coordinator
@@ -51,4 +52,7 @@ __all__ = [
     "RoundRobinPairing",
     "GroupDistribution",
     "KnockoutBracket",
+
+    # Utilities
+    "get_tournament_venue",
 ]
