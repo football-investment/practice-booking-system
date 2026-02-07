@@ -551,7 +551,7 @@ def render_step_view_leaderboard():
             headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
 
         response = requests.get(
-            f"{API_BASE_URL}/tournaments/{tournament_id}/instructor/leaderboard",
+            f"{API_BASE_URL}/tournaments/{tournament_id}/leaderboard",
             headers=headers
         )
 
