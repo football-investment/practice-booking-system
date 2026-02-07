@@ -684,7 +684,8 @@ def render_step_distribute_rewards():
 
                 rewards_response = requests.post(
                     f"{API_BASE_URL}/tournaments/{tournament_id}/distribute-rewards",
-                    headers=headers
+                    headers=headers,
+                    json={}  # Empty body - all fields are optional
                 )
 
                 if rewards_response.status_code in [200, 201]:

@@ -119,18 +119,34 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
     # ============================================================================
     print("\n📍 Phase 4: Submit ALL Group Stage Match Results")
 
-    # For Group+Knockout with 7 players:
-    # - 3 groups: A (3 players), B (2 players), C (2 players)
-    # - Group A: 3 matches (round-robin)
-    # - Group B: 1 match
-    # - Group C: 1 match
-    # - TOTAL: 5 group matches (NOT 9, NOT 45!)
-    #
-    # Wait, let me check what the actual config is for 7-player group+knockout...
-    # Let's discover dynamically by counting Submit Result buttons
+    # DIAGNOSTIC: Capture console logs and check page state
+    console_logs = []
+    page.on("console", lambda msg: console_logs.append(f"[{msg.type}] {msg.text}"))
 
-    page.wait_for_selector("button:has-text('Submit Result')", timeout=10000)
-    time.sleep(2)
+    # Wait for page to load and check what's visible
+    try:
+        page.wait_for_selector("button:has-text('Submit Result')", timeout=10000)
+        print("   ✅ 'Submit Result' buttons found")
+        time.sleep(2)
+    except Exception as e:
+        # DIAGNOSTIC: Page didn't load properly
+        page.screenshot(path="/tmp/phase4_no_buttons.png", full_page=True)
+        print(f"   ❌ No 'Submit Result' buttons found: {str(e)}")
+        print(f"   🔍 Page URL: {page.url}")
+        print(f"   🔍 Page title: {page.title()}")
+
+        # Check for error messages
+        body_text = page.locator("body").inner_text()
+        if "error" in body_text.lower():
+            print(f"   ❌ Error found in page: {body_text[:500]}")
+
+        # Check console logs
+        if console_logs:
+            print(f"   🔍 Console logs ({len(console_logs)} entries):")
+            for log in console_logs[-10:]:  # Last 10
+                print(f"      {log}")
+
+        pytest.fail(f"Phase 4 failed to load: {str(e)}")
 
     # Count total Submit Result buttons to know how many matches exist
     all_submit_buttons = page.locator("button:has-text('Submit Result')").all()
@@ -354,30 +370,99 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
     print("\n📍 Phase 8: Complete Tournament")
 
     try:
+        # DEEP DEBUG: Playwright ↔ Streamlit form_submit_button
+        # Step 1: Check all button states
         complete_btn = page.locator("button:has-text('Complete Tournament')").first
+
         complete_btn.wait_for(state="visible", timeout=10000)
-        complete_btn.click()
-        print("   ✅ Clicked 'Complete Tournament' button")
-        wait_streamlit(page, timeout_ms=30000)
+        print("   ✅ Button visible")
+
+        complete_btn.wait_for(state="attached", timeout=5000)
+        print("   ✅ Button attached")
+
+        is_enabled = complete_btn.is_enabled()
+        print(f"   🔍 Enabled: {is_enabled}")
+
+        # Step 2: Check form context
+        form_info = page.evaluate("""() => {
+            const btn = document.querySelector('button[type="submit"]');
+            if (!btn) return {found: false};
+            const form = btn.closest('form');
+            return {
+                found: true,
+                hasForm: !!form,
+                formKey: form?.getAttribute('data-testid'),
+                disabled: btn.disabled
+            };
+        }""")
+        print(f"   🔍 Form: {form_info}")
+
+        # Step 3: Wait for Streamlit ready
+        try:
+            page.wait_for_selector("[data-testid='stSpinner']", state="hidden", timeout=5000)
+            print("   ✅ No spinner")
+        except:
+            print("   ℹ️  Spinner check skipped")
+
+        # Step 4: Try role-based locator
+        role_btn = page.get_by_role("button", name="Complete Tournament")
+        if role_btn.count() > 0:
+            print("   ✅ Role-based locator")
+            role_btn.click()
+        else:
+            print("   ℹ️  Text-based locator")
+            complete_btn.click()
+
+        print("   ✅ Clicked")
+
+        # Step 5: Wait for navigation
+        print("   ⏳ Waiting navigation...")
+        page.wait_for_load_state("networkidle", timeout=30000)
+        print("   ✅ Network idle")
+        time.sleep(3)
+
+        # Check result
+        step7_heading = page.locator("text=7. View Distributed Rewards")
+        if step7_heading.count() > 0:
+            print("   ✅ Step 7 loaded")
+        else:
+            page.screenshot(path="/tmp/phase8_after_click.png", full_page=True)
+            print("   ⚠️  Still Step 6")
+            current = page.locator("text=/Step \\d+ of \\d+/").first.inner_text()
+            print(f"   🔍 {current}")
+
+    except Exception as e:
+        print(f"   ❌ Error: {str(e)}")
+        page.screenshot(path="/tmp/phase8_failure.png")
+        pytest.fail(f"❌ Phase 8 failed: {str(e)}")
+
+    # ============================================================================
+    # PHASE 9: Verify Rewards Page Loaded
+    # ============================================================================
+    print("\n📍 Phase 9: Verify Rewards Page Loaded")
+
+    try:
+        # After "Complete Tournament" click, production code should:
+        # 1. Call /tournaments/{id}/complete API
+        # 2. Call /tournaments/{id}/distribute-rewards API
+        # 3. Navigate to Step 7 (View Rewards)
+        # There is NO separate "Distribute Rewards" button - it happens automatically
+
+        step7_heading = page.locator("text=7. View Distributed Rewards").first
+        step7_heading.wait_for(state="visible", timeout=15000)
+        print("   ✅ Step 7 (View Rewards) loaded successfully")
+
+        # Check for success message or rewards display
+        success_msg = page.locator("text=/Tournament completed successfully/i")
+        if success_msg.count() > 0:
+            print("   ✅ 'Tournament completed successfully' message found")
+
         time.sleep(2)
     except Exception as e:
         print(f"   ❌ Error: {str(e)}")
-        pytest.fail(f"❌ 'Complete Tournament' button not found: {str(e)}")
-
-    # ============================================================================
-    # PHASE 9: Distribute Rewards
-    # ============================================================================
-    print("\n📍 Phase 9: Distribute Rewards")
-
-    try:
-        distribute_btn = page.locator("button:has-text('Distribute Rewards')").first
-        distribute_btn.wait_for(state="visible", timeout=10000)
-        distribute_btn.click()
-        print("   ✅ Clicked 'Distribute Rewards' button")
-        wait_streamlit(page, timeout_ms=30000)
-        time.sleep(3)
-    except:
-        pytest.fail("❌ 'Distribute Rewards' button not found")
+        page.screenshot(path="/tmp/phase9_failure.png")
+        print("   🔍 Screenshot saved to /tmp/phase9_failure.png")
+        pytest.fail(f"❌ Step 7 (View Rewards) did not load: {str(e)}")
 
     # ============================================================================
     # PHASE 10: Verify Rewards Distributed
