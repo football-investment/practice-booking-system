@@ -391,7 +391,7 @@ async def get_tournament_leaderboard(
     group_sessions = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
         SessionModel.is_tournament_game == True,
-        SessionModel.tournament_phase == 'Group Stage'
+        SessionModel.tournament_phase == 'GROUP_STAGE'  # Fixed: Use enum value, not display name
     ).all()
 
     # ============================================================================
@@ -450,9 +450,9 @@ async def get_tournament_leaderboard(
                 except json.JSONDecodeError:
                     continue
 
-            # ✅ FIX: game_results is now a dict with "raw_results" key
+            # ✅ FIX: game_results can have "raw_results" OR "participants" key
             if isinstance(results, dict):
-                raw_results = results.get('raw_results', [])
+                raw_results = results.get('raw_results') or results.get('participants', [])
             elif isinstance(results, list):
                 raw_results = results  # Fallback for old format
             else:
@@ -539,7 +539,7 @@ async def get_tournament_leaderboard(
         knockout_sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
             SessionModel.is_tournament_game == True,
-            SessionModel.tournament_phase == "Knockout Stage"
+            SessionModel.tournament_phase == "KNOCKOUT"  # Fixed: Use enum value
         ).all()
 
         if any(s.participant_user_ids for s in knockout_sessions):
@@ -550,7 +550,7 @@ async def get_tournament_leaderboard(
         knockout_sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
             SessionModel.is_tournament_game == True,
-            SessionModel.tournament_phase == "Knockout"
+            SessionModel.tournament_phase == "KNOCKOUT"  # Fixed: Use enum value
         ).all()
 
         if knockout_sessions:

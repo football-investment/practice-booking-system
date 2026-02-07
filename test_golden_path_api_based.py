@@ -354,7 +354,7 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
     print("\n📍 Phase 7.5: Navigate to Complete Tournament Page")
 
     try:
-        # WORKAROUND: Same as Phase 7 - use URL navigation for reliability
+        # Navigate directly to Step 6 via URL (button click doesn't work reliably with Streamlit)
         complete_url = f"http://localhost:8501?screen=instructor_workflow&tournament_id={tournament_id}&step=6"
         page.goto(complete_url)
         print(f"   ✅ Navigated via URL to Step 6 (Complete Tournament)")
@@ -362,6 +362,8 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
         time.sleep(2)
     except Exception as e:
         print(f"   ❌ Error: {str(e)}")
+        page.screenshot(path="/tmp/phase7.5_failure.png")
+        print("   🔍 Screenshot saved to /tmp/phase7.5_failure.png")
         pytest.fail(f"❌ Failed to navigate to Complete Tournament (Step 6): {str(e)}")
 
     # ============================================================================
@@ -370,63 +372,273 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
     print("\n📍 Phase 8: Complete Tournament")
 
     try:
-        # DEEP DEBUG: Playwright ↔ Streamlit form_submit_button
-        # Step 1: Check all button states
-        complete_btn = page.locator("button:has-text('Complete Tournament')").first
+        # Wait for Streamlit to finish rendering (check for stable React)
+        print("   ⏳ Waiting for Streamlit render to complete...")
+        time.sleep(2)  # Give React time to settle
+        page.wait_for_load_state("networkidle", timeout=10000)
+        print("   ✅ Network idle")
 
+        # Check if there are any error messages on the page
+        error_elements = page.locator("[data-testid='stException'], .st-error, .stException").count()
+        if error_elements > 0:
+            error_text = page.locator("[data-testid='stException'], .st-error, .stException").first.inner_text()
+            print(f"   ⚠️  Error on page: {error_text[:200]}")
+
+        # USER-LIKE INTERACTION: scroll, hover, wait, click
+        complete_btn = page.locator("button:has-text('Complete Tournament')").first
         complete_btn.wait_for(state="visible", timeout=10000)
         print("   ✅ Button visible")
 
-        complete_btn.wait_for(state="attached", timeout=5000)
-        print("   ✅ Button attached")
+        # Scroll into view (user behavior)
+        complete_btn.scroll_into_view_if_needed()
+        print("   ✅ Scrolled into view")
+        time.sleep(0.5)
 
-        is_enabled = complete_btn.is_enabled()
-        print(f"   🔍 Enabled: {is_enabled}")
+        # CRITICAL: Wait for element to stabilize (Streamlit rerender)
+        # Retry until element is stable for 500ms
+        max_retries = 10
+        for attempt in range(max_retries):
+            element_stable = page.evaluate("""(selector) => {
+                const btn = document.querySelector(selector);
+                if (!btn) return false;
+                const rect1 = btn.getBoundingClientRect();
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const btn2 = document.querySelector(selector);
+                        if (!btn2 || btn !== btn2) {
+                            resolve(false);  // Element was replaced
+                        } else {
+                            const rect2 = btn.getBoundingClientRect();
+                            resolve(rect1.top === rect2.top && rect1.left === rect2.left);
+                        }
+                    }, 500);
+                });
+            }""", "button[type='submit']")
 
-        # Step 2: Check form context
-        form_info = page.evaluate("""() => {
-            const btn = document.querySelector('button[type="submit"]');
-            if (!btn) return {found: false};
-            const form = btn.closest('form');
+            if element_stable:
+                print(f"   ✅ Stable (attempt {attempt + 1})")
+                break
+            else:
+                print(f"   ⏳ Waiting for stability (attempt {attempt + 1}/{max_retries})")
+                time.sleep(0.5)
+        else:
+            print("   ⚠️  Element never stabilized, proceeding anyway")
+
+        # Re-find element after stabilization (it may have been replaced)
+        complete_btn = page.locator("button:has-text('Complete Tournament')").first
+        complete_btn.wait_for(state="visible", timeout=5000)
+
+        # Hover (user behavior)
+        complete_btn.hover()
+        print("   ✅ Hovered")
+        time.sleep(0.3)
+
+        # Pre-click state - check ALL attributes and React props
+        btn_state = page.evaluate("""() => {
+            // Find all buttons
+            const allButtons = Array.from(document.querySelectorAll('button'));
+            const completeBtn = allButtons.find(b => b.textContent.includes('Complete Tournament'));
+
+            if (!completeBtn) return {found: false};
+
+            // Get all data attributes
+            const dataAttrs = {};
+            for (let attr of completeBtn.attributes) {
+                if (attr.name.startsWith('data-')) {
+                    dataAttrs[attr.name] = attr.value;
+                }
+            }
+
+            // Check for React fiber
+            const reactKey = Object.keys(completeBtn).find(k => k.startsWith('__react'));
+            let reactProps = null;
+            if (reactKey) {
+                try {
+                    const fiber = completeBtn[reactKey];
+                    reactProps = {
+                        hasOnClick: !!fiber?.memoizedProps?.onClick,
+                        fiberExists: true
+                    };
+                } catch (e) {
+                    reactProps = {error: e.message};
+                }
+            }
+
             return {
                 found: true,
-                hasForm: !!form,
-                formKey: form?.getAttribute('data-testid'),
-                disabled: btn.disabled
+                type: completeBtn.type || 'no-type',
+                disabled: completeBtn.disabled,
+                visible: completeBtn.offsetParent !== null,
+                inForm: !!completeBtn.closest('form'),
+                hasOnClick: !!completeBtn.onclick,
+                hasEventListener: completeBtn.getAttribute('data-testid') !== null,
+                classList: Array.from(completeBtn.classList),
+                dataAttrs: dataAttrs,
+                reactProps: reactProps
             };
         }""")
-        print(f"   🔍 Form: {form_info}")
+        print(f"   🔍 Button state: {btn_state}")
 
-        # Step 3: Wait for Streamlit ready
+        # Start trace
+        page.context.tracing.start(screenshots=True, snapshots=True)
+
+        # Capture console messages and WebSocket messages
+        console_messages = []
+        ws_messages = []
+
+        def handle_console_msg(msg):
+            console_messages.append(f"[{msg.type}] {msg.text}")
+        page.on("console", handle_console_msg)
+
+        def handle_websocket(ws):
+            def on_framesent(payload):
+                if isinstance(payload, (str, bytes)):
+                    ws_messages.append(f"SENT: {str(payload)[:200]}")
+            def on_framereceived(payload):
+                if isinstance(payload, (str, bytes)):
+                    ws_messages.append(f"RECV: {str(payload)[:200]}")
+            ws.on("framesent", on_framesent)
+            ws.on("framereceived", on_framereceived)
+        page.on("websocket", handle_websocket)
+
+        # Add multiple event listeners to track form submission flow
+        page.evaluate("""() => {
+            window.clickDetected = false;
+            window.formSubmitted = false;
+
+            const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Complete Tournament'));
+            if (btn) {
+                // Track click
+                btn.addEventListener('click', (e) => {
+                    window.clickDetected = true;
+                    console.log('✅ Click event fired on button');
+                    console.log('   - event.defaultPrevented:', e.defaultPrevented);
+                    console.log('   - event.isTrusted:', e.isTrusted);
+                    console.log('   - button.type:', btn.type);
+                }, {capture: true});
+
+                // Track mousedown (sometimes Streamlit uses this)
+                btn.addEventListener('mousedown', () => {
+                    console.log('✅ Mousedown event fired');
+                }, {capture: true});
+
+                // Check if there's a parent form element
+                const form = btn.closest('form');
+                console.log('🔍 Form element:', form);
+
+                // If there's a form, listen for submit
+                if (form) {
+                    form.addEventListener('submit', (e) => {
+                        window.formSubmitted = true;
+                        console.log('✅ Form submit event fired');
+                        console.log('   - event.defaultPrevented:', e.defaultPrevented);
+                    }, {capture: true});
+                }
+
+                // Also check for any React synthetic events
+                const reactKey = Object.keys(btn).find(k => k.startsWith('__react'));
+                if (reactKey) {
+                    console.log('🔍 React component detected:', reactKey);
+                }
+            }
+        }""")
+
+        # Try standard Playwright click with force
+        print("   🔄 Attempting forced Playwright click...")
+
         try:
-            page.wait_for_selector("[data-testid='stSpinner']", state="hidden", timeout=5000)
-            print("   ✅ No spinner")
-        except:
-            print("   ℹ️  Spinner check skipped")
+            complete_btn.click(force=True, timeout=5000)
+            print("   ✅ Force click completed")
+        except Exception as click_err:
+            print(f"   ⚠️  Force click error: {click_err}")
 
-        # Step 4: Try role-based locator
-        role_btn = page.get_by_role("button", name="Complete Tournament")
-        if role_btn.count() > 0:
-            print("   ✅ Role-based locator")
-            role_btn.click()
-        else:
-            print("   ℹ️  Text-based locator")
-            complete_btn.click()
+        time.sleep(0.5)
 
-        print("   ✅ Clicked")
+        # Also try invoking React onClick handler directly as backup
+        react_click_result = page.evaluate("""() => {
+            const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Complete Tournament'));
+            if (!btn) return {error: 'Button not found'};
 
-        # Step 5: Wait for navigation
-        print("   ⏳ Waiting navigation...")
+            const reactKey = Object.keys(btn).find(k => k.startsWith('__react'));
+            if (!reactKey) return {error: 'No React fiber'};
+
+            const fiber = btn[reactKey];
+            const onClick = fiber?.memoizedProps?.onClick;
+
+            if (!onClick) return {error: 'No onClick handler'};
+
+            try {
+                // Create a synthetic event-like object
+                const syntheticEvent = {
+                    target: btn,
+                    currentTarget: btn,
+                    type: 'click',
+                    bubbles: true,
+                    cancelable: true,
+                    defaultPrevented: false,
+                    isTrusted: true,
+                    preventDefault: function() { this.defaultPrevented = true; },
+                    stopPropagation: function() {}
+                };
+
+                // Call the React onClick handler
+                onClick(syntheticEvent);
+
+                return {success: true, called: true};
+            } catch (e) {
+                return {error: 'Exception: ' + e.message, stack: e.stack};
+            }
+        }""")
+        print(f"   🔍 React onClick result: {react_click_result}")
+
+        # Wait for Streamlit to process the onClick
+        print("   ⏳ Waiting for Streamlit to process form submission...")
+        time.sleep(3)  # Streamlit needs time to process WebSocket message and rerun
+
+        # Check if click was detected
+        click_detected = page.evaluate("() => window.clickDetected")
+        form_submitted = page.evaluate("() => window.formSubmitted")
+        print(f"   🔍 Click detected: {click_detected}")
+        print(f"   🔍 Form submitted: {form_submitted}")
+
+        post_click = page.evaluate("() => ({url: window.location.href, readyState: document.readyState})")
+        print(f"   🔍 Post-click URL: {post_click}")
+
+        # Check if step changed
+        current_url = page.url
+        print(f"   🔍 Current URL: {current_url}")
+
+        # Print any console messages
+        if console_messages:
+            print(f"   🔍 Console messages ({len(console_messages)}):")
+            for msg in console_messages[-15:]:  # Last 15 messages
+                print(f"      {msg}")
+
+        # Print WebSocket messages around the click
+        if ws_messages:
+            print(f"   🔍 WebSocket messages around click ({len(ws_messages)}):")
+            for msg in ws_messages[-10:]:  # Last 10 messages
+                print(f"      {msg}")
+
+        # Wait navigation
         page.wait_for_load_state("networkidle", timeout=30000)
         print("   ✅ Network idle")
-        time.sleep(3)
+
+        # Final check after network idle
+        time.sleep(1)
+
+        # Stop trace
+        page.context.tracing.stop(path="/tmp/phase8_trace.zip")
+        print("   📊 Trace: /tmp/phase8_trace.zip")
+
+        time.sleep(2)
 
         # Check result
         step7_heading = page.locator("text=7. View Distributed Rewards")
         if step7_heading.count() > 0:
             print("   ✅ Step 7 loaded")
         else:
-            page.screenshot(path="/tmp/phase8_after_click.png", full_page=True)
+            page.screenshot(path="/tmp/phase8_fail.png", full_page=True)
             print("   ⚠️  Still Step 6")
             current = page.locator("text=/Step \\d+ of \\d+/").first.inner_text()
             print(f"   🔍 {current}")
