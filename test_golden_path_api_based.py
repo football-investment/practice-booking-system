@@ -315,10 +315,27 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
         continue_btn.click()
         print("   ✅ Clicked 'Continue to Leaderboard' button")
         wait_streamlit(page)
-        time.sleep(3)
+        time.sleep(2)
     except Exception as e:
         print(f"   ❌ Error: {str(e)}")
         pytest.fail(f"❌ 'Continue to Leaderboard' button not found: {str(e)}")
+
+    # ============================================================================
+    # PHASE 7.5: Navigate to Complete Tournament Page
+    # ============================================================================
+    print("\n📍 Phase 7.5: Navigate to Complete Tournament Page")
+
+    try:
+        # From Step 5 (Leaderboard) → Step 6 (Complete Tournament)
+        continue_complete_btn = page.locator("button:has-text('Continue to Complete Tournament')").first
+        continue_complete_btn.wait_for(state="visible", timeout=10000)
+        continue_complete_btn.click()
+        print("   ✅ Clicked 'Continue to Complete Tournament →' button")
+        wait_streamlit(page)
+        time.sleep(2)
+    except Exception as e:
+        print(f"   ❌ Error: {str(e)}")
+        pytest.fail(f"❌ 'Continue to Complete Tournament' button not found: {str(e)}")
 
     # ============================================================================
     # PHASE 8: Complete Tournament
@@ -331,9 +348,10 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
         complete_btn.click()
         print("   ✅ Clicked 'Complete Tournament' button")
         wait_streamlit(page, timeout_ms=30000)
-        time.sleep(3)
-    except:
-        pytest.fail("❌ 'Complete Tournament' button not found")
+        time.sleep(2)
+    except Exception as e:
+        print(f"   ❌ Error: {str(e)}")
+        pytest.fail(f"❌ 'Complete Tournament' button not found: {str(e)}")
 
     # ============================================================================
     # PHASE 9: Distribute Rewards
