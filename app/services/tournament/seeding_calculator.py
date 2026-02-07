@@ -22,6 +22,7 @@ import random
 from app.models.session import Session as SessionModel
 from app.models.attendance import Attendance
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from app.models.tournament_enums import TournamentPhase
 
 
 class SeedingCalculator:
@@ -60,7 +61,7 @@ class SeedingCalculator:
         # Get all group stage sessions for this group
         group_sessions = self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.tournament_phase == 'Group Stage',
+            SessionModel.tournament_phase == TournamentPhase.GROUP_STAGE,
             SessionModel.group_identifier == group_identifier
         ).all()
 

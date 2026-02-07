@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
+from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..utils import get_tournament_venue
@@ -89,7 +90,7 @@ class KnockoutGenerator(BaseFormatGenerator):
                     'date_start': session_start,
                     'date_end': session_end,
                     'game_type': round_name,
-                    'tournament_phase': 'Knockout',
+                    'tournament_phase': TournamentPhase.KNOCKOUT.value,
                     'tournament_round': round_num,
                     'tournament_match_number': match_in_round,
                     'location': get_tournament_venue(tournament),
@@ -130,7 +131,7 @@ class KnockoutGenerator(BaseFormatGenerator):
                 'date_start': current_time,
                 'date_end': current_time + timedelta(minutes=session_duration),
                 'game_type': '3rd Place Playoff',
-                'tournament_phase': 'Knockout',
+                'tournament_phase': TournamentPhase.KNOCKOUT.value,
                 'tournament_round': total_rounds,
                 'tournament_match_number': 999,  # Special match number
                 'location': get_tournament_venue(tournament),

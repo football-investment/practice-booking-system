@@ -45,6 +45,9 @@ class CreditTransaction(Base):
     balance_after = Column(Integer, nullable=False)        # Balance snapshot after transaction
     description = Column(Text, nullable=True)              # Human-readable description
 
+    # Idempotency key for preventing duplicate transactions (added 2026-02-01)
+    idempotency_key = Column(String(255), nullable=False, unique=True, index=True)
+
     # Related entities (optional)
     semester_id = Column(Integer, ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
     enrollment_id = Column(Integer, ForeignKey("semester_enrollments.id", ondelete="SET NULL"), nullable=True)
@@ -75,6 +78,7 @@ class CreditTransaction(Base):
             "amount": self.amount,
             "balance_after": self.balance_after,
             "description": self.description,
+            "idempotency_key": self.idempotency_key,
             "semester_id": self.semester_id,
             "enrollment_id": self.enrollment_id,
             "created_at": self.created_at.isoformat() if self.created_at else None

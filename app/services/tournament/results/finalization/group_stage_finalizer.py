@@ -11,6 +11,7 @@ from datetime import datetime
 
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
+from app.models.tournament_enums import TournamentPhase
 from app.services.tournament.results.calculators import (
     StandingsCalculator,
     AdvancementCalculator
@@ -53,7 +54,7 @@ class GroupStageFinalizer:
         return self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
             SessionModel.is_tournament_game == True,
-            SessionModel.tournament_phase == "Group Stage"
+            SessionModel.tournament_phase == TournamentPhase.GROUP_STAGE.value
         ).all()
 
     def get_knockout_sessions(self, tournament_id: int) -> List[SessionModel]:
@@ -69,7 +70,7 @@ class GroupStageFinalizer:
         return self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
             SessionModel.is_tournament_game == True,
-            SessionModel.tournament_phase == "Knockout Stage"
+            SessionModel.tournament_phase == TournamentPhase.KNOCKOUT.value
         ).order_by(SessionModel.tournament_round, SessionModel.id).all()
 
     def check_all_matches_completed(
@@ -190,7 +191,14 @@ class GroupStageFinalizer:
 
         # Create and save snapshot
         snapshot_data = self.create_snapshot(group_standings, qualified_participants)
-        tournament.enrollment_snapshot = snapshot_data
+
+        # ✅ FIX: enrollment_snapshot is a read-only property on Semester
+        # Must write to tournament_config_obj.enrollment_snapshot instead
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.enrollment_snapshot = snapshot_data
+        else:
+            # Fallback: if tournament_config_obj doesn't exist, log warning
+            print(f"⚠️  WARNING: Tournament {tournament.id} has no tournament_config_obj, snapshot not saved")
 
         self.db.commit()
 

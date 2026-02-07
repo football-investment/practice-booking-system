@@ -43,9 +43,12 @@ def create_semester(
         )
 
     # NEW: Validate location type vs semester type
-    if semester_data.location_id:
+    # NOTE: location_id is not in SemesterCreate schema (uses location_city/location_venue instead)
+    # This validation only applies when location_id is explicitly provided (e.g., from frontend)
+    location_id = getattr(semester_data, 'location_id', None)
+    if location_id:
         validation = LocationValidationService.can_create_semester_at_location(
-            location_id=semester_data.location_id,
+            location_id=location_id,
             specialization_type=semester_data.specialization_type,
             db=db
         )
@@ -61,8 +64,40 @@ def create_semester(
                 }
             )
 
-    semester = Semester(**semester_data.model_dump())
+    # Separate fields for Semester table vs TournamentConfiguration table (P2 refactoring)
+    semester_dict = semester_data.model_dump()
+
+    # Extract tournament configuration fields (stored in separate TournamentConfiguration table)
+    tournament_config_fields = {
+        'assignment_type': semester_dict.pop('assignment_type', None),
+        'max_players': semester_dict.pop('max_players', None),
+        'tournament_type_id': semester_dict.pop('tournament_type_id', None),
+        'scoring_type': semester_dict.pop('scoring_type', 'PLACEMENT'),  # Default
+        'measurement_unit': semester_dict.pop('measurement_unit', None),
+        'ranking_direction': semester_dict.pop('ranking_direction', None),
+    }
+
+    # Remove deprecated location fields
+    semester_dict.pop('location_city', None)
+    semester_dict.pop('location_venue', None)
+    semester_dict.pop('location_address', None)
+    semester_dict.pop('format', None)  # Derived from tournament_type, not stored
+
+    # Create Semester
+    semester = Semester(**semester_dict)
     db.add(semester)
+    db.flush()  # Get semester.id before creating related objects
+
+    # Create TournamentConfiguration if tournament-related fields are provided
+    if any(tournament_config_fields.values()):
+        from app.models.tournament_configuration import TournamentConfiguration
+
+        tournament_config = TournamentConfiguration(
+            semester_id=semester.id,
+            **{k: v for k, v in tournament_config_fields.items() if v is not None}
+        )
+        db.add(tournament_config)
+
     db.commit()
     db.refresh(semester)
 

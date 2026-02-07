@@ -689,20 +689,23 @@ async def get_tournament_leaderboard(
                     })
 
     # ============================================================================
-    # 🏃 INDIVIDUAL_RANKING: Get dual rankings from session.game_results
+    # 🏃 INDIVIDUAL_RANKING: Get dual rankings from session.game_results OR live rounds_data
     # ============================================================================
     performance_rankings = None
     wins_rankings = None
 
-    if tournament.format == "INDIVIDUAL_RANKING":
-        # Get the session (INDIVIDUAL_RANKING has exactly 1 session)
-        individual_session = db.query(SessionModel).filter(
-            SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
-        ).first()
+    # ✅ FIX: Check session.match_format instead of tournament.format (which doesn't exist)
+    # Get the session to check its format
+    individual_session = db.query(SessionModel).filter(
+        SessionModel.semester_id == tournament_id,
+        SessionModel.is_tournament_game == True
+    ).first()
 
-        if individual_session and individual_session.game_results:
-            import json
+    if individual_session and individual_session.match_format == "INDIVIDUAL_RANKING":
+        import json
+
+        # ✅ OPTION 1: Session is finalized - use game_results
+        if individual_session.game_results:
             game_results_data = individual_session.game_results
 
             # Parse if string
@@ -710,8 +713,161 @@ async def get_tournament_leaderboard(
                 game_results_data = json.loads(game_results_data)
 
             # Extract dual rankings
-            performance_rankings = game_results_data.get('performance_rankings', [])
+            # ✅ FIX: Support both 'performance_rankings' (legacy) and 'derived_rankings' (new ResultProcessor format)
+            performance_rankings = game_results_data.get('performance_rankings') or game_results_data.get('derived_rankings', [])
             wins_rankings = game_results_data.get('wins_rankings', [])
+
+        # ✅ OPTION 2: Session NOT finalized - calculate LIVE from rounds_data
+        elif individual_session.rounds_data:
+                rounds_data = individual_session.rounds_data
+
+                # Parse if string
+                if isinstance(rounds_data, str):
+                    rounds_data = json.loads(rounds_data)
+
+                round_results = rounds_data.get('round_results', {})
+
+                if round_results:
+                    # Calculate live best scores from submitted rounds
+                    from app.models.user import User as UserModel
+
+                    # Structure: {user_id: [score1, score2, score3, ...]}
+                    user_scores = {}
+                    # Structure: {user_id: {round_num: score}}
+                    user_round_scores = {}
+
+                    # Collect all scores per user across all completed rounds
+                    for round_num_str, results in round_results.items():
+                        for user_id_str, value_str in results.items():
+                            user_id = int(user_id_str)
+
+                            # Parse value (remove units like "s", "m", etc.)
+                            try:
+                                # Remove trailing letters and convert to float
+                                numeric_value = float(''.join(c for c in value_str if c.isdigit() or c == '.'))
+                            except (ValueError, TypeError):
+                                numeric_value = 0.0
+
+                            if user_id not in user_scores:
+                                user_scores[user_id] = []
+                                user_round_scores[user_id] = {}
+
+                            user_scores[user_id].append(numeric_value)
+                            user_round_scores[user_id][int(round_num_str)] = numeric_value
+
+                    # Get scoring method to determine ranking direction
+                    # ✅ FIX: Use scoring_type field (not structure_config.scoring_method) for consistency
+                    scoring_method = individual_session.scoring_type or 'SCORE_BASED'
+
+                    # ========================================
+                    # CALCULATE PERFORMANCE RANKINGS (Best Score)
+                    # ========================================
+                    live_rankings = []
+                    for user_id, scores in user_scores.items():
+                        if scoring_method == 'TIME_BASED':
+                            best_score = min(scores)  # Lower is better for time
+                        elif scoring_method == 'ROUNDS_BASED':
+                            best_score = max(scores)  # Best single round
+                        elif scoring_method == 'SCORE_BASED':
+                            best_score = sum(scores)  # Accumulated points
+                        else:
+                            best_score = max(scores)  # Default: best score
+
+                        # Fetch user details
+                        user = db.query(UserModel).filter(UserModel.id == user_id).first()
+                        user_name = user.name if user else f"User {user_id}"
+
+                        live_rankings.append({
+                            'user_id': user_id,
+                            'name': user_name,
+                            'best_score': best_score,
+                            'all_scores': scores,
+                            'rounds_completed': len(scores)
+                        })
+
+                    # Sort by best score
+                    if scoring_method == 'TIME_BASED':
+                        live_rankings.sort(key=lambda x: x['best_score'])  # ASC for time
+                    else:
+                        live_rankings.sort(key=lambda x: x['best_score'], reverse=True)  # DESC for score
+
+                    # ✅ FIX: Add ranks with TIED RANK HANDLING
+                    # If multiple players have same score, they get same rank, and next rank skips
+                    current_rank = 1
+                    prev_score = None
+                    for i, player in enumerate(live_rankings):
+                        current_score = player['best_score']
+
+                        # If score is different from previous, update rank
+                        if prev_score is not None and current_score != prev_score:
+                            current_rank = i + 1  # Skip to current position
+
+                        player['rank'] = current_rank
+                        prev_score = current_score
+
+                    # Use as performance_rankings (LIVE)
+                    performance_rankings = live_rankings
+
+                    # ========================================
+                    # ✅ NEW: CALCULATE WINS RANKINGS (Round Victories)
+                    # ========================================
+                    # Determine winner of each round
+                    round_winners = {}  # {round_num: user_id}
+                    user_wins = {}  # {user_id: win_count}
+
+                    # Initialize win counts
+                    for user_id in user_scores.keys():
+                        user_wins[user_id] = 0
+
+                    # Find winner of each round
+                    for round_num_str, results in round_results.items():
+                        round_num = int(round_num_str)
+
+                        # Get all scores for this round
+                        round_scores = {}
+                        for user_id_str, value_str in results.items():
+                            user_id = int(user_id_str)
+                            try:
+                                numeric_value = float(''.join(c for c in value_str if c.isdigit() or c == '.'))
+                            except (ValueError, TypeError):
+                                numeric_value = 0.0
+                            round_scores[user_id] = numeric_value
+
+                        # Determine winner (best score in this round)
+                        if round_scores:
+                            if scoring_method == 'TIME_BASED':
+                                winner_id = min(round_scores.items(), key=lambda x: x[1])[0]
+                            else:
+                                winner_id = max(round_scores.items(), key=lambda x: x[1])[0]
+
+                            round_winners[round_num] = winner_id
+                            user_wins[winner_id] += 1
+
+                    # Build wins rankings
+                    live_wins_rankings = []
+                    for user_id, wins in user_wins.items():
+                        user = db.query(UserModel).filter(UserModel.id == user_id).first()
+                        user_name = user.name if user else f"User {user_id}"
+
+                        live_wins_rankings.append({
+                            'user_id': user_id,
+                            'name': user_name,
+                            'wins': wins,
+                            'rounds_played': len(user_scores[user_id])
+                        })
+
+                    # Sort by wins (DESC), then by best_score as tie-breaker
+                    live_wins_rankings.sort(key=lambda x: (
+                        -x['wins'],  # More wins = better
+                        -user_scores[x['user_id']][0] if scoring_method != 'TIME_BASED' else user_scores[x['user_id']][0]  # Best score as tie-breaker
+                    ))
+
+                    # Add ranks
+                    for rank, player in enumerate(live_wins_rankings, start=1):
+                        player['rank'] = rank
+
+                    # Use as wins_rankings (LIVE)
+                    wins_rankings = live_wins_rankings
 
     # ============================================================================
     # ✅ NEW: BUILD KNOCKOUT BRACKET STRUCTURE (for pure knockout tournaments)
@@ -790,6 +946,8 @@ async def get_tournament_leaderboard(
         "tournament_id": tournament_id,
         "tournament_name": tournament.name,
         "tournament_format": tournament.format or "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
+        "scoring_type": tournament.scoring_type if hasattr(tournament, 'scoring_type') else "PLACEMENT",  # ✅ NEW: Scoring type
+        "winner_count": tournament.winner_count if tournament.winner_count is not None else 3,  # ✅ E2E Testing: Winner count from DB
         "leaderboard": leaderboard,
         "group_standings": group_standings if group_standings else None,  # ✅ NEW
         "group_stage_finalized": group_stage_finalized,  # ✅ NEW
@@ -892,7 +1050,8 @@ def get_tournament_sessions_debug(
                     game_results_parsed = session.game_results
 
             result.append({
-                "session_id": session.id,
+                "id": session.id,  # ✅ FIX: Frontend expects 'id', not 'session_id'
+                "session_id": session.id,  # Keep for backward compat
                 "title": session.title,
                 "tournament_phase": session.tournament_phase,
                 "tournament_round": session.tournament_round,

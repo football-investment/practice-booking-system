@@ -44,6 +44,10 @@ class Semester(Base):
     tournament_status = Column(String(50), nullable=True, index=True,
                               comment="Tournament-specific status: DRAFT, SEEKING_INSTRUCTOR, READY_FOR_ENROLLMENT, etc.")
 
+    # Tournament winner count (for INDIVIDUAL_RANKING tournaments)
+    winner_count = Column(Integer, nullable=True,
+                         comment="Number of winners for INDIVIDUAL_RANKING tournaments (E2E testing)")
+
     # DEPRECATED: Use 'status' instead
     is_active = Column(Boolean, default=True,
                       comment="DEPRECATED: Use status field instead. Kept for backward compatibility.")

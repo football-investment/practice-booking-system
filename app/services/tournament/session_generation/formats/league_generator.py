@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
+from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..algorithms import RoundRobinPairing
@@ -158,7 +159,7 @@ class LeagueGenerator(BaseFormatGenerator):
                     'date_start': session_start,
                     'date_end': session_end,
                     'game_type': f'Round {round_num}',
-                    'tournament_phase': 'League - Round Robin',
+                    'tournament_phase': TournamentPhase.GROUP_STAGE.value,
                     'tournament_round': round_num,
                     'tournament_match_number': match_num,
                     'location': get_tournament_venue(tournament),

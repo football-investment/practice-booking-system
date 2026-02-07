@@ -81,7 +81,8 @@ class TournamentService:
         format: str = "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
         scoring_type: str = "PLACEMENT",  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
         measurement_unit: Optional[str] = None,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
-        ranking_direction: Optional[str] = None  # ✅ NEW: Ranking direction (ASC/DESC)
+        ranking_direction: Optional[str] = None,  # ✅ NEW: Ranking direction (ASC/DESC)
+        game_preset_id: Optional[int] = None  # ✅ NEW: Game preset reference
     ) -> Semester:
         """DEPRECATED: Use app.services.tournament.create_tournament_semester instead"""
         return _create_tournament_semester(
@@ -93,7 +94,8 @@ class TournamentService:
             format,  # ✅ NEW: Tournament format
             scoring_type,  # ✅ NEW: Scoring type
             measurement_unit,  # ✅ NEW: Measurement unit
-            ranking_direction  # ✅ NEW: Ranking direction
+            ranking_direction,  # ✅ NEW: Ranking direction
+            game_preset_id  # ✅ NEW: Game preset reference
         )
 
     @staticmethod

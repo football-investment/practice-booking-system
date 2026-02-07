@@ -25,3 +25,18 @@ class TeamMemberRole(str, enum.Enum):
     """Roles within a team"""
     CAPTAIN = "CAPTAIN"
     PLAYER = "PLAYER"
+
+
+class TournamentPhase(str, enum.Enum):
+    """
+    Canonical tournament phase values
+
+    These are the ONLY valid values for Session.tournament_phase in the domain model.
+    UI display strings should be derived from these canonical values, not stored in the database.
+    """
+    GROUP_STAGE = "GROUP_STAGE"  # Group stage / League round robin
+    KNOCKOUT = "KNOCKOUT"  # Knockout stage / Elimination rounds
+    FINALS = "FINALS"  # Finals / Championship match
+    PLACEMENT = "PLACEMENT"  # Placement matches (3rd place, etc.)
+    INDIVIDUAL_RANKING = "INDIVIDUAL_RANKING"  # Individual ranking format
+    SWISS = "SWISS"  # Swiss system format

@@ -13,7 +13,8 @@ import json
 
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
-from app.services.tournament.results.calculators import RankingAggregator
+from app.services.tournament.results.calculators import RankingAggregator  # DEPRECATED: Use RankingService instead
+from app.services.tournament.ranking.ranking_service import RankingService
 from app.services.tournament.leaderboard_service import (
     get_or_create_ranking,
     calculate_ranks
@@ -40,7 +41,8 @@ class SessionFinalizer:
             db: SQLAlchemy database session
         """
         self.db = db
-        self.ranking_aggregator = RankingAggregator()
+        self.ranking_aggregator = RankingAggregator()  # DEPRECATED: Kept for backward compatibility
+        self.ranking_service = RankingService()  # ✅ NEW: Modern strategy-based ranking
 
     def validate_all_rounds_completed(
         self,
@@ -145,7 +147,7 @@ class SessionFinalizer:
             Result dict with success status and rankings
 
         Raises:
-            ValueError: If validation fails
+            ValueError: If validation fails or already finalized
 
         Example result:
             {
@@ -161,6 +163,51 @@ class SessionFinalizer:
                 "remaining_sessions": 2
             }
         """
+        # ========================================
+        # ✅ IDEMPOTENCY GUARD #1: Prevent duplicate finalization (session-level)
+        # ========================================
+        if session.game_results:
+            # Session already finalized - log and reject
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"🔒 IDEMPOTENCY VIOLATION (Session Level): Attempted to re-finalize session {session.id} "
+                f"in tournament {tournament.id}. "
+                f"Session already finalized at {json.loads(session.game_results).get('recorded_at', 'unknown')}. "
+                f"Rejecting duplicate finalization request by user {recorded_by_id}."
+            )
+            raise ValueError(
+                f"Session {session.id} is already finalized. "
+                f"Cannot finalize the same session multiple times. "
+                f"Use rollback endpoint if you need to reset."
+            )
+
+        # ========================================
+        # ✅ IDEMPOTENCY GUARD #2: Prevent duplicate finalization (tournament_rankings-level)
+        # ========================================
+        # Check if tournament_rankings already exist for this tournament
+        # This prevents DUAL FINALIZATION PATH bug where both sandbox and production
+        # write to tournament_rankings table.
+        from app.models.tournament_ranking import TournamentRanking
+
+        existing_rankings = self.db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == tournament.id
+        ).count()
+
+        if existing_rankings > 0:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"🔒 IDEMPOTENCY VIOLATION (TournamentRanking Level): Attempted to finalize session {session.id} "
+                f"but {existing_rankings} tournament_rankings already exist for tournament {tournament.id}. "
+                f"Rejecting duplicate finalization. Existing rankings indicate tournament was already finalized."
+            )
+            raise ValueError(
+                f"Tournament {tournament.id} already has {existing_rankings} ranking(s). "
+                f"Cannot finalize session - tournament rankings already exist. "
+                f"This prevents duplicate finalization from multiple code paths."
+            )
+
         # Validate session type
         if session.match_format != "INDIVIDUAL_RANKING":
             raise ValueError(
@@ -189,11 +236,42 @@ class SessionFinalizer:
         scoring_type = tournament.scoring_type or "TIME_BASED"
         measurement_unit = tournament.measurement_unit or "units"
 
-        # Aggregate rankings across all rounds
-        performance_rankings, wins_rankings = self.ranking_aggregator.aggregate_rankings(
+        # ========================================
+        # ✅ AUDIT LOG: Record finalization details
+        # ========================================
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"🏁 FINALIZATION STARTED: "
+            f"session_id={session.id}, "
+            f"tournament_id={tournament.id}, "
+            f"scoring_type={scoring_type}, "
+            f"ranking_direction={ranking_direction}, "
+            f"measurement_unit={measurement_unit}, "
+            f"initiated_by_user_id={recorded_by_id}, "
+            f"initiated_by_name={recorded_by_name}, "
+            f"timestamp={datetime.utcnow().isoformat()}"
+        )
+
+        # ✅ NEW: Use Strategy Pattern for ranking calculation
+        # Build participants list from round_results
+        unique_user_ids = set()
+        for round_num, results_dict in round_results.items():
+            for user_id_str in results_dict.keys():
+                unique_user_ids.add(int(user_id_str))
+
+        participants = [{"user_id": user_id} for user_id in unique_user_ids]
+
+        # Calculate rankings using appropriate strategy
+        rank_groups = self.ranking_service.calculate_rankings(
+            scoring_type=scoring_type,
             round_results=round_results,
-            ranking_direction=ranking_direction,
-            total_rounds=total_rounds,
+            participants=participants
+        )
+
+        # Convert to legacy format for backward compatibility
+        performance_rankings, wins_rankings = self.ranking_service.convert_to_legacy_format(
+            rank_groups=rank_groups,
             measurement_unit=measurement_unit
         )
 
@@ -226,6 +304,16 @@ class SessionFinalizer:
 
         self.db.commit()
         self.db.refresh(session)
+
+        # ✅ AUDIT LOG: Record successful finalization
+        logger.info(
+            f"✅ FINALIZATION COMPLETED: "
+            f"session_id={session.id}, "
+            f"tournament_id={tournament.id}, "
+            f"players_ranked={len(derived_rankings)}, "
+            f"scoring_type={scoring_type}, "
+            f"completed_at={datetime.utcnow().isoformat()}"
+        )
 
         # Check if all sessions finalized
         all_finalized, unfinalized_count = self.check_all_sessions_finalized(

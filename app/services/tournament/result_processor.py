@@ -21,6 +21,7 @@ from app.models.match_structure import MatchFormat, ScoringType, MatchStructure,
 from app.models.session import Session as SessionModel
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
+from app.models.tournament_enums import TournamentPhase
 from app.services.tournament.leaderboard_service import get_or_create_ranking, calculate_ranks
 
 
@@ -424,8 +425,8 @@ class ResultProcessor:
         # KNOCKOUT PROGRESSION: Auto-create next round matches
         # ========================================================================
         knockout_info = None
-        # ✅ Support both "Knockout Stage" (group+knockout) and "Knockout" (pure knockout)
-        if session.tournament_phase in ["Knockout Stage", "Knockout"]:
+        # ✅ Support both enum and legacy string values for backward compatibility
+        if session.tournament_phase == TournamentPhase.KNOCKOUT:
             from app.services.tournament.knockout_progression_service import KnockoutProgressionService
             knockout_service = KnockoutProgressionService(db)
             knockout_info = knockout_service.process_knockout_progression(

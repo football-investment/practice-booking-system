@@ -42,7 +42,8 @@ def create_tournament_semester(
     format: str = "HEAD_TO_HEAD",  # ✅ NEW: Tournament format
     scoring_type: str = "PLACEMENT",  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
     measurement_unit: Optional[str] = None,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
-    ranking_direction: Optional[str] = None  # ✅ NEW: Ranking direction (ASC/DESC)
+    ranking_direction: Optional[str] = None,  # ✅ NEW: Ranking direction (ASC/DESC)
+    game_preset_id: Optional[int] = None  # ✅ NEW: Game preset reference
 ) -> Semester:
     """
     Create a 1-day semester for tournament (Admin only)
@@ -60,17 +61,24 @@ def create_tournament_semester(
         location_id: Optional location ID (fallback if campus not specified)
         age_group: Optional age group
         reward_policy_name: Name of reward policy to use (default: "default")
+        custom_reward_policy: Optional custom reward policy dict (overrides reward_policy_name)
         assignment_type: Instructor assignment strategy (OPEN_ASSIGNMENT | APPLICATION_BASED)
         max_players: Maximum tournament participants (explicit capacity)
         enrollment_cost: Enrollment fee in credits (explicit pricing)
         instructor_id: Instructor ID (required for OPEN_ASSIGNMENT, None for APPLICATION_BASED)
+        tournament_type_id: Tournament type ID (ONLY for HEAD_TO_HEAD format)
+        format: Tournament format (INDIVIDUAL_RANKING | HEAD_TO_HEAD)
+        scoring_type: Scoring type for INDIVIDUAL_RANKING (TIME_BASED, SCORE_BASED, etc.)
+        measurement_unit: Measurement unit for INDIVIDUAL_RANKING (seconds, meters, points, etc.)
+        ranking_direction: Ranking direction (ASC for lowest wins, DESC for highest wins)
+        game_preset_id: Optional game preset ID - references pre-configured game type
 
     Returns:
         Created semester object with appropriate status based on assignment_type
 
     Raises:
         RewardPolicyError: If reward policy cannot be loaded
-        ValueError: If instructor_id is not None at creation
+        ValueError: If instructor_id is not None at creation or game_preset_id not found
     """
     # ⚠️ BUSINESS LOGIC: instructor_id must be None at creation
     # Instructor assignment happens AFTER via Tournament Management:
@@ -177,6 +185,31 @@ def create_tournament_semester(
     db.add(reward_config_obj)
     db.commit()
 
+    # 🎮 P3: Create separate GameConfiguration
+    from app.models.game_configuration import GameConfiguration
+    from app.models.game_preset import GamePreset
+
+    # If game preset is provided, load it and use its config as template
+    final_game_config = None
+    if game_preset_id:
+        preset = db.query(GamePreset).filter(GamePreset.id == game_preset_id).first()
+        if preset:
+            # Use preset's game_config as the template
+            final_game_config = preset.game_config.copy() if preset.game_config else {}
+        else:
+            raise ValueError(f"Game preset with ID {game_preset_id} not found")
+
+    # Create GameConfiguration entity
+    game_config_obj = GameConfiguration(
+        semester_id=semester.id,
+        game_preset_id=game_preset_id,
+        game_config=final_game_config,
+        game_config_overrides=None  # No overrides at creation - can be added later
+    )
+    db.add(game_config_obj)
+    db.commit()
+    db.refresh(game_config_obj)
+
     # Refresh to load relationships
     db.refresh(semester)
 
@@ -259,12 +292,15 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
         Dictionary with tournament summary including:
         - id, tournament_id, semester_id
         - code, name, date
-        - status, specialization_type, age_group
+        - status, tournament_status, specialization_type, age_group
         - location_id, campus_id
         - session_count, total_capacity, total_bookings
         - fill_percentage
         - sessions list with details
+        - rankings_count: Count of tournament_rankings entries
     """
+    from app.models.tournament_ranking import TournamentRanking
+
     semester = db.query(Semester).filter(Semester.id == semester_id).first()
     if not semester:
         return {}
@@ -272,8 +308,24 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
     sessions = db.query(SessionModel).filter(SessionModel.semester_id == semester_id).all()
 
     total_capacity = sum(s.capacity for s in sessions)
-    total_bookings = db.query(Booking).filter(
+
+    # ✅ FIX: Count BOTH bookings AND participant_user_ids for sandbox tournaments
+    booking_count = db.query(Booking).filter(
         Booking.session_id.in_([s.id for s in sessions])
+    ).count()
+
+    # Count participants from sessions (for INDIVIDUAL_RANKING tournaments without bookings)
+    participant_count = 0
+    for session in sessions:
+        if session.participant_user_ids:
+            participant_count += len(session.participant_user_ids)
+
+    # Use whichever is greater (bookings or participants)
+    total_bookings = max(booking_count, participant_count)
+
+    # ✅ NEW: Count tournament rankings
+    rankings_count = db.query(TournamentRanking).filter(
+        TournamentRanking.tournament_id == semester_id
     ).count()
 
     return {
@@ -285,6 +337,7 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
         "start_date": semester.start_date.isoformat(),
         "date": semester.start_date.isoformat(),
         "status": semester.status.value if semester.status else None,
+        "tournament_status": semester.tournament_status if hasattr(semester, 'tournament_status') else None,  # ✅ NEW
         "specialization_type": semester.specialization_type,
         "age_group": semester.age_group,
         "location_id": semester.location_id,
@@ -299,13 +352,18 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
                 "title": s.title,
                 "time": s.date_start.strftime("%H:%M"),
                 "capacity": s.capacity,
-                "bookings": db.query(Booking).filter(Booking.session_id == s.id).count()
+                # ✅ FIX: Count BOTH bookings AND participants
+                "bookings": max(
+                    db.query(Booking).filter(Booking.session_id == s.id).count(),
+                    len(s.participant_user_ids) if s.participant_user_ids else 0
+                )
             }
             for s in sessions
         ],
         "total_capacity": total_capacity,
         "total_bookings": total_bookings,
-        "fill_percentage": round((total_bookings / total_capacity * 100) if total_capacity > 0 else 0, 1)
+        "fill_percentage": round((total_bookings / total_capacity * 100) if total_capacity > 0 else 0, 1),
+        "rankings_count": rankings_count  # ✅ NEW
     }
 
 

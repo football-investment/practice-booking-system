@@ -90,6 +90,8 @@ def distribute_tournament_rewards_v2(
 
         old_status = tournament.tournament_status
         tournament.tournament_status = "REWARDS_DISTRIBUTED"
+        db.add(tournament)  # ✅ CRITICAL FIX: Explicitly add to session
+        db.flush()  # ✅ Force immediate write to DB
 
         record_status_change(
             db=db,

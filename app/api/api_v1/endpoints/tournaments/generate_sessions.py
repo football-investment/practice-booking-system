@@ -362,6 +362,7 @@ def get_tournament_sessions(
             "structure_config": session.structure_config,
             "participant_user_ids": session.participant_user_ids,
             "participants": participants,  # ✅ NEW: Full participant details with names
+            "game_results": session.game_results,  # ✅ FIX: Add game_results field for Step 4
             "rounds_data": session.rounds_data
         })
 

@@ -43,6 +43,24 @@ def get_or_create_ranking(
     ranking = query.first()
     
     if not ranking:
+        # ✅ AUDIT LOG: Record TournamentRanking creation
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+
+        # Get caller stack for debugging
+        stack = traceback.extract_stack()
+        caller_info = f"{stack[-2].filename}:{stack[-2].lineno} in {stack[-2].name}"
+
+        logger.info(
+            f"📊 CREATING TournamentRanking: "
+            f"tournament_id={tournament_id}, "
+            f"user_id={user_id}, "
+            f"team_id={team_id}, "
+            f"participant_type={participant_type}, "
+            f"called_from={caller_info}"
+        )
+
         ranking = TournamentRanking(
             tournament_id=tournament_id,
             user_id=user_id,
@@ -56,7 +74,7 @@ def get_or_create_ranking(
         )
         db.add(ranking)
         db.flush()
-    
+
     return ranking
 
 
@@ -114,7 +132,19 @@ def calculate_ranks(db: Session, tournament_id: int) -> List[TournamentRanking]:
         return []
 
     tournament_format = tournament.format or "HEAD_TO_HEAD"
-    ranking_direction = tournament.ranking_direction or "DESC"
+
+    # ✅ FIX: For PLACEMENT scoring, use ASC (lower placement = better rank)
+    # Check session scoring_type to determine ranking direction
+    from app.models.session import Session as SessionModel
+    session = db.query(SessionModel).filter(
+        SessionModel.semester_id == tournament_id,
+        SessionModel.is_tournament_game == True
+    ).first()
+
+    if session and session.scoring_type == "PLACEMENT":
+        ranking_direction = "ASC"  # Lower placement value = better rank
+    else:
+        ranking_direction = getattr(tournament, 'ranking_direction', None) or "DESC"
 
     # Get all rankings for this tournament
     query = db.query(TournamentRanking).filter(

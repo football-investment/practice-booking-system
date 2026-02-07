@@ -27,13 +27,14 @@ Key Characteristics:
 - Skills tracking: heading, shooting, crossing, passing, dribbling, ball_control, defending
 """
 
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, List
 from datetime import date
 from sqlalchemy.orm import Session
 from app.services.specs.base_spec import BaseSpecializationService
 from app.models.license import UserLicense
 from app.models.football_skill_assessment import FootballSkillAssessment
 from app.models.semester_enrollment import SemesterEnrollment
+from app.skills_config import get_all_skill_keys
 
 
 class LFAPlayerService(BaseSpecializationService):
@@ -78,16 +79,12 @@ class LFAPlayerService(BaseSpecializationService):
         }
     }
 
-    # Valid football skills for assessment
-    VALID_SKILLS = [
-        'heading',
-        'shooting',
-        'crossing',
-        'passing',
-        'dribbling',
-        'ball_control',
-        'defending'
-    ]
+    # ✅ CONSOLIDATED: Use central skill list from skills_config.py (29 skills)
+    # Old hardcoded list (7 skills) is deprecated
+    @property
+    def VALID_SKILLS(self) -> List[str]:
+        """Get all valid skill keys from central configuration"""
+        return get_all_skill_keys()
 
     # ========================================================================
     # OVERRIDE: BaseSpecializationService Methods

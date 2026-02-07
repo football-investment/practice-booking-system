@@ -95,6 +95,10 @@ class TournamentGenerateRequest(BaseModel):
         None,
         description="Tournament type ID (e.g., knockout, league, swiss) - ONLY for HEAD_TO_HEAD format"
     )
+    game_preset_id: Optional[int] = Field(
+        None,
+        description="Game preset ID - references pre-configured game type (e.g., Sprint Challenge, Technical Mastery)"
+    )
 
     @validator('measurement_unit')
     def validate_measurement_unit(cls, v, values):
@@ -254,6 +258,7 @@ class TournamentSummaryResponse(BaseModel):
     start_date: str  # ✅ ISO format date
     date: str
     status: Optional[str]  # ✅ Tournament status (SEEKING_INSTRUCTOR, READY_FOR_ENROLLMENT, etc.)
+    tournament_status: Optional[str] = None  # ✅ Tournament completion status (DRAFT, IN_PROGRESS, COMPLETED)
     specialization_type: Optional[str]  # ✅ LFA_FOOTBALL_PLAYER, etc.
     age_group: Optional[str]  # ✅ PRE, YOUTH, AMATEUR, PRO
     location_id: Optional[int]  # ✅ Location FK
@@ -266,6 +271,7 @@ class TournamentSummaryResponse(BaseModel):
     total_capacity: int
     total_bookings: int
     fill_percentage: float
+    rankings_count: int = 0  # ✅ Count of tournament_rankings entries
 
 
 # ============================================================================
@@ -355,7 +361,8 @@ def generate_tournament(
             format=request.format,  # ✅ NEW: Tournament format
             scoring_type=request.scoring_type,  # ✅ NEW: Scoring type for INDIVIDUAL_RANKING
             measurement_unit=request.measurement_unit,  # ✅ NEW: Measurement unit for INDIVIDUAL_RANKING
-            ranking_direction=request.ranking_direction  # ✅ NEW: Ranking direction (ASC/DESC)
+            ranking_direction=request.ranking_direction,  # ✅ NEW: Ranking direction (ASC/DESC)
+            game_preset_id=request.game_preset_id  # ✅ NEW: Game preset reference
         )
 
         print(f"🔍 DEBUG: Tournament semester created successfully: {semester.id}")

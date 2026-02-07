@@ -35,6 +35,7 @@ class RunTestRequest(BaseModel):
     skills_to_test: list[str] = Field(..., min_items=1, max_items=20, description="Skills to test (1-20)")
     player_count: int = Field(..., ge=4, le=16, description="Number of synthetic players (4-16)")
     test_config: Optional[TestConfig] = Field(default_factory=TestConfig)
+    selected_users: Optional[list[int]] = Field(default=None, description="Optional: Specific user IDs to enroll (from UI selection)")
 
 
 class RunTestResponse(BaseModel):
@@ -126,7 +127,8 @@ def run_sandbox_test(
             performance_variation=request.test_config.performance_variation,
             ranking_distribution=request.test_config.ranking_distribution,
             game_preset_id=request.test_config.game_preset_id,  # P3
-            game_config_overrides=request.test_config.game_config_overrides  # P3
+            game_config_overrides=request.test_config.game_config_overrides,  # P3
+            selected_users=request.selected_users  # UI-selected participants
         )
 
         logger.info(

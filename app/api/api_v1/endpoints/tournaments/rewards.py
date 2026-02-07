@@ -16,6 +16,12 @@ from app.models.tournament_ranking import TournamentRanking
 from app.models.tournament_achievement import TournamentParticipation
 from app.models.credit_transaction import CreditTransaction, TransactionType
 from app.models.xp_transaction import XPTransaction
+from app.models.skill_reward import SkillReward
+
+# ✅ Import centralized services for idempotent reward distribution
+from app.services.credit_service import CreditService
+from app.services.xp_transaction_service import XPTransactionService
+from app.services.football_skill_service import FootballSkillService
 
 
 router = APIRouter()
@@ -49,6 +55,7 @@ class RankingSubmissionResponse(BaseModel):
 class RewardDistributionRequest(BaseModel):
     """Request to distribute rewards"""
     reason: Optional[str] = Field(default=None, max_length=200)
+    winner_count: Optional[int] = Field(default=None, description="Number of winners for INDIVIDUAL_RANKING tournaments (E2E testing)")
 
 
 class PlayerRewardDetail(BaseModel):
@@ -138,6 +145,13 @@ def submit_tournament_rankings(
             detail=f"Tournament must be COMPLETED to submit rankings. Current status: {tournament.tournament_status}"
         )
 
+    # 🔒 IDEMPOTENCY CHECK: Prevent re-submission if rewards already distributed
+    if tournament.tournament_status == "REWARDS_DISTRIBUTED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify rankings after rewards have been distributed. Tournament is locked."
+        )
+
     # Get enrolled players
     from app.models.semester_enrollment import SemesterEnrollment
     enrollments = db.query(SemesterEnrollment).filter(
@@ -165,19 +179,36 @@ def submit_tournament_rankings(
             detail="; ".join(error_parts)
         )
 
-    # Check ranks are unique and sequential
-    if len(submitted_ranks) != len(set(submitted_ranks)):
+    # ✅ NEW: Allow tied ranks (multiple players can have same rank)
+    # Validation: Ranks must start from 1 and be properly ordered
+    min_rank = min(submitted_ranks)
+    max_rank = max(submitted_ranks)
+
+    if min_rank != 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ranks must be unique (no ties allowed)"
+            detail="Ranks must start from 1"
         )
 
-    expected_ranks = set(range(1, len(submitted_ranks) + 1))
-    if set(submitted_ranks) != expected_ranks:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Ranks must be sequential from 1 to {len(submitted_ranks)}"
-        )
+    # Check that ranks make sense (e.g., can't have rank 5 without ranks 1-4 existing)
+    unique_ranks = sorted(set(submitted_ranks))
+    for i, rank in enumerate(unique_ranks):
+        # After ties, next rank must skip properly
+        # Example: 1, 2, 2, 4 is valid (skip 3 after two 2nds)
+        # But: 1, 2, 2, 5 is invalid (should be 4, not 5)
+        count_up_to_current = sum(1 for r in submitted_ranks if r <= rank)
+        expected_next_rank = count_up_to_current + 1
+
+        # The next unique rank after current should be expected_next_rank
+        if i + 1 < len(unique_ranks):
+            next_rank = unique_ranks[i + 1]
+            count_at_current = sum(1 for r in submitted_ranks if r == rank)
+            expected = rank + count_at_current
+            if next_rank != expected:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid rank sequence: after {count_at_current} player(s) at rank {rank}, next rank should be {expected}, not {next_rank}"
+                )
 
     # Delete existing rankings (if re-submitting)
     db.query(TournamentRanking).filter(
@@ -207,6 +238,157 @@ def submit_tournament_rankings(
         rankings_submitted=len(request.rankings),
         message=f"Successfully submitted rankings for {len(request.rankings)} players"
     )
+
+
+@router.post("/{tournament_id}/complete")
+def complete_tournament(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Complete tournament and transition to COMPLETED status
+
+    Business Rules:
+    - Tournament must be in IN_PROGRESS status
+    - All sessions must be finalized (for INDIVIDUAL_RANKING) or results submitted (for HEAD_TO_HEAD)
+    - Transitions tournament to COMPLETED status
+    - Creates final rankings in tournament_rankings table
+
+    Authorization: Admin OR tournament master instructor
+    """
+
+    # Fetch tournament first to check authorization
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tournament {tournament_id} not found"
+        )
+
+    # Authorization: Admin OR master instructor of this tournament
+    is_admin = current_user.role == UserRole.ADMIN
+    is_master_instructor = tournament.master_instructor_id == current_user.id
+
+    if not (is_admin or is_master_instructor):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins or the tournament's master instructor can complete tournaments"
+        )
+
+    # Validate tournament status
+    if tournament.tournament_status != "IN_PROGRESS":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tournament must be IN_PROGRESS. Current status: {tournament.tournament_status}"
+        )
+
+    # Check if all sessions are finalized (INDIVIDUAL_RANKING) or have results (HEAD_TO_HEAD)
+    from app.models.session import Session as SessionModel
+
+    sessions = db.query(SessionModel).filter(
+        SessionModel.semester_id == tournament_id,
+        SessionModel.auto_generated == True
+    ).all()
+
+    if not sessions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No sessions found for this tournament"
+        )
+
+    # For INDIVIDUAL_RANKING: Check all sessions have game_results (finalized)
+    if tournament.format == "INDIVIDUAL_RANKING":
+        unfinalized = [s.id for s in sessions if not s.game_results]
+        if unfinalized:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot complete tournament: {len(unfinalized)} session(s) not finalized. Session IDs: {unfinalized}"
+            )
+
+    # For HEAD_TO_HEAD: Check all sessions have game_results (results submitted)
+    else:
+        no_results = [s.id for s in sessions if not s.game_results]
+        if no_results:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot complete tournament: {len(no_results)} session(s) missing results. Session IDs: {no_results}"
+            )
+
+    # Create final rankings in tournament_rankings table
+    # For INDIVIDUAL_RANKING: Rankings already exist from finalization
+    # For HEAD_TO_HEAD: Need to calculate rankings from match results
+    from app.models.tournament_ranking import TournamentRanking
+
+    existing_rankings = db.query(TournamentRanking).filter(
+        TournamentRanking.tournament_id == tournament_id
+    ).count()
+
+    if existing_rankings == 0:
+        # No rankings exist yet - create them from session results
+        # This handles HEAD_TO_HEAD tournaments where finalization doesn't run
+
+        # Get all participants from enrollments
+        from app.models.semester_enrollment import SemesterEnrollment
+
+        enrollments = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tournament_id,
+            SemesterEnrollment.is_active == True
+        ).all()
+
+        # For HEAD_TO_HEAD: Calculate rankings from wins/losses
+        # For INDIVIDUAL_RANKING: Should not reach here (finalization creates rankings)
+        if tournament.format == "HEAD_TO_HEAD":
+            # Simple ranking: All participants get same rank for now
+            # TODO: Implement proper HEAD_TO_HEAD ranking calculation
+            for idx, enrollment in enumerate(enrollments):
+                ranking = TournamentRanking(
+                    tournament_id=tournament_id,
+                    user_id=enrollment.user_id,
+                    team_id=None,
+                    participant_type="INDIVIDUAL",
+                    rank=idx + 1,  # Temporary: sequential ranks
+                    points=0,
+                    wins=0,
+                    losses=0,
+                    draws=0
+                )
+                db.add(ranking)
+        else:
+            # INDIVIDUAL_RANKING without rankings - this is an error state
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot complete INDIVIDUAL_RANKING tournament: No rankings found. Ensure all sessions are finalized."
+            )
+
+    # Transition tournament to COMPLETED status
+    from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change
+
+    old_status = tournament.tournament_status
+    tournament.tournament_status = "COMPLETED"
+
+    record_status_change(
+        db=db,
+        tournament_id=tournament.id,
+        old_status=old_status,
+        new_status="COMPLETED",
+        changed_by=current_user.id,
+        reason="Tournament completed - all sessions finalized",
+        metadata={"sessions_count": len(sessions), "rankings_count": existing_rankings or len(enrollments)}
+    )
+
+    db.commit()
+    db.refresh(tournament)
+
+    return {
+        "tournament_id": tournament_id,
+        "tournament_name": tournament.name,
+        "old_status": old_status,
+        "new_status": "COMPLETED",
+        "sessions_completed": len(sessions),
+        "rankings_created": existing_rankings or len(enrollments),
+        "message": "Tournament completed successfully. Ready for reward distribution."
+    }
 
 
 @router.post("/{tournament_id}/distribute-rewards", response_model=RewardDistributionResponse)
@@ -249,8 +431,74 @@ def distribute_tournament_rewards(
             detail=f"Tournament must be COMPLETED. Current status: {tournament.tournament_status}"
         )
 
-    # Check if rankings exist
-    rankings = db.query(TournamentRanking).filter(
+    # 🔒 IDEMPOTENCY CHECK: Prevent duplicate reward distribution
+    existing_rewards = db.query(CreditTransaction).filter(
+        CreditTransaction.semester_id == tournament_id,
+        CreditTransaction.transaction_type == TransactionType.TOURNAMENT_REWARD.value
+    ).count()
+
+    if existing_rewards > 0:
+        # ✅ FIX: If rewards exist but status is not REWARDS_DISTRIBUTED, fix the status
+        if tournament.tournament_status != "REWARDS_DISTRIBUTED":
+            from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change
+
+            old_status = tournament.tournament_status
+            tournament.tournament_status = "REWARDS_DISTRIBUTED"
+            db.add(tournament)  # ✅ CRITICAL FIX: Explicitly add to session
+            db.flush()  # ✅ Force immediate write to DB
+
+            record_status_change(
+                db=db,
+                tournament_id=tournament.id,
+                old_status=old_status,
+                new_status="REWARDS_DISTRIBUTED",
+                changed_by=current_user.id,
+                reason="Auto-corrected status (rewards already distributed)",
+                metadata={"existing_rewards_count": existing_rewards}
+            )
+
+            db.commit()
+
+            # Return success response with corrected status
+            return RewardDistributionResponse(
+                tournament_id=tournament_id,
+                tournament_name=tournament.name,
+                rewards_distributed=existing_rewards,
+                total_credits_awarded=0,  # Not recalculated for idempotent responses
+                total_xp_awarded=0,
+                status="REWARDS_DISTRIBUTED",
+                message=f"✅ Status corrected to REWARDS_DISTRIBUTED. Rewards were already distributed ({existing_rewards} transactions exist).",
+                rewards=[]
+            )
+
+        # Status is already correct - return error
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Rewards already distributed for this tournament ({existing_rewards} transactions exist). Tournament is locked. Use rollback endpoint to reset if needed."
+        )
+
+    # ========================================
+    # ✅ CRITICAL FIX: DEDUPLICATE rankings by user_id
+    # ========================================
+    # INDIVIDUAL/ROUNDS_BASED tournaments have MULTIPLE ranking rows per player (one per round)
+    # We MUST reward each player ONLY ONCE based on their BEST (lowest) rank
+    # Core principle: 1 user → 1 reward event
+    from sqlalchemy import func
+
+    # Get BEST (lowest) rank for each unique player
+    subquery = db.query(
+        TournamentRanking.user_id,
+        func.min(TournamentRanking.rank).label('best_rank')
+    ).filter(
+        TournamentRanking.tournament_id == tournament_id
+    ).group_by(TournamentRanking.user_id).subquery()
+
+    # Get ONE ranking row per player (their best performance)
+    rankings = db.query(TournamentRanking).join(
+        subquery,
+        (TournamentRanking.user_id == subquery.c.user_id) &
+        (TournamentRanking.rank == subquery.c.best_rank)
+    ).filter(
         TournamentRanking.tournament_id == tournament_id
     ).order_by(TournamentRanking.rank).all()
 
@@ -259,6 +507,20 @@ def distribute_tournament_rewards(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No rankings found. Submit rankings first before distributing rewards."
         )
+
+    # ✅ DEFENSIVE ASSERTION: Ensure 1 reward per player (no duplicates)
+    unique_users = set(r.user_id for r in rankings)
+    if len(rankings) != len(unique_users):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"SYSTEM ERROR: Duplicate rankings detected! {len(rankings)} rankings for {len(unique_users)} players. Expected 1:1 mapping."
+        )
+
+    # ✅ E2E TESTING: Save winner_count to tournament if provided
+    if request.winner_count is not None:
+        tournament.winner_count = request.winner_count
+        db.add(tournament)
+        # Will commit later with other changes
 
     # Get or create reward policy snapshot
     reward_policy = tournament.reward_policy_snapshot or DEFAULT_REWARD_POLICY
@@ -288,86 +550,226 @@ def distribute_tournament_rewards(
         rewards_map = reward_policy["rewards"]
 
     # Calculate and distribute rewards
+    # 🎯 TIED RANKS BUSINESS RULE:
+    # - Each tied player receives FULL reward for their shared rank
+    # - Next rank tier is skipped (e.g., two 2nd place → next is 4th, not 3rd)
+    # - Example: 1st (500c), 2nd (300c), 2nd (300c), 4th (participant 50c)
     total_credits = 0
     total_xp = 0
     rewards_count = 0
     reward_details = []
 
-    for ranking in rankings:
-        # Determine reward tier
-        rank_key = str(ranking.rank) if str(ranking.rank) in rewards_map else "participant"
-        reward_config = rewards_map.get(rank_key, rewards_map["participant"])
+    # ✅ CRITICAL FIX: Put ALL DB operations (rewards + status change) in SINGLE transaction
+    try:
+        # ========================================
+        # STEP 1: Distribute rewards to all players
+        # ========================================
+        for ranking in rankings:
+            # Determine reward tier (handles tied ranks)
+            rank_key = str(ranking.rank) if str(ranking.rank) in rewards_map else "participant"
+            reward_config = rewards_map.get(rank_key, rewards_map["participant"])
 
-        credits_amount = reward_config["credits"]
-        xp_amount = reward_config["xp"]
+            credits_amount = reward_config["credits"]
+            xp_amount = reward_config["xp"]
 
-        # Get user details
-        user = db.query(User).filter(User.id == ranking.user_id).first()
-        if not user:
-            continue
+            # Get user details
+            user = db.query(User).filter(User.id == ranking.user_id).first()
+            if not user:
+                continue
 
-        # Add credits to user account (only if > 0)
-        if credits_amount > 0:
-            user.credit_balance += credits_amount
-            total_credits += credits_amount
+            # Add credits to user account (only if > 0)
+            if credits_amount > 0:
+                user.credit_balance += credits_amount
+                total_credits += credits_amount
 
-            # Record credit transaction
-            credit_transaction = CreditTransaction(
+                # ✅ Use CreditService for idempotent transaction creation
+                credit_service = CreditService(db)
+                idempotency_key = credit_service.generate_idempotency_key(
+                    source_type="tournament",
+                    source_id=tournament_id,
+                    user_id=user.id,
+                    operation="reward"
+                )
+
+                (credit_transaction, created) = credit_service.create_transaction(
+                    user_id=user.id,
+                    user_license_id=None,
+                    transaction_type=TransactionType.TOURNAMENT_REWARD.value,
+                    amount=credits_amount,
+                    balance_after=user.credit_balance,
+                    description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
+                    idempotency_key=idempotency_key,
+                    semester_id=tournament_id
+                )
+
+            # Add XP to user account (always, even if 0 to track participation)
+            if xp_amount > 0:
+                user.xp_balance += xp_amount
+                total_xp += xp_amount
+
+                # ✅ Use XPTransactionService for idempotent transaction creation
+                xp_service = XPTransactionService(db)
+                (xp_transaction, created) = xp_service.award_xp(
+                    user_id=user.id,
+                    transaction_type="TOURNAMENT_REWARD",
+                    amount=xp_amount,
+                    balance_after=user.xp_balance,
+                    description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
+                    semester_id=tournament_id
+                )
+
+            rewards_count += 1
+
+            #  ========== SKILL POINT ASSESSMENT ==========
+            # Award/deduct skill points based on rank performance
+            # Positive rewards: Top 3 players (1st, 2nd, 3rd)
+            # Neutral: Middle players (4th-6th) - no change
+            # Negative penalty: Bottom players (7th+) - skill decrease
+            skill_points_awarded = {}
+
+            # Determine total players to calculate bottom ranks
+            total_players = db.query(TournamentRanking).filter(
+                TournamentRanking.tournament_id == tournament.id
+            ).count()
+
+            # Calculate which ranks get negative penalties (last 2 players)
+            second_last_rank = total_players - 1 if total_players > 1 else None
+            last_rank = total_players
+
+            # Only process skill changes for top 3 (positive) or bottom 2 (negative)
+            if ranking.rank <= 3 or ranking.rank >= second_last_rank:
+                from app.models.license import UserLicense
+                from app.models.football_skill_assessment import FootballSkillAssessment
+                from app.models.game_configuration import GameConfiguration
+                import random
+                from datetime import datetime
+
+                # Get user's LFA_FOOTBALL_PLAYER license
+                user_license = db.query(UserLicense).filter(
+                    UserLicense.user_id == user.id,
+                    UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
+                ).first()
+
+                if user_license:
+                    # Get tournament's game preset skills (NOT all skills!)
+                    game_config = db.query(GameConfiguration).filter(
+                        GameConfiguration.semester_id == tournament.id
+                    ).first()
+
+                    # Extract skills_tested and skill_weights from game_config JSONB field
+                    preset_skills = []
+                    skill_weights = {}
+                    if game_config and game_config.game_config:
+                        skill_config = game_config.game_config.get("skill_config", {})
+                        preset_skills = skill_config.get("skills_tested", [])
+                        skill_weights = skill_config.get("skill_weights", {})
+
+                    # If no preset skills found, skip skill assessment
+                    if not preset_skills:
+                        skill_points_awarded = {}
+                    else:
+                        # Determine base points based on rank (positive or negative)
+                        if ranking.rank == 1:
+                            num_skills = min(5, len(preset_skills))
+                            base_points_per_skill = [5, 4, 3, 3, 2][:num_skills]  # Top: +5, +4, +3, +3, +2
+                        elif ranking.rank == 2:
+                            num_skills = min(4, len(preset_skills))
+                            base_points_per_skill = [4, 3, 2, 2][:num_skills]  # 2nd: +4, +3, +2, +2
+                        elif ranking.rank == 3:
+                            num_skills = min(3, len(preset_skills))
+                            base_points_per_skill = [3, 2, 2][:num_skills]  # 3rd: +3, +2, +2
+                        elif ranking.rank == second_last_rank:
+                            # Second to last: NEGATIVE penalty
+                            num_skills = min(2, len(preset_skills))
+                            base_points_per_skill = [-2, -1][:num_skills]  # Penalty: -2, -1
+                        elif ranking.rank == last_rank:
+                            # Last place: MAXIMUM NEGATIVE penalty
+                            num_skills = min(3, len(preset_skills))
+                            base_points_per_skill = [-3, -2, -1][:num_skills]  # Max penalty: -3, -2, -1
+                        else:
+                            # Should not reach here due to outer if condition
+                            num_skills = 0
+                            base_points_per_skill = []
+
+                        # Sort preset_skills by weight (highest first) to award more points to important skills
+                        skills_by_weight = sorted(
+                            preset_skills,
+                            key=lambda s: skill_weights.get(s, 0),
+                            reverse=True
+                        )
+
+                        # Select top N skills by weight (not random!)
+                        selected_skills = skills_by_weight[:num_skills]
+
+                        # Create skill assessments with weight multipliers
+                        for i, skill_key in enumerate(selected_skills):
+                            base_points = base_points_per_skill[i]
+
+                            # Apply weight multiplier: (weight + 1.0)
+                            weight = skill_weights.get(skill_key, 0.0)
+                            multiplier = weight + 1.0
+                            final_points = round(base_points * multiplier)
+
+                            # ✅ Use FootballSkillService for idempotent skill reward creation
+                            # FootballSkillAssessment = measurement/state
+                            # SkillReward = auditable historical event
+                            skill_service = FootballSkillService(db)
+                            (skill_reward, created) = skill_service.award_skill_points(
+                                user_id=user.id,
+                                source_type="TOURNAMENT",
+                                source_id=tournament.id,
+                                skill_name=skill_key,
+                                points_awarded=final_points
+                            )
+                            skill_points_awarded[skill_key] = final_points
+
+            # Add to reward details list
+            reward_details.append(PlayerRewardDetail(
                 user_id=user.id,
-                transaction_type=TransactionType.TOURNAMENT_REWARD.value,  # Convert enum to string
-                amount=credits_amount,
-                balance_after=user.credit_balance,
-                description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
-                semester_id=tournament_id
-            )
-            db.add(credit_transaction)
+                player_name=user.name or user.email,  # ✅ FIX: Fallback to email if name is None
+                player_email=user.email,
+                rank=ranking.rank,
+                credits=credits_amount,
+                xp=xp_amount
+            ))
 
-        # Add XP to user account (always, even if 0 to track participation)
-        if xp_amount > 0:
-            user.xp_balance += xp_amount
-            total_xp += xp_amount
+        # ========================================
+        # STEP 2: Update tournament status to REWARDS_DISTRIBUTED
+        # ========================================
+        from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change
 
-            # Record XP transaction
-            xp_transaction = XPTransaction(
-                user_id=user.id,
-                transaction_type="TOURNAMENT_REWARD",
-                amount=xp_amount,
-                balance_after=user.xp_balance,
-                description=f"Tournament '{tournament.name}' - Rank #{ranking.rank} reward",
-                semester_id=tournament_id
-            )
-            db.add(xp_transaction)
+        old_status = tournament.tournament_status
+        tournament.tournament_status = "REWARDS_DISTRIBUTED"
+        db.add(tournament)  # ✅ CRITICAL FIX: Explicitly add to session
+        db.flush()  # ✅ Force immediate write to DB before commit
+        # ✅ FIX: reward_policy_snapshot column doesn't exist in semesters table
+        # tournament.reward_policy_snapshot = reward_policy  # Save policy snapshot
 
-        rewards_count += 1
+        record_status_change(
+            db=db,
+            tournament_id=tournament.id,
+            old_status=old_status,
+            new_status="REWARDS_DISTRIBUTED",
+            changed_by=current_user.id,
+            reason=request.reason or "Rewards distributed",
+            metadata={"total_credits_awarded": total_credits, "rewards_count": rewards_count}
+        )
 
-        # Add to reward details list
-        reward_details.append(PlayerRewardDetail(
-            user_id=user.id,
-            player_name=user.name,
-            player_email=user.email,
-            rank=ranking.rank,
-            credits=credits_amount,
-            xp=xp_amount
-        ))
+        # ========================================
+        # STEP 3: Commit ENTIRE transaction (rewards + status change)
+        # ========================================
+        db.commit()
 
-    # Transition tournament to REWARDS_DISTRIBUTED
-    from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change
-
-    old_status = tournament.tournament_status
-    tournament.tournament_status = "REWARDS_DISTRIBUTED"
-    tournament.reward_policy_snapshot = reward_policy  # Save policy snapshot
-
-    record_status_change(
-        db=db,
-        tournament_id=tournament.id,
-        old_status=old_status,
-        new_status="REWARDS_DISTRIBUTED",
-        changed_by=current_user.id,
-        reason=request.reason or "Rewards distributed",
-        metadata={"total_credits_awarded": total_credits, "rewards_count": rewards_count}
-    )
-
-    db.commit()
+    except Exception as e:
+        # ✅ CRITICAL: Rollback EVERYTHING on any error (rewards + status change)
+        db.rollback()
+        # Log detailed error with context
+        import traceback
+        error_details = traceback.format_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to distribute rewards: {str(e)}\n\nDetails:\n{error_details}"
+        )
 
     return RewardDistributionResponse(
         tournament_id=tournament_id,
@@ -480,6 +882,49 @@ def get_distributed_rewards(
     users = db.query(User).filter(User.id.in_(user_ids)).all()
     user_dict = {user.id: user for user in users}
 
+    # Get actual ranks from tournament_rankings table
+    # Note: For INDIVIDUAL tournaments, there may be multiple rankings per user (one per round)
+    # We take the BEST (minimum) rank for each user
+    from app.models.tournament_ranking import TournamentRanking
+    from sqlalchemy import func
+
+    rankings = db.query(
+        TournamentRanking.user_id,
+        func.min(TournamentRanking.rank).label('best_rank')
+    ).filter(
+        TournamentRanking.tournament_id == tournament_id,
+        TournamentRanking.user_id.in_(user_ids)
+    ).group_by(TournamentRanking.user_id).all()
+
+    rank_by_user = {r.user_id: r.best_rank for r in rankings}
+
+    # Update reward_map with correct ranks from tournament_rankings
+    for user_id in reward_map.keys():
+        if user_id in rank_by_user:
+            reward_map[user_id]["rank"] = rank_by_user[user_id]
+
+    # 🎯 Get skill rewards for this tournament from skill_rewards table
+    # Separation of concerns: SkillReward = auditable events (NOT FootballSkillAssessment = measurements)
+    skill_by_user = {}
+    try:
+        # Query skill rewards for this specific tournament
+        skill_rewards = db.query(SkillReward).filter(
+            SkillReward.source_type == "TOURNAMENT",
+            SkillReward.source_id == tournament_id,
+            SkillReward.user_id.in_(user_ids)
+        ).all()
+
+        # Group skill rewards by user_id
+        for skill_reward in skill_rewards:
+            user_id = skill_reward.user_id
+            if user_id not in skill_by_user:
+                skill_by_user[user_id] = {}
+            skill_by_user[user_id][skill_reward.skill_name] = skill_reward.points_awarded
+    except Exception as e:
+        # If skill rewards query fails, just use empty dict (skill points not available yet)
+        print(f"Error loading skill rewards: {e}")
+        pass
+
     reward_details = []
     total_credits = 0
     total_xp = 0
@@ -495,7 +940,8 @@ def get_distributed_rewards(
             "player_email": user.email,
             "rank": data["rank"],
             "credits": data["credits"],
-            "xp": data["xp"]
+            "xp": data["xp"],
+            "skill_points_awarded": skill_by_user.get(user_id, {})
         })
 
         total_credits += data["credits"]

@@ -12,6 +12,7 @@ import json
 
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
+from app.models.tournament_enums import TournamentPhase
 
 
 class TournamentFinalizer:
@@ -95,14 +96,14 @@ class TournamentFinalizer:
         # Find final match
         final_match = self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.tournament_phase == "Knockout Stage",
+            SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
             SessionModel.title.ilike("%final%")
         ).first()
 
         # Find 3rd place match
         third_place_match = self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.tournament_phase == "Knockout Stage",
+            SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
             SessionModel.title.ilike("%3rd%")
         ).first()
 

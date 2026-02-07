@@ -28,13 +28,23 @@ from app.skills_config import SKILL_CATEGORIES as REAL_SKILL_CATEGORIES
 from sandbox_helpers import (
     fetch_locations, fetch_campuses_by_location, fetch_users, fetch_instructors,
     fetch_game_presets, fetch_preset_details, update_preset, create_preset,
+    create_game_preset,
     render_mini_leaderboard, get_sandbox_tournaments, calculate_tournament_stats
+)
+from sandbox_workflow import (
+    render_step_create_tournament,
+    render_step_manage_sessions,
+    render_step_track_attendance,
+    render_step_enter_results,
+    render_step_view_leaderboard,
+    render_step_distribute_rewards,
+    render_step_view_rewards
 )
 
 # Constants
 AGE_GROUPS = ["PRE", "YOUTH", "AMATEUR", "PRO"]
 ASSIGNMENT_TYPES = ["OPEN_ASSIGNMENT", "MANUAL_ASSIGNMENT", "INVITE_ONLY"]
-TOURNAMENT_FORMATS = ["league", "knockout", "hybrid"]
+TOURNAMENT_FORMATS = ["league", "knockout", "group_knockout"]  # group_knockout = hybrid format (group stage + knockout playoffs)
 SCORING_MODES = ["HEAD_TO_HEAD", "INDIVIDUAL"]
 
 # Convert skill categories to display format
@@ -61,6 +71,36 @@ if 'config' in st.session_state:
             # Clear entire config to force fresh start
             del st.session_state['config']
             st.rerun()
+
+
+# ===========================================================================
+# NAVIGATION HELPER: Update URL when navigating
+# ===========================================================================
+def update_url_params(screen: str = None, tournament_id: int = None, step: int = None):
+    """
+    Update URL query parameters to reflect current navigation state.
+    Enables deep linking and page reload recovery.
+
+    Args:
+        screen: Screen name (home, history, configuration, instructor_workflow)
+        tournament_id: Tournament ID (optional)
+        step: Workflow step number (optional, only for instructor_workflow)
+    """
+    params = {}
+
+    if screen:
+        params["screen"] = screen
+
+    if tournament_id is not None:
+        params["tournament_id"] = str(tournament_id)
+
+    if step is not None:
+        params["step"] = str(step)
+
+    # Only update if params have changed
+    current_params = dict(st.query_params)
+    if params != current_params:
+        st.query_params.update(params)
 
 
 def render_home_screen():
@@ -98,6 +138,7 @@ def render_home_screen():
                 key="btn_open_history"
             ):
                 st.session_state.screen = "history"
+                update_url_params(screen="history")
                 st.rerun()
         card.close_container()
 
@@ -460,18 +501,6 @@ def render_configuration_screen():
                     key=form.field_key("age_group")
                 )
 
-                # Pre-fill tournament format from template
-                loaded_format = loaded_config.get('tournament_format')
-                format_index = TOURNAMENT_FORMATS.index(loaded_format) if loaded_format in TOURNAMENT_FORMATS else 0
-
-                tournament_format = st.selectbox(
-                    "Tournament Format",
-                    TOURNAMENT_FORMATS,
-                    index=format_index,
-                    key=form.field_key("tournament_format"),
-                    help="League (round-robin), Knockout (elimination), or Hybrid (league + knockout)"
-                )
-
             with col2:
                 # Pre-fill assignment type from template
                 loaded_assignment = loaded_config.get('assignment_type')
@@ -484,7 +513,7 @@ def render_configuration_screen():
                     key=form.field_key("assignment_type")
                 )
 
-            # Scoring Mode - moved outside columns to give it full width
+            # Scoring Mode - CRITICAL: This determines which fields are shown below
             # Pre-fill scoring mode from template
             loaded_scoring = loaded_config.get('scoring_mode')
             scoring_index = SCORING_MODES.index(loaded_scoring) if loaded_scoring in SCORING_MODES else 0
@@ -494,11 +523,49 @@ def render_configuration_screen():
                 SCORING_MODES,
                 index=scoring_index,
                 key=form.field_key("scoring_mode"),
-                help="Head-to-Head (1v1 matches with wins/draws/losses) or Individual (performance-based scoring)"
+                help="Head-to-Head (1v1 matches) or Individual (performance-based)"
             )
 
+            # ⚠️ CONDITIONAL UI: Show different fields based on scoring mode
+            st.markdown("---")  # Visual separator
+
+            # Initialize variables that may be set conditionally
+            # (prevents NameError if branches don't execute during reruns)
+            tournament_format = None
+            number_of_rounds = None
+            scoring_type = None
+            ranking_direction = None
+            measurement_unit = None
+
+            # HEAD_TO_HEAD configuration (league/knockout)
+            if scoring_mode == "HEAD_TO_HEAD":
+                st.info("🤝 HEAD_TO_HEAD Mode: Players compete in 1v1 matches")
+
+                # Tournament Format (only relevant for HEAD_TO_HEAD)
+                loaded_format = loaded_config.get('tournament_format')
+                format_index = TOURNAMENT_FORMATS.index(loaded_format) if loaded_format in TOURNAMENT_FORMATS else 0
+
+                tournament_format = st.selectbox(
+                    "Tournament Format",
+                    TOURNAMENT_FORMATS,
+                    index=format_index,
+                    key=form.field_key("tournament_format"),
+                    help="League (round-robin) or Knockout (elimination)"
+                )
+
+                # Set defaults for HEAD_TO_HEAD (not configurable in UI)
+                number_of_rounds = None
+                scoring_type = None
+                ranking_direction = None
+                measurement_unit = None
+
             # INDIVIDUAL scoring configuration
-            if scoring_mode == "INDIVIDUAL":
+            elif scoring_mode == "INDIVIDUAL":
+                st.info("🏃 INDIVIDUAL Mode: Players compete individually for best performance")
+
+                # INDIVIDUAL mode uses "multi_round_ranking" tournament type code
+                # (Note: tournament_type.code, not format. Format is INDIVIDUAL_RANKING)
+                tournament_format = "multi_round_ranking"
                 col1, col2 = st.columns(2)
 
                 with col1:
@@ -514,7 +581,7 @@ def render_configuration_screen():
                     # Scoring Type - how performance is measured
                     scoring_type = st.selectbox(
                         "Scoring Type",
-                        ["TIME_BASED", "SCORE_BASED", "DISTANCE_BASED", "PLACEMENT"],
+                        ["TIME_BASED", "SCORE_BASED", "DISTANCE_BASED", "PLACEMENT", "ROUNDS_BASED"],
                         key=form.field_key("scoring_type"),
                         help="How performance is measured"
                     )
@@ -535,6 +602,8 @@ def render_configuration_screen():
                             st.session_state[measurement_unit_key] = "meters"
                         elif scoring_type == "SCORE_BASED":
                             st.session_state[measurement_unit_key] = "points"
+                        elif scoring_type == "ROUNDS_BASED":
+                            st.session_state[measurement_unit_key] = "rounds"
                         elif scoring_type == "PLACEMENT":
                             st.session_state[measurement_unit_key] = ""
 
@@ -558,22 +627,18 @@ def render_configuration_screen():
                                 st.session_state[measurement_unit_key] = "seconds"
                             elif scoring_type == "DISTANCE_BASED":
                                 st.session_state[measurement_unit_key] = "meters"
+                            elif scoring_type == "ROUNDS_BASED":
+                                st.session_state[measurement_unit_key] = "rounds"
                             else:  # SCORE_BASED
                                 st.session_state[measurement_unit_key] = "points"
 
                         measurement_unit = st.text_input(
                             "Measurement Unit",
                             key=measurement_unit_key,
-                            help="Unit of measurement (e.g., seconds, meters, points, repetitions)"
+                            help="Unit of measurement (e.g., seconds, meters, points, rounds, repetitions)"
                         )
                     else:
                         measurement_unit = None
-            else:
-                # HEAD_TO_HEAD mode - no additional config needed
-                number_of_rounds = None
-                scoring_type = None
-                ranking_direction = None
-                measurement_unit = None
 
             # Pre-fill max players from template
             max_players = st.number_input(
@@ -621,8 +686,6 @@ def render_configuration_screen():
                     for user in user_list
                 }
 
-            selected_user_ids = []
-
             # Simple compact list with toggle switches
             for user in user_list:
                 user_id = user['id']
@@ -637,17 +700,28 @@ def render_configuration_screen():
 
                 with col2:
                     # Toggle switch (on/off button)
+                    # CRITICAL: Label must be VISIBLE for Playwright to find it
+                    # Using minimal visible label for E2E test selector
                     toggle_key = f"participant_{user_id}"
+                    toggle_label = f"Select {user_id}"  # Visible label for Playwright
                     is_selected = st.toggle(
-                        "",
+                        toggle_label,
                         value=st.session_state.participant_toggles.get(user_id, False),
                         key=toggle_key
+                        # NO label_visibility - keep default "visible" for Playwright!
                     )
+
+                    # Update toggle state in session_state
                     st.session_state.participant_toggles[user_id] = is_selected
 
-                    if is_selected:
-                        selected_user_ids.append(user_id)
+            # ✅ CRITICAL FIX: Rebuild selected_user_ids from participant_toggles EVERY render
+            # This is the ONLY source of truth - never maintain a separate list
+            selected_user_ids = [
+                user_id for user_id, is_selected in st.session_state.participant_toggles.items()
+                if is_selected
+            ]
 
+            # Display count of selected participants
             st.caption(f"✅ {len(selected_user_ids)} selected")
 
             # Rewards Section
@@ -766,9 +840,8 @@ def render_configuration_screen():
                     selected_campus_obj = next((c for c in campus_list if c['name'] == selected_campus), None) if selected_location else None
                     campus_id = selected_campus_obj['id'] if selected_campus_obj else None
 
-                    game_config = selected_preset.get('game_config', {})
-                    skill_config = game_config.get('skill_config', {})
-                    preset_skills = skill_config.get('skills_tested', [])
+                    # Get skills from selected preset (flattened in list API)
+                    preset_skills = selected_preset.get('skills_tested', [])
 
                     st.session_state['config_to_save'] = {
                         'tournament_name': tournament_name,
@@ -853,10 +926,37 @@ def render_configuration_screen():
                 save_template_dialog()
 
             if start_workflow_clicked:
-                # Get skills from selected preset (correct path: game_config.skill_config.skills_tested)
-                game_config = selected_preset.get('game_config', {})
-                skill_config = game_config.get('skill_config', {})
-                preset_skills = skill_config.get('skills_tested', [])
+                # ✅ FIX: Load full preset configuration to get format_config
+                from sandbox_helpers import fetch_preset_details
+                preset_details = fetch_preset_details(selected_preset['id'])
+
+                if not preset_details:
+                    Error.message(f"Failed to load preset configuration (ID: {selected_preset['id']})")
+                    st.stop()
+
+                # Extract format configuration from preset
+                preset_game_config = preset_details.get('game_config', {})
+                format_config_dict = preset_game_config.get('format_config', {})
+
+                # Get the tournament format from preset (not from form widget!)
+                # Format config has structure: {"GROUP_KNOCKOUT": {...}, "KNOCKOUT": {...}, etc}
+                # We need to find which format is configured
+                preset_tournament_format = None
+                format_specific_config = {}
+
+                for fmt_key, fmt_config in format_config_dict.items():
+                    # The preset uses format keys like "GROUP_KNOCKOUT", "KNOCKOUT", etc.
+                    preset_tournament_format = fmt_key
+                    format_specific_config = fmt_config
+                    break  # Use first format found
+
+                if not preset_tournament_format:
+                    # Fallback to form widget value if preset has no format_config
+                    preset_tournament_format = tournament_format
+
+                # Get skills from selected preset
+                # NOTE: List API returns flattened structure with skills_tested at top level
+                preset_skills = selected_preset.get('skills_tested', [])
 
                 # Get location and campus IDs
                 selected_location = next((loc for loc in location_list if loc['name'] == selected_location_name), None)
@@ -864,10 +964,10 @@ def render_configuration_screen():
                 selected_campus_obj = next((c for c in campus_list if c['name'] == selected_campus), None) if selected_location else None
                 campus_id = selected_campus_obj['id'] if selected_campus_obj else None
 
-                # Build configuration
+                # Build configuration - USE PRESET FORMAT, NOT FORM VALUE
                 config = {
                     'tournament_name': tournament_name,
-                    'tournament_format': tournament_format,
+                    'tournament_format': preset_tournament_format,  # ✅ FROM PRESET
                     'scoring_mode': scoring_mode,
                     'number_of_rounds': number_of_rounds if scoring_mode == "INDIVIDUAL" else None,
                     'scoring_type': scoring_type if scoring_mode == "INDIVIDUAL" else None,
@@ -907,6 +1007,11 @@ def render_configuration_screen():
                     }
                 }
 
+                # ✅ FIX: Add format-specific configuration from preset
+                # Merge format-specific fields (group_count, qualifiers_per_group, etc)
+                if format_specific_config:
+                    config.update(format_specific_config)
+
                 # Store config and move to workflow
                 st.session_state.tournament_config = config
                 st.session_state.screen = "instructor_workflow"
@@ -915,24 +1020,22 @@ def render_configuration_screen():
 
 
 def render_instructor_workflow():
-    """Instructor workflow coordinator - 6 steps"""
+    """Instructor workflow coordinator - 6 main steps + optional step 7 for viewing rewards"""
     workflow_step = st.session_state.get('workflow_step', 1)
 
-    # Progress indicator
-    st.progress(workflow_step / 6)
-    st.markdown(f"### Step {workflow_step} of 6")
+    # Progress indicator (show progress for main workflow steps 1-6, step 7 is standalone)
+    max_steps = 6 if workflow_step <= 6 else 7
+    st.progress(min(workflow_step, 6) / 6)
+
+    if workflow_step <= 6:
+        st.markdown(f"### Step {workflow_step} of 6")
+    else:
+        st.markdown(f"### Step {workflow_step}: View Distributed Rewards")
+
     st.markdown("---")
 
-    # Import workflow step modules
-    from sandbox_workflow import (
-        render_step_create_tournament,
-        render_step_manage_sessions,
-        render_step_track_attendance,
-        render_step_enter_results,
-        render_step_view_leaderboard,
-        render_step_distribute_rewards,
-        render_step_tournament_history
-    )
+    # ✅ FIX: Removed duplicate import that was shadowing line 34
+    # Now using module-level import from sandbox_workflow (line 34)
 
     # Render appropriate step
     config = st.session_state.get('tournament_config', {})
@@ -949,6 +1052,8 @@ def render_instructor_workflow():
         render_step_view_leaderboard()
     elif workflow_step == 6:
         render_step_distribute_rewards()
+    elif workflow_step == 7:
+        render_step_view_rewards()
 
 
 def render_history_screen():
@@ -1029,23 +1134,33 @@ def _render_tournament_card(tournament: Dict):
     )
 
     with card.container():
+        # UI Testing Contract: Tournament Status
+        st.markdown(f'<div data-testid="tournament-status" data-status="{status}">Status: <strong>{status}</strong></div>', unsafe_allow_html=True)
+        st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Participants", tournament.get('participant_count', 0))
         with col2:
-            st.metric("Format", tournament.get('format', 'N/A'))
+            st.metric("Format", tournament.get('format', tournament.get('tournament_format', 'INDIVIDUAL')))
         with col3:
-            st.metric("Type", tournament.get('type', 'N/A'))
+            # Show game preset name or age group
+            game_type = tournament.get('game_preset_name', tournament.get('age_group', '—'))
+            st.metric("Type", game_type)
 
         # Action buttons
         st.markdown("---")
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
 
         with col_btn1:
             if st.button("📋 Resume Workflow", key=f"btn_resume_{tournament.get('id')}", use_container_width=True):
                 # Load tournament into session state and navigate to instructor workflow
-                st.session_state.tournament_id = tournament.get('id')
+                tournament_id = tournament.get('id')
+                st.session_state.tournament_id = tournament_id
                 st.session_state.screen = 'instructor_workflow'
+                st.session_state.workflow_step = 4  # Default to Step 4 (Enter Results)
+
+                # Update URL for deep linking
+                update_url_params(screen='instructor_workflow', tournament_id=tournament_id, step=4)
                 st.session_state.workflow_step = 3  # Start at Step 3 (Attendance) by default
                 st.rerun()
 
@@ -1063,6 +1178,13 @@ def _render_tournament_card(tournament: Dict):
                 st.session_state.workflow_step = 5  # Jump to Step 5 (Leaderboard)
                 st.rerun()
 
+        with col_btn4:
+            if st.button("🎁 View Rewards", key=f"btn_rewards_{tournament.get('id')}", use_container_width=True):
+                st.session_state.tournament_id = tournament.get('id')
+                st.session_state.screen = 'instructor_workflow'
+                st.session_state.workflow_step = 7  # Jump to Step 7 (Rewards)
+                st.rerun()
+
         with st.expander("Details"):
             st.json(tournament)
 
@@ -1070,17 +1192,89 @@ def _render_tournament_card(tournament: Dict):
 
 
 def _render_preset_create_form(*form_components):
-    """Render preset creation form (collapsed for brevity)"""
-    # This maintains the existing preset creation logic but uses Card components
-    # Full implementation would include all the expanders and form fields
+    """Render preset creation form with all components"""
+    (render_basic_info_editor, render_skill_config_editor,
+     render_match_simulation_editor, render_ranking_rules_editor,
+     render_metadata_editor, render_simulation_config_editor) = form_components
+
     st.markdown("---")
     card = Card(title="Create New Game Preset", card_id="create_preset")
     with card.container():
-        st.info("Use the preset forms to configure the new game preset")
-        # Preset form components would go here (already exists in codebase)
-        if st.button("Cancel", key="btn_cancel_create_preset"):
-            st.session_state.creating_preset = False
-            st.rerun()
+        # Empty config for new preset
+        empty_config = {
+            "version": "1.0",
+            "metadata": {},
+            "skill_config": {},
+            "format_config": {"HEAD_TO_HEAD": {}},
+            "simulation_config": {}
+        }
+
+        # Basic info
+        basic_info = render_basic_info_editor(name="", description="", code="", key_prefix="new_preset")
+
+        # Metadata
+        with st.expander("📋 Metadata", expanded=False):
+            metadata = render_metadata_editor(empty_config, key_prefix="new_preset")
+
+        # Skill config
+        with st.expander("⚽ Skill Configuration", expanded=True):
+            skill_config = render_skill_config_editor(empty_config, preset_id=None, key_prefix="new_preset")
+
+        # Match simulation
+        with st.expander("🎮 Match Simulation", expanded=False):
+            match_sim = render_match_simulation_editor(empty_config.get("format_config", {}), format_type="HEAD_TO_HEAD", preset_id=None, key_prefix="new_preset")
+
+        # Ranking rules
+        with st.expander("🏆 Ranking Rules", expanded=False):
+            ranking = render_ranking_rules_editor(empty_config.get("format_config", {}), format_type="HEAD_TO_HEAD", preset_id=None, key_prefix="new_preset")
+
+        # Simulation config
+        with st.expander("⚙️ Simulation Configuration", expanded=False):
+            sim_config = render_simulation_config_editor(empty_config, key_prefix="new_preset")
+
+        # Action buttons
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("💾 Save New Preset", key="btn_save_new_preset", type="primary", use_container_width=True):
+                # Validate
+                if not basic_info["code"] or not basic_info["name"]:
+                    Error.message("Preset code and name are required!")
+                elif not skill_config.get("skills_tested"):
+                    Error.message("At least one skill must be selected!")
+                else:
+                    # Build game_config
+                    game_config = {
+                        "version": "1.0",
+                        "metadata": metadata,
+                        "skill_config": skill_config,
+                        "format_config": {"HEAD_TO_HEAD": {
+                            "ranking_rules": ranking,
+                            "match_simulation": match_sim
+                        }},
+                        "simulation_config": sim_config
+                    }
+
+                    # Save to API
+                    response = create_game_preset(
+                        code=basic_info["code"],
+                        name=basic_info["name"],
+                        description=basic_info["description"],
+                        game_config=game_config
+                    )
+
+                    if response:
+                        Success.toast(f"Preset '{basic_info['name']}' created successfully!")
+                        st.session_state.creating_preset = False
+                        st.session_state.selected_preset_id = response.get("id")
+                        st.rerun()
+                    else:
+                        Error.message("Failed to create preset. Check if code already exists.")
+
+        with col2:
+            if st.button("Cancel", key="btn_cancel_create_preset", use_container_width=True):
+                st.session_state.creating_preset = False
+                st.rerun()
+
     card.close_container()
     st.markdown("---")
 
@@ -1116,8 +1310,8 @@ def _render_preset_list_item(preset: Dict, *form_components):
     if preset.get('is_locked'):
         badges.append("🔒 Locked")
 
-    difficulty = preset.get('difficulty_level', 'N/A').title()
-    category = preset.get('game_category', 'N/A').replace('_', ' ').title()
+    difficulty = (preset.get('difficulty_level') or 'N/A').title()
+    category = (preset.get('game_category') or 'N/A').replace('_', ' ').title()
     player_range = preset.get('recommended_player_count', {})
     player_info = f"{player_range.get('min', 'N/A')}-{player_range.get('max', 'N/A')} players" if player_range else "N/A"
 
@@ -1200,6 +1394,90 @@ def main():
     if "test_mode" not in st.session_state:
         st.session_state.test_mode = "quick"
 
+    # E2E Testing: Always auto-authenticate for testing
+    # This ensures API calls have valid Bearer tokens
+    # Use direct token injection (no rerun) to avoid race conditions in headless tests
+    if not st.session_state.get("auth_token"):
+        import requests
+        print("🔐 [AUTO-LOGIN] No auth_token in session_state, attempting login...")
+        try:
+            login_response = requests.post(
+                "http://localhost:8000/api/v1/auth/login",
+                json={"email": "admin@lfa.com", "password": "admin123"},
+                timeout=5
+            )
+            print(f"🔐 [AUTO-LOGIN] Login response status: {login_response.status_code}")
+            if login_response.status_code == 200:
+                token_data = login_response.json()
+                st.session_state.auth_token = token_data["access_token"]
+                st.session_state.user_id = token_data.get("user_id", 1)
+                st.session_state.user_email = "admin@lfa.com"
+                st.session_state.user_role = token_data.get("role", "ADMIN")
+                print(f"🔐 [AUTO-LOGIN] ✅ SUCCESS: Token set (len={len(st.session_state.auth_token)})")
+            else:
+                print(f"🔐 [AUTO-LOGIN] ❌ FAIL: Status {login_response.status_code}, response: {login_response.text[:200]}")
+        except Exception as e:
+            # If login fails, log error but continue (home screen will show error)
+            print(f"🔐 [AUTO-LOGIN] ❌ EXCEPTION: {type(e).__name__}: {str(e)}")
+    else:
+        print(f"🔐 [AUTO-LOGIN] Token already exists (len={len(st.session_state.auth_token)})")
+
+    # ===========================================================================
+    # PHASE 1: URL-BASED ROUTING - State Restoration from Query Params
+    # ===========================================================================
+    # Read query parameters and restore session state
+    # This enables deep linking, page reload, and browser back/forward navigation
+    query_params = st.query_params
+
+    # Auto-login for E2E testing if query params present
+    if any(key in query_params for key in ["screen", "tournament_id", "step"]):
+        if not st.session_state.get("auth_token"):
+            import requests
+            try:
+                login_response = requests.post(
+                    "http://localhost:8000/api/v1/auth/login",
+                    json={"email": "admin@lfa.com", "password": "admin123"}
+                )
+                if login_response.status_code == 200:
+                    token_data = login_response.json()
+                    st.session_state.auth_token = token_data["access_token"]
+                    st.session_state.user_id = token_data.get("user_id")
+                    st.session_state.user_email = "admin@lfa.com"
+                    st.session_state.user_role = token_data.get("role", "ADMIN")
+            except Exception:
+                pass  # Fail silently
+
+    # Restore navigation state from URL
+    state_changed = False
+
+    if "screen" in query_params:
+        desired_screen = query_params["screen"]
+        if st.session_state.get("screen") != desired_screen:
+            st.session_state.screen = desired_screen
+            state_changed = True
+
+    if "tournament_id" in query_params:
+        try:
+            desired_tournament_id = int(query_params["tournament_id"])
+            if st.session_state.get("tournament_id") != desired_tournament_id:
+                st.session_state.tournament_id = desired_tournament_id
+                state_changed = True
+        except (ValueError, TypeError):
+            pass  # Invalid tournament_id, ignore
+
+    if "step" in query_params:
+        try:
+            desired_step = int(query_params["step"])
+            if st.session_state.get("workflow_step") != desired_step:
+                st.session_state.workflow_step = desired_step
+                state_changed = True
+        except (ValueError, TypeError):
+            pass  # Invalid step, ignore
+
+    # If state was restored from URL, rerun to apply changes
+    if state_changed:
+        st.rerun()
+
     # Sidebar
     with st.sidebar:
         st.markdown("### Sandbox Controls")
@@ -1240,6 +1518,10 @@ def main():
 
             st.session_state.screen = "home"
             st.session_state.workflow_step = 1
+
+            # Update URL to reflect navigation
+            update_url_params(screen="home")
+
             Success.toast("Returning home...")
             time.sleep(0.5)
             st.rerun()
@@ -1251,15 +1533,19 @@ def main():
         st.markdown("---")
         st.caption(f"Sandbox v3 | Screen: {current_screen}")
 
-    # Route to screens
+    # Route to screens (with explicit returns to prevent multi-screen rendering)
     if st.session_state.screen == "home":
         render_home_screen()
+        return
     elif st.session_state.screen == "history":
         render_history_screen()
+        return
     elif st.session_state.screen == "configuration":
         render_configuration_screen()
+        return
     elif st.session_state.screen == "instructor_workflow":
         render_instructor_workflow()
+        return
 
 
 if __name__ == "__main__":

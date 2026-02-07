@@ -3,19 +3,30 @@
 Handles assessment creation and average calculation for LFA Player skills
 """
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import func
-from typing import Dict, Optional
+from sqlalchemy.exc import IntegrityError
+from typing import Dict, Optional, List, Tuple
 from datetime import datetime, timezone
+import logging
 
 from ..models.football_skill_assessment import FootballSkillAssessment
 from ..models.license import UserLicense
 from ..models.user import User
+from ..models.skill_reward import SkillReward
+from ..skills_config import get_all_skill_keys
+
+logger = logging.getLogger(__name__)
 
 class FootballSkillService:
     """Service for managing football skill assessments"""
 
-    # Valid skill names
-    VALID_SKILLS = ['heading', 'shooting', 'crossing', 'passing', 'dribbling', 'ball_control']
+    # ✅ CONSOLIDATED: Use central skill list from skills_config.py (29 skills)
+    # Old hardcoded list (6 skills) is deprecated
+    @property
+    def VALID_SKILLS(self) -> List[str]:
+        """Get all valid skill keys from central configuration"""
+        return get_all_skill_keys()
 
     def __init__(self, db: Session):
         self.db = db
@@ -284,3 +295,119 @@ class FootballSkillService:
         self.db.commit()
 
         return created
+
+    def award_skill_points(
+        self,
+        user_id: int,
+        source_type: str,
+        source_id: int,
+        skill_name: str,
+        points_awarded: int
+    ) -> Tuple[SkillReward, bool]:
+        """
+        Award skill points to a user with duplicate protection.
+
+        This is the CENTRALIZED method for creating skill rewards.
+        All skill reward creation MUST go through this method to prevent dual-path bugs.
+
+        Business Invariant: One skill reward per (user_id, source_type, source_id, skill_name)
+
+        Args:
+            user_id: User receiving skill points
+            source_type: Source type (e.g., "TOURNAMENT", "SESSION")
+            source_id: Source ID (tournament ID, session ID, etc.)
+            skill_name: Skill being rewarded (must be in VALID_SKILLS)
+            points_awarded: Points to award (positive integer)
+
+        Returns:
+            Tuple of (SkillReward, created)
+            - created=True: Reward was created
+            - created=False: Reward already existed (idempotent return)
+
+        Raises:
+            ValueError: If business rules are violated
+            IntegrityError: If database constraints are violated
+        """
+        # Validate skill name
+        if skill_name not in self.VALID_SKILLS:
+            raise ValueError(
+                f"Invalid skill name: {skill_name}. Must be one of {self.VALID_SKILLS}"
+            )
+
+        # Validate points (allow negative for skill decrease/penalties)
+        if points_awarded == 0:
+            raise ValueError(f"Points awarded cannot be zero, got {points_awarded}")
+
+        # Allow negative points for skill decrease (e.g., bottom players in tournaments)
+
+        # Check for existing reward (idempotency based on unique constraint)
+        # Constraint: (user_id, source_type, source_id, skill_name)
+        existing = self.db.query(SkillReward).filter(
+            SkillReward.user_id == user_id,
+            SkillReward.source_type == source_type,
+            SkillReward.source_id == source_id,
+            SkillReward.skill_name == skill_name
+        ).first()
+
+        if existing:
+            logger.info(
+                f"🔒 IDEMPOTENT RETURN: Skill reward already exists "
+                f"(id={existing.id}, user={user_id}, source={source_type}:{source_id}, "
+                f"skill={skill_name}). Returning existing reward."
+            )
+            return (existing, False)
+
+        # Create new reward
+        reward = SkillReward(
+            user_id=user_id,
+            source_type=source_type,
+            source_id=source_id,
+            skill_name=skill_name,
+            points_awarded=points_awarded
+        )
+
+        try:
+            self.db.add(reward)
+            self.db.flush()  # Flush to get ID and check constraints
+
+            logger.info(
+                f"✅ Skill reward created: id={reward.id}, user={user_id}, "
+                f"source={source_type}:{source_id}, skill={skill_name}, "
+                f"points={points_awarded}"
+            )
+
+            return (reward, True)
+
+        except IntegrityError as e:
+            # If unique constraint violation, return existing
+            if "uq_skill_rewards_user_source_skill" in str(e):
+                self.db.rollback()
+
+                # Fetch the existing reward
+                existing = self.db.query(SkillReward).filter(
+                    SkillReward.user_id == user_id,
+                    SkillReward.source_type == source_type,
+                    SkillReward.source_id == source_id,
+                    SkillReward.skill_name == skill_name
+                ).first()
+
+                if existing:
+                    logger.warning(
+                        f"🔒 RACE CONDITION: Skill reward was created by another request. "
+                        f"Returning existing reward (id={existing.id}, user={user_id}, "
+                        f"source={source_type}:{source_id}, skill={skill_name})."
+                    )
+                    return (existing, False)
+                else:
+                    logger.error(
+                        f"❌ CRITICAL: IntegrityError on unique constraint but reward not found! "
+                        f"user={user_id}, source={source_type}:{source_id}, skill={skill_name}"
+                    )
+                    raise ValueError(
+                        f"Skill reward failed due to race condition: "
+                        f"user={user_id}, source={source_type}:{source_id}, skill={skill_name}"
+                    ) from e
+            else:
+                # Other integrity error - re-raise
+                logger.error(f"❌ IntegrityError creating skill reward: {e}")
+                raise

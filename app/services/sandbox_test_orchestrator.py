@@ -19,7 +19,8 @@ import random
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
-from app.models.tournament_ranking import TournamentRanking
+# REMOVED: from app.models.tournament_ranking import TournamentRanking
+# Sandbox orchestrator must NOT write to tournament_rankings table (2026-02-01 fix)
 from app.models.license import UserLicense
 from app.services.tournament import tournament_reward_orchestrator
 from app.services import skill_progression_service
@@ -53,7 +54,8 @@ class SandboxTestOrchestrator:
         performance_variation: str = "MEDIUM",
         ranking_distribution: str = "NORMAL",
         game_preset_id: Optional[int] = None,
-        game_config_overrides: Optional[Dict] = None
+        game_config_overrides: Optional[Dict] = None,
+        selected_users: Optional[List[int]] = None
     ) -> Dict[str, Any]:
         """
         Execute complete sandbox test
@@ -86,7 +88,7 @@ class SandboxTestOrchestrator:
             )
 
             # Step 2: Enroll participants
-            enrolled_users = self._enroll_participants(player_count)
+            enrolled_users = self._enroll_participants(player_count, selected_users)
 
             # Step 2.5: Snapshot skills BEFORE tournament (read-only)
             self._snapshot_skills_before(enrolled_users, skills_to_test)
@@ -206,13 +208,21 @@ class SandboxTestOrchestrator:
         # 🆓 CRITICAL FIX: Set enrollment_cost=0 for sandbox tournaments
         # Prevents credit deductions during testing and ensures clean audit trail
         # See: CRITICAL_FINDING_SANDBOX_CREDIT_LEAK.md for details
+        # Get Grand Master instructor for sandbox tournaments (id=3, grandmaster@lfa.com)
+        from app.models.user import User, UserRole
+        grandmaster = self.db.query(User).filter(
+            User.role == UserRole.INSTRUCTOR,
+            User.email == "grandmaster@lfa.com"
+        ).first()
+
         tournament = Semester(
             code=f"SANDBOX-{self.test_run_id}",
             name=f"SANDBOX-TEST-{tournament_type_code.upper()}-{self.start_time.strftime('%Y-%m-%d')}",
             start_date=datetime.now().date(),
             end_date=(datetime.now() + timedelta(days=30)).date(),
             is_active=True,
-            tournament_status="DRAFT",
+            tournament_status="IN_PROGRESS",  # Start in IN_PROGRESS for sandbox (skip instructor assignment)
+            master_instructor_id=grandmaster.id if grandmaster else None,  # Assign Grand Master
             enrollment_cost=0  # 🆓 FREE for testing - no credit deductions!
         )
 
@@ -226,13 +236,17 @@ class SandboxTestOrchestrator:
         from app.models.tournament_configuration import TournamentConfiguration
 
         # Extract INDIVIDUAL scoring config from game_config_overrides if present
-        scoring_type = "PLACEMENT"  # default
+        # ✅ FIX: Use "HEAD_TO_HEAD" as scoring_type for HEAD_TO_HEAD tournaments
+        # (scoring_type column has NOT NULL constraint, cannot use NULL)
+        scoring_type = "HEAD_TO_HEAD"  # default for HEAD_TO_HEAD tournaments
         number_of_rounds = 1  # default
         measurement_unit = None
         ranking_direction = None
         is_individual_ranking = False
 
-        if game_config_overrides and "individual_config" in game_config_overrides:
+        if (game_config_overrides and
+            "individual_config" in game_config_overrides and
+            game_config_overrides["individual_config"] is not None):
             individual_config = game_config_overrides["individual_config"]
             scoring_type = individual_config.get("scoring_type", "PLACEMENT")
             number_of_rounds = individual_config.get("number_of_rounds", 1)
@@ -310,11 +324,30 @@ class SandboxTestOrchestrator:
                         final_game_config.setdefault("simulation_config", {}).update(
                             game_config_overrides["simulation_config"]
                         )
+
+                # 🎯 CRITICAL FIX: Override format_config for INDIVIDUAL_RANKING tournaments
+                # If INDIVIDUAL scoring mode, replace format_config key with INDIVIDUAL_RANKING
+                if is_individual_ranking and "format_config" in final_game_config:
+                    # Extract existing format_config value (rules, etc.)
+                    existing_format_configs = final_game_config["format_config"]
+                    # Get the first format's config (HEAD_TO_HEAD or INDIVIDUAL_RANKING)
+                    format_rules = list(existing_format_configs.values())[0] if existing_format_configs else {}
+
+                    # Replace with INDIVIDUAL_RANKING key
+                    final_game_config["format_config"] = {
+                        "INDIVIDUAL_RANKING": format_rules
+                    }
+                    logger.info(f"🔄 Overrode format_config to use INDIVIDUAL_RANKING key (was {list(existing_format_configs.keys())})")
             else:
                 logger.warning(f"⚠️ Game preset {game_preset_id} not found, using basic config")
 
         # If no preset or preset not found, build basic game config
         if not final_game_config:
+            # 🎯 CRITICAL FIX: Use correct format key based on scoring mode
+            # If INDIVIDUAL scoring mode → INDIVIDUAL_RANKING format
+            # If HEAD_TO_HEAD scoring mode → use tournament_type.format (league/knockout/hybrid)
+            format_key = "INDIVIDUAL_RANKING" if is_individual_ranking else tournament_type.format
+
             final_game_config = {
                 "version": "1.0",
                 "skill_config": {
@@ -323,7 +356,7 @@ class SandboxTestOrchestrator:
                     "skill_impact_on_matches": True
                 },
                 "format_config": {
-                    tournament_type.format: {
+                    format_key: {
                         "ranking_rules": {
                             "primary": "points",
                             "tiebreakers": ["goal_difference", "goals_for", "user_id"]
@@ -399,24 +432,41 @@ class SandboxTestOrchestrator:
             "skill_mappings": skill_mappings
         }
 
-    def _enroll_participants(self, player_count: int) -> List[int]:
-        """Enroll synthetic participants"""
+    def _enroll_participants(self, player_count: int, selected_users: Optional[List[int]] = None) -> List[int]:
+        """Enroll synthetic participants
+
+        Args:
+            player_count: Number of participants to enroll
+            selected_users: Optional list of specific user IDs to enroll (from UI selection)
+                           If None, randomly samples from TEST_USER_POOL
+        """
         logger.info(f"👥 Enrolling {player_count} participants")
 
-        # DEBUG: Log pool size vs requested count
-        logger.info(f"🔍 DEBUG: TEST_USER_POOL size={len(TEST_USER_POOL)}, requested={player_count}")
-        logger.info(f"🔍 DEBUG: TEST_USER_POOL={TEST_USER_POOL}")
+        # Use provided selected_users if available (UI selection), otherwise use random pool
+        if selected_users:
+            logger.info(f"✅ Using UI-selected participants: {selected_users}")
+            # Validate count matches
+            if len(selected_users) != player_count:
+                logger.warning(
+                    f"⚠️  Participant count mismatch: UI selected {len(selected_users)}, "
+                    f"expected {player_count}. Using UI selection."
+                )
+                player_count = len(selected_users)  # Use actual UI selection count
+        else:
+            # Fallback: Random selection from TEST_USER_POOL
+            logger.info(f"⚠️  No UI selection provided, using random pool (TEST_USER_POOL)")
+            logger.info(f"🔍 TEST_USER_POOL size={len(TEST_USER_POOL)}, requested={player_count}")
 
-        # Validate pool size
-        if player_count > len(TEST_USER_POOL):
-            raise ValueError(
-                f"Cannot sample {player_count} users from pool of {len(TEST_USER_POOL)}. "
-                f"Pool: {TEST_USER_POOL}"
-            )
+            # Validate pool size
+            if player_count > len(TEST_USER_POOL):
+                raise ValueError(
+                    f"Cannot sample {player_count} users from pool of {len(TEST_USER_POOL)}. "
+                    f"Pool: {TEST_USER_POOL}"
+                )
 
-        # Select random users from test pool
-        selected_users = random.sample(TEST_USER_POOL, player_count)
-        logger.info(f"🔍 DEBUG: Selected users from pool: {selected_users}")
+            # Select random users from test pool
+            selected_users = random.sample(TEST_USER_POOL, player_count)
+            logger.info(f"🔍 Randomly selected: {selected_users}")
 
         # Get active licenses for each user
         from app.models.license import UserLicense
@@ -521,58 +571,69 @@ class SandboxTestOrchestrator:
         # Sort by points descending and assign ranks
         ranked_data = sorted(zip(user_ids, final_points), key=lambda x: x[1], reverse=True)
 
-        # Insert rankings
-        for rank, (user_id, points) in enumerate(ranked_data, start=1):
-            ranking = TournamentRanking(
-                tournament_id=self.tournament_id,
-                user_id=user_id,
-                participant_type="PLAYER",
-                rank=rank,
-                points=int(points),
-                wins=0,
-                losses=0,
-                draws=0,
-                updated_at=datetime.now()
-            )
-            self.db.add(ranking)
+        # 🔒 CRITICAL FIX: SANDBOX MUST NOT WRITE TO tournament_rankings
+        # Sandbox is PREVIEW/SIMULATION only - rankings come from SessionFinalizer
+        # This prevents DUAL FINALIZATION PATH bug where both sandbox and production
+        # write to the same table, creating duplicate rankings with conflicting data.
+        #
+        # REMOVED CODE (2026-02-01):
+        # ❌ for rank, (user_id, points) in enumerate(ranked_data, start=1):
+        # ❌     ranking = TournamentRanking(...)
+        # ❌     self.db.add(ranking)
+        # ❌ self.db.commit()
+        #
+        # Rankings are now ONLY created via:
+        # - SessionFinalizer.finalize() for production workflows
+        # - Reward distribution reads from SessionFinalizer results
+        #
+        # If sandbox needs preview rankings, use in-memory data structure instead.
 
-        self.db.commit()
-
-        self.execution_steps.append("Rankings generated")
-        logger.info(f"✅ Rankings created for {len(ranked_data)} players")
+        self.execution_steps.append("Rankings simulation completed (not persisted)")
+        logger.info(f"✅ Rankings simulated for {len(ranked_data)} players (NOT written to DB)")
 
     def _transition_to_completed(self) -> None:
-        """Transition tournament status to COMPLETED"""
-        logger.info("🎯 Transitioning to COMPLETED")
+        """
+        Transition tournament status to COMPLETED
 
-        tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
-        tournament.tournament_status = "COMPLETED"
-        self.db.commit()
+        NOTE: For sandbox workflow usage, we DON'T automatically set to COMPLETED.
+        The workflow will call the proper /complete endpoint which creates rankings.
+        This method is kept for backward compatibility with direct orchestrator usage.
+        """
+        logger.info("🎯 Skipping auto-transition to COMPLETED (workflow will handle this)")
 
-        self.execution_steps.append("Status transitioned to COMPLETED")
-        logger.info("✅ Tournament status → COMPLETED")
+        # ❌ REMOVED: Direct status manipulation bypasses lifecycle validation
+        # tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
+        # tournament.tournament_status = "COMPLETED"
+        # self.db.commit()
+
+        self.execution_steps.append("Status remains at current state (workflow controls lifecycle)")
+        logger.info("✅ Tournament lifecycle managed by workflow")
 
     def _distribute_rewards(self) -> Any:
-        """Distribute rewards using orchestrator"""
-        logger.info("🎁 Distributing rewards")
+        """
+        Distribute rewards using orchestrator
 
-        result = tournament_reward_orchestrator.distribute_rewards_for_tournament(
-            db=self.db,
-            tournament_id=self.tournament_id,
-            distributed_by=None,
-            force_redistribution=False
-        )
+        NOTE: For sandbox workflow usage, we DON'T automatically set to REWARDS_DISTRIBUTED.
+        The workflow will call the proper /distribute-rewards endpoint which sets this status.
+        This method is kept for backward compatibility with direct orchestrator usage.
+        """
+        logger.info("🎁 Skipping auto-reward distribution (workflow will handle this)")
 
-        # Manually transition status to REWARDS_DISTRIBUTED
-        # (The API endpoint does this, but direct orchestrator call doesn't)
-        tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
-        tournament.tournament_status = "REWARDS_DISTRIBUTED"
-        self.db.commit()
+        # ❌ REMOVED: Direct orchestrator call and status manipulation
+        # result = tournament_reward_orchestrator.distribute_rewards_for_tournament(
+        #     db=self.db,
+        #     tournament_id=self.tournament_id,
+        #     distributed_by=None,
+        #     force_redistribution=False
+        # )
+        # tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
+        # tournament.tournament_status = "REWARDS_DISTRIBUTED"
+        # self.db.commit()
 
-        self.execution_steps.append(f"Rewards distributed (Status: {tournament.tournament_status})")
-        logger.info(f"✅ Rewards distributed, status: {tournament.tournament_status}")
+        self.execution_steps.append("Reward distribution delegated to workflow")
+        logger.info("✅ Rewards will be distributed by workflow")
 
-        return result
+        return None  # No result needed for workflow usage
 
     def _calculate_verdict(
         self,

@@ -33,6 +33,7 @@ from .football_skill_assessment import FootballSkillAssessment
 from .belt_promotion import BeltPromotion
 from .credit_transaction import CreditTransaction, TransactionType
 from .xp_transaction import XPTransaction
+from .skill_reward import SkillReward
 from .invoice_request import InvoiceRequest, InvoiceRequestStatus
 from .coupon import Coupon, CouponType
 from .invitation_code import InvitationCode
@@ -134,6 +135,7 @@ __all__ = [
     "CreditTransaction",
     "TransactionType",
     "XPTransaction",
+    "SkillReward",
     "InvoiceRequest",
     "InvoiceRequestStatus",
     "Coupon",

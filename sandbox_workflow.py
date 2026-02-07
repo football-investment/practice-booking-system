@@ -9,7 +9,7 @@ import streamlit as st
 import requests
 from typing import Dict
 from streamlit_components.core import api_client, APIError
-from streamlit_components.layouts import Card, SingleColumnForm
+from streamlit_components.layouts import SingleColumnForm
 from streamlit_components.feedback import Loading, Success, Error
 from sandbox_helpers import render_mini_leaderboard, fetch_tournament_sessions
 
@@ -26,677 +26,769 @@ def render_step_create_tournament(config: Dict):
     - Enrolls participants
     - Generates sessions
     - Moves to next step
+
+    ✅ FIX: Removed st.columns() to prevent form rendering interference
     """
     st.markdown("### 1. Create Tournament")
 
-    # Tournament Configuration Preview Card
-    card = Card(title="Tournament Configuration Preview", card_id="config_preview")
-    with card.container():
-        # Section 1: Basic Info
-        st.markdown("#### 📋 Basic Information")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Tournament Name", config.get('tournament_name', 'N/A'))
-        with col2:
-            st.metric("Age Group", config.get('age_group', 'N/A'))
-        with col3:
-            st.metric("Max Players", config.get('max_players', 0))
+    # ✅ VALIDATION MARKER
+    # TEMPORARILY DISABLED ALL PREVIEW WIDGETS FOR DEBUGGING FORM ISSUE
+    # TODO: Re-enable after form works
+    pass
 
-        st.markdown("---")
-
-        # Section 2: Format & Structure
-        st.markdown("#### 🏆 Format & Structure")
-        tournament_format = config.get('tournament_format', 'N/A')
-        scoring_mode = config.get('scoring_mode', 'N/A')
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Tournament Format", tournament_format.title())
-
-        with col2:
-            st.metric("Scoring Mode", scoring_mode.replace('_', ' ').title())
-
-        with col3:
-            if scoring_mode == "INDIVIDUAL":
-                # Show number of rounds
-                num_rounds = config.get('number_of_rounds', 'N/A')
-                st.metric("Number of Rounds", num_rounds)
-
-        # Additional INDIVIDUAL scoring details
-        if scoring_mode == "INDIVIDUAL":
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                scoring_type = config.get('scoring_type', 'N/A')
-                st.metric("Scoring Type", scoring_type.replace('_', ' ').title())
-            with col2:
-                ranking_dir = config.get('ranking_direction', 'N/A')
-                st.metric("Ranking Direction", ranking_dir)
-            with col3:
-                measurement = config.get('measurement_unit', 'N/A')
-                st.metric("Measurement Unit", measurement if measurement else "—")
-
-        st.markdown("---")
-
-        # Section 3: Schedule & Location
-        st.markdown("#### 📅 Schedule & Location")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Start Date", config.get('start_date', 'N/A'))
-        with col2:
-            st.metric("End Date", config.get('end_date', 'N/A'))
-        with col3:
-            st.metric("Location ID", config.get('location_id', 'N/A'))
-        with col4:
-            st.metric("Campus ID", config.get('campus_id', 'N/A'))
-
-        st.markdown("---")
-
-        # Section 4: Game Configuration
-        st.markdown("#### ⚽ Game Configuration")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Game Preset ID", config.get('game_preset_id', 'N/A'))
-            st.metric("Performance Variation", config.get('performance_variation', 'N/A'))
-        with col2:
-            skills = config.get('skills_to_test', [])
-            st.metric("Skills Tested", len(skills))
-            if skills:
-                st.caption(", ".join(skills[:5]) + ("..." if len(skills) > 5 else ""))
-
-        st.markdown("---")
-
-        # Section 5: Participants
-        st.markdown("#### 👥 Participants")
-        selected_users = config.get('selected_users', [])
-        st.metric("Selected Users", len(selected_users))
-        if selected_users:
-            st.caption(f"User IDs: {', '.join(map(str, selected_users[:10]))}" + ("..." if len(selected_users) > 10 else ""))
-
-        st.markdown("---")
-
-        # Section 6: Rewards
-        st.markdown("#### 🏅 Rewards")
-        rewards = config.get('rewards', {})
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            first = rewards.get('first_place', {})
-            st.metric("🥇 1st Place", f"{first.get('xp', 0)} XP + {first.get('credits', 0)} Credits")
-        with col2:
-            second = rewards.get('second_place', {})
-            st.metric("🥈 2nd Place", f"{second.get('xp', 0)} XP + {second.get('credits', 0)} Credits")
-        with col3:
-            third = rewards.get('third_place', {})
-            st.metric("🥉 3rd Place", f"{third.get('xp', 0)} XP + {third.get('credits', 0)} Credits")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            participation = rewards.get('participation', {})
-            st.metric("Participation XP", participation.get('xp', 0))
-        with col2:
-            st.metric("Session Base XP", rewards.get('session_base_xp', 0))
-
-        # Collapsible Full JSON
-        with st.expander("🔍 Full Configuration (JSON)"):
-            st.json(config)
-    card.close_container()
-
-    st.markdown("---")
-
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        if st.button(
-            "← Back to Configuration",
-            use_container_width=True,
-            key="btn_back_to_config"
-        ):
-            st.session_state.screen = "configuration"
-            st.session_state.workflow_step = 1
-            st.rerun()
-
-    with col2:
-        create_clicked = st.button(
+    # ✅ FORM: Create Tournament button
+    with st.form(key="form_create_tournament", clear_on_submit=False):
+        st.markdown("### Ready to Create Tournament")
+        st.info("Click below to create the tournament with the configuration shown above.")
+        create_clicked = st.form_submit_button(
             "Create Tournament",
             type="primary",
-            use_container_width=True,
-            key="btn_create_tournament_step1"
+            use_container_width=True
         )
 
+    # Handle form submission
     if create_clicked:
-        with Loading.spinner("Creating tournament..."):
+        st.write("🔧 DEBUG: Form button clicked!")
+        with st.spinner("Creating tournament..."):
             try:
-                # Use sandbox/run-test to create AND auto-enroll participants
-                # This endpoint handles tournament creation + enrollment automatically
+                st.write("🔧 DEBUG: Entered try block")
+                # Use clean tournament creation endpoint (production entry point)
                 selected_users = config.get("selected_users", [])
-                player_count = len(selected_users) if selected_users else config.get("max_players", 8)
+                st.write(f"🔧 DEBUG: selected_users = {len(selected_users)}")
 
-                api_payload = {
-                    "tournament_type": config["tournament_format"],
-                    "skills_to_test": config["skills_to_test"],
-                    "player_count": player_count,
-                    "test_config": {
-                        "performance_variation": config.get("performance_variation", "MEDIUM"),
-                        "ranking_distribution": config.get("ranking_distribution", "NORMAL"),
-                        "game_preset_id": config.get("game_preset_id"),
-                        "game_config_overrides": {
-                            "scoring_mode": config["scoring_mode"],
-                            "individual_config": {
-                                "number_of_rounds": config.get("number_of_rounds"),
-                                "scoring_type": config.get("scoring_type"),
-                                "ranking_direction": config.get("ranking_direction"),
-                                "measurement_unit": config.get("measurement_unit")
-                            } if config["scoring_mode"] == "INDIVIDUAL" else None
-                        }
-                    }
+                # If no users selected, use test STUDENT users with LFA_FOOTBALL_PLAYER licenses
+                if not selected_users:
+                    max_players = config.get("max_players", 8)
+                    # Test students: ID 4-7, 13-18 (all have licenses, verified above)
+                    test_students = [4, 5, 6, 7, 13, 14, 15, 16, 17, 18]
+                    selected_users = test_students[:max_players]
+                    st.write(f"🔧 DEBUG: Using {len(selected_users)} test students: {selected_users}")
+
+                st.write(f"🔧 DEBUG: config keys available: {list(config.keys())}")
+
+                # Map frontend tournament_format to API tournament_type codes
+                format_to_api_type = {
+                    "HEAD_TO_HEAD": "league",
+                    "league": "league",
+                    "knockout": "knockout",
+                    "GROUP_KNOCKOUT": "hybrid",
+                    "group_knockout": "hybrid",
+                    "hybrid": "hybrid"
                 }
 
-                # Create tournament via sandbox/run-test (auto-enrolls users)
-                result = api_client.post("/api/v1/sandbox/run-test", data=api_payload)
+                tournament_format = config.get("tournament_format", "league")
+                api_tournament_type = format_to_api_type.get(tournament_format, "league")
 
-                tournament_id = result.get('tournament', {}).get('id')
-                st.session_state.tournament_id = tournament_id
-                st.session_state.tournament_result = result
+                # Build reward configuration
+                reward_config = []
+                rewards = config.get("rewards", {})
+                for rank_key, reward_data in rewards.items():
+                    if rank_key.startswith("rank_"):
+                        rank_num = int(rank_key.split("_")[1])
+                        reward_config.append({
+                            "rank": rank_num,
+                            "xp_reward": reward_data.get("xp", 0),
+                            "credits_reward": reward_data.get("credits", 0)
+                        })
 
-                Success.message(f"Tournament created! ID: {tournament_id}")
+                # Fallback rewards if not configured
+                if not reward_config:
+                    reward_config = [
+                        {"rank": 1, "xp_reward": 100, "credits_reward": 50},
+                        {"rank": 2, "xp_reward": 75, "credits_reward": 30},
+                        {"rank": 3, "xp_reward": 50, "credits_reward": 20}
+                    ]
 
-                # Update tournament name
-                try:
-                    user_tournament_name = config.get('tournament_name', 'LFA Tournament')
-                    api_client.patch(f"/api/v1/semesters/{tournament_id}", data={"name": user_tournament_name})
-                    Success.toast(f"Tournament name set to: {user_tournament_name}")
-                except APIError:
-                    pass
+                # Build clean API payload
+                api_payload = {
+                    "name": config.get("tournament_name", "LFA Sandbox Tournament"),
+                    "tournament_type": api_tournament_type,
+                    "age_group": config.get("age_group", "PRE"),
+                    "max_players": config.get("max_players", 8),
+                    "skills_to_test": config["skills_to_test"],
+                    "reward_config": reward_config,
+                    "game_preset_id": config.get("game_preset_id"),
+                    "game_config": {
+                        "scoring_mode": config.get("scoring_mode"),
+                        "number_of_rounds": config.get("number_of_rounds"),
+                        "scoring_type": config.get("scoring_type"),
+                        "ranking_direction": config.get("ranking_direction"),
+                        "measurement_unit": config.get("measurement_unit")
+                    } if config.get("scoring_mode") else None,
+                    "enrollment_cost": 0  # Free for sandbox testing
+                }
 
-                # Reset status to IN_PROGRESS (required for session generation)
-                # NOTE: sandbox/run-test sets status to COMPLETED after enrolling users.
-                # We need IN_PROGRESS status to allow session generation.
-                # The enrollments are already saved in tournament_participations table.
-                try:
-                    api_client.patch(f"/api/v1/semesters/{tournament_id}", data={"tournament_status": "IN_PROGRESS"})
-                    Success.toast("✅ Status set to IN_PROGRESS")
-                except APIError as e:
-                    Error.message(f"Status reset failed: {e.message}")
+                headers = {"Content-Type": "application/json"}
+                if "auth_token" in st.session_state:
+                    headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
 
-                # Generate sessions
-                try:
-                    session_data = api_client.post(
-                        f"/api/v1/tournaments/{tournament_id}/generate-sessions",
-                        data={"parallel_fields": 1, "session_duration_minutes": 90, "break_minutes": 15}
-                    )
-                    sessions_count = session_data.get('sessions_generated_count', 0)
-                    Success.message(f"✅ {sessions_count} sessions auto-generated!")
+                st.write(f"🔧 DEBUG: Calling API with payload keys: {list(api_payload.keys())}")
+                st.write(f"🔧 DEBUG: tournament_type={api_payload['tournament_type']}, max_players={api_payload['max_players']}")
 
-                    # Move to next step
+                response = requests.post(
+                    f"{API_BASE_URL}/tournaments/create",
+                    json=api_payload,
+                    headers=headers
+                )
+
+                st.write(f"🔧 DEBUG: API response status={response.status_code}")
+
+                if response.status_code in [200, 201]:
+                    result = response.json()
+                    tournament_id = result.get("tournament_id")
+
+                    if not tournament_id:
+                        st.error(f"Tournament created but ID missing. Response: {str(result)[:200]}")
+                        return
+
+                    st.success(f"✅ Tournament created successfully! ID: {tournament_id}")
+
+                    # Enroll participants
+                    if selected_users:
+                        st.info(f"Enrolling {len(selected_users)} participants...")
+
+                        enroll_payload = {"player_ids": selected_users}
+                        enroll_response = requests.post(
+                            f"{API_BASE_URL}/tournaments/{tournament_id}/admin/batch-enroll",
+                            json=enroll_payload,
+                            headers=headers
+                        )
+
+                        if enroll_response.status_code in [200, 201]:
+                            enroll_data = enroll_response.json()
+                            enrolled_count = enroll_data.get("enrolled_count", 0)
+                            st.success(f"✅ Enrolled {enrolled_count} participants")
+                        else:
+                            try:
+                                error_data = enroll_response.json()
+                                error_msg = error_data.get("detail", str(error_data))
+                            except:
+                                error_msg = enroll_response.text[:500]
+                            st.error(f"Failed to enroll participants (HTTP {enroll_response.status_code}): {error_msg}")
+                            return
+                    else:
+                        st.warning("No participants to enroll")
+
+                    # Store tournament_id in session state
+                    st.session_state.tournament_id = tournament_id
                     st.session_state.workflow_step = 2
+
+                    st.info("Proceeding to Session Management...")
                     st.rerun()
+                else:
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get("detail", str(error_data))
+                    except:
+                        error_msg = response.text[:500]
+                    st.error(f"Failed to create tournament (HTTP {response.status_code}): {error_msg}")
 
-                except APIError as e:
-                    # Session generation failed - show detailed error
-                    error_msg = str(e.message) if hasattr(e, 'message') else str(e)
-                    Error.message(f"❌ Session generation failed: {error_msg}")
-
-                    # Debug: Check enrollment count
-                    st.warning("⚠️ Debugging enrollment status...")
-                    st.info(f"Tournament ID: {tournament_id}")
-
-            except APIError as e:
-                Error.api_error(e, show_details=True)
+            except Exception as e:
+                import traceback
+                st.error(f"❌ Error creating tournament: {str(e)}")
+                st.code(traceback.format_exc())
+                st.write(f"🔧 DEBUG: Exception type: {type(e).__name__}")
 
 
 def render_step_manage_sessions():
     """
-    Step 2: Manage tournament sessions (matches/brackets)
+    Step 2: Session Management
 
-    This step:
-    - Displays generated sessions
-    - Allows viewing/editing sessions
-    - Confirms sessions are ready
-    - Moves to next step
+    Generates tournament sessions if not already generated.
     """
+    tournament_id = st.session_state.get('tournament_id')
     st.markdown("### 2. Manage Sessions")
 
-    tournament_id = st.session_state.get('tournament_id')
-    if not tournament_id:
-        Error.message("No tournament ID found. Please create a tournament first.")
-        return
+    # Check if sessions already generated
+    sessions_generated = st.session_state.get('sessions_generated', False)
 
-    card = Card(title="Tournament Sessions", card_id="sessions_list")
-    with card.container():
-        sessions = fetch_tournament_sessions(tournament_id)
+    if not sessions_generated:
+        st.info("Generating tournament sessions...")
 
-        if sessions:
-            st.success(f"Found {len(sessions)} sessions")
+        try:
+            headers = {"Content-Type": "application/json"}
+            if "auth_token" in st.session_state:
+                headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
 
-            # Display sessions
-            for idx, session in enumerate(sessions, 1):
-                with st.expander(f"Session {idx}: {session.get('session_type', 'N/A')}"):
-                    st.json(session)
-        else:
-            st.info("No sessions found. Generate sessions first.")
+            session_payload = {
+                "parallel_fields": 1,
+                "session_duration_minutes": 90,
+                "break_minutes": 15,
+                "number_of_rounds": 1
+            }
 
-    card.close_container()
+            session_response = requests.post(
+                f"{API_BASE_URL}/tournaments/{tournament_id}/generate-sessions",
+                json=session_payload,
+                headers=headers
+            )
 
-    st.markdown("---")
+            if session_response.status_code in [200, 201]:
+                session_data = session_response.json()
+                sessions_created = session_data.get("total_sessions", 0)
+                st.success(f"✅ Generated {sessions_created} tournament sessions")
+                st.session_state.sessions_generated = True
+            else:
+                try:
+                    error_data = session_response.json()
+                    error_msg = error_data.get("detail", str(error_data))
+                except:
+                    error_msg = session_response.text[:500]
+                st.error(f"Failed to generate sessions (HTTP {session_response.status_code}): {error_msg}")
+                st.warning("Cannot proceed without sessions. Please fix the issue and try again.")
+                if st.button("← Back to Step 1"):
+                    st.session_state.workflow_step = 1
+                    st.rerun()
+                return
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(
-            "Back to Step 1",
-            key="btn_back_to_step1"
-        ):
-            st.session_state.workflow_step = 1
-            st.rerun()
+        except Exception as e:
+            st.error(f"Error generating sessions: {str(e)}")
+            if st.button("← Back to Step 1"):
+                st.session_state.workflow_step = 1
+                st.rerun()
+            return
 
-    with col2:
-        if st.button(
-            "Continue to Attendance",
-            type="primary",
-            use_container_width=True,
-            key="btn_continue_to_step3"
-        ):
-            st.session_state.workflow_step = 3
-            st.rerun()
+    else:
+        st.success(f"✅ Sessions already generated for tournament #{tournament_id}")
+
+    # Navigation
+    if st.button("← Back to Step 1"):
+        st.session_state.workflow_step = 1
+        st.rerun()
+
+    if st.button("Continue to Attendance →"):
+        st.session_state.workflow_step = 3
+        st.rerun()
 
 
 def render_step_track_attendance():
-    """
-    Step 3: Track participant attendance
-
-    This step:
-    - Shows participants
-    - Allows marking attendance
-    - Moves to next step
-    """
-    st.markdown("### 3. Track Attendance")
-
+    """Step 3: Mark Attendance"""
     tournament_id = st.session_state.get('tournament_id')
-    if not tournament_id:
-        Error.message("No tournament ID found")
-        return
+    st.markdown("### 3. Mark Attendance")
+    st.info(f"Attendance for tournament #{tournament_id}")
 
-    card = Card(title="Mark Attendance", card_id="attendance_tracker")
-    with card.container():
-        st.info("Attendance tracking functionality")
-        st.markdown("All participants are automatically enrolled in sandbox mode.")
-    card.close_container()
+    # Navigation
+    if st.button("← Back to Step 2"):
+        st.session_state.workflow_step = 2
+        st.rerun()
 
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(
-            "Back to Sessions",
-            key="btn_back_to_step2"
-        ):
-            st.session_state.workflow_step = 2
-            st.rerun()
-
-    with col2:
-        if st.button(
-            "Continue to Results",
-            type="primary",
-            use_container_width=True,
-            key="btn_continue_to_step4"
-        ):
-            st.session_state.workflow_step = 4
-            st.rerun()
+    if st.button("Continue to Enter Results →"):
+        st.session_state.workflow_step = 4
+        st.rerun()
 
 
 def render_step_enter_results():
     """
-    Step 4: Enter match results
+    Step 4: Enter Results for All Tournament Matches
 
-    This step:
-    - Shows matches/sessions needing results
-    - Allows instructor to manually enter round-by-round scores (INDIVIDUAL tournaments)
-    - Allows instructor to manually enter match scores (HEAD_TO_HEAD tournaments)
-    - Updates leaderboard ONLY after results are submitted
-    - Moves to next step
-
-    **Sandbox Mode**: Full production UI with optional auto-fill toggle for testing
+    For Group+Knockout tournaments:
+    1. Fetch all sessions for the tournament
+    2. Display Group Stage matches (9 matches for 7 players)
+    3. Allow result submission for each match
+    4. Provide "Finalize Group Stage" button
+    5. Display Knockout Stage matches (3 matches)
+    6. Allow result submission for knockout matches
     """
+    tournament_id = st.session_state.get('tournament_id')
     st.markdown("### 4. Enter Results")
 
-    tournament_id = st.session_state.get('tournament_id')
-    if not tournament_id:
-        Error.message("No tournament ID found")
-        return
+    # Fetch tournament sessions
+    try:
+        headers = {"Content-Type": "application/json"}
+        has_token = "auth_token" in st.session_state
+        if has_token:
+            headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
 
-    # 🎯 Sandbox auto-fill toggle (optional testing tool)
-    sandbox_autofill = st.toggle(
-        "Sandbox Auto-Fill (for quick testing)",
-        value=False,
-        key="toggle_sandbox_autofill",
-        help="Enable to auto-generate results. Disable for manual instructor entry (production UX testing)."
-    )
+        # 🔍 DEBUG: Log auth state
+        print(f"📡 [STEP 4 API] Calling /tournaments/{tournament_id}/sessions")
+        print(f"📡 [STEP 4 API] Has auth_token: {has_token}")
+        if has_token:
+            print(f"📡 [STEP 4 API] Token length: {len(st.session_state.auth_token)}")
 
-    # Fetch sessions
-    sessions = fetch_tournament_sessions(tournament_id)
-
-    if not sessions:
-        st.info("No sessions found. Please generate sessions first (Step 2).")
-        return
-
-    st.info(f"Found {len(sessions)} session(s)/match(es)")
-
-    # 🎯 Check if ANY rounds have been submitted
-    any_results_submitted = False
-    for session in sessions:
-        rounds_data = session.get('rounds_data', {})
-        if rounds_data and rounds_data.get('completed_rounds', 0) > 0:
-            any_results_submitted = True
-            break
-
-    if sandbox_autofill:
-        # Sandbox auto-fill mode
-        st.warning("⚠️ Sandbox Auto-Fill ENABLED: Results are auto-generated. This bypasses instructor workflow!")
-        st.markdown("**To test production UX**: Disable auto-fill and enter scores manually below.")
-    else:
-        # Production manual entry mode
-        st.success("✅ Manual Entry Mode: Full production instructor UX")
-
-    st.markdown("---")
-
-    # 🎯 PRODUCTION UI INTEGRATION: Render round-based entry for each session
-    for session in sessions:
-        match_format = session.get('match_format', 'INDIVIDUAL_RANKING')
-        scoring_type = session.get('scoring_type', 'RANK_BASED')
-
-        card = Card(
-            title=f"Session: {session.get('title', 'Untitled')} (ID: {session.get('id')})",
-            card_id=f"session_{session.get('id')}"
+        response = requests.get(
+            f"{API_BASE_URL}/tournaments/{tournament_id}/sessions",
+            headers=headers
         )
-        with card.container():
-            st.markdown(f"**Format**: {match_format} | **Scoring**: {scoring_type}")
 
-            if match_format == 'INDIVIDUAL_RANKING' and scoring_type == 'ROUNDS_BASED':
-                # 🎯 Inline round-based UI (step-by-step, production logic)
-                num_rounds = session.get('structure_config', {}).get('number_of_rounds', 3)
-                scoring_method = session.get('structure_config', {}).get('scoring_method', 'SCORE_BASED')
-                session_id = session.get('id')
+        # 🔍 DEBUG: Log API response
+        print(f"📡 [STEP 4 API] Response status: {response.status_code}")
+        st.write(f"🔧 DEBUG: API Response Status = {response.status_code}")
 
-                # Get rounds_data to determine current round
-                rounds_data = session.get('rounds_data', {})
-                completed_rounds = rounds_data.get('completed_rounds', 0)
-                total_rounds = rounds_data.get('total_rounds', num_rounds)
+        if response.status_code != 200:
+            st.error(f"Failed to fetch sessions (HTTP {response.status_code})")
+            st.write(f"🔧 DEBUG: Response Text = {response.text[:500]}")
+            return
 
-                # Determine current round (next incomplete round)
-                current_round = completed_rounds + 1
+        sessions = response.json()
 
-                # If all rounds completed, show completion message
-                if current_round > total_rounds:
-                    st.success(f"✅ All {total_rounds} rounds completed!")
-                    st.info("You can now finalize the session to calculate final rankings.")
-                else:
-                    # Progress indicator
-                    st.markdown(f"#### 🎯 Round {current_round} of {total_rounds}")
-                    st.progress(completed_rounds / total_rounds)
+        # 🔍 DEBUG: Log fetched sessions count
+        st.write(f"🔧 DEBUG: Total sessions fetched = {len(sessions)}")
+        st.write(f"🔧 DEBUG: Session IDs = {[s.get('id') for s in sessions][:10]}")  # First 10
+        st.write(f"🔧 DEBUG: Tournament phases = {list(set([s.get('tournament_phase') for s in sessions]))}")
 
-                    participants = session.get('participants', [])
+        # Separate Group Stage and Knockout sessions (using canonical enum values)
+        group_sessions = [s for s in sessions if s.get('tournament_phase') == 'GROUP_STAGE']
+        knockout_sessions = [s for s in sessions if s.get('tournament_phase') == 'KNOCKOUT']
 
-                    if not participants:
-                        st.warning("No participants found for this session")
+        # 🔍 DEBUG: Log separated counts
+        st.write(f"🔧 DEBUG: Group Stage sessions = {len(group_sessions)}")
+        st.write(f"🔧 DEBUG: Knockout sessions = {len(knockout_sessions)}")
+
+        # 🔍 DEBUG: Inspect first group session
+        if group_sessions:
+            first_session = group_sessions[0]
+            st.write(f"🔧 DEBUG: First session keys = {list(first_session.keys())}")
+            st.write(f"🔧 DEBUG: participant_user_ids = {first_session.get('participant_user_ids')}")
+            st.write(f"🔧 DEBUG: game_results = {first_session.get('game_results')}")
+
+        # ============================================================================
+        # GROUP STAGE MATCHES
+        # ============================================================================
+        st.markdown("#### 🏆 Group Stage Matches")
+        st.caption(f"Total: {len(group_sessions)} matches")
+
+        if group_sessions:
+            for session in group_sessions:
+                session_id = session['id']
+                title = session.get('title', f"Match #{session_id}")
+                participants = session.get('participant_user_ids', [])
+                game_results = session.get('game_results')
+
+                # Display match card
+                st.markdown(f"**{title}**")
+
+                if len(participants) == 2:
+                    # Get participant names (simplified - using IDs for now)
+                    p1_id = participants[0]
+                    p2_id = participants[1]
+
+                    # Check if result already submitted
+                    if game_results:
+                        st.success(f"✅ Result submitted for Session {session_id}")
+                        if isinstance(game_results, dict):
+                            raw_results = game_results.get('raw_results', [])
+                            if len(raw_results) == 2:
+                                st.text(f"Player {raw_results[0]['user_id']}: {raw_results[0]['score']} points")
+                                st.text(f"Player {raw_results[1]['user_id']}: {raw_results[1]['score']} points")
                     else:
-                        # Single card for current round only
-                        round_card = Card(title=f"Round {current_round}", card_id=f"round_{current_round}_{session_id}")
-                        with round_card.container():
-                            # 🎯 ATTENDANCE TRACKING (per round)
-                            st.markdown(f"#### 📋 Attendance")
-                            st.markdown("Mark who is present for this round:")
+                        # Result submission form
+                        with st.form(key=f"form_match_{session_id}"):
+                            st.text(f"Player 1 ID: {p1_id}")
+                            p1_score = st.number_input(f"Player 1 Score", min_value=0, value=0, key=f"p1_score_{session_id}")
 
-                            # Initialize attendance state for this round
-                            attendance_key = f"round_{current_round}_attendance_{session_id}"
-                            if attendance_key not in st.session_state:
-                                st.session_state[attendance_key] = {
-                                    str(p['id']): p.get('is_present', False)
-                                    for p in participants
-                                }
+                            st.text(f"Player 2 ID: {p2_id}")
+                            p2_score = st.number_input(f"Player 2 Score", min_value=0, value=0, key=f"p2_score_{session_id}")
 
-                            # Attendance checkboxes
-                            for participant in participants:
-                                user_id_str = str(participant['id'])
-                                is_present = st.checkbox(
-                                    f"✅ {participant['name']} ({participant['email']})",
-                                    value=st.session_state[attendance_key].get(user_id_str, False),
-                                    key=f"attendance_round{current_round}_{user_id_str}_{session_id}"
-                                )
-                                st.session_state[attendance_key][user_id_str] = is_present
+                            submit_result = st.form_submit_button("Submit Result", type="primary")
 
-                            st.markdown("---")
+                        if submit_result:
+                            # Submit result via API
+                            payload = {
+                                "results": [
+                                    {"user_id": p1_id, "score": p1_score},
+                                    {"user_id": p2_id, "score": p2_score}
+                                ]
+                            }
 
-                            # 🎯 SCORE ENTRY (only for present participants)
-                            st.markdown(f"#### 🎯 Results")
+                            result_response = requests.patch(
+                                f"{API_BASE_URL}/sessions/{session_id}/head-to-head-results",
+                                json=payload,
+                                headers=headers
+                            )
 
-                            round_results = {}  # Backend expects Dict[user_id_str, value_str]
+                            if result_response.status_code == 200:
+                                st.success(f"✅ Result submitted for Session {session_id}")
+                                st.rerun()
+                            else:
+                                try:
+                                    error_data = result_response.json()
+                                    error_msg = error_data.get('detail', str(error_data))
+                                except:
+                                    error_msg = result_response.text[:500]
+                                st.error(f"Failed to submit result (HTTP {result_response.status_code}): {error_msg}")
+                else:
+                    participant_count = len(participants) if isinstance(participants, list) else 0
+                    st.warning(f"⚠️ Invalid participant count: {participant_count}")
 
-                            for participant in participants:
-                                user_id_str = str(participant['id'])
+                st.markdown("---")
 
-                                # Only show input if participant is marked as present
-                                if not st.session_state[attendance_key].get(user_id_str, False):
-                                    st.text(f"⏭️ {participant['name']} - Not present (skipped)")
-                                    continue
+        # ============================================================================
+        # FINALIZE GROUP STAGE BUTTON
+        # ============================================================================
+        all_group_results_submitted = all(s.get('game_results') is not None for s in group_sessions)
 
-                                if scoring_method == 'TIME_BASED':
-                                    # Time input
-                                    time_value = st.number_input(
-                                        f"⏱️ {participant['name']} - Time (seconds)",
-                                        min_value=0.0,
-                                        step=0.01,
-                                        format="%.2f",
-                                        key=f"sandbox_round{current_round}_time_{user_id_str}_{session_id}"
-                                    )
-                                    round_results[user_id_str] = f"{time_value:.2f}s"
-                                else:
-                                    # Score/distance input
-                                    score_value = st.number_input(
-                                        f"📊 {participant['name']} - Score",
-                                        min_value=0,
-                                        key=f"sandbox_round{current_round}_score_{user_id_str}_{session_id}"
-                                    )
-                                    round_results[user_id_str] = str(score_value)
+        if group_sessions and all_group_results_submitted:
+            st.markdown("#### ✅ All Group Stage Results Submitted")
 
-                            if st.button(
-                                f"Submit Round {current_round}",
-                                type="primary",
-                                key=f"btn_sandbox_submit_round_{current_round}_{session_id}"
-                            ):
-                                # Validate that at least one participant is present
-                                if not any(st.session_state[attendance_key].values()):
-                                    Error.message("Please mark at least one participant as present")
-                                else:
-                                    with Loading.spinner(f"Submitting round {current_round}..."):
-                                        try:
-                                            # Submit via API
-                                            api_client.post(
-                                                f"/api/v1/tournaments/{tournament_id}/sessions/{session_id}/rounds/{current_round}/submit-results",
-                                                data={
-                                                    "round_number": current_round,
-                                                    "results": round_results,
-                                                    "notes": None
-                                                }
-                                            )
-                                            Success.message(f"Round {current_round} results submitted!")
-                                            # Clear attendance state for this round after successful submission
-                                            if attendance_key in st.session_state:
-                                                del st.session_state[attendance_key]
-                                            st.rerun()  # Refresh to show next round
-                                        except APIError as e:
-                                            Error.message(f"Failed to submit round results: {e.message}")
+            with st.form(key="form_finalize_group_stage"):
+                st.info("Finalize the group stage to generate knockout matches")
+                finalize_clicked = st.form_submit_button("Finalize Group Stage", type="primary")
 
-                        round_card.close_container()
+            if finalize_clicked:
+                finalize_response = requests.post(
+                    f"{API_BASE_URL}/tournaments/{tournament_id}/finalize-group-stage",
+                    headers=headers
+                )
 
-                # Show completed rounds summary
-                if completed_rounds > 0:
-                    st.markdown("---")
-                    st.markdown(f"### ✅ Completed Rounds: {completed_rounds}/{total_rounds}")
+                if finalize_response.status_code in [200, 201]:
+                    st.success("✅ Group Stage finalized successfully!")
+                    st.info("Knockout matches have been generated")
+                    st.rerun()
+                else:
+                    try:
+                        error_data = finalize_response.json()
+                        error_msg = error_data.get('detail', str(error_data))
+                    except:
+                        error_msg = finalize_response.text[:500]
+                    st.error(f"Failed to finalize group stage (HTTP {finalize_response.status_code}): {error_msg}")
 
-                    round_results_data = rounds_data.get('round_results', {})
-                    for round_num in range(1, completed_rounds + 1):
-                        if str(round_num) in round_results_data:
-                            with st.expander(f"Round {round_num} Results"):
-                                results = round_results_data[str(round_num)]
-                                for user_id, value in results.items():
-                                    # Find participant name
-                                    participant = next((p for p in participants if str(p['id']) == user_id), None)
-                                    name = participant.get('name', f'User {user_id}') if participant else f'User {user_id}'
-                                    st.text(f"{name}: {value}")
+        # ============================================================================
+        # KNOCKOUT STAGE MATCHES
+        # ============================================================================
+        if knockout_sessions:
+            st.markdown("#### 🏆 Knockout Stage Matches")
+            st.caption(f"Total: {len(knockout_sessions)} matches")
 
-            elif match_format == 'INDIVIDUAL_RANKING':
-                # Other INDIVIDUAL formats
-                st.info(f"Manual entry for {scoring_type} format - UI integration pending")
+            for session in knockout_sessions:
+                session_id = session['id']
+                title = session.get('title', f"Match #{session_id}")
+                participants = session.get('participant_user_ids') or []  # Handle None explicitly
+                game_results = session.get('game_results')
 
-            elif match_format == 'HEAD_TO_HEAD':
-                # HEAD_TO_HEAD tournaments
-                st.info("HEAD_TO_HEAD match entry - UI integration pending")
+                # ✅ FIX: ALWAYS show match title and container (even for TBD matches)
+                st.markdown(f"**{title}**")
 
-            else:
-                st.warning(f"Unknown match format: {match_format}")
+                # Case 1: Match has results submitted
+                if game_results:
+                    st.success(f"✅ Result submitted for Session {session_id}")
+                    if isinstance(game_results, dict):
+                        raw_results = game_results.get('raw_results', [])
+                        if len(raw_results) == 2:
+                            st.text(f"Player {raw_results[0]['user_id']}: {raw_results[0]['score']} points")
+                            st.text(f"Player {raw_results[1]['user_id']}: {raw_results[1]['score']} points")
 
-        card.close_container()
-        st.markdown("---")
+                # Case 2: Match has participants ready (can submit results)
+                elif isinstance(participants, list) and len(participants) == 2:
+                    p1_id = participants[0]
+                    p2_id = participants[1]
 
-    # 🎯 Show live leaderboard ONLY if results have been submitted
-    if any_results_submitted or sandbox_autofill:
-        render_mini_leaderboard(tournament_id, title="Live Standings")
-    else:
-        st.info("📊 **No results submitted yet**")
-        st.markdown("Leaderboard will appear after you submit at least one round of results.")
+                    with st.form(key=f"form_knockout_{session_id}"):
+                        st.text(f"Player 1 ID: {p1_id}")
+                        p1_score = st.number_input(f"Player 1 Score", min_value=0, value=0, key=f"ko_p1_{session_id}")
 
-    st.markdown("---")
+                        st.text(f"Player 2 ID: {p2_id}")
+                        p2_score = st.number_input(f"Player 2 Score", min_value=0, value=0, key=f"ko_p2_{session_id}")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(
-            "Back to Attendance",
-            key="btn_back_to_step3"
-        ):
+                        submit_knockout = st.form_submit_button("Submit Result", type="primary")
+
+                    if submit_knockout:
+                        payload = {
+                            "results": [
+                                {"user_id": p1_id, "score": p1_score},
+                                {"user_id": p2_id, "score": p2_score}
+                            ]
+                        }
+
+                        ko_response = requests.patch(
+                            f"{API_BASE_URL}/sessions/{session_id}/head-to-head-results",
+                            json=payload,
+                            headers=headers
+                        )
+
+                        if ko_response.status_code == 200:
+                            st.success(f"✅ Result submitted for Session {session_id}")
+                            st.rerun()
+                        else:
+                            try:
+                                error_data = ko_response.json()
+                                error_msg = error_data.get('detail', str(error_data))
+                            except:
+                                error_msg = ko_response.text[:500]
+                            st.error(f"Failed to submit result (HTTP {ko_response.status_code}): {error_msg}")
+
+                # Case 3: Match is TBD (participants not yet determined from previous round)
+                else:
+                    participant_count = len(participants) if isinstance(participants, list) else 0
+                    st.info(f"⏳ Waiting for previous round to complete (participants: {participant_count}/2)")
+
+                st.markdown("---")
+
+        # ============================================================================
+        # NAVIGATION
+        # ============================================================================
+        all_knockout_submitted = all(s.get('game_results') is not None for s in knockout_sessions) if knockout_sessions else False
+
+        if all_group_results_submitted and all_knockout_submitted:
+            st.success("✅ All match results submitted")
+            if st.button("Continue to Leaderboard →", type="primary"):
+                st.session_state.workflow_step = 5
+                st.rerun()
+
+        if st.button("← Back to Step 3"):
             st.session_state.workflow_step = 3
             st.rerun()
 
-    with col2:
-        if st.button(
-            "View Final Leaderboard",
-            type="primary",
-            use_container_width=True,
-            key="btn_continue_to_step5"
-        ):
-            st.session_state.workflow_step = 5
+    except Exception as e:
+        st.error(f"Error loading sessions: {str(e)}")
+        if st.button("← Back to Step 3"):
+            st.session_state.workflow_step = 3
             st.rerun()
 
 
 def render_step_view_leaderboard():
     """
-    Step 5: View final leaderboard
+    Step 5: View Tournament Leaderboard
 
-    This step:
-    - Shows final standings
-    - Displays statistics
-    - Moves to rewards step
+    Displays final standings for the tournament using the instructor leaderboard endpoint.
     """
-    st.markdown("### 5. View Final Leaderboard")
-
     tournament_id = st.session_state.get('tournament_id')
-    if not tournament_id:
-        Error.message("No tournament ID found")
-        return
+    st.markdown("### 5. View Leaderboard")
 
-    render_mini_leaderboard(tournament_id, title="Final Tournament Standings")
+    # Fetch leaderboard
+    try:
+        headers = {"Content-Type": "application/json"}
+        if "auth_token" in st.session_state:
+            headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
 
-    st.markdown("---")
+        response = requests.get(
+            f"{API_BASE_URL}/tournaments/{tournament_id}/instructor/leaderboard",
+            headers=headers
+        )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(
-            "Back to Results",
-            key="btn_back_to_step4"
-        ):
+        if response.status_code != 200:
+            st.error(f"Failed to fetch leaderboard (HTTP {response.status_code})")
+            return
+
+        data = response.json()
+
+        # Display tournament info
+        st.markdown(f"#### 🏆 {data.get('tournament_name', 'Tournament')} - Final Standings")
+        st.caption(f"Format: {data.get('tournament_format', 'N/A')} | Status: {data.get('tournament_status', 'N/A')}")
+
+        # Display match statistics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Matches", data.get('total_matches', 0))
+        with col2:
+            st.metric("Completed", data.get('completed_matches', 0))
+        with col3:
+            st.metric("Remaining", data.get('remaining_matches', 0))
+
+        st.markdown("---")
+
+        # Display final standings
+        final_standings = data.get('final_standings', [])
+
+        if final_standings:
+            st.markdown("#### 🥇 Final Standings")
+
+            for standing in final_standings:
+                rank = standing.get('rank', '—')
+                name = standing.get('name', 'Unknown Player')
+                user_id = standing.get('user_id', '—')
+                score = standing.get('score', 0)
+
+                if rank == 1:
+                    st.markdown(f"**🥇 #{rank} - {name}** (User ID: {user_id}) - Score: {score}")
+                elif rank == 2:
+                    st.markdown(f"**🥈 #{rank} - {name}** (User ID: {user_id}) - Score: {score}")
+                elif rank == 3:
+                    st.markdown(f"**🥉 #{rank} - {name}** (User ID: {user_id}) - Score: {score}")
+                else:
+                    st.markdown(f"**#{rank} - {name}** (User ID: {user_id}) - Score: {score}")
+
+        else:
+            # Fallback to leaderboard if final_standings not available
+            leaderboard = data.get('leaderboard', [])
+
+            if leaderboard:
+                st.markdown("#### 📊 Leaderboard")
+
+                for entry in leaderboard:
+                    rank = entry.get('rank', '—')
+                    name = entry.get('name', 'Unknown Player')
+                    user_id = entry.get('user_id', '—')
+                    wins = entry.get('wins', 0)
+                    total_score = entry.get('total_score', 0)
+
+                    if rank == 1:
+                        st.markdown(f"**🥇 #{rank} - {name}** (ID: {user_id}) - Wins: {wins}, Total Score: {total_score}")
+                    elif rank == 2:
+                        st.markdown(f"**🥈 #{rank} - {name}** (ID: {user_id}) - Wins: {wins}, Total Score: {total_score}")
+                    elif rank == 3:
+                        st.markdown(f"**🥉 #{rank} - {name}** (ID: {user_id}) - Wins: {wins}, Total Score: {total_score}")
+                    else:
+                        st.markdown(f"**#{rank} - {name}** (ID: {user_id}) - Wins: {wins}, Total Score: {total_score}")
+            else:
+                st.info("No leaderboard data available yet")
+
+        st.markdown("---")
+
+        # Navigation
+        if st.button("← Back to Step 4"):
             st.session_state.workflow_step = 4
             st.rerun()
 
-    with col2:
-        if st.button(
-            "Distribute Rewards",
-            type="primary",
-            use_container_width=True,
-            key="btn_continue_to_step6"
-        ):
+        if st.button("Continue to Complete Tournament →", type="primary"):
             st.session_state.workflow_step = 6
+            st.rerun()
+
+    except Exception as e:
+        st.error(f"Error loading leaderboard: {str(e)}")
+        if st.button("← Back to Step 4"):
+            st.session_state.workflow_step = 4
             st.rerun()
 
 
 def render_step_distribute_rewards():
     """
-    Step 6: Distribute rewards
+    Step 6: Complete Tournament and Distribute Rewards
 
     This step:
-    - Shows reward configuration
-    - Distributes badges/points
-    - Completes tournament
-    - Shows success message
+    1. Marks tournament as COMPLETED
+    2. Triggers reward distribution
+    3. Moves to Step 7 to view distributed rewards
     """
-    st.markdown("### 6. Distribute Rewards")
-
     tournament_id = st.session_state.get('tournament_id')
-    if not tournament_id:
-        Error.message("No tournament ID found")
-        return
+    st.markdown("### 6. Complete Tournament & Distribute Rewards")
 
-    card = Card(title="Reward Distribution", card_id="rewards_panel")
-    with card.container():
-        st.info("Rewards Configuration")
-        st.markdown("**Badges and skill points will be distributed to participants based on their performance.**")
+    st.info("Complete the tournament to finalize standings and distribute rewards to winners.")
 
-        if st.button(
-            "Distribute All Rewards",
-            type="primary",
-            use_container_width=True,
-            key="btn_distribute_rewards"
-        ):
-            with Loading.spinner("Distributing rewards..."):
+    # Complete Tournament Form
+    with st.form(key="form_complete_tournament"):
+        st.markdown("#### ✅ Ready to Complete Tournament")
+        st.caption("This action will:")
+        st.caption("• Mark the tournament as COMPLETED")
+        st.caption("• Lock all results (no further changes allowed)")
+        st.caption("• Distribute rewards to winners based on final standings")
+
+        complete_clicked = st.form_submit_button("Complete Tournament", type="primary", use_container_width=True)
+
+    if complete_clicked:
+        try:
+            headers = {"Content-Type": "application/json"}
+            if "auth_token" in st.session_state:
+                headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
+
+            # Complete tournament
+            complete_response = requests.post(
+                f"{API_BASE_URL}/tournaments/{tournament_id}/complete",
+                headers=headers
+            )
+
+            if complete_response.status_code in [200, 201]:
+                st.success("✅ Tournament completed successfully!")
+
+                # Distribute rewards
+                st.info("Distributing rewards...")
+
+                rewards_response = requests.post(
+                    f"{API_BASE_URL}/tournaments/{tournament_id}/distribute-rewards",
+                    headers=headers
+                )
+
+                if rewards_response.status_code in [200, 201]:
+                    st.success("✅ Rewards distributed successfully!")
+                    st.session_state.workflow_step = 7
+                    st.rerun()
+                else:
+                    try:
+                        error_data = rewards_response.json()
+                        error_msg = error_data.get('detail', str(error_data))
+                    except:
+                        error_msg = rewards_response.text[:500]
+                    st.warning(f"Tournament completed but reward distribution failed (HTTP {rewards_response.status_code}): {error_msg}")
+
+            else:
                 try:
-                    # Distribute rewards via API
-                    result = api_client.post(f"/api/v1/tournaments/{tournament_id}/distribute-rewards")
-                    Success.message("Rewards distributed successfully!")
+                    error_data = complete_response.json()
+                    error_msg = error_data.get('detail', str(error_data))
+                except:
+                    error_msg = complete_response.text[:500]
+                st.error(f"Failed to complete tournament (HTTP {complete_response.status_code}): {error_msg}")
 
-                    # Mark tournament as completed
-                    api_client.patch(f"/api/v1/semesters/{tournament_id}", data={"tournament_status": "COMPLETED"})
-                    Success.toast("Tournament completed!")
+        except Exception as e:
+            st.error(f"Error completing tournament: {str(e)}")
 
-                    st.balloons()
+    # Navigation
+    if st.button("← Back to Step 5"):
+        st.session_state.workflow_step = 5
+        st.rerun()
 
-                except APIError as e:
-                    Error.api_error(e, show_details=True)
 
-    card.close_container()
+def render_step_view_rewards():
+    """
+    Step 7: View Distributed Rewards
+
+    Displays all rewards distributed to tournament winners.
+    """
+    tournament_id = st.session_state.get('tournament_id')
+    st.markdown("### 7. View Distributed Rewards")
+
+    # Fetch distributed rewards
+    try:
+        headers = {"Content-Type": "application/json"}
+        if "auth_token" in st.session_state:
+            headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
+
+        response = requests.get(
+            f"{API_BASE_URL}/tournaments/{tournament_id}/distributed-rewards",
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+
+            st.success("✅ Tournament completed successfully!")
+
+            # Display rewards summary
+            rewards = data.get('rewards', [])
+
+            if rewards:
+                st.markdown("#### 🏅 Rewards Distributed")
+
+                for reward in rewards:
+                    user_id = reward.get('user_id', '—')
+                    user_name = reward.get('user_name', 'Unknown Player')
+                    rank = reward.get('rank', '—')
+                    xp_awarded = reward.get('xp_awarded', 0)
+                    credits_awarded = reward.get('credits_awarded', 0)
+
+                    # Display reward card
+                    st.markdown(f"**Rank #{rank}: {user_name}** (User ID: {user_id})")
+                    st.text(f"  • XP: +{xp_awarded}")
+                    st.text(f"  • Credits: +{credits_awarded}")
+                    st.markdown("---")
+
+                # Summary statistics
+                total_xp = sum(r.get('xp_awarded', 0) for r in rewards)
+                total_credits = sum(r.get('credits_awarded', 0) for r in rewards)
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Winners Rewarded", len(rewards))
+                with col2:
+                    st.metric("Total XP Distributed", total_xp)
+                with col3:
+                    st.metric("Total Credits Distributed", total_credits)
+
+            else:
+                st.info("No rewards data available")
+
+        else:
+            st.warning(f"Could not fetch rewards (HTTP {response.status_code})")
+
+    except Exception as e:
+        st.error(f"Error loading rewards: {str(e)}")
 
     st.markdown("---")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(
-            "Back to Leaderboard",
-            key="btn_back_to_step5"
-        ):
-            st.session_state.workflow_step = 5
-            st.rerun()
+    # Navigation
+    if st.button("← Back to Step 6"):
+        st.session_state.workflow_step = 6
+        st.rerun()
 
-    with col2:
-        if st.button(
-            "View in History",
-            type="primary",
-            use_container_width=True,
-            key="btn_view_history"
-        ):
-            st.session_state.screen = "history"
-            st.rerun()
-
-
-def render_step_tournament_history():
-    """
-    DEPRECATED: This step is now replaced by the main history screen.
-    Keeping for compatibility with old code.
-    """
-    st.warning("This function is deprecated. Use render_history_screen() instead.")
-    st.session_state.screen = "history"
-    st.rerun()
+    if st.button("🏁 Finish & Return Home", type="primary"):
+        st.session_state.screen = "home"
+        st.session_state.workflow_step = 1
+        st.rerun()

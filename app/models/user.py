@@ -205,6 +205,13 @@ class User(Base):
         back_populates="user"
     )
 
+    # 🎯 Skill reward relationships (tournament and training skill points)
+    skill_rewards = relationship(
+        "SkillReward",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     # 🏆 Tournament participation & badge relationships
     tournament_participations = relationship(
         "TournamentParticipation",

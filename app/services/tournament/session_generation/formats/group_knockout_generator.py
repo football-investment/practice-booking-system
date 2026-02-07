@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
+from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..algorithms import RoundRobinPairing, GroupDistribution, KnockoutBracket
@@ -50,9 +51,12 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
 
         player_ids = [enrollment.user_id for enrollment in enrolled_players]
 
+        # ✅ CRITICAL FIX: Use actual enrolled player count, not configured max
+        actual_player_count = len(player_ids)
+
         # ✅ NEW: Use dynamic group distribution (supports odd player counts)
         # Try config first, then fall back to dynamic calculation
-        group_config = tournament_type.config.get('group_configuration', {}).get(f'{player_count}_players')
+        group_config = tournament_type.config.get('group_configuration', {}).get(f'{actual_player_count}_players')
 
         if group_config:
             # Use predefined config from tournament_type
@@ -66,7 +70,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                 group_sizes[i] += 1
         else:
             # ✅ NEW: Dynamic calculation for flexible player counts
-            distribution = GroupDistribution.calculate_optimal_distribution(player_count)
+            distribution = GroupDistribution.calculate_optimal_distribution(actual_player_count)
             groups_count = distribution['groups_count']
             group_sizes = distribution['group_sizes']
             qualifiers_per_group = distribution['qualifiers_per_group']
@@ -118,7 +122,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                             'date_start': session_start,
                             'date_end': session_end,
                             'game_type': f'Group {group_name} - Round {round_num}',
-                            'tournament_phase': 'Group Stage',
+                            'tournament_phase': TournamentPhase.GROUP_STAGE.value,
                             'tournament_round': round_num,
                             'tournament_match_number': match_num,
                             'location': get_tournament_venue(tournament),
@@ -161,7 +165,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                         'date_start': session_start,
                         'date_end': session_end,
                         'game_type': f'Group {group_name} - Round {round_num}',
-                        'tournament_phase': 'Group Stage',
+                        'tournament_phase': TournamentPhase.GROUP_STAGE.value,
                         'tournament_round': round_num,
                         'tournament_match_number': (group_num - 1) * group_rounds + round_num,
                         'location': get_tournament_venue(tournament),
@@ -220,7 +224,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                     'date_start': session_start,
                     'date_end': session_end,
                     'game_type': 'Play-in Round',
-                    'tournament_phase': 'Knockout Stage',
+                    'tournament_phase': TournamentPhase.KNOCKOUT.value,
                     'tournament_round': 0,  # Play-in is round 0
                     'tournament_match_number': match_num,
                     'location': get_tournament_venue(tournament),
@@ -303,7 +307,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                     'date_start': session_start,
                     'date_end': session_end,
                     'game_type': round_name,
-                    'tournament_phase': 'Knockout Stage',
+                    'tournament_phase': TournamentPhase.KNOCKOUT.value,
                     'tournament_round': round_num,
                     'tournament_match_number': match_in_round,
                     'location': get_tournament_venue(tournament),
@@ -349,7 +353,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                 'date_start': session_start,
                 'date_end': session_end,
                 'game_type': '3rd Place Match',
-                'tournament_phase': 'Knockout Stage',
+                'tournament_phase': TournamentPhase.KNOCKOUT.value,
                 'tournament_round': knockout_rounds + 1,  # After final
                 'tournament_match_number': 1,
                 'location': get_tournament_venue(tournament),

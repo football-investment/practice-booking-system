@@ -7,6 +7,7 @@ from typing import List, Dict, Any
 from datetime import timedelta
 
 from app.models.semester import Semester
+from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..utils import get_tournament_venue
@@ -127,7 +128,7 @@ class IndividualRankingGenerator(BaseFormatGenerator):
                 'date_start': session_start,
                 'date_end': session_end,
                 'game_type': 'Individual Ranking Competition',
-                'tournament_phase': 'INDIVIDUAL_RANKING',
+                'tournament_phase': TournamentPhase.INDIVIDUAL_RANKING.value,
                 'tournament_round': 1,  # Always 1 since this session contains all rounds
                 'tournament_match_number': 1,
                 'location': venue,

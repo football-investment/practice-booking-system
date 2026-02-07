@@ -154,50 +154,49 @@ def render_skill_config_editor(game_config: Dict, preset_id: Optional[int] = Non
                 if selected:
                     skills_tested.append(skill_key)
 
-    # Skill weights with multipliers
-    st.write("**Skill Weights** (relative multipliers, auto-normalized)")
-    st.caption("💡 Enter relative importance (e.g., 5, 3, 2) - will be auto-normalized to sum to 1.0")
+    # Skill weights (NOT normalized - exact values as entered)
+    st.write("**Skill Weights** (difficulty multipliers)")
+    st.caption("💡 Enter difficulty/importance values (e.g., 1.0, 0.8, 0.5) - used as-is in skill calculations")
 
     skill_multipliers = {}
     total_multiplier = 0.0
 
-    # Get existing weights as multipliers (scale up from 0.0-1.0 to easier numbers)
+    # Get existing weights (use exact values, no scaling)
     existing_weights = skill_config.get("skill_weights", {})
 
     for skill in skills_tested:
-        # Convert existing weight to multiplier (scale by 10 for easier input)
-        default_multiplier = existing_weights.get(skill, 1.0 / len(skills_tested)) * 10.0
+        # Use existing weight as-is, default to 1.0
+        default_multiplier = existing_weights.get(skill, 1.0)
 
         multiplier = st.number_input(
             f"{skill.replace('_', ' ').title()}",
             min_value=0.0,
-            max_value=100.0,
+            max_value=10.0,
             value=float(default_multiplier),
-            step=0.5,
+            step=0.1,
             key=f"{key_prefix}_weight_{skill}",
-            help=f"Relative importance (will be normalized)"
+            help=f"Skill difficulty/importance (saved as-is, not normalized)"
         )
         skill_multipliers[skill] = multiplier
         total_multiplier += multiplier
 
-    # Normalize to sum to 1.0
-    skill_weights = {}
+    # DO NOT normalize - keep weights as entered by user
+    skill_weights = skill_multipliers.copy()
+
     if total_multiplier > 0:
-        for skill, multiplier in skill_multipliers.items():
-            skill_weights[skill] = multiplier / total_multiplier
+        # Show weight summary (NOT normalized)
+        st.success(f"✅ Total weight sum: {total_multiplier:.2f}")
 
-        # Show normalized weights
-        st.success(f"✅ Total multiplier: {total_multiplier:.2f} → Normalized to 1.0")
-
-        with st.expander("📊 Normalized Weights Preview"):
+        with st.expander("📊 Skill Weights Preview"):
             for skill, weight in skill_weights.items():
-                st.write(f"- {skill.replace('_', ' ').title()}: **{weight:.3f}** ({weight * 100:.1f}%)")
+                st.write(f"- {skill.replace('_', ' ').title()}: **{weight:.2f}**")
     else:
-        st.error("⚠️ Total multiplier is 0, please assign weights")
+        st.error("⚠️ Total weight is 0, please assign weights")
 
     skill_impact = st.checkbox(
         "Skill impact on matches",
-        value=skill_config.get("skill_impact_on_matches", True)
+        value=skill_config.get("skill_impact_on_matches", True),
+        help="If enabled, players' actual skill values will affect match outcomes in simulations"
     )
 
     return {

@@ -9,20 +9,27 @@ from typing import Dict, Optional
 
 def render_basic_info_editor(name: str = "", description: str = "", code: str = "", key_prefix: str = "preset") -> Dict:
     """Render basic information editor (name, description, code)"""
+    import re
+
     st.subheader("📝 Basic Information")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        # Only show code input for new presets
+        edit_name = st.text_input(
+            "Preset Name",
+            value=name,
+            key=f"{key_prefix}_name"
+        )
+
+        # Auto-generate code from name for new presets
         if code == "":
-            edit_code = st.text_input(
-                "Preset Code (lowercase, underscores only)",
-                value=code,
-                key=f"{key_prefix}_code",
-                help="Unique identifier for the preset (e.g., gan_footvolley)"
-            )
+            # Convert name to lowercase, replace spaces/special chars with underscores
+            auto_code = re.sub(r'[^a-z0-9]+', '_', edit_name.lower()).strip('_')
+            st.caption(f"Auto-generated code: `{auto_code or '(enter name first)'}`")
+            edit_code = auto_code
         else:
+            # Existing preset - show readonly code
             edit_code = code
             st.text_input(
                 "Preset Code (readonly)",
@@ -31,12 +38,6 @@ def render_basic_info_editor(name: str = "", description: str = "", code: str = 
                 disabled=True,
                 help="Code cannot be changed after creation"
             )
-
-        edit_name = st.text_input(
-            "Preset Name",
-            value=name,
-            key=f"{key_prefix}_name"
-        )
 
     with col2:
         edit_description = st.text_area(
@@ -123,35 +124,34 @@ def render_skill_config_editor(game_config: Dict, preset_id: Optional[int] = Non
                             value=float(default_multiplier),
                             step=0.1,
                             key=f"{key_prefix}_weight_{skill_key}",
-                            help=f"Relative importance (will be normalized to sum 1.0)",
+                            help=f"Skill difficulty/importance multiplier (saved as-is, NOT normalized)",
                             label_visibility="collapsed"
                         )
                         skill_multipliers[skill_key] = multiplier
                         total_multiplier += multiplier
                         skills_tested.append(skill_key)
 
-    # Show normalization summary after all categories
+    # Show weight summary after all categories
     st.markdown("---")
 
-    # Normalize to sum to 1.0
-    skill_weights = {}
+    # DO NOT normalize - keep weights as entered by user
+    skill_weights = skill_multipliers.copy()
+
     if total_multiplier > 0:
-        for skill, multiplier in skill_multipliers.items():
-            skill_weights[skill] = multiplier / total_multiplier
+        # Show weight summary (NOT normalized)
+        st.success(f"✅ Total weight sum: {total_multiplier:.2f}")
 
-        # Show normalized weights
-        st.success(f"✅ Total multiplier: {total_multiplier:.2f} → Normalized to 1.0")
-
-        with st.expander("📊 Normalized Weights Preview"):
+        with st.expander("📊 Skill Weights Preview"):
             for skill, weight in skill_weights.items():
-                st.write(f"- {skill.replace('_', ' ').title()}: **{weight:.3f}** ({weight * 100:.1f}%)")
+                st.write(f"- {skill.replace('_', ' ').title()}: **{weight:.2f}**")
     else:
-        st.warning("⚠️ No skills selected or total multiplier is 0")
+        st.warning("⚠️ No skills selected or total weight is 0")
 
     skill_impact = st.checkbox(
         "Skill impact on matches",
         value=skill_config.get("skill_impact_on_matches", True),
-        key=f"{key_prefix}_skill_impact"
+        key=f"{key_prefix}_skill_impact",
+        help="If enabled, players' actual skill values will affect match outcomes in simulations"
     )
 
     return {

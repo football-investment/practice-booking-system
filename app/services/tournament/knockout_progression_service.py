@@ -402,17 +402,16 @@ class KnockoutProgressionService:
         """
         next_round = round_num + 1
 
+        # Phase 2.2: Use repository for data access
         # Get next round matches (ordered by match_number)
-        next_round_matches = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                SessionModel.tournament_round == next_round,
-                SessionModel.is_tournament_game == True,
-                ~SessionModel.title.ilike("%bronze%"),
-                ~SessionModel.title.ilike("%3rd%")
-            )
-        ).order_by(SessionModel.tournament_match_number).all()
+        next_round_matches = self.repo.get_sessions_by_phase_and_round(
+            tournament_id=tournament.id,
+            phase=TournamentPhase.KNOCKOUT,
+            round_num=next_round,
+            exclude_bronze=True
+        )
+        # Sort by match number (repository returns unordered list)
+        next_round_matches = sorted(next_round_matches, key=lambda s: s.tournament_match_number or 0)
 
         if not next_round_matches:
             return {"message": f"⚠️ No next round matches found for round {next_round}"}
@@ -455,22 +454,28 @@ class KnockoutProgressionService:
         """
         updated_sessions = []
 
-        # Find existing Final match
-        # ✅ FIX: Match "Final" OR "Round of 2" but exclude "Quarter-finals", "Semi-finals", "Bronze", "3rd Place"
-        final_match = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                (
-                    SessionModel.title.ilike("%final%") |
-                    SessionModel.title.ilike("%round of 2%")
-                ),
-                ~SessionModel.title.ilike("%quarter-final%"),
-                ~SessionModel.title.ilike("%semi-final%"),
-                ~SessionModel.title.ilike("%bronze%"),
-                ~SessionModel.title.ilike("%3rd%")
+        # Phase 2.2: Use repository for data access
+        # Get all knockout sessions for this tournament (no specific round - find final round)
+        all_knockout_sessions = []
+        distinct_rounds = self.repo.get_distinct_rounds(tournament.id, TournamentPhase.KNOCKOUT)
+        if distinct_rounds:
+            final_round = max(distinct_rounds)
+            all_knockout_sessions = self.repo.get_sessions_by_phase_and_round(
+                tournament_id=tournament.id,
+                phase=TournamentPhase.KNOCKOUT,
+                round_num=final_round,
+                exclude_bronze=False
             )
-        ).first()
+
+        # Find Final match (exclude bronze, semi-finals, quarter-finals)
+        final_match = None
+        for session in all_knockout_sessions:
+            title_lower = session.title.lower()
+            if ("final" in title_lower or "round of 2" in title_lower) and \
+               "quarter" not in title_lower and "semi" not in title_lower and \
+               "bronze" not in title_lower and "3rd" not in title_lower:
+                final_match = session
+                break
 
         if final_match and len(winners) >= 2:
             final_match.participant_user_ids = winners[:2]
@@ -480,24 +485,13 @@ class KnockoutProgressionService:
                 "participants": winners[:2]
             })
 
-        # Find existing Bronze match
-        bronze_match = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                SessionModel.title.ilike("%bronze%")
-            )
-        ).first()
-
-        # Alternative: Check for "3rd Place" in title
-        if not bronze_match:
-            bronze_match = self.db.query(SessionModel).filter(
-                and_(
-                    SessionModel.semester_id == tournament.id,
-                    SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                    SessionModel.title.ilike("%3rd%")
-                )
-            ).first()
+        # Find Bronze match
+        bronze_match = None
+        for session in all_knockout_sessions:
+            title_lower = session.title.lower()
+            if "bronze" in title_lower or "3rd" in title_lower:
+                bronze_match = session
+                break
 
         if bronze_match and len(losers) >= 2:
             bronze_match.participant_user_ids = losers[:2]
@@ -507,7 +501,9 @@ class KnockoutProgressionService:
                 "participants": losers[:2]
             })
 
-        self.db.commit()
+        # Phase 2.2: Still need db access for commit (will be moved to repository later)
+        if self.db:
+            self.db.commit()
 
         return {
             "message": f"✅ Semifinals complete! Updated {len(updated_sessions)} final round matches",
