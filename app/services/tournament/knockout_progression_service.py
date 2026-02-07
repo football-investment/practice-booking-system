@@ -71,37 +71,26 @@ class KnockoutProgressionService:
         if session.tournament_phase != TournamentPhase.KNOCKOUT:
             return None
 
-        # ✅ NEW: Determine tournament structure to handle progression correctly
-        # Check total number of knockout rounds to identify tournament size
-        # ✅ TACTICAL FIX: Use canonical "KNOCKOUT" (uppercase) to match database value
-        total_rounds = self.db.query(SessionModel.tournament_round).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.is_tournament_game == True,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT
-            )
-        ).distinct().count()
+        # Phase 2.2: Use repository for data access
+        # Determine tournament structure to handle progression correctly
+        distinct_rounds = self.repo.get_distinct_rounds(tournament.id, TournamentPhase.KNOCKOUT)
+        total_rounds = len(distinct_rounds)
 
         # Check which round this is
         round_num = session.tournament_round
 
-        # ✅ NEW: Handle different tournament sizes dynamically
+        # ✅ Handle different tournament sizes dynamically
         # - 4 players: 2 rounds (R1=Semis, R2=Final+Bronze)
         # - 8 players: 3 rounds (R1=Quarters, R2=Semis, R3=Final+Bronze)
         # - 16 players: 4 rounds (R1=R16, R2=Quarters, R3=Semis, R4=Final+Bronze)
 
         # Check if all matches in current round are complete
-        all_matches_in_round = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                SessionModel.tournament_round == round_num,
-                SessionModel.is_tournament_game == True,
-                # Exclude bronze match from count (it has same round as final)
-                ~SessionModel.title.ilike("%bronze%"),
-                ~SessionModel.title.ilike("%3rd%")
-            )
-        ).all()
+        all_matches_in_round = self.repo.get_sessions_by_phase_and_round(
+            tournament_id=tournament.id,
+            phase=TournamentPhase.KNOCKOUT,
+            round_num=round_num,
+            exclude_bronze=True
+        )
 
         completed_count = sum(1 for m in all_matches_in_round if m.game_results)
 
