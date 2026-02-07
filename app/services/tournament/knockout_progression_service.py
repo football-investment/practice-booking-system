@@ -125,15 +125,14 @@ class KnockoutProgressionService:
         Returns:
             Dict with info about created sessions
         """
+        # Phase 2.2: Use repository for data access
         # Find all semifinal sessions (round 1)
-        all_semifinals = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                SessionModel.tournament_round == 1,
-                SessionModel.is_tournament_game == True
-            )
-        ).all()
+        all_semifinals = self.repo.get_sessions_by_phase_and_round(
+            tournament_id=tournament.id,
+            phase=TournamentPhase.KNOCKOUT,
+            round_num=1,
+            exclude_bronze=False  # Include all round 1 matches
+        )
 
         # Check if all semifinals have results
         completed_semifinals = []
@@ -180,26 +179,17 @@ class KnockoutProgressionService:
                     winners.append(p1_id)
                     losers.append(p2_id)
 
+        # Phase 2.2: Use repository to check for existing matches
         # Check if bronze match already exists
-        existing_bronze = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                SessionModel.tournament_round == 2,
-                SessionModel.title.ilike("%bronze%")
-            )
-        ).first()
+        round2_sessions = self.repo.get_sessions_by_phase_and_round(
+            tournament_id=tournament.id,
+            phase=TournamentPhase.KNOCKOUT,
+            round_num=2,
+            exclude_bronze=False
+        )
 
-        # Check if final already exists
-        existing_final = self.db.query(SessionModel).filter(
-            and_(
-                SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
-                SessionModel.tournament_round == 2,
-                SessionModel.title.ilike("%final%"),
-                ~SessionModel.title.ilike("%bronze%")
-            )
-        ).first()
+        existing_bronze = next((s for s in round2_sessions if "bronze" in s.title.lower()), None)
+        existing_final = next((s for s in round2_sessions if "final" in s.title.lower() and "bronze" not in s.title.lower()), None)
 
         created_sessions = []
 
