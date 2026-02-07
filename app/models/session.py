@@ -6,6 +6,7 @@ import enum
 
 from ..database import Base
 from .specialization import SpecializationType
+from .tournament_enums import TournamentPhase  # Phase 2.1: Import canonical enum
 
 
 class SessionType(enum.Enum):
@@ -114,10 +115,11 @@ class Session(Base):
         comment="True if this session was auto-generated from tournament type config"
     )
 
+    # Phase 2.1: Use PostgreSQL enum type for tournament_phase
     tournament_phase = Column(
-        String(50),
+        Enum(TournamentPhase, name='tournament_phase_enum', native_enum=True, create_constraint=True, validate_strings=True),
         nullable=True,
-        comment="Tournament phase: 'Group Stage', 'Knockout Stage', 'Finals'"
+        comment="Tournament phase: canonical TournamentPhase enum values (GROUP_STAGE, KNOCKOUT, etc.)"
     )
 
     tournament_round = Column(
