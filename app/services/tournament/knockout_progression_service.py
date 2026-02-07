@@ -5,23 +5,50 @@ Handles automatic creation of next-round matches in knockout tournaments:
 - After semifinals: Creates bronze match (losers) and final (winners)
 - After quarterfinals: Creates semifinals
 - Ensures proper participant assignment based on match results
+
+Phase 2.1: Uses TournamentPhase enum for type safety and consistency
 """
 
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+import logging
 
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
+from app.models.tournament_enums import TournamentPhase  # Phase 2.1: Import enum
+from app.services.tournament.repositories import SessionRepository, SQLSessionRepository  # Phase 2.2: DI
 import json
 
 
 class KnockoutProgressionService:
-    """Service for managing knockout bracket progression"""
+    """
+    Service for managing knockout bracket progression
 
-    def __init__(self, db: Session):
-        self.db = db
+    Phase 2.2: Dependency injection for testability and maintainability
+    """
+
+    def __init__(self, db: Session = None, repository: SessionRepository = None, logger=None):
+        """
+        Initialize service with dependency injection support.
+
+        Args:
+            db: SQLAlchemy session (legacy, for backward compatibility)
+            repository: SessionRepository implementation (new, preferred)
+            logger: Logger instance (optional)
+        """
+        # Phase 2.2: Support both old (db) and new (repository) patterns
+        if repository is not None:
+            self.repo = repository
+            self.db = None  # Don't use direct DB access when repository provided
+        elif db is not None:
+            self.repo = SQLSessionRepository(db)
+            self.db = db  # Keep for backward compatibility in non-refactored methods
+        else:
+            raise ValueError("Either 'db' or 'repository' must be provided")
+
+        self.logger = logger or logging.getLogger(__name__)
 
     def process_knockout_progression(
         self,
@@ -40,17 +67,18 @@ class KnockoutProgressionService:
         Returns:
             Dict with created sessions info, or None if no progression needed
         """
-        # ✅ Only process if this is a knockout match (support both phase names)
-        if session.tournament_phase not in ["Knockout Stage", "Knockout"]:
+        # Phase 2.1: Use TournamentPhase enum for type-safe comparison
+        if session.tournament_phase != TournamentPhase.KNOCKOUT:
             return None
 
         # ✅ NEW: Determine tournament structure to handle progression correctly
         # Check total number of knockout rounds to identify tournament size
+        # ✅ TACTICAL FIX: Use canonical "KNOCKOUT" (uppercase) to match database value
         total_rounds = self.db.query(SessionModel.tournament_round).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
                 SessionModel.is_tournament_game == True,
-                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"])
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT
             )
         ).distinct().count()
 
@@ -66,7 +94,7 @@ class KnockoutProgressionService:
         all_matches_in_round = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                 SessionModel.tournament_round == round_num,
                 SessionModel.is_tournament_game == True,
                 # Exclude bronze match from count (it has same round as final)
@@ -112,7 +140,7 @@ class KnockoutProgressionService:
         all_semifinals = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == "Knockout Stage",
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                 SessionModel.tournament_round == 1,
                 SessionModel.is_tournament_game == True
             )
@@ -167,7 +195,7 @@ class KnockoutProgressionService:
         existing_bronze = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == "Knockout Stage",
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                 SessionModel.tournament_round == 2,
                 SessionModel.title.ilike("%bronze%")
             )
@@ -177,7 +205,7 @@ class KnockoutProgressionService:
         existing_final = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase == "Knockout Stage",
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                 SessionModel.tournament_round == 2,
                 SessionModel.title.ilike("%final%"),
                 ~SessionModel.title.ilike("%bronze%")
@@ -239,7 +267,7 @@ class KnockoutProgressionService:
             instructor_id=reference_session.instructor_id,
             session_status="scheduled",
             is_tournament_game=True,
-            tournament_phase="Knockout Stage",
+            tournament_phase=TournamentPhase.KNOCKOUT.value,
             tournament_round=2,  # Round 2 (finals round)
             match_format=reference_session.match_format or "HEAD_TO_HEAD",
             participant_user_ids=loser_ids[:2]  # Take first 2 losers
@@ -273,7 +301,7 @@ class KnockoutProgressionService:
             instructor_id=reference_session.instructor_id,
             session_status="scheduled",
             is_tournament_game=True,
-            tournament_phase="Knockout Stage",
+            tournament_phase=TournamentPhase.KNOCKOUT.value,
             tournament_round=2,  # Round 2 (finals round)
             match_format=reference_session.match_format or "HEAD_TO_HEAD",
             participant_user_ids=winner_ids[:2]  # Take first 2 winners
@@ -302,7 +330,7 @@ class KnockoutProgressionService:
             total_rounds: Total rounds in tournament
             completed_matches: All completed matches from this round
             tournament: Tournament object
-            tournament_phase: "Knockout Stage" or "Knockout"
+            tournament_phase: TournamentPhase.KNOCKOUT (canonical enum value)
 
         Returns:
             Dict with progression status and updated sessions
@@ -317,25 +345,47 @@ class KnockoutProgressionService:
 
             # Parse game_results
             results = json.loads(match.game_results) if isinstance(match.game_results, str) else match.game_results
-            raw_results = results.get("raw_results", [])
 
-            if len(raw_results) == 2 and "score" in raw_results[0]:
-                # SCORE_BASED format
-                p1_id = raw_results[0]["user_id"]
-                p1_score = raw_results[0]["score"]
-                p2_id = raw_results[1]["user_id"]
-                p2_score = raw_results[1]["score"]
+            # ✅ NATIVE SUPPORT: Handle both HEAD_TO_HEAD and INDIVIDUAL formats
+            if "match_format" in results and results["match_format"] == "HEAD_TO_HEAD":
+                # ✅ HEAD_TO_HEAD format (from HEAD_TO_HEAD endpoint)
+                # Structure: {"participants": [{"user_id": X, "score": Y, "result": "win/loss/tie"}], "winner_user_id": Z}
+                participants = results.get("participants", [])
+                winner_id = results.get("winner_user_id")
 
-                if p1_score > p2_score:
-                    winners.append(p1_id)
-                    losers.append(p2_id)
-                elif p2_score > p1_score:
-                    winners.append(p2_id)
-                    losers.append(p1_id)
-                else:
-                    # Tie - use tiebreaker or first player
-                    winners.append(p1_id)
-                    losers.append(p2_id)
+                if len(participants) == 2 and winner_id:
+                    # Determine winner and loser from participants
+                    for p in participants:
+                        if p["user_id"] == winner_id:
+                            winners.append(winner_id)
+                        else:
+                            losers.append(p["user_id"])
+                elif len(participants) == 2:
+                    # No winner (tie) - use first participant as tiebreaker
+                    winners.append(participants[0]["user_id"])
+                    losers.append(participants[1]["user_id"])
+            else:
+                # ✅ INDIVIDUAL format (from INDIVIDUAL endpoint - legacy)
+                # Structure: {"raw_results": [{"user_id": X, "score": Y, "rank": Z}]}
+                raw_results = results.get("raw_results", [])
+
+                if len(raw_results) == 2 and "score" in raw_results[0]:
+                    # SCORE_BASED format
+                    p1_id = raw_results[0]["user_id"]
+                    p1_score = raw_results[0]["score"]
+                    p2_id = raw_results[1]["user_id"]
+                    p2_score = raw_results[1]["score"]
+
+                    if p1_score > p2_score:
+                        winners.append(p1_id)
+                        losers.append(p2_id)
+                    elif p2_score > p1_score:
+                        winners.append(p2_id)
+                        losers.append(p1_id)
+                    else:
+                        # Tie - use tiebreaker or first player
+                        winners.append(p1_id)
+                        losers.append(p2_id)
 
         # Check if this is the final round (before final+bronze)
         is_final_round = (round_num == total_rounds - 1)
@@ -377,7 +427,7 @@ class KnockoutProgressionService:
         next_round_matches = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                 SessionModel.tournament_round == next_round,
                 SessionModel.is_tournament_game == True,
                 ~SessionModel.title.ilike("%bronze%"),
@@ -427,12 +477,15 @@ class KnockoutProgressionService:
         updated_sessions = []
 
         # Find existing Final match
-        # ✅ FIX: Match "Final" but exclude "Quarter-finals", "Semi-finals", "Bronze", "3rd Place"
+        # ✅ FIX: Match "Final" OR "Round of 2" but exclude "Quarter-finals", "Semi-finals", "Bronze", "3rd Place"
         final_match = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
-                SessionModel.title.ilike("%final%"),
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
+                (
+                    SessionModel.title.ilike("%final%") |
+                    SessionModel.title.ilike("%round of 2%")
+                ),
                 ~SessionModel.title.ilike("%quarter-final%"),
                 ~SessionModel.title.ilike("%semi-final%"),
                 ~SessionModel.title.ilike("%bronze%"),
@@ -452,7 +505,7 @@ class KnockoutProgressionService:
         bronze_match = self.db.query(SessionModel).filter(
             and_(
                 SessionModel.semester_id == tournament.id,
-                SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                 SessionModel.title.ilike("%bronze%")
             )
         ).first()
@@ -462,7 +515,7 @@ class KnockoutProgressionService:
             bronze_match = self.db.query(SessionModel).filter(
                 and_(
                     SessionModel.semester_id == tournament.id,
-                    SessionModel.tournament_phase.in_(["Knockout Stage", "Knockout"]),
+                    SessionModel.tournament_phase == TournamentPhase.KNOCKOUT,
                     SessionModel.title.ilike("%3rd%")
                 )
             ).first()
