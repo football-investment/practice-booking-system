@@ -237,23 +237,18 @@ class KnockoutProgressionService:
         session_duration = (reference_session.date_end - reference_session.date_start).total_seconds() / 60
         bronze_end = bronze_start + timedelta(minutes=session_duration)
 
-        bronze_session = SessionModel(
-            semester_id=tournament.id,
-            title=f"{tournament.name} - Bronze Medal Match",
-            date_start=bronze_start,
-            date_end=bronze_end,
-            location=reference_session.location,
-            instructor_id=reference_session.instructor_id,
-            session_status="scheduled",
-            is_tournament_game=True,
-            tournament_phase=TournamentPhase.KNOCKOUT.value,
-            tournament_round=2,  # Round 2 (finals round)
-            match_format=reference_session.match_format or "HEAD_TO_HEAD",
-            participant_user_ids=loser_ids[:2]  # Take first 2 losers
-        )
+        # Phase 2.2: Use repository for session creation
+        session_data = {
+            "title": f"{tournament.name} - Bronze Medal Match",
+            "date_start": bronze_start,
+            "date_end": bronze_end,
+            "location": reference_session.location,
+            "tournament_phase": TournamentPhase.KNOCKOUT,
+            "tournament_round": 2,  # Round 2 (finals round)
+            "participant_user_ids": loser_ids[:2]  # Take first 2 losers
+        }
 
-        self.db.add(bronze_session)
-        self.db.flush()
+        bronze_session = self.repo.create_session(tournament, session_data)
         return bronze_session
 
     def _create_final_match(
@@ -271,23 +266,18 @@ class KnockoutProgressionService:
         session_duration = (reference_session.date_end - reference_session.date_start).total_seconds() / 60
         final_end = final_start + timedelta(minutes=session_duration)
 
-        final_session = SessionModel(
-            semester_id=tournament.id,
-            title=f"{tournament.name} - Final",
-            date_start=final_start,
-            date_end=final_end,
-            location=reference_session.location,
-            instructor_id=reference_session.instructor_id,
-            session_status="scheduled",
-            is_tournament_game=True,
-            tournament_phase=TournamentPhase.KNOCKOUT.value,
-            tournament_round=2,  # Round 2 (finals round)
-            match_format=reference_session.match_format or "HEAD_TO_HEAD",
-            participant_user_ids=winner_ids[:2]  # Take first 2 winners
-        )
+        # Phase 2.2: Use repository for session creation
+        session_data = {
+            "title": f"{tournament.name} - Final",
+            "date_start": final_start,
+            "date_end": final_end,
+            "location": reference_session.location,
+            "tournament_phase": TournamentPhase.KNOCKOUT,
+            "tournament_round": 2,  # Round 2 (finals round)
+            "participant_user_ids": winner_ids[:2]  # Take first 2 winners
+        }
 
-        self.db.add(final_session)
-        self.db.flush()
+        final_session = self.repo.create_session(tournament, session_data)
         return final_session
 
     def _handle_round_completion(
