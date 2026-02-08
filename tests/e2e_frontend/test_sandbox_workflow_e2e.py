@@ -27,7 +27,7 @@ import random
 from playwright.sync_api import Page, expect
 
 # Import existing helpers
-from .streamlit_helpers import (
+from .shared.streamlit_helpers import (
     submit_head_to_head_result_via_ui,
     wait_for_streamlit_rerun,
 )
