@@ -371,37 +371,44 @@ for idx, spec in enumerate(specializations):
                 confirm_col1, confirm_col2 = st.columns(2)
 
                 with confirm_col1:
-                    if st.button("✅ Confirm Unlock", key=f"confirm_{spec['type']}", use_container_width=True):
-                        # Call unlock API
-                        success, error, response = unlock_specialization(token, spec['type'])
-
-                        if success:
-                            st.success(f"✅ {spec['name']} unlocked successfully!")
-                            st.balloons()
-
-                            # Refresh user data to update credit balance and licenses
-                            user_success, user_error, user_data = get_current_user(token)
-                            if user_success:
-                                st.session_state[SESSION_USER_KEY] = user_data
-
-                            # Clear confirmation state
-                            st.session_state[f'confirming_unlock_{spec["type"]}'] = False
-
-                            # ✅ REDIRECT TO ONBOARDING (not dashboard!)
-                            if spec['type'] == 'LFA_PLAYER':
-                                st.info("Redirecting to onboarding...")
-                                st.switch_page("pages/LFA_Player_Onboarding.py")
-                            else:
-                                # Other specs: stay on hub for now
-                                st.rerun()
-                        else:
-                            st.error(f"❌ Failed to unlock: {error}")
-                            st.session_state[f'confirming_unlock_{spec["type"]}'] = False
+                    # Use a stable key for testability: key creates predictable DOM structure
+                    # Streamlit's key param ensures stable element identification for E2E tests
+                    confirm_clicked = st.button("✅ Confirm Unlock", key=f"confirm_unlock_button_{spec['type']}", use_container_width=True)
 
                 with confirm_col2:
-                    if st.button("❌ Cancel", key=f"cancel_{spec['type']}", use_container_width=True):
+                    cancel_clicked = st.button("❌ Cancel", key=f"cancel_unlock_button_{spec['type']}", use_container_width=True)
+
+                # Handle button clicks after both buttons are rendered
+                if confirm_clicked:
+                    # Call unlock API
+                    success, error, response = unlock_specialization(token, spec['type'])
+
+                    if success:
+                        st.success(f"✅ {spec['name']} unlocked successfully!")
+                        st.balloons()
+
+                        # Refresh user data to update credit balance and licenses
+                        user_success, user_error, user_data = get_current_user(token)
+                        if user_success:
+                            st.session_state[SESSION_USER_KEY] = user_data
+
+                        # Clear confirmation state
                         st.session_state[f'confirming_unlock_{spec["type"]}'] = False
-                        st.rerun()
+
+                        # ✅ REDIRECT TO ONBOARDING (not dashboard!)
+                        if spec['type'] == 'LFA_PLAYER':
+                            st.info("Redirecting to onboarding...")
+                            st.switch_page("pages/LFA_Player_Onboarding.py")
+                        else:
+                            # Other specs: stay on hub for now
+                            st.rerun()
+                    else:
+                        st.error(f"❌ Failed to unlock: {error}")
+                        st.session_state[f'confirming_unlock_{spec["type"]}'] = False
+
+                if cancel_clicked:
+                    st.session_state[f'confirming_unlock_{spec["type"]}'] = False
+                    st.rerun()
 
 # Credit purchase form (if triggered)
 if st.session_state.get('show_credit_purchase', False):

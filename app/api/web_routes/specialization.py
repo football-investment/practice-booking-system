@@ -94,12 +94,17 @@ async def specialization_unlock(
     db.flush()  # Get the ID
 
     # Create credit transaction
+    # Generate idempotency key for transaction deduplication
+    import uuid
+    idempotency_key = f"unlock_{current_user.id}_{spec_type.value}_{datetime.utcnow().timestamp()}"
+
     credit_transaction = CreditTransaction(
         user_license_id=new_license.id,
         amount=-100,
         transaction_type=TransactionType.PURCHASE.value,
         description=f"Unlocked specialization: {spec_type.value}",
         balance_after=current_user.credit_balance,
+        idempotency_key=idempotency_key,
         created_at=datetime.utcnow()
     )
     db.add(credit_transaction)
