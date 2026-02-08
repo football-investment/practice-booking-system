@@ -317,12 +317,13 @@ def admin_page(page: Page):
 @pytest.mark.invitation_ui
 def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
     """
-    Test D1: Admin creates 4 invitation codes via UI and captures them
+    Test D1: Admin creates 3 invitation codes via UI and captures them
 
     CRITICAL REQUIREMENTS:
-    - 4 invitation codes created successfully
+    - 3 invitation codes created successfully
     - Each code has 50 bonus credits (CRITICAL: ONLY 50 credits allowed)
-    - Codes are captured for use in registration tests (4 players from seed_data.json)
+    - Email restrictions: pwt.k1sqx1@f1stteam.hu, pwt.p3t1k3@f1stteam.hu, pwt.V4lv3rd3jr@f1stteam.hu
+    - Codes are captured for use in registration tests
 
     NOTE: We'll store codes in a file for use in subsequent tests
     """
@@ -332,8 +333,10 @@ def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
     # We'll create codes without email restriction for now
     # The API tests already validate email restriction functionality
 
-    for i in range(1, 5):
-        print(f"\n📝 Creating invitation code {i}/4 (F1rstteam Player {i})...")
+    categories = ["Pre Category", "Youth Category", "Amateur Category"]
+
+    for i in range(1, 4):
+        print(f"\n📝 Creating invitation code {i}/3 ({categories[i-1]})...")
 
         # Click "Generate Invitation Code" button
         click_generate_invitation_code_button(admin_page)
@@ -341,7 +344,7 @@ def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
         # Fill form
         fill_invitation_form(
             admin_page,
-            description=f"E2E Test - F1rstteam Player {i}",
+            description=f"E2E Test - First Team Player {i} - {categories[i-1]}",
             bonus_credits=50,  # CRITICAL: 50 credits only
             expires_hours=168  # 7 days
         )
@@ -350,29 +353,21 @@ def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
         code = submit_invitation_form_and_capture_code(admin_page)
         invitation_codes.append(code)
 
-        print(f"✅ Code {i}/4 created: {code} (50 credits, F1rstteam)")
+        print(f"✅ Code {i}/3 created: {code} (50 credits, {categories[i-1]})")
 
         # Wait before creating next code
         admin_page.wait_for_timeout(1000)
 
-    # Verify we have 4 unique codes
-    assert len(invitation_codes) == 4
-    assert len(set(invitation_codes)) == 4  # All unique
+    # Verify we have 3 unique codes
+    assert len(invitation_codes) == 3
+    assert len(set(invitation_codes)) == 3  # All unique
 
     # Save codes to file for use in next tests
     with open("tests/e2e/generated_invitation_codes.json", "w") as f:
         json.dump(invitation_codes, f)
 
-    print(f"\n✅✅✅ All 4 invitation codes created and saved!")
+    print(f"\n✅✅✅ All 3 invitation codes created and saved!")
     print(f"Codes: {invitation_codes}")
-
-    # Save database snapshot after invitation codes created
-    print(f"\n💾 Saving database snapshot: after_invitation_codes")
-    import subprocess
-    subprocess.run([
-        "bash", "tests/playwright/snapshot_manager.sh",
-        "save", "after_invitation_codes"
-    ], check=True)
 
 
 # =============================================================================
@@ -381,11 +376,17 @@ def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
 
 @pytest.mark.e2e
 @pytest.mark.invitation_ui
-def test_d2_first_user_registers_with_invitation(page: Page, test_data):
+def test_d2_first_user_registers_with_invitation(page: Page):
     """
-    Test D2.1: First user registers with invitation code
+    Test D2.1: First user registers with invitation code (PRE category, age 6-11)
 
-    Data is loaded from seed_data.json (Player 1)
+    CRITICAL REQUIREMENTS:
+    - Email: pwt.k1sqx1@f1stteam.hu (fixed)
+    - Date of birth: Pre category (age 6-11, born 2015-2019)
+    - Registration form accepts all required fields
+    - Invitation code is validated and accepted
+    - User is created successfully with 50 bonus credits
+    - Success message displayed
     """
     # Load invitation codes from file
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
@@ -393,38 +394,39 @@ def test_d2_first_user_registers_with_invitation(page: Page, test_data):
 
     assert len(invitation_codes) >= 1
 
-    # Load player data from seed_data.json
-    player = test_data.get_player(index=0)
-
-    # Build user_data dict for registration form
+    # User 1 data - PRE CATEGORY (age 10)
     user_data = {
-        "first_name": player["first_name"],
-        "last_name": player["last_name"],
-        "nickname": player["nickname"],
-        "email": player["email"],
-        "password": player["password"],
-        "phone": player["phone"],
-        "date_of_birth": player["date_of_birth"],
+        "first_name": "Kristóf",
+        "last_name": "Kis",
+        "nickname": "Krisz",
+        "email": "pwt.k1sqx1@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
+        "password": "password123",
+        "phone": "+36 20 123 4567",
+        "date_of_birth": "2014-05-15",  # Age 10 (Pre category: 5-13)
         "nationality": "Hungarian",
         "gender": "Male",
-        "street_address": player["address"]["street"],
-        "city": player["address"]["city"],
-        "postal_code": player["address"]["postal_code"],
-        "country": player["address"]["country"]
+        "street_address": "Fő utca 12",
+        "city": "Budapest",
+        "postal_code": "1011",
+        "country": "Hungary"
     }
 
     register_new_user(page, user_data, invitation_codes[0])
 
-    print(f"✅ First user registered: {user_data['email']}")
+    print(f"✅ First user registered: {user_data['email']} (Pre category, age 10)")
 
 
 @pytest.mark.e2e
 @pytest.mark.invitation_ui
-def test_d3_second_user_registers_with_invitation(page: Page, test_data):
+def test_d3_second_user_registers_with_invitation(page: Page):
     """
-    Test D2.2: Second user registers with invitation code
+    Test D2.2: Second user registers with invitation code (YOUTH category, age 12-17)
 
-    Data is loaded from seed_data.json (Player 2)
+    CRITICAL REQUIREMENTS:
+    - Email: pwt.p3t1k3@f1stteam.hu (fixed)
+    - Date of birth: Youth category (age 12-17, born 2009-2014)
+    - Different invitation code from first user
+    - Registration successful with 50 bonus credits
     """
     # Load invitation codes from file
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
@@ -432,38 +434,39 @@ def test_d3_second_user_registers_with_invitation(page: Page, test_data):
 
     assert len(invitation_codes) >= 2
 
-    # Load player data from seed_data.json
-    player = test_data.get_player(index=1)
-
-    # Build user_data dict for registration form
+    # User 2 data - YOUTH CATEGORY (age 14)
     user_data = {
-        "first_name": player["first_name"],
-        "last_name": player["last_name"],
-        "nickname": player["nickname"],
-        "email": player["email"],
-        "password": player["password"],
-        "phone": player["phone"],
-        "date_of_birth": player["date_of_birth"],
+        "first_name": "Péter",
+        "last_name": "Pataki",
+        "nickname": "Peti",
+        "email": "pwt.p3t1k3@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
+        "password": "password123",
+        "phone": "+36 30 234 5678",
+        "date_of_birth": "2009-08-20",  # Age 15 (Youth category: 14-17)
         "nationality": "Hungarian",
         "gender": "Male",
-        "street_address": player["address"]["street"],
-        "city": player["address"]["city"],
-        "postal_code": player["address"]["postal_code"],
-        "country": player["address"]["country"]
+        "street_address": "Petőfi utca 34",
+        "city": "Debrecen",
+        "postal_code": "4024",
+        "country": "Hungary"
     }
 
     register_new_user(page, user_data, invitation_codes[1])
 
-    print(f"✅ Second user registered: {user_data['email']}")
+    print(f"✅ Second user registered: {user_data['email']} (Youth category, age 14)")
 
 
 @pytest.mark.e2e
 @pytest.mark.invitation_ui
-def test_d4_third_user_registers_with_invitation(page: Page, test_data):
+def test_d4_third_user_registers_with_invitation(page: Page):
     """
-    Test D2.3: Third user registers with invitation code
+    Test D2.3: Third user registers with invitation code (AMATEUR category, age 18+)
 
-    Data is loaded from seed_data.json (Player 3)
+    CRITICAL REQUIREMENTS:
+    - Email: pwt.V4lv3rd3jr@f1stteam.hu (fixed)
+    - Date of birth: Amateur category (age 18+, born 2008 or earlier)
+    - Different invitation code from previous users
+    - Registration successful with 50 bonus credits
     """
     # Load invitation codes from file
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
@@ -471,68 +474,26 @@ def test_d4_third_user_registers_with_invitation(page: Page, test_data):
 
     assert len(invitation_codes) >= 3
 
-    # Load player data from seed_data.json
-    player = test_data.get_player(index=2)
-
-    # Build user_data dict for registration form
+    # User 3 data - AMATEUR CATEGORY (age 22)
     user_data = {
-        "first_name": player["first_name"],
-        "last_name": player["last_name"],
-        "nickname": player["nickname"],
-        "email": player["email"],
-        "password": player["password"],
-        "phone": player["phone"],
-        "date_of_birth": player["date_of_birth"],
+        "first_name": "Viktor",
+        "last_name": "Valverde",
+        "nickname": "Viki",
+        "email": "pwt.V4lv3rd3jr@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
+        "password": "password123",
+        "phone": "+36 70 345 6789",
+        "date_of_birth": "2004-11-12",  # Age 22 (Amateur category: 18+)
         "nationality": "Hungarian",
         "gender": "Male",
-        "street_address": player["address"]["street"],
-        "city": player["address"]["city"],
-        "postal_code": player["address"]["postal_code"],
-        "country": player["address"]["country"]
+        "street_address": "Rákóczi út 56",
+        "city": "Szeged",
+        "postal_code": "6720",
+        "country": "Hungary"
     }
 
     register_new_user(page, user_data, invitation_codes[2])
 
-    print(f"✅ Third user registered: {user_data['email']}")
-
-
-@pytest.mark.e2e
-@pytest.mark.invitation_ui
-def test_d5_fourth_user_registers_with_invitation(page: Page, test_data):
-    """
-    Test D2.4: Fourth user registers with invitation code
-
-    Data is loaded from seed_data.json (Player 4)
-    """
-    # Load invitation codes from file
-    with open("tests/e2e/generated_invitation_codes.json", "r") as f:
-        invitation_codes = json.load(f)
-
-    assert len(invitation_codes) >= 4
-
-    # Load player data from seed_data.json
-    player = test_data.get_player(index=3)
-
-    # Build user_data dict for registration form
-    user_data = {
-        "first_name": player["first_name"],
-        "last_name": player["last_name"],
-        "nickname": player["nickname"],
-        "email": player["email"],
-        "password": player["password"],
-        "phone": player["phone"],
-        "date_of_birth": player["date_of_birth"],
-        "nationality": "Hungarian",
-        "gender": "Male",
-        "street_address": player["address"]["street"],
-        "city": player["address"]["city"],
-        "postal_code": player["address"]["postal_code"],
-        "country": player["address"]["country"]
-    }
-
-    register_new_user(page, user_data, invitation_codes[3])
-
-    print(f"✅ Fourth user registered: {user_data['email']}")
+    print(f"✅ Third user registered: {user_data['email']} (Amateur category, age 22)")
 
 
 # =============================================================================
@@ -591,59 +552,66 @@ def test_d7_third_user_hub_loads(page: Page):
 @pytest.mark.invitation_ui
 def test_d8_verify_users_in_database(db):
     """
-    Test D4: Verify all 4 users exist in database with correct data
+    Test D4: Verify all 3 users exist in database with correct data
 
     CRITICAL REQUIREMENTS:
-    - All 4 users created in database with correct emails from seed_data.json
+    - All 3 users created in database with fixed emails
     - Each user has 50 bonus credits from invitation code (CRITICAL: ONLY 50 credits allowed)
     - Invitation codes marked as used
+    - Age groups correctly represented: Pre, Youth, Amateur
     """
-    user1 = db.query(User).filter(User.email == "k1sqx1@f1rstteam.hu").first()
-    user2 = db.query(User).filter(User.email == "p3t1k3@f1rstteam.hu").first()
-    user3 = db.query(User).filter(User.email == "v4lv3rd3jr@f1rstteam.hu").first()
-    user4 = db.query(User).filter(User.email == "t1b1k3@f1rstteam.hu").first()
+    user1 = db.query(User).filter(User.email == "pwt.k1sqx1@f1stteam.hu").first()
+    user2 = db.query(User).filter(User.email == "pwt.p3t1k3@f1stteam.hu").first()
+    user3 = db.query(User).filter(User.email == "pwt.V4lv3rd3jr@f1stteam.hu").first()
 
-    assert user1 is not None, "First user (k1sqx1@f1rstteam.hu) not found in database"
-    assert user2 is not None, "Second user (p3t1k3@f1rstteam.hu) not found in database"
-    assert user3 is not None, "Third user (v4lv3rd3jr@f1rstteam.hu) not found in database"
-    assert user4 is not None, "Fourth user (t1b1k3@f1rstteam.hu) not found in database"
+    assert user1 is not None, "First user (pwt.k1sqx1@f1stteam.hu) not found in database"
+    assert user2 is not None, "Second user (pwt.p3t1k3@f1stteam.hu) not found in database"
+    assert user3 is not None, "Third user (pwt.V4lv3rd3jr@f1stteam.hu) not found in database"
 
     # CRITICAL: Verify bonus credits (MUST be 50)
     assert user1.credit_balance == 50, f"User 1 has {user1.credit_balance} credits, expected 50"
     assert user2.credit_balance == 50, f"User 2 has {user2.credit_balance} credits, expected 50"
     assert user3.credit_balance == 50, f"User 3 has {user3.credit_balance} credits, expected 50"
-    assert user4.credit_balance == 50, f"User 4 has {user4.credit_balance} credits, expected 50"
 
-    # Verify user details from seed_data.json
-    assert user1.first_name == "Tamás"
+    # Verify user details
+    assert user1.first_name == "Kristóf"
     assert user2.first_name == "Péter"
-    assert user3.first_name == "Péter"
-    assert user4.first_name == "Tibor"
+    assert user3.first_name == "Viktor"
+
+    # Verify age groups
+    today = date.today()
+
+    # User 1 - Pre category (age 6-11)
+    age1 = today.year - user1.date_of_birth.year
+    assert 6 <= age1 <= 11, f"User 1 age {age1} not in Pre category (6-11)"
+
+    # User 2 - Youth category (age 12-17)
+    age2 = today.year - user2.date_of_birth.year
+    assert 12 <= age2 <= 17, f"User 2 age {age2} not in Youth category (12-17)"
+
+    # User 3 - Amateur category (age 18+)
+    age3 = today.year - user3.date_of_birth.year
+    assert age3 >= 18, f"User 3 age {age3} not in Amateur category (18+)"
 
     # Verify invitation codes are marked as used
     code1 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user1.id).first()
     code2 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user2.id).first()
     code3 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user3.id).first()
-    code4 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user4.id).first()
 
     assert code1 is not None, "User 1's invitation code not found"
     assert code2 is not None, "User 2's invitation code not found"
     assert code3 is not None, "User 3's invitation code not found"
-    assert code4 is not None, "User 4's invitation code not found"
 
     assert code1.is_used is True
     assert code2.is_used is True
     assert code3.is_used is True
-    assert code4.is_used is True
 
     # CRITICAL: Verify invitation codes had 50 credits
     assert code1.bonus_credits == 50
     assert code2.bonus_credits == 50
     assert code3.bonus_credits == 50
-    assert code4.bonus_credits == 50
 
-    print("\n✅✅✅ All 4 users verified in database!")
-    print(f"User 1: {user1.email} - {user1.credit_balance} credits")
-    print(f"User 2: {user2.email} - {user2.credit_balance} credits")
-    print(f"User 3: {user3.email} - {user3.credit_balance} credits")
-    print(f"User 4: {user4.email} - {user4.credit_balance} credits")
+    print("\n✅✅✅ All 3 users verified in database!")
+    print(f"User 1: {user1.email} - {user1.credit_balance} credits (Pre, age {age1})")
+    print(f"User 2: {user2.email} - {user2.credit_balance} credits (Youth, age {age2})")
+    print(f"User 3: {user3.email} - {user3.credit_balance} credits (Amateur, age {age3})")
