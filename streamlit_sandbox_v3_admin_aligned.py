@@ -1021,7 +1021,9 @@ def render_configuration_screen():
 
 def render_instructor_workflow():
     """Instructor workflow coordinator - 6 main steps + optional step 7 for viewing rewards"""
+    import sys
     workflow_step = st.session_state.get('workflow_step', 1)
+    print(f"🟡 [WORKFLOW START] render_instructor_workflow() - Step {workflow_step}", file=sys.stderr, flush=True)
 
     # Progress indicator (show progress for main workflow steps 1-6, step 7 is standalone)
     max_steps = 6 if workflow_step <= 6 else 7
@@ -1041,19 +1043,35 @@ def render_instructor_workflow():
     config = st.session_state.get('tournament_config', {})
 
     if workflow_step == 1:
+        print(f"📍 [STEP 1] Calling render_step_create_tournament()", file=sys.stderr, flush=True)
         render_step_create_tournament(config)
+        print(f"✅ [STEP 1] render_step_create_tournament() completed", file=sys.stderr, flush=True)
     elif workflow_step == 2:
+        print(f"📍 [STEP 2] Calling render_step_manage_sessions()", file=sys.stderr, flush=True)
         render_step_manage_sessions()
+        print(f"✅ [STEP 2] render_step_manage_sessions() completed", file=sys.stderr, flush=True)
     elif workflow_step == 3:
+        print(f"📍 [STEP 3] Calling render_step_track_attendance()", file=sys.stderr, flush=True)
         render_step_track_attendance()
+        print(f"✅ [STEP 3] render_step_track_attendance() completed", file=sys.stderr, flush=True)
     elif workflow_step == 4:
+        print(f"📍 [STEP 4] Calling render_step_enter_results()", file=sys.stderr, flush=True)
         render_step_enter_results()
+        print(f"✅ [STEP 4] render_step_enter_results() completed", file=sys.stderr, flush=True)
     elif workflow_step == 5:
+        print(f"📍 [STEP 5] Calling render_step_view_leaderboard()", file=sys.stderr, flush=True)
         render_step_view_leaderboard()
+        print(f"✅ [STEP 5] render_step_view_leaderboard() completed", file=sys.stderr, flush=True)
     elif workflow_step == 6:
+        print(f"📍 [STEP 6] Calling render_step_distribute_rewards()", file=sys.stderr, flush=True)
         render_step_distribute_rewards()
+        print(f"✅ [STEP 6] render_step_distribute_rewards() completed", file=sys.stderr, flush=True)
     elif workflow_step == 7:
+        print(f"📍 [STEP 7] Calling render_step_view_rewards()", file=sys.stderr, flush=True)
         render_step_view_rewards()
+        print(f"✅ [STEP 7] render_step_view_rewards() completed", file=sys.stderr, flush=True)
+
+    print(f"🟢 [WORKFLOW END] render_instructor_workflow() completed - Step {workflow_step}", file=sys.stderr, flush=True)
 
 
 def render_history_screen():
@@ -1388,6 +1406,10 @@ def _render_preset_list_item(preset: Dict, *form_components):
 
 def main():
     """Main application entry point"""
+    import sys
+    print("🔵 [SCRIPT START] main() entered", file=sys.stderr, flush=True)
+    print(f"🔍 [LOAD] workflow_step ON ENTRY: {st.session_state.get('workflow_step', 'NOT SET')}", file=sys.stderr, flush=True)
+
     # Initialize session state
     if "screen" not in st.session_state:
         st.session_state.screen = "home"
@@ -1465,12 +1487,14 @@ def main():
         except (ValueError, TypeError):
             pass  # Invalid tournament_id, ignore
 
-    if "step" in query_params:
+    # Restore workflow_step from URL ONLY if not already set in session_state
+    # This ensures session_state is the single source of truth
+    if "step" in query_params and "workflow_step" not in st.session_state:
         try:
             desired_step = int(query_params["step"])
-            if st.session_state.get("workflow_step") != desired_step:
-                st.session_state.workflow_step = desired_step
-                state_changed = True
+            print(f"🔍 [QUERY RESTORE] Initializing workflow_step from URL: {desired_step}", file=sys.stderr, flush=True)
+            st.session_state.workflow_step = desired_step
+            state_changed = True
         except (ValueError, TypeError):
             pass  # Invalid step, ignore
 
@@ -1536,15 +1560,19 @@ def main():
     # Route to screens (with explicit returns to prevent multi-screen rendering)
     if st.session_state.screen == "home":
         render_home_screen()
+        print("🟢 [SCRIPT END] main() completed (home screen)", file=sys.stderr, flush=True)
         return
     elif st.session_state.screen == "history":
         render_history_screen()
+        print("🟢 [SCRIPT END] main() completed (history screen)", file=sys.stderr, flush=True)
         return
     elif st.session_state.screen == "configuration":
         render_configuration_screen()
+        print("🟢 [SCRIPT END] main() completed (configuration screen)", file=sys.stderr, flush=True)
         return
     elif st.session_state.screen == "instructor_workflow":
         render_instructor_workflow()
+        print("🟢 [SCRIPT END] main() completed (instructor_workflow screen)", file=sys.stderr, flush=True)
         return
 
 
