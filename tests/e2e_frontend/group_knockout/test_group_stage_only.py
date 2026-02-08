@@ -32,7 +32,7 @@ import time
 from playwright.sync_api import Page
 
 # Import shared workflow functions
-from .shared_tournament_workflow import (
+from ..shared.shared_tournament_workflow import (
     get_random_participants,
     navigate_to_home,
     click_create_new_tournament,

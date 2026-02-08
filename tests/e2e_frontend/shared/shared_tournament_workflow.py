@@ -11,7 +11,7 @@ NO DUPLICATION: All test suites import from here.
 # Re-export all functions from the original test file for backwards compatibility
 # This prevents breaking existing tests while enabling shared usage
 
-from .test_tournament_full_ui_workflow import (
+from ..individual_ranking.test_individual_ranking_full_ui_workflow import (
     get_random_participants,
     wait_for_streamlit_load,
     scroll_to_element,

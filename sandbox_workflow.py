@@ -7,6 +7,7 @@ Each step uses the component library for consistent UX and E2E testing.
 
 import streamlit as st
 import requests
+import logging
 from typing import Dict
 from streamlit_components.core import api_client, APIError
 from streamlit_components.layouts import SingleColumnForm
@@ -14,6 +15,9 @@ from streamlit_components.feedback import Loading, Success, Error
 from sandbox_helpers import render_mini_leaderboard, fetch_tournament_sessions
 
 API_BASE_URL = "http://localhost:8000/api/v1"
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 def render_step_create_tournament(config: Dict):
@@ -649,49 +653,82 @@ def render_step_distribute_rewards():
     2. Triggers reward distribution
     3. Moves to Step 7 to view distributed rewards
     """
+    logger.info("🔷 [STEP 6 ENTRY] render_step_distribute_rewards() started")
+
     tournament_id = st.session_state.get('tournament_id')
+    logger.info(f"🔷 [STEP 6] tournament_id={tournament_id}")
+
     st.markdown("### 6. Complete Tournament & Distribute Rewards")
+    logger.info("🔷 [STEP 6] Title rendered")
 
     st.info("Complete the tournament to finalize standings and distribute rewards to winners.")
+    logger.info("🔷 [STEP 6] Info message rendered")
 
     # Complete Tournament Form
+    logger.info("🔷 [STEP 6] Creating form")
     with st.form(key="form_complete_tournament"):
+        logger.info("🔷 [STEP 6] Inside form context")
         st.markdown("#### ✅ Ready to Complete Tournament")
         st.caption("This action will:")
         st.caption("• Mark the tournament as COMPLETED")
         st.caption("• Lock all results (no further changes allowed)")
         st.caption("• Distribute rewards to winners based on final standings")
+        logger.info("🔷 [STEP 6] Form content rendered")
 
         complete_clicked = st.form_submit_button("Complete Tournament", type="primary", use_container_width=True)
+        logger.info("🔷 [STEP 6] Form submit button created")
 
     if complete_clicked:
+        # DEBUG: Log that callback was triggered
+        import sys
+        logger.info(f"🔥 DEBUG: complete_clicked callback triggered! tournament_id={tournament_id}")
+
         try:
             headers = {"Content-Type": "application/json"}
             if "auth_token" in st.session_state:
                 headers["Authorization"] = f"Bearer {st.session_state.auth_token}"
+                logger.info(f"🔥 DEBUG: Has auth_token")
+            else:
+                logger.info(f"🔥 DEBUG: NO auth_token in session_state!")
 
             # Complete tournament
+            logger.info(f"🔥 DEBUG: Calling /tournaments/{tournament_id}/complete")
             complete_response = requests.post(
                 f"{API_BASE_URL}/tournaments/{tournament_id}/complete",
                 headers=headers
             )
+            logger.info(f"🔥 DEBUG: Complete response status={complete_response.status_code}")
 
             if complete_response.status_code in [200, 201]:
+                logger.info(f"🔥 DEBUG: Complete API success, showing st.success()")
                 st.success("✅ Tournament completed successfully!")
+                logger.info(f"🔥 DEBUG: st.success() completed")
 
                 # Distribute rewards
+                logger.info(f"🔥 DEBUG: Showing st.info() for rewards")
                 st.info("Distributing rewards...")
+                logger.info(f"🔥 DEBUG: st.info() completed, calling distribute-rewards API")
 
                 rewards_response = requests.post(
                     f"{API_BASE_URL}/tournaments/{tournament_id}/distribute-rewards",
                     headers=headers,
                     json={}  # Empty body - all fields are optional
                 )
+                logger.info(f"🔥 DEBUG: Rewards API response status={rewards_response.status_code}")
 
                 if rewards_response.status_code in [200, 201]:
+                    logger.info(f"🔥 DEBUG: Rewards API success, showing st.success()")
                     st.success("✅ Rewards distributed successfully!")
+                    logger.info(f"🔥 DEBUG: Setting workflow_step=7")
                     st.session_state.workflow_step = 7
+
+                    # Sync URL with session state to prevent query param from overwriting
+                    logger.info(f"🔥 DEBUG: Syncing URL query param to step=7")
+                    st.query_params["step"] = "7"
+
+                    logger.info(f"🔥 DEBUG: Calling st.rerun()")
                     st.rerun()
+                    logger.info(f"🔥 DEBUG: st.rerun() returned (should never see this)")
                 else:
                     try:
                         error_data = rewards_response.json()
@@ -712,9 +749,13 @@ def render_step_distribute_rewards():
             st.error(f"Error completing tournament: {str(e)}")
 
     # Navigation
+    logger.info("🔷 [STEP 6] Creating navigation button")
     if st.button("← Back to Step 5"):
+        logger.info("🔷 [STEP 6] Back button clicked")
         st.session_state.workflow_step = 5
         st.rerun()
+
+    logger.info("🔷 [STEP 6 EXIT] render_step_distribute_rewards() completed")
 
 
 def render_step_view_rewards():

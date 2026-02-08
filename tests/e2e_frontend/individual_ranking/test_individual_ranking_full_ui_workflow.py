@@ -24,15 +24,17 @@ Run with:
     pytest tests/e2e_frontend/test_tournament_full_ui_workflow.py -v -s
 """
 import pytest
+
+# Mark all tests in this file as individual_ranking tests
+pytestmark = pytest.mark.individual_ranking
 import time
 import sys
 from pathlib import Path
 from playwright.sync_api import Page, expect, sync_playwright
 from datetime import datetime, timedelta
 
-# Add current directory to path for streamlit_helpers import
-sys.path.insert(0, str(Path(__file__).parent))
-from streamlit_helpers import (
+# Import from shared directory
+from ..shared.streamlit_helpers import (
     select_streamlit_selectbox_by_label,
     fill_streamlit_text_input,
     fill_streamlit_number_input,

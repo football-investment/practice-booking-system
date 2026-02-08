@@ -354,12 +354,111 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
     print("\n📍 Phase 7.5: Navigate to Complete Tournament Page")
 
     try:
-        # Navigate directly to Step 6 via URL (button click doesn't work reliably with Streamlit)
-        complete_url = f"http://localhost:8501?screen=instructor_workflow&tournament_id={tournament_id}&step=6"
-        page.goto(complete_url)
-        print(f"   ✅ Navigated via URL to Step 6 (Complete Tournament)")
+        # CRITICAL TEST: Try button click navigation instead of URL
+        # to see if that makes form_submit_button work properly
+        continue_btn = page.locator("button:has-text('Continue to Complete Tournament')").first
+
+        # Check if button exists (leaderboard loaded successfully)
+        if continue_btn.count() == 0:
+            print("   ⚠️  'Continue to Complete Tournament' button not found")
+            print("   Trying URL navigation as fallback...")
+            complete_url = f"http://localhost:8501?screen=instructor_workflow&tournament_id={tournament_id}&step=6"
+            page.goto(complete_url)
+            print(f"   ✅ Navigated via URL to Step 6 (Complete Tournament)")
+        else:
+            continue_btn.wait_for(state="visible", timeout=10000)
+            print("   ✅ 'Continue to Complete Tournament' button visible")
+
+            # Try to click - if it doesn't work, fall back to URL
+            try:
+                continue_btn.click(force=True, timeout=5000)
+                print("   ✅ Clicked 'Continue to Complete Tournament'")
+
+                # Wait for Step 6 to load
+                time.sleep(3)
+                page.wait_for_load_state("networkidle", timeout=15000)
+
+                # Verify Step 6 loaded
+                if page.locator("text=6. Complete Tournament").count() > 0:
+                    print("   ✅ Step 6 loaded via BUTTON CLICK")
+                else:
+                    print("   ⚠️  Button click didn't navigate - trying URL")
+                    complete_url = f"http://localhost:8501?screen=instructor_workflow&tournament_id={tournament_id}&step=6"
+                    page.goto(complete_url)
+                    print(f"   ✅ Navigated via URL to Step 6 (Complete Tournament)")
+
+            except Exception as click_err:
+                print(f"   ⚠️  Button click failed: {click_err}")
+                print("   Trying URL navigation as fallback...")
+                complete_url = f"http://localhost:8501?screen=instructor_workflow&tournament_id={tournament_id}&step=6"
+                page.goto(complete_url)
+                print(f"   ✅ Navigated via URL to Step 6 (Complete Tournament)")
+
         wait_streamlit(page)
-        time.sleep(2)
+
+        # INSTALL TIMELINE TRACKING IMMEDIATELY after navigation (Phase 7.5 → 8)
+        print("   🔍 Installing timeline tracking for Phase 7.5 → 8 transition...")
+        page.evaluate("""() => {
+            window.phaseTimeline = [];
+            window.phaseStartTime = Date.now();
+
+            function logEvent(event, details = {}) {
+                const elapsed = Date.now() - window.phaseStartTime;
+                const entry = {elapsed, event, ...details};
+                window.phaseTimeline.push(entry);
+                console.log(`⏱️  T=${elapsed}ms: ${event}`, details);
+            }
+
+            logEvent('TRACKING_INSTALLED', {phase: '7.5_to_8'});
+
+            // Track setTimeout with full detail
+            const originalSetTimeout = window.setTimeout;
+            window.setTimeout = function(fn, delay, ...args) {
+                const elapsed = Date.now() - window.phaseStartTime;
+                const stack = new Error().stack.split('\\n');
+                const caller = stack[2] ? stack[2].substring(0, 80) : 'unknown';
+
+                if (delay > 100) {
+                    logEvent('setTimeout', {delay, caller});
+                }
+
+                return originalSetTimeout(fn, delay, ...args);
+            };
+
+            // Track script lifecycle if available
+            if (window.streamlit && window.streamlit._scriptFinishedHandlers) {
+                logEvent('STREAMLIT_READY', {streamlitDefined: true});
+            } else {
+                logEvent('STREAMLIT_NOT_READY', {streamlitDefined: !!window.streamlit});
+            }
+
+            // Monitor for script execution
+            const checkInterval = setInterval(() => {
+                const now = Date.now() - window.phaseStartTime;
+                if (now > 10000) {
+                    clearInterval(checkInterval);
+                    logEvent('MONITORING_STOPPED', {reason: 'timeout'});
+                }
+            }, 500);
+
+            logEvent('TRACKING_ACTIVE');
+        }""")
+        print("   ✅ Timeline tracking installed")
+
+        # CRITICAL: After URL navigation, Streamlit does st.rerun() to apply query params
+        # Wait for that rerun to complete so form state stabilizes
+        print("   ⏳ Waiting for query param rerun to complete...")
+        time.sleep(3)
+        page.wait_for_load_state("networkidle", timeout=10000)
+        print("   ✅ Form state should be stable now")
+
+        # Check timeline so far
+        early_timeline = page.evaluate("() => window.phaseTimeline || []")
+        if early_timeline:
+            print(f"\n   📊 EARLY TIMELINE (Phase 7.5, first {min(5, len(early_timeline))} events):")
+            for event in early_timeline[:5]:
+                print(f"      T={event['elapsed']}ms: {event['event']}")
+
     except Exception as e:
         print(f"   ❌ Error: {str(e)}")
         page.screenshot(path="/tmp/phase7.5_failure.png")
@@ -374,9 +473,260 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
     try:
         # Wait for Streamlit to finish rendering (check for stable React)
         print("   ⏳ Waiting for Streamlit render to complete...")
-        time.sleep(2)  # Give React time to settle
-        page.wait_for_load_state("networkidle", timeout=10000)
+        time.sleep(5)  # Give Streamlit app time to initialize and render
+        page.wait_for_load_state("networkidle", timeout=15000)
         print("   ✅ Network idle")
+
+        # CRITICAL: Wait for Streamlit WebSocket to connect
+        print("   ⏳ Waiting for Streamlit WebSocket connection...")
+
+        ws_connected = False
+        for attempt in range(10):
+            state = page.evaluate("""() => {
+                // Check for active WebSocket
+                const ws = window.WebSocket;
+                const streamlitReady = window.streamlit && window.streamlit._scriptFinishedHandlers;
+
+                return {
+                    hasWebSocket: !!ws,
+                    streamlitDefined: !!window.streamlit,
+                    streamlitReady: !!streamlitReady
+                };
+            }""")
+
+            if state.get('streamlitReady'):
+                ws_connected = True
+                print(f"   ✅ Streamlit WebSocket connected (attempt {attempt + 1})")
+                break
+            else:
+                print(f"   ⏳ Waiting for WS connection... (attempt {attempt + 1}/10): {state}")
+                time.sleep(0.5)
+
+        if not ws_connected:
+            print("   ⚠️  WARNING: Streamlit WebSocket may not be fully connected!")
+
+        # Check final state
+        initial_state = page.evaluate("""() => {
+            return {
+                queryParams: new URLSearchParams(window.location.search).toString(),
+                streamlitReady: !!(window.streamlit && window.streamlit._scriptFinishedHandlers)
+            };
+        }""")
+        print(f"   🔍 Final page state: {initial_state}")
+
+        # PERFORMANCE TIMING: Capture page load metrics
+        perf_timing = page.evaluate("""() => {
+            const perfData = performance.getEntriesByType('navigation')[0];
+            const paintEntries = performance.getEntriesByType('paint');
+
+            return {
+                domContentLoaded: perfData?.domContentLoadedEventEnd - perfData?.domContentLoadedEventStart,
+                domInteractive: perfData?.domInteractive - perfData?.fetchStart,
+                domComplete: perfData?.domComplete - perfData?.fetchStart,
+                loadComplete: perfData?.loadEventEnd - perfData?.fetchStart,
+                firstPaint: paintEntries.find(e => e.name === 'first-paint')?.startTime,
+                firstContentfulPaint: paintEntries.find(e => e.name === 'first-contentful-paint')?.startTime,
+                scriptCount: document.scripts.length,
+                resourceCount: performance.getEntriesByType('resource').length
+            };
+        }""")
+        print(f"\n   📊 PERFORMANCE TIMING:")
+        print(f"      DOM Interactive: {perf_timing.get('domInteractive', 0):.0f}ms")
+        print(f"      DOM Complete: {perf_timing.get('domComplete', 0):.0f}ms")
+        print(f"      Load Complete: {perf_timing.get('loadComplete', 0):.0f}ms")
+        print(f"      First Paint: {perf_timing.get('firstPaint', 0):.0f}ms")
+        print(f"      First Contentful Paint: {perf_timing.get('firstContentfulPaint', 0):.0f}ms")
+        print(f"      Scripts loaded: {perf_timing.get('scriptCount', 0)}")
+        print(f"      Resources loaded: {perf_timing.get('resourceCount', 0)}")
+
+        # NETWORK TIMING: Track API calls during page load
+        network_timing = page.evaluate("""() => {
+            const resources = performance.getEntriesByType('resource');
+            const apiCalls = resources
+                .filter(r => r.name.includes('/api/'))
+                .map(r => ({
+                    url: r.name.split('/api/')[1],
+                    duration: r.duration,
+                    startTime: r.startTime
+                }))
+                .sort((a, b) => a.startTime - b.startTime);
+
+            const slowest = [...resources]
+                .sort((a, b) => b.duration - a.duration)
+                .slice(0, 5)
+                .map(r => ({
+                    name: r.name.split('/').pop(),
+                    duration: r.duration,
+                    type: r.initiatorType
+                }));
+
+            return {
+                apiCalls,
+                slowest,
+                totalApiTime: apiCalls.reduce((sum, call) => sum + call.duration, 0)
+            };
+        }""")
+
+        if network_timing.get('apiCalls'):
+            print(f"\n   🌐 API CALLS DURING LOAD:")
+            for call in network_timing['apiCalls']:
+                print(f"      {call['startTime']:.0f}ms: {call['url']} ({call['duration']:.0f}ms)")
+            print(f"      Total API time: {network_timing['totalApiTime']:.0f}ms")
+
+        if network_timing.get('slowest'):
+            print(f"\n   🐌 SLOWEST RESOURCES:")
+            for res in network_timing['slowest']:
+                print(f"      {res['name']}: {res['duration']:.0f}ms ({res['type']})")
+
+        # CAPTURE ALL network activity (WebSocket + HTTP)
+        ws_connections = []
+        ws_errors = []
+        http_requests = []
+        start_capture_time = time.time()
+
+        def handle_websocket(ws):
+            ws_info = {
+                'url': ws.url,
+                'timestamp': time.time() - start_capture_time
+            }
+            ws_connections.append(ws_info)
+            print(f"\n   🔌 WebSocket connection attempt: {ws.url}")
+
+            ws.on("framereceived", lambda payload: print(f"   📥 WS Frame received: {len(str(payload))} bytes"))
+            ws.on("framesent", lambda payload: print(f"   📤 WS Frame sent: {len(str(payload))} bytes"))
+            ws.on("close", lambda: print(f"   ❌ WebSocket closed: {ws.url}"))
+
+        def handle_request(request):
+            # Track Streamlit-specific endpoints
+            if '/_stcore/' in request.url or '/stream' in request.url or '/healthz' in request.url:
+                http_requests.append({
+                    'url': request.url,
+                    'method': request.method,
+                    'type': request.resource_type,
+                    'timestamp': time.time() - start_capture_time
+                })
+                print(f"   🌐 T={int((time.time() - start_capture_time) * 1000)}ms: {request.method} {request.url.split('/')[-1]}")
+
+        def handle_request_failed(request):
+            if 'websocket' in request.url.lower() or request.resource_type == 'websocket':
+                ws_errors.append({
+                    'url': request.url,
+                    'failure': request.failure,
+                    'timestamp': time.time() - start_capture_time
+                })
+                print(f"   ⚠️  WebSocket request failed: {request.url} - {request.failure}")
+
+        page.on("websocket", handle_websocket)
+        page.on("request", handle_request)
+        page.on("requestfailed", handle_request_failed)
+
+        # Install DETAILED DOM mutation observer + RENDER TRIGGER TRACKING
+        page.evaluate("""() => {
+            window.domMutations = [];
+            window.reruns = [];
+            window.startTime = Date.now();
+            window.mutationBatch = [];
+            window.renderTriggers = [];
+
+            // Track what triggers renders
+            console.log(`⏱️  T=0ms: Observer installation started`);
+
+            // Track DOM mutations with detail
+            const observer = new MutationObserver((mutations) => {
+                const now = Date.now();
+                const elapsed = now - window.startTime;
+
+                const batch = {
+                    elapsed,
+                    count: mutations.length,
+                    types: {}
+                };
+
+                mutations.forEach(mutation => {
+                    const key = `${mutation.type}:${mutation.target.nodeName}`;
+                    batch.types[key] = (batch.types[key] || 0) + 1;
+                });
+
+                window.mutationBatch.push(batch);
+
+                // Log significant mutation batches
+                if (batch.count > 5) {
+                    console.log(`🔄 T=${elapsed}ms: Large mutation batch (${batch.count} mutations)`);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true
+            });
+
+            // Track Streamlit WebSocket messages
+            const originalSend = WebSocket.prototype.send;
+            WebSocket.prototype.send = function(...args) {
+                const elapsed = Date.now() - window.startTime;
+                if (args[0] && typeof args[0] === 'string') {
+                    try {
+                        const msg = JSON.parse(args[0]);
+                        if (msg.type) {
+                            console.log(`📤 T=${elapsed}ms: WS Send - ${msg.type}`);
+                            if (msg.type === 'rerunScript') {
+                                window.reruns.push({elapsed, source: 'websocket', direction: 'send'});
+                                window.renderTriggers.push({elapsed, trigger: 'rerunScript_send'});
+                            }
+                        }
+                    } catch(e) {}
+                }
+                return originalSend.apply(this, args);
+            };
+
+            // Intercept WebSocket.onmessage to track incoming messages
+            const originalWebSocket = window.WebSocket;
+            window.WebSocket = function(...args) {
+                const ws = new originalWebSocket(...args);
+                const originalOnMessage = ws.onmessage;
+
+                ws.addEventListener('message', function(event) {
+                    const elapsed = Date.now() - window.startTime;
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type) {
+                            console.log(`📥 T=${elapsed}ms: WS Receive - ${msg.type}`);
+                            if (msg.type === 'scriptFinished' || msg.type === 'sessionStateChanged') {
+                                window.renderTriggers.push({elapsed, trigger: `ws_${msg.type}`});
+                            }
+                        }
+                    } catch(e) {}
+                });
+
+                return ws;
+            };
+
+            // Track setTimeout/setInterval calls WITH STACK TRACE
+            const originalSetTimeout = window.setTimeout;
+            window.setTimeout = function(fn, delay, ...args) {
+                const elapsed = Date.now() - window.startTime;
+                if (delay > 100) {  // Only track significant delays
+                    // Capture stack trace to see WHERE setTimeout is registered
+                    const stack = new Error().stack;
+                    const stackLines = stack.split('\\n');
+                    const callerLine = stackLines[2] || '';
+                    const callerName = callerLine.substring(0, 50);
+
+                    console.log('⏰ T=' + elapsed + 'ms: setTimeout(' + delay + 'ms) from ' + callerName);
+                    window.renderTriggers.push({
+                        elapsed: elapsed,
+                        trigger: 'setTimeout_' + delay + 'ms',
+                        caller: callerName,
+                        stack: stackLines.slice(1, 4).join(' | ')
+                    });
+                }
+                return originalSetTimeout(fn, delay, ...args);
+            };
+
+            console.log('✅ T=0ms: Detailed observer + render tracking installed');
+        }""")
+        print("   ✅ Installed detailed observers")
 
         # Check if there are any error messages on the page
         error_elements = page.locator("[data-testid='stException'], .st-error, .stException").count()
@@ -385,8 +735,41 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
             print(f"   ⚠️  Error on page: {error_text[:200]}")
 
         # USER-LIKE INTERACTION: scroll, hover, wait, click
+        # First check what's actually on the page
+        page_html = page.content()
+        with open("/tmp/phase8_page.html", "w") as f:
+            f.write(page_html)
+        print(f"   📄 Page HTML saved to /tmp/phase8_page.html")
+
+        # Check for any buttons
+        all_buttons = page.locator("button").all()
+        print(f"   🔍 Found {len(all_buttons)} total buttons on page")
+        for i, btn in enumerate(all_buttons[:10]):  # Show first 10
+            try:
+                text = btn.inner_text(timeout=100)
+                print(f"      Button {i+1}: '{text[:50]}'")
+            except:
+                print(f"      Button {i+1}: (no text)")
+
+        # Check for Complete Tournament text anywhere
+        if "Complete Tournament" in page_html:
+            print("   ✅ 'Complete Tournament' text found in HTML")
+        else:
+            print("   ❌ 'Complete Tournament' text NOT found in HTML")
+
+        # Check workflow_step in session state (via page evaluation)
+        step_check = page.evaluate("""() => {
+            return {
+                title: document.title,
+                h1: document.querySelector('h1')?.textContent,
+                h2: document.querySelector('h2')?.textContent,
+                h3: document.querySelector('h3')?.textContent,
+            };
+        }""")
+        print(f"   📊 Page content: {step_check}")
+
         complete_btn = page.locator("button:has-text('Complete Tournament')").first
-        complete_btn.wait_for(state="visible", timeout=10000)
+        complete_btn.wait_for(state="visible", timeout=30000)  # Increased timeout for Streamlit initialization
         print("   ✅ Button visible")
 
         # Scroll into view (user behavior)
@@ -619,6 +1002,168 @@ def test_golden_path_api_based_full_lifecycle(page: Page):
             print(f"   🔍 WebSocket messages around click ({len(ws_messages)}):")
             for msg in ws_messages[-10:]:  # Last 10 messages
                 print(f"      {msg}")
+
+        # Analyze mutation batches AND render triggers to understand timing
+        mutation_analysis = page.evaluate("""() => {
+            const batches = window.mutationBatch || [];
+            const reruns = window.reruns || [];
+            const triggers = window.renderTriggers || [];
+
+            // Categorize batches by timing
+            const timeline = {
+                before100ms: batches.filter(b => b.elapsed < 100).length,
+                during100_500ms: batches.filter(b => b.elapsed >= 100 && b.elapsed < 500).length,
+                during500_1000ms: batches.filter(b => b.elapsed >= 500 && b.elapsed < 1000).length,
+                after1000ms: batches.filter(b => b.elapsed >= 1000).length,
+                total: batches.length
+            };
+
+            // Get mutation type breakdown
+            const typeBreakdown = {};
+            batches.forEach(batch => {
+                Object.entries(batch.types).forEach(([key, count]) => {
+                    typeBreakdown[key] = (typeBreakdown[key] || 0) + count;
+                });
+            });
+
+            // Categorize triggers by timing
+            const triggerTimeline = {
+                before100ms: triggers.filter(t => t.elapsed < 100),
+                during100_500ms: triggers.filter(t => t.elapsed >= 100 && t.elapsed < 500),
+                during500_1000ms: triggers.filter(t => t.elapsed >= 500 && t.elapsed < 1000),
+                after1000ms: triggers.filter(t => t.elapsed >= 1000)
+            };
+
+            return {
+                timeline,
+                typeBreakdown,
+                batches: batches.slice(-10), // Last 10 batches
+                reruns,
+                triggers: triggers.slice(0, 20), // First 20 triggers
+                triggerTimeline,
+                triggerCount: triggers.length
+            };
+        }""")
+
+        print(f"\n   📊 MUTATION ANALYSIS:")
+        print(f"      Timeline:")
+        print(f"         < 100ms: {mutation_analysis['timeline']['before100ms']} batches")
+        print(f"         100-500ms: {mutation_analysis['timeline']['during100_500ms']} batches")
+        print(f"         500-1000ms: {mutation_analysis['timeline']['during500_1000ms']} batches")
+        print(f"         > 1000ms: {mutation_analysis['timeline']['after1000ms']} batches")
+        print(f"         Total: {mutation_analysis['timeline']['total']} batches")
+
+        print(f"\n      Top mutation types:")
+        sorted_types = sorted(mutation_analysis['typeBreakdown'].items(), key=lambda x: x[1], reverse=True)
+        for mut_type, count in sorted_types[:5]:
+            print(f"         {mut_type}: {count}")
+
+        # CRITICAL: Analyze render triggers to understand delay
+        if mutation_analysis.get('triggerCount', 0) > 0:
+            print(f"\n   🔍 RENDER TRIGGER ANALYSIS:")
+            print(f"      Total triggers: {mutation_analysis['triggerCount']}")
+
+            tl = mutation_analysis['triggerTimeline']
+            print(f"      Timeline:")
+            print(f"         < 100ms: {len(tl['before100ms'])} triggers")
+            if tl['before100ms']:
+                for t in tl['before100ms'][:3]:
+                    print(f"            T={t['elapsed']}ms: {t['trigger']}")
+
+            print(f"         100-500ms: {len(tl['during100_500ms'])} triggers")
+            if tl['during100_500ms']:
+                for t in tl['during100_500ms'][:3]:
+                    print(f"            T={t['elapsed']}ms: {t['trigger']}")
+
+            print(f"         500-1000ms: {len(tl['during500_1000ms'])} triggers")
+            if tl['during500_1000ms']:
+                for t in tl['during500_1000ms'][:3]:
+                    print(f"            T={t['elapsed']}ms: {t['trigger']}")
+
+            print(f"         > 1000ms: {len(tl['after1000ms'])} triggers")
+            if tl['after1000ms']:
+                for t in tl['after1000ms'][:5]:
+                    caller_info = f" from {t.get('caller', 'unknown')}" if t.get('caller') else ""
+                    print(f"            T={t['elapsed']}ms: {t['trigger']}{caller_info}")
+
+            # Show full stack traces for first few triggers
+            if mutation_analysis.get('triggers'):
+                print(f"\n      🔍 STACK TRACES (first 3 triggers):")
+                for i, t in enumerate(mutation_analysis['triggers'][:3]):
+                    if t.get('stack'):
+                        print(f"         Trigger #{i+1} (T={t['elapsed']}ms):")
+                        print(f"            {t['stack']}")
+
+        if mutation_analysis['reruns']:
+            print(f"\n   ⚠️  RERUNS DETECTED:")
+            for rerun in mutation_analysis['reruns']:
+                print(f"      {rerun}")
+
+        # PHASE TIMELINE ANALYSIS (from Phase 7.5 tracking)
+        full_timeline = page.evaluate("() => window.phaseTimeline || []")
+        if full_timeline:
+            print(f"\n   ⏱️  COMPLETE PHASE 7.5 → 8 TIMELINE:")
+            print(f"      Total events captured: {len(full_timeline)}")
+
+            # Group events by time ranges
+            early = [e for e in full_timeline if e['elapsed'] < 1000]
+            mid = [e for e in full_timeline if 1000 <= e['elapsed'] < 5000]
+            late = [e for e in full_timeline if 5000 <= e['elapsed'] < 8000]
+            timer_zone = [e for e in full_timeline if e['elapsed'] >= 8000]
+
+            print(f"\n      Timeline breakdown:")
+            print(f"         0-1000ms: {len(early)} events")
+            print(f"         1000-5000ms: {len(mid)} events")
+            print(f"         5000-8000ms: {len(late)} events")
+            print(f"         8000ms+: {len(timer_zone)} events")
+
+            # Show first setTimeout occurrence
+            first_timer = next((e for e in full_timeline if e.get('event') == 'setTimeout' and 'Timer' in e.get('caller', '')), None)
+            if first_timer:
+                print(f"\n      🚨 FIRST Timer.setTimeout at T={first_timer['elapsed']}ms")
+                print(f"         Caller: {first_timer.get('caller', 'unknown')}")
+
+            # Show last normal event before Timer zone
+            last_before_timer = [e for e in full_timeline if e['elapsed'] < 5000]
+            if last_before_timer:
+                last_event = last_before_timer[-1]
+                print(f"\n      📍 LAST event before Timer zone:")
+                print(f"         T={last_event['elapsed']}ms: {last_event['event']}")
+
+            # Show all events in critical 5000-8000ms window
+            if late:
+                print(f"\n      🔍 CRITICAL WINDOW (5000-8000ms) - {len(late)} events:")
+                for e in late[:10]:
+                    print(f"         T={e['elapsed']}ms: {e['event']}")
+
+        # NETWORK ACTIVITY SUMMARY
+        print(f"\n   🔍 NETWORK ACTIVITY ANALYSIS:")
+        print(f"      WebSocket connections: {len(ws_connections)}")
+        if ws_connections:
+            for i, ws in enumerate(ws_connections):
+                print(f"         #{i+1} at T={int(ws['timestamp']*1000)}ms: {ws['url']}")
+        else:
+            print(f"      ⚠️  NO WebSocket connections!")
+
+        print(f"      WebSocket failures: {len(ws_errors)}")
+        if ws_errors:
+            for err in ws_errors:
+                print(f"         ❌ T={int(err['timestamp']*1000)}ms: {err['url']}: {err.get('failure', 'unknown')}")
+
+        print(f"      Streamlit HTTP requests: {len(http_requests)}")
+        if http_requests:
+            # Group by endpoint type
+            healthz_count = len([r for r in http_requests if 'healthz' in r['url']])
+            stream_count = len([r for r in http_requests if 'stream' in r['url']])
+            stcore_count = len([r for r in http_requests if '/_stcore/' in r['url']])
+            print(f"         /healthz: {healthz_count} requests")
+            print(f"         /stream: {stream_count} requests")
+            print(f"         /_stcore/: {stcore_count} requests")
+
+            # Show first 5 requests with timing
+            print(f"      First 5 HTTP requests:")
+            for req in http_requests[:5]:
+                print(f"         T={int(req['timestamp']*1000)}ms: {req['method']} {req['url'].split('/')[-2:]}")
 
         # Wait navigation
         page.wait_for_load_state("networkidle", timeout=30000)

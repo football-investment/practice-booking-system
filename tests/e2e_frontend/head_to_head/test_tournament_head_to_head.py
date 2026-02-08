@@ -24,7 +24,7 @@ from playwright.sync_api import Page
 
 # Import shared workflow functions (NO DUPLICATION)
 # NOTE: submit_results_via_ui is NOT imported - HEAD_TO_HEAD uses API-based submission
-from .shared_tournament_workflow import (
+from ..shared.shared_tournament_workflow import (
     get_random_participants,
     navigate_to_home,
     click_create_new_tournament,

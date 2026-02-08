@@ -29,15 +29,14 @@ def browser_type_launch_args(browser_type_launch_args, pytestconfig):
     Configure Playwright browser launch arguments for headed mode.
 
     This fixture overrides the default pytest-playwright settings to:
-    - Show browser window (headless=False)
-    - Add slowmo for visual debugging
+    - Run in headless mode for CI/CD compatibility
     - Set viewport size
     - Use Firefox browser
     """
     return {
         **browser_type_launch_args,
-        "headless": False,  # Show browser window
-        "slow_mo": 500,     # 500ms delay between actions (visible for debugging)
+        "headless": True,  # Run headless for CI/CD
+        "slow_mo": 0,      # No delay for faster execution
     }
 
 

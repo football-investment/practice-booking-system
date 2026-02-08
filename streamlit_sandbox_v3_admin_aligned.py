@@ -13,9 +13,17 @@ Run: streamlit run streamlit_sandbox_v3_admin_aligned.py --server.port 8502
 import streamlit as st
 import time
 import sys
+import logging
 from pathlib import Path
 from typing import Dict, Any, List
 from datetime import datetime, date
+
+# Configure logging for Streamlit app
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Component library imports
 from streamlit_components.core import api_client, auth
@@ -1023,7 +1031,7 @@ def render_instructor_workflow():
     """Instructor workflow coordinator - 6 main steps + optional step 7 for viewing rewards"""
     import sys
     workflow_step = st.session_state.get('workflow_step', 1)
-    print(f"🟡 [WORKFLOW START] render_instructor_workflow() - Step {workflow_step}", file=sys.stderr, flush=True)
+    logger.info(f"🟡 [WORKFLOW START] render_instructor_workflow() - Step {workflow_step}")
 
     # Progress indicator (show progress for main workflow steps 1-6, step 7 is standalone)
     max_steps = 6 if workflow_step <= 6 else 7
@@ -1043,35 +1051,35 @@ def render_instructor_workflow():
     config = st.session_state.get('tournament_config', {})
 
     if workflow_step == 1:
-        print(f"📍 [STEP 1] Calling render_step_create_tournament()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 1] Calling render_step_create_tournament()")
         render_step_create_tournament(config)
-        print(f"✅ [STEP 1] render_step_create_tournament() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 1] render_step_create_tournament() completed")
     elif workflow_step == 2:
-        print(f"📍 [STEP 2] Calling render_step_manage_sessions()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 2] Calling render_step_manage_sessions()")
         render_step_manage_sessions()
-        print(f"✅ [STEP 2] render_step_manage_sessions() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 2] render_step_manage_sessions() completed")
     elif workflow_step == 3:
-        print(f"📍 [STEP 3] Calling render_step_track_attendance()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 3] Calling render_step_track_attendance()")
         render_step_track_attendance()
-        print(f"✅ [STEP 3] render_step_track_attendance() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 3] render_step_track_attendance() completed")
     elif workflow_step == 4:
-        print(f"📍 [STEP 4] Calling render_step_enter_results()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 4] Calling render_step_enter_results()")
         render_step_enter_results()
-        print(f"✅ [STEP 4] render_step_enter_results() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 4] render_step_enter_results() completed")
     elif workflow_step == 5:
-        print(f"📍 [STEP 5] Calling render_step_view_leaderboard()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 5] Calling render_step_view_leaderboard()")
         render_step_view_leaderboard()
-        print(f"✅ [STEP 5] render_step_view_leaderboard() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 5] render_step_view_leaderboard() completed")
     elif workflow_step == 6:
-        print(f"📍 [STEP 6] Calling render_step_distribute_rewards()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 6] Calling render_step_distribute_rewards()")
         render_step_distribute_rewards()
-        print(f"✅ [STEP 6] render_step_distribute_rewards() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 6] render_step_distribute_rewards() completed")
     elif workflow_step == 7:
-        print(f"📍 [STEP 7] Calling render_step_view_rewards()", file=sys.stderr, flush=True)
+        logger.info(f"📍 [STEP 7] Calling render_step_view_rewards()")
         render_step_view_rewards()
-        print(f"✅ [STEP 7] render_step_view_rewards() completed", file=sys.stderr, flush=True)
+        logger.info(f"✅ [STEP 7] render_step_view_rewards() completed")
 
-    print(f"🟢 [WORKFLOW END] render_instructor_workflow() completed - Step {workflow_step}", file=sys.stderr, flush=True)
+    logger.info(f"🟢 [WORKFLOW END] render_instructor_workflow() completed - Step {workflow_step}")
 
 
 def render_history_screen():
@@ -1407,8 +1415,8 @@ def _render_preset_list_item(preset: Dict, *form_components):
 def main():
     """Main application entry point"""
     import sys
-    print("🔵 [SCRIPT START] main() entered", file=sys.stderr, flush=True)
-    print(f"🔍 [LOAD] workflow_step ON ENTRY: {st.session_state.get('workflow_step', 'NOT SET')}", file=sys.stderr, flush=True)
+    logger.info("🔵 [SCRIPT START] main() entered")
+    logger.info(f"🔍 [LOAD] workflow_step ON ENTRY: {st.session_state.get('workflow_step', 'NOT SET')}")
 
     # Initialize session state
     if "screen" not in st.session_state:
@@ -1470,37 +1478,38 @@ def main():
                 pass  # Fail silently
 
     # Restore navigation state from URL
-    state_changed = False
+    # All params (screen, tournament_id, workflow_step) applied immediately without rerun
+    # This allows deep linking to work on first page load
 
     if "screen" in query_params:
         desired_screen = query_params["screen"]
         if st.session_state.get("screen") != desired_screen:
+            logger.info(f"🔍 [QUERY RESTORE] Setting screen from URL: {desired_screen}")
             st.session_state.screen = desired_screen
-            state_changed = True
 
     if "tournament_id" in query_params:
         try:
             desired_tournament_id = int(query_params["tournament_id"])
             if st.session_state.get("tournament_id") != desired_tournament_id:
+                logger.info(f"🔍 [QUERY RESTORE] Setting tournament_id from URL: {desired_tournament_id}")
                 st.session_state.tournament_id = desired_tournament_id
-                state_changed = True
         except (ValueError, TypeError):
             pass  # Invalid tournament_id, ignore
 
-    # Restore workflow_step from URL ONLY if not already set in session_state
-    # This ensures session_state is the single source of truth
-    if "step" in query_params and "workflow_step" not in st.session_state:
+    # Restore workflow_step from URL (deep linking support)
+    # URL is source of truth for navigation - allows mid-workflow deep links
+    if "step" in query_params:
         try:
             desired_step = int(query_params["step"])
-            print(f"🔍 [QUERY RESTORE] Initializing workflow_step from URL: {desired_step}", file=sys.stderr, flush=True)
-            st.session_state.workflow_step = desired_step
-            state_changed = True
+            current_step = st.session_state.get("workflow_step")
+            if current_step != desired_step:
+                logger.info(f"🔍 [QUERY RESTORE] Syncing workflow_step from URL: {current_step} → {desired_step}")
+                st.session_state.workflow_step = desired_step
         except (ValueError, TypeError):
             pass  # Invalid step, ignore
 
-    # If state was restored from URL, rerun to apply changes
-    if state_changed:
-        st.rerun()
+    # NO RERUN - query params applied immediately and render proceeds
+    # This ensures deep links work on first page load without extra script runs
 
     # Sidebar
     with st.sidebar:
@@ -1560,19 +1569,19 @@ def main():
     # Route to screens (with explicit returns to prevent multi-screen rendering)
     if st.session_state.screen == "home":
         render_home_screen()
-        print("🟢 [SCRIPT END] main() completed (home screen)", file=sys.stderr, flush=True)
+        logger.info("🟢 [SCRIPT END] main() completed (home screen)")
         return
     elif st.session_state.screen == "history":
         render_history_screen()
-        print("🟢 [SCRIPT END] main() completed (history screen)", file=sys.stderr, flush=True)
+        logger.info("🟢 [SCRIPT END] main() completed (history screen)")
         return
     elif st.session_state.screen == "configuration":
         render_configuration_screen()
-        print("🟢 [SCRIPT END] main() completed (configuration screen)", file=sys.stderr, flush=True)
+        logger.info("🟢 [SCRIPT END] main() completed (configuration screen)")
         return
     elif st.session_state.screen == "instructor_workflow":
         render_instructor_workflow()
-        print("🟢 [SCRIPT END] main() completed (instructor_workflow screen)", file=sys.stderr, flush=True)
+        logger.info("🟢 [SCRIPT END] main() completed (instructor_workflow screen)")
         return
 
 

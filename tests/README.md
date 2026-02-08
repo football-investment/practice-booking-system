@@ -1,445 +1,131 @@
-# Tests
+# Test Suite - Quick Start
 
-This directory contains all test files organized by type.
-
-## 🎯 Tournament Refactoring Test Suite (NEW!)
-
-**Phase 1 - Backend Unit + Integration Tests** for the modular tournament system refactoring.
-
-### Quick Start - Tournament Tests
-
-```bash
-# Run all tournament tests
-pytest -m tournament
-
-# Run tournament validation tests only
-pytest tests/unit/tournament/test_validation.py -v
-
-# Run tournament core CRUD tests
-pytest tests/unit/tournament/test_core.py -v
-
-# Run with coverage for tournament modules
-pytest -m tournament --cov=app/services/tournament --cov-report=html
-```
-
-**Test Files:**
-- ✅ `tests/unit/tournament/test_validation.py` - 25+ validation tests
-- ✅ `tests/unit/tournament/test_core.py` - 30+ CRUD tests
-- 🔄 `tests/unit/tournament/test_instructor_service.py` - WIP
-- 🔄 `tests/unit/tournament/test_enrollment_service.py` - WIP
-- 🔄 `tests/integration/tournament/test_api_attendance.py` - WIP (CRITICAL: 2 vs 4 button validation)
-
-**Key Test Scenarios:**
-- ✅ Age category validation (PRE, YOUTH, AMATEUR, PRO)
-- ✅ Tournament attendance: ONLY present/absent (NO late/excused)
-- ✅ Tournament session type: ONLY on_site (NO hybrid/virtual)
-- ✅ Enrollment deadline validation (1 hour before start)
-- ✅ Tournament semester creation (SEEKING_INSTRUCTOR → READY_FOR_ENROLLMENT)
-- ✅ Cascade deletion (semester → sessions → bookings)
-
-See detailed documentation: [Tournament Test Guide](#tournament-test-guide) (below)
+**New here? Read this first. Takes < 3 minutes.**
 
 ---
 
-## Directory Structure
-
-### `/unit`
-Unit tests for individual components and functions.
-
-**Tournament Tests (NEW):**
-- `tournament/test_validation.py` - Business logic validation
-- `tournament/test_core.py` - CRUD operations
-- `tournament/test_instructor_service.py` - Instructor assignment
-- `tournament/test_enrollment_service.py` - Student enrollment
-
-### `/integration`
-Integration tests for API endpoints, database operations, and multi-component workflows.
-
-**Key Files:**
-- `test_*.py` - Integration tests for various features
-- `test_api_integration.py` - API endpoint integration tests
-- `test_complete_quiz_workflow.py` - Quiz workflow testing
-- `test_semester_e2e.py` - Semester end-to-end tests
-- `test_lfa_coach_service.py` - Coach service tests
-- `test_lfa_internship_service.py` - Internship service tests
-- `test_lfa_player_service.py` - Player service tests
-- `test_license_authorization.py` - License authorization tests
-- `test_session_rules_comprehensive.py` - Session rules testing
-
-### `/api` ⭐ NEW
-Backend API integration tests organized in dedicated folder.
-
-**See:** [api/README.md](api/README.md) for detailed documentation
-
-**Key Files:**
-- `test_coupons_refactored.py` - Coupon system API tests
-- `test_invitation_codes.py` - Invitation code API tests
-- `test_tournament_enrollment.py` - Tournament enrollment API tests
-
-### `/playwright` ⭐ NEW
-End-to-end UI tests using Playwright browser automation.
-
-**See:** [playwright/README.md](playwright/README.md) for detailed documentation
-
-**Key Files:**
-- `test_user_registration_with_invites.py` - User registration workflow
-- `test_complete_onboarding_with_coupon_ui.py` - Onboarding with coupon redemption
-- `test_ui_instructor_application_workflow.py` - Complete tournament management workflow
-- `test_tournament_enrollment_protection.py` - Enrollment protection validation
-- `demo_player_login.py` - Demo test for presentations
-
-**Master Test Runner:**
-- `run_all_e2e_tests.sh` - Runs all Playwright tests sequentially with database snapshots
-
-### `/e2e` ⚠️ DEPRECATED
-**This folder is deprecated.** All active Playwright tests have been moved to `/playwright`.
-
-**See:** [e2e/DEPRECATED.md](e2e/DEPRECATED.md) for migration details
-
-### `/security`
-Security testing suite (SQL injection, XSS, CSRF protection).
-
-**See:** [security/README.md](security/README.md) for detailed documentation
-
-**⚠️ IMPORTANT: E2E Test Limitations**
-
-The current E2E tests use a **SIMPLIFIED FLOW** that does NOT represent production:
-
-**Missing Components (Not Implemented):**
-- ❌ Instructor Dashboard UI
-- ❌ Instructor assignment workflow
-- ❌ Session attendance tracking
-- ❌ Instructor-submitted rankings
-
-**Current Test Scope:**
-- ✅ Admin tournament creation with reward policies
-- ✅ Player enrollment
-- ✅ Reward distribution backend logic (XP/Credits calculation)
-- ✅ Transaction audit trail
-
-**Simplified Flow Used:**
-1. Admin creates tournament (SEEKING_INSTRUCTOR)
-2. ⚠️ Manual status change → READY_FOR_ENROLLMENT (bypasses instructor)
-3. Players enroll
-4. ⚠️ Direct SQL ranking insertion (bypasses attendance)
-5. Mark as COMPLETED
-6. Admin distributes rewards
-
-**Production Flow (Should Be):**
-1. Admin creates tournament
-2. Instructor accepts assignment → READY_FOR_ENROLLMENT
-3. Players enroll
-4. Instructor marks attendance for each session
-5. Instructor submits rankings based on results
-6. Mark as COMPLETED
-7. Admin distributes rewards
-
-**Production Readiness:** 🔴 NOT READY
-- Backend reward logic: ✅ Working
-- Instructor workflow: ❌ Not implemented
-- See: `docs/backend/instructor_workflow.md` for implementation plan
-
-### `/scenarios`
-Scenario-based tests for specific business cases.
-
-**Currently:** To be populated with scenario tests.
-
-### `/performance`
-Performance and load testing results.
-
-**Key Files:**
-- `*_test_report_*.json` - Test result reports from various runs
-- `session_rules_test_report_*.json` - Session rules test results
-- `journey_test_report_*.json` - Journey test results
-
----
-
-## Running Tests
-
-### All Integration Tests
-```bash
-pytest tests/integration/ -v
-```
-
-### Specific Test File
-```bash
-pytest tests/integration/test_api_integration.py -v
-```
-
-### With Coverage
-```bash
-pytest tests/integration/ --cov=app --cov-report=html
-```
-
-### Run Test Dashboard (Interactive)
-```bash
-./scripts/startup/start_session_rules_dashboard.sh
-```
-
----
-
-## Test Reports
-
-Performance test reports are stored in `/performance` directory with timestamps.
-
-View latest test results:
-```bash
-ls -lt tests/performance/*.json | head -5
-```
-
----
-
-## Navigation
-
-- Project Root: `../`
-- Documentation: `../docs/`
-- Scripts: `../scripts/`
-- Application Code: `../app/`
-
----
-
-## Tournament Test Guide
-
-### 📖 Overview
-
-The tournament refactoring introduced a modular architecture with strict separation between tournament and regular sessions. The test suite validates this separation and ensures business rules are enforced.
-
-### 🔑 Key Differences: Tournament vs Regular Sessions
-
-| Feature | Tournament | Regular Session |
-|---------|-----------|-----------------|
-| **Attendance Statuses** | ONLY Present, Absent | Present, Absent, Late, Excused |
-| **Session Type** | ONLY on_site | on_site, hybrid, virtual |
-| **Enrollment** | Auto-approved | Requires payment |
-| **Master Instructor** | Required | Optional |
-| **Duration** | 1-day event | Multi-week semester |
-
-### 🧪 Test Fixtures
-
-Common fixtures available in tournament tests (via `conftest.py`):
-
-```python
-# Database & API
-test_db                  # SQLite in-memory database
-client                   # FastAPI TestClient
-
-# Users
-admin_user              # Admin with token
-instructor_user         # Instructor with token
-student_user           # Student with token
-student_users          # List of 10 students
-
-# Tournament Data
-tournament_date                          # Date 7 days from now
-tournament_semester                      # Status: SEEKING_INSTRUCTOR
-tournament_semester_with_instructor      # Status: READY_FOR_ENROLLMENT
-tournament_sessions                      # 3 sessions at 09:00, 11:00, 14:00
-tournament_session_with_bookings         # Session with 5 bookings
-instructor_assignment_request            # Pending instructor request
-```
-
-### ✅ Critical Test Scenarios
-
-#### 1. Attendance Status Validation (MOST IMPORTANT)
-
-**Why:** This prevents tournaments from accepting "late" or "excused" attendance.
-
-```python
-def test_tournament_attendance_only_2_statuses():
-    """Tournament sessions ONLY accept present/absent."""
-    # ✅ Present - should work
-    # ✅ Absent - should work
-    # ❌ Late - should FAIL
-    # ❌ Excused - should FAIL
-```
-
-**Run:** `pytest tests/unit/tournament/test_validation.py::TestValidateTournamentAttendanceStatus -v`
-
-#### 2. Age Category Rules
-
-**Why:** YOUTH can "move up" to AMATEUR, but NOT to PRO.
-
-```python
-def test_youth_can_enroll_in_amateur():
-    """YOUTH players can enroll in AMATEUR tournaments."""
-    is_valid, error = validate_tournament_enrollment_age("YOUTH", "AMATEUR")
-    assert is_valid is True
-
-def test_youth_cannot_enroll_in_pro():
-    """YOUTH players CANNOT enroll in PRO tournaments."""
-    is_valid, error = validate_tournament_enrollment_age("YOUTH", "PRO")
-    assert is_valid is False
-    assert "not PRO" in error
-```
-
-**Run:** `pytest tests/unit/tournament/test_validation.py::TestValidateTournamentEnrollmentAge -v`
-
-#### 3. Enrollment Deadline
-
-**Why:** Tournament enrollment closes 1 hour before start time.
-
-```python
-def test_enrollment_closed_59_minutes_before():
-    """Enrollment is closed 59 minutes before start."""
-    first_session_start = datetime.utcnow() + timedelta(minutes=59)
-    is_valid, error = validate_enrollment_deadline(first_session_start)
-    assert is_valid is False
-    assert "Enrollment closed" in error
-```
-
-**Run:** `pytest tests/unit/tournament/test_validation.py::TestValidateEnrollmentDeadline -v`
-
-### 🎯 Running Tests
-
-#### Run all tournament tests
+## 🚀 Quick Start (30 seconds)
 
 ```bash
-pytest -m tournament
-```
-
-#### Run validation tests only
-
-```bash
-pytest tests/unit/tournament/test_validation.py
-```
-
-#### Run with coverage
-
-```bash
-pytest -m tournament --cov=app/services/tournament --cov-report=html
-open htmlcov/index.html
-```
-
-#### Run specific test
-
-```bash
-pytest tests/unit/tournament/test_validation.py::TestValidateTournamentAttendanceStatus::test_late_is_invalid -v
-```
-
-### 📊 Current Coverage
-
-**Phase 1 Status:**
-- ✅ Validation logic: 100% covered (25+ tests)
-- ✅ Core CRUD: 95% covered (30+ tests)
-- 🔄 Instructor service: 0% (WIP)
-- 🔄 Enrollment service: 0% (WIP)
-- 🔄 API integration: 0% (WIP)
-
-**Next Steps:**
-1. Complete instructor_service unit tests
-2. Complete enrollment_service unit tests
-3. Add API integration tests for critical paths
-4. Add Streamlit AppTest component tests (Phase 2)
-5. Add Playwright E2E tests (Phase 3)
-
-### 🐛 Common Test Failures
-
-#### ImportError: No module named 'app'
-
-**Solution:** Run pytest from project root:
-```bash
-cd /path/to/practice_booking_system
+# Run all tests
 pytest
+
+# Run smoke tests (< 2 min target)
+pytest -m smoke -v
+
+# Run by tournament format
+pytest -m h2h -v                  # HEAD_TO_HEAD
+pytest -m individual_ranking -v   # INDIVIDUAL_RANKING
+pytest -m group_knockout -v       # GROUP_AND_KNOCKOUT
+
+# Run production critical (MUST pass before deploy)
+pytest -m golden_path -v
 ```
-
-#### Fixture 'test_db' not found
-
-**Solution:** Ensure `conftest.py` exists in tests/ directory.
-
-#### Database constraint errors
-
-**Solution:** Test database is in-memory and auto-clears. If persistent DB used:
-```bash
-rm test.db
-```
-
-### 📝 Writing New Tests
-
-#### Unit Test Template
-
-```python
-import pytest
-from app.services.tournament.validation import validate_tournament_attendance_status
-
-@pytest.mark.unit
-@pytest.mark.tournament
-@pytest.mark.validation
-def test_my_validation_rule():
-    """Test description."""
-    # Arrange
-    status = "late"
-
-    # Act
-    is_valid, error = validate_tournament_attendance_status(status)
-
-    # Assert
-    assert is_valid is False
-    assert "Invalid tournament attendance status" in error
-```
-
-#### Integration Test Template (TBD)
-
-```python
-import pytest
-
-@pytest.mark.integration
-@pytest.mark.tournament
-@pytest.mark.api
-def test_tournament_attendance_api(client, instructor_token, tournament_session_with_bookings):
-    """Test tournament attendance API endpoint."""
-    session_id = tournament_session_with_bookings.id
-
-    # Try to mark as "late" (should fail for tournaments)
-    response = client.post(
-        f"/api/v1/sessions/{session_id}/attendance",
-        json={"user_id": 1, "status": "late"},
-        headers={"Authorization": f"Bearer {instructor_token}"}
-    )
-
-    assert response.status_code == 400
-    assert "Tournaments only support" in response.json()["detail"]
-```
-
-### 🚦 Test Markers
-
-Use markers to filter tests:
-
-```bash
-# Run only unit tests
-pytest -m unit
-
-# Run only tournament tests
-pytest -m tournament
-
-# Run validation tests
-pytest -m validation
-
-# Run slow tests only
-pytest -m slow
-
-# Exclude slow tests
-pytest -m "not slow"
-
-# Combine markers
-pytest -m "tournament and unit"
-```
-
-### 📈 Success Metrics
-
-**Phase 1 Goals:**
-- [x] 50+ unit tests created
-- [ ] 80%+ code coverage for tournament modules
-- [ ] 0 test failures
-- [ ] All critical paths tested
-
-**Current Status:**
-- Unit tests: **55+** (validation + core)
-- Integration tests: **0** (WIP)
-- E2E tests: **0** (Phase 3)
-- Coverage: **Run `pytest --cov` to check**
 
 ---
 
-**Created:** 2026-01-02
-**Last Updated:** 2026-01-02
-**Phase:** 1 - Backend Unit + Integration Tests
+## 📁 Test Organization (1 minute)
+
+```
+tests/
+├── unit/           # 60-70% target - Fast, isolated (< 1s each)
+│   └── services/   # Business logic unit tests
+├── integration/    # 20-30% target - Multi-component (< 5s each)
+│   └── tournament/ # Tournament integration tests
+├── e2e/            # 5-10% target - Full workflow (< 30s each)
+│   ├── golden_path/         # ⚠️ Production critical
+│   └── instructor_workflow/ # Instructor E2E
+├── e2e_frontend/   # Frontend E2E by format
+│   ├── head_to_head/
+│   ├── individual_ranking/
+│   ├── group_knockout/
+│   └── shared/     # Shared helpers
+├── api/            # API endpoint tests
+├── manual/         # Manual scripts (NOT in CI/CD)
+├── debug/          # Debug tests (NOT in CI/CD)
+└── .archive/       # Deprecated tests
+```
+
+**Rule:** Unit test first. Integration if database needed. E2E only for critical user journeys.
+
+---
+
+## 🏷️ Pytest Markers (30 seconds)
+
+```bash
+# By test level
+pytest -m unit            # Unit tests only
+pytest -m integration     # Integration tests only
+pytest -m e2e             # E2E tests only
+
+# By priority
+pytest -m smoke           # Fast regression (< 2 min target)
+pytest -m golden_path     # Production critical ⚠️
+
+# By tournament format
+pytest -m h2h                  # HEAD_TO_HEAD
+pytest -m individual_ranking   # INDIVIDUAL_RANKING
+pytest -m group_knockout       # GROUP_AND_KNOCKOUT
+pytest -m group_stage          # GROUP_STAGE_ONLY
+
+# By component
+pytest -m tournament      # Tournament-related
+pytest -m validation      # Validation logic
+```
+
+**See:** `pytest.ini` for all 11 registered markers
+
+---
+
+## 🎯 Test Pyramid (Critical)
+
+**Target Ratio:**
+- **60-70%** Unit Tests (fast, no dependencies)
+- **20-30%** Integration Tests (database, multi-component)
+- **5-10%** E2E Tests (full UI/API workflow)
+
+**Why:**
+- Unit tests are 100x faster than E2E
+- Fast CI = developers actually run tests
+- Slow CI = bypassed tests = broken main
+
+---
+
+## 📚 Detailed Documentation
+
+### Quick Reference
+- **[Stabilization Plan](../STABILIZATION_AND_EXECUTION_PLAN.md)** ← **READ THIS** for execution excellence
+- **[Navigation Guide](NAVIGATION_GUIDE.md)** - Find tests by format
+
+### Format-Specific READMEs
+- [Golden Path](e2e/golden_path/README.md) - Production critical test
+- [HEAD_TO_HEAD](e2e_frontend/head_to_head/README.md)
+- [INDIVIDUAL_RANKING](e2e_frontend/individual_ranking/README.md)
+- [GROUP_KNOCKOUT](e2e_frontend/group_knockout/README.md)
+- [Manual Tests](manual/README.md)
+- [Unit Tests](unit/README.md)
+
+---
+
+## ✍️ Contributing Tests
+
+**Decision Tree:**
+1. ☑️ Can this be a unit test? (YES → unit test)
+2. ☑️ Requires database? (YES → integration test)
+3. ☑️ Requires UI? (YES → E2E, get approval first)
+
+**Default: UNIT TEST FIRST**
+
+---
+
+## ⚠️ Critical Rules
+
+1. **Refactoring Freeze** (2-4 weeks) - No reorganization
+2. **Test Pyramid** - 60-70% unit, 20-30% integration, 5-10% E2E
+3. **CI Speed** - Full pipeline < 10 min, Smoke < 2 min
+4. **Flaky Tests** - Quarantine immediately, fix or delete
+
+---
+
+**Last Updated:** 2026-02-08
+**Phase:** Execution Excellence
