@@ -66,11 +66,13 @@ def user_apply_coupon(page: Page, email: str, password: str, coupon_code: str) -
     streamlit_login(page, email, password)
 
     # Wait for page to load - should be redirected to Specialization Hub
-    page.wait_for_timeout(3000)
+    page.wait_for_timeout(5000)
 
-    # Verify we're on Specialization Hub
+    # Verify we're on Specialization Hub by checking the main heading
     print(f"🔍 Verifying Specialization Hub...")
-    expect(page.locator("text=Choose Your Specialization")).to_be_visible(timeout=10000)
+    # Look for the main title heading (h1 with emoji)
+    hub_title = page.locator("h1:has-text('Choose Your Specialization')")
+    expect(hub_title).to_be_visible(timeout=15000)
 
     # Scroll down to coupon redemption section
     print(f"📜 Scrolling to coupon section...")
@@ -184,59 +186,75 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
         print(f"     ⚠️  Position button not found")
         return False
 
-    # Step 2: Skills Assessment (RANDOM VALUES)
-    print(f"  ⚡ Step 2: Skills Assessment")
-    page.wait_for_timeout(2000)
+    # Steps 2-5: Skills Assessment (4 CATEGORIES, ALL SKILLS, DETERMINISTIC)
+    # Production UI has 4 skill categories across Steps 2-5 (total 29 skills)
+    # Each category is on a separate step with "Next" button to proceed
+    print(f"  ⚡ Steps 2-5: Skills Assessment (ALL 29 skills across 4 categories)")
 
-    # Streamlit uses div[role="slider"] not input[type="range"]
-    sliders = page.locator('div[role="slider"]')
-    slider_count = sliders.count()
-    print(f"     Found {slider_count} sliders")
+    BASELINE_SKILL_VALUE = 60  # Deterministic baseline for test reproducibility
+    total_skills_set = 0
 
-    skill_names = ["Heading", "Shooting", "Passing", "Dribbling", "Defending", "Physical"]
+    # Loop through 4 skill category steps (Steps 2, 3, 4, 5)
+    for step_num in range(2, 6):  # Steps 2, 3, 4, 5
+        print(f"  📋 Step {step_num}: Category {step_num - 1}")
+        page.wait_for_timeout(2000)
 
-    for i in range(min(slider_count, len(skill_names))):
-        try:
-            slider = sliders.nth(i)
-            random_value = random.randint(1, 10)
-            current_value = slider.get_attribute("aria-valuenow")
-            skill_name = skill_names[i] if i < len(skill_names) else f"Skill {i+1}"
+        # Get all sliders on this step (Streamlit uses div[role="slider"])
+        sliders = page.locator('div[role="slider"]')
+        slider_count = sliders.count()
+        print(f"     Found {slider_count} sliders in this category")
 
-            slider.click()
-            page.wait_for_timeout(200)
+        # Set ALL sliders in this category to BASELINE_SKILL_VALUE (60/100)
+        for i in range(slider_count):
+            try:
+                slider = sliders.nth(i)
+                target_value = BASELINE_SKILL_VALUE
+                current_value = slider.get_attribute("aria-valuenow")
 
-            # Calculate difference and use arrow keys
-            current = int(current_value) if current_value else 5
-            diff = random_value - current
+                slider.click()
+                page.wait_for_timeout(200)
 
-            if diff > 0:
-                for _ in range(diff):
-                    page.keyboard.press("ArrowRight")
-                    page.wait_for_timeout(50)
-            elif diff < 0:
-                for _ in range(abs(diff)):
-                    page.keyboard.press("ArrowLeft")
-                    page.wait_for_timeout(50)
+                # Calculate steps needed (UI uses step=5, so 0, 5, 10, ..., 100)
+                # Target must be multiple of 5
+                current = int(current_value) if current_value else 50
+                diff = target_value - current
 
-            print(f"       {skill_name}: {random_value}/10")
-            page.wait_for_timeout(200)
-        except Exception as e:
-            print(f"       ❌ Error setting slider {i+1}: {e}")
+                # Each ArrowRight/ArrowLeft moves by 5 in Streamlit slider (step=5)
+                steps_needed = diff // 5
 
-    page.wait_for_timeout(1000)
+                if steps_needed > 0:
+                    for _ in range(steps_needed):
+                        page.keyboard.press("ArrowRight")
+                        page.wait_for_timeout(50)
+                elif steps_needed < 0:
+                    for _ in range(abs(steps_needed)):
+                        page.keyboard.press("ArrowLeft")
+                        page.wait_for_timeout(50)
 
-    # Click Next
-    next_button = page.locator('button:has-text("Next")')
-    if next_button.count() > 0:
-        next_button.first.click()
-        page.wait_for_timeout(3000)
-        print(f"     ✅ Step 2 complete")
-    else:
-        print(f"     ❌ Next button not found")
-        return False
+                # Verify final value
+                final_value = slider.get_attribute("aria-valuenow")
+                print(f"       Skill {total_skills_set + 1}: {current} → {final_value} (target: {target_value})")
+                total_skills_set += 1
+                page.wait_for_timeout(100)
+            except Exception as e:
+                print(f"       ❌ Error setting slider {i+1}: {e}")
 
-    # Step 3: Goals & Motivation (DROPDOWN SELECTION)
-    print(f"  🎯 Step 3: Goals & Motivation")
+        page.wait_for_timeout(1000)
+
+        # Click Next to proceed to next category (or final step)
+        next_button = page.locator('button:has-text("Next")')
+        if next_button.count() > 0:
+            next_button.first.click()
+            page.wait_for_timeout(3000)
+            print(f"     ✅ Step {step_num} complete")
+        else:
+            print(f"     ❌ Next button not found on Step {step_num}")
+            return False
+
+    print(f"  ✅ ALL {total_skills_set} skills set to baseline {BASELINE_SKILL_VALUE}/100")
+
+    # Step 6: Goals & Motivation (DROPDOWN SELECTION)
+    print(f"  🎯 Step 6: Goals & Motivation")
     page.wait_for_timeout(1000)
 
     try:
@@ -266,14 +284,14 @@ def user_unlock_and_complete_onboarding(page: Page) -> bool:
 
     page.wait_for_timeout(1000)
 
-    # Click Complete button
-    complete_button = page.locator('button:has-text("Complete")')
+    # Click Complete Onboarding button (🚀 emoji + text)
+    complete_button = page.locator('button:has-text("Complete Onboarding")')
     if complete_button.count() > 0:
         complete_button.first.click()
         page.wait_for_timeout(3000)
         print(f"     ✅ Onboarding complete!")
     else:
-        print(f"     ❌ Complete button not found")
+        print(f"     ❌ Complete Onboarding button not found")
         return False
 
     # Should now be on Player Dashboard
