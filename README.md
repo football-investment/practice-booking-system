@@ -235,6 +235,60 @@ pytest test_xp_system.py
 
 ---
 
+## 🧪 Testing
+
+### Test Organization
+
+All UI/E2E tests are centralized in `tests/e2e_frontend/`:
+
+```
+tests/e2e_frontend/              # 122 tests
+├── user_lifecycle/              # 🔥 P0: Production-Critical (18 tests)
+│   ├── registration/            # User registration flows
+│   ├── onboarding/              # Onboarding workflows
+│   └── auth/                    # Authentication
+├── business_workflows/          # 🔥 P1: Business Logic (23 tests)
+│   ├── instructor/              # Instructor workflows
+│   └── admin/                   # Admin workflows
+└── tournament_formats/          # P2: Tournament Tests (81 tests)
+    ├── group_knockout/
+    ├── head_to_head/
+    └── individual_ranking/
+```
+
+### Running Tests
+
+**Critical Tests (P0 + P1):**
+```bash
+# User lifecycle (registration, onboarding, auth)
+pytest tests/e2e_frontend/user_lifecycle/ -v
+
+# Business workflows (instructor, admin)
+pytest tests/e2e_frontend/business_workflows/ -v
+
+# Golden Path (smoke test)
+pytest tests/e2e/golden_path/ -v
+```
+
+**All E2E Tests:**
+```bash
+pytest tests/e2e_frontend/ -v
+```
+
+**By Marker:**
+```bash
+pytest -m golden_path          # Production-critical smoke tests
+pytest -m user_lifecycle       # User activation tests
+pytest -m business_workflow    # Business logic tests
+pytest -m tournament           # Tournament tests
+```
+
+**Documentation:**
+- [MIGRATION_COMPLETE_REPORT.md](MIGRATION_COMPLETE_REPORT.md) - Test migration details
+- [TEST_STRUCTURE_FINAL_PROPOSAL.md](TEST_STRUCTURE_FINAL_PROPOSAL.md) - Canonical test structure
+
+---
+
 ## 🔐 Teszt Accountok
 
 **Instructor**:
