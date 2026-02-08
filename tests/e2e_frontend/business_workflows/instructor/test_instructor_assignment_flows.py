@@ -30,13 +30,11 @@ import json
 import urllib.parse
 
 # Import API fixtures for setup/teardown
+import requests
+from playwright.sync_api import expect
+
 from tests.e2e.reward_policy_fixtures import (
     API_BASE_URL,
-                import requests
-
-        # Delete tournament
-
-            from playwright.sync_api import expect
 
         # Delete tournament
     reward_policy_admin_token,

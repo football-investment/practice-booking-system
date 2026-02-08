@@ -55,12 +55,11 @@ import time
 from datetime import datetime
 
 # Import API fixtures for setup/teardown
-from .reward_policy_fixtures import (
-    API_BASE_URL,
-        import psycopg2
-        import requests
+import psycopg2
+import requests
 
-        # Delete tournament
+from tests.e2e.reward_policy_fixtures import (
+    API_BASE_URL,
     reward_policy_admin_token,
     create_instructor_user,
     create_tournament_via_api,
