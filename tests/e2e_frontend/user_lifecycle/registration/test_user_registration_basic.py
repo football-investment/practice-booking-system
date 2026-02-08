@@ -28,24 +28,55 @@ ADMIN_PASSWORD = "admin123"
 @pytest.fixture(scope="function")
 def invitation_code():
     """
-    Returns a valid invitation code for testing.
-
-    IMPORTANT: Before running this test, create an invitation code via UI:
-    1. Run: pytest tests/e2e/test_admin_invitation_code.py -v --headed
-    2. Copy the generated code
-    3. Update the code below
-
-    OR manually create one via Admin Dashboard > Financial > Invitation Codes
+    Dynamically creates a fresh invitation code via DB insert.
+    Ensures test isolation - no hardcoded dependencies.
     """
-    # Use the code from the last successful admin test run
-    # This code should be valid and unused
-    # UPDATE THIS after running the admin invitation test!
-    code = "INV-20260103-RQ15E4"  # From test_admin_invitation_code.py run on 2026-01-03 16:08
+    import psycopg2
+    from datetime import datetime, timedelta
+    import random
+    import string
 
-    print(f"\n📧 Using invitation code: {code}")
-    print("  ⚠️ If this code is already used, run test_admin_invitation_code.py to generate a new one")
+    # Generate unique code
+    timestamp = datetime.now().strftime("%Y%m%d")
+    random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    code = f"INV-{timestamp}-{random_suffix}"
 
-    return code
+    # Insert directly into DB (bypass API for speed)
+    conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+    cur = conn.cursor()
+
+    # Get admin user ID (assume admin@lfa.com exists)
+    cur.execute("SELECT id FROM users WHERE email = 'admin@lfa.com' LIMIT 1")
+    admin_id = cur.fetchone()[0] if cur.rowcount > 0 else None
+
+    # Insert invitation code
+    cur.execute("""
+        INSERT INTO invitation_codes
+        (code, invited_name, invited_email, bonus_credits, is_used, created_by_admin_id, created_at, expires_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        code,
+        "E2E Test User",
+        None,  # email not required
+        50,    # bonus credits
+        False, # not used
+        admin_id,
+        datetime.now(),
+        datetime.now() + timedelta(days=30)  # valid for 30 days
+    ))
+    conn.commit()
+    conn.close()
+
+    print(f"\n📧 Generated fresh invitation code: {code}")
+
+    yield code
+
+    # Cleanup after test (optional - helps keep DB clean)
+    conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+    cur = conn.cursor()
+    cur.execute("DELETE FROM invitation_codes WHERE code = %s", (code,))
+    conn.commit()
+    conn.close()
 
 
 @pytest.mark.e2e
