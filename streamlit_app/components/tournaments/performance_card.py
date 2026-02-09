@@ -258,8 +258,7 @@ def _render_normal_card(
             border-radius: {BORDER_RADIUS['medium']};
             margin-bottom: {SPACING['md']};
         ">
-            <div style="font-size: {styles['badge_icon']}; margin-bottom: {SPACING['xs']};
-">{badge_icon}</div>
+            <div style="font-size: {styles['badge_icon']}; margin-bottom: {SPACING['xs']};">{badge_icon}</div>
             <div style="
                 font-size: {styles['font_title']};
                 font-weight: 700;
