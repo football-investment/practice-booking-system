@@ -82,6 +82,15 @@ def render_performance_card(
     credits_earned = metrics.get('credits_earned')
     badges_earned = metrics.get('badges_earned')
 
+    # Fallback: If metrics missing total_participants, try badge metadata
+    if not total_participants:
+        badges = tournament_data.get('badges', [])
+        if badges and len(badges) > 0:
+            first_badge = badges[0]
+            badge_metadata = first_badge.get('badge_metadata', {})
+            if badge_metadata.get('total_participants'):
+                total_participants = badge_metadata['total_participants']
+
     # Compute percentile
     percentile = None
     percentile_badge_text = None
