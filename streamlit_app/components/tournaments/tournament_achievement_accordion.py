@@ -215,11 +215,14 @@ def fetch_tournament_metrics(token: str, tournament_id: int, user_id: int, badge
                 metrics['rank_source'] = 'snapshot'
                 logger.warning(f"Tournament {tournament_id}, User {user_id}: Using badge_metadata.placement={metrics['rank']} (ranking + participation missing)")
 
-            # Get total_participants from badge_metadata if not from rankings
-            if not metrics['total_participants'] and badge_metadata.get('total_participants'):
+        # 4. Fallback for total_participants (independent of rank)
+        if not metrics['total_participants'] and badge_data:
+            badge_metadata = badge_data.get('badge_metadata', {})
+            if badge_metadata.get('total_participants'):
                 metrics['total_participants'] = badge_metadata['total_participants']
+                logger.info(f"Tournament {tournament_id}, User {user_id}: Using badge_metadata.total_participants={metrics['total_participants']} (rankings empty)")
 
-        # 4. If still no rank, log error (but don't fail - UI will hide metric)
+        # 5. If still no rank, log error (but don't fail - UI will hide metric)
         if not metrics['rank']:
             logger.error(f"Tournament {tournament_id}, User {user_id}: No rank data from any source (ranking, participation, badge_metadata)")
 
