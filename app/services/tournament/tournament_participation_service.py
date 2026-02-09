@@ -307,12 +307,16 @@ def record_tournament_participation(
             else:
                 rank_display = f"#{placement}" if placement else "participation"
 
+            # Generate idempotency key for credit transaction
+            idempotency_key = f"tournament_reward_{tournament_id}_{user_id}_{placement}"
+
             credit_transaction = CreditTransaction(
                 user_id=user_id,
                 transaction_type="TOURNAMENT_REWARD",
                 amount=credits,
                 balance_after=new_credit_balance,
                 description=f"Tournament '{tournament_name}' - Rank {rank_display} reward",
+                idempotency_key=idempotency_key,
                 semester_id=tournament_id
             )
             db.add(credit_transaction)

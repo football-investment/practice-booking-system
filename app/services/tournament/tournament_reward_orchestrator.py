@@ -168,7 +168,8 @@ def distribute_rewards_for_user(
     total_participants: int,
     reward_policy: RewardPolicy = DEFAULT_REWARD_POLICY,
     distributed_by: Optional[int] = None,
-    force_redistribution: bool = False
+    force_redistribution: bool = False,
+    is_sandbox_mode: bool = False
 ) -> TournamentRewardResult:
     """
     Distribute both participation rewards and badges for a single user.
@@ -189,6 +190,7 @@ def distribute_rewards_for_user(
         reward_policy: Custom reward policy (optional)
         distributed_by: Admin/instructor who triggered distribution
         force_redistribution: If True, allows re-distribution (updates existing records)
+        is_sandbox_mode: If True, skip skill profile persistence (sandbox isolation)
 
     Returns:
         TournamentRewardResult with both participation and badge data
@@ -240,33 +242,40 @@ def distribute_rewards_for_user(
     # ========================================================================
     # STEP 1.5: APPLY SKILL DELTAS TO PLAYER PROFILE (Dynamic Progression)
     # ========================================================================
-    # Apply tournament skill deltas to player's football_skills profile
-    # This updates UserLicense.football_skills with calculated deltas
-    try:
-        # Get user's active license
-        from app.models.license import UserLicense
-        active_license = db.query(UserLicense).filter(
-            UserLicense.user_id == user_id,
-            UserLicense.is_active == True
-        ).first()
+    # 🧪 SANDBOX MODE GUARD: Skip skill persistence in sandbox to maintain isolation
+    if is_sandbox_mode:
+        logger.info(
+            f"🧪 SANDBOX MODE: Skipping skill profile persistence for user {user_id} "
+            f"(skills calculated in-memory only for verdict)"
+        )
+    else:
+        # Apply tournament skill deltas to player's football_skills profile
+        # This updates UserLicense.football_skills with calculated deltas
+        try:
+            # Get user's active license
+            from app.models.license import UserLicense
+            active_license = db.query(UserLicense).filter(
+                UserLicense.user_id == user_id,
+                UserLicense.is_active == True
+            ).first()
 
-        # 🔥 V2 SKILL PROGRESSION: Skills are calculated on-the-fly from tournament placements
-        # No need to "apply" deltas - get_skill_profile() automatically calculates from all participations
-        if active_license and participation_record:
-            logger.info(
-                f"✅ V2: Skills will be calculated dynamically from placement: "
-                f"user_id={user_id}, license_id={active_license.id}, placement={participation_record.placement}"
-            )
-        else:
-            logger.warning(
-                f"Could not track skill progression: "
-                f"user_id={user_id}, has_license={active_license is not None}, "
-                f"has_participation={participation_record is not None}"
-            )
-    except Exception as e:
-        logger.error(f"Failed to apply skill deltas for user {user_id}: {e}", exc_info=True)
-        # Don't fail the entire reward distribution on skill progression errors
-        # Continue with badge awarding
+            # 🔥 V2 SKILL PROGRESSION: Skills are calculated on-the-fly from tournament placements
+            # No need to "apply" deltas - get_skill_profile() automatically calculates from all participations
+            if active_license and participation_record:
+                logger.info(
+                    f"✅ V2: Skills will be calculated dynamically from placement: "
+                    f"user_id={user_id}, license_id={active_license.id}, placement={participation_record.placement}"
+                )
+            else:
+                logger.warning(
+                    f"Could not track skill progression: "
+                    f"user_id={user_id}, has_license={active_license is not None}, "
+                    f"has_participation={participation_record is not None}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to apply skill deltas for user {user_id}: {e}", exc_info=True)
+            # Don't fail the entire reward distribution on skill progression errors
+            # Continue with badge awarding
 
     # Build participation reward DTO
     skill_points_awarded = [
@@ -369,7 +378,8 @@ def distribute_rewards_for_tournament(
     tournament_id: int,
     reward_policy: Optional[RewardPolicy] = None,
     distributed_by: Optional[int] = None,
-    force_redistribution: bool = False
+    force_redistribution: bool = False,
+    is_sandbox_mode: bool = False
 ) -> BulkRewardDistributionResult:
     """
     Distribute rewards for all participants in a tournament.
@@ -383,6 +393,7 @@ def distribute_rewards_for_tournament(
         reward_policy: Custom reward policy (optional, overrides config)
         distributed_by: Admin/instructor who triggered distribution
         force_redistribution: If True, allow re-distribution of rewards
+        is_sandbox_mode: If True, skip skill profile persistence (sandbox isolation)
 
     Returns:
         BulkRewardDistributionResult with all rewards
@@ -424,10 +435,10 @@ def distribute_rewards_for_tournament(
             # Skip - already distributed
             continue
 
-        # Distribute rewards (force_redistribution passed through)
+        # Distribute rewards (force_redistribution and is_sandbox_mode passed through)
         result = distribute_rewards_for_user(
             db, ranking.user_id, tournament_id, ranking.rank,
-            total_participants, reward_policy, distributed_by, force_redistribution
+            total_participants, reward_policy, distributed_by, force_redistribution, is_sandbox_mode
         )
         rewards_distributed.append(result)
 

@@ -10,7 +10,7 @@ Badge System:
 - Rarity: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY
 """
 from typing import List, Dict, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
 import logging
 
@@ -431,7 +431,7 @@ def get_player_badges(
     limit: int = 100
 ) -> List[Dict]:
     """
-    Get player's tournament badges.
+    Get player's tournament badges with tournament metadata.
 
     Args:
         db: Database session
@@ -440,9 +440,15 @@ def get_player_badges(
         limit: Maximum results
 
     Returns:
-        List of badge dictionaries
+        List of badge dictionaries with tournament_name, tournament_status, tournament_start_date
+
+    Raises:
+        ValueError: If data integrity issue detected (badge has semester_id but no tournament)
     """
-    query = db.query(TournamentBadge).filter(
+    # Eager load tournament relationship to ensure tournament metadata is available
+    query = db.query(TournamentBadge).options(
+        joinedload(TournamentBadge.tournament)
+    ).filter(
         TournamentBadge.user_id == user_id
     )
 
@@ -450,6 +456,19 @@ def get_player_badges(
         query = query.filter(TournamentBadge.semester_id == tournament_id)
 
     badges = query.order_by(desc(TournamentBadge.earned_at)).limit(limit).all()
+
+    # Quality gate: Validate data integrity
+    # REQUIREMENT: "Unknown Tournament" NEVER in production UI
+    for badge in badges:
+        if badge.semester_id and not badge.tournament:
+            logger.error(
+                f"Data integrity issue: Badge {badge.id} has semester_id {badge.semester_id} "
+                f"but tournament relationship is None. User: {user_id}"
+            )
+            raise ValueError(
+                f"Data integrity issue detected for badge {badge.id}: "
+                f"semester_id={badge.semester_id} but tournament is missing"
+            )
 
     return [badge.to_dict() for badge in badges]
 

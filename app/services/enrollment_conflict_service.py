@@ -272,7 +272,15 @@ class EnrollmentConflictService:
                 "semester_id": semester.id,
                 "semester_name": semester.name,
                 "enrollment_type": enrollment_type,
-                "sessions": session_list
+                "sessions": session_list,
+                "semester": {
+                    "id": semester.id,
+                    "name": semester.name,
+                    "code": semester.code,
+                    "tournament_status": semester.tournament_status,
+                    "start_date": semester.start_date.isoformat() if semester.start_date else None,
+                    "end_date": semester.end_date.isoformat() if semester.end_date else None
+                }
             })
 
             result["total_sessions"] += len(sessions)

@@ -1,0 +1,41 @@
+{
+  "verdict": "NOT_WORKING",
+  "test_run_id": "sandbox-2026-02-08-23-14-16-8191",
+  "tournament": {
+    "id": 1515,
+    "name": "SANDBOX-TEST-LEAGUE-2026-02-08",
+    "type": "LEAGUE",
+    "status": "REWARDS_DISTRIBUTED",
+    "player_count": 8,
+    "skills_tested": [
+      "ball_control",
+      "passing",
+      "finishing",
+      "tackle"
+    ]
+  },
+  "execution_summary": {
+    "duration_seconds": 0.37,
+    "steps_completed": [
+      "Tournament created (ID: 1515, Status: DRAFT)",
+      "Participants enrolled (8 players)",
+      "Rankings simulation completed (not persisted)",
+      "Status remains at current state (workflow controls lifecycle)",
+      "Reward distribution delegated to workflow"
+    ]
+  },
+  "skill_progression": {},
+  "top_performers": [],
+  "bottom_performers": [],
+  "insights": [
+    {
+      "category": "VERDICT",
+      "severity": "ERROR",
+      "message": "Tournament status is IN_PROGRESS, expected REWARDS_DISTRIBUTED"
+    }
+  ],
+  "export_data": {
+    "pdf_ready": true,
+    "export_url": "/api/v1/sandbox/export-pdf/sandbox-2026-02-08-23-14-16-8191"
+  }
+}

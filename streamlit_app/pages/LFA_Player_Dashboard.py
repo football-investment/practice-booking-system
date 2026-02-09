@@ -812,12 +812,12 @@ def render_skills_tab():
 def render_tournaments_tab():
     """Render Tournaments & Events tab with nested tabs"""
 
-    # All Badges Section (moved from Home)
+    # Tournament Achievements Section (refactored with accordion)
     user_id = user.get('id')
     if user_id:
         try:
             from components.rewards.badge_showcase import render_badge_summary_widget
-            from components.rewards.badge_card import render_badge_grid
+            from components.tournaments import render_tournament_accordion_list
             from api_helpers_tournaments import get_user_badges
 
             # Header with summary widget
@@ -833,23 +833,51 @@ def render_tournaments_tab():
             if success and badges_data:
                 all_badges = badges_data.get('badges', [])
 
-                if all_badges:
-                    # Sort by earned_at (newest first)
-                    sorted_badges = sorted(
-                        all_badges,
-                        key=lambda b: b.get('earned_at', ''),
-                        reverse=True
-                    )
-
-                    # Show all badges in grid
-                    render_badge_grid(all_badges, columns=4, size="normal")
-                else:
-                    st.info("🏆 No badges earned yet. Participate in tournaments to earn your first badge!")
+                # Render tournament accordion (with filters, pagination, auto-expand)
+                render_tournament_accordion_list(
+                    badges=all_badges,
+                    token=token,
+                    user_id=user_id
+                )
             else:
-                st.caption("🏆 Earn badges by participating in tournaments!")
+                # Edge case: API failed
+                st.error(f"""
+⚠️ **Unable to Load Achievements**
+
+We couldn't fetch your tournament achievements. This might be due to:
+- Network connection issues
+- Server maintenance
+- Temporary API outage
+
+**Error:** {error if error else 'Unknown error'}
+                """)
+
+                if st.button("🔄 Retry", key="retry_badges_api"):
+                    st.rerun()
+
+                # Fallback: Show cached data if available
+                if 'tournament_achievements_state' in st.session_state:
+                    cached_badges = st.session_state['tournament_achievements_state'].get('last_successful_badges')
+                    if cached_badges:
+                        st.warning("📦 Showing cached data from last successful load")
+                        render_tournament_accordion_list(
+                            badges=cached_badges,
+                            token=token,
+                            user_id=user_id
+                        )
 
         except Exception as e:
-            st.caption("🏆 Earn badges by participating in tournaments!")
+            # Edge case: Unexpected error
+            st.error(f"""
+⚠️ **Unexpected Error**
+
+An error occurred while loading tournament achievements.
+
+**Error:** {str(e)}
+            """)
+
+            if st.button("🔄 Retry", key="retry_badges_exception"):
+                st.rerun()
 
     st.divider()
 
@@ -862,7 +890,11 @@ def render_tournaments_tab():
         st.warning("⚠️ Age category not determined. Please set your date of birth in your profile.")
 
     # Import enrollment helpers
-    success, error, schedule_data = get_user_schedule(token)
+    # Use wide date range to include all historical tournaments (1 year back + 1 year forward)
+    from datetime import date, timedelta
+    start_date = (date.today() - timedelta(days=365)).isoformat()
+    end_date = (date.today() + timedelta(days=365)).isoformat()
+    success, error, schedule_data = get_user_schedule(token, start_date=start_date, end_date=end_date)
 
     if not success:
         st.error(f"Failed to load schedule: {error}")

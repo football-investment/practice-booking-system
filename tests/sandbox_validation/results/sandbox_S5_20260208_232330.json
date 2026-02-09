@@ -1,0 +1,227 @@
+{
+  "verdict": "WORKING",
+  "test_run_id": "sandbox-2026-02-08-23-23-28-5499",
+  "tournament": {
+    "id": 1534,
+    "name": "SANDBOX-TEST-LEAGUE-2026-02-08",
+    "type": "LEAGUE",
+    "status": "REWARDS_DISTRIBUTED",
+    "player_count": 6,
+    "skills_tested": [
+      "passing",
+      "ball_control",
+      "shot_power"
+    ]
+  },
+  "execution_summary": {
+    "duration_seconds": 1.55,
+    "steps_completed": [
+      "Tournament created (ID: 1534, Status: IN_PROGRESS)",
+      "Participants enrolled (6 players)",
+      "Rankings created (6 participants)",
+      "Tournament transitioned to COMPLETED",
+      "Rewards distributed (6 participants)"
+    ]
+  },
+  "skill_progression": {
+    "passing": {
+      "before": {
+        "average": 66.2,
+        "min": 46.2,
+        "max": 96.7
+      },
+      "after": {
+        "average": 69.9,
+        "min": 41.5,
+        "max": 93.3
+      },
+      "change": "+3.7 avg"
+    },
+    "ball_control": {
+      "before": {
+        "average": 65.8,
+        "min": 43.6,
+        "max": 97.3
+      },
+      "after": {
+        "average": 69.7,
+        "min": 42.5,
+        "max": 95.8
+      },
+      "change": "+3.9 avg"
+    },
+    "shot_power": {
+      "before": {
+        "average": 60.5,
+        "min": 43.3,
+        "max": 83.3
+      },
+      "after": {
+        "average": 65.0,
+        "min": 42.5,
+        "max": 87.5
+      },
+      "change": "+4.5 avg"
+    }
+  },
+  "top_performers": [
+    {
+      "user_id": 7,
+      "username": "t1b1k3",
+      "rank": 1,
+      "points": "101.00",
+      "skills_changed": {
+        "passing": {
+          "before": 64.6,
+          "after": 93.3,
+          "change": "+28.7"
+        },
+        "ball_control": {
+          "before": 64.3,
+          "after": 95.8,
+          "change": "+31.5"
+        },
+        "shot_power": {
+          "before": 60.5,
+          "after": 87.5,
+          "change": "+27.0"
+        }
+      },
+      "total_skill_gain": 87.2
+    },
+    {
+      "user_id": 6,
+      "username": "v4lv3rd3jr",
+      "rank": 2,
+      "points": "87.00",
+      "skills_changed": {
+        "passing": {
+          "before": 58.2,
+          "after": 86.6,
+          "change": "+28.4"
+        },
+        "ball_control": {
+          "before": 56.5,
+          "after": 84.8,
+          "change": "+28.3"
+        },
+        "shot_power": {
+          "before": 54.8,
+          "after": 78.5,
+          "change": "+23.7"
+        }
+      },
+      "total_skill_gain": 80.4
+    },
+    {
+      "user_id": 4,
+      "username": "k1sqx1",
+      "rank": 3,
+      "points": "62.00",
+      "skills_changed": {
+        "passing": {
+          "before": 51.2,
+          "after": 76.3,
+          "change": "+25.1"
+        },
+        "ball_control": {
+          "before": 50.5,
+          "after": 75.5,
+          "change": "+25.0"
+        },
+        "shot_power": {
+          "before": 49.0,
+          "after": 69.5,
+          "change": "+20.5"
+        }
+      },
+      "total_skill_gain": 70.6
+    }
+  ],
+  "bottom_performers": [
+    {
+      "user_id": 5,
+      "username": "p3t1k3",
+      "rank": 6,
+      "points": "11.00",
+      "skills_changed": {
+        "passing": {
+          "before": 96.7,
+          "after": 41.5,
+          "change": "-55.2"
+        },
+        "ball_control": {
+          "before": 97.3,
+          "after": 42.5,
+          "change": "-54.8"
+        },
+        "shot_power": {
+          "before": 83.3,
+          "after": 42.5,
+          "change": "-40.8"
+        }
+      },
+      "total_skill_gain": -150.8
+    },
+    {
+      "user_id": 13,
+      "username": "kylian.mbappe",
+      "rank": 5,
+      "points": "26.00",
+      "skills_changed": {
+        "passing": {
+          "before": 80.3,
+          "after": 55.0,
+          "change": "-25.3"
+        },
+        "ball_control": {
+          "before": 82.6,
+          "after": 54.3,
+          "change": "-28.3"
+        },
+        "shot_power": {
+          "before": 71.9,
+          "after": 51.5,
+          "change": "-20.4"
+        }
+      },
+      "total_skill_gain": -74.0
+    }
+  ],
+  "insights": [
+    {
+      "category": "STATUS_TRANSITION",
+      "severity": "SUCCESS",
+      "message": "Status transition: DRAFT \u2192 COMPLETED \u2192 REWARDS_DISTRIBUTED"
+    },
+    {
+      "category": "VERDICT",
+      "severity": "SUCCESS",
+      "message": "All 6 participants received rewards successfully"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average passing skill changed by +3.7 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average ball_control skill changed by +3.9 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average shot_power skill changed by +4.5 points"
+    },
+    {
+      "category": "IDEMPOTENCY",
+      "severity": "SUCCESS",
+      "message": "No duplicate TournamentParticipation records created"
+    }
+  ],
+  "export_data": {
+    "pdf_ready": true,
+    "export_url": "/api/v1/sandbox/export-pdf/sandbox-2026-02-08-23-23-28-5499"
+  }
+}

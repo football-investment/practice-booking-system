@@ -1,0 +1,271 @@
+{
+  "verdict": "WORKING",
+  "test_run_id": "sandbox-2026-02-08-23-23-20-1842",
+  "tournament": {
+    "id": 1532,
+    "name": "SANDBOX-TEST-LEAGUE-2026-02-08",
+    "type": "LEAGUE",
+    "status": "REWARDS_DISTRIBUTED",
+    "player_count": 8,
+    "skills_tested": [
+      "passing",
+      "shot_power",
+      "tackle",
+      "ball_control"
+    ]
+  },
+  "execution_summary": {
+    "duration_seconds": 2.07,
+    "steps_completed": [
+      "Tournament created (ID: 1532, Status: IN_PROGRESS)",
+      "Participants enrolled (8 players)",
+      "Rankings created (8 participants)",
+      "Tournament transitioned to COMPLETED",
+      "Rewards distributed (8 participants)"
+    ]
+  },
+  "skill_progression": {
+    "passing": {
+      "before": {
+        "average": 71.2,
+        "min": 45.0,
+        "max": 98.6
+      },
+      "after": {
+        "average": 70.7,
+        "min": 46.2,
+        "max": 96.7
+      },
+      "change": "-0.5 avg"
+    },
+    "shot_power": {
+      "before": {
+        "average": 60.0,
+        "min": 45.0,
+        "max": 75.0
+      },
+      "after": {
+        "average": 63.3,
+        "min": 43.3,
+        "max": 83.3
+      },
+      "change": "+3.3 avg"
+    },
+    "tackle": {
+      "before": {
+        "average": 65.0,
+        "min": 42.5,
+        "max": 87.5
+      },
+      "after": {
+        "average": 66.0,
+        "min": 42.0,
+        "max": 90.0
+      },
+      "change": "+1.0 avg"
+    },
+    "ball_control": {
+      "before": {
+        "average": 70.2,
+        "min": 41.0,
+        "max": 99.0
+      },
+      "after": {
+        "average": 70.3,
+        "min": 43.6,
+        "max": 97.3
+      },
+      "change": "+0.1 avg"
+    }
+  },
+  "top_performers": [
+    {
+      "user_id": 5,
+      "username": "p3t1k3",
+      "rank": 1,
+      "points": "96.00",
+      "skills_changed": {
+        "passing": {
+          "before": 65.2,
+          "after": 96.7,
+          "change": "+31.5"
+        },
+        "shot_power": {
+          "before": 57.9,
+          "after": 83.3,
+          "change": "+25.4"
+        },
+        "tackle": {
+          "before": 61.8,
+          "after": 90.0,
+          "change": "+28.2"
+        },
+        "ball_control": {
+          "before": 58.4,
+          "after": 97.3,
+          "change": "+38.9"
+        }
+      },
+      "total_skill_gain": 124.0
+    },
+    {
+      "user_id": 16,
+      "username": "martin.odegaard",
+      "rank": 2,
+      "points": "93.00",
+      "skills_changed": {
+        "passing": {
+          "before": 85.3,
+          "after": 92.5,
+          "change": "+7.2"
+        },
+        "shot_power": {
+          "before": 66.4,
+          "after": 77.6,
+          "change": "+11.2"
+        },
+        "tackle": {
+          "before": 74.6,
+          "after": 83.1,
+          "change": "+8.5"
+        },
+        "ball_control": {
+          "before": 83.6,
+          "after": 91.3,
+          "change": "+7.7"
+        }
+      },
+      "total_skill_gain": 34.6
+    },
+    {
+      "user_id": 13,
+      "username": "kylian.mbappe",
+      "rank": 3,
+      "points": "78.00",
+      "skills_changed": {
+        "passing": {
+          "before": 73.2,
+          "after": 80.3,
+          "change": "+7.1"
+        },
+        "shot_power": {
+          "before": 62.1,
+          "after": 71.9,
+          "change": "+9.8"
+        },
+        "tackle": {
+          "before": 68.2,
+          "after": 76.3,
+          "change": "+8.1"
+        },
+        "ball_control": {
+          "before": 51.7,
+          "after": 82.6,
+          "change": "+30.9"
+        }
+      },
+      "total_skill_gain": 55.9
+    }
+  ],
+  "bottom_performers": [
+    {
+      "user_id": 15,
+      "username": "cole.palmer",
+      "rank": 8,
+      "points": "5.00",
+      "skills_changed": {
+        "passing": {
+          "before": 98.6,
+          "after": 46.2,
+          "change": "-52.4"
+        },
+        "shot_power": {
+          "before": 75.0,
+          "after": 43.3,
+          "change": "-31.7"
+        },
+        "tackle": {
+          "before": 87.5,
+          "after": 42.0,
+          "change": "-45.5"
+        },
+        "ball_control": {
+          "before": 90.3,
+          "after": 43.6,
+          "change": "-46.7"
+        }
+      },
+      "total_skill_gain": -176.3
+    },
+    {
+      "user_id": 4,
+      "username": "k1sqx1",
+      "rank": 7,
+      "points": "17.00",
+      "skills_changed": {
+        "passing": {
+          "before": 90.4,
+          "after": 51.2,
+          "change": "-39.2"
+        },
+        "shot_power": {
+          "before": 70.7,
+          "after": 49.0,
+          "change": "-21.7"
+        },
+        "tackle": {
+          "before": 81.1,
+          "after": 48.9,
+          "change": "-32.2"
+        },
+        "ball_control": {
+          "before": 73.9,
+          "after": 50.5,
+          "change": "-23.4"
+        }
+      },
+      "total_skill_gain": -116.5
+    }
+  ],
+  "insights": [
+    {
+      "category": "STATUS_TRANSITION",
+      "severity": "SUCCESS",
+      "message": "Status transition: DRAFT \u2192 COMPLETED \u2192 REWARDS_DISTRIBUTED"
+    },
+    {
+      "category": "VERDICT",
+      "severity": "SUCCESS",
+      "message": "All 8 participants received rewards successfully"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average passing skill changed by -0.5 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average shot_power skill changed by +3.3 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average tackle skill changed by +1.0 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average ball_control skill changed by +0.1 points"
+    },
+    {
+      "category": "IDEMPOTENCY",
+      "severity": "SUCCESS",
+      "message": "No duplicate TournamentParticipation records created"
+    }
+  ],
+  "export_data": {
+    "pdf_ready": true,
+    "export_url": "/api/v1/sandbox/export-pdf/sandbox-2026-02-08-23-23-20-1842"
+  }
+}

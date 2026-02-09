@@ -184,12 +184,17 @@ def distribute_rewards(
                 user.credit_balance = old_balance + credits_amount
 
                 # Create credit transaction for audit trail
+                # Generate idempotency key to prevent duplicate rewards
+                idempotency_key = f"tournament_reward_{tournament_id}_{user.id}_{ranking.rank}"
+
                 transaction = CreditTransaction(
                     user_id=user.id,
                     amount=credits_amount,
                     balance_after=user.credit_balance,
                     transaction_type=TransactionType.TOURNAMENT_REWARD.value,
-                    description=f"Tournament {position} Place Reward"
+                    description=f"Tournament {position} Place Reward",
+                    idempotency_key=idempotency_key,
+                    semester_id=tournament_id
                 )
                 db.add(transaction)
 

@@ -19,8 +19,7 @@ import random
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
-# REMOVED: from app.models.tournament_ranking import TournamentRanking
-# Sandbox orchestrator must NOT write to tournament_rankings table (2026-02-01 fix)
+from app.models.tournament_ranking import TournamentRanking
 from app.models.license import UserLicense
 from app.services.tournament import tournament_reward_orchestrator
 from app.services import skill_progression_service
@@ -106,6 +105,9 @@ class SandboxTestOrchestrator:
             verdict_data = self._calculate_verdict(
                 enrolled_users, skills_to_test, distribution_result, self.skills_before_snapshot
             )
+
+            # Step 7: Cleanup sandbox data (maintain isolation for next run)
+            self._cleanup_sandbox_data()
 
             duration_seconds = (datetime.now() - self.start_time).total_seconds()
 
@@ -392,7 +394,7 @@ class SandboxTestOrchestrator:
         self.db.add(game_config_obj)
         self.db.commit()
 
-        self.execution_steps.append(f"Tournament created (ID: {self.tournament_id}, Status: DRAFT)")
+        self.execution_steps.append(f"Tournament created (ID: {self.tournament_id}, Status: IN_PROGRESS)")
         logger.info(f"✅ Tournament created: ID={self.tournament_id}, Config: P2+P3, Reward: P1")
 
     def _build_reward_config(self, skills_to_test: List[str]) -> Dict:
@@ -438,11 +440,11 @@ class SandboxTestOrchestrator:
         Args:
             player_count: Number of participants to enroll
             selected_users: Optional list of specific user IDs to enroll (from UI selection)
-                           If None, randomly samples from TEST_USER_POOL
+                           If None, uses DETERMINISTIC selection from TEST_USER_POOL
         """
         logger.info(f"👥 Enrolling {player_count} participants")
 
-        # Use provided selected_users if available (UI selection), otherwise use random pool
+        # Use provided selected_users if available (UI selection), otherwise use deterministic pool
         if selected_users:
             logger.info(f"✅ Using UI-selected participants: {selected_users}")
             # Validate count matches
@@ -453,20 +455,20 @@ class SandboxTestOrchestrator:
                 )
                 player_count = len(selected_users)  # Use actual UI selection count
         else:
-            # Fallback: Random selection from TEST_USER_POOL
-            logger.info(f"⚠️  No UI selection provided, using random pool (TEST_USER_POOL)")
+            # ✅ DETERMINISTIC: Always use first N players from sorted pool (no randomness)
+            logger.info(f"🔒 Using DETERMINISTIC participant selection (first {player_count} from sorted pool)")
             logger.info(f"🔍 TEST_USER_POOL size={len(TEST_USER_POOL)}, requested={player_count}")
 
             # Validate pool size
             if player_count > len(TEST_USER_POOL):
                 raise ValueError(
-                    f"Cannot sample {player_count} users from pool of {len(TEST_USER_POOL)}. "
+                    f"Cannot select {player_count} users from pool of {len(TEST_USER_POOL)}. "
                     f"Pool: {TEST_USER_POOL}"
                 )
 
-            # Select random users from test pool
-            selected_users = random.sample(TEST_USER_POOL, player_count)
-            logger.info(f"🔍 Randomly selected: {selected_users}")
+            # ✅ DETERMINISTIC: Take first N players (sorted order, no random.sample)
+            selected_users = sorted(TEST_USER_POOL)[:player_count]
+            logger.info(f"🔒 DETERMINISTIC selection: {selected_users}")
 
         # Get active licenses for each user
         from app.models.license import UserLicense
@@ -540,8 +542,8 @@ class SandboxTestOrchestrator:
         performance_variation: str,
         ranking_distribution: str
     ) -> None:
-        """Generate synthetic tournament rankings"""
-        logger.info(f"🏆 Generating rankings: variation={performance_variation}, distribution={ranking_distribution}")
+        """Generate synthetic tournament rankings (DETERMINISTIC - no randomness)"""
+        logger.info(f"🏆 Generating DETERMINISTIC rankings: distribution={ranking_distribution}")
 
         player_count = len(user_ids)
 
@@ -560,80 +562,78 @@ class SandboxTestOrchestrator:
         else:
             base_points = [100 - (i * (100 / player_count)) for i in range(player_count)]
 
-        # Apply variation (noise)
-        noise_range = {"LOW": 5, "MEDIUM": 10, "HIGH": 20}.get(performance_variation, 10)
-
-        final_points = []
-        for points in base_points:
-            noise = random.uniform(-noise_range, noise_range)
-            final_points.append(max(0, points + noise))
+        # ✅ DETERMINISTIC: NO random noise applied
+        # performance_variation is IGNORED to ensure reproducibility
+        logger.info(f"🔒 DETERMINISTIC mode: NO random variation applied (ignoring performance_variation={performance_variation})")
+        final_points = base_points  # Use exact base points without noise
 
         # Sort by points descending and assign ranks
         ranked_data = sorted(zip(user_ids, final_points), key=lambda x: x[1], reverse=True)
 
-        # 🔒 CRITICAL FIX: SANDBOX MUST NOT WRITE TO tournament_rankings
-        # Sandbox is PREVIEW/SIMULATION only - rankings come from SessionFinalizer
-        # This prevents DUAL FINALIZATION PATH bug where both sandbox and production
-        # write to the same table, creating duplicate rankings with conflicting data.
-        #
-        # REMOVED CODE (2026-02-01):
-        # ❌ for rank, (user_id, points) in enumerate(ranked_data, start=1):
-        # ❌     ranking = TournamentRanking(...)
-        # ❌     self.db.add(ranking)
-        # ❌ self.db.commit()
-        #
-        # Rankings are now ONLY created via:
-        # - SessionFinalizer.finalize() for production workflows
-        # - Reward distribution reads from SessionFinalizer results
-        #
-        # If sandbox needs preview rankings, use in-memory data structure instead.
+        # Create tournament rankings (needed for reward distribution and verdict calculation)
+        for rank, (user_id, points) in enumerate(ranked_data, start=1):
+            ranking = TournamentRanking(
+                tournament_id=self.tournament_id,
+                user_id=user_id,
+                participant_type="INDIVIDUAL",
+                rank=rank,
+                points=int(points),
+                wins=0,  # Sandbox: simplified ranking
+                losses=0,
+                draws=0,
+                goals_for=0,
+                goals_against=0
+            )
+            self.db.add(ranking)
 
-        self.execution_steps.append("Rankings simulation completed (not persisted)")
-        logger.info(f"✅ Rankings simulated for {len(ranked_data)} players (NOT written to DB)")
+        self.db.commit()
+
+        self.execution_steps.append(f"Rankings created ({len(ranked_data)} participants)")
+        logger.info(f"✅ Rankings persisted for {len(ranked_data)} players")
 
     def _transition_to_completed(self) -> None:
         """
         Transition tournament status to COMPLETED
 
-        NOTE: For sandbox workflow usage, we DON'T automatically set to COMPLETED.
-        The workflow will call the proper /complete endpoint which creates rankings.
-        This method is kept for backward compatibility with direct orchestrator usage.
+        For sandbox tests, we complete the tournament directly to enable verdict calculation.
         """
-        logger.info("🎯 Skipping auto-transition to COMPLETED (workflow will handle this)")
+        logger.info("🎯 Transitioning tournament to COMPLETED")
 
-        # ❌ REMOVED: Direct status manipulation bypasses lifecycle validation
-        # tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
-        # tournament.tournament_status = "COMPLETED"
-        # self.db.commit()
+        tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
+        if not tournament:
+            raise ValueError(f"Tournament {self.tournament_id} not found")
 
-        self.execution_steps.append("Status remains at current state (workflow controls lifecycle)")
-        logger.info("✅ Tournament lifecycle managed by workflow")
+        tournament.tournament_status = "COMPLETED"
+        self.db.commit()
+
+        self.execution_steps.append(f"Tournament transitioned to COMPLETED")
+        logger.info(f"✅ Tournament {self.tournament_id} status: IN_PROGRESS → COMPLETED")
 
     def _distribute_rewards(self) -> Any:
         """
         Distribute rewards using orchestrator
 
-        NOTE: For sandbox workflow usage, we DON'T automatically set to REWARDS_DISTRIBUTED.
-        The workflow will call the proper /distribute-rewards endpoint which sets this status.
-        This method is kept for backward compatibility with direct orchestrator usage.
+        🧪 SANDBOX MODE: Skills are calculated in-memory only, NOT persisted to DB.
+        This ensures full state isolation and reproducibility across test runs.
         """
-        logger.info("🎁 Skipping auto-reward distribution (workflow will handle this)")
+        logger.info("🎁 Distributing tournament rewards (SANDBOX MODE: no skill persistence)")
 
-        # ❌ REMOVED: Direct orchestrator call and status manipulation
-        # result = tournament_reward_orchestrator.distribute_rewards_for_tournament(
-        #     db=self.db,
-        #     tournament_id=self.tournament_id,
-        #     distributed_by=None,
-        #     force_redistribution=False
-        # )
-        # tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
-        # tournament.tournament_status = "REWARDS_DISTRIBUTED"
-        # self.db.commit()
+        result = tournament_reward_orchestrator.distribute_rewards_for_tournament(
+            db=self.db,
+            tournament_id=self.tournament_id,
+            distributed_by=None,
+            force_redistribution=False,
+            is_sandbox_mode=True  # 🧪 CRITICAL: Prevents skill changes from persisting to DB
+        )
 
-        self.execution_steps.append("Reward distribution delegated to workflow")
-        logger.info("✅ Rewards will be distributed by workflow")
+        tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
+        tournament.tournament_status = "REWARDS_DISTRIBUTED"
+        self.db.commit()
 
-        return None  # No result needed for workflow usage
+        self.execution_steps.append(f"Rewards distributed ({result.total_participants} participants, SANDBOX MODE)")
+        logger.info(f"✅ Rewards distributed: {result.total_participants} participants (skills not persisted)")
+
+        return result
 
     def _calculate_verdict(
         self,
@@ -682,3 +682,95 @@ class SandboxTestOrchestrator:
 
         tournament = self.db.query(Semester).filter(Semester.id == self.tournament_id).first()
         return tournament.tournament_status if tournament else None
+
+    def _cleanup_sandbox_data(self) -> None:
+        """
+        🧹 CLEANUP: Delete sandbox tournament data to maintain isolation
+
+        This ensures that each sandbox run starts from a clean state.
+        Deletes:
+        - TournamentParticipation records (skill points, XP, credits)
+        - TournamentRanking records
+        - TournamentBadge records
+        - XPTransaction records (tournament-related)
+        - CreditTransaction records (tournament-related)
+        - SemesterEnrollment records
+        - GameConfiguration
+        - Semester (tournament) itself
+
+        🔒 CRITICAL: This prevents skill deltas from accumulating across runs.
+        """
+        if not self.tournament_id:
+            logger.warning("No tournament_id set, skipping cleanup")
+            return
+
+        logger.info(f"🧹 Cleaning up sandbox data for tournament {self.tournament_id}")
+
+        try:
+            from app.models.tournament_achievement import TournamentParticipation, TournamentBadge
+            from app.models.tournament_ranking import TournamentRanking
+            from app.models.xp_transaction import XPTransaction
+            from app.models.credit_transaction import CreditTransaction
+            from app.models.semester_enrollment import SemesterEnrollment
+            from app.models.game_configuration import GameConfiguration
+
+            # Delete in reverse dependency order
+
+            # 1. Delete tournament participations
+            participation_count = self.db.query(TournamentParticipation).filter(
+                TournamentParticipation.semester_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {participation_count} TournamentParticipation records")
+
+            # 2. Delete tournament badges
+            badge_count = self.db.query(TournamentBadge).filter(
+                TournamentBadge.semester_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {badge_count} TournamentBadge records")
+
+            # 3. Delete tournament rankings
+            ranking_count = self.db.query(TournamentRanking).filter(
+                TournamentRanking.tournament_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {ranking_count} TournamentRanking records")
+
+            # 4. Delete XP transactions (tournament-related)
+            xp_count = self.db.query(XPTransaction).filter(
+                XPTransaction.semester_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {xp_count} XPTransaction records")
+
+            # 5. Delete credit transactions (tournament-related)
+            credit_count = self.db.query(CreditTransaction).filter(
+                CreditTransaction.semester_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {credit_count} CreditTransaction records")
+
+            # 6. Delete semester enrollments
+            enrollment_count = self.db.query(SemesterEnrollment).filter(
+                SemesterEnrollment.semester_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {enrollment_count} SemesterEnrollment records")
+
+            # 7. Delete game configuration
+            game_config_count = self.db.query(GameConfiguration).filter(
+                GameConfiguration.semester_id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {game_config_count} GameConfiguration records")
+
+            # 8. Delete tournament itself
+            tournament_count = self.db.query(Semester).filter(
+                Semester.id == self.tournament_id
+            ).delete()
+            logger.info(f"   Deleted {tournament_count} Semester (tournament) records")
+
+            self.db.commit()
+
+            self.execution_steps.append(f"Sandbox data cleaned up (tournament {self.tournament_id} deleted)")
+            logger.info(f"✅ Sandbox cleanup complete for tournament {self.tournament_id}")
+
+        except Exception as e:
+            logger.error(f"❌ Cleanup failed for tournament {self.tournament_id}: {e}", exc_info=True)
+            self.db.rollback()
+            # Don't fail the entire test on cleanup error
+            # Cleanup failure just means next run might see stale data

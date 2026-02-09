@@ -175,10 +175,23 @@ class TournamentBadge(Base):
 
     def to_dict(self):
         """Convert to dictionary for API responses"""
+        # Include tournament/semester metadata for frontend display
+        semester_name = None
+        tournament_status = None
+        tournament_start_date = None
+
+        if self.tournament:
+            semester_name = self.tournament.name
+            tournament_status = self.tournament.tournament_status
+            tournament_start_date = self.tournament.start_date.isoformat() if self.tournament.start_date else None
+
         return {
             "id": self.id,
             "user_id": self.user_id,
             "semester_id": self.semester_id,
+            "semester_name": semester_name,  # NEW: Tournament name for display
+            "tournament_status": tournament_status,  # NEW: Tournament status for UI logic
+            "tournament_start_date": tournament_start_date,  # NEW: For sorting
             "badge_type": self.badge_type,
             "badge_category": self.badge_category,
             "title": self.title,

@@ -1,0 +1,272 @@
+{
+  "verdict": "WORKING",
+  "test_run_id": "sandbox-2026-02-09-10-38-08-9312",
+  "tournament": {
+    "id": 1548,
+    "name": "SANDBOX-TEST-KNOCKOUT-2026-02-09",
+    "type": "KNOCKOUT",
+    "status": "REWARDS_DISTRIBUTED",
+    "player_count": 8,
+    "skills_tested": [
+      "ball_control",
+      "finishing",
+      "sprint_speed",
+      "strength"
+    ]
+  },
+  "execution_summary": {
+    "duration_seconds": 3.28,
+    "steps_completed": [
+      "Tournament created (ID: 1548, Status: IN_PROGRESS)",
+      "Participants enrolled (8 players)",
+      "Rankings created (8 participants)",
+      "Tournament transitioned to COMPLETED",
+      "Rewards distributed (8 participants, SANDBOX MODE)",
+      "Sandbox data cleaned up (tournament 1548 deleted)"
+    ]
+  },
+  "skill_progression": {
+    "ball_control": {
+      "before": {
+        "average": 70.2,
+        "min": 42.9,
+        "max": 98.3
+      },
+      "after": {
+        "average": 70.2,
+        "min": 42.8,
+        "max": 98.4
+      },
+      "change": "+0.0 avg"
+    },
+    "finishing": {
+      "before": {
+        "average": 68.5,
+        "min": 40.7,
+        "max": 96.2
+      },
+      "after": {
+        "average": 68.7,
+        "min": 40.7,
+        "max": 96.4
+      },
+      "change": "+0.1 avg"
+    },
+    "sprint_speed": {
+      "before": {
+        "average": 67.9,
+        "min": 41.2,
+        "max": 93.8
+      },
+      "after": {
+        "average": 67.7,
+        "min": 41.1,
+        "max": 93.8
+      },
+      "change": "-0.2 avg"
+    },
+    "strength": {
+      "before": {
+        "average": 66.0,
+        "min": 42.0,
+        "max": 90.0
+      },
+      "after": {
+        "average": 66.7,
+        "min": 41.7,
+        "max": 91.7
+      },
+      "change": "+0.7 avg"
+    }
+  },
+  "top_performers": [
+    {
+      "user_id": 4,
+      "username": "k1sqx1",
+      "rank": 1,
+      "points": "100.00",
+      "skills_changed": {
+        "ball_control": {
+          "before": 98.3,
+          "after": 98.4,
+          "change": "+0.1"
+        },
+        "finishing": {
+          "before": 96.2,
+          "after": 96.4,
+          "change": "+0.2"
+        },
+        "sprint_speed": {
+          "before": 70.8,
+          "after": 93.8,
+          "change": "+23.0"
+        },
+        "strength": {
+          "before": 69.4,
+          "after": 91.7,
+          "change": "+22.3"
+        }
+      },
+      "total_skill_gain": 45.6
+    },
+    {
+      "user_id": 5,
+      "username": "p3t1k3",
+      "rank": 2,
+      "points": "87.00",
+      "skills_changed": {
+        "ball_control": {
+          "before": 90.2,
+          "after": 90.3,
+          "change": "+0.1"
+        },
+        "finishing": {
+          "before": 88.5,
+          "after": 88.7,
+          "change": "+0.2"
+        },
+        "sprint_speed": {
+          "before": 85.0,
+          "after": 86.8,
+          "change": "+1.8"
+        },
+        "strength": {
+          "before": 55.7,
+          "after": 84.5,
+          "change": "+28.8"
+        }
+      },
+      "total_skill_gain": 30.9
+    },
+    {
+      "user_id": 6,
+      "username": "v4lv3rd3jr",
+      "rank": 3,
+      "points": "75.00",
+      "skills_changed": {
+        "ball_control": {
+          "before": 81.0,
+          "after": 81.1,
+          "change": "+0.1"
+        },
+        "finishing": {
+          "before": 80.5,
+          "after": 80.7,
+          "change": "+0.2"
+        },
+        "sprint_speed": {
+          "before": 41.2,
+          "after": 79.2,
+          "change": "+38.0"
+        },
+        "strength": {
+          "before": 42.0,
+          "after": 77.4,
+          "change": "+35.4"
+        }
+      },
+      "total_skill_gain": 73.7
+    }
+  ],
+  "bottom_performers": [
+    {
+      "user_id": 16,
+      "username": "martin.odegaard",
+      "rank": 8,
+      "points": "12.00",
+      "skills_changed": {
+        "ball_control": {
+          "before": 42.9,
+          "after": 42.8,
+          "change": "-0.1"
+        },
+        "finishing": {
+          "before": 40.7,
+          "after": 40.7,
+          "change": "+0.0"
+        },
+        "sprint_speed": {
+          "before": 67.5,
+          "after": 41.1,
+          "change": "-26.4"
+        },
+        "strength": {
+          "before": 76.3,
+          "after": 41.7,
+          "change": "-34.6"
+        }
+      },
+      "total_skill_gain": -61.1
+    },
+    {
+      "user_id": 15,
+      "username": "cole.palmer",
+      "rank": 7,
+      "points": "25.00",
+      "skills_changed": {
+        "ball_control": {
+          "before": 50.3,
+          "after": 50.2,
+          "change": "-0.1"
+        },
+        "finishing": {
+          "before": 48.7,
+          "after": 48.7,
+          "change": "+0.0"
+        },
+        "sprint_speed": {
+          "before": 93.8,
+          "after": 48.7,
+          "change": "-45.1"
+        },
+        "strength": {
+          "before": 83.1,
+          "after": 48.8,
+          "change": "-34.3"
+        }
+      },
+      "total_skill_gain": -79.5
+    }
+  ],
+  "insights": [
+    {
+      "category": "STATUS_TRANSITION",
+      "severity": "SUCCESS",
+      "message": "Status transition: DRAFT \u2192 COMPLETED \u2192 REWARDS_DISTRIBUTED"
+    },
+    {
+      "category": "VERDICT",
+      "severity": "SUCCESS",
+      "message": "All 8 participants received rewards successfully"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average ball_control skill changed by +0.0 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average finishing skill changed by +0.2 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average sprint_speed skill changed by -0.2 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average strength skill changed by +0.7 points"
+    },
+    {
+      "category": "IDEMPOTENCY",
+      "severity": "SUCCESS",
+      "message": "No duplicate TournamentParticipation records created"
+    }
+  ],
+  "export_data": {
+    "pdf_ready": true,
+    "export_url": "/api/v1/sandbox/export-pdf/sandbox-2026-02-09-10-38-08-9312"
+  }
+}
