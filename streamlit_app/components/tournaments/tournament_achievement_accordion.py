@@ -283,12 +283,16 @@ def render_tournament_accordion_item(tournament_data: Dict[str, Any], is_expande
         """, unsafe_allow_html=True)
         
         if tournament_status in ["COMPLETED", "REWARDS_DISTRIBUTED"]:
-            if tournament_data.get('metrics') is None:
+            # FORCE REFRESH: Always refetch metrics to get updated total_participants fallback
+            # TODO: Remove after cache strategy implemented (version-based)
+            if True:  # Force refetch (was: if tournament_data.get('metrics') is None)
                 with st.spinner("Loading tournament metrics..."):
                     # Pass first badge for fallback metadata
                     first_badge = badges[0] if badges else None
                     metrics = fetch_tournament_metrics(token, tournament_id, user_id, badge_data=first_badge)
                     tournament_data['metrics'] = metrics
+                    # Debug: Log metrics data
+                    logger.info(f"Tournament {tournament_id}: rank={metrics.get('rank')}, total_participants={metrics.get('total_participants')}")
             else:
                 metrics = tournament_data['metrics']
 
