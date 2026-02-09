@@ -82,14 +82,26 @@ def render_performance_card(
     credits_earned = metrics.get('credits_earned')
     badges_earned = metrics.get('badges_earned')
 
+    # DEBUG: Log all data sources
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[PERFORMANCE_CARD_DEBUG] Tournament: {tournament_data.get('tournament_name')}")
+    logger.info(f"[METRICS] rank={rank}, total_participants={total_participants}, rank_source={metrics.get('rank_source')}")
+
+    badges = tournament_data.get('badges', [])
+    if badges:
+        first_badge = badges[0]
+        badge_metadata = first_badge.get('badge_metadata', {})
+        logger.info(f"[BADGE_METADATA] placement={badge_metadata.get('placement')}, total_participants={badge_metadata.get('total_participants')}")
+
     # Fallback: If metrics missing total_participants, try badge metadata
     if not total_participants:
-        badges = tournament_data.get('badges', [])
         if badges and len(badges) > 0:
             first_badge = badges[0]
             badge_metadata = first_badge.get('badge_metadata', {})
             if badge_metadata.get('total_participants'):
                 total_participants = badge_metadata['total_participants']
+                logger.info(f"[FALLBACK] Using badge_metadata.total_participants={total_participants}")
 
     # Compute percentile
     percentile = None
@@ -105,6 +117,17 @@ def render_performance_card(
     badge_type = primary_badge.get('badge_type') if primary_badge else None
     badge_icon = get_badge_icon(badge_type) if badge_type else "🏅"
     badge_title = get_badge_title(badge_type) if badge_type else "PARTICIPANT"
+
+    # CRITICAL PRODUCT RULE: CHAMPION badge MUST have rank (force placement fallback)
+    if badge_type == "CHAMPION" and not rank:
+        if badges and len(badges) > 0:
+            first_badge = badges[0]
+            badge_metadata = first_badge.get('badge_metadata', {})
+            if badge_metadata.get('placement'):
+                rank = badge_metadata['placement']
+                logger.error(f"[CHAMPION_GUARD] FORCED rank from badge_metadata.placement={rank} (metrics.rank was NULL!)")
+            else:
+                logger.critical(f"[CHAMPION_GUARD] CHAMPION badge with NO placement data - CRITICAL DATA INTEGRITY ERROR!")
 
     # Get size-specific styles
     styles = CARD_SIZES[size]
