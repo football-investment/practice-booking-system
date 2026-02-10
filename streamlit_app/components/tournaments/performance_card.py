@@ -84,13 +84,25 @@ def render_performance_card(
 
     badges = tournament_data.get('badges', [])
 
-    # Fallback: If metrics missing total_participants, try badge metadata
+    # Get primary badge (highest priority) — MUST happen BEFORE fallbacks
+    primary_badge = _get_primary_badge(tournament_data.get('badges', []))
+    badge_type = primary_badge.get('badge_type') if primary_badge else None
+    badge_icon = get_badge_icon(badge_type) if badge_type else "🏅"
+    badge_title = get_badge_title(badge_type) if badge_type else "PARTICIPANT"
+
+    # Fallback: If metrics missing total_participants, try PRIMARY badge metadata
     if not total_participants:
-        if badges and len(badges) > 0:
-            first_badge = badges[0]
-            badge_metadata = first_badge.get('badge_metadata', {})
-            if badge_metadata.get('total_participants'):
+        if primary_badge:
+            badge_metadata = primary_badge.get('badge_metadata', {})
+            if badge_metadata and badge_metadata.get('total_participants'):
                 total_participants = badge_metadata['total_participants']
+
+    # CRITICAL PRODUCT RULE: CHAMPION badge MUST have rank (force placement fallback from PRIMARY badge)
+    if badge_type == "CHAMPION" and not rank:
+        if primary_badge:
+            badge_metadata = primary_badge.get('badge_metadata', {})
+            if badge_metadata and badge_metadata.get('placement'):
+                rank = badge_metadata['placement']
 
     # Compute percentile
     percentile = None
@@ -100,20 +112,6 @@ def render_performance_card(
         percentile = round((rank / total_participants) * 100, 1)
         percentile_badge_text = get_percentile_badge_text(percentile)
         percentile_tier = get_percentile_tier(percentile)
-
-    # Get primary badge (highest priority)
-    primary_badge = _get_primary_badge(tournament_data.get('badges', []))
-    badge_type = primary_badge.get('badge_type') if primary_badge else None
-    badge_icon = get_badge_icon(badge_type) if badge_type else "🏅"
-    badge_title = get_badge_title(badge_type) if badge_type else "PARTICIPANT"
-
-    # CRITICAL PRODUCT RULE: CHAMPION badge MUST have rank (force placement fallback)
-    if badge_type == "CHAMPION" and not rank:
-        if badges and len(badges) > 0:
-            first_badge = badges[0]
-            badge_metadata = first_badge.get('badge_metadata', {})
-            if badge_metadata.get('placement'):
-                rank = badge_metadata['placement']
 
     # Get size-specific styles
     styles = CARD_SIZES[size]

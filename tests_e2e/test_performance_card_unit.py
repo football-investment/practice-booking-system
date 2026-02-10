@@ -467,3 +467,47 @@ def test_T14_compact_size_champion_guard_applies():
     assert "No ranking data" not in rendered, (
         "T14 FAIL: compact size shows 'No ranking data' for CHAMPION badge."
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# T15 — PRODUCTION REGRESSION: CHAMPION badge NOT at index 0
+# ──────────────────────────────────────────────────────────────────────────────
+def test_T15_champion_not_at_index_0_regression():
+    """
+    CRITICAL REGRESSION TEST for SANDBOX-TEST-LEAGUE-2026-02-09 production bug.
+
+    User k1sqx1@f1rstteam.hu saw "No ranking data" despite CHAMPION badge having
+    badge_metadata: {"placement": 1, "total_participants": 8}.
+
+    ROOT CAUSE: The API returns badges in arbitrary order. If TOURNAMENT_PARTICIPANT
+    (badge_metadata=null) comes BEFORE CHAMPION in the badges array, the old code
+    read badges[0] and got null metadata → guard failed.
+
+    FIX: Use primary_badge (highest priority) for ALL metadata fallbacks.
+
+    This test MUST pass to prevent production regression.
+    """
+    md = _capture_markdown_calls()
+
+    # Simulate API response where TOURNAMENT_PARTICIPANT comes first
+    # (this is what triggered the production bug)
+    tournament_participant = {
+        "badge_type": "TOURNAMENT_PARTICIPANT",
+        "badge_metadata": None,  # NULL in production DB
+    }
+    champion_badge = _champion_badge(placement=1, total_participants=8)
+
+    render_performance_card({
+        "metrics": _minimal_metrics(rank=None, total_participants=None),
+        "badges": [tournament_participant, champion_badge],  # CHAMPION NOT at index 0
+    })
+
+    rendered = " ".join(str(c) for c in md.call_args_list)
+    assert "No ranking data" not in rendered, (
+        "T15 PRODUCTION REGRESSION: CHAMPION badge metadata not read when badge "
+        "not at index 0. This is the exact production bug reported on "
+        "SANDBOX-TEST-LEAGUE-2026-02-09 for user k1sqx1@f1rstteam.hu."
+    )
+    assert "#1 of 8 players" in rendered, (
+        "T15 FAIL: Expected '#1 of 8 players' from CHAMPION badge_metadata."
+    )
