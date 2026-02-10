@@ -3,10 +3,12 @@
 # =============================================================================
 #
 # Orchestrates a complete, isolated test environment:
-#   db         → PostgreSQL 16 (ephemeral, test data only)
-#   api        → FastAPI backend (waits for db healthy)
-#   streamlit  → Streamlit frontend on port 8599 (waits for api healthy)
-#   e2e-tests  → Playwright test runner (waits for streamlit healthy)
+#   db          → PostgreSQL 16 (ephemeral, test data only)
+#   api-migrate → Alembic schema migrations (runs once)
+#   db-seed     → Seeds junior.intern@lfa.com + CHAMPION badge (runs once)
+#   api         → FastAPI backend (waits for db-seed complete)
+#   streamlit   → Streamlit frontend on port 8599 (waits for api healthy)
+#   e2e-tests   → Playwright test runner (waits for streamlit healthy)
 #
 # Usage:
 #   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
@@ -48,6 +50,20 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # ── Test data seed ──────────────────────────────────────────────────────────
+  db-seed:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+    command: >
+      python scripts/seed_champion_test_data.py
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   api:
     build:
       context: .
@@ -62,7 +78,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      api-migrate:
+      db-seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/docs"]

@@ -146,7 +146,11 @@ if command -v docker &>/dev/null && [[ -f "${COMPOSE_FILE}" ]]; then
         exit 1
     fi
 fi
-info "Docker not available — using native lifecycle"
+warn "Docker not available — running in NON-CANONICAL fallback mode"
+warn "The Docker stack (docker-compose.test.yml) is the single source of truth."
+warn "Install Docker to guarantee a reproducible, fully isolated test environment."
+warn "Results in this mode depend on your local DB state and running services."
+echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1.  Lockfile  (prevent parallel runs on the same port)
