@@ -8,78 +8,59 @@ displayed "No ranking data" instead of showing the #1 ranking.
 **Business Rule**: Champion badges MUST ALWAYS display ranking information
 (#1 of N players), never "No ranking data".
 
-This test runs as a **local git pre-push hook** — fully offline, no cloud CI
+This test runs as a **local git hook system** — fully offline, no cloud CI
 required.
 
 ---
 
-## How It Works
+## Two-layer quality gate
 
-### Pre-push hook (automatic)
-
-After running `./hooks/install-hooks.sh` once, every `git push` triggers:
-
-```
-🏆 Champion Badge Regression Guard (pre-push)
-   ✅ Streamlit is running
-   🧪 Running regression test...
-   ✅ Found CHAMPION badge signal(s) at 2 line(s)
-   ✅ No 'No ranking data' found near any CHAMPION badge
-   ✅ CHAMPION guard PASSED — push allowed
-```
-
-If the regression is present:
-
-```
-   ❌ CHAMPION guard FAILED — PUSH BLOCKED
-   REGRESSION DETECTED: CHAMPION badge shows 'No ranking data'
-```
-
-### Test strategy
-
-1. Login as `junior.intern@lfa.com` (headless Playwright)
-2. Navigate to LFA Player Dashboard via JS (sidebar CSS-hidden)
-3. Expand all accordions to surface badge cards
-4. Sliding-window assertion (15 lines): if CHAMPION appears anywhere,
-   "No ranking data" must NOT appear within that window
-5. Save `tests_e2e/screenshots/champion_badge_PASS.png` on success,
-   `champion_badge_FAILED.png` on failure
+| Hook | Trigger | Duration | What it checks |
+|------|---------|----------|----------------|
+| `pre-commit` | Every `git commit` | < 1s | Static: no hardcoded `"No ranking data"` in staged Python; CHAMPION guard not removed from `performance_card.py` |
+| `pre-push` | Every `git push` | ~30–60s | E2E: starts dedicated Streamlit on port 8599, runs Playwright test, stops Streamlit |
 
 ---
 
 ## Setup
 
-### 1 — Install the hook (once per clone)
+### 1 — Install hooks (once per clone)
 
 ```bash
 ./hooks/install-hooks.sh
 ```
 
-This copies `hooks/pre-push` → `.git/hooks/pre-push` and makes it executable.
-Idempotent: safe to run again after hook updates.
+Copies `hooks/pre-commit` → `.git/hooks/pre-commit`
+and `hooks/pre-push` → `.git/hooks/pre-push`.
+Idempotent: safe to run after hook updates.
 
-### 2 — Create test user in DB (once)
+### 2 — Ensure test user exists in DB (once)
 
-The hook requires a user `junior.intern@lfa.com` with a CHAMPION badge.
+The pre-push test requires `junior.intern@lfa.com` to exist with a CHAMPION badge.
 
 ```sql
--- Update an existing STUDENT user or create one
+-- Check it exists
+SELECT id, email FROM users WHERE email = 'junior.intern@lfa.com';
+
+-- If missing: update an existing STUDENT user
 UPDATE users SET
-    email        = 'junior.intern@lfa.com',
-    password_hash = '<bcrypt hash of password123>',
+    email             = 'junior.intern@lfa.com',
+    password_hash     = '<bcrypt hash of password123>',
     onboarding_completed = true,
-    specialization = 'LFA_FOOTBALL_PLAYER'
+    specialization    = 'LFA_FOOTBALL_PLAYER'
 WHERE id = <your_test_user_id>;
 
-UPDATE user_licenses SET onboarding_completed = true
+UPDATE user_licenses
+SET onboarding_completed = true
 WHERE user_id = <your_test_user_id>;
 
+-- Ensure a CHAMPION badge with badge_metadata exists
 INSERT INTO tournament_badges (
     user_id, semester_id, badge_type, badge_category,
     title, description, icon, rarity, badge_metadata, earned_at
 ) VALUES (
     <your_test_user_id>,
-    <any_valid_semester_id>,
+    (SELECT id FROM semesters LIMIT 1),
     'CHAMPION', 'PLACEMENT',
     '🥇 Champion', 'First place finish', '🥇', 'LEGENDARY',
     '{"placement": 1, "total_participants": 24}',
@@ -93,16 +74,77 @@ source venv/bin/activate
 python3 -c "import bcrypt; print(bcrypt.hashpw(b'password123', bcrypt.gensalt()).decode())"
 ```
 
-### 3 — Ensure Streamlit is running before pushing
+### 3 — Ensure FastAPI backend is running before pushing
+
+The pre-push hook requires the FastAPI backend (it is not managed by the hook):
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system \
-  streamlit run streamlit_app/🏠_Home.py --server.port 8501
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The hook self-manages the Streamlit instance — you do **not** need to start it manually.
+
+---
+
+## How the pre-push hook works
+
+```
+🏆 Champion Badge Regression Guard v2  (pre-push)
+   ✅ Virtual environment activated
+   ✅ Playwright found
+   ✅ FastAPI backend reachable
+   Starting dedicated Streamlit on port 8599 ...
+     Waiting for Streamlit... (2/45s)
+   ✅ Streamlit ready on http://localhost:8599
+
+   Running regression test...
+
+   ✅ Found CHAMPION badge signal(s) at 2 line(s)
+   ✅ No 'No ranking data' found near any CHAMPION badge
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ CHAMPION guard PASSED — push allowed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+If regression is detected:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ❌ CHAMPION guard FAILED — PUSH BLOCKED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  REGRESSION: CHAMPION badge shows 'No ranking data'
+```
+
+The Streamlit instance is automatically stopped in both PASS and FAIL cases.
+
+---
+
+## Override (emergency use only)
+
+### pre-commit override
+
+```bash
+SKIP_CHAMPION_COMMIT_CHECK=1 git commit -m "..."
+```
+
+### pre-push override
+
+Both env vars are required. The skip is written to an audit log.
+
+```bash
+SKIP_CHAMPION_CHECK=1 SKIP_REASON="docs-only change, no Python modified" git push
+```
+
+The audit log is at `.git/hooks/champion_skip_audit.log`:
+```
+2026-02-10T14:30:00Z  SKIP  branch=feature/xyz  user=dev@example.com  reason=docs-only change
 ```
 
 ---
 
-## Running Manually
+## Running manually
 
 ### Option 1 — Helper script
 ```bash
@@ -112,6 +154,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system \
 ### Option 2 — Direct pytest
 ```bash
 source venv/bin/activate
+export CHAMPION_TEST_URL="http://localhost:8501"   # or 8599 for a dedicated instance
 python3 -m pytest tests_e2e/test_champion_badge_regression.py \
     -v -s --tb=short -m golden_path
 ```
@@ -123,22 +166,28 @@ pytest tests_e2e/test_champion_badge_regression.py -k debug -s
 
 ---
 
-## Emergency Override
+## Tunable env vars (pre-push)
 
-If you must push without Streamlit running (e.g. docs-only change):
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHAMPION_TEST_PORT` | `8599` | Port for dedicated Streamlit test instance |
+| `CHAMPION_START_TIMEOUT` | `45` | Seconds to wait for Streamlit readiness |
+| `CHAMPION_DB_URL` | `postgresql://postgres:postgres@localhost:5432/lfa_intern_system` | DB URL for the Streamlit process |
+| `API_BASE_URL` | `http://localhost:8000` | FastAPI backend URL |
+| `CHAMPION_TEST_URL` | (set by hook) | Where Playwright points; override for manual runs |
 
+Example — slow machine:
 ```bash
-SKIP_CHAMPION_CHECK=1 git push
+CHAMPION_START_TIMEOUT=90 git push
 ```
-
-**Document your reason** — this override bypasses a safety check.
 
 ---
 
-## Failure Debugging
+## Failure debugging
 
 1. **Screenshot**: `tests_e2e/screenshots/champion_badge_FAILED.png`
-2. **Verify DB data**:
+2. **Streamlit log**: `/tmp/champion_streamlit_8599.log`
+3. **Verify DB data**:
    ```sql
    SELECT badge_type,
           badge_metadata->>'placement'          AS placement,
@@ -148,9 +197,8 @@ SKIP_CHAMPION_CHECK=1 git push
    WHERE users.email = 'junior.intern@lfa.com'
      AND badge_type = 'CHAMPION';
    ```
-3. **Verify performance_card.py** has the CHAMPION guard:
+4. **Verify `performance_card.py`** has the CHAMPION guard:
    ```python
-   # CRITICAL PRODUCT RULE: CHAMPION badge MUST have rank
    if badge_type == "CHAMPION" and not rank:
        if badges and len(badges) > 0:
            badge_metadata = badges[0].get('badge_metadata', {})
@@ -160,25 +208,66 @@ SKIP_CHAMPION_CHECK=1 git push
 
 ---
 
-## Files
+## Fallback procedure (if hooks are broken or bypassed)
 
-| File | Purpose |
-|------|---------|
-| `hooks/pre-push` | Git hook — runs before every push |
-| `hooks/install-hooks.sh` | Installs hooks into `.git/hooks/` |
-| `tests_e2e/test_champion_badge_regression.py` | Playwright E2E test |
-| `tests_e2e/run_champion_regression.sh` | Manual runner with pre-flight checks |
-| `tests_e2e/pytest.ini` | E2E-specific pytest config |
+If for any reason the hooks are not firing (e.g. after a manual `.git` reset,
+fresh clone without running the installer, or hooks accidentally deleted):
 
----
+### Detect the problem
+```bash
+# Check hooks are installed
+ls -la .git/hooks/pre-commit .git/hooks/pre-push
 
-## Root Cause Reference
+# If missing, reinstall:
+./hooks/install-hooks.sh
+```
 
-**Symptom**: Champion badge showed "No ranking data" instead of "#1 of 24 players"
+### Run the E2E test manually before merging
+```bash
+source venv/bin/activate
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system \
+  python3 -m streamlit run streamlit_app/🏠_Home.py --server.port 8501 &
+sleep 20
+CHAMPION_TEST_URL=http://localhost:8501 \
+  python3 -m pytest tests_e2e/test_champion_badge_regression.py -v -s --tb=short
+kill %1   # stop background Streamlit
+```
 
-**Root cause**: `tournament_rankings` table had no entries for completed tournaments;
-metrics query returned NULL for both `rank` and `total_participants`.
+### Verify the guard is present in source
+```bash
+grep -n 'badge_type == "CHAMPION"' streamlit_app/components/tournaments/performance_card.py
+```
+Expected output: at least one match showing the guard block.
+
+### What the regression looks like
+Champion badge card shows:
+```
+🥇 Champion
+No ranking data
+```
+instead of:
+```
+🥇 Champion
+#1 of 24 players
+```
+
+### Root cause reference
+**Root cause**: `tournament_rankings` table had no entries for completed
+tournaments; metrics query returned NULL for both `rank` and `total_participants`.
 
 **Fix** (`streamlit_app/components/tournaments/performance_card.py`):
 - Fallback: read `total_participants` from `badge_metadata` when metrics are missing
 - CHAMPION guard: force `rank = badge_metadata['placement']` when rank is NULL
+
+---
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `hooks/pre-commit` | Git hook — fast static check before every commit |
+| `hooks/pre-push` | Git hook — full E2E test before every push (self-manages Streamlit) |
+| `hooks/install-hooks.sh` | Installs both hooks into `.git/hooks/` |
+| `tests_e2e/test_champion_badge_regression.py` | Playwright E2E test |
+| `tests_e2e/run_champion_regression.sh` | Manual runner with pre-flight checks |
+| `tests_e2e/pytest.ini` | E2E-specific pytest config |

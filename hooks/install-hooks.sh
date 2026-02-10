@@ -6,10 +6,13 @@
 # Run once after cloning or when hooks change:
 #   ./hooks/install-hooks.sh
 #
-# What it does:
-#   - Copies hooks/pre-push  → .git/hooks/pre-push  (Champion badge guard)
-#   - Makes each hook executable
-#   - Verifies installation
+# What it installs:
+#   pre-commit  — Champion badge static guard (fast, <1s)
+#                 Blocks commits that remove the CHAMPION guard or introduce
+#                 the hardcoded "No ranking data" string
+#   pre-push    — Champion badge E2E regression guard (Playwright, ~20–60s)
+#                 Self-starts a dedicated Streamlit, runs the golden-path test,
+#                 shuts Streamlit down, blocks push on failure
 #
 # Idempotent: safe to run multiple times.
 # =============================================================================
@@ -22,7 +25,6 @@ HOOKS_DST="${REPO_ROOT}/.git/hooks"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -41,7 +43,7 @@ install_hook() {
     fi
 
     # Backup existing hook if it's not already our version
-    if [[ -f "${dst}" ]] && ! grep -q "Champion Badge Regression Guard" "${dst}" 2>/dev/null; then
+    if [[ -f "${dst}" ]] && ! grep -q "Champion Badge" "${dst}" 2>/dev/null; then
         cp "${dst}" "${dst}.backup"
         echo -e "  ${YELLOW}ℹ️  ${name}: existing hook backed up to ${name}.backup${NC}"
     fi
@@ -51,18 +53,22 @@ install_hook() {
     echo -e "  ${GREEN}✅ ${name} installed → .git/hooks/${name}${NC}"
 }
 
+install_hook "pre-commit"
 install_hook "pre-push"
 
 echo ""
 echo -e "${GREEN}${BOLD}All hooks installed.${NC}"
 echo ""
-echo "What was installed:"
-echo "  pre-push  — Champion badge regression guard"
-echo "              Blocks push if CHAMPION badge shows 'No ranking data'"
+echo "Hooks installed:"
+echo "  pre-commit  — Champion static guard (fast)"
+echo "                Blocks commits that remove CHAMPION guard or add regression string"
+echo "                Override: SKIP_CHAMPION_COMMIT_CHECK=1 git commit"
 echo ""
-echo "Override (emergencies only):"
-echo "  SKIP_CHAMPION_CHECK=1 git push"
+echo "  pre-push    — Champion E2E regression guard (full Playwright test)"
+echo "                Self-manages a dedicated Streamlit on port 8599"
+echo "                Override: SKIP_CHAMPION_CHECK=1 SKIP_REASON=\"<reason>\" git push"
+echo "                Note: SKIP_REASON is required; every skip is audit-logged"
 echo ""
 echo "Uninstall:"
-echo "  rm .git/hooks/pre-push"
+echo "  rm .git/hooks/pre-commit .git/hooks/pre-push"
 echo ""

@@ -1,27 +1,39 @@
 #!/usr/bin/env bash
 # =============================================================================
-# pre-push hook: Champion Badge Regression Guard
+# pre-push hook: Champion Badge Regression Guard  v2  (enterprise)
 # =============================================================================
 #
 # BUSINESS RULE: CHAMPION badge must NEVER display "No ranking data"
 #
-# This hook runs the golden-path E2E regression test before every push.
-# If the test fails → push is BLOCKED.
-# If the test passes → push proceeds.
+# Lifecycle (fully self-contained):
+#   1. Acquire lockfile  (prevents parallel hook runs)
+#   2. Check FastAPI backend is reachable  (required, not managed here)
+#   3. Start a dedicated Streamlit instance on TEST_PORT (default 8599)
+#      → isolates the test from any running dev instance on 8501
+#   4. Wait for Streamlit readiness  (retry loop, START_TIMEOUT seconds)
+#   5. Run the Playwright E2E regression test
+#   6. Cleanup:  stop Streamlit + release lockfile  (trap EXIT/INT/TERM)
 #
-# Skipping:
-#   SKIP_CHAMPION_CHECK=1 git push   (emergency override — use with caution)
+# Overriding  (emergency use only):
+#   SKIP_CHAMPION_CHECK=1 SKIP_REASON="<explanation>" git push
+#   • Both env vars are REQUIRED when skipping.
+#   • Every skip is appended to .git/hooks/champion_skip_audit.log
+#   • Skips without SKIP_REASON are BLOCKED.
+#
+# Tunable env vars:
+#   CHAMPION_TEST_PORT      port for dedicated Streamlit (default: 8599)
+#   CHAMPION_START_TIMEOUT  seconds to wait for readiness (default: 45)
+#   CHAMPION_DB_URL         DATABASE_URL for the Streamlit process
+#                           (defaults to lfa_intern_system connection string)
+#   API_BASE_URL            FastAPI URL to health-check (default: http://localhost:8000)
 #
 # Installation:
 #   ./hooks/install-hooks.sh
-#
-# Requirements:
-#   - Streamlit app running on http://localhost:8501
-#   - venv/bin/activate present (or playwright accessible on PATH)
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
 
+# ── Colours ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -29,60 +41,201 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# ── Emergency override ────────────────────────────────────────────────────────
+err()  { echo -e "${RED}${BOLD}❌  $*${NC}" >&2; }
+warn() { echo -e "${YELLOW}⚠️   $*${NC}" >&2; }
+info() { echo -e "   $*"; }
+ok()   { echo -e "   ${GREEN}✅  $*${NC}"; }
+
+# ── Config ────────────────────────────────────────────────────────────────────
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+TEST_PORT="${CHAMPION_TEST_PORT:-8599}"
+START_TIMEOUT="${CHAMPION_START_TIMEOUT:-45}"
+RETRY_INTERVAL=2
+API_URL="${API_BASE_URL:-http://localhost:8000}"
+DEFAULT_DB_URL="postgresql://postgres:postgres@localhost:5432/lfa_intern_system"
+DB_URL="${CHAMPION_DB_URL:-${DEFAULT_DB_URL}}"
+
+LOCKFILE="/tmp/champion_guard_${TEST_PORT}.lock"
+AUDIT_LOG="${REPO_ROOT}/.git/hooks/champion_skip_audit.log"
+TEST_FILE="${REPO_ROOT}/tests_e2e/test_champion_badge_regression.py"
+VENV_ACTIVATE="${REPO_ROOT}/venv/bin/activate"
+HOME_PY="${REPO_ROOT}/streamlit_app/🏠_Home.py"
+
+STREAMLIT_PID=""
+
+# ── Cleanup trap ──────────────────────────────────────────────────────────────
+cleanup() {
+    local exit_code=$?
+    if [[ -n "${STREAMLIT_PID}" ]] && kill -0 "${STREAMLIT_PID}" 2>/dev/null; then
+        kill "${STREAMLIT_PID}" 2>/dev/null || true
+        # Brief wait so the port is released before the shell exits
+        local waited=0
+        while kill -0 "${STREAMLIT_PID}" 2>/dev/null && [[ ${waited} -lt 5 ]]; do
+            sleep 1
+            waited=$((waited + 1))
+        done
+    fi
+    rm -f "${LOCKFILE}"
+    exit "${exit_code}"
+}
+trap cleanup EXIT INT TERM
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 0.  SKIP override  (requires SKIP_REASON + writes audit log)
+# ─────────────────────────────────────────────────────────────────────────────
 if [[ "${SKIP_CHAMPION_CHECK:-0}" == "1" ]]; then
-    echo -e "${YELLOW}⚠️  CHAMPION check skipped (SKIP_CHAMPION_CHECK=1)${NC}"
-    echo -e "${YELLOW}   This override is for emergencies only. Document the reason.${NC}"
+    if [[ -z "${SKIP_REASON:-}" ]]; then
+        err "SKIP_CHAMPION_CHECK=1 requires SKIP_REASON to be set."
+        err "Example:  SKIP_CHAMPION_CHECK=1 SKIP_REASON=\"docs-only change\" git push"
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "${AUDIT_LOG}")"
+    printf '%s  SKIP  branch=%s  user=%s  reason=%s\n' \
+        "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+        "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')" \
+        "$(git config user.email 2>/dev/null || echo 'unknown')" \
+        "${SKIP_REASON}" \
+        >> "${AUDIT_LOG}"
+
+    echo ""
+    warn "Champion guard SKIPPED — recorded in audit log"
+    warn "Skip reason : ${SKIP_REASON}"
+    warn "Audit log   : ${AUDIT_LOG}"
+    echo ""
     exit 0
 fi
 
-# ── Locate project root (the repo root, wherever the hook is called from) ────
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-TEST_FILE="tests_e2e/test_champion_badge_regression.py"
-VENV_ACTIVATE="${REPO_ROOT}/venv/bin/activate"
-
+# ─────────────────────────────────────────────────────────────────────────────
+# Banner
+# ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}${BOLD}  🏆 Champion Badge Regression Guard (pre-push)${NC}"
+echo -e "${CYAN}${BOLD}  🏆 Champion Badge Regression Guard v2  (pre-push)${NC}"
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-# ── Activate venv if available ────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# 1.  Lockfile  (prevent parallel runs on the same port)
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ -f "${LOCKFILE}" ]]; then
+    old_pid=$(cat "${LOCKFILE}" 2>/dev/null || echo "")
+    if [[ -n "${old_pid}" ]] && kill -0 "${old_pid}" 2>/dev/null; then
+        err "Another champion guard run is already in progress (PID ${old_pid})."
+        err "If that is stale, delete: ${LOCKFILE}"
+        exit 1
+    else
+        warn "Stale lockfile found — removing."
+        rm -f "${LOCKFILE}"
+    fi
+fi
+echo $$ > "${LOCKFILE}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2.  Activate venv
+# ─────────────────────────────────────────────────────────────────────────────
 if [[ -f "${VENV_ACTIVATE}" ]]; then
     # shellcheck disable=SC1090
     source "${VENV_ACTIVATE}"
+    ok "Virtual environment activated"
+else
+    warn "No venv found at ${VENV_ACTIVATE} — relying on system Python"
 fi
 
-# ── Check Playwright is available ────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# 3.  Check Playwright
+# ─────────────────────────────────────────────────────────────────────────────
 if ! python3 -c "import playwright" 2>/dev/null; then
-    echo -e "${RED}❌ Playwright not found.${NC}"
-    echo "   Install: pip install playwright pytest-playwright && playwright install chromium"
-    echo ""
-    echo -e "${YELLOW}Push blocked. Fix Playwright installation or use:${NC}"
-    echo "   SKIP_CHAMPION_CHECK=1 git push"
+    err "Playwright not found."
+    info "Install: pip install playwright pytest-playwright && playwright install chromium"
+    info ""
+    info "Push blocked. Fix the installation or use:"
+    info "  SKIP_CHAMPION_CHECK=1 SKIP_REASON=\"no playwright\" git push"
     exit 1
 fi
+ok "Playwright found"
 
-# ── Check Streamlit is running ────────────────────────────────────────────────
-if ! curl -sf http://localhost:8501 > /dev/null 2>&1; then
-    echo -e "${RED}❌ Streamlit is not running on http://localhost:8501${NC}"
-    echo ""
-    echo "   Start it first:"
-    echo "   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system \\"
-    echo "     streamlit run streamlit_app/🏠_Home.py --server.port 8501"
-    echo ""
-    echo -e "${YELLOW}Push blocked. Start Streamlit or use:${NC}"
-    echo "   SKIP_CHAMPION_CHECK=1 git push"
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.  Check FastAPI backend (required — we do NOT manage it)
+# ─────────────────────────────────────────────────────────────────────────────
+info "Checking FastAPI backend at ${API_URL} ..."
+if ! curl -sf "${API_URL}/docs" > /dev/null 2>&1 && \
+   ! curl -sf "${API_URL}/health" > /dev/null 2>&1 && \
+   ! curl -sf "${API_URL}/" > /dev/null 2>&1; then
+    err "FastAPI backend not reachable at ${API_URL}"
+    info ""
+    info "Start the backend before pushing:"
+    info "  DATABASE_URL=${DB_URL} \\"
+    info "    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+    info ""
+    info "Push blocked. Start the backend or use:"
+    info "  SKIP_CHAMPION_CHECK=1 SKIP_REASON=\"backend down\" git push"
     exit 1
 fi
+ok "FastAPI backend reachable"
 
-echo -e "   ✅ Streamlit is running"
-echo -e "   🧪 Running regression test..."
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.  Start dedicated Streamlit on TEST_PORT  (background)
+# ─────────────────────────────────────────────────────────────────────────────
+info "Starting dedicated Streamlit on port ${TEST_PORT} ..."
+STREAMLIT_LOG="/tmp/champion_streamlit_${TEST_PORT}.log"
+
+DATABASE_URL="${DB_URL}" \
+API_BASE_URL="${API_URL}" \
+python3 -m streamlit run "${HOME_PY}" \
+    --server.port "${TEST_PORT}" \
+    --server.headless true \
+    --server.address localhost \
+    --browser.gatherUsageStats false \
+    > "${STREAMLIT_LOG}" 2>&1 &
+STREAMLIT_PID=$!
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6.  Wait for Streamlit readiness  (retry loop)
+# ─────────────────────────────────────────────────────────────────────────────
+ELAPSED=0
+READY=0
+while [[ ${ELAPSED} -lt ${START_TIMEOUT} ]]; do
+    if curl -sf "http://localhost:${TEST_PORT}" > /dev/null 2>&1; then
+        READY=1
+        break
+    fi
+    # If the process died early, abort immediately
+    if ! kill -0 "${STREAMLIT_PID}" 2>/dev/null; then
+        err "Streamlit process exited unexpectedly."
+        info "Log: ${STREAMLIT_LOG}"
+        exit 1
+    fi
+    sleep "${RETRY_INTERVAL}"
+    ELAPSED=$((ELAPSED + RETRY_INTERVAL))
+    info "  Waiting for Streamlit... (${ELAPSED}/${START_TIMEOUT}s)"
+done
+
+if [[ ${READY} -eq 0 ]]; then
+    err "Streamlit did not become ready within ${START_TIMEOUT}s."
+    info "Log: ${STREAMLIT_LOG}"
+    info ""
+    info "Try increasing the timeout:"
+    info "  CHAMPION_START_TIMEOUT=90 git push"
+    info ""
+    info "Or use emergency override:"
+    info "  SKIP_CHAMPION_CHECK=1 SKIP_REASON=\"startup timeout\" git push"
+    exit 1
+fi
+ok "Streamlit ready on http://localhost:${TEST_PORT}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7.  Run the regression test
+# ─────────────────────────────────────────────────────────────────────────────
+echo ""
+info "Running regression test..."
 echo ""
 
-# ── Run the test ──────────────────────────────────────────────────────────────
 cd "${REPO_ROOT}"
 
-if python3 -m pytest "${TEST_FILE}::test_champion_badge_no_ranking_data_regression" \
+export CHAMPION_TEST_URL="http://localhost:${TEST_PORT}"
+
+if python3 -m pytest \
+    "${TEST_FILE}::test_champion_badge_no_ranking_data_regression" \
     --tb=short \
     --no-header \
     -q \
@@ -101,15 +254,16 @@ else
     echo -e "${RED}${BOLD}  ❌ CHAMPION guard FAILED — PUSH BLOCKED${NC}"
     echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${RED}  REGRESSION DETECTED: CHAMPION badge shows 'No ranking data'${NC}"
+    echo -e "${RED}  REGRESSION: CHAMPION badge shows 'No ranking data'${NC}"
     echo ""
     echo "  Debug steps:"
-    echo "  1. Check screenshot: tests_e2e/screenshots/champion_badge_FAILED.png"
-    echo "  2. Verify performance_card.py CHAMPION guard is active"
-    echo "  3. Verify badge_metadata.placement is populated in DB"
+    echo "  1. Screenshot: tests_e2e/screenshots/champion_badge_FAILED.png"
+    echo "  2. Streamlit log: ${STREAMLIT_LOG}"
+    echo "  3. Verify CHAMPION guard is active in performance_card.py"
+    echo "  4. Verify badge_metadata.placement is set in DB"
     echo ""
-    echo -e "${YELLOW}  Emergency override (document your reason):${NC}"
-    echo "     SKIP_CHAMPION_CHECK=1 git push"
+    echo -e "${YELLOW}  Emergency override (SKIP_REASON required):${NC}"
+    echo "    SKIP_CHAMPION_CHECK=1 SKIP_REASON=\"<your reason>\" git push"
     echo ""
     exit 1
 fi

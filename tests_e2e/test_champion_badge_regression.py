@@ -25,7 +25,7 @@ import pytest
 from playwright.sync_api import sync_playwright, Page
 
 
-BASE_URL = "http://localhost:8501"
+BASE_URL = os.environ.get("CHAMPION_TEST_URL", "http://localhost:8501")
 TEST_USER_EMAIL = "junior.intern@lfa.com"
 TEST_USER_PASSWORD = "password123"
 SCREENSHOT_DIR = "tests_e2e/screenshots"
