@@ -2,188 +2,183 @@
 
 ## Overview
 
-This E2E test protects against a critical production bug where Champion badges displayed "No ranking data" instead of showing the #1 ranking.
+This E2E test protects against a critical production bug where Champion badges
+displayed "No ranking data" instead of showing the #1 ranking.
 
-**Business Rule**: Champion badges MUST ALWAYS display ranking information (#1 of N players), never "No ranking data".
+**Business Rule**: Champion badges MUST ALWAYS display ranking information
+(#1 of N players), never "No ranking data".
 
-## Test Strategy
+This test runs as a **local git pre-push hook** — fully offline, no cloud CI
+required.
 
-### What We Test
-- ✅ Champion badge displays proper ranking format
-- ✅ Champion badge does NOT show "No ranking data" text
-- ✅ Ranking fallback from badge_metadata works correctly
+---
 
-### Test Flow
-1. Login as `junior.intern@lfa.com` (user with Champion badge)
-2. Navigate to Tournament Achievements section
-3. Verify Champion badge shows ranking (e.g., "#1 of 24 players")
-4. **FAIL** if "No ranking data" appears anywhere near Champion badge
+## How It Works
 
-## Running the Test
+### Pre-push hook (automatic)
 
-### Prerequisites
-- Streamlit app running on `http://localhost:8501`
-- Database with `junior.intern@lfa.com` user having Champion badge
-- Playwright installed
+After running `./hooks/install-hooks.sh` once, every `git push` triggers:
 
-### Local Execution
+```
+🏆 Champion Badge Regression Guard (pre-push)
+   ✅ Streamlit is running
+   🧪 Running regression test...
+   ✅ Found CHAMPION badge signal(s) at 2 line(s)
+   ✅ No 'No ranking data' found near any CHAMPION badge
+   ✅ CHAMPION guard PASSED — push allowed
+```
 
-#### Option 1: Using the helper script (recommended)
+If the regression is present:
+
+```
+   ❌ CHAMPION guard FAILED — PUSH BLOCKED
+   REGRESSION DETECTED: CHAMPION badge shows 'No ranking data'
+```
+
+### Test strategy
+
+1. Login as `junior.intern@lfa.com` (headless Playwright)
+2. Navigate to LFA Player Dashboard via JS (sidebar CSS-hidden)
+3. Expand all accordions to surface badge cards
+4. Sliding-window assertion (15 lines): if CHAMPION appears anywhere,
+   "No ranking data" must NOT appear within that window
+5. Save `tests_e2e/screenshots/champion_badge_PASS.png` on success,
+   `champion_badge_FAILED.png` on failure
+
+---
+
+## Setup
+
+### 1 — Install the hook (once per clone)
+
 ```bash
-# Make script executable (first time only)
-chmod +x tests_e2e/run_champion_regression.sh
+./hooks/install-hooks.sh
+```
 
-# Run the test
+This copies `hooks/pre-push` → `.git/hooks/pre-push` and makes it executable.
+Idempotent: safe to run again after hook updates.
+
+### 2 — Create test user in DB (once)
+
+The hook requires a user `junior.intern@lfa.com` with a CHAMPION badge.
+
+```sql
+-- Update an existing STUDENT user or create one
+UPDATE users SET
+    email        = 'junior.intern@lfa.com',
+    password_hash = '<bcrypt hash of password123>',
+    onboarding_completed = true,
+    specialization = 'LFA_FOOTBALL_PLAYER'
+WHERE id = <your_test_user_id>;
+
+UPDATE user_licenses SET onboarding_completed = true
+WHERE user_id = <your_test_user_id>;
+
+INSERT INTO tournament_badges (
+    user_id, semester_id, badge_type, badge_category,
+    title, description, icon, rarity, badge_metadata, earned_at
+) VALUES (
+    <your_test_user_id>,
+    <any_valid_semester_id>,
+    'CHAMPION', 'PLACEMENT',
+    '🥇 Champion', 'First place finish', '🥇', 'LEGENDARY',
+    '{"placement": 1, "total_participants": 24}',
+    NOW()
+);
+```
+
+Generate the bcrypt hash:
+```bash
+source venv/bin/activate
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'password123', bcrypt.gensalt()).decode())"
+```
+
+### 3 — Ensure Streamlit is running before pushing
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system \
+  streamlit run streamlit_app/🏠_Home.py --server.port 8501
+```
+
+---
+
+## Running Manually
+
+### Option 1 — Helper script
+```bash
 ./tests_e2e/run_champion_regression.sh
 ```
 
-#### Option 2: Direct pytest execution
+### Option 2 — Direct pytest
 ```bash
-# From project root
-pytest tests_e2e/test_champion_badge_regression.py -v -m "golden_path"
+source venv/bin/activate
+python3 -m pytest tests_e2e/test_champion_badge_regression.py \
+    -v -s --tb=short -m golden_path
 ```
 
-#### Option 3: Run with debug screenshot (manual inspection)
+### Option 3 — Debug mode (visible browser, full-page screenshot)
 ```bash
-# This will keep browser open and save full-page screenshot
 pytest tests_e2e/test_champion_badge_regression.py -k debug -s
 ```
 
-### CI/CD Execution
+---
 
-The test runs automatically on:
-- Push to `main` branch
-- Push to `feature/**` or `fix/**` branches
-- Pull requests to `main`
-- Manual workflow dispatch
+## Emergency Override
 
-**Workflow file**: `.github/workflows/champion-badge-regression.yml`
-
-## Test Failure Handling
-
-### What Happens on Failure?
-
-1. **Build is BLOCKED** - The CI/CD pipeline will fail
-2. **Screenshot is saved** to `tests_e2e/screenshots/champion_badge_regression_FAILED.png`
-3. **Deployment is prevented** until the issue is fixed
-
-### How to Debug Failure
-
-1. **Check the screenshot**:
-   ```bash
-   open tests_e2e/screenshots/champion_badge_regression_FAILED.png
-   ```
-
-2. **Run debug mode locally**:
-   ```bash
-   pytest tests_e2e/test_champion_badge_regression.py -k debug -s
-   ```
-   This will:
-   - Open browser in visible mode (headless=False)
-   - Take full-page screenshot
-   - Print page content to console
-   - Keep browser open for 5 seconds
-
-3. **Check the fix implementation**:
-   - Verify `performance_card.py` has the fallback logic:
-     ```python
-     # Fallback: If metrics missing total_participants, try badge_metadata
-     if not total_participants:
-         if badges and len(badges) > 0:
-             first_badge = badges[0]
-             badge_metadata = first_badge.get('badge_metadata', {})
-             if badge_metadata.get('total_participants'):
-                 total_participants = badge_metadata['total_participants']
-
-     # CRITICAL: CHAMPION badge MUST have rank
-     if badge_type == "CHAMPION" and not rank:
-         if badges and len(badges) > 0:
-             first_badge = badges[0]
-             badge_metadata = first_badge.get('badge_metadata', {})
-             if badge_metadata.get('placement'):
-                 rank = badge_metadata['placement']
-     ```
-
-4. **Verify database data**:
-   ```sql
-   -- Check if Champion badge has placement data
-   SELECT
-       b.badge_type,
-       b.badge_metadata->>'placement' as placement,
-       b.badge_metadata->>'total_participants' as total_participants
-   FROM badges b
-   JOIN users u ON b.user_id = u.id
-   WHERE u.email = 'junior.intern@lfa.com'
-   AND b.badge_type = 'CHAMPION';
-   ```
-
-## Test Markers
-
-The test uses multiple pytest markers for filtering:
-
-- `@pytest.mark.golden_path` - Production critical, blocks deployment
-- `@pytest.mark.e2e` - End-to-end test with Playwright
-- `@pytest.mark.smoke` - Fast regression check for CI
-
-### Running Specific Test Categories
+If you must push without Streamlit running (e.g. docs-only change):
 
 ```bash
-# Run only golden path tests (most critical)
-pytest tests_e2e/ -m "golden_path"
-
-# Run all E2E tests
-pytest tests_e2e/ -m "e2e"
-
-# Run smoke tests (fast)
-pytest tests_e2e/ -m "smoke"
+SKIP_CHAMPION_CHECK=1 git push
 ```
+
+**Document your reason** — this override bypasses a safety check.
+
+---
+
+## Failure Debugging
+
+1. **Screenshot**: `tests_e2e/screenshots/champion_badge_FAILED.png`
+2. **Verify DB data**:
+   ```sql
+   SELECT badge_type,
+          badge_metadata->>'placement'          AS placement,
+          badge_metadata->>'total_participants' AS total_participants
+   FROM tournament_badges
+   JOIN users ON tournament_badges.user_id = users.id
+   WHERE users.email = 'junior.intern@lfa.com'
+     AND badge_type = 'CHAMPION';
+   ```
+3. **Verify performance_card.py** has the CHAMPION guard:
+   ```python
+   # CRITICAL PRODUCT RULE: CHAMPION badge MUST have rank
+   if badge_type == "CHAMPION" and not rank:
+       if badges and len(badges) > 0:
+           badge_metadata = badges[0].get('badge_metadata', {})
+           if badge_metadata.get('placement'):
+               rank = badge_metadata['placement']
+   ```
+
+---
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `hooks/pre-push` | Git hook — runs before every push |
+| `hooks/install-hooks.sh` | Installs hooks into `.git/hooks/` |
+| `tests_e2e/test_champion_badge_regression.py` | Playwright E2E test |
+| `tests_e2e/run_champion_regression.sh` | Manual runner with pre-flight checks |
+| `tests_e2e/pytest.ini` | E2E-specific pytest config |
+
+---
 
 ## Root Cause Reference
 
-### The Original Bug
+**Symptom**: Champion badge showed "No ranking data" instead of "#1 of 24 players"
 
-**Symptom**: Champion badge displayed "No ranking data" instead of "#1 of 24 players"
+**Root cause**: `tournament_rankings` table had no entries for completed tournaments;
+metrics query returned NULL for both `rank` and `total_participants`.
 
-**Root Cause**:
-1. `tournament_rankings` table had no entries for completed tournaments
-2. Performance metrics query returned `NULL` for both `rank` and `total_participants`
-3. UI displayed fallback text "No ranking data" even for Champion badges
-
-**Fix Implemented**:
-1. Added fallback logic to read `total_participants` from `badge_metadata`
-2. Added CHAMPION guard to force `rank` from `badge_metadata.placement`
-3. Performance card now uses badge metadata when metrics are missing
-
-### Files Modified
-- `streamlit_app/components/tournaments/performance_card.py` - Added fallback logic
-- `streamlit_app/pages/02_My_Performance.py` - Metrics query (if needed)
-
-## Maintenance
-
-### When to Update This Test
-
-Update the test when:
-1. Login flow changes (update `_login()` helper)
-2. Navigation structure changes (update `_navigate_to_tournament_achievements()`)
-3. Badge display format changes (update `_verify_champion_badge_ranking()`)
-4. New test users are added (update `TEST_USER_EMAIL` constant)
-
-### Test Data Requirements
-
-The test requires:
-- User: `junior.intern@lfa.com` / password: `password123`
-- User must have at least one CHAMPION badge
-- Badge must have `badge_metadata.placement` populated
-- Badge preferably has `badge_metadata.total_participants` populated
-
-## Exit Codes
-
-- `0` - Test passed (Champion badge displays correctly)
-- `1` - Test failed (Champion badge shows "No ranking data" - **BLOCKS BUILD**)
-
-## Questions?
-
-For issues or questions about this test, contact the development team or check:
-- Test file: `tests_e2e/test_champion_badge_regression.py`
-- Implementation: `streamlit_app/components/tournaments/performance_card.py`
-- CI Workflow: `.github/workflows/champion-badge-regression.yml`
+**Fix** (`streamlit_app/components/tournaments/performance_card.py`):
+- Fallback: read `total_participants` from `badge_metadata` when metrics are missing
+- CHAMPION guard: force `rank = badge_metadata['placement']` when rank is NULL
