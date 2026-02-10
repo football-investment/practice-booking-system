@@ -290,6 +290,25 @@ def render_tournament_accordion_item(tournament_data: Dict[str, Any], is_expande
                     # Pass PRIMARY badge (highest priority) for fallback metadata
                     # Fix: Use _get_primary_badge instead of badges[0] to avoid reading wrong metadata
                     primary_badge = _get_primary_badge(badges) if badges else None
+
+                    # DEBUG PANEL: Accordion metrics fetch
+                    import os
+                    if os.environ.get('CHAMPION_DEBUG', '0') == '1':
+                        with st.expander(f"🔍 DEBUG: Accordion Metrics Fetch - Tournament {tournament_id}", expanded=False):
+                            st.markdown("**Metrics Fetch Debug** - Before fetch_tournament_metrics()")
+                            st.json({
+                                "tournament_id": tournament_id,
+                                "badges_count": len(badges),
+                                "primary_badge": {
+                                    "badge_type": primary_badge.get('badge_type') if primary_badge else None,
+                                    "badge_metadata": primary_badge.get('badge_metadata') if primary_badge else None
+                                },
+                                "badges[0]_for_comparison": {
+                                    "badge_type": badges[0].get('badge_type') if badges else None,
+                                    "badge_metadata": badges[0].get('badge_metadata') if badges else None
+                                } if badges else None
+                            })
+
                     metrics = fetch_tournament_metrics(token, tournament_id, user_id, badge_data=primary_badge)
                     tournament_data['metrics'] = metrics
                     # Debug: Log metrics data

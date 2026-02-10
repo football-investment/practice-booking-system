@@ -116,6 +116,52 @@ def render_performance_card(
     # Get size-specific styles
     styles = CARD_SIZES[size]
 
+    # DEBUG PANEL: Production bug investigation (CHAMPION badge "No ranking data")
+    # TODO: Remove after production verification complete
+    import os
+    if os.environ.get('CHAMPION_DEBUG', '0') == '1' or badge_type == "CHAMPION":
+        with st.expander("🔍 DEBUG: Badge Data Flow", expanded=True):
+            st.markdown("**Production Debug Panel** - Investigating CHAMPION badge rendering")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("##### All Badges (API order)")
+                st.json({
+                    "count": len(badges),
+                    "badges": [
+                        {
+                            "index": i,
+                            "badge_type": b.get('badge_type'),
+                            "badge_metadata": b.get('badge_metadata')
+                        }
+                        for i, b in enumerate(badges)
+                    ]
+                })
+
+            with col2:
+                st.markdown("##### Primary Badge (Used for Rendering)")
+                st.json({
+                    "badge_type": badge_type,
+                    "badge_metadata": primary_badge.get('badge_metadata') if primary_badge else None,
+                    "is_primary": True
+                })
+
+            st.markdown("##### Computed Values")
+            st.json({
+                "rank": rank,
+                "rank_source": metrics.get('rank_source') if metrics else None,
+                "total_participants": total_participants,
+                "percentile": percentile,
+                "badge_icon": badge_icon,
+                "badge_title": badge_title
+            })
+
+            if badge_type == "CHAMPION" and not rank:
+                st.error("⚠️ CHAMPION badge with NULL rank - REGRESSION DETECTED!")
+            elif badge_type == "CHAMPION" and rank:
+                st.success(f"✅ CHAMPION badge rank correctly set: {rank}")
+
     # Render based on size
     if size == "compact":
         _render_compact_card(
