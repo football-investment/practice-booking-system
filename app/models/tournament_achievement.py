@@ -198,6 +198,6 @@ class TournamentBadge(Base):
             "description": self.description,
             "icon": self.icon,
             "rarity": self.rarity,
-            "metadata": self.badge_metadata,
+            "badge_metadata": self.badge_metadata,  # FIX: was "metadata", must match frontend expectation
             "earned_at": self.earned_at.isoformat() if self.earned_at else None
         }
