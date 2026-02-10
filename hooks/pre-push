@@ -115,6 +115,40 @@ echo -e "${CYAN}${BOLD}  🏆 Champion Badge Regression Guard v2  (pre-push)${NC
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 0b. Docker fast-path (preferred when Docker is available)
+#     Runs the fully containerised test stack; skips native lifecycle below.
+# ─────────────────────────────────────────────────────────────────────────────
+COMPOSE_FILE="${REPO_ROOT}/docker-compose.test.yml"
+if command -v docker &>/dev/null && [[ -f "${COMPOSE_FILE}" ]]; then
+    ok "Docker detected — using containerised test stack"
+    cd "${REPO_ROOT}"
+    if docker compose -f "${COMPOSE_FILE}" up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from e2e-tests \
+            2>&1; then
+        docker compose -f "${COMPOSE_FILE}" down -v --remove-orphans 2>/dev/null || true
+        echo ""
+        echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}${BOLD}  ✅ CHAMPION guard PASSED (Docker) — push allowed${NC}"
+        echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        exit 0
+    else
+        docker compose -f "${COMPOSE_FILE}" down -v --remove-orphans 2>/dev/null || true
+        echo ""
+        echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${RED}${BOLD}  ❌ CHAMPION guard FAILED (Docker) — PUSH BLOCKED${NC}"
+        echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo "  Screenshot: tests_e2e/screenshots/champion_badge_FAILED.png"
+        echo ""
+        exit 1
+    fi
+fi
+info "Docker not available — using native lifecycle"
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 1.  Lockfile  (prevent parallel runs on the same port)
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ -f "${LOCKFILE}" ]]; then

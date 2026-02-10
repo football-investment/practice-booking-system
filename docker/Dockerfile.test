@@ -1,0 +1,64 @@
+# =============================================================================
+# Dockerfile.test — Champion Badge Regression Test Image
+# =============================================================================
+#
+# Bakes Playwright/Chromium, Python dependencies, and the project source
+# into a single image.  Used by docker-compose.test.yml for:
+#   - The FastAPI service (command: uvicorn ...)
+#   - The Streamlit service  (command: python3 -m streamlit run ...)
+#   - The E2E test runner    (command: python3 -m pytest ...)
+#
+# Build:
+#   docker build -f docker/Dockerfile.test -t lfa-test .
+#
+# Run full suite:
+#   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+# =============================================================================
+
+FROM python:3.13-slim
+
+# ── System dependencies required by Playwright/Chromium ──────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Chromium runtime
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    # Utilities
+    curl \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Python dependencies (cached layer — only rebuilds when requirements change)
+COPY requirements.txt streamlit_requirements.txt ./
+
+RUN pip install --no-cache-dir \
+    -r requirements.txt \
+    -r streamlit_requirements.txt \
+    playwright \
+    pytest \
+    pytest-playwright
+
+# Install Chromium browser (baked into image — not downloaded at test time)
+RUN playwright install chromium --with-deps
+
+# ── Application source ────────────────────────────────────────────────────────
+COPY . .
+
+# ── Environment ───────────────────────────────────────────────────────────────
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Default command (overridden per service in docker-compose.test.yml)
+CMD ["python3", "-m", "pytest", "tests_e2e/", "-v", "--tb=short"]
