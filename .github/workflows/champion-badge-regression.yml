@@ -1,0 +1,145 @@
+name: Champion Badge Regression Test
+
+# CRITICAL: This workflow blocks deployment if Champion badge displays "No ranking data"
+# Business Rule: Champion badges must ALWAYS show ranking (#1 of N players)
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+      - fix/**
+  pull_request:
+    branches:
+      - main
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  champion-badge-e2e:
+    name: E2E - Champion Badge Display Validation
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true  # Stop immediately on failure
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements*.txt', 'streamlit_requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r streamlit_requirements.txt
+          pip install pytest pytest-playwright
+          playwright install chromium
+          playwright install-deps
+
+      - name: Set up database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+        run: |
+          # Run migrations
+          alembic upgrade head
+
+          # Create test data (junior intern with Champion badge)
+          python -c "
+          from app.database import SessionLocal
+          from app.models import User, UserLicense, SpecializationType
+          from passlib.context import CryptContext
+          import datetime
+
+          db = SessionLocal()
+          pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+          # Create or update junior intern
+          user = db.query(User).filter(User.email == 'junior.intern@lfa.com').first()
+          if not user:
+              user = User(
+                  email='junior.intern@lfa.com',
+                  name='Junior Intern',
+                  hashed_password=pwd_context.hash('password123'),
+                  role='intern',
+                  onboarding_completed=True,
+                  specialization=SpecializationType.FOOTBALL,
+                  date_of_birth=datetime.date(2000, 1, 1)
+              )
+              db.add(user)
+              db.commit()
+
+          print('✅ Test user created')
+          db.close()
+          "
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+        run: |
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          echo "Waiting for Streamlit to start..."
+          sleep 15
+
+          # Verify Streamlit is running
+          curl -f http://localhost:8501 || (echo "❌ Streamlit failed to start" && exit 1)
+          echo "✅ Streamlit is running"
+
+      - name: Run Champion Badge Regression Test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+        run: |
+          pytest tests_e2e/test_champion_badge_regression.py \
+            -v \
+            -m "golden_path" \
+            --tb=short \
+            --maxfail=1
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: champion-badge-failure-screenshots
+          path: tests_e2e/screenshots/*FAILED.png
+          retention-days: 7
+
+      - name: Report test results
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Champion Badge Regression Test PASSED"
+            echo "Champion badges display correctly - deployment approved"
+          else
+            echo "❌ Champion Badge Regression Test FAILED"
+            echo "DEPLOYMENT BLOCKED - Champion badge displays 'No ranking data'"
+            echo "Fix required before merging to main"
+            exit 1
+          fi
