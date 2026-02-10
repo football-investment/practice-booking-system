@@ -11,7 +11,7 @@ from datetime import datetime
 from collections import defaultdict
 
 from components.rewards.badge_card import render_badge_grid
-from components.tournaments.performance_card import render_performance_card
+from components.tournaments.performance_card import render_performance_card, _get_primary_badge
 from api_helpers_tournaments import get_user_tournament_rewards
 from config import API_BASE_URL, API_TIMEOUT
 
@@ -287,9 +287,10 @@ def render_tournament_accordion_item(tournament_data: Dict[str, Any], is_expande
             # TODO: Remove after cache strategy implemented (version-based)
             if True:  # Force refetch (was: if tournament_data.get('metrics') is None)
                 with st.spinner("Loading tournament metrics..."):
-                    # Pass first badge for fallback metadata
-                    first_badge = badges[0] if badges else None
-                    metrics = fetch_tournament_metrics(token, tournament_id, user_id, badge_data=first_badge)
+                    # Pass PRIMARY badge (highest priority) for fallback metadata
+                    # Fix: Use _get_primary_badge instead of badges[0] to avoid reading wrong metadata
+                    primary_badge = _get_primary_badge(badges) if badges else None
+                    metrics = fetch_tournament_metrics(token, tournament_id, user_id, badge_data=primary_badge)
                     tournament_data['metrics'] = metrics
                     # Debug: Log metrics data
                     logger.info(f"Tournament {tournament_id}: rank={metrics.get('rank')}, total_participants={metrics.get('total_participants')}")
