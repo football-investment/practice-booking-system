@@ -3,8 +3,11 @@ Tournament Session Generation Utilities
 
 Helper functions for session generation.
 """
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from app.models.semester import Semester
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session as DBSession
 
 
 def get_tournament_venue(tournament: Semester) -> str:
@@ -65,3 +68,47 @@ def get_tournament_venue(tournament: Semester) -> str:
 
     # Priority 3: Default
     return 'TBD'
+
+
+def get_campus_schedule(
+    db: "DBSession",
+    tournament_id: int,
+    campus_id: Optional[int],
+    global_match_duration: int = 90,
+    global_break_duration: int = 15,
+    global_parallel_fields: int = 1,
+) -> dict:
+    """
+    Resolve effective schedule parameters for a (tournament, campus) pair.
+
+    Precedence:
+      1. campus_schedule_configs row for (tournament_id, campus_id)
+      2. global TournamentConfiguration values (passed as parameters)
+
+    Returns a dict with:
+      - match_duration_minutes: int
+      - break_duration_minutes: int
+      - parallel_fields: int
+      - venue_label: str | None
+    """
+    if campus_id is not None:
+        from app.models.campus_schedule_config import CampusScheduleConfig
+        cfg = db.query(CampusScheduleConfig).filter(
+            CampusScheduleConfig.tournament_id == tournament_id,
+            CampusScheduleConfig.campus_id == campus_id,
+            CampusScheduleConfig.is_active == True,
+        ).first()
+        if cfg:
+            return {
+                "match_duration_minutes": cfg.resolved_match_duration(global_match_duration),
+                "break_duration_minutes": cfg.resolved_break_duration(global_break_duration),
+                "parallel_fields": cfg.resolved_parallel_fields(global_parallel_fields),
+                "venue_label": cfg.venue_label,
+            }
+
+    return {
+        "match_duration_minutes": global_match_duration,
+        "break_duration_minutes": global_break_duration,
+        "parallel_fields": global_parallel_fields,
+        "venue_label": None,
+    }

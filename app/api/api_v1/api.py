@@ -68,6 +68,7 @@ from .endpoints.periods import lfa_player_generators  # 🚀 NEW: Add modular LF
 
 from .endpoints.tournaments import generate_sessions  # 🎯 NEW: Add tournament session generation system
 from .endpoints.tournaments import admin_enroll  # 🔧 NEW: Add admin batch enrollment for tournaments
+from .endpoints import admin_players  # 🏭 NEW: Admin bulk player provisioning (production-flow testing)
 
 api_router = APIRouter()
 
@@ -363,6 +364,13 @@ api_router.include_router(
     admin_enroll.router,
     prefix="/tournaments",
     tags=["tournaments", "admin-enrollment"]
+)
+
+# 🏭 NEW: Admin bulk player provisioning (production-flow testing & large-event setup)
+api_router.include_router(
+    admin_players.router,
+    prefix="/admin",
+    tags=["admin", "player-provisioning"]
 )
 
 # 🧪 NEW: Add sandbox test system routes (admin only)

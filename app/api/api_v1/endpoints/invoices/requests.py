@@ -177,6 +177,60 @@ async def get_invoice_count(
     return result
 
 
+@router.get("/summary")
+async def get_financial_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+) -> Any:
+    """
+    Financial summary for admin dashboard (Admin only).
+    Returns aggregated revenue, credit, and invoice statistics.
+    """
+    from sqlalchemy import func
+
+    # ── Invoice aggregates ────────────────────────────────────────
+    agg = db.query(
+        InvoiceRequest.status,
+        func.count(InvoiceRequest.id).label("cnt"),
+        func.coalesce(func.sum(InvoiceRequest.amount_eur), 0).label("eur_sum"),
+        func.coalesce(func.sum(InvoiceRequest.credit_amount), 0).label("credit_sum"),
+    ).group_by(InvoiceRequest.status).all()
+
+    inv_counts  = {"pending": 0, "verified": 0, "cancelled": 0, "paid": 0, "total": 0}
+    eur_by_status   = {"pending": 0.0, "verified": 0.0}
+    credit_by_status = {"pending": 0, "verified": 0}
+
+    for row in agg:
+        s = row.status
+        inv_counts[s]     = row.cnt
+        inv_counts["total"] += row.cnt
+        if s in eur_by_status:
+            eur_by_status[s]    = float(row.eur_sum)
+            credit_by_status[s] = int(row.credit_sum)
+
+    # ── Active credit balance across all users ────────────────────
+    balance_row = db.query(
+        func.coalesce(func.sum(User.credit_balance), 0).label("total_balance"),
+        func.coalesce(func.sum(User.credit_purchased), 0).label("total_purchased"),
+        func.count().filter(User.credit_balance > 0).label("users_with_balance"),
+    ).filter(User.is_active == True).one()
+
+    return {
+        "revenue": {
+            "total_eur":          round(eur_by_status["verified"], 2),
+            "pending_eur":        round(eur_by_status["pending"], 2),
+            "total_credits_sold": credit_by_status["verified"],
+            "pending_credits":    credit_by_status["pending"],
+        },
+        "credits": {
+            "active_balance":     int(balance_row.total_balance),
+            "total_purchased":    int(balance_row.total_purchased),
+            "users_with_balance": int(balance_row.users_with_balance),
+        },
+        "invoices": inv_counts,
+    }
+
+
 @router.get("/my-invoices")
 async def get_my_invoices(
     db: Session = Depends(get_db),

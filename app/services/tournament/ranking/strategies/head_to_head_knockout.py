@@ -87,11 +87,19 @@ class HeadToHeadKnockoutRankingStrategy:
             score_1 = p1["score"]
             score_2 = p2["score"]
 
-            # Determine round number (from game_results or infer from session metadata)
-            round_number = match_data.get("round_number")
+            # Determine round number: prefer session.tournament_round, then game_results, then 1
+            round_number = None
+            if hasattr(session, 'tournament_round') and session.tournament_round:
+                round_number = session.tournament_round
             if round_number is None:
-                # Fallback: Try to infer from session metadata or assume Round 1
-                round_number = 1
+                round_number = match_data.get("round_number") or 1
+
+            # Detect 3rd Place Playoff (losers bracket)
+            # 3rd Place Playoff participants compete for 3rd place, not for championship
+            is_third_place_playoff = False
+            if hasattr(session, 'title') and session.title:
+                if "3rd Place" in session.title or "Third Place" in session.title or "Playoff" in session.title:
+                    is_third_place_playoff = True
 
             # Update participant 1
             if user_id_1 not in participant_progress:
@@ -100,13 +108,16 @@ class HeadToHeadKnockoutRankingStrategy:
                     "round_reached": round_number,
                     "result": result_1,
                     "elimination_score": score_1 if result_1 == "loss" else None,
-                    "elimination_round": round_number if result_1 == "loss" else None
+                    "elimination_round": round_number if result_1 == "loss" else None,
+                    "is_third_place": is_third_place_playoff  # Track if competed in 3rd place playoff
                 }
             else:
-                # Update if progressed further
-                if round_number > participant_progress[user_id_1]["round_reached"]:
+                # Update if progressed further (or if this is 3rd place playoff)
+                if round_number > participant_progress[user_id_1]["round_reached"] or is_third_place_playoff:
                     participant_progress[user_id_1]["round_reached"] = round_number
                     participant_progress[user_id_1]["result"] = result_1
+                    if is_third_place_playoff:
+                        participant_progress[user_id_1]["is_third_place"] = True
                     if result_1 == "loss":
                         participant_progress[user_id_1]["elimination_score"] = score_1
                         participant_progress[user_id_1]["elimination_round"] = round_number
@@ -118,13 +129,16 @@ class HeadToHeadKnockoutRankingStrategy:
                     "round_reached": round_number,
                     "result": result_2,
                     "elimination_score": score_2 if result_2 == "loss" else None,
-                    "elimination_round": round_number if result_2 == "loss" else None
+                    "elimination_round": round_number if result_2 == "loss" else None,
+                    "is_third_place": is_third_place_playoff
                 }
             else:
-                # Update if progressed further
-                if round_number > participant_progress[user_id_2]["round_reached"]:
+                # Update if progressed further (or if this is 3rd place playoff)
+                if round_number > participant_progress[user_id_2]["round_reached"] or is_third_place_playoff:
                     participant_progress[user_id_2]["round_reached"] = round_number
                     participant_progress[user_id_2]["result"] = result_2
+                    if is_third_place_playoff:
+                        participant_progress[user_id_2]["is_third_place"] = True
                     if result_2 == "loss":
                         participant_progress[user_id_2]["elimination_score"] = score_2
                         participant_progress[user_id_2]["elimination_round"] = round_number
@@ -134,16 +148,22 @@ class HeadToHeadKnockoutRankingStrategy:
 
         # Sort by:
         # 1. Round reached (DESC - higher round = better)
-        # 2. Result (winner > runner_up > loss)
-        # 3. Elimination score (DESC - higher score when eliminated = better)
+        # 2. 3rd Place Playoff distinction (Final participants rank higher than 3rd Place participants)
+        # 3. Result (winner > runner_up > loss)
+        # 4. Elimination score (DESC - higher score when eliminated = better)
         def sort_key(p):
             result_priority = {
                 "win": 0,  # Best
                 "runner_up": 1,
                 "loss": 2
             }
+            # 3rd Place Playoff participants get penalized (they're in losers bracket)
+            # is_third_place = True means rank 3-4, False means rank 1-2
+            third_place_penalty = 1 if p.get("is_third_place", False) else 0
+
             return (
-                -p["round_reached"],  # Higher round = better
+                -p["round_reached"],  # Higher round = better (Final & 3rd Place both Round 2)
+                third_place_penalty,  # Final participants (0) rank higher than 3rd Place (1)
                 result_priority.get(p["result"], 3),  # Winner > Runner-up > Loss
                 -(p["elimination_score"] or 0)  # Higher score when eliminated = better
             )

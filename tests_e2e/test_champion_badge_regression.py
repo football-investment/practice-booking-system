@@ -187,6 +187,7 @@ def _assert_champion_never_shows_no_ranking_data(page: Page) -> None:
 @pytest.mark.golden_path
 @pytest.mark.e2e
 @pytest.mark.smoke
+@pytest.mark.nondestructive
 def test_champion_badge_no_ranking_data_regression():
     """
     CRITICAL regression guard: CHAMPION badge must never display

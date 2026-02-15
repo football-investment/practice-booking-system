@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
@@ -372,4 +372,148 @@ def get_skill_profile(
         average_level=average_level,
         total_assessments=total_assessments,
         total_tournaments=total_tournaments
+    )
+
+
+# ============================================================================
+# SKILL TIMELINE ENDPOINT - Per-skill tournament history
+# ============================================================================
+
+class SkillTimelineEntry(BaseModel):
+    """One data point in a skill's history (per tournament)"""
+    tournament_id: int
+    tournament_name: str
+    achieved_at: str
+    placement: Optional[int]
+    total_players: int
+    placement_skill: float
+    skill_weight: float
+    skill_value_after: float
+    delta_from_baseline: float
+    delta_from_previous: float
+
+
+class SkillTimelineResponse(BaseModel):
+    """Full timeline for a single skill"""
+    skill: str
+    baseline: float
+    current_level: float
+    total_delta: float
+    timeline: List[SkillTimelineEntry]
+
+
+@router.get("/skill-timeline", response_model=SkillTimelineResponse)
+def get_skill_timeline(
+    skill: str = Query(..., description="Skill key, e.g. 'passing', 'finishing'"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get the per-tournament progression history for a single skill.
+
+    Returns each tournament event chronologically with:
+    - skill_value_after: The calculated skill level right after that tournament
+    - delta_from_previous: Change vs previous tournament (or baseline for first)
+    - placement, total_players, placement_skill for context
+
+    Use this to power a line chart showing how a skill evolved over time.
+    """
+    # Validate license exists
+    license = db.query(UserLicense).filter(
+        UserLicense.user_id == current_user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True
+    ).first()
+
+    if not license:
+        raise HTTPException(
+            status_code=404,
+            detail="No active LFA Player license found. Please complete onboarding first."
+        )
+
+    result = skill_progression_service.get_skill_timeline(db, current_user.id, skill)
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Skill '{skill}' not found. Check the skill key spelling."
+        )
+
+    return SkillTimelineResponse(
+        skill=result["skill"],
+        baseline=result["baseline"],
+        current_level=result["current_level"],
+        total_delta=result["total_delta"],
+        timeline=[SkillTimelineEntry(**entry) for entry in result["timeline"]]
+    )
+
+
+# ============================================================================
+# SKILL AUDIT ENDPOINT - Per-tournament expected vs actual change log
+# ============================================================================
+
+class SkillAuditRow(BaseModel):
+    """One audit row: one tournament × one mapped skill"""
+    tournament_id: int
+    tournament_name: str
+    achieved_at: Optional[str]
+    placement: Optional[int]
+    total_players: int
+    skill: str
+    skill_weight: float
+    avg_weight: float
+    is_dominant: bool
+    expected_change: bool
+    placement_skill: float
+    delta_this_tournament: float
+    norm_delta: float
+    actual_changed: bool
+    fairness_ok: bool
+    opponent_factor: float
+    ema_path: bool
+
+
+class SkillAuditResponse(BaseModel):
+    total_entries: int
+    unfair_entries: int
+    audit: List[SkillAuditRow]
+
+
+@router.get("/skill-audit", response_model=SkillAuditResponse)
+def get_skill_audit(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Per-tournament skill audit log: expected vs actual change per skill.
+
+    For each tournament the player participated in, returns one row per mapped skill:
+    - expected_change: always True (skill is in the tournament's mapping)
+    - actual_changed: whether abs(delta) > 0.001
+    - delta_this_tournament: signed change produced by this tournament
+    - is_dominant: this skill has weight > average weight for the tournament
+    - fairness_ok: dominant skill had |delta| >= non-dominant peers
+      (checked only when baselines are within 5 pts of each other)
+
+    Useful for validating that dominant-weight skills produce larger changes than minor skills.
+    """
+    license = db.query(UserLicense).filter(
+        UserLicense.user_id == current_user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True
+    ).first()
+
+    if not license:
+        raise HTTPException(
+            status_code=404,
+            detail="No active LFA Player license found. Please complete onboarding first."
+        )
+
+    rows = skill_progression_service.get_skill_audit(db, current_user.id)
+    unfair = sum(1 for r in rows if not r["fairness_ok"] and r.get("ema_path", False))
+
+    return SkillAuditResponse(
+        total_entries=len(rows),
+        unfair_entries=unfair,
+        audit=[SkillAuditRow(**r) for r in rows]
     )

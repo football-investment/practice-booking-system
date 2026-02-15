@@ -2,11 +2,15 @@
 Admin Batch Enrollment Endpoint for Tournaments
 Allows admins to enroll multiple players in a tournament for testing/setup purposes
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import time
+import threading
+from collections import defaultdict
 from datetime import datetime
-from typing import List
+from typing import Dict, List, Tuple
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.api.deps import get_current_user
@@ -18,6 +22,41 @@ import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# ── Soft rate guard (in-process, no Redis) ────────────────────────────────────
+_ENROLL_RATE_WINDOW: int = 60   # seconds
+_ENROLL_MAX_CALLS: int = 10     # more generous than player creation — enrollment is lighter
+"""
+At most _ENROLL_MAX_CALLS batch-enroll calls per admin user in any rolling
+_ENROLL_RATE_WINDOW window.  Prevents accidental re-enroll loops that could
+create duplicate enrollment rows or saturate index scans on large tournaments.
+"""
+_enroll_rate_lock = threading.Lock()
+_enroll_rate_calls: Dict[int, List[Tuple[float, int]]] = defaultdict(list)
+
+
+def _check_enroll_rate_limit(user_id: int, incoming_count: int) -> None:
+    """Raise HTTP 429 if the admin exceeds the soft rate guard."""
+    now = time.monotonic()
+    window_start = now - _ENROLL_RATE_WINDOW
+    with _enroll_rate_lock:
+        _enroll_rate_calls[user_id] = [
+            (ts, n) for ts, n in _enroll_rate_calls[user_id] if ts >= window_start
+        ]
+        recent = _enroll_rate_calls[user_id]
+        if len(recent) >= _ENROLL_MAX_CALLS:
+            oldest_ts = recent[0][0]
+            retry_after = int(_ENROLL_RATE_WINDOW - (now - oldest_ts)) + 1
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"Rate limit exceeded: at most {_ENROLL_MAX_CALLS} "
+                    f"batch-enroll calls per {_ENROLL_RATE_WINDOW}s. "
+                    f"Retry after {retry_after}s."
+                ),
+                headers={"Retry-After": str(retry_after)},
+            )
+        _enroll_rate_calls[user_id].append((now, incoming_count))
 
 
 class BatchEnrollRequest(BaseModel):
@@ -63,6 +102,9 @@ def admin_batch_enroll_players(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can batch enroll players"
         )
+
+    # 1b. Soft rate guard
+    _check_enroll_rate_limit(current_user.id, len(request.player_ids))
 
     # 2. Verify tournament exists
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()

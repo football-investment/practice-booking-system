@@ -1029,7 +1029,7 @@ def get_tournament_sessions_debug(
                 for user_id in session.participant_user_ids:
                     user = db.query(User).filter(User.id == user_id).first()
                     if user:
-                        participant_names.append(user.name)
+                        participant_names.append(user.nickname or user.name)
                     else:
                         participant_names.append(f"User {user_id}")
 

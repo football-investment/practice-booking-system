@@ -38,7 +38,7 @@ class KnockoutBracket:
                 'play_in_matches': 0,
                 'byes': 0,
                 'bracket_size': 4,
-                'has_bronze': False  # ✅ Decision: No bronze for 4-player knockout
+                'has_bronze': True  # ✅ FIX: Bronze match required even for 4-player knockout
             }
 
         elif qualifiers == 6:

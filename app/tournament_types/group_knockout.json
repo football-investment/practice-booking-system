@@ -3,7 +3,7 @@
   "display_name": "Group Stage + Knockout",
   "description": "Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.",
   "min_players": 8,
-  "max_players": 32,
+  "max_players": 64,
   "requires_power_of_two": false,
   "session_duration_minutes": 90,
   "break_between_sessions_minutes": 15,
@@ -25,16 +25,50 @@
     }
   ],
   "group_configuration": {
-    "8_players": {"groups": 2, "players_per_group": 4, "qualifiers": 2},
-    "12_players": {"groups": 3, "players_per_group": 4, "qualifiers": 2},
-    "16_players": {"groups": 4, "players_per_group": 4, "qualifiers": 2},
-    "24_players": {"groups": 6, "players_per_group": 4, "qualifiers": 2},
-    "32_players": {"groups": 8, "players_per_group": 4, "qualifiers": 2}
+    "8_players": {
+      "groups": 2,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "12_players": {
+      "groups": 3,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "16_players": {
+      "groups": 4,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "24_players": {
+      "groups": 6,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "32_players": {
+      "groups": 8,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "48_players": {
+      "groups": 12,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "64_players": {
+      "groups": 16,
+      "players_per_group": 4,
+      "qualifiers": 2
+    }
   },
   "placement_rules": {
     "group_stage": {
       "primary": "wins",
-      "tiebreakers": ["goal_difference", "goals_scored", "head_to_head"]
+      "tiebreakers": [
+        "goal_difference",
+        "goals_scored",
+        "head_to_head"
+      ]
     },
     "knockout_stage": {
       "1": "Winner of final",

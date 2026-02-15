@@ -7,12 +7,15 @@ Provides:
 1. Preview of session structure (before generation)
 2. Actual session generation (creates sessions in DB)
 """
+import uuid
+import logging
+import threading
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
 from app.models.user import User
 from app.models.semester import Semester
@@ -20,8 +23,97 @@ from app.models.tournament_type import TournamentType
 from app.models.session import Session as SessionModel
 from app.services.tournament_session_generator import TournamentSessionGenerator
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# ---------------------------------------------------------------------------
+# In-process background task registry (fallback when Celery/Redis unavailable)
+# Keyed by task_id (UUID string).  Thread-safe via a lock.
+# Status values: "pending" | "running" | "done" | "error"
+# ---------------------------------------------------------------------------
+_task_registry: Dict[str, Dict[str, Any]] = {}
+_registry_lock = threading.Lock()
+
+
+BACKGROUND_GENERATION_THRESHOLD = 128  # Player count above which async is used
+
+
+def _is_celery_available() -> bool:
+    """
+    Test whether the Celery broker (Redis) is reachable.
+    Returns False if celery/redis packages are missing or Redis is not running.
+    """
+    try:
+        from app.celery_app import celery_app
+        # Ping the broker with a 1-second timeout
+        celery_app.control.ping(timeout=1)
+        return True
+    except Exception:
+        return False
+
+
+def _run_generation_in_background(
+    task_id: str,
+    tournament_id: int,
+    parallel_fields: int,
+    session_duration: int,
+    break_duration: int,
+    number_of_rounds: int,
+    campus_overrides_raw: Optional[Dict[str, Any]],
+    campus_ids: Optional[list] = None,
+) -> None:
+    """
+    Worker function executed in a daemon thread.
+    Opens its own DB session (independent of the request session).
+    """
+    with _registry_lock:
+        _task_registry[task_id]["status"] = "running"
+
+    db: Session = SessionLocal()
+    try:
+        # Persist campus_schedule_overrides if provided
+        if campus_overrides_raw:
+            from app.models.tournament_configuration import TournamentConfiguration
+            config = db.query(TournamentConfiguration).filter(
+                TournamentConfiguration.semester_id == tournament_id
+            ).first()
+            if config:
+                config.campus_schedule_overrides = campus_overrides_raw
+                db.flush()
+
+        generator = TournamentSessionGenerator(db)
+        success, message, sessions_created = generator.generate_sessions(
+            tournament_id=tournament_id,
+            parallel_fields=parallel_fields,
+            session_duration_minutes=session_duration,
+            break_minutes=break_duration,
+            number_of_rounds=number_of_rounds,
+            campus_ids=campus_ids,
+        )
+
+        with _registry_lock:
+            _task_registry[task_id].update({
+                "status": "done" if success else "error",
+                "message": message,
+                "sessions_count": len(sessions_created) if success else 0,
+            })
+    except Exception as exc:
+        with _registry_lock:
+            _task_registry[task_id].update({
+                "status": "error",
+                "message": str(exc),
+                "sessions_count": 0,
+            })
+    finally:
+        db.close()
+
+
+class CampusScheduleConfig(BaseModel):
+    """Per-campus schedule overrides for multi-venue tournaments"""
+    match_duration_minutes: Optional[int] = Field(default=None, ge=1, le=180, description="Override match duration for this campus")
+    break_duration_minutes: Optional[int] = Field(default=None, ge=0, le=60, description="Override break duration for this campus")
+    parallel_fields: Optional[int] = Field(default=None, ge=1, le=20, description="Override parallel fields for this campus")
 
 
 class SessionGenerationRequest(BaseModel):
@@ -30,6 +122,14 @@ class SessionGenerationRequest(BaseModel):
     session_duration_minutes: int = Field(default=90, ge=1, le=180, description="Duration of each session in minutes (business allows 1-5 min matches)")
     break_minutes: int = Field(default=15, ge=0, le=60, description="Break time between sessions in minutes")
     number_of_rounds: int = Field(default=1, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (e.g., 3 attempts for 100m sprint)")
+    campus_schedule_overrides: Optional[Dict[str, CampusScheduleConfig]] = Field(
+        default=None,
+        description=(
+            "Per-campus schedule overrides keyed by campus_id (as string). "
+            "Each entry can override match_duration_minutes, break_duration_minutes, and parallel_fields. "
+            "Example: {\"42\": {\"match_duration_minutes\": 60, \"parallel_fields\": 3}}"
+        )
+    )
 
 
 class SessionPreview(BaseModel):
@@ -204,15 +304,20 @@ def preview_tournament_sessions(
     }
 
 
-@router.post("/{tournament_id}/generate-sessions", response_model=SessionGenerationResponse)
+@router.post("/{tournament_id}/generate-sessions", response_model=Dict[str, Any])
 def generate_tournament_sessions(
     tournament_id: int,
     request: SessionGenerationRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
-) -> SessionGenerationResponse:
+) -> Dict[str, Any]:
     """
-    Generate tournament sessions based on tournament type and enrolled player count
+    Generate tournament sessions based on tournament type and enrolled player count.
+
+    **Auto-scaling behaviour:**
+    - < 128 players: synchronous generation, returns full result immediately
+    - >= 128 players: background generation, returns `task_id` for polling via
+      `GET /tournaments/{tournament_id}/generation-status/{task_id}`
 
     **CRITICAL CONSTRAINT:** Sessions can ONLY be generated when tournament_status = "IN_PROGRESS"
     (i.e., AFTER enrollment closes)
@@ -225,28 +330,9 @@ def generate_tournament_sessions(
     3. Sessions not already generated (sessions_generated = False)
     4. Sufficient player count (>= min_players for tournament type)
     5. Player count meets tournament type constraints (e.g., power-of-2 for knockout)
-
-    **Creates:**
-    - Session records in database (auto_generated = True)
-    - Sets tournament.sessions_generated = True
-    - Records tournament.sessions_generated_at timestamp
-
-    **Response Example:**
-    ```json
-    {
-        "success": true,
-        "message": "Successfully generated 28 sessions",
-        "tournament_id": 121,
-        "tournament_name": "Winter Cup",
-        "sessions_generated_count": 28,
-        "sessions": [...]
-    }
-    ```
-
-    **Error Scenarios:**
-    - 400: Tournament not ready (wrong status, already generated, etc.)
-    - 404: Tournament or tournament type not found
     """
+    from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+
     generator = TournamentSessionGenerator(db)
 
     # Check if can generate (includes all validations)
@@ -261,13 +347,98 @@ def generate_tournament_sessions(
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
 
     # Use semester's saved schedule configuration if available, otherwise use request parameters
-    # Admin sets these via schedule editor BEFORE generating sessions
     session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else request.session_duration_minutes
     break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else request.break_minutes
     parallel_fields = tournament.parallel_fields if tournament.parallel_fields else request.parallel_fields
     number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else request.number_of_rounds
 
-    # Generate sessions
+    # Serialise campus overrides (Pydantic → plain dict for JSON storage)
+    campus_overrides_raw: Optional[Dict[str, Any]] = None
+    if request.campus_schedule_overrides is not None:
+        campus_overrides_raw = {
+            campus_id: cfg.model_dump(exclude_none=True)
+            for campus_id, cfg in request.campus_schedule_overrides.items()
+        }
+        # Persist to DB synchronously so it's available in the background thread
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.campus_schedule_overrides = campus_overrides_raw
+            db.flush()
+
+    # Count enrolled players to decide sync vs background path
+    player_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.is_active == True,
+        SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+    ).count()
+
+    if player_count >= BACKGROUND_GENERATION_THRESHOLD:
+        # ── ASYNC PATH: prefer Celery, fall back to daemon thread ──
+        use_celery = _is_celery_available()
+        task_id: str
+
+        if use_celery:
+            # Celery path: reliable, survives worker restarts, retries on failure
+            from app.tasks.tournament_tasks import generate_sessions_task
+            import time as _time
+            celery_result = generate_sessions_task.apply_async(
+                args=[
+                    tournament_id,
+                    parallel_fields,
+                    session_duration,
+                    break_duration,
+                    number_of_rounds,
+                    campus_overrides_raw,
+                ],
+                queue="tournaments",
+                headers={"dispatched_at": _time.perf_counter()},
+            )
+            task_id = celery_result.id
+            backend = "celery"
+            logger.info(f"[async] Celery task submitted task_id={task_id} tournament_id={tournament_id}")
+        else:
+            # Thread fallback: no Redis required, in-process registry
+            task_id = str(uuid.uuid4())
+            with _registry_lock:
+                _task_registry[task_id] = {
+                    "status": "pending",
+                    "tournament_id": tournament_id,
+                    "player_count": player_count,
+                    "message": None,
+                    "sessions_count": 0,
+                }
+            thread = threading.Thread(
+                target=_run_generation_in_background,
+                args=(
+                    task_id,
+                    tournament_id,
+                    parallel_fields,
+                    session_duration,
+                    break_duration,
+                    number_of_rounds,
+                    campus_overrides_raw,
+                ),
+                daemon=True,
+            )
+            thread.start()
+            backend = "thread"
+            logger.info(f"[async] Thread task submitted task_id={task_id} tournament_id={tournament_id} (Redis unavailable)")
+
+        return {
+            "success": True,
+            "async": True,
+            "async_backend": backend,
+            "task_id": task_id,
+            "tournament_id": tournament_id,
+            "tournament_name": tournament.name,
+            "player_count": player_count,
+            "message": (
+                f"Generation started in background for {player_count} players "
+                f"via {backend}. "
+                f"Poll /tournaments/{tournament_id}/generation-status/{task_id} for progress."
+            ),
+        }
+
+    # ── SYNC PATH: small tournament, generate immediately ──
     success, message, sessions_created = generator.generate_sessions(
         tournament_id=tournament_id,
         parallel_fields=parallel_fields,
@@ -282,17 +453,90 @@ def generate_tournament_sessions(
             detail=message
         )
 
-    # Fetch tournament for response
+    # Refresh tournament name after generation (sessions_generated flag may change)
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
 
-    return SessionGenerationResponse(
-        success=True,
-        message=message,
-        tournament_id=tournament_id,
-        tournament_name=tournament.name,
-        sessions_generated_count=len(sessions_created),
-        sessions=sessions_created
-    )
+    return {
+        "success": True,
+        "async": False,
+        "tournament_id": tournament_id,
+        "tournament_name": tournament.name,
+        "sessions_generated_count": len(sessions_created),
+        "message": message,
+        "sessions": sessions_created,
+    }
+
+
+@router.get("/{tournament_id}/generation-status/{task_id}", response_model=Dict[str, Any])
+def get_generation_status(
+    tournament_id: int,
+    task_id: str,
+    current_user: User = Depends(get_current_admin_user),
+) -> Dict[str, Any]:
+    """
+    Poll the status of a background session-generation task.
+
+    Works for both Celery tasks (when Redis is running) and in-process thread tasks.
+
+    **Authorization:** Admin only
+
+    Returns one of:
+    - `{"status": "pending"}` — queued, not yet started
+    - `{"status": "running"}` — generation in progress
+    - `{"status": "done", "sessions_count": N, "message": "..."}` — completed successfully
+    - `{"status": "error", "message": "..."}` — generation failed
+    - `{"status": "retrying"}` — Celery is retrying after a transient error
+
+    The task_id is returned by `POST /tournaments/{id}/generate-sessions` when
+    player_count >= 128 and async generation is used.
+    """
+    # 1. Try Celery result backend first (UUID matches a Celery task)
+    try:
+        from celery.result import AsyncResult
+        from app.celery_app import celery_app
+        ar = AsyncResult(task_id, app=celery_app)
+        # Celery state: PENDING | STARTED | RETRY | SUCCESS | FAILURE
+        if ar.state != "PENDING" or ar.result is not None:
+            # Map Celery states to our unified vocabulary
+            state_map = {
+                "PENDING": "pending",
+                "STARTED": "running",
+                "RETRY": "retrying",
+                "SUCCESS": "done",
+                "FAILURE": "error",
+            }
+            unified_status = state_map.get(ar.state, ar.state.lower())
+            response: Dict[str, Any] = {
+                "status": unified_status,
+                "task_id": task_id,
+                "tournament_id": tournament_id,
+                "backend": "celery",
+            }
+            if ar.state == "SUCCESS" and isinstance(ar.result, dict):
+                response.update({
+                    "sessions_count":         ar.result.get("sessions_count", 0),
+                    "message":                ar.result.get("message", ""),
+                    "generation_duration_ms": ar.result.get("generation_duration_ms"),
+                    "db_write_time_ms":       ar.result.get("db_write_time_ms"),
+                    "queue_wait_time_ms":     ar.result.get("queue_wait_time_ms"),
+                })
+            elif ar.state == "FAILURE":
+                response["message"] = str(ar.result)
+            return response
+    except Exception:
+        pass  # Celery/Redis not available — fall through to thread registry
+
+    # 2. Thread-based fallback registry
+    with _registry_lock:
+        entry = _task_registry.get(task_id)
+
+    if entry is None or entry.get("tournament_id") != tournament_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found for tournament {tournament_id}"
+        )
+
+    return dict(entry)
 
 
 @router.get("/{tournament_id}/sessions", response_model=List[Dict[str, Any]])
@@ -317,26 +561,51 @@ def get_tournament_sessions(
         SessionModel.semester_id == tournament_id
     ).order_by(SessionModel.date_start).all()
 
+    # Batch prefetch: collect all participant IDs and session IDs up front
+    all_participant_ids = list({
+        uid
+        for s in sessions
+        for uid in (s.participant_user_ids or [])
+        if uid is not None
+    })
+    session_ids = [s.id for s in sessions]
+
+    # Single query for all users referenced by any session
+    users_by_id = {}
+    if all_participant_ids:
+        users_by_id = {
+            u.id: u
+            for u in db.query(UserModel).filter(
+                UserModel.id.in_(all_participant_ids)
+            ).all()
+        }
+
+    # Single query for all attendances across all sessions
+    attendances_by_key = {}
+    if session_ids:
+        attendances_by_key = {
+            (a.session_id, a.user_id): a
+            for a in db.query(Attendance).filter(
+                Attendance.session_id.in_(session_ids)
+            ).all()
+        }
+
     # Convert to dict format
     sessions_list = []
     for session in sessions:
-        # Fetch participant details with names
+        # Build participant list from prefetched data (no DB queries inside loop)
         participants = []
         if session.participant_user_ids:
-            users = db.query(UserModel).filter(
-                UserModel.id.in_(session.participant_user_ids)
-            ).all()
-
-            for user in users:
-                # Check attendance status
-                attendance = db.query(Attendance).filter(
-                    Attendance.session_id == session.id,
-                    Attendance.user_id == user.id
-                ).first()
-
+            for uid in session.participant_user_ids:
+                if uid is None:
+                    continue
+                user = users_by_id.get(uid)
+                if not user:
+                    continue
+                attendance = attendances_by_key.get((session.id, uid))
                 participants.append({
                     "id": user.id,
-                    "name": user.name,
+                    "name": user.nickname or user.name,
                     "email": user.email,
                     "attendance_status": attendance.status.value if attendance else "PENDING",
                     "is_present": attendance.status.value == "PRESENT" if attendance else False
@@ -360,10 +629,13 @@ def get_tournament_sessions(
             "match_format": session.match_format,
             "scoring_type": session.scoring_type,
             "structure_config": session.structure_config,
+            "group_identifier": session.group_identifier,
             "participant_user_ids": session.participant_user_ids,
+            "participant_names": [p["name"] for p in participants if p.get("name")],
             "participants": participants,  # ✅ NEW: Full participant details with names
             "game_results": session.game_results,  # ✅ FIX: Add game_results field for Step 4
-            "rounds_data": session.rounds_data
+            "rounds_data": session.rounds_data,
+            "result_submitted": bool(session.game_results),  # True if any results have been recorded
         })
 
     return sessions_list

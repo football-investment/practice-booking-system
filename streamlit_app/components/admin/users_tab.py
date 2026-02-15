@@ -63,10 +63,39 @@ def render_users_tab(token, user):
 
             st.divider()
 
-            # User cards with action buttons
+            # User cards with action buttons (paginated rendering)
             if filtered_users:
-                st.caption(f"📋 Showing {len(filtered_users)} user(s):")
-                for user_item in filtered_users:
+                USERS_PER_PAGE = 100
+                total_pages = max(1, (len(filtered_users) + USERS_PER_PAGE - 1) // USERS_PER_PAGE)
+
+                if "users_page" not in st.session_state:
+                    st.session_state.users_page = 1
+
+                # Reset to page 1 if filters changed the list size
+                if st.session_state.users_page > total_pages:
+                    st.session_state.users_page = 1
+
+                current_page = st.session_state.users_page
+                start_idx = (current_page - 1) * USERS_PER_PAGE
+                end_idx = min(start_idx + USERS_PER_PAGE, len(filtered_users))
+                page_users = filtered_users[start_idx:end_idx]
+
+                st.caption(f"📋 Showing {start_idx + 1}–{end_idx} of {len(filtered_users)} user(s):")
+
+                if total_pages > 1:
+                    nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+                    with nav_col1:
+                        if st.button("◀ Prev", disabled=(current_page == 1), key="users_prev"):
+                            st.session_state.users_page -= 1
+                            st.rerun()
+                    with nav_col2:
+                        st.caption(f"Page {current_page} / {total_pages}")
+                    with nav_col3:
+                        if st.button("Next ▶", disabled=(current_page == total_pages), key="users_next"):
+                            st.session_state.users_page += 1
+                            st.rerun()
+
+                for user_item in page_users:
                     role = user_item.get("role", "").lower()
                     role_icon = {"student": "🎓", "instructor": "👨‍🏫", "admin": "👑"}.get(role, "👤")
                     status_icon = "✅" if user_item.get('is_active') else "❌"

@@ -233,21 +233,20 @@ def record_tournament_participation(
     if skill_points:
         update_skill_assessments(db, user_id, skill_points, assessed_by_id)
 
-    # Check if participation already exists
+    # ── Phase 1: upsert placement + rewards (no skill_rating_delta yet) ──────────
+    # skill_rating_delta requires placement to be visible in DB before computing.
     existing_participation = db.query(TournamentParticipation).filter(
         TournamentParticipation.user_id == user_id,
         TournamentParticipation.semester_id == tournament_id
     ).first()
 
     if existing_participation:
-        # Update existing participation
         existing_participation.placement = placement
         existing_participation.skill_points_awarded = skill_points if skill_points else None
         existing_participation.xp_awarded = total_xp
         existing_participation.credits_awarded = credits
         participation = existing_participation
     else:
-        # Create new participation
         participation = TournamentParticipation(
             user_id=user_id,
             semester_id=tournament_id,
@@ -257,6 +256,15 @@ def record_tournament_participation(
             credits_awarded=credits
         )
         db.add(participation)
+
+    # Flush so placement is visible to the skill delta query (autoflush may handle
+    # this, but an explicit flush guarantees it regardless of session config)
+    db.flush()
+
+    # ── Phase 2: compute isolated per-tournament EMA delta and write back ────────
+    from app.services.skill_progression_service import compute_single_tournament_skill_delta
+    rating_delta = compute_single_tournament_skill_delta(db, user_id, tournament_id) or None
+    participation.skill_rating_delta = rating_delta
 
     # Create XP transaction for bonus XP (if any)
     if bonus_xp > 0:

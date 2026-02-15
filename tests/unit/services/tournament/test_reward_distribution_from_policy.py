@@ -2,6 +2,7 @@
 Unit tests for reward distribution using policy snapshots
 """
 import pytest
+import uuid
 from datetime import date
 
 from app.services.tournament.core import create_tournament_semester
@@ -17,8 +18,22 @@ class TestRewardDistributionFromPolicy:
 
     @pytest.fixture
     def tournament_with_policy(self, test_db):
-        """Create tournament with default policy"""
-        return create_tournament_semester(
+        """Create tournament with default policy and instructor assigned"""
+        from app.models.user import User, UserRole
+        from app.models.semester import SemesterStatus
+
+        # Create instructor
+        instructor = User(
+            email=f"instructor+{uuid.uuid4().hex[:8]}@test.com",
+            name="Test Instructor",
+            password_hash="test_hash",
+            role=UserRole.INSTRUCTOR
+        )
+        test_db.add(instructor)
+        test_db.flush()
+
+        # Create tournament
+        tournament = create_tournament_semester(
             db=test_db,
             tournament_date=date(2026, 2, 15),
             name="Test Tournament",
@@ -26,16 +41,23 @@ class TestRewardDistributionFromPolicy:
             reward_policy_name="default"
         )
 
+        # Assign instructor and set status
+        tournament.master_instructor_id = instructor.id
+        tournament.status = SemesterStatus.READY_FOR_ENROLLMENT
+        test_db.commit()
+        test_db.refresh(tournament)
+        return tournament
+
     @pytest.fixture
     def test_users(self, test_db):
         """Create test users for rankings"""
         users = []
         for i in range(5):
             user = User(
-                email=f"user{i}@test.com",
+                email=f"user{i}+{uuid.uuid4().hex[:8]}@test.com",
                 name=f"Test User {i}",
                 password_hash="hashedpassword",
-                total_xp=0
+                xp_balance=0  # Changed from deprecated total_xp
             )
             test_db.add(user)
             users.append(user)

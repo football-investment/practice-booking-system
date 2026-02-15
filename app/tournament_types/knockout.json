@@ -3,7 +3,7 @@
   "display_name": "Single Elimination (Knockout)",
   "description": "Traditional knockout tournament - lose once and you're out. Fast and exciting.",
   "min_players": 4,
-  "max_players": 64,
+  "max_players": 1024,
   "requires_power_of_two": true,
   "session_duration_minutes": 90,
   "break_between_sessions_minutes": 15,
@@ -16,7 +16,11 @@
     "16": "Round of 16",
     "8": "Quarter-finals",
     "4": "Semi-finals",
-    "2": "Final"
+    "2": "Final",
+    "1024": "Round of 1024",
+    "512": "Round of 512",
+    "256": "Round of 256",
+    "128": "Round of 128"
   },
   "placement_rules": {
     "1": "Winner of final",
@@ -25,7 +29,7 @@
     "4": "Loser of 3rd place playoff (optional)"
   },
   "config_notes": [
-    "Requires power-of-2 players (4, 8, 16, 32, 64)",
+    "Requires power-of-2 players (4, 8, 16, 32, 64, 128, 256, 512, 1024)",
     "Total matches = n - 1",
     "Fastest tournament format",
     "Highly competitive - no second chances"

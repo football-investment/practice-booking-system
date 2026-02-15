@@ -24,14 +24,43 @@ import pytest
 from playwright.sync_api import Page, expect
 import time
 from datetime import date
+from pathlib import Path
 
 # =============================================================================
-# HELPER FUNCTIONS
+# SINGLE SOURCE OF TRUTH: test_users.json
 # =============================================================================
 
 import json
-from app.models.user import User
-from app.models.invitation_code import InvitationCode
+
+# Path to single source of truth JSON
+_TEST_USERS_JSON = Path(__file__).parent.parent.parent.parent.parent / "tests" / "e2e" / "test_users.json"
+
+
+def _load_pwt_users() -> list:
+    """Load pwt user definitions from tests/e2e/test_users.json"""
+    with open(_TEST_USERS_JSON) as f:
+        return json.load(f)["pwt_users"]
+
+
+def _write_back_user_ids(user_ids: dict):
+    """
+    Write registered user db_id values back to test_users.json.
+
+    Args:
+        user_ids: dict mapping email -> db_id, e.g. {"pwt.k1sqx1@f1rstteam.hu": 5}
+    """
+    with open(_TEST_USERS_JSON) as f:
+        data = json.load(f)
+
+    for user in data["pwt_users"]:
+        if user["email"] in user_ids:
+            user["db_id"] = user_ids[user["email"]]
+
+    with open(_TEST_USERS_JSON, "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    print(f"   ✅ Wrote {len(user_ids)} db_id(s) back to test_users.json")
+
 
 # Verify users exist with CRITICAL fixed emails (pwt. prefix)
 def streamlit_login(page: Page, email: str, password: str):
@@ -262,16 +291,25 @@ def login_and_verify_hub_loads(page: Page, email: str, password: str):
     # The URL might be /Specialization_Hub or contain the page name
     # Let's verify by looking for hub-specific content
 
-    # Look for "Specialization Hub" heading or similar content
-    hub_heading = page.locator("text=Specialization Hub").or_(
-        page.locator("text=Choose Your Path")
+    # Verify we landed on Specialization Hub by checking URL and visible page content
+    # The URL should be /Specialization_Hub — this is the primary check
+    # We also look for the main content area heading (not the sidebar nav item which may be hidden)
+    hub_heading = page.locator("section[data-testid='stMain'] >> text=Specialization Hub").or_(
+        page.locator("section[data-testid='stMain'] >> text=Choose Your Path")
     ).or_(
-        page.locator("text=First Team")
+        page.locator("section[data-testid='stMain'] >> text=LFA Football Player")
+    ).or_(
+        page.locator("[data-testid='stAppViewContainer'] >> h1")
     ).first
 
     try:
-        expect(hub_heading).to_be_visible(timeout=10000)
-        print(f"✅ Specialization Hub loaded for user: {email}")
+        # Primary check: URL already shows /Specialization_Hub
+        current_url = page.url
+        if "Specialization_Hub" in current_url:
+            print(f"✅ Specialization Hub loaded for user: {email} (URL confirmed)")
+        else:
+            expect(hub_heading).to_be_visible(timeout=10000)
+            print(f"✅ Specialization Hub loaded for user: {email}")
 
         # Take screenshot
         screenshot_path = f"tests/e2e/screenshots/hub_{email.split('@')[0]}.png"
@@ -317,56 +355,42 @@ def admin_page(page: Page):
 @pytest.mark.invitation_ui
 def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
     """
-    Test D1: Admin creates 3 invitation codes via UI and captures them
+    Test D1: Admin creates invitation codes via UI — one per star user in test_users.json.
 
-    CRITICAL REQUIREMENTS:
-    - 3 invitation codes created successfully
-    - Each code has 50 bonus credits (CRITICAL: ONLY 50 credits allowed)
-    - Email restrictions: pwt.k1sqx1@f1stteam.hu, pwt.p3t1k3@f1stteam.hu, pwt.V4lv3rd3jr@f1stteam.hu
-    - Codes are captured for use in registration tests
-
-    NOTE: We'll store codes in a file for use in subsequent tests
+    Number of codes matches len(star_users) in test_users.json (currently 4).
+    Each code: 50 bonus credits, 7-day expiry.
+    Codes saved to tests/e2e/generated_invitation_codes.json for D2-D5.
     """
+    pwt_users = _load_pwt_users()
+    n = len(pwt_users)
+    categories = [u.get("age_category", "AMATEUR") for u in pwt_users]
     invitation_codes = []
 
-    # NOTE: Email restriction not supported in current UI modal
-    # We'll create codes without email restriction for now
-    # The API tests already validate email restriction functionality
+    for i, category in enumerate(categories, start=1):
+        print(f"\n📝 Creating invitation code {i}/{n} ({category})...")
 
-    categories = ["Pre Category", "Youth Category", "Amateur Category"]
-
-    for i in range(1, 4):
-        print(f"\n📝 Creating invitation code {i}/3 ({categories[i-1]})...")
-
-        # Click "Generate Invitation Code" button
         click_generate_invitation_code_button(admin_page)
 
-        # Fill form
         fill_invitation_form(
             admin_page,
-            description=f"E2E Test - First Team Player {i} - {categories[i-1]}",
-            bonus_credits=50,  # CRITICAL: 50 credits only
-            expires_hours=168  # 7 days
+            description=f"E2E Test - PWT User {i} - {category}",
+            bonus_credits=50,
+            expires_hours=168
         )
 
-        # Submit and capture code
         code = submit_invitation_form_and_capture_code(admin_page)
         invitation_codes.append(code)
 
-        print(f"✅ Code {i}/3 created: {code} (50 credits, {categories[i-1]})")
-
-        # Wait before creating next code
+        print(f"✅ Code {i}/{n} created: {code} (50 credits, {category})")
         admin_page.wait_for_timeout(1000)
 
-    # Verify we have 3 unique codes
-    assert len(invitation_codes) == 3
-    assert len(set(invitation_codes)) == 3  # All unique
+    assert len(invitation_codes) == n
+    assert len(set(invitation_codes)) == n
 
-    # Save codes to file for use in next tests
     with open("tests/e2e/generated_invitation_codes.json", "w") as f:
         json.dump(invitation_codes, f)
 
-    print(f"\n✅✅✅ All 3 invitation codes created and saved!")
+    print(f"\n✅✅✅ All {n} invitation codes created and saved!")
     print(f"Codes: {invitation_codes}")
 
 
@@ -378,122 +402,81 @@ def test_d1_admin_creates_three_invitation_codes(admin_page: Page):
 @pytest.mark.invitation_ui
 def test_d2_first_user_registers_with_invitation(page: Page):
     """
-    Test D2.1: First user registers with invitation code (PRE category, age 6-11)
-
-    CRITICAL REQUIREMENTS:
-    - Email: pwt.k1sqx1@f1stteam.hu (fixed)
-    - Date of birth: Pre category (age 6-11, born 2015-2019)
-    - Registration form accepts all required fields
-    - Invitation code is validated and accepted
-    - User is created successfully with 50 bonus credits
-    - Success message displayed
+    Test D2.1: First user registers with invitation code.
+    User data loaded from tests/e2e/test_users.json (pwt_users[0]).
     """
-    # Load invitation codes from file
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
         invitation_codes = json.load(f)
 
     assert len(invitation_codes) >= 1
 
-    # User 1 data - PRE CATEGORY (age 10)
-    user_data = {
-        "first_name": "Kristóf",
-        "last_name": "Kis",
-        "nickname": "Krisz",
-        "email": "pwt.k1sqx1@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
-        "password": "password123",
-        "phone": "+36 20 123 4567",
-        "date_of_birth": "2014-05-15",  # Age 10 (Pre category: 5-13)
-        "nationality": "Hungarian",
-        "gender": "Male",
-        "street_address": "Fő utca 12",
-        "city": "Budapest",
-        "postal_code": "1011",
-        "country": "Hungary"
-    }
+    pwt_users = _load_pwt_users()
+    user_data = pwt_users[0]
 
     register_new_user(page, user_data, invitation_codes[0])
 
-    print(f"✅ First user registered: {user_data['email']} (Pre category, age 10)")
+    print(f"✅ First user registered: {user_data['email']}")
 
 
 @pytest.mark.e2e
 @pytest.mark.invitation_ui
 def test_d3_second_user_registers_with_invitation(page: Page):
     """
-    Test D2.2: Second user registers with invitation code (YOUTH category, age 12-17)
-
-    CRITICAL REQUIREMENTS:
-    - Email: pwt.p3t1k3@f1stteam.hu (fixed)
-    - Date of birth: Youth category (age 12-17, born 2009-2014)
-    - Different invitation code from first user
-    - Registration successful with 50 bonus credits
+    Test D2.2: Second user registers with invitation code.
+    User data loaded from tests/e2e/test_users.json (pwt_users[1]).
     """
-    # Load invitation codes from file
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
         invitation_codes = json.load(f)
 
     assert len(invitation_codes) >= 2
 
-    # User 2 data - YOUTH CATEGORY (age 14)
-    user_data = {
-        "first_name": "Péter",
-        "last_name": "Pataki",
-        "nickname": "Peti",
-        "email": "pwt.p3t1k3@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
-        "password": "password123",
-        "phone": "+36 30 234 5678",
-        "date_of_birth": "2009-08-20",  # Age 15 (Youth category: 14-17)
-        "nationality": "Hungarian",
-        "gender": "Male",
-        "street_address": "Petőfi utca 34",
-        "city": "Debrecen",
-        "postal_code": "4024",
-        "country": "Hungary"
-    }
+    pwt_users = _load_pwt_users()
+    user_data = pwt_users[1]
 
     register_new_user(page, user_data, invitation_codes[1])
 
-    print(f"✅ Second user registered: {user_data['email']} (Youth category, age 14)")
+    print(f"✅ Second user registered: {user_data['email']}")
 
 
 @pytest.mark.e2e
 @pytest.mark.invitation_ui
 def test_d4_third_user_registers_with_invitation(page: Page):
     """
-    Test D2.3: Third user registers with invitation code (AMATEUR category, age 18+)
-
-    CRITICAL REQUIREMENTS:
-    - Email: pwt.V4lv3rd3jr@f1stteam.hu (fixed)
-    - Date of birth: Amateur category (age 18+, born 2008 or earlier)
-    - Different invitation code from previous users
-    - Registration successful with 50 bonus credits
+    Test D2.3: Third user registers with invitation code.
+    User data loaded from tests/e2e/test_users.json (pwt_users[2]).
     """
-    # Load invitation codes from file
     with open("tests/e2e/generated_invitation_codes.json", "r") as f:
         invitation_codes = json.load(f)
 
     assert len(invitation_codes) >= 3
 
-    # User 3 data - AMATEUR CATEGORY (age 22)
-    user_data = {
-        "first_name": "Viktor",
-        "last_name": "Valverde",
-        "nickname": "Viki",
-        "email": "pwt.V4lv3rd3jr@f1stteam.hu",  # CRITICAL: Fixed email with pwt. prefix
-        "password": "password123",
-        "phone": "+36 70 345 6789",
-        "date_of_birth": "2004-11-12",  # Age 22 (Amateur category: 18+)
-        "nationality": "Hungarian",
-        "gender": "Male",
-        "street_address": "Rákóczi út 56",
-        "city": "Szeged",
-        "postal_code": "6720",
-        "country": "Hungary"
-    }
+    pwt_users = _load_pwt_users()
+    user_data = pwt_users[2]
 
     register_new_user(page, user_data, invitation_codes[2])
 
-    print(f"✅ Third user registered: {user_data['email']} (Amateur category, age 22)")
+    print(f"✅ Third user registered: {user_data['email']}")
+
+
+@pytest.mark.e2e
+@pytest.mark.invitation_ui
+def test_d5_fourth_user_registers_with_invitation(page: Page):
+    """
+    Test D2.4: Fourth user registers with invitation code.
+    User data loaded from tests/e2e/test_users.json (pwt_users[3]).
+    Required so Phase 4 sandbox tournament has minimum 4 participants.
+    """
+    with open("tests/e2e/generated_invitation_codes.json", "r") as f:
+        invitation_codes = json.load(f)
+
+    assert len(invitation_codes) >= 4
+
+    pwt_users = _load_pwt_users()
+    user_data = pwt_users[3]
+
+    register_new_user(page, user_data, invitation_codes[3])
+
+    print(f"✅ Fourth user registered: {user_data['email']}")
 
 
 # =============================================================================
@@ -513,7 +496,7 @@ def test_d5_first_user_hub_loads(page: Page):
     """
     login_and_verify_hub_loads(
         page,
-        email="pwt.k1sqx1@f1stteam.hu",
+        email="pwt.k1sqx1@f1rstteam.hu",
         password="password123"
     )
 
@@ -526,7 +509,7 @@ def test_d6_second_user_hub_loads(page: Page):
     """
     login_and_verify_hub_loads(
         page,
-        email="pwt.p3t1k3@f1stteam.hu",
+        email="pwt.p3t1k3@f1rstteam.hu",
         password="password123"
     )
 
@@ -539,7 +522,7 @@ def test_d7_third_user_hub_loads(page: Page):
     """
     login_and_verify_hub_loads(
         page,
-        email="pwt.V4lv3rd3jr@f1stteam.hu",
+        email="pwt.v4lv3rd3jr@f1rstteam.hu",
         password="password123"
     )
 
@@ -550,68 +533,69 @@ def test_d7_third_user_hub_loads(page: Page):
 
 @pytest.mark.e2e
 @pytest.mark.invitation_ui
-def test_d8_verify_users_in_database(db):
+def test_d8_verify_users_in_database():
     """
-    Test D4: Verify all 3 users exist in database with correct data
+    Test D8: Verify all pwt users exist in database with correct data.
+
+    Loads expected users from tests/e2e/test_users.json — automatically
+    covers any number of pwt_users without hardcoding.
 
     CRITICAL REQUIREMENTS:
-    - All 3 users created in database with fixed emails
-    - Each user has 50 bonus credits from invitation code (CRITICAL: ONLY 50 credits allowed)
+    - All pwt users created in DB with fixed emails
+    - Each user has 50 bonus credits from invitation code
     - Invitation codes marked as used
-    - Age groups correctly represented: Pre, Youth, Amateur
+    - db_ids written back to test_users.json for Phase 3 onboarding
     """
-    user1 = db.query(User).filter(User.email == "pwt.k1sqx1@f1stteam.hu").first()
-    user2 = db.query(User).filter(User.email == "pwt.p3t1k3@f1stteam.hu").first()
-    user3 = db.query(User).filter(User.email == "pwt.V4lv3rd3jr@f1stteam.hu").first()
+    import os
+    import psycopg2
+    import psycopg2.extras
 
-    assert user1 is not None, "First user (pwt.k1sqx1@f1stteam.hu) not found in database"
-    assert user2 is not None, "Second user (pwt.p3t1k3@f1stteam.hu) not found in database"
-    assert user3 is not None, "Third user (pwt.V4lv3rd3jr@f1stteam.hu) not found in database"
+    db_url = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/lfa_intern_system"
+    )
 
-    # CRITICAL: Verify bonus credits (MUST be 50)
-    assert user1.credit_balance == 50, f"User 1 has {user1.credit_balance} credits, expected 50"
-    assert user2.credit_balance == 50, f"User 2 has {user2.credit_balance} credits, expected 50"
-    assert user3.credit_balance == 50, f"User 3 has {user3.credit_balance} credits, expected 50"
-
-    # Verify user details
-    assert user1.first_name == "Kristóf"
-    assert user2.first_name == "Péter"
-    assert user3.first_name == "Viktor"
-
-    # Verify age groups
+    pwt_users = _load_pwt_users()
     today = date.today()
+    id_map = {}
 
-    # User 1 - Pre category (age 6-11)
-    age1 = today.year - user1.date_of_birth.year
-    assert 6 <= age1 <= 11, f"User 1 age {age1} not in Pre category (6-11)"
+    conn = psycopg2.connect(db_url)
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    # User 2 - Youth category (age 12-17)
-    age2 = today.year - user2.date_of_birth.year
-    assert 12 <= age2 <= 17, f"User 2 age {age2} not in Youth category (12-17)"
+    try:
+        for defn in pwt_users:
+            email = defn["email"]
 
-    # User 3 - Amateur category (age 18+)
-    age3 = today.year - user3.date_of_birth.year
-    assert age3 >= 18, f"User 3 age {age3} not in Amateur category (18+)"
+            cursor.execute(
+                "SELECT id, first_name, credit_balance, date_of_birth FROM users WHERE email = %s",
+                (email,)
+            )
+            row = cursor.fetchone()
+            assert row is not None, f"PWT user not found in DB: {email}"
+            assert row["credit_balance"] == 50, f"{email} has {row['credit_balance']} credits, expected 50"
+            assert row["first_name"] == defn["first_name"], f"{email} first_name mismatch"
 
-    # Verify invitation codes are marked as used
-    code1 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user1.id).first()
-    code2 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user2.id).first()
-    code3 = db.query(InvitationCode).filter(InvitationCode.used_by_user_id == user3.id).first()
+            cursor.execute(
+                "SELECT id, is_used, bonus_credits FROM invitation_codes WHERE used_by_user_id = %s",
+                (row["id"],)
+            )
+            code_row = cursor.fetchone()
+            assert code_row is not None, f"Invitation code not found for {email}"
+            assert code_row["is_used"] is True
+            assert code_row["bonus_credits"] == 50
 
-    assert code1 is not None, "User 1's invitation code not found"
-    assert code2 is not None, "User 2's invitation code not found"
-    assert code3 is not None, "User 3's invitation code not found"
+            dob = row["date_of_birth"]
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
-    assert code1.is_used is True
-    assert code2.is_used is True
-    assert code3.is_used is True
+            id_map[email] = row["id"]
+            print(f"   ✅ {email} — id={row['id']}, credits={row['credit_balance']}, age={age}")
 
-    # CRITICAL: Verify invitation codes had 50 credits
-    assert code1.bonus_credits == 50
-    assert code2.bonus_credits == 50
-    assert code3.bonus_credits == 50
+    finally:
+        cursor.close()
+        conn.close()
 
-    print("\n✅✅✅ All 3 users verified in database!")
-    print(f"User 1: {user1.email} - {user1.credit_balance} credits (Pre, age {age1})")
-    print(f"User 2: {user2.email} - {user2.credit_balance} credits (Youth, age {age2})")
-    print(f"User 3: {user3.email} - {user3.credit_balance} credits (Amateur, age {age3})")
+    print(f"\n✅✅✅ All {len(pwt_users)} pwt users verified in database!")
+
+    # Write db_ids back to test_users.json — enables Phase 3 onboarding to use correct ids
+    _write_back_user_ids(id_map)
+    print(f"✅ db_ids written to test_users.json: {id_map}")

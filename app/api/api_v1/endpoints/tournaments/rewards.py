@@ -424,11 +424,12 @@ def distribute_tournament_rewards(
             detail=f"Tournament {tournament_id} not found"
         )
 
-    # Validate tournament status
-    if tournament.tournament_status != "COMPLETED":
+    # Validate tournament status — accept both COMPLETED and REWARDS_DISTRIBUTED
+    # (REWARDS_DISTRIBUTED means auto-distribution already ran; we allow idempotent retry)
+    if tournament.tournament_status not in ("COMPLETED", "REWARDS_DISTRIBUTED"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tournament must be COMPLETED. Current status: {tournament.tournament_status}"
+            detail=f"Tournament must be COMPLETED or REWARDS_DISTRIBUTED. Current status: {tournament.tournament_status}"
         )
 
     # 🔒 IDEMPOTENCY CHECK: Prevent duplicate reward distribution

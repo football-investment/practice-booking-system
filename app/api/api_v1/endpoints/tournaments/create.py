@@ -8,7 +8,7 @@ This is the clean entry point for tournament workflows.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 import logging
@@ -21,6 +21,8 @@ from app.models.tournament_type import TournamentType
 from app.models.tournament_configuration import TournamentConfiguration
 from app.models.tournament_reward_config import TournamentRewardConfig
 from app.models.game_configuration import GameConfiguration
+from app.models.game_preset import GamePreset
+from app.models.tournament_achievement import TournamentSkillMapping
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -38,12 +40,48 @@ class TournamentCreateRequest(BaseModel):
     name: str = Field(..., min_length=3, max_length=200, description="Tournament name")
     tournament_type: str = Field(..., description="Tournament type code (league, knockout, hybrid)")
     age_group: str = Field(..., description="Age group code (e.g., PRE, YOUTH, ADULT)")
-    max_players: int = Field(..., ge=4, le=16, description="Maximum number of players (4-16)")
-    skills_to_test: List[str] = Field(..., min_items=1, max_items=20, description="Skills to validate")
-    reward_config: List[RewardTierConfig] = Field(..., min_items=1, description="Reward distribution tiers")
-    game_preset_id: Optional[int] = Field(default=None, description="Game preset ID (P3)")
-    game_config: Optional[Dict] = Field(default=None, description="Game configuration overrides")
+    max_players: int = Field(..., ge=4, le=1024, description="Maximum number of players (4-1024)")
+    skills_to_test: List[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Skills to develop in this tournament (weight=1.0 each). "
+            "Optional if game_preset_id is provided — the preset's skills_tested "
+            "and weights are used automatically."
+        )
+    )
+    reward_config: List[RewardTierConfig] = Field(..., min_length=1, description="Reward distribution tiers")
+    game_preset_id: Optional[int] = Field(
+        default=None,
+        description=(
+            "Game preset ID (e.g., GānFootvolley=1, GānFoottennis=2). "
+            "When provided, the preset's skills_tested and skill_weights are "
+            "automatically synced to tournament_skill_mappings with converted "
+            "reactivity multipliers. Takes priority over skills_to_test."
+        )
+    )
+    game_config: Optional[Dict] = Field(default=None, description="Game configuration overrides (future use)")
+    skill_weights: Optional[Dict[str, float]] = Field(
+        default=None,
+        description=(
+            "Explicit skill weight overrides for skills_to_test. "
+            "Keys are skill names, values are reactivity multipliers (e.g., {'finishing': 1.5, 'passing': 0.6}). "
+            "If provided, these weights override the default weight=1.0 assigned to each skill in skills_to_test. "
+            "Ignored when game_preset_id is provided (preset weights take priority)."
+        )
+    )
     enrollment_cost: int = Field(default=0, ge=0, description="Enrollment cost in credits (0 = free)")
+
+    @model_validator(mode="after")
+    def validate_skills_source(self) -> "TournamentCreateRequest":
+        """At least one skill source must be provided: game_preset_id OR skills_to_test."""
+        if not self.game_preset_id and not self.skills_to_test:
+            raise ValueError(
+                "Either 'game_preset_id' or 'skills_to_test' must be provided. "
+                "Use game_preset_id to auto-sync skills from a game preset, "
+                "or provide skills_to_test manually."
+            )
+        return self
 
 
 class TournamentCreateResponse(BaseModel):
@@ -212,22 +250,108 @@ def create_tournament(
 
     logger.info(f"✅ Reward configuration created with {len(request.reward_config)} tiers")
 
-    # Step 4: Skip game configuration for now (P3 feature - model schema TBD)
-    # TODO: Add game configuration support once model is finalized
-    if request.game_preset_id or request.game_config:
-        logger.info(f"⏭️  Skipping game configuration (P3 feature): preset_id={request.game_preset_id}")
+    # Step 4: Create game configuration + resolve preset for skill auto-sync
+    preset: Optional[GamePreset] = None
+    if request.game_preset_id:
+        preset = db.query(GamePreset).filter(
+            GamePreset.id == request.game_preset_id,
+            GamePreset.is_active == True
+        ).first()
+        if not preset:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Game preset with id={request.game_preset_id} not found or inactive."
+            )
+        game_config_entity = GameConfiguration(
+            semester_id=tournament.id,
+            game_preset_id=preset.id,
+            game_config=preset.game_config  # full preset config as base, no overrides yet
+        )
+        db.add(game_config_entity)
+        logger.info(
+            f"✅ Game configuration created: preset='{preset.code}' "
+            f"({len(preset.skills_tested)} skills)"
+        )
+    elif request.game_config:
+        # Custom config dict without a preset reference
+        game_config_entity = GameConfiguration(
+            semester_id=tournament.id,
+            game_preset_id=None,
+            game_config=request.game_config
+        )
+        db.add(game_config_entity)
+        logger.info("✅ Game configuration created from custom config dict")
 
     # Step 5: Create skill mappings
-    from app.models.tournament_achievement import TournamentSkillMapping
+    #
+    # Priority A — game_preset_id supplied:
+    #   Use preset.skills_tested + convert fractional preset weights to
+    #   reactivity multipliers (weight / avg_weight).
+    #   This ensures dominant preset skills (e.g. ball_control in GānFootvolley)
+    #   have a proportionally stronger effect on skill development.
+    #
+    # Priority B — no preset (or preset has no skill_weights):
+    #   Fall back to the manually supplied skills_to_test list, weight = 1.0 each.
+    #   This preserves the existing behaviour for tournaments without a preset.
 
-    for skill_name in request.skills_to_test:
-        skill_mapping = TournamentSkillMapping(
-            semester_id=tournament.id,
-            skill_name=skill_name
+    skill_mappings_added = 0
+
+    if preset and preset.skill_weights:
+        preset_weights: Dict[str, float] = preset.skill_weights   # fractional, sum ≈ 1.0
+        avg_w = sum(preset_weights.values()) / len(preset_weights)
+
+        for skill_name in preset.skills_tested:
+            fractional = preset_weights.get(skill_name, avg_w)
+            # Convert to reactivity multiplier: dominant skill → > 1.0, minor skill → < 1.0
+            reactivity = round(fractional / avg_w, 2)
+            reactivity = max(0.1, min(5.0, reactivity))   # clamp to schema bounds
+
+            db.add(TournamentSkillMapping(
+                semester_id=tournament.id,
+                skill_name=skill_name,
+                weight=reactivity
+            ))
+            skill_mappings_added += 1
+
+        logger.info(
+            f"✅ Skill mappings auto-synced from preset '{preset.code}': "
+            f"{skill_mappings_added} skills (avg_w={avg_w:.4f})"
         )
-        db.add(skill_mapping)
 
-    logger.info(f"✅ Skill mappings created: {len(request.skills_to_test)} skills")
+    elif request.skills_to_test:
+        # Manual list — use explicit skill_weights if provided, else weight = 1.0
+        explicit_weights: Dict[str, float] = request.skill_weights or {}
+        for skill_name in request.skills_to_test:
+            weight = explicit_weights.get(skill_name, 1.0)
+            weight = max(0.1, min(5.0, float(weight)))  # clamp to schema bounds
+            db.add(TournamentSkillMapping(
+                semester_id=tournament.id,
+                skill_name=skill_name,
+                weight=weight,
+            ))
+            skill_mappings_added += 1
+
+        if explicit_weights:
+            logger.info(
+                f"✅ Skill mappings created from manual list with explicit weights: "
+                f"{skill_mappings_added} skills — {explicit_weights}"
+            )
+        else:
+            logger.info(f"✅ Skill mappings created from manual list: {skill_mappings_added} skills (weight=1.0 each)")
+
+    elif preset and not preset.skill_weights:
+        # Preset exists but has no weights defined — fall back to skills_tested with weight=1.0
+        for skill_name in preset.skills_tested:
+            db.add(TournamentSkillMapping(
+                semester_id=tournament.id,
+                skill_name=skill_name
+            ))
+            skill_mappings_added += 1
+
+        logger.info(
+            f"✅ Skill mappings created from preset '{preset.code}' (no weights, using 1.0): "
+            f"{skill_mappings_added} skills"
+        )
 
     # Commit all changes
     db.commit()

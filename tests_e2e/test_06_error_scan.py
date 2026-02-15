@@ -7,9 +7,11 @@ to verify none cause errors when selected.
 
 from playwright.sync_api import sync_playwright, expect
 import time
+import pytest
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_error_scan():
     """
     Test Case 5: Error Detection Scan

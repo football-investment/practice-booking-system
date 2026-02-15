@@ -155,6 +155,16 @@ class TournamentConfiguration(Base):
         comment="📸 Snapshot of enrollment state before session generation (for regeneration if needed)"
     )
 
+    campus_schedule_overrides = Column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Per-campus schedule overrides for multi-venue tournaments. "
+            "Schema: {campus_id: {match_duration_minutes: int, break_duration_minutes: int, parallel_fields: int}}. "
+            "Each campus can independently configure its own schedule parameters."
+        )
+    )
+
     # Audit timestamps
     created_at = Column(
         DateTime,

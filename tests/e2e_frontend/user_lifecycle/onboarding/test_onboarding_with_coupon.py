@@ -2,11 +2,10 @@
 E2E Test: Complete Onboarding with Coupon (UI-based)
 
 Prerequisites:
-- Run setup script FIRST: python tests/e2e/setup_onboarding_coupons.py
-- This creates 3 BONUS_CREDITS coupons (+50 credits each) via API
-- Resets 3 test users to 50 credits each
+- Phase 0 seeds onboarding coupons from tests/e2e/test_users.json automatically.
+  No manual setup_onboarding_coupons.py needed.
 
-Flow:
+Flow (per star user):
 1. User logs in → applies coupon (+50) → 100 credits total
 2. User unlocks specialization (-100) → 0 credits
 3. User completes onboarding (3 steps: Position, Skills, Goals)
@@ -16,18 +15,31 @@ Based on working test_hybrid_ui_player_workflow.py
 """
 
 import pytest
+import json
 import random
+from pathlib import Path
 from playwright.sync_api import Page, expect
 
 
 # Test configuration
 STREAMLIT_URL = "http://localhost:8501"
 
-TEST_USERS = [
-    {"email": "pwt.k1sqx1@f1stteam.hu", "password": "password123", "coupon_code": "E2E-BONUS-50-USER1"},
-    {"email": "pwt.p3t1k3@f1stteam.hu", "password": "password123", "coupon_code": "E2E-BONUS-50-USER2"},
-    {"email": "pwt.V4lv3rd3jr@f1stteam.hu", "password": "password123", "coupon_code": "E2E-BONUS-50-USER3"}
-]
+# Single source of truth: load users from tests/e2e/test_users.json
+_TEST_USERS_JSON = (
+    Path(__file__).parent.parent.parent.parent.parent / "tests" / "e2e" / "test_users.json"
+)
+
+
+def _load_test_users() -> list:
+    with open(_TEST_USERS_JSON) as f:
+        pwt_users = json.load(f)["pwt_users"]
+    return [
+        {"email": u["email"], "password": u["password"], "coupon_code": u["coupon_code"]}
+        for u in pwt_users
+    ]
+
+
+TEST_USERS = _load_test_users()
 
 
 # =============================================================================
@@ -57,7 +69,12 @@ def streamlit_login(page: Page, email: str, password: str):
 
 def user_apply_coupon(page: Page, email: str, password: str, coupon_code: str) -> bool:
     """
-    User applies BONUS_CREDITS coupon via UI on Specialization Hub
+    User applies BONUS_CREDITS coupon directly on the Specialization Hub page.
+
+    After login, students with no license land on Specialization Hub which has
+    the bonus code redemption form at the bottom. We use that form directly
+    to avoid navigation issues (My Credits → Back to Hub sends LFA_FOOTBALL_PLAYER
+    users to LFA_Player_Dashboard instead of Hub).
 
     Returns:
         True if coupon applied successfully, False otherwise
@@ -65,116 +82,64 @@ def user_apply_coupon(page: Page, email: str, password: str, coupon_code: str) -
     print(f"🔐 User logging in: {email}")
     streamlit_login(page, email, password)
 
-    # Wait for page to load - should land on Specialization Hub
+    # After login with no license, user lands on Specialization Hub
     page.wait_for_timeout(5000)
-    print(f"   ✅ Login successful")
+    print(f"   ✅ Login done — should be on Specialization Hub")
+    page.screenshot(path=f"tests/e2e/screenshots/after_login_hub.png")
 
-    # Navigate to My Credits page by clicking the sidebar button
-    print(f"📜 Navigating to My Credits page...")
+    # Verify we're on Specialization Hub
+    hub_heading = page.locator("h1").first
+    current_url = page.url
+    print(f"   DEBUG: URL after login: {current_url}")
 
-    # Click the "💰 My Credits" button in the sidebar (from screenshot: button with text "My Credits")
-    my_credits_button = page.locator("button:has-text('My Credits')").first
+    # Scroll to bottom where bonus code form is
+    print(f"🎫 Applying coupon '{coupon_code}' on Specialization Hub...")
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    page.wait_for_timeout(2000)
 
-    if my_credits_button.is_visible(timeout=5000):
-        my_credits_button.click()
-        page.wait_for_timeout(3000)
-        print(f"   ✅ Clicked My Credits button in sidebar")
-    else:
-        print(f"   ❌ My Credits button not found in sidebar")
-        page.screenshot(path=f"tests/e2e/screenshots/my_credits_button_not_found.png")
-        return False
-
-    # Verify we're on My Credits page by checking for h1 heading
-    my_credits_title = page.locator("h1:has-text('My Credits')").first
-
-    if not my_credits_title.is_visible(timeout=5000):
-        print(f"   ❌ Failed to navigate to My Credits page")
-        page.screenshot(path=f"tests/e2e/screenshots/my_credits_page_not_loaded.png")
-        return False
-
-    print(f"   ✅ On My Credits page")
-
-    # Click on "Redeem Coupon" tab (Tab 2)
-    print(f"🎟️  Opening Redeem Coupon tab...")
-    # Streamlit tabs use button with specific attributes, try multiple selectors
-    redeem_tab = page.locator("button:has-text('Redeem Coupon')").or_(
-        page.locator("button:has-text('Redeem Bonus Code')")
-    ).first
-
-    if redeem_tab.is_visible(timeout=5000):
-        redeem_tab.click()
-        page.wait_for_timeout(2000)
-        print(f"   ✅ Redeem Coupon tab opened")
-    else:
-        print(f"   ❌ Redeem Coupon tab not found")
-        page.screenshot(path=f"tests/e2e/screenshots/redeem_tab_not_found.png")
-        # Try to see what tabs are available
-        all_buttons = page.locator("button").all()
-        print(f"   Debug: Found {len(all_buttons)} buttons on page")
-        return False
-
-    # Fill coupon code in the bonus redemption form
-    print(f"🎫 Applying coupon: {coupon_code}")
-
-    # Find the bonus code input field
-    # Based on bonus_code_redemption.py: st.text_input with key="bonus_code_input"
+    # Find bonus code input — aria-label="Bonus Code"
     coupon_input = page.locator("input[aria-label='Bonus Code']").first
 
-    if coupon_input.is_visible(timeout=10000):
-        coupon_input.fill(coupon_code)
-        page.wait_for_timeout(1000)
-        print(f"   ✅ Coupon code entered: {coupon_code}")
-
-        # Click "🎁 Redeem Code" button
-        # Based on bonus_code_redemption.py: form_submit_button with text "🎁 Redeem Code"
-        redeem_btn = page.locator("button:has-text('Redeem Code')")
-
-        if redeem_btn.is_visible(timeout=5000):
-            redeem_btn.click()
-            page.wait_for_timeout(5000)  # Wait for API call and rerun
-            print(f"   ✅ Coupon submitted")
-        else:
-            print(f"   ❌ Redeem Code button not found")
-            page.screenshot(path=f"tests/e2e/screenshots/redeem_button_not_found.png")
-            return False
-    else:
-        print(f"   ❌ Bonus Code input field not found")
-        page.screenshot(path=f"tests/e2e/screenshots/coupon_input_not_found.png")
+    if not coupon_input.is_visible(timeout=10000):
+        print(f"   ❌ Bonus Code input not found on Hub")
+        page.screenshot(path=f"tests/e2e/screenshots/hub_coupon_input_not_found.png")
         return False
 
-    # Wait for page rerun after successful redemption
-    page.wait_for_timeout(3000)
+    coupon_input.fill(coupon_code)
+    page.wait_for_timeout(1000)
+    print(f"   ✅ Coupon code entered: {coupon_code}")
 
-    # Verify credit balance is now 100 (check in sidebar - "Current Balance" section)
+    # Click "🎁 Redeem Code" submit button
+    redeem_btn = page.locator("button:has-text('Redeem Code')").first
+    if not redeem_btn.is_visible(timeout=5000):
+        print(f"   ❌ Redeem Code button not found")
+        page.screenshot(path=f"tests/e2e/screenshots/redeem_button_not_found.png")
+        return False
+
+    redeem_btn.click()
+    page.wait_for_timeout(6000)  # Wait for API call + st.rerun()
+    print(f"   ✅ Coupon submitted")
+
+    # After st.rerun() we're back on Specialization Hub with updated balance
+    # Verify credit balance is now 100 (sidebar shows balance)
     print(f"✅ Verifying credit balance is 100...")
-
-    # Check sidebar for "Current Balance" followed by "100"
-    # From screenshot: sidebar shows "Current Balance" header with "100" below it
-    current_balance_section = page.locator("text=Current Balance").locator("..").locator("text=100").first
-
-    if current_balance_section.is_visible(timeout=5000):
-        print(f"   ✅ Credit balance verified: 100 credits")
+    sidebar_100 = page.locator("[data-testid='stSidebar']").locator("text=100").first
+    if sidebar_100.is_visible(timeout=5000):
+        print(f"   ✅ Credit balance verified: 100 credits (sidebar)")
     else:
-        # Try alternative selector - just look for "100" in sidebar near "Credit Balance"
-        sidebar_100 = page.locator("[data-testid='stSidebar']").locator("text=100").first
-        if sidebar_100.is_visible(timeout=3000):
-            print(f"   ✅ Credit balance verified: 100 credits (sidebar)")
+        # Fallback: check DB directly
+        import psycopg2
+        conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+        cur = conn.cursor()
+        cur.execute("SELECT credit_balance FROM users WHERE email = %s", (email,))
+        row = cur.fetchone()
+        conn.close()
+        if row and row[0] >= 100:
+            print(f"   ✅ Credit balance verified via DB: {row[0]} credits")
         else:
-            print(f"   ⚠️  Could not verify credit balance of 100")
+            print(f"   ⚠️  Balance {row[0] if row else 'unknown'} (expected 100)")
             page.screenshot(path=f"tests/e2e/screenshots/coupon_verify_failed_{coupon_code}.png")
-            print(f"❌ Failed to verify credit balance 100 (check screenshot)")
             return False
-
-    # Navigate back to Specialization Hub by clicking "Back to Hub" button
-    print(f"🔄 Navigating back to Specialization Hub...")
-    back_to_hub_btn = page.locator("button:has-text('Back to Hub')").first
-
-    if back_to_hub_btn.is_visible(timeout=5000):
-        back_to_hub_btn.click()
-        page.wait_for_timeout(3000)
-        print(f"   ✅ Clicked 'Back to Hub' button")
-    else:
-        print(f"   ⚠️  'Back to Hub' button not found, staying on My Credits page")
 
     print(f"✅ Coupon '{coupon_code}' applied successfully! Credit balance is now 100")
     return True
@@ -188,91 +153,83 @@ def user_unlock_and_complete_onboarding(page: Page, email: str) -> bool:
     Returns:
         True if unlocked and onboarding completed, False otherwise
     """
-    print(f"🔓 Already on Specialization Hub after coupon application...")
+    print(f"🔓 Already on Specialization Hub (after coupon st.rerun())...")
 
-    # DO NOT navigate again! We're already on the page after st.rerun()
-    # Wait for page to stabilize
+    # After coupon redemption st.rerun(), we're back on Specialization Hub
+    # with updated credit balance. Wait for page to stabilize.
     page.wait_for_timeout(3000)
+    print(f"   DEBUG: Current URL: {page.url}")
 
     # Check if already unlocked or needs unlock
     print(f"🔍 Checking LFA Football Player status...")
 
-    unlock_button = page.locator('button:has-text("100 credits")')
-    enter_button = page.locator('button:has-text("Enter LFA Football Player")')
-
-    print(f"   DEBUG: unlock_button count: {unlock_button.count()}")
-    print(f"   DEBUG: enter_button count: {enter_button.count()}")
-
-    if enter_button.count() > 0:
-        print(f"✅ Already unlocked! Entering specialization...")
-        enter_button.first.click()
+    # Case 0: "Complete Onboarding Now" gate — license exists but onboarding not yet done
+    complete_now_button = page.locator('button:has-text("Complete Onboarding Now")')
+    if complete_now_button.is_visible(timeout=3000):
+        print(f"✅ Onboarding gate detected — clicking 'Complete Onboarding Now'")
+        complete_now_button.click()
         page.wait_for_timeout(3000)
+        # Fall through to onboarding wizard steps below
 
-    elif unlock_button.count() > 0:
-        print(f"🔓 Unlocking LFA Football Player...")
-        unlock_button.first.click()
-        page.wait_for_timeout(2000)
+    else:
+        unlock_button = page.locator('button:has-text("100 credits")')
+        enter_button = page.locator('button:has-text("Enter LFA Football Player")')
 
-        # Click Confirm Unlock button
-        # Use text-based locator directly (data-testid JS injection unreliable)
-        confirm_button = page.locator('button:has-text("Confirm Unlock")').first
+        print(f"   DEBUG: unlock_button count: {unlock_button.count()}")
+        print(f"   DEBUG: enter_button count: {enter_button.count()}")
 
-        # Increased timeout for stability (handles slow browser/Streamlit startup)
-        if confirm_button.is_visible(timeout=10000):
-            # WORKAROUND: Use force=True for Streamlit buttons in headless mode
-            # Streamlit's button event handling sometimes doesn't respond to standard
-            # Playwright clicks in headless browsers. force=True bypasses actionability checks.
-            confirm_button.click(force=True)
-            print(f"   🖱️  Clicked Confirm Unlock button (force=True)")
-
-            # CRITICAL: Wait for Streamlit to process the click
-            # In headless mode, Streamlit button clicks don't always trigger UI updates
-            # So we verify the backend state directly instead of waiting for UI messages
+        if enter_button.count() > 0:
+            print(f"✅ Already unlocked! Entering specialization...")
+            enter_button.first.click()
             page.wait_for_timeout(3000)
 
-            # Verify unlock succeeded by checking database state directly
-            import psycopg2
-            conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
-            cur = conn.cursor()
-            cur.execute(
-                "SELECT COUNT(*) FROM user_licenses WHERE user_id = (SELECT id FROM users WHERE email = %s) AND specialization_type = 'LFA_FOOTBALL_PLAYER'",
-                (email,)
-            )
-            license_count = cur.fetchone()[0]
-            conn.close()
+        elif unlock_button.count() > 0:
+            print(f"🔓 Unlocking LFA Football Player...")
+            unlock_button.first.click()
+            page.wait_for_timeout(2000)
 
-            if license_count > 0:
-                print(f"   ✅ Specialization unlocked successfully (verified in DB)")
-                # In headless mode, st.switch_page doesn't trigger reliably
-                # Wait longer to see if automatic redirect happens
-                page.wait_for_timeout(5000)
+            confirm_button = page.locator('button:has-text("Confirm Unlock")').first
+            if confirm_button.is_visible(timeout=10000):
+                confirm_button.click(force=True)
+                print(f"   🖱️  Clicked Confirm Unlock button (force=True)")
+                page.wait_for_timeout(3000)
 
-                # Check if we're on onboarding page
-                current_url = page.url
-                if "LFA_Player_Onboarding" in current_url:
-                    print(f"   ✅ Automatically redirected to onboarding")
-                else:
-                    print(f"   ⚠️  Not auto-redirected (URL: {current_url})")
-                    # Manual navigation: click "Enter LFA Football Player" or similar
-                    # Check if the specialization hub shows "Enter" button now
-                    enter_btn = page.locator('button:has-text("Enter LFA Football Player")').first
-                    if enter_btn.is_visible(timeout=2000):
-                        print(f"   🖱️  Clicking 'Enter LFA Football Player' button")
-                        enter_btn.click()
+                import psycopg2
+                conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT COUNT(*) FROM user_licenses WHERE user_id = (SELECT id FROM users WHERE email = %s) AND specialization_type = 'LFA_FOOTBALL_PLAYER'",
+                    (email,)
+                )
+                license_count = cur.fetchone()[0]
+                conn.close()
+
+                if license_count > 0:
+                    print(f"   ✅ Specialization unlocked successfully (verified in DB)")
+                    page.wait_for_timeout(5000)
+
+                    current_url = page.url
+                    if "LFA_Player_Onboarding" in current_url:
+                        print(f"   ✅ Automatically redirected to onboarding")
                     else:
-                        print(f"   ⚠️  No 'Enter' button found, trying direct URL navigation")
-                        # Last resort: navigate with query params to preserve session
-                        page.evaluate("window.location.href = '/LFA_Player_Onboarding'")
-                    page.wait_for_timeout(2000)
-            else:
-                print(f"   ❌ License not found in DB - unlock failed")
-                page.screenshot(path=f"tests/e2e/screenshots/unlock_failed_no_license.png")
-                return False
-        # This else block is no longer reached due to earlier checks
-    else:
-        print(f"❌ Could not find unlock or enter button")
-        page.screenshot(path="tests/e2e/screenshots/unlock_button_not_found.png")
-        return False
+                        print(f"   ⚠️  Not auto-redirected (URL: {current_url})")
+                        enter_btn = page.locator('button:has-text("Enter LFA Football Player")').first
+                        if enter_btn.is_visible(timeout=2000):
+                            print(f"   🖱️  Clicking 'Enter LFA Football Player' button")
+                            enter_btn.click()
+                        else:
+                            print(f"   ⚠️  No 'Enter' button found, trying direct URL navigation")
+                            page.evaluate("window.location.href = '/LFA_Player_Onboarding'")
+                        page.wait_for_timeout(2000)
+                else:
+                    print(f"   ❌ License not found in DB - unlock failed")
+                    page.screenshot(path=f"tests/e2e/screenshots/unlock_failed_no_license.png")
+                    return False
+
+        else:
+            print(f"❌ Could not find unlock or enter button")
+            page.screenshot(path="tests/e2e/screenshots/unlock_button_not_found.png")
+            return False
 
     # Complete Onboarding (6 steps) - FROM WORKING TEST
     print(f"🎓 Starting Onboarding (6 steps: Position + 4 Skill Categories + Goals)...")
@@ -407,14 +364,19 @@ def user_unlock_and_complete_onboarding(page: Page, email: str) -> bool:
         options = page.locator('li[role="option"]')
         option_count = options.count()
 
-        if option_count > 0:
-            random_index = random.randint(0, option_count - 1)
-            option_text = options.nth(random_index).inner_text(timeout=1000) if random_index < option_count else f"Option {random_index+1}"
+        if option_count > 1:
+            # Skip index 0 (placeholder "Select your primary goal...")
+            random_index = random.randint(1, option_count - 1)
+            option_text = options.nth(random_index).inner_text(timeout=1000)
             print(f"     🎲 Selecting goal: {option_text}")
 
             options.nth(random_index).click()
             page.wait_for_timeout(2000)
             print(f"     ✅ Goal selected")
+        elif option_count == 1:
+            options.first.click()
+            page.wait_for_timeout(2000)
+            print(f"     ✅ Goal selected (only option)")
         else:
             print(f"     ❌ No goal options found")
     except Exception as e:
@@ -424,26 +386,60 @@ def user_unlock_and_complete_onboarding(page: Page, email: str) -> bool:
 
     # Click Complete Onboarding button (🚀 emoji + text)
     complete_button = page.locator('button:has-text("Complete Onboarding")')
+    page.screenshot(path=f"tests/e2e/screenshots/onboarding_step6_before_complete.png")
     if complete_button.count() > 0:
+        # Check if disabled
+        is_disabled = complete_button.first.get_attribute("disabled")
+        print(f"   DEBUG: Complete Onboarding button disabled attr: {is_disabled}")
+        if is_disabled is not None:
+            print(f"   ❌ Complete Onboarding button is DISABLED — goal not selected properly")
+            page.screenshot(path=f"tests/e2e/screenshots/onboarding_button_disabled.png")
+            return False
         complete_button.first.click()
-        page.wait_for_timeout(3000)
-        print(f"     ✅ Onboarding complete!")
+        page.wait_for_timeout(5000)
+        print(f"     ✅ Clicked Complete Onboarding button")
     else:
         print(f"     ❌ Complete Onboarding button not found")
         return False
 
     # Should now be on Player Dashboard
     print(f"🎉 Onboarding complete - should be on Player Dashboard")
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(3000)
 
-    # Verify we're on dashboard
-    if "Dashboard" in page.url or "dashboard" in page.url:
+    # Verify DB state: onboarding_completed must be True
+    import psycopg2
+    db_url = "postgresql://postgres:postgres@localhost:5432/lfa_intern_system"
+    conn = psycopg2.connect(db_url)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT u.onboarding_completed, ul.onboarding_completed
+        FROM users u
+        JOIN user_licenses ul ON ul.user_id = u.id AND ul.specialization_type = 'LFA_FOOTBALL_PLAYER'
+        WHERE u.email = %s
+    """, (email,))
+    row = cur.fetchone()
+    conn.close()
+
+    if row is None:
+        print(f"   ❌ DB check failed: user or license not found for {email}")
+        page.screenshot(path=f"tests/e2e/screenshots/onboarding_db_check_failed.png")
+        return False
+
+    user_onboarding, lic_onboarding = row
+    if not user_onboarding or not lic_onboarding:
+        print(f"   ❌ DB check: user.onboarding_completed={user_onboarding}, license.onboarding_completed={lic_onboarding}")
+        page.screenshot(path=f"tests/e2e/screenshots/onboarding_db_false.png")
+        return False
+
+    print(f"   ✅ DB verified: onboarding_completed=True for {email}")
+
+    current_url = page.url
+    if "Dashboard" in current_url or "dashboard" in current_url:
         print(f"✅ Successfully redirected to Dashboard")
-        return True
     else:
-        print(f"⚠️  URL: {page.url} (expected dashboard)")
-        # Still return True because onboarding was completed
-        return True
+        print(f"⚠️  URL: {current_url} (expected dashboard, but DB is OK)")
+
+    return True
 
 
 # =============================================================================
@@ -538,6 +534,32 @@ def test_complete_onboarding_user3(page: Page):
     assert coupon_applied, f"Failed to apply coupon '{coupon_code}'"
 
     # User unlocks specialization + completes onboarding
+    print(f"\n📋 STEP 2: User unlocks specialization + completes onboarding")
+    onboarding_complete = user_unlock_and_complete_onboarding(page, email)
+    assert onboarding_complete, "Failed to unlock specialization or complete onboarding"
+
+    print(f"\n{'='*60}")
+    print(f"🎉 TEST PASSED: {email}")
+    print(f"{'='*60}\n")
+
+
+@pytest.mark.onboarding
+@pytest.mark.ui
+def test_complete_onboarding_user4(page: Page):
+    """Test complete onboarding workflow for User 4 (UI-based)"""
+    user = TEST_USERS[3]
+    email = user["email"]
+    password = user["password"]
+    coupon_code = user["coupon_code"]
+
+    print(f"\n{'='*60}")
+    print(f"🎬 COMPLETE ONBOARDING TEST: {email}")
+    print(f"{'='*60}\n")
+
+    print(f"\n📋 STEP 1: User applies coupon")
+    coupon_applied = user_apply_coupon(page, email, password, coupon_code)
+    assert coupon_applied, f"Failed to apply coupon '{coupon_code}'"
+
     print(f"\n📋 STEP 2: User unlocks specialization + completes onboarding")
     onboarding_complete = user_unlock_and_complete_onboarding(page, email)
     assert onboarding_complete, "Failed to unlock specialization or complete onboarding"

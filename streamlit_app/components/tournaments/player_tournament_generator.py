@@ -249,6 +249,123 @@ Winner determined by Ranking Direction (ASC/DESC) configured below."""
 
     st.divider()
 
+    # ============================================================================
+    # 🎮 GAME PRESET SELECTOR + SKILL PREVIEW
+    # OUTSIDE the form so the preview updates immediately on preset selection.
+    # ============================================================================
+    st.subheader("🎮 Game Preset")
+    st.caption(
+        "Select a game preset to automatically configure which skills this tournament develops. "
+        "The preset's skill weights are converted to reactivity multipliers — dominant skills "
+        "produce proportionally larger skill changes after the tournament."
+    )
+
+    def _fetch_game_presets(token: str) -> list:
+        """Fetch active game presets from API."""
+        try:
+            resp = requests.get(
+                f"{API_BASE_URL}/api/v1/game-presets/",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                # Handle both list and paginated response shapes
+                if isinstance(data, list):
+                    return data
+                return data.get("presets", data.get("items", []))
+        except Exception:
+            pass
+        return []
+
+    presets = _fetch_game_presets(st.session_state.get("token", ""))
+
+    preset_options = {"— None (use manual skills_to_test) —": None}
+    for p in presets:
+        if p.get("is_active", True):
+            label = f"{p['name']} (id={p['id']})"
+            preset_options[label] = p
+
+    selected_preset_label = st.selectbox(
+        "Game Preset",
+        options=list(preset_options.keys()),
+        key="game_preset_selector",
+        help="Selecting a preset auto-populates skill mappings with the preset's weights."
+    )
+    selected_preset = preset_options[selected_preset_label]
+
+    # Store for form submission
+    st.session_state["selected_game_preset"] = selected_preset
+
+    if selected_preset:
+        game_cfg = selected_preset.get("game_config", {})
+        skill_cfg = game_cfg.get("skill_config", {})
+        skills_tested: list = skill_cfg.get("skills_tested", [])
+        skill_weights: dict = skill_cfg.get("skill_weights", {})
+
+        if skills_tested:
+            st.success(
+                f"✅ **{selected_preset['name']}** — {len(skills_tested)} skill"
+                f"{'s' if len(skills_tested) != 1 else ''} will be developed automatically"
+            )
+
+            if skill_weights:
+                avg_w = sum(skill_weights.values()) / len(skill_weights)
+                preview_rows = []
+                for sk in skills_tested:
+                    frac = skill_weights.get(sk, avg_w)
+                    reactivity = round(max(0.1, min(5.0, frac / avg_w)), 2)
+                    bar_pct = int(min(100, reactivity * 50))   # reactivity=1.0 → 50% bar
+
+                    if reactivity > 1.05:
+                        icon = "🔴"
+                        label_str = f"Dominant ({reactivity:.2f}×)"
+                    elif reactivity < 0.95:
+                        icon = "🔵"
+                        label_str = f"Supporting ({reactivity:.2f}×)"
+                    else:
+                        icon = "⚪"
+                        label_str = f"Balanced ({reactivity:.2f}×)"
+
+                    preview_rows.append((icon, sk.replace("_", " ").title(), label_str, bar_pct, frac))
+
+                # Sort: dominant first
+                preview_rows.sort(key=lambda r: r[3], reverse=True)
+
+                col_skill, col_role, col_bar = st.columns([2, 2, 3])
+                col_skill.markdown("**Skill**")
+                col_role.markdown("**Role**")
+                col_bar.markdown("**Reactivity** (vs average)")
+
+                for icon, sk_display, label_str, bar_pct, frac in preview_rows:
+                    col_skill.write(f"{icon} {sk_display}")
+                    col_role.write(label_str)
+                    col_bar.progress(bar_pct, text=f"{frac:.0%} of game")
+
+                st.caption(
+                    "🔴 Dominant = larger skill delta after tournament  "
+                    "🔵 Supporting = smaller delta  "
+                    "⚪ Balanced = average impact"
+                )
+            else:
+                # No weights — show simple list
+                st.info(
+                    "Skills will be mapped with equal weight (1.0×): "
+                    + ", ".join(f"**{sk}**" for sk in skills_tested)
+                )
+        else:
+            st.warning(
+                f"⚠️ Preset **{selected_preset['name']}** has no `skill_config.skills_tested` "
+                "defined yet. Skill auto-sync will not occur — use `skills_to_test` manually."
+            )
+    else:
+        st.info(
+            "No preset selected. Skill mappings will be created from the "
+            "`skills_to_test` field (uniform weight = 1.0 each)."
+        )
+
+    st.divider()
+
     # NOW the form starts - with location_id, campus_id, and reward policy already selected above
     with st.form("create_tournament_form"):
         # Basic info

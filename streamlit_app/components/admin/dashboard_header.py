@@ -77,6 +77,12 @@ def render_dashboard_header():
 
         st.markdown("---")
 
+        # Quick link to the real-time tournament monitor
+        if st.button("📡 Tournament Monitor", use_container_width=True, type="secondary"):
+            st.switch_page("pages/Tournament_Monitor.py")
+
+        st.markdown("---")
+
         # REFRESH BUTTON - Keep session alive without re-login
         if st.button("🔄 Refresh Page", use_container_width=True, type="secondary"):
             st.rerun()

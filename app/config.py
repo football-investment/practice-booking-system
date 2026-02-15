@@ -20,8 +20,17 @@ def get_secret_key() -> str:
         # Use deterministic key for tests (so tokens are reproducible)
         return "test-secret-key-for-testing-only-do-not-use-in-production"
 
-    # Production: MUST be set via environment variable
+    # Try loading .env if SECRET_KEY not yet in environment
+    # (needed when config is imported before pydantic-settings resolves env_file)
     secret = os.getenv("SECRET_KEY")
+    if not secret:
+        try:
+            from dotenv import load_dotenv as _load_dotenv
+            _load_dotenv()
+            secret = os.getenv("SECRET_KEY")
+        except ImportError:
+            pass
+
     if not secret:
         raise ValueError(
             "SECRET_KEY environment variable must be set in production! "
@@ -81,6 +90,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql://lovas.zoltan@localhost:5432/gancuju_education_center_prod"
 
+    # Task queue (Celery + Redis)
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
+
     # JWT - SECURE: Uses environment variable in production
     SECRET_KEY: str = get_secret_key()
     ALGORITHM: str = "HS256"
@@ -127,8 +141,9 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Production security validation
-        if not is_testing():
+        # Production-only security validation (skipped in development and testing)
+        _is_production = not is_testing() and self.ENVIRONMENT == "production"
+        if _is_production:
             # Validate admin credentials are set
             if not self.ADMIN_EMAIL or not self.ADMIN_PASSWORD:
                 raise ValueError(

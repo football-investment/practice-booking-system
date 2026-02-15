@@ -5,11 +5,13 @@ Verifies that clicking "Continue Setup" on a DRAFT tournament
 does not crash due to reward_config None handling.
 """
 
+import pytest
 from playwright.sync_api import sync_playwright, expect
 import time
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_draft_continue():
     """
     Test Case 1: DRAFT Tournament - Continue Setup

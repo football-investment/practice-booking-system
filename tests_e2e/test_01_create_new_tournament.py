@@ -5,11 +5,13 @@ Tests the complete instructor workflow from creating a new tournament
 through all steps to viewing results.
 """
 
+import pytest
 from playwright.sync_api import sync_playwright, expect
 import time
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_create_new_tournament():
     """
     Test Case 1: Create New Tournament - Full Workflow

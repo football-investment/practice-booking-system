@@ -35,6 +35,8 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
         parallel_fields: int,
         session_duration: int,
         break_minutes: int,
+        campus_ids: List[int] = None,
+        campus_configs: Dict[int, dict] = None,
         **kwargs
     ) -> List[Dict[str, Any]]:
         """
@@ -86,7 +88,45 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
             group_assignments[group_name] = player_ids[player_index:player_index + group_size]
             player_index += group_size
 
+        # ✅ MULTI-CAMPUS SUPPORT: Load campus names for distributed sessions
+        group_to_campus = {}     # {group_name: campus_location_string}
+        group_to_campus_id = {}  # {group_name: campus_id (int)}
+        knockout_location = get_tournament_venue(tournament)  # Default fallback
+
+        if campus_ids and len(campus_ids) > 0:
+            from app.models.campus import Campus
+            campuses = self.db.query(Campus).filter(
+                Campus.id.in_(campus_ids),
+                Campus.is_active == True
+            ).order_by(Campus.id).all()
+
+            campus_locations = [f"{c.name} ({c.venue})" if c.venue else c.name for c in campuses]
+            # Keep ordered campus_id list in the same order as campuses query
+            ordered_campus_ids = [c.id for c in campuses]
+
+            # Round-robin assignment: Group A → Campus 0, Group B → Campus 1, etc.
+            for group_num in range(1, groups_count + 1):
+                group_name = chr(64 + group_num)
+                campus_idx = (group_num - 1) % len(campus_locations)
+                group_to_campus[group_name] = campus_locations[campus_idx]
+                group_to_campus_id[group_name] = ordered_campus_ids[campus_idx]
+
+            # Knockout phases use first campus (main venue) when multi-campus is enabled
+            knockout_location = campus_locations[0] if campus_locations else get_tournament_venue(tournament)
+
         current_time = tournament.start_date
+        # field_slots tracks the next available start time per field (parallel scheduling)
+        # Global fallback (used when no campus_configs, or for knockout stage)
+        field_slots = [current_time for _ in range(parallel_fields)]
+
+        # Per-campus field slots: each campus has its own parallel field pool
+        campus_field_slots = {}   # {campus_id: [datetime, ...]}  — length = campus parallel_fields
+        campus_field_index = {}   # {campus_id: int}
+        if campus_configs:
+            for _cid, _cfg in campus_configs.items():
+                _pf = _cfg["parallel_fields"]
+                campus_field_slots[_cid] = [current_time for _ in range(_pf)]
+                campus_field_index[_cid] = 0
 
         # ============================================================================
         # PHASE 1: GROUP STAGE (ISOLATED GROUPS)
@@ -96,10 +136,15 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
 
         if tournament_format == 'HEAD_TO_HEAD':
             # ✅ HEAD_TO_HEAD: Generate round robin pairings within each group
+            field_index = 0  # global fallback field index
             for group_num in range(1, groups_count + 1):
                 group_name = chr(64 + group_num)  # A, B, C, D
                 group_participant_ids = group_assignments.get(group_name, [])
                 group_size = len(group_participant_ids)
+
+                # Per-campus field routing (if multi-campus configured)
+                _grp_campus_id = group_to_campus_id.get(group_name)
+                _use_campus = _grp_campus_id is not None and _grp_campus_id in campus_field_slots
 
                 # Calculate rounds for this group
                 num_rounds = RoundRobinPairing.calculate_rounds(group_size)
@@ -113,19 +158,39 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                             # Skip bye matches
                             continue
 
-                        session_start = current_time
-                        session_end = session_start + timedelta(minutes=session_duration)
+                        if _use_campus:
+                            # ✅ Per-campus field pool
+                            _slots = campus_field_slots[_grp_campus_id]
+                            _idx = campus_field_index[_grp_campus_id]
+                            _pf = len(_slots)
+                            _dur = campus_configs[_grp_campus_id]["match_duration_minutes"]
+                            _brk = campus_configs[_grp_campus_id]["break_duration_minutes"]
+                            session_start = _slots[_idx]
+                            session_end = session_start + timedelta(minutes=_dur)
+                            _slots[_idx] += timedelta(minutes=_dur + _brk)
+                            campus_field_index[_grp_campus_id] = (_idx + 1) % _pf
+                            active_field_num = _idx + 1
+                        else:
+                            # Global fallback
+                            session_start = field_slots[field_index]
+                            session_end = session_start + timedelta(minutes=session_duration)
+                            field_slots[field_index] += timedelta(minutes=session_duration + break_minutes)
+                            field_index = (field_index + 1) % parallel_fields
+                            active_field_num = field_index  # already advanced
+
+                        # ✅ MULTI-CAMPUS: Use group's assigned campus or fallback to tournament venue
+                        session_location = group_to_campus.get(group_name) or get_tournament_venue(tournament)
 
                         sessions.append({
                             'title': f'{tournament.name} - Group {group_name} - Round {round_num} - Match {match_num}',
-                            'description': f'Group {group_name} head-to-head match',
+                            'description': f'Group {group_name} head-to-head match (Field {active_field_num})',
                             'date_start': session_start,
                             'date_end': session_end,
                             'game_type': f'Group {group_name} - Round {round_num}',
                             'tournament_phase': TournamentPhase.GROUP_STAGE.value,
                             'tournament_round': round_num,
                             'tournament_match_number': match_num,
-                            'location': get_tournament_venue(tournament),
+                            'location': session_location,
                             'session_type': 'on_site',
                             # ✅ HEAD_TO_HEAD: Group stage metadata
                             'ranking_mode': 'GROUP_ISOLATED',
@@ -140,24 +205,49 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                             'structure_config': {
                                 'group': group_name,
                                 'group_size': group_size,
-                                'expected_participants': 2
+                                'expected_participants': 2,
+                                'field_number': active_field_num
                             },
                             # ✅ EXPLICIT PARTICIPANTS: 2 players
                             'participant_user_ids': [player1_id, player2_id]
                         })
-
-                        current_time += timedelta(minutes=session_duration + break_minutes)
         else:
             # ✅ INDIVIDUAL_RANKING: Multi-player ranking within each group
+            # Each group round occupies one field; groups in the same round can run in parallel
+            field_index = 0  # global fallback field index
             for group_num in range(1, groups_count + 1):
                 group_name = chr(64 + group_num)  # A, B, C, D
 
                 # ✅ CRITICAL: Get explicit participant list for this group
                 group_participant_ids = group_assignments.get(group_name, [])
 
+                # Per-campus field routing (if multi-campus configured)
+                _grp_campus_id = group_to_campus_id.get(group_name)
+                _use_campus = _grp_campus_id is not None and _grp_campus_id in campus_field_slots
+
                 for round_num in range(1, group_rounds + 1):
-                    session_start = current_time
-                    session_end = session_start + timedelta(minutes=session_duration)
+                    if _use_campus:
+                        # ✅ Per-campus field pool
+                        _slots = campus_field_slots[_grp_campus_id]
+                        _idx = campus_field_index[_grp_campus_id]
+                        _pf = len(_slots)
+                        _dur = campus_configs[_grp_campus_id]["match_duration_minutes"]
+                        _brk = campus_configs[_grp_campus_id]["break_duration_minutes"]
+                        session_start = _slots[_idx]
+                        session_end = session_start + timedelta(minutes=_dur)
+                        _slots[_idx] += timedelta(minutes=_dur + _brk)
+                        campus_field_index[_grp_campus_id] = (_idx + 1) % _pf
+                        active_field_num = _idx + 1
+                    else:
+                        # Global fallback
+                        session_start = field_slots[field_index]
+                        session_end = session_start + timedelta(minutes=session_duration)
+                        field_slots[field_index] += timedelta(minutes=session_duration + break_minutes)
+                        field_index = (field_index + 1) % parallel_fields
+                        active_field_num = field_index  # already advanced
+
+                    # ✅ MULTI-CAMPUS: Use group's assigned campus or fallback
+                    session_location = group_to_campus.get(group_name) or get_tournament_venue(tournament)
 
                     sessions.append({
                         'title': f'{tournament.name} - Group {group_name} - Round {round_num}',
@@ -168,7 +258,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                         'tournament_phase': TournamentPhase.GROUP_STAGE.value,
                         'tournament_round': round_num,
                         'tournament_match_number': (group_num - 1) * group_rounds + round_num,
-                        'location': get_tournament_venue(tournament),
+                        'location': session_location,
                         'session_type': 'on_site',
                         # ✅ UNIFIED RANKING: Group isolation metadata
                         'ranking_mode': 'GROUP_ISOLATED',
@@ -183,16 +273,18 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                         'structure_config': {
                             'group': group_name,
                             'group_size': len(group_participant_ids),
-                            'expected_participants': len(group_participant_ids)
+                            'expected_participants': len(group_participant_ids),
+                            'field_number': active_field_num
                         },
                         # ✅ EXPLICIT PARTICIPANTS: No runtime filtering!
                         'participant_user_ids': group_participant_ids
                     })
 
-                    current_time += timedelta(minutes=session_duration + break_minutes)
-
-        # Break between phases
-        current_time += timedelta(minutes=break_minutes * 4)
+        # Break between phases: advance current_time to max of ALL field slots + inter-phase break
+        all_last_times = list(field_slots)
+        for _slots in campus_field_slots.values():
+            all_last_times.extend(_slots)
+        current_time = max(all_last_times) + timedelta(minutes=break_minutes * 4)
 
         # ============================================================================
         # PHASE 2: KNOCKOUT STAGE (TOP QUALIFIERS ONLY) - WITH BYE LOGIC
@@ -227,7 +319,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                     'tournament_phase': TournamentPhase.KNOCKOUT.value,
                     'tournament_round': 0,  # Play-in is round 0
                     'tournament_match_number': match_num,
-                    'location': get_tournament_venue(tournament),
+                    'location': knockout_location,
                     'session_type': 'on_site',
                     # ✅ UNIFIED RANKING: Play-in metadata
                     'ranking_mode': 'QUALIFIED_ONLY',
@@ -310,7 +402,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                     'tournament_phase': TournamentPhase.KNOCKOUT.value,
                     'tournament_round': round_num,
                     'tournament_match_number': match_in_round,
-                    'location': get_tournament_venue(tournament),
+                    'location': knockout_location,
                     'session_type': 'on_site',
                     # ✅ UNIFIED RANKING: Knockout stage metadata
                     'ranking_mode': 'QUALIFIED_ONLY',
@@ -356,7 +448,7 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                 'tournament_phase': TournamentPhase.KNOCKOUT.value,
                 'tournament_round': knockout_rounds + 1,  # After final
                 'tournament_match_number': 1,
-                'location': get_tournament_venue(tournament),
+                'location': knockout_location,
                 'session_type': 'on_site',
                 # ✅ UNIFIED RANKING: Bronze match metadata
                 'ranking_mode': 'QUALIFIED_ONLY',

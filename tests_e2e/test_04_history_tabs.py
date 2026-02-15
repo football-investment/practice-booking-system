@@ -5,11 +5,13 @@ Verifies that all tabs (Leaderboard, Match Results, Rewards) load
 without crashing when viewing tournament history.
 """
 
+import pytest
 from playwright.sync_api import sync_playwright, expect
 import time
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_history_tabs():
     """
     Test Case 3: Tournament History Tabs Navigation

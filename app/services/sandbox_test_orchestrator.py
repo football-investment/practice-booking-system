@@ -26,7 +26,7 @@ from app.services import skill_progression_service
 
 logger = logging.getLogger(__name__)
 
-# Test user pool (valid existing user IDs) with known baseline skills
+# Legacy fallback pool (used only when no @lfa-seed.hu users are found in DB)
 TEST_USER_POOL = [4, 5, 6, 7, 13, 14, 15, 16]
 
 
@@ -440,7 +440,9 @@ class SandboxTestOrchestrator:
         Args:
             player_count: Number of participants to enroll
             selected_users: Optional list of specific user IDs to enroll (from UI selection)
-                           If None, uses DETERMINISTIC selection from TEST_USER_POOL
+                           If None, queries all active @lfa-seed.hu users with active licenses
+                           (ordered by ID, first N selected deterministically).
+                           Falls back to TEST_USER_POOL if no seed users found.
         """
         logger.info(f"👥 Enrolling {player_count} participants")
 
@@ -455,20 +457,43 @@ class SandboxTestOrchestrator:
                 )
                 player_count = len(selected_users)  # Use actual UI selection count
         else:
-            # ✅ DETERMINISTIC: Always use first N players from sorted pool (no randomness)
-            logger.info(f"🔒 Using DETERMINISTIC participant selection (first {player_count} from sorted pool)")
-            logger.info(f"🔍 TEST_USER_POOL size={len(TEST_USER_POOL)}, requested={player_count}")
+            # ✅ DETERMINISTIC: Query all active @lfa-seed.hu users with active licenses
+            from app.models.user import User, UserRole
 
-            # Validate pool size
-            if player_count > len(TEST_USER_POOL):
+            seed_rows = (
+                self.db.query(User.id)
+                .join(UserLicense, UserLicense.user_id == User.id)
+                .filter(
+                    User.email.like("%@lfa-seed.hu"),
+                    User.is_active == True,
+                    UserLicense.is_active == True,
+                )
+                .order_by(User.id)
+                .all()
+            )
+            seed_user_ids = [row.id for row in seed_rows]
+
+            if seed_user_ids:
+                logger.info(
+                    f"🌱 Seed pool: {len(seed_user_ids)} @lfa-seed.hu users with active licenses"
+                )
+                pool = seed_user_ids
+            else:
+                # Fallback: legacy hardcoded pool
+                logger.warning(
+                    "⚠️  No @lfa-seed.hu users found — falling back to TEST_USER_POOL"
+                )
+                pool = sorted(TEST_USER_POOL)
+
+            if player_count > len(pool):
                 raise ValueError(
-                    f"Cannot select {player_count} users from pool of {len(TEST_USER_POOL)}. "
-                    f"Pool: {TEST_USER_POOL}"
+                    f"Cannot select {player_count} users from pool of {len(pool)}. "
+                    f"Increase @lfa-seed.hu user count or reduce player_count."
                 )
 
-            # ✅ DETERMINISTIC: Take first N players (sorted order, no random.sample)
-            selected_users = sorted(TEST_USER_POOL)[:player_count]
-            logger.info(f"🔒 DETERMINISTIC selection: {selected_users}")
+            # ✅ DETERMINISTIC: Take first N players from ordered pool
+            selected_users = pool[:player_count]
+            logger.info(f"🔒 DETERMINISTIC selection: first {player_count} from pool of {len(pool)}")
 
         # Get active licenses for each user
         from app.models.license import UserLicense

@@ -5,11 +5,13 @@ Verifies that rapidly switching between different tournaments
 does not cause crashes or state loading errors.
 """
 
+import pytest
 from playwright.sync_api import sync_playwright, expect
 import time
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_multiple_selection():
     """
     Test Case 4: Multiple Tournament Selection

@@ -24,6 +24,8 @@ Prerequisites:
 import pytest
 import time
 import random
+import json
+from pathlib import Path
 from playwright.sync_api import Page, expect
 
 # Import existing helpers
@@ -35,6 +37,30 @@ from .shared.streamlit_helpers import (
 
 # Test constants
 SANDBOX_URL = "http://localhost:8501"
+
+# Single source of truth: star user IDs written by Phase 2 (test_d8)
+_TEST_USERS_JSON = Path(__file__).parent.parent.parent / "e2e" / "test_users.json"
+
+
+def _load_participant_ids() -> list[int]:
+    """
+    Load registered star user db_ids from tests/e2e/test_users.json.
+
+    These IDs are written by test_d8_verify_users_in_database after Phase 2.
+    Raises AssertionError if any db_id is still null (Phase 2 not yet run).
+    """
+    with open(_TEST_USERS_JSON) as f:
+        data = json.load(f)
+
+    ids = []
+    for u in data["star_users"]:
+        assert u["db_id"] is not None, (
+            f"db_id is null for {u['email']} — run Phase 2 (registration) first"
+        )
+        ids.append(u["db_id"])
+
+    assert len(ids) >= 4, f"Need at least 4 participants for group_knockout, got {len(ids)}"
+    return ids
 
 
 def navigate_to_sandbox_home(page: Page):
@@ -278,6 +304,45 @@ def get_auth_token() -> str:
     return login_response.json()["access_token"]
 
 
+def create_tournament_with_json_participants() -> int:
+    """
+    Create a group_knockout tournament via sandbox/run-test API using
+    participant IDs from tests/e2e/test_users.json (written by Phase 2).
+
+    Returns the tournament ID.
+    """
+    import requests
+
+    participant_ids = _load_participant_ids()
+    token = get_auth_token()
+
+    payload = {
+        "tournament_type": "group_knockout",
+        "skills_to_test": ["ball_control", "dribbling", "passing", "finishing"],
+        "player_count": len(participant_ids),
+        "selected_users": participant_ids,
+        "test_config": {
+            "performance_variation": "MEDIUM",
+            "ranking_distribution": "NORMAL"
+        }
+    }
+
+    response = requests.post(
+        "http://localhost:8000/api/v1/sandbox/run-test",
+        headers={"Authorization": f"Bearer {token}"},
+        json=payload
+    )
+
+    if response.status_code != 200:
+        raise Exception(
+            f"Tournament creation failed: {response.status_code} — {response.text}"
+        )
+
+    tournament_id = response.json()["tournament"]["id"]
+    print(f"   ✅ Tournament {tournament_id} created with participants: {participant_ids}")
+    return tournament_id
+
+
 @pytest.fixture
 def page(playwright):
     """Fixture to provide a Playwright page"""
@@ -296,35 +361,27 @@ def test_sandbox_workflow_group_knockout_full(page: Page):
     """
     ✅ FULL E2E: Group+Knockout tournament via sandbox workflow
 
-    Validates complete workflow from tournament creation to final match submission.
+    Tournament created via API with participants from tests/e2e/test_users.json
+    (db_ids written by Phase 2 — no synthetic users).
+    Match submission validated via Streamlit sandbox UI (Step 4).
     """
     print(f"\n{'='*80}")
-    print(f"Sandbox Workflow E2E Test: Group+Knockout (7 players)")
+    print(f"Sandbox Workflow E2E Test: Group+Knockout (JSON participants)")
     print(f"{'='*80}\n")
 
     # ============================================================================
-    # PHASE 1: CREATE TOURNAMENT VIA SANDBOX WORKFLOW
+    # PHASE 1: CREATE TOURNAMENT VIA API (JSON participants, not synthetic)
     # ============================================================================
-    print("✅ Phase 1: Create tournament via sandbox workflow\n")
+    print("✅ Phase 1: Create tournament via API with JSON participants\n")
 
-    navigate_to_sandbox_home(page)
-    click_create_new_tournament_sandbox(page)
-    click_start_instructor_workflow(page)
-
-    # Step 1: Select preset
-    print("   Step 1: Selecting preset config...")
-    select_preset_config(page, preset_name="GK1_GroupKnockout_7players")
-    click_continue_to_step(page, step_number=2)
-
-    # Step 2: Review & Confirm + Create Tournament
-    print("   Step 2: Creating tournament...")
-    create_tournament_via_sandbox_step2(page)
-    tournament_id = get_tournament_id_from_ui(page)
+    tournament_id = create_tournament_with_json_participants()
     print(f"   ✅ Tournament {tournament_id} created\n")
 
-    # Step 3: Track Attendance (auto-handled, just click continue)
-    print("   Step 3: Attendance (auto-handled)...")
-    click_continue_to_step(page, step_number=4)
+    # Navigate directly to Step 4 (Enter Results) in sandbox UI
+    navigate_to_sandbox_home(page)
+    page.goto(f"{SANDBOX_URL}?tournament_id={tournament_id}&step=4")
+    wait_for_streamlit_rerun(page)
+    time.sleep(3)
     print("   ✅ Navigated to Step 4 (Enter Results)\n")
 
     # ============================================================================

@@ -18,7 +18,7 @@ class AdvancementCalculator:
     Handles:
     - Qualification rules (e.g., top 2 per group)
     - Seeding for knockout matches
-    - Standard crossover bracket logic (A1 vs B2, B1 vs A2)
+    - Standard crossover bracket logic for N groups (seed[i] vs seed[total-1-i])
     """
 
     def __init__(self, db: Session):
@@ -69,9 +69,12 @@ class AdvancementCalculator:
         """
         Apply standard crossover bracket seeding to knockout sessions.
 
-        Standard seeding for 2 groups:
-        - Semifinal 1: A1 vs B2
-        - Semifinal 2: B1 vs A2
+        Generalised for N groups with top_n qualifiers each:
+        - Seeds are ordered rank-first across groups: A1, B1, ..., N1, A2, B2, ..., N2
+        - Bracket pairs: seed[i] vs seed[total-1-i]
+          e.g. 2 groups, top 2 → [A1,B1,A2,B2] → SF1: A1 vs B2, SF2: B1 vs A2
+          e.g. 4 groups, top 2 → [A1,B1,C1,D1,A2,B2,C2,D2]
+                                 → QF1: A1 vs D2, QF2: B1 vs C2, QF3: C1 vs B2, QF4: D1 vs A2
 
         Args:
             group_standings: Dict mapping group_id to standings list
@@ -83,37 +86,44 @@ class AdvancementCalculator:
         Side effects:
             Updates participant_user_ids for knockout sessions
         """
-        # Get sorted groups (alphabetically by group_id)
         sorted_groups = sorted(group_standings.items())
+        num_groups = len(sorted_groups)
 
-        if len(sorted_groups) < 2:
-            return 0  # Need at least 2 groups for crossover
+        if num_groups < 2:
+            return 0
 
-        group_a_id, group_a_standings = sorted_groups[0]
-        group_b_id, group_b_standings = sorted_groups[1]
+        # First-round sessions (round 1 = deepest knockout round, e.g. QF or SF)
+        first_round_sessions = [s for s in knockout_sessions if s.tournament_round == 1]
+        num_first_round = len(first_round_sessions)
 
-        # Extract top 2 from each group
-        a1 = group_a_standings[0]['user_id'] if len(group_a_standings) >= 1 else None
-        a2 = group_a_standings[1]['user_id'] if len(group_a_standings) >= 2 else None
-        b1 = group_b_standings[0]['user_id'] if len(group_b_standings) >= 1 else None
-        b2 = group_b_standings[1]['user_id'] if len(group_b_standings) >= 2 else None
+        if num_first_round == 0:
+            return 0
 
-        # Get Round of 4 (Semifinal) sessions - tournament_round is Integer!
-        # Round 1 = Semifinals (4 players), Round 2 = Final (2 players)
-        semifinal_sessions = [s for s in knockout_sessions if s.tournament_round == 1]
+        # Infer top_n from bracket size: total_qualifiers = num_first_round * 2
+        total_qualifiers = num_first_round * 2
+        top_n = total_qualifiers // num_groups
 
+        if top_n < 1:
+            return 0
+
+        # Build seeded list rank-first across all groups:
+        # rank 1 from A,B,C,D,...  then rank 2 from A,B,C,D,...
+        seeded: List[int] = []
+        for rank in range(top_n):
+            for _group_id, standings in sorted_groups:
+                if len(standings) > rank:
+                    seeded.append(standings[rank]['user_id'])
+
+        if len(seeded) < total_qualifiers:
+            return 0  # Not enough qualified participants
+
+        # Assign bracket pairs: seed[i] vs seed[total-1-i]
         sessions_updated = 0
-
-        if len(semifinal_sessions) >= 2 and all([a1, a2, b1, b2]):
-            # Semifinal 1: A1 vs B2 (crossover bracket)
-            semifinal_sessions[0].participant_user_ids = [a1, b2]
-            sessions_updated += 1
-
-            # Semifinal 2: B1 vs A2 (crossover bracket)
-            semifinal_sessions[1].participant_user_ids = [b1, a2]
-            sessions_updated += 1
-
-            # Note: Final match (round 2) participant_user_ids will be set after semifinals are completed
+        for i, session in enumerate(first_round_sessions):
+            high = total_qualifiers - 1 - i
+            if i < high:
+                session.participant_user_ids = [seeded[i], seeded[high]]
+                sessions_updated += 1
 
         return sessions_updated
 

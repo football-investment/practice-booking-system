@@ -5,11 +5,13 @@ Verifies that clicking "Continue Tournament" on an IN_PROGRESS tournament
 does not crash due to reward_config None handling.
 """
 
+import pytest
 from playwright.sync_api import sync_playwright, expect
 import time
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_in_progress_continue():
     """
     Test Case 2: IN_PROGRESS Tournament - Continue Tournament

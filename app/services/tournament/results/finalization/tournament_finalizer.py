@@ -9,10 +9,13 @@ from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import json
+import logging
 
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
 from app.models.tournament_enums import TournamentPhase
+
+logger = logging.getLogger(__name__)
 
 
 class TournamentFinalizer:
@@ -145,30 +148,66 @@ class TournamentFinalizer:
         """
         Update tournament_rankings table with final rankings.
 
+        Upserts podium (rank 1-3) into existing rankings.
+        Any enrolled participant without a ranking entry gets inserted
+        with rank=NULL so they qualify for PARTICIPANT-level rewards.
+
         Args:
             tournament_id: Tournament ID
-            final_rankings: List of final ranking entries
+            final_rankings: List of final ranking entries (top 3 from final matches)
         """
-        # Clear existing rankings
-        self.db.execute(
-            text("DELETE FROM tournament_rankings WHERE tournament_id = :tournament_id"),
-            {"tournament_id": tournament_id}
-        )
+        from app.models.tournament_ranking import TournamentRanking
+        from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 
-        # Insert final rankings
+        # Build set of user_ids with confirmed podium ranks
+        podium_user_ids = {r["user_id"] for r in final_rankings}
+
+        # Upsert podium ranks — update existing row or insert new one
         for ranking in final_rankings:
-            self.db.execute(
-                text("""
-                INSERT INTO tournament_rankings (tournament_id, user_id, rank, points, participant_type)
-                VALUES (:tournament_id, :user_id, :rank, :points, 'USER')
-                """),
-                {
-                    "tournament_id": tournament_id,
-                    "user_id": ranking["user_id"],
-                    "rank": ranking["final_rank"],
-                    "points": 0  # Points not used for final ranking
-                }
-            )
+            existing = self.db.query(TournamentRanking).filter(
+                TournamentRanking.tournament_id == tournament_id,
+                TournamentRanking.user_id == ranking["user_id"]
+            ).first()
+
+            if existing:
+                existing.rank = ranking["final_rank"]
+                existing.points = 0
+            else:
+                self.db.execute(
+                    text("""
+                    INSERT INTO tournament_rankings (tournament_id, user_id, rank, points, participant_type)
+                    VALUES (:tournament_id, :user_id, :rank, :points, 'INDIVIDUAL')
+                    """),
+                    {
+                        "tournament_id": tournament_id,
+                        "user_id": ranking["user_id"],
+                        "rank": ranking["final_rank"],
+                        "points": 0,
+                    }
+                )
+
+        # Ensure all enrolled participants have a ranking entry (for PARTICIPANT rewards)
+        enrolled_user_ids = {
+            row[0] for row in self.db.query(SemesterEnrollment.user_id).filter(
+                SemesterEnrollment.semester_id == tournament_id,
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+            ).all()
+            if row[0] is not None
+        }
+
+        for user_id in enrolled_user_ids - podium_user_ids:
+            exists = self.db.query(TournamentRanking).filter(
+                TournamentRanking.tournament_id == tournament_id,
+                TournamentRanking.user_id == user_id
+            ).first()
+            if not exists:
+                self.db.execute(
+                    text("""
+                    INSERT INTO tournament_rankings (tournament_id, user_id, rank, points, participant_type)
+                    VALUES (:tournament_id, :user_id, NULL, 0, 'INDIVIDUAL')
+                    """),
+                    {"tournament_id": tournament_id, "user_id": user_id}
+                )
 
     def finalize(
         self,
@@ -229,17 +268,44 @@ class TournamentFinalizer:
         # Update tournament_rankings table
         self.update_tournament_rankings_table(tournament.id, final_rankings)
 
-        # Update tournament status
+        # Update tournament status to COMPLETED first
         tournament.tournament_status = "COMPLETED"
+        self.db.flush()
+
+        # Auto-distribute rewards as part of the lifecycle
+        # COMPLETED → distribute_rewards → REWARDS_DISTRIBUTED
+        final_status = "COMPLETED"
+        rewards_message = None
+        try:
+            from app.services.tournament.tournament_reward_orchestrator import distribute_rewards_for_tournament
+            # Returns BulkRewardDistributionResult (Pydantic model)
+            reward_result = distribute_rewards_for_tournament(db=self.db, tournament_id=tournament.id)
+            players_rewarded = len(reward_result.rewards_distributed)
+            tournament.tournament_status = "REWARDS_DISTRIBUTED"
+            final_status = "REWARDS_DISTRIBUTED"
+            rewards_message = f"Rewards distributed to {players_rewarded} players"
+            logger.info(
+                "✅ Auto reward distribution completed for tournament %d: %s",
+                tournament.id, rewards_message
+            )
+        except Exception as e:
+            logger.error(
+                "❌ Auto reward distribution failed for tournament %d: %s — "
+                "tournament remains COMPLETED, rewards can be retried manually.",
+                tournament.id, e
+            )
 
         self.db.commit()
 
-        return {
+        result = {
             "success": True,
             "message": "Tournament finalized successfully",
             "final_rankings": final_rankings,
-            "tournament_status": "COMPLETED"
+            "tournament_status": final_status,
         }
+        if rewards_message:
+            result["rewards_message"] = rewards_message
+        return result
 
 
 # Export main class

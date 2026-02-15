@@ -25,6 +25,7 @@ from .formats import (
     GroupKnockoutGenerator,
     IndividualRankingGenerator,
 )
+from .utils import get_campus_schedule
 
 
 class TournamentSessionGenerator:
@@ -59,7 +60,8 @@ class TournamentSessionGenerator:
         parallel_fields: int = 1,
         session_duration_minutes: int = 90,
         break_minutes: int = 15,
-        number_of_rounds: int = 1
+        number_of_rounds: int = 1,
+        campus_ids: List[int] = None
     ) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
         Generate all tournament sessions based on tournament type and enrolled player count
@@ -70,6 +72,7 @@ class TournamentSessionGenerator:
             session_duration_minutes: Duration of each session
             break_minutes: Break time between sessions
             number_of_rounds: Number of rounds for INDIVIDUAL_RANKING tournaments (1-10)
+            campus_ids: List of campus IDs for multi-venue distribution (group_knockout only)
 
         Returns:
             (success, message, sessions_created)
@@ -110,6 +113,54 @@ class TournamentSessionGenerator:
             # Required for get_tournament_venue() helper function
             self.db.refresh(tournament, ['location', 'campus'])
             logger.info(f"📍 Location refreshed: location={tournament.location}, campus={tournament.campus}")
+
+            # Resolve per-campus schedule parameters (campus-level overrides take priority)
+            campus_id = tournament.campus_id if hasattr(tournament, 'campus_id') else None
+
+            if campus_ids and len(campus_ids) > 0:
+                # Multi-campus: resolve config independently for each campus
+                campus_configs = {}
+                for cid in campus_ids:
+                    cfg = get_campus_schedule(
+                        db=self.db,
+                        tournament_id=tournament_id,
+                        campus_id=cid,
+                        global_match_duration=session_duration_minutes,
+                        global_break_duration=break_minutes,
+                        global_parallel_fields=parallel_fields,
+                    )
+                    campus_configs[cid] = cfg
+                # Use first campus as the baseline for fallback / knockout-stage params
+                first_cfg = campus_configs[campus_ids[0]]
+                session_duration_minutes = first_cfg["match_duration_minutes"]
+                break_minutes = first_cfg["break_duration_minutes"]
+                parallel_fields = first_cfg["parallel_fields"]
+                logger.info(f"📐 Multi-campus schedule resolved ({len(campus_configs)} campuses):")
+                for cid, cfg in campus_configs.items():
+                    logger.info(
+                        f"   Campus {cid}: duration={cfg['match_duration_minutes']}min, "
+                        f"break={cfg['break_duration_minutes']}min, "
+                        f"parallel_fields={cfg['parallel_fields']}"
+                    )
+            else:
+                campus_configs = None
+                campus_schedule = get_campus_schedule(
+                    db=self.db,
+                    tournament_id=tournament_id,
+                    campus_id=campus_id,
+                    global_match_duration=session_duration_minutes,
+                    global_break_duration=break_minutes,
+                    global_parallel_fields=parallel_fields,
+                )
+                session_duration_minutes = campus_schedule["match_duration_minutes"]
+                break_minutes = campus_schedule["break_duration_minutes"]
+                parallel_fields = campus_schedule["parallel_fields"]
+                logger.info(
+                    f"📐 Resolved campus schedule (campus_id={campus_id}): "
+                    f"match_duration={session_duration_minutes}min, "
+                    f"break={break_minutes}min, "
+                    f"parallel_fields={parallel_fields}"
+                )
 
             # Get enrolled player count
             player_count = self.db.query(SemesterEnrollment).filter(
@@ -186,7 +237,9 @@ class TournamentSessionGenerator:
                         player_count=player_count,
                         parallel_fields=parallel_fields,
                         session_duration=session_duration_minutes,
-                        break_minutes=break_minutes
+                        break_minutes=break_minutes,
+                        campus_ids=campus_ids,
+                        campus_configs=campus_configs,
                     )
                 elif tournament_type.code == "swiss":
                     sessions = self.swiss_generator.generate(
@@ -208,13 +261,16 @@ class TournamentSessionGenerator:
             ).all()
             logger.info(f"👥 Fetched {len(enrolled_players)} enrolled players from database")
 
-            # Create session records in database
+            # Create session records in database (bulk insert — no per-session flush)
             created_sessions = []
-            logger.info(f"🔨 Creating {len(sessions)} session records in database...")
+            logger.info(f"🔨 Creating {len(sessions)} session records in database (bulk)...")
+            session_objects = []
             for idx, session_data in enumerate(sessions, 1):
-                logger.info(f"📝 Creating session {idx}/{len(sessions)}: {session_data.get('title', 'N/A')}")
-                logger.info(f"   Session data keys: {list(session_data.keys())}")
-
+                # DEBUG: Log first session to verify group_identifier is present
+                if idx == 1:
+                    logger.info(f"🔍 DEBUG: First session_data keys: {list(session_data.keys())}")
+                    logger.info(f"🔍 DEBUG: group_identifier value: {session_data.get('group_identifier')}")
+                    logger.info(f"🔍 DEBUG: tournament_phase value: {session_data.get('tournament_phase')}")
                 try:
                     session = SessionModel(
                         semester_id=tournament_id,
@@ -225,20 +281,22 @@ class TournamentSessionGenerator:
                         **session_data
                     )
                     self.db.add(session)
-                    self.db.flush()  # Get session.id
-                    logger.info(f"✅ Session {idx} created successfully with ID: {session.id}")
+                    session_objects.append(session)
+                    created_sessions.append(session_data)
                 except Exception as session_error:
-                    logger.error(f"❌ Failed to create session {idx}: {str(session_error)}")
+                    logger.error(f"❌ Failed to build session {idx}: {str(session_error)}")
                     logger.error(f"   Session data that caused error: {session_data}")
                     raise
 
-                # ✅ TOURNAMENT SESSIONS: NO bookings creation
-                # Tournament sessions use:
-                #   - semester_enrollments (tournament enrollment)
-                #   - participant_user_ids (explicit match participants)
-                # Bookings are ONLY for regular practice sessions, NOT tournaments
+            # Single flush to assign IDs to all sessions in one round-trip
+            self.db.flush()
+            logger.info(f"✅ Bulk flush complete — {len(session_objects)} sessions assigned IDs")
 
-                created_sessions.append(session_data)
+            # ✅ TOURNAMENT SESSIONS: NO bookings creation
+            # Tournament sessions use:
+            #   - semester_enrollments (tournament enrollment)
+            #   - participant_user_ids (explicit match participants)
+            # Bookings are ONLY for regular practice sessions, NOT tournaments
 
             # Mark tournament as sessions_generated
             # 🎯 FIX: sessions_generated is a read-only property, update the config object directly

@@ -8,9 +8,11 @@ from pathlib import Path
 import sys
 from typing import Dict
 
-# Setup path
-parent_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(parent_dir))
+# Setup path: add both streamlit_app/ and repo root so streamlit_components is found
+_streamlit_app_dir = Path(__file__).parent.parent.parent
+_repo_root = _streamlit_app_dir.parent
+sys.path.insert(0, str(_repo_root))
+sys.path.insert(0, str(_streamlit_app_dir))
 
 from streamlit_components.core.api_client import api_client
 from streamlit_components.core.auth import AuthManager

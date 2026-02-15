@@ -74,6 +74,28 @@ def fetch_skill_profile(token: str, api_base_url: str) -> Optional[Dict]:
         return None
 
 
+def fetch_skill_timeline(token: str, api_base_url: str, skill_key: str) -> Optional[Dict]:
+    """
+    Fetch per-tournament skill timeline for one skill from API.
+
+    Returns:
+        Timeline dict with 'baseline', 'current_level', 'total_delta', 'timeline' list,
+        or None on error.
+    """
+    try:
+        response = requests.get(
+            f"{api_base_url}/api/v1/progression/skill-timeline",
+            params={"skill": skill_key},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        st.error(f"Failed to load skill timeline: {e}")
+        return None
+
+
 def render_skill_card(
     skill_name: str,
     skill_data: Dict,
@@ -372,6 +394,327 @@ def render_skill_growth_bar_chart(skills: Dict[str, Dict]):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def render_skill_timeline_chart(token: str, api_base_url: str, skills: Dict[str, Dict]):
+    """
+    Render a per-tournament line chart for a selected skill.
+
+    Shows how a single skill evolved across tournaments with:
+    - Horizontal baseline reference line (onboarding level)
+    - Line connecting skill_value_after at each tournament
+    - Placement label on every data point
+    - Positive/negative delta colour coding per segment
+
+    Args:
+        token: API auth token
+        api_base_url: Backend base URL
+        skills: Aggregated skill profile dict (used to build the selector)
+    """
+    if not PLOTLY_AVAILABLE:
+        st.info("📈 Skill timeline chart requires plotly package")
+        return
+
+    if not skills:
+        return
+
+    st.markdown("### Tournament Skill Timeline")
+    st.caption("Select a skill to see how it changed tournament by tournament")
+
+    # Build selector: only skills that have been touched by tournaments
+    skills_with_tournaments = {
+        k: v for k, v in skills.items() if v.get("tournament_count", 0) > 0
+    }
+
+    if not skills_with_tournaments:
+        st.info("Participate in tournaments to see the skill timeline!")
+        return
+
+    # Display name → skill key map for the selectbox
+    display_to_key = {
+        name.replace("_", " ").title(): name
+        for name in sorted(skills_with_tournaments.keys())
+    }
+    display_names = list(display_to_key.keys())
+
+    selected_display = st.selectbox(
+        "Select skill",
+        options=display_names,
+        key="skill_timeline_selector"
+    )
+    selected_key = display_to_key[selected_display]
+
+    with st.spinner(f"Loading {selected_display} timeline..."):
+        timeline_data = fetch_skill_timeline(token, api_base_url, selected_key)
+
+    if timeline_data is None:
+        return
+
+    entries = timeline_data.get("timeline", [])
+    baseline = timeline_data.get("baseline", 0.0)
+    current_level = timeline_data.get("current_level", baseline)
+    total_delta = timeline_data.get("total_delta", 0.0)
+
+    if not entries:
+        st.info(f"No tournament data for **{selected_display}** yet.")
+        return
+
+    # --- Parse timeline entries ---
+    x_labels = []       # Tournament name + date
+    y_values = []       # skill_value_after
+    hover_texts = []    # Rich tooltip per point
+    point_colors = []   # Green if improvement, red if decline from baseline
+
+    for entry in entries:
+        name = entry.get("tournament_name", f"T#{entry.get('tournament_id', '?')}")
+        achieved_at = entry.get("achieved_at") or ""
+        date_str = achieved_at[:10] if achieved_at else "?"
+        placement = entry.get("placement")
+        total_players = entry.get("total_players", 0)
+        placement_skill = entry.get("placement_skill", 0.0)
+        skill_value_after = entry.get("skill_value_after", baseline)
+        delta_prev = entry.get("delta_from_previous", 0.0)
+        delta_base = entry.get("delta_from_baseline", 0.0)
+
+        placement_str = f"#{placement}" if placement else "—"
+        delta_prev_str = f"+{delta_prev:.1f}" if delta_prev >= 0 else f"{delta_prev:.1f}"
+        delta_base_str = f"+{delta_base:.1f}" if delta_base >= 0 else f"{delta_base:.1f}"
+
+        x_labels.append(f"{name}<br>{date_str}")
+        y_values.append(skill_value_after)
+        hover_texts.append(
+            f"<b>{name}</b><br>"
+            f"Date: {date_str}<br>"
+            f"Placement: {placement_str} / {total_players}<br>"
+            f"Placement skill: {placement_skill:.1f}<br>"
+            f"Skill after: <b>{skill_value_after:.1f}</b><br>"
+            f"vs previous: {delta_prev_str}<br>"
+            f"vs baseline: {delta_base_str}"
+        )
+        point_colors.append("#10b981" if skill_value_after >= baseline else "#ef4444")
+
+    # Build segment colors (per segment between consecutive points)
+    segment_colors = []
+    for i in range(1, len(y_values)):
+        segment_colors.append("#10b981" if y_values[i] >= y_values[i - 1] else "#ef4444")
+
+    # Add a synthetic "Baseline" point at the left edge
+    x_with_baseline = ["Baseline"] + x_labels
+    y_with_baseline = [baseline] + y_values
+
+    fig = go.Figure()
+
+    # Baseline horizontal reference line
+    fig.add_hline(
+        y=baseline,
+        line_dash="dash",
+        line_color="#9ca3af",
+        annotation_text=f"Baseline {baseline:.1f}",
+        annotation_position="bottom left",
+        annotation_font_color="#9ca3af"
+    )
+
+    # Main skill value line
+    fig.add_trace(go.Scatter(
+        x=x_with_baseline,
+        y=y_with_baseline,
+        mode="lines+markers+text",
+        name=selected_display,
+        line=dict(color="#3b82f6", width=2),
+        marker=dict(
+            color=["#9ca3af"] + point_colors,  # Baseline point grey, rest coloured
+            size=[8] + [12] * len(entries),
+            symbol=["circle"] + [
+                "triangle-up" if delta >= 0 else "triangle-down"
+                for delta in [e.get("delta_from_previous", 0.0) for e in entries]
+            ],
+            line=dict(color="white", width=1.5)
+        ),
+        text=[""] + [
+            f"#{e.get('placement', '?')}/{e.get('total_players', 0)}"
+            for e in entries
+        ],
+        textposition="top center",
+        textfont=dict(size=11),
+        hovertext=["<b>Baseline (Onboarding)</b><br>" + f"Value: {baseline:.1f}"] + hover_texts,
+        hoverinfo="text"
+    ))
+
+    # Current level annotation at the rightmost point
+    total_delta_str = f"+{total_delta:.1f}" if total_delta >= 0 else f"{total_delta:.1f}"
+    total_delta_color = "#10b981" if total_delta >= 0 else "#ef4444"
+
+    fig.update_layout(
+        xaxis=dict(
+            title="",
+            tickangle=-30,
+            tickfont=dict(size=11)
+        ),
+        yaxis=dict(
+            title="Skill Level",
+            range=[
+                max(0, min(y_with_baseline) - 10),
+                min(100, max(y_with_baseline) + 10)
+            ],
+            gridcolor="#e5e7eb"
+        ),
+        height=380,
+        margin=dict(l=50, r=20, t=50, b=80),
+        showlegend=False,
+        hovermode="closest",
+        title=dict(
+            text=(
+                f"{selected_display}  "
+                f"<span style='color:{total_delta_color}'>{total_delta_str}</span>"
+                f"  (baseline {baseline:.1f} → current {current_level:.1f})"
+            ),
+            font=dict(size=14)
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Summary row under the chart
+    n = len(entries)
+    improvements = sum(1 for e in entries if e.get("delta_from_previous", 0.0) > 0)
+    declines = sum(1 for e in entries if e.get("delta_from_previous", 0.0) < 0)
+    col_a, col_b, col_c = st.columns(3)
+    col_a.metric("Tournaments", n)
+    col_b.metric("Improvements", improvements, delta=f"{improvements}/{n}")
+    col_c.metric("Declines", declines, delta=f"-{declines}/{n}" if declines else None,
+                 delta_color="inverse")
+
+
+def fetch_skill_audit(token: str, api_base_url: str) -> Optional[Dict]:
+    """Fetch the skill audit log from the API."""
+    try:
+        response = requests.get(
+            f"{api_base_url}/api/v1/progression/skill-audit",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        st.error(f"Failed to load skill audit: {e}")
+        return None
+
+
+def render_skill_audit_section(token: str, api_base_url: str):
+    """
+    Render the skill audit table: expected vs actual change per tournament per skill.
+
+    Shows:
+    - One row per (tournament × mapped skill)
+    - Columns: tournament, placement, skill, weight, dominant?, expected, actual, delta, fair?
+    - Color-coded: green = changed & fair, red = unfair, orange = no change
+    - Summary: total entries, unfair entries count
+    """
+    st.markdown("### Skill Audit Log")
+    st.caption("Per-tournament validation: did the dominant skill actually change more?")
+
+    with st.spinner("Loading audit data..."):
+        audit_data = fetch_skill_audit(token, api_base_url)
+
+    if audit_data is None:
+        return
+
+    rows = audit_data.get("audit", [])
+    total = audit_data.get("total_entries", 0)
+    unfair = audit_data.get("unfair_entries", 0)
+
+    if total == 0:
+        st.info("No tournament participation data yet. Participate in tournaments to see the audit log.")
+        return
+
+    # Summary metrics
+    fair_count = total - unfair
+    col_a, col_b, col_c = st.columns(3)
+    col_a.metric("Total Entries", total)
+    col_b.metric("Fair", fair_count, delta=f"{round(fair_count/total*100)}%")
+    col_c.metric("Unfair", unfair,
+                 delta=f"-{round(unfair/total*100)}%" if unfair else None,
+                 delta_color="inverse" if unfair else "off")
+
+    st.markdown("")
+
+    # Filter controls
+    all_skills = sorted({r["skill"] for r in rows})
+    all_tournaments = sorted({r["tournament_name"] for r in rows})
+
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        filter_skill = st.selectbox(
+            "Filter by skill",
+            options=["All skills"] + all_skills,
+            key="audit_filter_skill"
+        )
+    with col_f2:
+        filter_tournament = st.selectbox(
+            "Filter by tournament",
+            options=["All tournaments"] + all_tournaments,
+            key="audit_filter_tournament"
+        )
+
+    show_only_unfair = st.checkbox("Show only unfair entries", value=False, key="audit_show_unfair")
+
+    # Apply filters
+    filtered = rows
+    if filter_skill != "All skills":
+        filtered = [r for r in filtered if r["skill"] == filter_skill]
+    if filter_tournament != "All tournaments":
+        filtered = [r for r in filtered if r["tournament_name"] == filter_tournament]
+    if show_only_unfair:
+        filtered = [r for r in filtered if not r["fairness_ok"]]
+
+    if not filtered:
+        st.info("No entries match the current filter.")
+        return
+
+    # Build display table
+    import pandas as pd
+
+    display_rows = []
+    for r in filtered:
+        delta = r["delta_this_tournament"]
+        norm = r.get("norm_delta", 0.0)
+        delta_str = f"+{delta:.2f}" if delta > 0 else f"{delta:.2f}"
+        norm_str = f"+{norm*100:.1f}%" if norm > 0 else (f"{norm*100:.1f}%" if norm < 0 else "0% (cap)")
+        dominant_str = "🔴 Dominant" if r["is_dominant"] else ("🔵 Support" if r["skill_weight"] < r["avg_weight"] * 0.95 else "⚪ Balanced")
+        changed_str = "✅ Yes" if r["actual_changed"] else "⚠️ No"
+        fair_str = "✅" if r["fairness_ok"] else "❌ UNFAIR"
+
+        display_rows.append({
+            "Tournament": r["tournament_name"],
+            "Date": r["achieved_at"][:10] if r["achieved_at"] else "—",
+            "Place": f"{r['placement']}/{r['total_players']}",
+            "Skill": r["skill"].replace("_", " ").title(),
+            "Weight": f"{r['skill_weight']:.2f}×",
+            "Role": dominant_str,
+            "Changed?": changed_str,
+            "Delta": delta_str,
+            "Norm. Delta": norm_str,
+            "Placement Score": f"{r['placement_skill']:.0f}",
+            "Fair?": fair_str,
+        })
+
+    df = pd.DataFrame(display_rows)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "**Norm. Delta** = delta ÷ available headroom toward cap/floor. "
+        "Measures what fraction of the possible development range was consumed. "
+        "0% (cap) = skill was already at the hard cap (99) — not an unfair outcome."
+    )
+
+    if unfair > 0:
+        st.warning(
+            f"⚠️ {unfair} unfair entr{'y' if unfair == 1 else 'ies'} detected: "
+            "a dominant skill consumed a smaller fraction of its headroom than a "
+            "lower-weight peer despite having room to grow."
+        )
+    else:
+        st.success("✅ All dominant skills showed equal or larger changes than their lower-weight peers.")
+
+
 def render_skill_profile(token: str, api_base_url: str):
     """
     Main component: Render complete skill profile dashboard
@@ -432,7 +775,7 @@ def render_skill_profile(token: str, api_base_url: str):
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # Tabs for different views
-    tab1, tab2, tab3 = st.tabs(["📊 Skill Radar (by Category)", "📈 Growth Chart", "📋 Detailed List"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Skill Radar (by Category)", "📈 Growth Chart", "📋 Detailed List", "🔍 Skill Audit"])
 
     with tab1:
         st.markdown("### Skill Radar by Category")
@@ -469,6 +812,9 @@ def render_skill_profile(token: str, api_base_url: str):
     with tab2:
         st.markdown("### Skill Growth")
         render_skill_growth_bar_chart(skills)
+
+        st.markdown("<hr>", unsafe_allow_html=True)
+        render_skill_timeline_chart(token, api_base_url, skills)
 
     with tab3:
         st.markdown("### Individual Skills by Category")
@@ -507,3 +853,6 @@ def render_skill_profile(token: str, api_base_url: str):
                 for skill_key in category_skill_keys:
                     if skill_key in category_skills:
                         render_skill_card(skill_key, category_skills[skill_key], show_breakdown=show_breakdown)
+
+    with tab4:
+        render_skill_audit_section(token, api_base_url)

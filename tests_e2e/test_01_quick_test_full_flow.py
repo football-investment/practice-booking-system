@@ -14,11 +14,13 @@ COMPLETE end-to-end test covering:
 This is the PRIMARY acceptance test - if this fails, the workflow is broken.
 """
 
+import pytest
 from playwright.sync_api import sync_playwright, expect
 import time
 
 BASE_URL = "http://localhost:8501"
 
+@pytest.mark.nondestructive
 def test_quick_test_full_flow():
     """
     FULL E2E Test: Quick Test Flow

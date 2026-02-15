@@ -304,6 +304,11 @@ class KnockoutProgressionService:
         Returns:
             Dict with progression status and updated sessions
         """
+        # Guard: if completed_matches is empty (e.g. the triggering session was a
+        # bronze/3rd-place match excluded by exclude_bronze=True), nothing to do.
+        if not completed_matches:
+            return {"message": f"No qualifying non-bronze matches in round {round_num} to process"}
+
         # Determine winners from completed matches
         winners = []
         losers = []
@@ -319,6 +324,7 @@ class KnockoutProgressionService:
             if "match_format" in results and results["match_format"] == "HEAD_TO_HEAD":
                 # ✅ HEAD_TO_HEAD format (from HEAD_TO_HEAD endpoint)
                 # Structure: {"participants": [{"user_id": X, "score": Y, "result": "win/loss/tie"}], "winner_user_id": Z}
+                # OR from submit-results: {"participants": [], "raw_results": [{"user_id": X, "result": "WIN/LOSS"}]}
                 participants = results.get("participants", [])
                 winner_id = results.get("winner_user_id")
 
@@ -333,9 +339,28 @@ class KnockoutProgressionService:
                     # No winner (tie) - use first participant as tiebreaker
                     winners.append(participants[0]["user_id"])
                     losers.append(participants[1]["user_id"])
+                else:
+                    # Fallback: parse raw_results for WIN/LOSS or placement format
+                    # (produced by /submit-results endpoint which leaves participants=[])
+                    raw = results.get("raw_results", [])
+                    has_result_field = any(r.get("result") for r in raw)
+                    has_placement = any("placement" in r for r in raw)
+                    if has_result_field:
+                        for r in raw:
+                            result_str = str(r.get("result", "")).upper()
+                            if result_str == "WIN":
+                                winners.append(r["user_id"])
+                            elif result_str == "LOSS":
+                                losers.append(r["user_id"])
+                    elif has_placement and len(raw) >= 2:
+                        # Placement-based: rank 1 is winner
+                        sorted_raw = sorted(raw, key=lambda r: r.get("placement", 99))
+                        winners.append(sorted_raw[0]["user_id"])
+                        losers.append(sorted_raw[1]["user_id"])
             else:
                 # ✅ INDIVIDUAL format (from INDIVIDUAL endpoint - legacy)
-                # Structure: {"raw_results": [{"user_id": X, "score": Y, "rank": Z}]}
+                # Supports SCORE_BASED: {"raw_results": [{"user_id": X, "score": Y}]}
+                # Supports PLACEMENT:   {"raw_results": [{"user_id": X, "placement": Y}]}
                 raw_results = results.get("raw_results", [])
 
                 if len(raw_results) == 2 and "score" in raw_results[0]:
@@ -355,6 +380,11 @@ class KnockoutProgressionService:
                         # Tie - use tiebreaker or first player
                         winners.append(p1_id)
                         losers.append(p2_id)
+                elif len(raw_results) == 2 and "placement" in raw_results[0]:
+                    # Placement-based format: rank 1 is winner
+                    sorted_by_placement = sorted(raw_results, key=lambda r: r.get("placement", 99))
+                    winners.append(sorted_by_placement[0]["user_id"])
+                    losers.append(sorted_by_placement[1]["user_id"])
 
         # Check if this is the final round (before final+bronze)
         is_final_round = (round_num == total_rounds - 1)
@@ -373,6 +403,7 @@ class KnockoutProgressionService:
             return self._update_next_round_matches(
                 round_num=round_num,
                 winners=winners,
+                losers=losers,
                 tournament=tournament,
                 tournament_phase=tournament_phase
             )
@@ -382,15 +413,18 @@ class KnockoutProgressionService:
         round_num: int,
         winners: List[int],
         tournament: Semester,
-        tournament_phase: str
+        tournament_phase: str,
+        losers: List[int] = None
     ) -> Dict[str, Any]:
         """
         ✅ NEW: Update participant_user_ids for next round matches.
 
         Next round matches already exist (created during tournament generation),
         but participant_user_ids is NULL. We populate them with winners.
+        Also assigns losers to the bronze/3rd place match in the final round.
         """
         next_round = round_num + 1
+        losers = losers or []
 
         # Phase 2.2: Use repository for data access
         # Get next round matches (ordered by match_number)
@@ -420,6 +454,31 @@ class KnockoutProgressionService:
                     "title": match.title,
                     "participants": [winners[p1_idx], winners[p2_idx]]
                 })
+
+        # Assign losers to the bronze/3rd place match if it exists in a later round
+        if len(losers) >= 2:
+            distinct_rounds = self.repo.get_distinct_rounds(tournament.id, TournamentPhase.KNOCKOUT)
+            if distinct_rounds:
+                final_round = max(distinct_rounds)
+                if final_round > next_round:
+                    final_round_sessions = self.repo.get_sessions_by_phase_and_round(
+                        tournament_id=tournament.id,
+                        phase=TournamentPhase.KNOCKOUT,
+                        round_num=final_round,
+                        exclude_bronze=False
+                    )
+                    for session in final_round_sessions:
+                        title_lower = session.title.lower()
+                        if "bronze" in title_lower or "3rd" in title_lower:
+                            if not session.participant_user_ids:
+                                session.participant_user_ids = losers[:2]
+                                updated_sessions.append({
+                                    "session_id": session.id,
+                                    "title": session.title,
+                                    "type": "bronze",
+                                    "participants": losers[:2]
+                                })
+                            break
 
         self.db.commit()
 

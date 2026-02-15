@@ -35,6 +35,31 @@ logger = logging.getLogger(__name__)
 DEFAULT_REWARD_POLICY = RewardPolicy()
 
 
+def _extract_tier(config: dict, *keys) -> dict:
+    """
+    Extract a placement tier from a reward config dict.
+
+    Supports two stored formats:
+      - create.py / admin UI: {"first_place": {"xp": 100, "credits": 50}, ...}
+      - OPS wizard:           {"1": {"xp": 2000, "credits": 1000}, ...}
+      - Legacy schema:        {"first_place": {"xp_multiplier": 1.5, "credits": 500}, ...}
+
+    Returns a dict with "xp" and "credits" keys, or empty dict if not found.
+    """
+    for key in keys:
+        tier = config.get(key)
+        if tier and isinstance(tier, dict):
+            xp = tier.get("xp") or tier.get("xp_reward") or 0
+            # Handle xp_multiplier format (old PlacementRewardConfig schema)
+            if not xp and "xp_multiplier" in tier:
+                base_xp = {"first_place": 500, "1": 500, "second_place": 300, "2": 300,
+                           "third_place": 200, "3": 200}.get(key, 50)
+                xp = int(base_xp * tier["xp_multiplier"])
+            credits = tier.get("credits") or tier.get("credits_reward") or 0
+            return {"xp": int(xp), "credits": int(credits)}
+    return {}
+
+
 def load_reward_policy_from_config(
     db: Session,
     tournament_id: int
@@ -42,15 +67,12 @@ def load_reward_policy_from_config(
     """
     Load reward policy from tournament's reward_config JSONB field.
 
-    🎁 V2: Parses saved TournamentRewardConfig and converts to RewardPolicy.
-    Falls back to DEFAULT_REWARD_POLICY if no config found.
+    Supports multiple stored formats:
+      - create.py format: {"first_place": {"xp": 100, "credits": 50}, ...}
+      - OPS wizard format: {"1": {"xp": 2000, "credits": 1000}, "2": {...}, "3": {...}}
+      - Legacy schema:     {"first_place": {"xp_multiplier": 1.5, "credits": 500}}
 
-    Args:
-        db: Database session
-        tournament_id: Tournament (semester) ID
-
-    Returns:
-        RewardPolicy object (from config or default)
+    Falls back to DEFAULT_REWARD_POLICY if no config found or parsing fails.
     """
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
 
@@ -59,33 +81,31 @@ def load_reward_policy_from_config(
         return DEFAULT_REWARD_POLICY
 
     try:
-        # Parse reward_config JSONB to TournamentRewardConfig
-        config = TournamentRewardConfig(**tournament.reward_config)
+        cfg = tournament.reward_config  # dict from JSONB
 
-        # Extract placement rewards with XP multipliers
-        first_place = config.first_place
-        second_place = config.second_place
-        third_place = config.third_place
-        participation = config.participation
+        first  = _extract_tier(cfg, "first_place",  "1")
+        second = _extract_tier(cfg, "second_place", "2")
+        third  = _extract_tier(cfg, "third_place",  "3")
+        part   = _extract_tier(cfg, "participation", "participant", "4")
 
-        # Build RewardPolicy from config
         policy = RewardPolicy(
-            tournament_type=config.template_name or "custom",
-            # 1st place
-            first_place_xp=int(500 * first_place.xp_multiplier) if first_place else 500,
-            first_place_credits=first_place.credits if first_place else 100,
-            # 2nd place
-            second_place_xp=int(300 * second_place.xp_multiplier) if second_place else 300,
-            second_place_credits=second_place.credits if second_place else 50,
-            # 3rd place
-            third_place_xp=int(200 * third_place.xp_multiplier) if third_place else 200,
-            third_place_credits=third_place.credits if third_place else 25,
-            # Participation
-            participant_xp=int(50 * participation.xp_multiplier) if participation else 50,
-            participant_credits=participation.credits if participation else 0
+            tournament_type="custom",
+            first_place_xp=first.get("xp", 500),
+            first_place_credits=first.get("credits", 100),
+            second_place_xp=second.get("xp", 300),
+            second_place_credits=second.get("credits", 50),
+            third_place_xp=third.get("xp", 200),
+            third_place_credits=third.get("credits", 25),
+            participant_xp=part.get("xp", 50),
+            participant_credits=part.get("credits", 0),
         )
 
-        logger.info(f"Loaded reward policy from config for tournament {tournament_id}: {config.template_name}")
+        logger.info(
+            f"Loaded reward policy for tournament {tournament_id}: "
+            f"1st={policy.first_place_xp}xp/{policy.first_place_credits}cr, "
+            f"2nd={policy.second_place_xp}xp/{policy.second_place_credits}cr, "
+            f"3rd={policy.third_place_xp}xp/{policy.third_place_credits}cr"
+        )
         return policy
 
     except Exception as e:
@@ -249,33 +269,64 @@ def distribute_rewards_for_user(
             f"(skills calculated in-memory only for verdict)"
         )
     else:
-        # Apply tournament skill deltas to player's football_skills profile
-        # This updates UserLicense.football_skills with calculated deltas
+        # Persist computed skill deltas back into UserLicense.football_skills JSONB.
+        # skill_progression_service.get_skill_profile() calculates current_level /
+        # tournament_delta from all TournamentParticipation rows (idempotent read).
+        # We write the result back so the dashboard/performance-card always has
+        # up-to-date values without re-computing on every page load.
         try:
-            # Get user's active license
             from app.models.license import UserLicense
+            from sqlalchemy.orm.attributes import flag_modified
+            from datetime import timezone
+
             active_license = db.query(UserLicense).filter(
                 UserLicense.user_id == user_id,
+                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
                 UserLicense.is_active == True
             ).first()
 
-            # 🔥 V2 SKILL PROGRESSION: Skills are calculated on-the-fly from tournament placements
-            # No need to "apply" deltas - get_skill_profile() automatically calculates from all participations
-            if active_license and participation_record:
-                logger.info(
-                    f"✅ V2: Skills will be calculated dynamically from placement: "
-                    f"user_id={user_id}, license_id={active_license.id}, placement={participation_record.placement}"
-                )
+            if active_license and active_license.football_skills and participation_record:
+                # Compute the full skill profile from all participations (idempotent)
+                skill_profile = skill_progression_service.get_skill_profile(db, user_id)
+                computed = skill_profile.get("skills", {})
+
+                if computed:
+                    updated_skills = dict(active_license.football_skills)
+                    changed = 0
+                    for skill_key, sdata in computed.items():
+                        if skill_key not in updated_skills:
+                            continue
+                        entry = updated_skills[skill_key]
+                        if not isinstance(entry, dict):
+                            continue
+                        # Only update delta-related fields; preserve baseline & assessment fields
+                        entry["current_level"]    = sdata["current_level"]
+                        entry["tournament_delta"] = sdata["tournament_delta"]
+                        entry["total_delta"]      = sdata["total_delta"]
+                        entry["tournament_count"] = sdata["tournament_count"]
+                        entry["last_updated"]     = datetime.now(timezone.utc).isoformat()
+                        updated_skills[skill_key] = entry
+                        changed += 1
+
+                    active_license.football_skills = updated_skills
+                    active_license.skills_last_updated_at = datetime.now(timezone.utc)
+                    active_license.skills_updated_by = distributed_by or user_id
+                    flag_modified(active_license, "football_skills")
+                    logger.info(
+                        f"✅ Persisted skill deltas for user {user_id} "
+                        f"(license {active_license.id}): {changed} skills updated, "
+                        f"placement={participation_record.placement}"
+                    )
             else:
                 logger.warning(
-                    f"Could not track skill progression: "
-                    f"user_id={user_id}, has_license={active_license is not None}, "
+                    f"Skipped skill write-back: user_id={user_id}, "
+                    f"has_license={active_license is not None}, "
+                    f"has_skills={active_license.football_skills is not None if active_license else False}, "
                     f"has_participation={participation_record is not None}"
                 )
         except Exception as e:
-            logger.error(f"Failed to apply skill deltas for user {user_id}: {e}", exc_info=True)
-            # Don't fail the entire reward distribution on skill progression errors
-            # Continue with badge awarding
+            logger.error(f"Failed to persist skill deltas for user {user_id}: {e}", exc_info=True)
+            # Non-fatal: badges and XP are still awarded even if skill write-back fails
 
     # Build participation reward DTO
     skill_points_awarded = [

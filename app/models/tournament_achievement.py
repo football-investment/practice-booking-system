@@ -55,6 +55,7 @@ class TournamentParticipation(Base):
     semester_id = Column(Integer, ForeignKey("semesters.id", ondelete="CASCADE"), nullable=False, index=True)
     placement = Column(Integer, nullable=True)  # 1, 2, 3, or NULL for participation
     skill_points_awarded = Column(JSONB, nullable=True)  # {"agility": 4.3, "physical_fitness": 2.2}
+    skill_rating_delta = Column(JSONB, nullable=True)   # {"passing": 1.2, "dribbling": -0.4} — V3 EMA per-tournament delta
     xp_awarded = Column(Integer, nullable=False, default=0)
     credits_awarded = Column(Integer, nullable=False, default=0)
     achieved_at = Column(DateTime(timezone=True), server_default=func.now())

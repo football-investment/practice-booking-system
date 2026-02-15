@@ -404,6 +404,30 @@ class ResultProcessor:
             for ranking in rankings_updated
         ]
 
+        # Build participants list in the format expected by HeadToHeadLeagueRankingStrategy
+        # Strategy reads: participants[i]["user_id"], ["score"], ["result"] ("win"/"tie"/"loss")
+        participants = []
+        if len(rankings) == 2 and raw_results and "score" in raw_results[0]:
+            # Determine winner/loser from rankings: rank 1 = win, rank 2 = loss, equal rank = tie
+            rank_map = {uid: rank for uid, rank in rankings}
+            score_map = {r["user_id"]: r.get("score", 0) for r in raw_results}
+            min_rank = min(rank_map.values())
+            max_rank = max(rank_map.values())
+            for r in raw_results:
+                uid = r["user_id"]
+                r_rank = rank_map.get(uid)
+                if min_rank == max_rank:
+                    result_str = "tie"
+                elif r_rank == min_rank:
+                    result_str = "win"
+                else:
+                    result_str = "loss"
+                participants.append({
+                    "user_id": uid,
+                    "score": score_map.get(uid, 0),
+                    "result": result_str
+                })
+
         # Store results in session.game_results
         recorded_at = datetime.utcnow().isoformat()
         game_results = {
@@ -412,6 +436,8 @@ class ResultProcessor:
             "recorded_by_name": recorded_by_name,
             "match_notes": match_notes,
             "tournament_format": "HEAD_TO_HEAD",
+            "match_format": "HEAD_TO_HEAD",
+            "participants": participants,
             "raw_results": raw_results,
             "derived_rankings": derived_rankings
         }

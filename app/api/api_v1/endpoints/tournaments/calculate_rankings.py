@@ -14,12 +14,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
+import json
+
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
+from app.models.booking import Booking
 from app.models.tournament_ranking import TournamentRanking
+from app.models.tournament_achievement import TournamentParticipation
 from app.services.tournament.ranking.strategies.factory import RankingStrategyFactory
 
 router = APIRouter()
@@ -64,28 +68,64 @@ def calculate_tournament_rankings(
     tournament_format = tournament.format  # "INDIVIDUAL_RANKING" or "HEAD_TO_HEAD"
 
     # Get all sessions for this tournament
-    sessions = db.query(SessionModel).filter(
+    all_sessions = db.query(SessionModel).filter(
         and_(
             SessionModel.semester_id == tournament_id,
             SessionModel.is_tournament_game == True
         )
     ).all()
 
-    if not sessions:
+    if not all_sessions:
         raise HTTPException(
             status_code=400,
             detail="No tournament sessions found. Generate sessions first."
         )
 
-    # Validate all sessions have results
-    sessions_with_results = [s for s in sessions if s.game_results or (s.rounds_data and s.rounds_data.get("round_results"))]
+    # Get tournament type to determine which sessions to validate
+    tournament_type_code = None
+    if tournament.tournament_config_obj and tournament.tournament_config_obj.tournament_type:
+        tournament_type_code = tournament.tournament_config_obj.tournament_type.code
 
-    if len(sessions_with_results) < len(sessions):
-        missing_count = len(sessions) - len(sessions_with_results)
-        raise HTTPException(
-            status_code=400,
-            detail=f"{missing_count} session(s) do not have results submitted yet. Submit all results first."
-        )
+    # DEBUG: Log tournament type detection
+    print(f"🔍 [calculate_rankings] tournament_id={tournament_id}")
+    print(f"🔍 [calculate_rankings] tournament_type_code={tournament_type_code}")
+    print(f"🔍 [calculate_rankings] all_sessions count={len(all_sessions)}")
+
+    # For group+knockout tournaments: use GROUP_STAGE sessions for validation,
+    # but pass ALL completed sessions (group + knockout) to the ranking strategy
+    # so final ranks reflect bracket position, not group stage points.
+    if tournament_type_code == "group_knockout":
+        group_sessions = [s for s in all_sessions if s.tournament_phase == "GROUP_STAGE"]
+        knockout_sessions = [
+            s for s in all_sessions
+            if s.tournament_phase == "KNOCKOUT" and s.game_results
+        ]
+        print(f"🔍 [calculate_rankings] group_knockout: {len(group_sessions)} group, {len(knockout_sessions)} completed knockout sessions")
+        if not group_sessions:
+            raise HTTPException(
+                status_code=400,
+                detail="No GROUP_STAGE sessions found. Cannot calculate rankings."
+            )
+        # Validate only group stage sessions must all have results
+        group_missing = [s for s in group_sessions if not s.game_results]
+        if group_missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{len(group_missing)} GROUP_STAGE session(s) do not have results yet."
+            )
+        # Pass all sessions (group + completed knockout) to strategy
+        sessions = group_sessions + knockout_sessions
+    else:
+        sessions = all_sessions
+        print(f"🔍 [calculate_rankings] Using all sessions: {len(sessions)} sessions")
+        # Validate all sessions have results
+        sessions_with_results = [s for s in sessions if s.game_results or (s.rounds_data and s.rounds_data.get("round_results"))]
+        if len(sessions_with_results) < len(sessions):
+            missing_count = len(sessions) - len(sessions_with_results)
+            raise HTTPException(
+                status_code=400,
+                detail=f"{missing_count} session(s) do not have results submitted yet. Submit all results first."
+            )
 
     # Calculate rankings based on tournament format
     try:
@@ -147,10 +187,14 @@ def calculate_tournament_rankings(
         ranking_record = TournamentRanking(
             tournament_id=tournament_id,
             user_id=ranking_data["user_id"],
+            participant_type="INDIVIDUAL",
             rank=ranking_data["rank"],
-            total_points=ranking_data.get("points", 0),  # For league
-            total_score=ranking_data.get("goals_scored", 0),  # For reference
-            # Additional metadata can be stored in a JSON column if needed
+            points=ranking_data.get("points", 0),
+            wins=ranking_data.get("wins", 0),
+            losses=ranking_data.get("losses", 0),
+            draws=ranking_data.get("ties", 0),
+            goals_for=ranking_data.get("goals_for", ranking_data.get("goals_scored", 0)),
+            goals_against=ranking_data.get("goals_against", ranking_data.get("goals_conceded", 0)),
         )
         db.add(ranking_record)
 
@@ -182,28 +226,98 @@ def get_tournament_rankings(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    # Get rankings
-    rankings = db.query(TournamentRanking).filter(
-        TournamentRanking.tournament_id == tournament_id
-    ).order_by(TournamentRanking.rank).all()
+    # Get rankings with player names (prefer nickname for uniqueness)
+    rows = (
+        db.query(TournamentRanking, User.nickname, User.name)
+        .join(User, User.id == TournamentRanking.user_id, isouter=True)
+        .filter(TournamentRanking.tournament_id == tournament_id)
+        .order_by(TournamentRanking.rank)
+        .all()
+    )
 
-    if not rankings:
+    if not rows:
         return {
             "tournament_id": tournament_id,
             "rankings": [],
             "message": "No rankings calculated yet. Call /calculate-rankings first."
         }
 
+    # Build user_id -> group_identifier map from GROUP_STAGE sessions
+    user_group_map: dict = {}
+    group_sessions = (
+        db.query(SessionModel.group_identifier, SessionModel.participant_user_ids, SessionModel.id)
+        .filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.group_identifier.isnot(None)
+        )
+        .all()
+    )
+    for gid, participant_user_ids_raw, session_id in group_sessions:
+        if not gid:
+            continue
+        # Try participant_user_ids JSON column first
+        if participant_user_ids_raw:
+            try:
+                uid_list = participant_user_ids_raw if isinstance(participant_user_ids_raw, list) else json.loads(participant_user_ids_raw)
+                for uid in uid_list:
+                    if uid not in user_group_map:
+                        user_group_map[int(uid)] = gid
+            except (ValueError, TypeError):
+                pass
+        # Fallback: derive from bookings
+        if not participant_user_ids_raw:
+            booking_uids = db.query(Booking.user_id).filter(Booking.session_id == session_id).all()
+            for (uid,) in booking_uids:
+                if uid not in user_group_map:
+                    user_group_map[uid] = gid
+
+    # Load reward data if tournament is REWARDS_DISTRIBUTED
+    reward_map: dict = {}  # user_id -> {"xp_earned": int, "credits_earned": int}
+    if tournament.tournament_status == "REWARDS_DISTRIBUTED":
+        participation_rows = db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == tournament_id
+        ).all()
+
+        for p in participation_rows:
+            if p.user_id:
+                # skill_rating_delta is written at reward-distribution time and is
+                # isolated to this tournament — authoritative, not derived from global state
+                reward_map[p.user_id] = {
+                    "xp_earned": p.xp_awarded or 0,
+                    "credits_earned": p.credits_awarded or 0,
+                    "skills_awarded": p.skill_points_awarded or {},
+                    "skill_rating_delta": p.skill_rating_delta or {},
+                }
+
     # Format response
-    rankings_data = [
-        {
+    rankings_data = []
+    for r, nickname, name in rows:
+        display_name = nickname or name
+        entry = {
             "user_id": r.user_id,
+            "name": display_name,
             "rank": r.rank,
-            "total_points": r.total_points,
-            "total_score": r.total_score
+            "points": float(r.points) if r.points is not None else 0,
+            "wins": r.wins,
+            "losses": r.losses,
+            "draws": r.draws,
+            "goals_for": r.goals_for,
+            "goals_against": r.goals_against,
+            "goal_difference": (r.goals_for or 0) - (r.goals_against or 0),
+            "group_identifier": user_group_map.get(r.user_id),
         }
-        for r in rankings
-    ]
+        if reward_map:
+            # Always include reward fields when tournament is REWARDS_DISTRIBUTED,
+            # defaulting to empty/zero for users without a participation record
+            defaults = {
+                "xp_earned": 0,
+                "credits_earned": 0,
+                "skills_awarded": {},
+                "skill_rating_delta": {},
+            }
+            defaults.update(reward_map.get(r.user_id, {}))
+            entry.update(defaults)
+        rankings_data.append(entry)
 
     return {
         "tournament_id": tournament_id,

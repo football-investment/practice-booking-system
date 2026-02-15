@@ -15,6 +15,9 @@ from .results import router as results_router  # ✅ P2: Modular match results (
 from .instructor_assignment import router as instructor_assignment_router  # ✅ P0-1 Phase 3: Instructor assignment lifecycle
 from .cancellation import router as cancellation_router  # ✅ Feature: Tournament cancellation & refund
 from .calculate_rankings import router as calculate_rankings_router  # ✅ P0: HEAD_TO_HEAD ranking calculation (league/knockout)
+from .campus_schedule import router as campus_schedule_router  # 🏟️ Per-campus schedule configuration
+from .schedule_config import router as schedule_config_router  # ⏱️ match_duration first-class domain entity
+from .generate_sessions import router as generate_sessions_router  # ✅ Session generation with async/background support
 
 # Combine all tournament routers
 router = APIRouter()
@@ -31,5 +34,8 @@ router.include_router(calculate_rankings_router)  # ✅ P0: HEAD_TO_HEAD ranking
 router.include_router(rewards_router)  # Rewards & ranking endpoints (legacy)
 router.include_router(rewards_v2_router)  # 🆕 V2: Unified reward system (badges + skill/XP)
 router.include_router(reward_config_router)  # 🎁 Reward configuration (templates, save/load)
+router.include_router(campus_schedule_router)  # 🏟️ Per-campus schedule configuration
+router.include_router(schedule_config_router)  # ⏱️ match_duration first-class domain entity
+router.include_router(generate_sessions_router)  # ✅ Session generation with async/background support
 
 __all__ = ["router"]

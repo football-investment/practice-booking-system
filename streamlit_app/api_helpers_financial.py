@@ -306,6 +306,28 @@ def cancel_invoice(token: str, invoice_id: int) -> Tuple[bool, Optional[str]]:
 
 
 # ========================================
+# FINANCIAL SUMMARY
+# ========================================
+
+def get_financial_summary(token: str) -> Tuple[bool, Optional[Dict]]:
+    """
+    Get aggregated financial summary (admin only).
+    Returns revenue, credit balances, and invoice statistics.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/invoices/summary",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=API_TIMEOUT
+        )
+        if response.status_code == 200:
+            return True, response.json()
+        return False, None
+    except requests.exceptions.RequestException:
+        return False, None
+
+
+# ========================================
 # PAYMENT VERIFICATION
 # ========================================
 

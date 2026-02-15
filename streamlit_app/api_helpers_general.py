@@ -60,34 +60,44 @@ def get_current_user(token: str) -> Tuple[bool, Optional[str], Optional[dict]]:
 
 def get_users(token: str, limit: int = 100) -> Tuple[bool, list]:
     """
-    Get users - EXACT pattern from working dashboard (Line 199)
+    Get ALL users by paginating through all pages (page/size API).
+    Returns (success, full_user_list).
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/users/?limit={limit}",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
+    all_users = []
+    page = 1
+    page_size = 100  # Max allowed by API (le=100)
+    headers = {"Authorization": f"Bearer {token}"}
 
-        if response.status_code == 200:
-            data = response.json()
-            # EXACT pattern: data.get('users', []) if isinstance(data, dict) else data
-            users = data.get('users', []) if isinstance(data, dict) else data
-            return True, users
-        else:
-            # Return error details for debugging
-            error_detail = f"HTTP {response.status_code}"
-            try:
-                error_data = response.json()
-                if 'error' in error_data:
-                    error_detail = f"HTTP {response.status_code}: {error_data['error'].get('message', 'Unknown error')}"
-            except:
-                pass
-            st.error(f"API Error: {error_detail}")
-            return False, []
+    try:
+        while True:
+            response = requests.get(
+                f"{API_BASE_URL}/api/v1/users/?page={page}&size={page_size}",
+                headers=headers,
+                timeout=API_TIMEOUT
+            )
+            if response.status_code == 200:
+                data = response.json()
+                users = data.get('users', []) if isinstance(data, dict) else data
+                total = data.get('total', 0) if isinstance(data, dict) else len(users)
+                all_users.extend(users)
+                if not users or len(all_users) >= total:
+                    break
+                page += 1
+            else:
+                error_detail = f"HTTP {response.status_code}"
+                try:
+                    error_data = response.json()
+                    if 'error' in error_data:
+                        error_detail = f"HTTP {response.status_code}: {error_data['error'].get('message', 'Unknown error')}"
+                except Exception:
+                    pass
+                st.error(f"API Error: {error_detail}")
+                return False, []
     except Exception as e:
         st.error(f"Connection Error: {str(e)}")
         return False, []
+
+    return True, all_users
 
 
 def get_sessions(token: str, size: int = 100, specialization_filter: bool = False) -> Tuple[bool, list]:
@@ -447,38 +457,34 @@ def submit_lfa_player_onboarding(
         Tuple of (success, error_message, response_data)
     """
     try:
-        # Prepare form data
-        form_data = {
+        # Prepare JSON payload — backend expects skills as nested dict under "skills" key
+        payload = {
             "position": position,
-            "skill_heading": skills['heading'],
-            "skill_shooting": skills['shooting'],
-            "skill_passing": skills['passing'],
-            "skill_dribbling": skills['dribbling'],
-            "skill_defending": skills['defending'],
-            "skill_physical": skills['physical'],
+            "skills": skills,  # Full 29-skill dict {key: value (0-100)}
             "goals": goals,
             "motivation": motivation
         }
 
-        # ✅ NEW: Add date_of_birth if provided (convert to ISO string YYYY-MM-DD)
         if date_of_birth:
-            form_data["date_of_birth"] = date_of_birth.isoformat()
+            payload["date_of_birth"] = date_of_birth.isoformat()
 
         response = requests.post(
             f"{API_BASE_URL}/specialization/lfa-player/onboarding-submit",
             headers={"Authorization": f"Bearer {token}"},
-            data=form_data,
+            json=payload,
             timeout=API_TIMEOUT,
-            allow_redirects=False  # Don't follow redirects to /dashboard
         )
 
-        if response.status_code in [200, 303]:
-            return True, None, {"message": "Onboarding completed successfully"}
+        if response.status_code == 200:
+            try:
+                return True, None, response.json()
+            except Exception:
+                return True, None, {"message": "Onboarding completed successfully"}
         else:
             try:
                 error_data = response.json()
                 error_msg = error_data.get('detail', f'HTTP {response.status_code}')
-            except:
+            except Exception:
                 error_msg = f'HTTP {response.status_code}'
             return False, error_msg, None
     except Exception as e:

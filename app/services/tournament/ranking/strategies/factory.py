@@ -19,6 +19,7 @@ from .score_based import ScoreBasedStrategy
 from .rounds_based import RoundsBasedStrategy
 from .head_to_head_league import HeadToHeadLeagueRankingStrategy
 from .head_to_head_knockout import HeadToHeadKnockoutRankingStrategy
+from .head_to_head_group_knockout import HeadToHeadGroupKnockoutRankingStrategy
 
 
 class RankingStrategyFactory:
@@ -55,10 +56,12 @@ class RankingStrategyFactory:
                 return HeadToHeadLeagueRankingStrategy()
             elif tournament_type_code == "knockout":
                 return HeadToHeadKnockoutRankingStrategy()
+            elif tournament_type_code == "group_knockout":
+                return HeadToHeadGroupKnockoutRankingStrategy()
             else:
                 raise ValueError(
                     f"Unsupported HEAD_TO_HEAD tournament type: '{tournament_type_code}'. "
-                    f"Supported: league, knockout"
+                    f"Supported: league, knockout, group_knockout"
                 )
 
         # INDIVIDUAL tournaments

@@ -58,11 +58,16 @@ class GenerationValidator:
             SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
         ).count()
 
-        # Different minimum player requirements based on format
+        # Minimum player requirements based on format and tournament type config
         if tournament.format == "INDIVIDUAL_RANKING":
             min_players = 2  # INDIVIDUAL_RANKING needs at least 2 players
         else:
-            min_players = 4  # HEAD_TO_HEAD tournaments typically need at least 4
+            # HEAD_TO_HEAD: use tournament_type.min_players from DB (respects per-type config)
+            from app.models.tournament_type import TournamentType
+            tournament_type = self.db.query(TournamentType).filter(
+                TournamentType.id == tournament.tournament_type_id
+            ).first()
+            min_players = tournament_type.min_players if tournament_type else 4
 
         if active_enrollment_count < min_players:
             return False, f"Not enough players enrolled. Need at least {min_players}, have {active_enrollment_count}"

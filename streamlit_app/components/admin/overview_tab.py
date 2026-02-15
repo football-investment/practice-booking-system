@@ -14,6 +14,7 @@ parent_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(parent_dir))
 
 from api_helpers import get_locations, get_semesters, get_campuses_by_location, get_sessions
+from api_helpers_financial import get_financial_summary
 
 
 def _is_upcoming_session(session, now):
@@ -85,6 +86,39 @@ def render_overview_tab(token, user):
 
     # Main area: Overview content
     with main_col:
+        # ── Financial snapshot ────────────────────────────────────
+        ok_fin, fin = get_financial_summary(token)
+        if ok_fin and fin:
+            rev  = fin.get("revenue",  {})
+            cred = fin.get("credits",  {})
+            inv  = fin.get("invoices", {})
+
+            st.markdown("#### 💶 Pénzügyi pillanatkép")
+            f1, f2, f3, f4, f5 = st.columns(5)
+            with f1:
+                st.metric("Összbevétel", f"€{rev.get('total_eur', 0):,.0f}")
+            with f2:
+                pending_eur = rev.get("pending_eur", 0)
+                st.metric(
+                    "Függőben",
+                    f"€{pending_eur:,.0f}",
+                    delta=f"−€{pending_eur:,.0f}" if pending_eur else None,
+                    delta_color="inverse",
+                )
+            with f3:
+                st.metric("Kiadott kredit", f"{rev.get('total_credits_sold', 0):,} cr")
+            with f4:
+                st.metric("Aktív egyenleg", f"{cred.get('active_balance', 0):,} cr")
+            with f5:
+                pending_inv = inv.get("pending", 0)
+                st.metric(
+                    "Nyitott invoice",
+                    pending_inv,
+                    delta=f"−{pending_inv}" if pending_inv else None,
+                    delta_color="inverse",
+                )
+            st.divider()
+
         st.markdown("### 📊 Location Overview")
 
         if not selected_location:

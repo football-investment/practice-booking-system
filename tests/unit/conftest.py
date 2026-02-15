@@ -239,7 +239,7 @@ def tournament_semester_with_instructor(test_db: Session, tournament_date):
 
     # Assign instructor
     semester.master_instructor_id = instructor.id
-    semester.status = SemesterStatus.READY
+    semester.status = SemesterStatus.READY_FOR_ENROLLMENT
     test_db.commit()
     test_db.refresh(semester)
     return semester

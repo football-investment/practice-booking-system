@@ -158,7 +158,7 @@ class TestFootballSkillServiceAwardSkillPoints:
                 points_awarded=0  # Zero!
             )
 
-        assert "Points awarded must be positive" in str(exc_info.value)
+        assert "Points awarded cannot be zero" in str(exc_info.value)
 
     def test_award_skill_points_all_valid_skills(self, postgres_db: Session):
         """Test awarding points for all valid skills"""

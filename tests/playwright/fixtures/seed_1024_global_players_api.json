@@ -1,0 +1,6150 @@
+{
+  "players": [
+    {
+      "email": "felix.muller.de001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Felix Müller",
+      "date_of_birth": "1991-02-20"
+    },
+    {
+      "email": "emma.schmidt.de002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emma Schmidt",
+      "date_of_birth": "1991-03-29"
+    },
+    {
+      "email": "lukas.schneider.de003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lukas Schneider",
+      "date_of_birth": "1991-05-05"
+    },
+    {
+      "email": "anna.fischer.de004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Fischer",
+      "date_of_birth": "1991-06-11"
+    },
+    {
+      "email": "finn.weber.de005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Finn Weber",
+      "date_of_birth": "1991-07-18"
+    },
+    {
+      "email": "mia.meyer.de006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mia Meyer",
+      "date_of_birth": "1991-08-24"
+    },
+    {
+      "email": "paul.wagner.de007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paul Wagner",
+      "date_of_birth": "1991-09-30"
+    },
+    {
+      "email": "lea.becker.de008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lea Becker",
+      "date_of_birth": "1991-11-06"
+    },
+    {
+      "email": "erik.hoffmann.de009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Erik Hoffmann",
+      "date_of_birth": "1991-12-13"
+    },
+    {
+      "email": "jana.schulz.de010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jana Schulz",
+      "date_of_birth": "1992-01-19"
+    },
+    {
+      "email": "felix.muller.de011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Felix Müller",
+      "date_of_birth": "1992-02-25"
+    },
+    {
+      "email": "emma.schmidt.de012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emma Schmidt",
+      "date_of_birth": "1992-04-02"
+    },
+    {
+      "email": "lukas.schneider.de013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lukas Schneider",
+      "date_of_birth": "1992-05-09"
+    },
+    {
+      "email": "anna.fischer.de014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Fischer",
+      "date_of_birth": "1992-06-15"
+    },
+    {
+      "email": "finn.weber.de015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Finn Weber",
+      "date_of_birth": "1992-07-22"
+    },
+    {
+      "email": "mia.meyer.de016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mia Meyer",
+      "date_of_birth": "1992-08-28"
+    },
+    {
+      "email": "paul.wagner.de017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paul Wagner",
+      "date_of_birth": "1992-10-04"
+    },
+    {
+      "email": "lea.becker.de018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lea Becker",
+      "date_of_birth": "1992-11-10"
+    },
+    {
+      "email": "lucas.martin.fr001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Martin",
+      "date_of_birth": "1992-12-17"
+    },
+    {
+      "email": "lea.bernard.fr002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Léa Bernard",
+      "date_of_birth": "1993-01-23"
+    },
+    {
+      "email": "theo.dubois.fr003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Théo Dubois",
+      "date_of_birth": "1993-03-01"
+    },
+    {
+      "email": "manon.thomas.fr004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Manon Thomas",
+      "date_of_birth": "1993-04-07"
+    },
+    {
+      "email": "maxime.robert.fr005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maxime Robert",
+      "date_of_birth": "1993-05-14"
+    },
+    {
+      "email": "lucie.petit.fr006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucie Petit",
+      "date_of_birth": "1993-06-20"
+    },
+    {
+      "email": "antoine.richard.fr007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Antoine Richard",
+      "date_of_birth": "1993-07-27"
+    },
+    {
+      "email": "julie.leroy.fr008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julie Leroy",
+      "date_of_birth": "1993-09-02"
+    },
+    {
+      "email": "louis.simon.fr009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Louis Simon",
+      "date_of_birth": "1993-10-09"
+    },
+    {
+      "email": "anais.laurent.fr010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anaïs Laurent",
+      "date_of_birth": "1993-11-15"
+    },
+    {
+      "email": "lucas.martin.fr011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Martin",
+      "date_of_birth": "1993-12-22"
+    },
+    {
+      "email": "lea.bernard.fr012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Léa Bernard",
+      "date_of_birth": "1994-01-28"
+    },
+    {
+      "email": "theo.dubois.fr013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Théo Dubois",
+      "date_of_birth": "1994-03-06"
+    },
+    {
+      "email": "manon.thomas.fr014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Manon Thomas",
+      "date_of_birth": "1994-04-12"
+    },
+    {
+      "email": "maxime.robert.fr015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maxime Robert",
+      "date_of_birth": "1994-05-19"
+    },
+    {
+      "email": "lucie.petit.fr016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucie Petit",
+      "date_of_birth": "1994-06-25"
+    },
+    {
+      "email": "antoine.richard.fr017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Antoine Richard",
+      "date_of_birth": "1994-08-01"
+    },
+    {
+      "email": "julie.leroy.fr018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julie Leroy",
+      "date_of_birth": "1994-09-07"
+    },
+    {
+      "email": "alejandro.garcia.es001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alejandro García",
+      "date_of_birth": "1994-10-14"
+    },
+    {
+      "email": "maria.martinez.es002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "María Martínez",
+      "date_of_birth": "1994-11-20"
+    },
+    {
+      "email": "pablo.lopez.es003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pablo López",
+      "date_of_birth": "1994-12-27"
+    },
+    {
+      "email": "laura.sanchez.es004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura Sánchez",
+      "date_of_birth": "1995-02-02"
+    },
+    {
+      "email": "miguel.gonzalez.es005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Miguel González",
+      "date_of_birth": "1995-03-11"
+    },
+    {
+      "email": "ana.perez.es006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Pérez",
+      "date_of_birth": "1995-04-17"
+    },
+    {
+      "email": "alvaro.fernandez.es007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Álvaro Fernández",
+      "date_of_birth": "1995-05-24"
+    },
+    {
+      "email": "isabel.rodriguez.es008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Isabel Rodríguez",
+      "date_of_birth": "1995-06-30"
+    },
+    {
+      "email": "adrian.alvarez.es009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adrián Álvarez",
+      "date_of_birth": "1995-08-06"
+    },
+    {
+      "email": "andrea.torres.es010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrea Torres",
+      "date_of_birth": "1995-09-12"
+    },
+    {
+      "email": "alejandro.garcia.es011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alejandro García",
+      "date_of_birth": "1995-10-19"
+    },
+    {
+      "email": "maria.martinez.es012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "María Martínez",
+      "date_of_birth": "1995-11-25"
+    },
+    {
+      "email": "pablo.lopez.es013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pablo López",
+      "date_of_birth": "1996-01-01"
+    },
+    {
+      "email": "laura.sanchez.es014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura Sánchez",
+      "date_of_birth": "1996-02-07"
+    },
+    {
+      "email": "miguel.gonzalez.es015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Miguel González",
+      "date_of_birth": "1996-03-15"
+    },
+    {
+      "email": "ana.perez.es016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Pérez",
+      "date_of_birth": "1996-04-21"
+    },
+    {
+      "email": "alvaro.fernandez.es017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Álvaro Fernández",
+      "date_of_birth": "1996-05-28"
+    },
+    {
+      "email": "isabel.rodriguez.es018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Isabel Rodríguez",
+      "date_of_birth": "1996-07-04"
+    },
+    {
+      "email": "francesco.rossi.it001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Francesco Rossi",
+      "date_of_birth": "1996-08-10"
+    },
+    {
+      "email": "giulia.ferrari.it002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Giulia Ferrari",
+      "date_of_birth": "1996-09-16"
+    },
+    {
+      "email": "lorenzo.esposito.it003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lorenzo Esposito",
+      "date_of_birth": "1996-10-23"
+    },
+    {
+      "email": "alice.bianchi.it004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alice Bianchi",
+      "date_of_birth": "1996-11-29"
+    },
+    {
+      "email": "davide.romano.it005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Davide Romano",
+      "date_of_birth": "1997-01-05"
+    },
+    {
+      "email": "emma.colombo.it006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emma Colombo",
+      "date_of_birth": "1997-02-11"
+    },
+    {
+      "email": "marco.ricci.it007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marco Ricci",
+      "date_of_birth": "1997-03-20"
+    },
+    {
+      "email": "sara.marino.it008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Marino",
+      "date_of_birth": "1997-04-26"
+    },
+    {
+      "email": "andrea.greco.it009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrea Greco",
+      "date_of_birth": "1997-06-02"
+    },
+    {
+      "email": "valentina.bruno.it010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Valentina Bruno",
+      "date_of_birth": "1997-07-09"
+    },
+    {
+      "email": "francesco.rossi.it011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Francesco Rossi",
+      "date_of_birth": "1997-08-15"
+    },
+    {
+      "email": "giulia.ferrari.it012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Giulia Ferrari",
+      "date_of_birth": "1997-09-21"
+    },
+    {
+      "email": "lorenzo.esposito.it013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lorenzo Esposito",
+      "date_of_birth": "1997-10-28"
+    },
+    {
+      "email": "alice.bianchi.it014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alice Bianchi",
+      "date_of_birth": "1997-12-04"
+    },
+    {
+      "email": "davide.romano.it015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Davide Romano",
+      "date_of_birth": "1998-01-10"
+    },
+    {
+      "email": "emma.colombo.it016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emma Colombo",
+      "date_of_birth": "1998-02-16"
+    },
+    {
+      "email": "marco.ricci.it017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marco Ricci",
+      "date_of_birth": "1998-03-25"
+    },
+    {
+      "email": "sara.marino.it018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Marino",
+      "date_of_birth": "1998-05-01"
+    },
+    {
+      "email": "daan.dejong.nl001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daan de Jong",
+      "date_of_birth": "1998-06-07"
+    },
+    {
+      "email": "julia.jansen.nl002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julia Jansen",
+      "date_of_birth": "1998-07-14"
+    },
+    {
+      "email": "tim.devries.nl003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tim de Vries",
+      "date_of_birth": "1998-08-20"
+    },
+    {
+      "email": "fleur.vandenberg.nl004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fleur van den Berg",
+      "date_of_birth": "1998-09-26"
+    },
+    {
+      "email": "bas.bakker.nl005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bas Bakker",
+      "date_of_birth": "1998-11-02"
+    },
+    {
+      "email": "amber.visser.nl006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amber Visser",
+      "date_of_birth": "1998-12-09"
+    },
+    {
+      "email": "rik.smit.nl007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rik Smit",
+      "date_of_birth": "1999-01-15"
+    },
+    {
+      "email": "roos.meijer.nl008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Roos Meijer",
+      "date_of_birth": "1999-02-21"
+    },
+    {
+      "email": "bram.deboer.nl009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bram de Boer",
+      "date_of_birth": "1999-03-30"
+    },
+    {
+      "email": "isa.muller.nl010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Isa Müller",
+      "date_of_birth": "1999-05-06"
+    },
+    {
+      "email": "daan.dejong.nl011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daan de Jong",
+      "date_of_birth": "1999-06-12"
+    },
+    {
+      "email": "julia.jansen.nl012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julia Jansen",
+      "date_of_birth": "1999-07-19"
+    },
+    {
+      "email": "tim.devries.nl013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tim de Vries",
+      "date_of_birth": "1999-08-25"
+    },
+    {
+      "email": "fleur.vandenberg.nl014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fleur van den Berg",
+      "date_of_birth": "1999-10-01"
+    },
+    {
+      "email": "bas.bakker.nl015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bas Bakker",
+      "date_of_birth": "1999-11-07"
+    },
+    {
+      "email": "amber.visser.nl016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amber Visser",
+      "date_of_birth": "1999-12-14"
+    },
+    {
+      "email": "joao.silva.pt001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "João Silva",
+      "date_of_birth": "2000-01-20"
+    },
+    {
+      "email": "ines.santos.pt002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Inês Santos",
+      "date_of_birth": "2000-02-26"
+    },
+    {
+      "email": "miguel.ferreira.pt003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Miguel Ferreira",
+      "date_of_birth": "2000-04-03"
+    },
+    {
+      "email": "beatriz.pereira.pt004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Beatriz Pereira",
+      "date_of_birth": "2000-05-10"
+    },
+    {
+      "email": "tiago.oliveira.pt005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tiago Oliveira",
+      "date_of_birth": "2000-06-16"
+    },
+    {
+      "email": "catarina.costa.pt006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Catarina Costa",
+      "date_of_birth": "2000-07-23"
+    },
+    {
+      "email": "rui.rodrigues.pt007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rui Rodrigues",
+      "date_of_birth": "2000-08-29"
+    },
+    {
+      "email": "patricia.martins.pt008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patrícia Martins",
+      "date_of_birth": "2000-10-05"
+    },
+    {
+      "email": "filipe.jesus.pt009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Filipe Jesus",
+      "date_of_birth": "2000-11-11"
+    },
+    {
+      "email": "marta.sousa.pt010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marta Sousa",
+      "date_of_birth": "2000-12-18"
+    },
+    {
+      "email": "joao.silva.pt011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "João Silva",
+      "date_of_birth": "2001-01-24"
+    },
+    {
+      "email": "ines.santos.pt012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Inês Santos",
+      "date_of_birth": "2001-03-02"
+    },
+    {
+      "email": "miguel.ferreira.pt013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Miguel Ferreira",
+      "date_of_birth": "2001-04-08"
+    },
+    {
+      "email": "beatriz.pereira.pt014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Beatriz Pereira",
+      "date_of_birth": "2001-05-15"
+    },
+    {
+      "email": "tiago.oliveira.pt015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tiago Oliveira",
+      "date_of_birth": "2001-06-21"
+    },
+    {
+      "email": "catarina.costa.pt016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Catarina Costa",
+      "date_of_birth": "2001-07-28"
+    },
+    {
+      "email": "thomas.janssen.be001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Janssen",
+      "date_of_birth": "2001-09-03"
+    },
+    {
+      "email": "nora.peeters.be002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nora Peeters",
+      "date_of_birth": "2001-10-10"
+    },
+    {
+      "email": "maxime.maes.be003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maxime Maes",
+      "date_of_birth": "2001-11-16"
+    },
+    {
+      "email": "elise.jacobs.be004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Elise Jacobs",
+      "date_of_birth": "2001-12-23"
+    },
+    {
+      "email": "lucas.willems.be005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Willems",
+      "date_of_birth": "2002-01-29"
+    },
+    {
+      "email": "laura.claes.be006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura Claes",
+      "date_of_birth": "2002-03-07"
+    },
+    {
+      "email": "arthur.goossens.be007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Arthur Goossens",
+      "date_of_birth": "2002-04-13"
+    },
+    {
+      "email": "sofie.hermans.be008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sofie Hermans",
+      "date_of_birth": "2002-05-20"
+    },
+    {
+      "email": "louis.leclercq.be009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Louis Leclercq",
+      "date_of_birth": "2002-06-26"
+    },
+    {
+      "email": "ines.lambert.be010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ines Lambert",
+      "date_of_birth": "2002-08-02"
+    },
+    {
+      "email": "thomas.janssen.be011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Janssen",
+      "date_of_birth": "2002-09-08"
+    },
+    {
+      "email": "nora.peeters.be012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nora Peeters",
+      "date_of_birth": "2002-10-15"
+    },
+    {
+      "email": "maxime.maes.be013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maxime Maes",
+      "date_of_birth": "2002-11-21"
+    },
+    {
+      "email": "elise.jacobs.be014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Elise Jacobs",
+      "date_of_birth": "2002-12-28"
+    },
+    {
+      "email": "marek.nowak.pl001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marek Nowak",
+      "date_of_birth": "2003-02-03"
+    },
+    {
+      "email": "maria.kowalski.pl002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maria Kowalski",
+      "date_of_birth": "2003-03-12"
+    },
+    {
+      "email": "tomasz.wisniewski.pl003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tomasz Wiśniewski",
+      "date_of_birth": "2003-04-18"
+    },
+    {
+      "email": "magorzata.wojcik.pl004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Małgorzata Wójcik",
+      "date_of_birth": "2003-05-25"
+    },
+    {
+      "email": "micha.kowalczyk.pl005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Michał Kowalczyk",
+      "date_of_birth": "2003-07-01"
+    },
+    {
+      "email": "barbara.kaminski.pl006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Kamiński",
+      "date_of_birth": "2003-08-07"
+    },
+    {
+      "email": "andrzej.lewandowski.pl007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrzej Lewandowski",
+      "date_of_birth": "2003-09-13"
+    },
+    {
+      "email": "joanna.zielinski.pl008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Joanna Zieliński",
+      "date_of_birth": "2003-10-20"
+    },
+    {
+      "email": "ukasz.szymanski.pl009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Łukasz Szymański",
+      "date_of_birth": "2003-11-26"
+    },
+    {
+      "email": "natalia.wozniak.pl010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Natalia Woźniak",
+      "date_of_birth": "2004-01-02"
+    },
+    {
+      "email": "marek.nowak.pl011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marek Nowak",
+      "date_of_birth": "2004-02-08"
+    },
+    {
+      "email": "maria.kowalski.pl012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maria Kowalski",
+      "date_of_birth": "2004-03-16"
+    },
+    {
+      "email": "tomasz.wisniewski.pl013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tomasz Wiśniewski",
+      "date_of_birth": "2004-04-22"
+    },
+    {
+      "email": "magorzata.wojcik.pl014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Małgorzata Wójcik",
+      "date_of_birth": "2004-05-29"
+    },
+    {
+      "email": "micha.kowalczyk.pl015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Michał Kowalczyk",
+      "date_of_birth": "2004-07-05"
+    },
+    {
+      "email": "barbara.kaminski.pl016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Kamiński",
+      "date_of_birth": "2004-08-11"
+    },
+    {
+      "email": "andrzej.lewandowski.pl017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrzej Lewandowski",
+      "date_of_birth": "2004-09-17"
+    },
+    {
+      "email": "joanna.zielinski.pl018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Joanna Zieliński",
+      "date_of_birth": "2004-10-24"
+    },
+    {
+      "email": "jakub.novak.cz001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jakub Novák",
+      "date_of_birth": "2004-11-30"
+    },
+    {
+      "email": "anna.svoboda.cz002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Svoboda",
+      "date_of_birth": "2005-01-06"
+    },
+    {
+      "email": "jan.novotny.cz003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jan Novotný",
+      "date_of_birth": "2005-02-12"
+    },
+    {
+      "email": "petra.dvorak.cz004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Petra Dvořák",
+      "date_of_birth": "2005-03-21"
+    },
+    {
+      "email": "petr.cerny.cz005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Petr Černý",
+      "date_of_birth": "2005-04-27"
+    },
+    {
+      "email": "jana.prochazka.cz006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jana Procházka",
+      "date_of_birth": "2005-06-03"
+    },
+    {
+      "email": "ondrej.kucera.cz007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ondřej Kučera",
+      "date_of_birth": "2005-07-10"
+    },
+    {
+      "email": "veronika.vesely.cz008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Veronika Veselý",
+      "date_of_birth": "2005-08-16"
+    },
+    {
+      "email": "david.horak.cz009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "David Horák",
+      "date_of_birth": "2005-09-22"
+    },
+    {
+      "email": "lenka.nemec.cz010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lenka Němec",
+      "date_of_birth": "2005-10-29"
+    },
+    {
+      "email": "jakub.novak.cz011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jakub Novák",
+      "date_of_birth": "2005-12-05"
+    },
+    {
+      "email": "anna.svoboda.cz012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Svoboda",
+      "date_of_birth": "2006-01-11"
+    },
+    {
+      "email": "jan.novotny.cz013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jan Novotný",
+      "date_of_birth": "2006-02-17"
+    },
+    {
+      "email": "petra.dvorak.cz014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Petra Dvořák",
+      "date_of_birth": "2006-03-26"
+    },
+    {
+      "email": "peter.nagy.hu001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Péter Nagy",
+      "date_of_birth": "2006-05-02"
+    },
+    {
+      "email": "reka.kovacs.hu002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Réka Kovács",
+      "date_of_birth": "2006-06-08"
+    },
+    {
+      "email": "zoltan.toth.hu003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zoltán Tóth",
+      "date_of_birth": "2006-07-15"
+    },
+    {
+      "email": "katalin.szabo.hu004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Katalin Szabó",
+      "date_of_birth": "2006-08-21"
+    },
+    {
+      "email": "bence.horvath.hu005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bence Horváth",
+      "date_of_birth": "2006-09-27"
+    },
+    {
+      "email": "nora.varga.hu006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nóra Varga",
+      "date_of_birth": "2006-11-03"
+    },
+    {
+      "email": "tamas.kiss.hu007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tamás Kiss",
+      "date_of_birth": "2006-12-10"
+    },
+    {
+      "email": "viktoria.molnar.hu008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Viktória Molnár",
+      "date_of_birth": "2007-01-16"
+    },
+    {
+      "email": "norbert.nemeth.hu009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Norbert Németh",
+      "date_of_birth": "2007-02-22"
+    },
+    {
+      "email": "orsolya.farkas.hu010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Orsolya Farkas",
+      "date_of_birth": "2007-03-31"
+    },
+    {
+      "email": "peter.nagy.hu011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Péter Nagy",
+      "date_of_birth": "2007-05-07"
+    },
+    {
+      "email": "reka.kovacs.hu012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Réka Kovács",
+      "date_of_birth": "2007-06-13"
+    },
+    {
+      "email": "zoltan.toth.hu013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zoltán Tóth",
+      "date_of_birth": "2007-07-20"
+    },
+    {
+      "email": "katalin.szabo.hu014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Katalin Szabó",
+      "date_of_birth": "2007-08-26"
+    },
+    {
+      "email": "bence.horvath.hu015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bence Horváth",
+      "date_of_birth": "2007-10-02"
+    },
+    {
+      "email": "nora.varga.hu016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nóra Varga",
+      "date_of_birth": "2007-11-08"
+    },
+    {
+      "email": "tamas.kiss.hu017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tamás Kiss",
+      "date_of_birth": "2007-12-15"
+    },
+    {
+      "email": "viktoria.molnar.hu018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Viktória Molnár",
+      "date_of_birth": "1991-01-25"
+    },
+    {
+      "email": "alexandru.popescu.ro001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alexandru Popescu",
+      "date_of_birth": "1991-03-03"
+    },
+    {
+      "email": "ana.ionescu.ro002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Ionescu",
+      "date_of_birth": "1991-04-09"
+    },
+    {
+      "email": "mihai.popa.ro003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mihai Popa",
+      "date_of_birth": "1991-05-16"
+    },
+    {
+      "email": "ioana.gheorghe.ro004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ioana Gheorghe",
+      "date_of_birth": "1991-06-22"
+    },
+    {
+      "email": "bogdan.constantin.ro005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bogdan Constantin",
+      "date_of_birth": "1991-07-29"
+    },
+    {
+      "email": "cristina.stoica.ro006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Cristina Stoica",
+      "date_of_birth": "1991-09-04"
+    },
+    {
+      "email": "sebastian.marin.ro007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastian Marin",
+      "date_of_birth": "1991-10-11"
+    },
+    {
+      "email": "mihaela.dumitru.ro008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mihaela Dumitru",
+      "date_of_birth": "1991-11-17"
+    },
+    {
+      "email": "radu.stan.ro009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Radu Stan",
+      "date_of_birth": "1991-12-24"
+    },
+    {
+      "email": "roxana.barbu.ro010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Roxana Barbu",
+      "date_of_birth": "1992-01-30"
+    },
+    {
+      "email": "alexandru.popescu.ro011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alexandru Popescu",
+      "date_of_birth": "1992-03-07"
+    },
+    {
+      "email": "ana.ionescu.ro012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Ionescu",
+      "date_of_birth": "1992-04-13"
+    },
+    {
+      "email": "mihai.popa.ro013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mihai Popa",
+      "date_of_birth": "1992-05-20"
+    },
+    {
+      "email": "ioana.gheorghe.ro014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ioana Gheorghe",
+      "date_of_birth": "1992-06-26"
+    },
+    {
+      "email": "bogdan.constantin.ro015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bogdan Constantin",
+      "date_of_birth": "1992-08-02"
+    },
+    {
+      "email": "cristina.stoica.ro016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Cristina Stoica",
+      "date_of_birth": "1992-09-08"
+    },
+    {
+      "email": "ivan.horvat.hr001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ivan Horvat",
+      "date_of_birth": "1992-10-15"
+    },
+    {
+      "email": "ivana.kovacevic.hr002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ivana Kovačević",
+      "date_of_birth": "1992-11-21"
+    },
+    {
+      "email": "tomislav.babic.hr003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tomislav Babić",
+      "date_of_birth": "1992-12-28"
+    },
+    {
+      "email": "petra.markovic.hr004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Petra Marković",
+      "date_of_birth": "1993-02-03"
+    },
+    {
+      "email": "ante.juric.hr005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ante Jurić",
+      "date_of_birth": "1993-03-12"
+    },
+    {
+      "email": "lucija.tomic.hr006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucija Tomić",
+      "date_of_birth": "1993-04-18"
+    },
+    {
+      "email": "stjepan.novak.hr007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Stjepan Novak",
+      "date_of_birth": "1993-05-25"
+    },
+    {
+      "email": "katarina.knezevic.hr008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Katarina Knežević",
+      "date_of_birth": "1993-07-01"
+    },
+    {
+      "email": "nikola.petrovic.hr009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nikola Petrović",
+      "date_of_birth": "1993-08-07"
+    },
+    {
+      "email": "tea.blazevic.hr010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tea Blažević",
+      "date_of_birth": "1993-09-13"
+    },
+    {
+      "email": "ivan.horvat.hr011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ivan Horvat",
+      "date_of_birth": "1993-10-20"
+    },
+    {
+      "email": "ivana.kovacevic.hr012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ivana Kovačević",
+      "date_of_birth": "1993-11-26"
+    },
+    {
+      "email": "tomislav.babic.hr013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tomislav Babić",
+      "date_of_birth": "1994-01-02"
+    },
+    {
+      "email": "petra.markovic.hr014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Petra Marković",
+      "date_of_birth": "1994-02-08"
+    },
+    {
+      "email": "erik.johansson.se001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Erik Johansson",
+      "date_of_birth": "1994-03-17"
+    },
+    {
+      "email": "maria.andersson.se002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maria Andersson",
+      "date_of_birth": "1994-04-23"
+    },
+    {
+      "email": "lars.karlsson.se003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lars Karlsson",
+      "date_of_birth": "1994-05-30"
+    },
+    {
+      "email": "sara.nilsson.se004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Nilsson",
+      "date_of_birth": "1994-07-06"
+    },
+    {
+      "email": "bjorn.eriksson.se005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Björn Eriksson",
+      "date_of_birth": "1994-08-12"
+    },
+    {
+      "email": "maja.larsson.se006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maja Larsson",
+      "date_of_birth": "1994-09-18"
+    },
+    {
+      "email": "sven.olsson.se007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sven Olsson",
+      "date_of_birth": "1994-10-25"
+    },
+    {
+      "email": "elin.persson.se008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Elin Persson",
+      "date_of_birth": "1994-12-01"
+    },
+    {
+      "email": "nils.svensson.se009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nils Svensson",
+      "date_of_birth": "1995-01-07"
+    },
+    {
+      "email": "frida.gustafsson.se010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Frida Gustafsson",
+      "date_of_birth": "1995-02-13"
+    },
+    {
+      "email": "erik.johansson.se011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Erik Johansson",
+      "date_of_birth": "1995-03-22"
+    },
+    {
+      "email": "maria.andersson.se012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maria Andersson",
+      "date_of_birth": "1995-04-28"
+    },
+    {
+      "email": "lars.karlsson.se013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lars Karlsson",
+      "date_of_birth": "1995-06-04"
+    },
+    {
+      "email": "sara.nilsson.se014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Nilsson",
+      "date_of_birth": "1995-07-11"
+    },
+    {
+      "email": "bjorn.eriksson.se015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Björn Eriksson",
+      "date_of_birth": "1995-08-17"
+    },
+    {
+      "email": "maja.larsson.se016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maja Larsson",
+      "date_of_birth": "1995-09-23"
+    },
+    {
+      "email": "lars.hansen.no001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lars Hansen",
+      "date_of_birth": "1995-10-30"
+    },
+    {
+      "email": "kari.johansen.no002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kari Johansen",
+      "date_of_birth": "1995-12-06"
+    },
+    {
+      "email": "ole.olsen.no003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ole Olsen",
+      "date_of_birth": "1996-01-12"
+    },
+    {
+      "email": "astrid.larsen.no004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Astrid Larsen",
+      "date_of_birth": "1996-02-18"
+    },
+    {
+      "email": "per.andersen.no005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Per Andersen",
+      "date_of_birth": "1996-03-26"
+    },
+    {
+      "email": "hilde.pedersen.no006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hilde Pedersen",
+      "date_of_birth": "1996-05-02"
+    },
+    {
+      "email": "hans.nilsen.no007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hans Nilsen",
+      "date_of_birth": "1996-06-08"
+    },
+    {
+      "email": "kristin.kristiansen.no008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kristin Kristiansen",
+      "date_of_birth": "1996-07-15"
+    },
+    {
+      "email": "arne.jensen.no009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Arne Jensen",
+      "date_of_birth": "1996-08-21"
+    },
+    {
+      "email": "tone.karlsen.no010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tone Karlsen",
+      "date_of_birth": "1996-09-27"
+    },
+    {
+      "email": "lars.hansen.no011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lars Hansen",
+      "date_of_birth": "1996-11-03"
+    },
+    {
+      "email": "kari.johansen.no012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kari Johansen",
+      "date_of_birth": "1996-12-10"
+    },
+    {
+      "email": "ole.olsen.no013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ole Olsen",
+      "date_of_birth": "1997-01-16"
+    },
+    {
+      "email": "astrid.larsen.no014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Astrid Larsen",
+      "date_of_birth": "1997-02-22"
+    },
+    {
+      "email": "lars.jensen.dk001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lars Jensen",
+      "date_of_birth": "1997-03-31"
+    },
+    {
+      "email": "sofie.nielsen.dk002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sofie Nielsen",
+      "date_of_birth": "1997-05-07"
+    },
+    {
+      "email": "mikkel.hansen.dk003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mikkel Hansen",
+      "date_of_birth": "1997-06-13"
+    },
+    {
+      "email": "laura.pedersen.dk004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura Pedersen",
+      "date_of_birth": "1997-07-20"
+    },
+    {
+      "email": "jonas.andersen.dk005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jonas Andersen",
+      "date_of_birth": "1997-08-26"
+    },
+    {
+      "email": "sara.christensen.dk006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Christensen",
+      "date_of_birth": "1997-10-02"
+    },
+    {
+      "email": "christian.larsen.dk007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Christian Larsen",
+      "date_of_birth": "1997-11-08"
+    },
+    {
+      "email": "maja.srensen.dk008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maja Sørensen",
+      "date_of_birth": "1997-12-15"
+    },
+    {
+      "email": "daniel.rasmussen.dk009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniel Rasmussen",
+      "date_of_birth": "1998-01-21"
+    },
+    {
+      "email": "maria.jrgensen.dk010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maria Jørgensen",
+      "date_of_birth": "1998-02-27"
+    },
+    {
+      "email": "lars.jensen.dk011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lars Jensen",
+      "date_of_birth": "1998-04-05"
+    },
+    {
+      "email": "sofie.nielsen.dk012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sofie Nielsen",
+      "date_of_birth": "1998-05-12"
+    },
+    {
+      "email": "mikkel.hansen.dk013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mikkel Hansen",
+      "date_of_birth": "1998-06-18"
+    },
+    {
+      "email": "laura.pedersen.dk014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura Pedersen",
+      "date_of_birth": "1998-07-25"
+    },
+    {
+      "email": "dimitris.papadopoulos.gr001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dimitris Papadopoulos",
+      "date_of_birth": "1998-08-31"
+    },
+    {
+      "email": "elena.papadimitriou.gr002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Elena Papadimitriou",
+      "date_of_birth": "1998-10-07"
+    },
+    {
+      "email": "yiannis.oikonomou.gr003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yiannis Oikonomou",
+      "date_of_birth": "1998-11-13"
+    },
+    {
+      "email": "anna.georgiou.gr004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Georgiou",
+      "date_of_birth": "1998-12-20"
+    },
+    {
+      "email": "giorgos.papadakis.gr005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Giorgos Papadakis",
+      "date_of_birth": "1999-01-26"
+    },
+    {
+      "email": "eleni.christodoulou.gr006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Eleni Christodoulou",
+      "date_of_birth": "1999-03-04"
+    },
+    {
+      "email": "panagiotis.alexiou.gr007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Panagiotis Alexiou",
+      "date_of_birth": "1999-04-10"
+    },
+    {
+      "email": "vasiliki.petrou.gr008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Vasiliki Petrou",
+      "date_of_birth": "1999-05-17"
+    },
+    {
+      "email": "christos.nikolaou.gr009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Christos Nikolaou",
+      "date_of_birth": "1999-06-23"
+    },
+    {
+      "email": "christina.antoniou.gr010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Christina Antoniou",
+      "date_of_birth": "1999-07-30"
+    },
+    {
+      "email": "dimitris.papadopoulos.gr011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dimitris Papadopoulos",
+      "date_of_birth": "1999-09-05"
+    },
+    {
+      "email": "elena.papadimitriou.gr012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Elena Papadimitriou",
+      "date_of_birth": "1999-10-12"
+    },
+    {
+      "email": "yiannis.oikonomou.gr013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yiannis Oikonomou",
+      "date_of_birth": "1999-11-18"
+    },
+    {
+      "email": "anna.georgiou.gr014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Georgiou",
+      "date_of_birth": "1999-12-25"
+    },
+    {
+      "email": "giorgos.papadakis.gr015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Giorgos Papadakis",
+      "date_of_birth": "2000-01-31"
+    },
+    {
+      "email": "eleni.christodoulou.gr016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Eleni Christodoulou",
+      "date_of_birth": "2000-03-08"
+    },
+    {
+      "email": "aleksandar.jovanovic.rs001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aleksandar Jovanović",
+      "date_of_birth": "2000-04-14"
+    },
+    {
+      "email": "milica.petrovic.rs002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Milica Petrović",
+      "date_of_birth": "2000-05-21"
+    },
+    {
+      "email": "marko.nikolic.rs003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marko Nikolić",
+      "date_of_birth": "2000-06-27"
+    },
+    {
+      "email": "marija.markovic.rs004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marija Marković",
+      "date_of_birth": "2000-08-03"
+    },
+    {
+      "email": "milos.orevic.rs005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Miloš Đorđević",
+      "date_of_birth": "2000-09-09"
+    },
+    {
+      "email": "maja.stojanovic.rs006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maja Stojanović",
+      "date_of_birth": "2000-10-16"
+    },
+    {
+      "email": "vladimir.ilic.rs007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Vladimir Ilić",
+      "date_of_birth": "2000-11-22"
+    },
+    {
+      "email": "nina.stankovic.rs008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nina Stanković",
+      "date_of_birth": "2000-12-29"
+    },
+    {
+      "email": "bojan.popovic.rs009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bojan Popović",
+      "date_of_birth": "2001-02-04"
+    },
+    {
+      "email": "dragana.mihajlovic.rs010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dragana Mihajlović",
+      "date_of_birth": "2001-03-13"
+    },
+    {
+      "email": "aleksandar.jovanovic.rs011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aleksandar Jovanović",
+      "date_of_birth": "2001-04-19"
+    },
+    {
+      "email": "milica.petrovic.rs012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Milica Petrović",
+      "date_of_birth": "2001-05-26"
+    },
+    {
+      "email": "marko.nikolic.rs013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marko Nikolić",
+      "date_of_birth": "2001-07-02"
+    },
+    {
+      "email": "marija.markovic.rs014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marija Marković",
+      "date_of_birth": "2001-08-08"
+    },
+    {
+      "email": "thomas.gruber.at001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Gruber",
+      "date_of_birth": "2001-09-14"
+    },
+    {
+      "email": "anna.huber.at002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Huber",
+      "date_of_birth": "2001-10-21"
+    },
+    {
+      "email": "michael.bauer.at003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Michael Bauer",
+      "date_of_birth": "2001-11-27"
+    },
+    {
+      "email": "katharina.wagner.at004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Katharina Wagner",
+      "date_of_birth": "2002-01-03"
+    },
+    {
+      "email": "lukas.muller.at005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lukas Müller",
+      "date_of_birth": "2002-02-09"
+    },
+    {
+      "email": "julia.pichler.at006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julia Pichler",
+      "date_of_birth": "2002-03-18"
+    },
+    {
+      "email": "andreas.steiner.at007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andreas Steiner",
+      "date_of_birth": "2002-04-24"
+    },
+    {
+      "email": "sandra.moser.at008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sandra Moser",
+      "date_of_birth": "2002-05-31"
+    },
+    {
+      "email": "dominik.mayer.at009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dominik Mayer",
+      "date_of_birth": "2002-07-07"
+    },
+    {
+      "email": "eva.hofer.at010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Eva Hofer",
+      "date_of_birth": "2002-08-13"
+    },
+    {
+      "email": "thomas.gruber.at011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Gruber",
+      "date_of_birth": "2002-09-19"
+    },
+    {
+      "email": "anna.huber.at012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Huber",
+      "date_of_birth": "2002-10-26"
+    },
+    {
+      "email": "michael.bauer.at013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Michael Bauer",
+      "date_of_birth": "2002-12-02"
+    },
+    {
+      "email": "katharina.wagner.at014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Katharina Wagner",
+      "date_of_birth": "2003-01-08"
+    },
+    {
+      "email": "simon.muller.ch001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Simon Müller",
+      "date_of_birth": "2003-02-14"
+    },
+    {
+      "email": "anna.meier.ch002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Meier",
+      "date_of_birth": "2003-03-23"
+    },
+    {
+      "email": "daniel.schmid.ch003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniel Schmid",
+      "date_of_birth": "2003-04-29"
+    },
+    {
+      "email": "julia.keller.ch004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julia Keller",
+      "date_of_birth": "2003-06-05"
+    },
+    {
+      "email": "david.weber.ch005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "David Weber",
+      "date_of_birth": "2003-07-12"
+    },
+    {
+      "email": "nicole.huber.ch006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nicole Huber",
+      "date_of_birth": "2003-08-18"
+    },
+    {
+      "email": "fabian.meyer.ch007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fabian Meyer",
+      "date_of_birth": "2003-09-24"
+    },
+    {
+      "email": "monika.schneider.ch008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Monika Schneider",
+      "date_of_birth": "2003-10-31"
+    },
+    {
+      "email": "julian.fischer.ch009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julian Fischer",
+      "date_of_birth": "2003-12-07"
+    },
+    {
+      "email": "andrea.widmer.ch010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrea Widmer",
+      "date_of_birth": "2004-01-13"
+    },
+    {
+      "email": "simon.muller.ch011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Simon Müller",
+      "date_of_birth": "2004-02-19"
+    },
+    {
+      "email": "anna.meier.ch012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anna Meier",
+      "date_of_birth": "2004-03-27"
+    },
+    {
+      "email": "daniel.schmid.ch013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniel Schmid",
+      "date_of_birth": "2004-05-03"
+    },
+    {
+      "email": "julia.keller.ch014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Julia Keller",
+      "date_of_birth": "2004-06-09"
+    },
+    {
+      "email": "lucas.silva.br001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Silva",
+      "date_of_birth": "2004-07-16"
+    },
+    {
+      "email": "ana.santos.br002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Santos",
+      "date_of_birth": "2004-08-22"
+    },
+    {
+      "email": "rafael.oliveira.br003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rafael Oliveira",
+      "date_of_birth": "2004-09-28"
+    },
+    {
+      "email": "camila.souza.br004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Camila Souza",
+      "date_of_birth": "2004-11-04"
+    },
+    {
+      "email": "felipe.lima.br005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Felipe Lima",
+      "date_of_birth": "2004-12-11"
+    },
+    {
+      "email": "fernanda.pereira.br006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fernanda Pereira",
+      "date_of_birth": "2005-01-17"
+    },
+    {
+      "email": "matheus.costa.br007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Matheus Costa",
+      "date_of_birth": "2005-02-23"
+    },
+    {
+      "email": "larissa.carvalho.br008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Larissa Carvalho",
+      "date_of_birth": "2005-04-01"
+    },
+    {
+      "email": "bruno.almeida.br009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bruno Almeida",
+      "date_of_birth": "2005-05-08"
+    },
+    {
+      "email": "gabriela.rodrigues.br010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Gabriela Rodrigues",
+      "date_of_birth": "2005-06-14"
+    },
+    {
+      "email": "lucas.silva.br011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Silva",
+      "date_of_birth": "2005-07-21"
+    },
+    {
+      "email": "ana.santos.br012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Santos",
+      "date_of_birth": "2005-08-27"
+    },
+    {
+      "email": "rafael.oliveira.br013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rafael Oliveira",
+      "date_of_birth": "2005-10-03"
+    },
+    {
+      "email": "camila.souza.br014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Camila Souza",
+      "date_of_birth": "2005-11-09"
+    },
+    {
+      "email": "felipe.lima.br015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Felipe Lima",
+      "date_of_birth": "2005-12-16"
+    },
+    {
+      "email": "fernanda.pereira.br016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fernanda Pereira",
+      "date_of_birth": "2006-01-22"
+    },
+    {
+      "email": "matheus.costa.br017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Matheus Costa",
+      "date_of_birth": "2006-02-28"
+    },
+    {
+      "email": "larissa.carvalho.br018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Larissa Carvalho",
+      "date_of_birth": "2006-04-06"
+    },
+    {
+      "email": "bruno.almeida.br019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bruno Almeida",
+      "date_of_birth": "2006-05-13"
+    },
+    {
+      "email": "gabriela.rodrigues.br020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Gabriela Rodrigues",
+      "date_of_birth": "2006-06-19"
+    },
+    {
+      "email": "lucas.silva.br021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Silva",
+      "date_of_birth": "2006-07-26"
+    },
+    {
+      "email": "ana.santos.br022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Santos",
+      "date_of_birth": "2006-09-01"
+    },
+    {
+      "email": "rafael.oliveira.br023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rafael Oliveira",
+      "date_of_birth": "2006-10-08"
+    },
+    {
+      "email": "camila.souza.br024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Camila Souza",
+      "date_of_birth": "2006-11-14"
+    },
+    {
+      "email": "matias.gonzalez.ar001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Matías González",
+      "date_of_birth": "2006-12-21"
+    },
+    {
+      "email": "florencia.rodriguez.ar002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Florencia Rodríguez",
+      "date_of_birth": "2007-01-27"
+    },
+    {
+      "email": "ezequiel.gomez.ar003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ezequiel Gómez",
+      "date_of_birth": "2007-03-05"
+    },
+    {
+      "email": "luciana.garcia.ar004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luciana García",
+      "date_of_birth": "2007-04-11"
+    },
+    {
+      "email": "agustin.lopez.ar005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Agustín López",
+      "date_of_birth": "2007-05-18"
+    },
+    {
+      "email": "soledad.fernandez.ar006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Soledad Fernández",
+      "date_of_birth": "2007-06-24"
+    },
+    {
+      "email": "tomas.sanchez.ar007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tomás Sánchez",
+      "date_of_birth": "2007-07-31"
+    },
+    {
+      "email": "paola.romero.ar008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paola Romero",
+      "date_of_birth": "2007-09-06"
+    },
+    {
+      "email": "ignacio.diaz.ar009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ignacio Díaz",
+      "date_of_birth": "2007-10-13"
+    },
+    {
+      "email": "romina.alvarez.ar010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Romina Álvarez",
+      "date_of_birth": "2007-11-19"
+    },
+    {
+      "email": "matias.gonzalez.ar011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Matías González",
+      "date_of_birth": "2007-12-26"
+    },
+    {
+      "email": "florencia.rodriguez.ar012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Florencia Rodríguez",
+      "date_of_birth": "1991-02-05"
+    },
+    {
+      "email": "ezequiel.gomez.ar013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ezequiel Gómez",
+      "date_of_birth": "1991-03-14"
+    },
+    {
+      "email": "luciana.garcia.ar014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luciana García",
+      "date_of_birth": "1991-04-20"
+    },
+    {
+      "email": "agustin.lopez.ar015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Agustín López",
+      "date_of_birth": "1991-05-27"
+    },
+    {
+      "email": "soledad.fernandez.ar016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Soledad Fernández",
+      "date_of_birth": "1991-07-03"
+    },
+    {
+      "email": "tomas.sanchez.ar017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tomás Sánchez",
+      "date_of_birth": "1991-08-09"
+    },
+    {
+      "email": "paola.romero.ar018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paola Romero",
+      "date_of_birth": "1991-09-15"
+    },
+    {
+      "email": "ignacio.diaz.ar019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ignacio Díaz",
+      "date_of_birth": "1991-10-22"
+    },
+    {
+      "email": "romina.alvarez.ar020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Romina Álvarez",
+      "date_of_birth": "1991-11-28"
+    },
+    {
+      "email": "jose.hernandez.mx001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "José Hernández",
+      "date_of_birth": "1992-01-04"
+    },
+    {
+      "email": "ana.garcia.mx002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana García",
+      "date_of_birth": "1992-02-10"
+    },
+    {
+      "email": "carlos.martinez.mx003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos Martínez",
+      "date_of_birth": "1992-03-18"
+    },
+    {
+      "email": "guadalupe.lopez.mx004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Guadalupe López",
+      "date_of_birth": "1992-04-24"
+    },
+    {
+      "email": "luis.gonzalez.mx005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis González",
+      "date_of_birth": "1992-05-31"
+    },
+    {
+      "email": "claudia.perez.mx006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Claudia Pérez",
+      "date_of_birth": "1992-07-07"
+    },
+    {
+      "email": "roberto.rodriguez.mx007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Roberto Rodríguez",
+      "date_of_birth": "1992-08-13"
+    },
+    {
+      "email": "veronica.sanchez.mx008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Verónica Sánchez",
+      "date_of_birth": "1992-09-19"
+    },
+    {
+      "email": "francisco.ramirez.mx009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Francisco Ramírez",
+      "date_of_birth": "1992-10-26"
+    },
+    {
+      "email": "susana.torres.mx010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susana Torres",
+      "date_of_birth": "1992-12-02"
+    },
+    {
+      "email": "jose.hernandez.mx011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "José Hernández",
+      "date_of_birth": "1993-01-08"
+    },
+    {
+      "email": "ana.garcia.mx012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana García",
+      "date_of_birth": "1993-02-14"
+    },
+    {
+      "email": "carlos.martinez.mx013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos Martínez",
+      "date_of_birth": "1993-03-23"
+    },
+    {
+      "email": "guadalupe.lopez.mx014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Guadalupe López",
+      "date_of_birth": "1993-04-29"
+    },
+    {
+      "email": "luis.gonzalez.mx015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis González",
+      "date_of_birth": "1993-06-05"
+    },
+    {
+      "email": "claudia.perez.mx016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Claudia Pérez",
+      "date_of_birth": "1993-07-12"
+    },
+    {
+      "email": "roberto.rodriguez.mx017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Roberto Rodríguez",
+      "date_of_birth": "1993-08-18"
+    },
+    {
+      "email": "veronica.sanchez.mx018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Verónica Sánchez",
+      "date_of_birth": "1993-09-24"
+    },
+    {
+      "email": "francisco.ramirez.mx019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Francisco Ramírez",
+      "date_of_birth": "1993-10-31"
+    },
+    {
+      "email": "susana.torres.mx020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susana Torres",
+      "date_of_birth": "1993-12-07"
+    },
+    {
+      "email": "jose.hernandez.mx021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "José Hernández",
+      "date_of_birth": "1994-01-13"
+    },
+    {
+      "email": "ana.garcia.mx022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana García",
+      "date_of_birth": "1994-02-19"
+    },
+    {
+      "email": "carlos.martinez.mx023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos Martínez",
+      "date_of_birth": "1994-03-28"
+    },
+    {
+      "email": "guadalupe.lopez.mx024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Guadalupe López",
+      "date_of_birth": "1994-05-04"
+    },
+    {
+      "email": "andres.rodriguez.co001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrés Rodríguez",
+      "date_of_birth": "1994-06-10"
+    },
+    {
+      "email": "laura.garcia.co002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura García",
+      "date_of_birth": "1994-07-17"
+    },
+    {
+      "email": "juan.martinez.co003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Juan Martínez",
+      "date_of_birth": "1994-08-23"
+    },
+    {
+      "email": "daniela.hernandez.co004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniela Hernández",
+      "date_of_birth": "1994-09-29"
+    },
+    {
+      "email": "sebastian.lopez.co005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastián López",
+      "date_of_birth": "1994-11-05"
+    },
+    {
+      "email": "paula.gonzalez.co006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paula González",
+      "date_of_birth": "1994-12-12"
+    },
+    {
+      "email": "diego.torres.co007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diego Torres",
+      "date_of_birth": "1995-01-18"
+    },
+    {
+      "email": "carolina.gomez.co008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carolina Gómez",
+      "date_of_birth": "1995-02-24"
+    },
+    {
+      "email": "alejandro.sanchez.co009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alejandro Sánchez",
+      "date_of_birth": "1995-04-02"
+    },
+    {
+      "email": "alejandra.diaz.co010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alejandra Díaz",
+      "date_of_birth": "1995-05-09"
+    },
+    {
+      "email": "andres.rodriguez.co011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrés Rodríguez",
+      "date_of_birth": "1995-06-15"
+    },
+    {
+      "email": "laura.garcia.co012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laura García",
+      "date_of_birth": "1995-07-22"
+    },
+    {
+      "email": "juan.martinez.co013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Juan Martínez",
+      "date_of_birth": "1995-08-28"
+    },
+    {
+      "email": "daniela.hernandez.co014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniela Hernández",
+      "date_of_birth": "1995-10-04"
+    },
+    {
+      "email": "sebastian.lopez.co015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastián López",
+      "date_of_birth": "1995-11-10"
+    },
+    {
+      "email": "paula.gonzalez.co016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paula González",
+      "date_of_birth": "1995-12-17"
+    },
+    {
+      "email": "diego.torres.co017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diego Torres",
+      "date_of_birth": "1996-01-23"
+    },
+    {
+      "email": "carolina.gomez.co018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carolina Gómez",
+      "date_of_birth": "1996-02-29"
+    },
+    {
+      "email": "sebastian.gonzalez.cl001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastián González",
+      "date_of_birth": "1996-04-06"
+    },
+    {
+      "email": "constanza.munoz.cl002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Constanza Muñoz",
+      "date_of_birth": "1996-05-13"
+    },
+    {
+      "email": "ignacio.rojas.cl003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ignacio Rojas",
+      "date_of_birth": "1996-06-19"
+    },
+    {
+      "email": "javiera.diaz.cl004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Javiera Díaz",
+      "date_of_birth": "1996-07-26"
+    },
+    {
+      "email": "diego.perez.cl005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diego Pérez",
+      "date_of_birth": "1996-09-01"
+    },
+    {
+      "email": "daniela.soto.cl006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniela Soto",
+      "date_of_birth": "1996-10-08"
+    },
+    {
+      "email": "camilo.contreras.cl007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Camilo Contreras",
+      "date_of_birth": "1996-11-14"
+    },
+    {
+      "email": "trinidad.silva.cl008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Trinidad Silva",
+      "date_of_birth": "1996-12-21"
+    },
+    {
+      "email": "matias.martinez.cl009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Matías Martínez",
+      "date_of_birth": "1997-01-27"
+    },
+    {
+      "email": "catalina.sepulveda.cl010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Catalina Sepúlveda",
+      "date_of_birth": "1997-03-05"
+    },
+    {
+      "email": "sebastian.gonzalez.cl011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastián González",
+      "date_of_birth": "1997-04-11"
+    },
+    {
+      "email": "constanza.munoz.cl012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Constanza Muñoz",
+      "date_of_birth": "1997-05-18"
+    },
+    {
+      "email": "ignacio.rojas.cl013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ignacio Rojas",
+      "date_of_birth": "1997-06-24"
+    },
+    {
+      "email": "javiera.diaz.cl014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Javiera Díaz",
+      "date_of_birth": "1997-07-31"
+    },
+    {
+      "email": "diego.perez.cl015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diego Pérez",
+      "date_of_birth": "1997-09-06"
+    },
+    {
+      "email": "daniela.soto.cl016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Daniela Soto",
+      "date_of_birth": "1997-10-13"
+    },
+    {
+      "email": "santiago.gonzalez.uy001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Santiago González",
+      "date_of_birth": "1997-11-19"
+    },
+    {
+      "email": "camila.rodriguez.uy002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Camila Rodríguez",
+      "date_of_birth": "1997-12-26"
+    },
+    {
+      "email": "nicolas.garcia.uy003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nicolás García",
+      "date_of_birth": "1998-02-01"
+    },
+    {
+      "email": "lucia.fernandez.uy004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucía Fernández",
+      "date_of_birth": "1998-03-10"
+    },
+    {
+      "email": "martin.martinez.uy005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Martín Martínez",
+      "date_of_birth": "1998-04-16"
+    },
+    {
+      "email": "ana.perez.uy006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Pérez",
+      "date_of_birth": "1998-05-23"
+    },
+    {
+      "email": "rodrigo.alvarez.uy007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rodrigo Álvarez",
+      "date_of_birth": "1998-06-29"
+    },
+    {
+      "email": "natalia.sanchez.uy008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Natalia Sánchez",
+      "date_of_birth": "1998-08-05"
+    },
+    {
+      "email": "pablo.diaz.uy009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pablo Díaz",
+      "date_of_birth": "1998-09-11"
+    },
+    {
+      "email": "paula.gimenez.uy010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paula Giménez",
+      "date_of_birth": "1998-10-18"
+    },
+    {
+      "email": "santiago.gonzalez.uy011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Santiago González",
+      "date_of_birth": "1998-11-24"
+    },
+    {
+      "email": "camila.rodriguez.uy012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Camila Rodríguez",
+      "date_of_birth": "1998-12-31"
+    },
+    {
+      "email": "nicolas.garcia.uy013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nicolás García",
+      "date_of_birth": "1999-02-06"
+    },
+    {
+      "email": "lucia.fernandez.uy014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucía Fernández",
+      "date_of_birth": "1999-03-15"
+    },
+    {
+      "email": "carlos.garcia.pe001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos García",
+      "date_of_birth": "1999-04-21"
+    },
+    {
+      "email": "ana.quispe.pe002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Quispe",
+      "date_of_birth": "1999-05-28"
+    },
+    {
+      "email": "luis.lopez.pe003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis López",
+      "date_of_birth": "1999-07-04"
+    },
+    {
+      "email": "carmen.mamani.pe004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carmen Mamani",
+      "date_of_birth": "1999-08-10"
+    },
+    {
+      "email": "manuel.huanca.pe005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Manuel Huanca",
+      "date_of_birth": "1999-09-16"
+    },
+    {
+      "email": "diana.flores.pe006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diana Flores",
+      "date_of_birth": "1999-10-23"
+    },
+    {
+      "email": "ricardo.vargas.pe007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ricardo Vargas",
+      "date_of_birth": "1999-11-29"
+    },
+    {
+      "email": "claudia.gutierrez.pe008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Claudia Gutiérrez",
+      "date_of_birth": "2000-01-05"
+    },
+    {
+      "email": "fernando.ramos.pe009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fernando Ramos",
+      "date_of_birth": "2000-02-11"
+    },
+    {
+      "email": "giovanna.chavez.pe010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Giovanna Chávez",
+      "date_of_birth": "2000-03-19"
+    },
+    {
+      "email": "carlos.garcia.pe011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos García",
+      "date_of_birth": "2000-04-25"
+    },
+    {
+      "email": "ana.quispe.pe012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Quispe",
+      "date_of_birth": "2000-06-01"
+    },
+    {
+      "email": "luis.lopez.pe013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis López",
+      "date_of_birth": "2000-07-08"
+    },
+    {
+      "email": "carmen.mamani.pe014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carmen Mamani",
+      "date_of_birth": "2000-08-14"
+    },
+    {
+      "email": "carlos.gonzalez.ve001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos González",
+      "date_of_birth": "2000-09-20"
+    },
+    {
+      "email": "ana.rodriguez.ve002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Rodríguez",
+      "date_of_birth": "2000-10-27"
+    },
+    {
+      "email": "luis.garcia.ve003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis García",
+      "date_of_birth": "2000-12-03"
+    },
+    {
+      "email": "rosa.lopez.ve004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rosa López",
+      "date_of_birth": "2001-01-09"
+    },
+    {
+      "email": "jesus.hernandez.ve005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jesús Hernández",
+      "date_of_birth": "2001-02-15"
+    },
+    {
+      "email": "adriana.perez.ve006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adriana Pérez",
+      "date_of_birth": "2001-03-24"
+    },
+    {
+      "email": "roberto.diaz.ve007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Roberto Díaz",
+      "date_of_birth": "2001-04-30"
+    },
+    {
+      "email": "mariela.ramirez.ve008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mariela Ramírez",
+      "date_of_birth": "2001-06-06"
+    },
+    {
+      "email": "antonio.flores.ve009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Antonio Flores",
+      "date_of_birth": "2001-07-13"
+    },
+    {
+      "email": "barbara.torres.ve010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bárbara Torres",
+      "date_of_birth": "2001-08-19"
+    },
+    {
+      "email": "carlos.gonzalez.ve011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos González",
+      "date_of_birth": "2001-09-25"
+    },
+    {
+      "email": "ana.rodriguez.ve012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Rodríguez",
+      "date_of_birth": "2001-11-01"
+    },
+    {
+      "email": "luis.garcia.ve013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis García",
+      "date_of_birth": "2001-12-08"
+    },
+    {
+      "email": "rosa.lopez.ve014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rosa López",
+      "date_of_birth": "2002-01-14"
+    },
+    {
+      "email": "carlos.garcia.ec001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos García",
+      "date_of_birth": "2002-02-20"
+    },
+    {
+      "email": "ana.gonzalez.ec002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana González",
+      "date_of_birth": "2002-03-29"
+    },
+    {
+      "email": "luis.rodriguez.ec003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis Rodríguez",
+      "date_of_birth": "2002-05-05"
+    },
+    {
+      "email": "veronica.morales.ec004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Verónica Morales",
+      "date_of_birth": "2002-06-11"
+    },
+    {
+      "email": "marco.herrera.ec005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marco Herrera",
+      "date_of_birth": "2002-07-18"
+    },
+    {
+      "email": "gabriela.vasquez.ec006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Gabriela Vásquez",
+      "date_of_birth": "2002-08-24"
+    },
+    {
+      "email": "santiago.jimenez.ec007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Santiago Jiménez",
+      "date_of_birth": "2002-09-30"
+    },
+    {
+      "email": "diana.torres.ec008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diana Torres",
+      "date_of_birth": "2002-11-06"
+    },
+    {
+      "email": "sebastian.castillo.ec009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastián Castillo",
+      "date_of_birth": "2002-12-13"
+    },
+    {
+      "email": "elena.ramirez.ec010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Elena Ramírez",
+      "date_of_birth": "2003-01-19"
+    },
+    {
+      "email": "carlos.garcia.ec011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos García",
+      "date_of_birth": "2003-02-25"
+    },
+    {
+      "email": "ana.gonzalez.ec012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana González",
+      "date_of_birth": "2003-04-03"
+    },
+    {
+      "email": "luis.rodriguez.ec013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis Rodríguez",
+      "date_of_birth": "2003-05-10"
+    },
+    {
+      "email": "veronica.morales.ec014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Verónica Morales",
+      "date_of_birth": "2003-06-16"
+    },
+    {
+      "email": "juan.mamani.bo001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Juan Mamani",
+      "date_of_birth": "2003-07-23"
+    },
+    {
+      "email": "ana.quispe.bo002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Quispe",
+      "date_of_birth": "2003-08-29"
+    },
+    {
+      "email": "luis.condori.bo003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Luis Condori",
+      "date_of_birth": "2003-10-05"
+    },
+    {
+      "email": "carmen.huanca.bo004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carmen Huanca",
+      "date_of_birth": "2003-11-11"
+    },
+    {
+      "email": "mario.choque.bo005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mario Choque",
+      "date_of_birth": "2003-12-18"
+    },
+    {
+      "email": "gabriela.flores.bo006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Gabriela Flores",
+      "date_of_birth": "2004-01-24"
+    },
+    {
+      "email": "pablo.apaza.bo007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pablo Apaza",
+      "date_of_birth": "2004-03-01"
+    },
+    {
+      "email": "lucia.calle.bo008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucia Calle",
+      "date_of_birth": "2004-04-07"
+    },
+    {
+      "email": "antonio.vargas.bo009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Antonio Vargas",
+      "date_of_birth": "2004-05-14"
+    },
+    {
+      "email": "natalia.lima.bo010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Natalia Lima",
+      "date_of_birth": "2004-06-20"
+    },
+    {
+      "email": "juan.mamani.bo011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Juan Mamani",
+      "date_of_birth": "2004-07-27"
+    },
+    {
+      "email": "ana.quispe.bo012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Quispe",
+      "date_of_birth": "2004-09-02"
+    },
+    {
+      "email": "carlos.gonzalez.py001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos González",
+      "date_of_birth": "2004-10-09"
+    },
+    {
+      "email": "ana.rodriguez.py002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Rodríguez",
+      "date_of_birth": "2004-11-15"
+    },
+    {
+      "email": "juan.garcia.py003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Juan García",
+      "date_of_birth": "2004-12-22"
+    },
+    {
+      "email": "rosa.martinez.py004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rosa Martínez",
+      "date_of_birth": "2005-01-28"
+    },
+    {
+      "email": "pedro.perez.py005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pedro Pérez",
+      "date_of_birth": "2005-03-06"
+    },
+    {
+      "email": "valentina.lopez.py006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Valentina López",
+      "date_of_birth": "2005-04-12"
+    },
+    {
+      "email": "fernando.romero.py007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fernando Romero",
+      "date_of_birth": "2005-05-19"
+    },
+    {
+      "email": "sandra.sanchez.py008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sandra Sánchez",
+      "date_of_birth": "2005-06-25"
+    },
+    {
+      "email": "alejandro.diaz.py009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Alejandro Díaz",
+      "date_of_birth": "2005-08-01"
+    },
+    {
+      "email": "claudia.flores.py010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Claudia Flores",
+      "date_of_birth": "2005-09-07"
+    },
+    {
+      "email": "carlos.gonzalez.py011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Carlos González",
+      "date_of_birth": "2005-10-14"
+    },
+    {
+      "email": "ana.rodriguez.py012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Rodríguez",
+      "date_of_birth": "2005-11-20"
+    },
+    {
+      "email": "andres.gonzalez.cr001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrés González",
+      "date_of_birth": "2005-12-27"
+    },
+    {
+      "email": "ana.rodriguez.cr002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Rodríguez",
+      "date_of_birth": "2006-02-02"
+    },
+    {
+      "email": "diego.hernandez.cr003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diego Hernández",
+      "date_of_birth": "2006-03-11"
+    },
+    {
+      "email": "fernanda.garcia.cr004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fernanda García",
+      "date_of_birth": "2006-04-17"
+    },
+    {
+      "email": "marco.mora.cr005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Marco Mora",
+      "date_of_birth": "2006-05-24"
+    },
+    {
+      "email": "natalia.vargas.cr006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Natalia Vargas",
+      "date_of_birth": "2006-06-30"
+    },
+    {
+      "email": "rodrigo.jimenez.cr007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rodrigo Jiménez",
+      "date_of_birth": "2006-08-06"
+    },
+    {
+      "email": "diana.solano.cr008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Diana Solano",
+      "date_of_birth": "2006-09-12"
+    },
+    {
+      "email": "sebastian.brenes.cr009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sebastián Brenes",
+      "date_of_birth": "2006-10-19"
+    },
+    {
+      "email": "sofia.murillo.cr010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sofía Murillo",
+      "date_of_birth": "2006-11-25"
+    },
+    {
+      "email": "andres.gonzalez.cr011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Andrés González",
+      "date_of_birth": "2007-01-01"
+    },
+    {
+      "email": "ana.rodriguez.cr012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ana Rodríguez",
+      "date_of_birth": "2007-02-07"
+    },
+    {
+      "email": "james.smith.us001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "2007-03-16"
+    },
+    {
+      "email": "patricia.johnson.us002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "2007-04-22"
+    },
+    {
+      "email": "robert.williams.us003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Robert Williams",
+      "date_of_birth": "2007-05-29"
+    },
+    {
+      "email": "barbara.brown.us004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Brown",
+      "date_of_birth": "2007-07-05"
+    },
+    {
+      "email": "william.jones.us005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Jones",
+      "date_of_birth": "2007-08-11"
+    },
+    {
+      "email": "jennifer.garcia.us006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennifer Garcia",
+      "date_of_birth": "2007-09-17"
+    },
+    {
+      "email": "richard.miller.us007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Richard Miller",
+      "date_of_birth": "2007-10-24"
+    },
+    {
+      "email": "susan.davis.us008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susan Davis",
+      "date_of_birth": "2007-11-30"
+    },
+    {
+      "email": "thomas.wilson.us009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1991-01-10"
+    },
+    {
+      "email": "dorothy.taylor.us010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dorothy Taylor",
+      "date_of_birth": "1991-02-16"
+    },
+    {
+      "email": "james.smith.us011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "1991-03-25"
+    },
+    {
+      "email": "patricia.johnson.us012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "1991-05-01"
+    },
+    {
+      "email": "robert.williams.us013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Robert Williams",
+      "date_of_birth": "1991-06-07"
+    },
+    {
+      "email": "barbara.brown.us014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Brown",
+      "date_of_birth": "1991-07-14"
+    },
+    {
+      "email": "william.jones.us015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Jones",
+      "date_of_birth": "1991-08-20"
+    },
+    {
+      "email": "jennifer.garcia.us016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennifer Garcia",
+      "date_of_birth": "1991-09-26"
+    },
+    {
+      "email": "richard.miller.us017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Richard Miller",
+      "date_of_birth": "1991-11-02"
+    },
+    {
+      "email": "susan.davis.us018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susan Davis",
+      "date_of_birth": "1991-12-09"
+    },
+    {
+      "email": "thomas.wilson.us019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1992-01-15"
+    },
+    {
+      "email": "dorothy.taylor.us020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dorothy Taylor",
+      "date_of_birth": "1992-02-21"
+    },
+    {
+      "email": "james.smith.us021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "1992-03-29"
+    },
+    {
+      "email": "patricia.johnson.us022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "1992-05-05"
+    },
+    {
+      "email": "robert.williams.us023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Robert Williams",
+      "date_of_birth": "1992-06-11"
+    },
+    {
+      "email": "barbara.brown.us024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Brown",
+      "date_of_birth": "1992-07-18"
+    },
+    {
+      "email": "william.jones.us025@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Jones",
+      "date_of_birth": "1992-08-24"
+    },
+    {
+      "email": "jennifer.garcia.us026@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennifer Garcia",
+      "date_of_birth": "1992-09-30"
+    },
+    {
+      "email": "richard.miller.us027@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Richard Miller",
+      "date_of_birth": "1992-11-06"
+    },
+    {
+      "email": "susan.davis.us028@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susan Davis",
+      "date_of_birth": "1992-12-13"
+    },
+    {
+      "email": "thomas.wilson.us029@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1993-01-19"
+    },
+    {
+      "email": "dorothy.taylor.us030@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dorothy Taylor",
+      "date_of_birth": "1993-02-25"
+    },
+    {
+      "email": "james.smith.us031@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "1993-04-03"
+    },
+    {
+      "email": "patricia.johnson.us032@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "1993-05-10"
+    },
+    {
+      "email": "robert.williams.us033@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Robert Williams",
+      "date_of_birth": "1993-06-16"
+    },
+    {
+      "email": "barbara.brown.us034@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Brown",
+      "date_of_birth": "1993-07-23"
+    },
+    {
+      "email": "william.jones.us035@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Jones",
+      "date_of_birth": "1993-08-29"
+    },
+    {
+      "email": "jennifer.garcia.us036@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennifer Garcia",
+      "date_of_birth": "1993-10-05"
+    },
+    {
+      "email": "richard.miller.us037@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Richard Miller",
+      "date_of_birth": "1993-11-11"
+    },
+    {
+      "email": "susan.davis.us038@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susan Davis",
+      "date_of_birth": "1993-12-18"
+    },
+    {
+      "email": "thomas.wilson.us039@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1994-01-24"
+    },
+    {
+      "email": "dorothy.taylor.us040@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dorothy Taylor",
+      "date_of_birth": "1994-03-02"
+    },
+    {
+      "email": "james.smith.us041@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "1994-04-08"
+    },
+    {
+      "email": "patricia.johnson.us042@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "1994-05-15"
+    },
+    {
+      "email": "robert.williams.us043@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Robert Williams",
+      "date_of_birth": "1994-06-21"
+    },
+    {
+      "email": "barbara.brown.us044@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Brown",
+      "date_of_birth": "1994-07-28"
+    },
+    {
+      "email": "william.jones.us045@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Jones",
+      "date_of_birth": "1994-09-03"
+    },
+    {
+      "email": "jennifer.garcia.us046@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennifer Garcia",
+      "date_of_birth": "1994-10-10"
+    },
+    {
+      "email": "richard.miller.us047@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Richard Miller",
+      "date_of_birth": "1994-11-16"
+    },
+    {
+      "email": "susan.davis.us048@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susan Davis",
+      "date_of_birth": "1994-12-23"
+    },
+    {
+      "email": "thomas.wilson.us049@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1995-01-29"
+    },
+    {
+      "email": "dorothy.taylor.us050@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dorothy Taylor",
+      "date_of_birth": "1995-03-07"
+    },
+    {
+      "email": "james.smith.us051@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "1995-04-13"
+    },
+    {
+      "email": "patricia.johnson.us052@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "1995-05-20"
+    },
+    {
+      "email": "robert.williams.us053@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Robert Williams",
+      "date_of_birth": "1995-06-26"
+    },
+    {
+      "email": "barbara.brown.us054@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Barbara Brown",
+      "date_of_birth": "1995-08-02"
+    },
+    {
+      "email": "william.jones.us055@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Jones",
+      "date_of_birth": "1995-09-08"
+    },
+    {
+      "email": "jennifer.garcia.us056@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennifer Garcia",
+      "date_of_birth": "1995-10-15"
+    },
+    {
+      "email": "richard.miller.us057@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Richard Miller",
+      "date_of_birth": "1995-11-21"
+    },
+    {
+      "email": "susan.davis.us058@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Susan Davis",
+      "date_of_birth": "1995-12-28"
+    },
+    {
+      "email": "thomas.wilson.us059@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1996-02-03"
+    },
+    {
+      "email": "dorothy.taylor.us060@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dorothy Taylor",
+      "date_of_birth": "1996-03-11"
+    },
+    {
+      "email": "james.smith.us061@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Smith",
+      "date_of_birth": "1996-04-17"
+    },
+    {
+      "email": "patricia.johnson.us062@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Patricia Johnson",
+      "date_of_birth": "1996-05-24"
+    },
+    {
+      "email": "liam.smith.ca001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Liam Smith",
+      "date_of_birth": "1996-06-30"
+    },
+    {
+      "email": "olivia.brown.ca002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Brown",
+      "date_of_birth": "1996-08-06"
+    },
+    {
+      "email": "ethan.tremblay.ca003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Tremblay",
+      "date_of_birth": "1996-09-12"
+    },
+    {
+      "email": "ava.martin.ca004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Martin",
+      "date_of_birth": "1996-10-19"
+    },
+    {
+      "email": "lucas.roy.ca005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Roy",
+      "date_of_birth": "1996-11-25"
+    },
+    {
+      "email": "mia.wilson.ca006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mia Wilson",
+      "date_of_birth": "1997-01-01"
+    },
+    {
+      "email": "logan.macdonald.ca007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Logan MacDonald",
+      "date_of_birth": "1997-02-07"
+    },
+    {
+      "email": "amelia.johnson.ca008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amelia Johnson",
+      "date_of_birth": "1997-03-16"
+    },
+    {
+      "email": "jacob.thompson.ca009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jacob Thompson",
+      "date_of_birth": "1997-04-22"
+    },
+    {
+      "email": "grace.taylor.ca010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Grace Taylor",
+      "date_of_birth": "1997-05-29"
+    },
+    {
+      "email": "liam.smith.ca011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Liam Smith",
+      "date_of_birth": "1997-07-05"
+    },
+    {
+      "email": "olivia.brown.ca012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Brown",
+      "date_of_birth": "1997-08-11"
+    },
+    {
+      "email": "ethan.tremblay.ca013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Tremblay",
+      "date_of_birth": "1997-09-17"
+    },
+    {
+      "email": "ava.martin.ca014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Martin",
+      "date_of_birth": "1997-10-24"
+    },
+    {
+      "email": "lucas.roy.ca015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Roy",
+      "date_of_birth": "1997-11-30"
+    },
+    {
+      "email": "mia.wilson.ca016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mia Wilson",
+      "date_of_birth": "1998-01-06"
+    },
+    {
+      "email": "logan.macdonald.ca017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Logan MacDonald",
+      "date_of_birth": "1998-02-12"
+    },
+    {
+      "email": "amelia.johnson.ca018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amelia Johnson",
+      "date_of_birth": "1998-03-21"
+    },
+    {
+      "email": "jacob.thompson.ca019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jacob Thompson",
+      "date_of_birth": "1998-04-27"
+    },
+    {
+      "email": "grace.taylor.ca020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Grace Taylor",
+      "date_of_birth": "1998-06-03"
+    },
+    {
+      "email": "liam.smith.ca021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Liam Smith",
+      "date_of_birth": "1998-07-10"
+    },
+    {
+      "email": "olivia.brown.ca022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Brown",
+      "date_of_birth": "1998-08-16"
+    },
+    {
+      "email": "ethan.tremblay.ca023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Tremblay",
+      "date_of_birth": "1998-09-22"
+    },
+    {
+      "email": "ava.martin.ca024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Martin",
+      "date_of_birth": "1998-10-29"
+    },
+    {
+      "email": "lucas.roy.ca025@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Roy",
+      "date_of_birth": "1998-12-05"
+    },
+    {
+      "email": "mia.wilson.ca026@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mia Wilson",
+      "date_of_birth": "1999-01-11"
+    },
+    {
+      "email": "logan.macdonald.ca027@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Logan MacDonald",
+      "date_of_birth": "1999-02-17"
+    },
+    {
+      "email": "amelia.johnson.ca028@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amelia Johnson",
+      "date_of_birth": "1999-03-26"
+    },
+    {
+      "email": "jacob.thompson.ca029@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jacob Thompson",
+      "date_of_birth": "1999-05-02"
+    },
+    {
+      "email": "grace.taylor.ca030@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Grace Taylor",
+      "date_of_birth": "1999-06-08"
+    },
+    {
+      "email": "liam.smith.ca031@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Liam Smith",
+      "date_of_birth": "1999-07-15"
+    },
+    {
+      "email": "olivia.brown.ca032@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Brown",
+      "date_of_birth": "1999-08-21"
+    },
+    {
+      "email": "ethan.tremblay.ca033@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Tremblay",
+      "date_of_birth": "1999-09-27"
+    },
+    {
+      "email": "ava.martin.ca034@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Martin",
+      "date_of_birth": "1999-11-03"
+    },
+    {
+      "email": "lucas.roy.ca035@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucas Roy",
+      "date_of_birth": "1999-12-10"
+    },
+    {
+      "email": "mia.wilson.ca036@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mia Wilson",
+      "date_of_birth": "2000-01-16"
+    },
+    {
+      "email": "logan.macdonald.ca037@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Logan MacDonald",
+      "date_of_birth": "2000-02-22"
+    },
+    {
+      "email": "amelia.johnson.ca038@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amelia Johnson",
+      "date_of_birth": "2000-03-30"
+    },
+    {
+      "email": "jacob.thompson.ca039@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jacob Thompson",
+      "date_of_birth": "2000-05-06"
+    },
+    {
+      "email": "grace.taylor.ca040@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Grace Taylor",
+      "date_of_birth": "2000-06-12"
+    },
+    {
+      "email": "liam.smith.ca041@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Liam Smith",
+      "date_of_birth": "2000-07-19"
+    },
+    {
+      "email": "olivia.brown.ca042@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Brown",
+      "date_of_birth": "2000-08-25"
+    },
+    {
+      "email": "ethan.tremblay.ca043@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Tremblay",
+      "date_of_birth": "2000-10-01"
+    },
+    {
+      "email": "ava.martin.ca044@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Martin",
+      "date_of_birth": "2000-11-07"
+    },
+    {
+      "email": "emeka.okafor.ng001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emeka Okafor",
+      "date_of_birth": "2000-12-14"
+    },
+    {
+      "email": "chioma.adeyemi.ng002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chioma Adeyemi",
+      "date_of_birth": "2001-01-20"
+    },
+    {
+      "email": "tunde.obi.ng003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tunde Obi",
+      "date_of_birth": "2001-02-26"
+    },
+    {
+      "email": "amaka.eze.ng004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amaka Eze",
+      "date_of_birth": "2001-04-04"
+    },
+    {
+      "email": "femi.chukwu.ng005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Femi Chukwu",
+      "date_of_birth": "2001-05-11"
+    },
+    {
+      "email": "chinwe.adesanya.ng006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chinwe Adesanya",
+      "date_of_birth": "2001-06-17"
+    },
+    {
+      "email": "bayo.nwosu.ng007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bayo Nwosu",
+      "date_of_birth": "2001-07-24"
+    },
+    {
+      "email": "nneka.ibrahim.ng008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nneka Ibrahim",
+      "date_of_birth": "2001-08-30"
+    },
+    {
+      "email": "dele.babatunde.ng009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dele Babatunde",
+      "date_of_birth": "2001-10-06"
+    },
+    {
+      "email": "adanna.okonkwo.ng010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adanna Okonkwo",
+      "date_of_birth": "2001-11-12"
+    },
+    {
+      "email": "emeka.okafor.ng011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emeka Okafor",
+      "date_of_birth": "2001-12-19"
+    },
+    {
+      "email": "chioma.adeyemi.ng012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chioma Adeyemi",
+      "date_of_birth": "2002-01-25"
+    },
+    {
+      "email": "tunde.obi.ng013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tunde Obi",
+      "date_of_birth": "2002-03-03"
+    },
+    {
+      "email": "amaka.eze.ng014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amaka Eze",
+      "date_of_birth": "2002-04-09"
+    },
+    {
+      "email": "femi.chukwu.ng015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Femi Chukwu",
+      "date_of_birth": "2002-05-16"
+    },
+    {
+      "email": "chinwe.adesanya.ng016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chinwe Adesanya",
+      "date_of_birth": "2002-06-22"
+    },
+    {
+      "email": "bayo.nwosu.ng017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bayo Nwosu",
+      "date_of_birth": "2002-07-29"
+    },
+    {
+      "email": "nneka.ibrahim.ng018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nneka Ibrahim",
+      "date_of_birth": "2002-09-04"
+    },
+    {
+      "email": "dele.babatunde.ng019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dele Babatunde",
+      "date_of_birth": "2002-10-11"
+    },
+    {
+      "email": "adanna.okonkwo.ng020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adanna Okonkwo",
+      "date_of_birth": "2002-11-17"
+    },
+    {
+      "email": "emeka.okafor.ng021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emeka Okafor",
+      "date_of_birth": "2002-12-24"
+    },
+    {
+      "email": "chioma.adeyemi.ng022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chioma Adeyemi",
+      "date_of_birth": "2003-01-30"
+    },
+    {
+      "email": "kwame.asante.gh001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kwame Asante",
+      "date_of_birth": "2003-03-08"
+    },
+    {
+      "email": "abena.mensah.gh002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abena Mensah",
+      "date_of_birth": "2003-04-14"
+    },
+    {
+      "email": "yaw.owusu.gh003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yaw Owusu",
+      "date_of_birth": "2003-05-21"
+    },
+    {
+      "email": "ama.darko.gh004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ama Darko",
+      "date_of_birth": "2003-06-27"
+    },
+    {
+      "email": "fiifi.boateng.gh005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fiifi Boateng",
+      "date_of_birth": "2003-08-03"
+    },
+    {
+      "email": "afua.acheampong.gh006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Afua Acheampong",
+      "date_of_birth": "2003-09-09"
+    },
+    {
+      "email": "abena.amoah.gh007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abena Amoah",
+      "date_of_birth": "2003-10-16"
+    },
+    {
+      "email": "esi.frimpong.gh008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Esi Frimpong",
+      "date_of_birth": "2003-11-22"
+    },
+    {
+      "email": "adjoa.adjei.gh009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adjoa Adjei",
+      "date_of_birth": "2003-12-29"
+    },
+    {
+      "email": "gifty.osei.gh010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Gifty Osei",
+      "date_of_birth": "2004-02-04"
+    },
+    {
+      "email": "kwame.asante.gh011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kwame Asante",
+      "date_of_birth": "2004-03-12"
+    },
+    {
+      "email": "abena.mensah.gh012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abena Mensah",
+      "date_of_birth": "2004-04-18"
+    },
+    {
+      "email": "yaw.owusu.gh013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yaw Owusu",
+      "date_of_birth": "2004-05-25"
+    },
+    {
+      "email": "ama.darko.gh014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ama Darko",
+      "date_of_birth": "2004-07-01"
+    },
+    {
+      "email": "fiifi.boateng.gh015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fiifi Boateng",
+      "date_of_birth": "2004-08-07"
+    },
+    {
+      "email": "afua.acheampong.gh016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Afua Acheampong",
+      "date_of_birth": "2004-09-13"
+    },
+    {
+      "email": "abena.amoah.gh017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abena Amoah",
+      "date_of_birth": "2004-10-20"
+    },
+    {
+      "email": "esi.frimpong.gh018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Esi Frimpong",
+      "date_of_birth": "2004-11-26"
+    },
+    {
+      "email": "abdou.diallo.sn001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abdou Diallo",
+      "date_of_birth": "2005-01-02"
+    },
+    {
+      "email": "aminata.ndiaye.sn002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aminata Ndiaye",
+      "date_of_birth": "2005-02-08"
+    },
+    {
+      "email": "ibrahima.mbaye.sn003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ibrahima Mbaye",
+      "date_of_birth": "2005-03-17"
+    },
+    {
+      "email": "aissatou.sy.sn004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aissatou Sy",
+      "date_of_birth": "2005-04-23"
+    },
+    {
+      "email": "ousmane.diop.sn005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ousmane Diop",
+      "date_of_birth": "2005-05-30"
+    },
+    {
+      "email": "coumba.sow.sn006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Coumba Sow",
+      "date_of_birth": "2005-07-06"
+    },
+    {
+      "email": "babacar.fall.sn007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Babacar Fall",
+      "date_of_birth": "2005-08-12"
+    },
+    {
+      "email": "fatoumata.sarr.sn008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fatoumata Sarr",
+      "date_of_birth": "2005-09-18"
+    },
+    {
+      "email": "saliou.gueye.sn009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Saliou Gueye",
+      "date_of_birth": "2005-10-25"
+    },
+    {
+      "email": "yacine.cisse.sn010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yacine Cissé",
+      "date_of_birth": "2005-12-01"
+    },
+    {
+      "email": "abdou.diallo.sn011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abdou Diallo",
+      "date_of_birth": "2006-01-07"
+    },
+    {
+      "email": "aminata.ndiaye.sn012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aminata Ndiaye",
+      "date_of_birth": "2006-02-13"
+    },
+    {
+      "email": "ibrahima.mbaye.sn013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ibrahima Mbaye",
+      "date_of_birth": "2006-03-22"
+    },
+    {
+      "email": "aissatou.sy.sn014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aissatou Sy",
+      "date_of_birth": "2006-04-28"
+    },
+    {
+      "email": "ousmane.diop.sn015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ousmane Diop",
+      "date_of_birth": "2006-06-04"
+    },
+    {
+      "email": "coumba.sow.sn016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Coumba Sow",
+      "date_of_birth": "2006-07-11"
+    },
+    {
+      "email": "eric.nguema.cm001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Eric Nguema",
+      "date_of_birth": "2006-08-17"
+    },
+    {
+      "email": "cecile.mvondo.cm002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Cécile Mvondo",
+      "date_of_birth": "2006-09-23"
+    },
+    {
+      "email": "samuel.tchinda.cm003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Samuel Tchinda",
+      "date_of_birth": "2006-10-30"
+    },
+    {
+      "email": "sandrine.foka.cm004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sandrine Foka",
+      "date_of_birth": "2006-12-06"
+    },
+    {
+      "email": "emmanuel.mbarga.cm005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emmanuel Mbarga",
+      "date_of_birth": "2007-01-12"
+    },
+    {
+      "email": "pauline.njoya.cm006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pauline Njoya",
+      "date_of_birth": "2007-02-18"
+    },
+    {
+      "email": "victor.abanda.cm007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Victor Abanda",
+      "date_of_birth": "2007-03-27"
+    },
+    {
+      "email": "laure.elong.cm008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Laure Elong",
+      "date_of_birth": "2007-05-03"
+    },
+    {
+      "email": "jean.ndzie.cm009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jean Ndzie",
+      "date_of_birth": "2007-06-09"
+    },
+    {
+      "email": "solange.biya.cm010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Solange Biya",
+      "date_of_birth": "2007-07-16"
+    },
+    {
+      "email": "eric.nguema.cm011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Eric Nguema",
+      "date_of_birth": "2007-08-22"
+    },
+    {
+      "email": "cecile.mvondo.cm012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Cécile Mvondo",
+      "date_of_birth": "2007-09-28"
+    },
+    {
+      "email": "samuel.tchinda.cm013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Samuel Tchinda",
+      "date_of_birth": "2007-11-04"
+    },
+    {
+      "email": "sandrine.foka.cm014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sandrine Foka",
+      "date_of_birth": "2007-12-11"
+    },
+    {
+      "email": "emmanuel.mbarga.cm015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emmanuel Mbarga",
+      "date_of_birth": "1991-01-21"
+    },
+    {
+      "email": "pauline.njoya.cm016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Pauline Njoya",
+      "date_of_birth": "1991-02-27"
+    },
+    {
+      "email": "mohamed.benali.ma001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Benali",
+      "date_of_birth": "1991-04-05"
+    },
+    {
+      "email": "khadija.elamrani.ma002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Khadija El Amrani",
+      "date_of_birth": "1991-05-12"
+    },
+    {
+      "email": "youssef.berrada.ma003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Youssef Berrada",
+      "date_of_birth": "1991-06-18"
+    },
+    {
+      "email": "samira.tazi.ma004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Samira Tazi",
+      "date_of_birth": "1991-07-25"
+    },
+    {
+      "email": "hassan.benslimane.ma005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hassan Benslimane",
+      "date_of_birth": "1991-08-31"
+    },
+    {
+      "email": "hanane.alaoui.ma006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hanane Alaoui",
+      "date_of_birth": "1991-10-07"
+    },
+    {
+      "email": "rachid.idrissi.ma007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rachid Idrissi",
+      "date_of_birth": "1991-11-13"
+    },
+    {
+      "email": "sara.benkirane.ma008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Benkirane",
+      "date_of_birth": "1991-12-20"
+    },
+    {
+      "email": "nabil.ennaji.ma009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nabil Ennaji",
+      "date_of_birth": "1992-01-26"
+    },
+    {
+      "email": "sanae.chraibi.ma010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sanae Chraibi",
+      "date_of_birth": "1992-03-03"
+    },
+    {
+      "email": "mohamed.benali.ma011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Benali",
+      "date_of_birth": "1992-04-09"
+    },
+    {
+      "email": "khadija.elamrani.ma012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Khadija El Amrani",
+      "date_of_birth": "1992-05-16"
+    },
+    {
+      "email": "youssef.berrada.ma013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Youssef Berrada",
+      "date_of_birth": "1992-06-22"
+    },
+    {
+      "email": "samira.tazi.ma014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Samira Tazi",
+      "date_of_birth": "1992-07-29"
+    },
+    {
+      "email": "hassan.benslimane.ma015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hassan Benslimane",
+      "date_of_birth": "1992-09-04"
+    },
+    {
+      "email": "hanane.alaoui.ma016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hanane Alaoui",
+      "date_of_birth": "1992-10-11"
+    },
+    {
+      "email": "rachid.idrissi.ma017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rachid Idrissi",
+      "date_of_birth": "1992-11-17"
+    },
+    {
+      "email": "sara.benkirane.ma018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sara Benkirane",
+      "date_of_birth": "1992-12-24"
+    },
+    {
+      "email": "nabil.ennaji.ma019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nabil Ennaji",
+      "date_of_birth": "1993-01-30"
+    },
+    {
+      "email": "sanae.chraibi.ma020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sanae Chraibi",
+      "date_of_birth": "1993-03-08"
+    },
+    {
+      "email": "mohamed.hassan.eg001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Hassan",
+      "date_of_birth": "1993-04-14"
+    },
+    {
+      "email": "nour.ali.eg002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nour Ali",
+      "date_of_birth": "1993-05-21"
+    },
+    {
+      "email": "ali.mohamed.eg003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ali Mohamed",
+      "date_of_birth": "1993-06-27"
+    },
+    {
+      "email": "dina.ibrahim.eg004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dina Ibrahim",
+      "date_of_birth": "1993-08-03"
+    },
+    {
+      "email": "hassan.ahmed.eg005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hassan Ahmed",
+      "date_of_birth": "1993-09-09"
+    },
+    {
+      "email": "heba.mahmoud.eg006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Heba Mahmoud",
+      "date_of_birth": "1993-10-16"
+    },
+    {
+      "email": "mahmoud.sayed.eg007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mahmoud Sayed",
+      "date_of_birth": "1993-11-22"
+    },
+    {
+      "email": "aya.mostafa.eg008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aya Mostafa",
+      "date_of_birth": "1993-12-29"
+    },
+    {
+      "email": "tarek.abdelrahman.eg009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tarek Abd El-Rahman",
+      "date_of_birth": "1994-02-04"
+    },
+    {
+      "email": "salma.khalil.eg010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Salma Khalil",
+      "date_of_birth": "1994-03-13"
+    },
+    {
+      "email": "mohamed.hassan.eg011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Hassan",
+      "date_of_birth": "1994-04-19"
+    },
+    {
+      "email": "nour.ali.eg012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nour Ali",
+      "date_of_birth": "1994-05-26"
+    },
+    {
+      "email": "ali.mohamed.eg013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ali Mohamed",
+      "date_of_birth": "1994-07-02"
+    },
+    {
+      "email": "dina.ibrahim.eg014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dina Ibrahim",
+      "date_of_birth": "1994-08-08"
+    },
+    {
+      "email": "hassan.ahmed.eg015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hassan Ahmed",
+      "date_of_birth": "1994-09-14"
+    },
+    {
+      "email": "heba.mahmoud.eg016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Heba Mahmoud",
+      "date_of_birth": "1994-10-21"
+    },
+    {
+      "email": "mahmoud.sayed.eg017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mahmoud Sayed",
+      "date_of_birth": "1994-11-27"
+    },
+    {
+      "email": "aya.mostafa.eg018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aya Mostafa",
+      "date_of_birth": "1995-01-03"
+    },
+    {
+      "email": "tarek.abdelrahman.eg019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tarek Abd El-Rahman",
+      "date_of_birth": "1995-02-09"
+    },
+    {
+      "email": "salma.khalil.eg020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Salma Khalil",
+      "date_of_birth": "1995-03-18"
+    },
+    {
+      "email": "thabo.nkosi.za001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thabo Nkosi",
+      "date_of_birth": "1995-04-24"
+    },
+    {
+      "email": "zanele.dlamini.za002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zanele Dlamini",
+      "date_of_birth": "1995-05-31"
+    },
+    {
+      "email": "bongani.mkhize.za003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bongani Mkhize",
+      "date_of_birth": "1995-07-07"
+    },
+    {
+      "email": "nompumelelo.ntuli.za004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nompumelelo Ntuli",
+      "date_of_birth": "1995-08-13"
+    },
+    {
+      "email": "siyanda.shabalala.za005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Siyanda Shabalala",
+      "date_of_birth": "1995-09-19"
+    },
+    {
+      "email": "nokuthula.vilakazi.za006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nokuthula Vilakazi",
+      "date_of_birth": "1995-10-26"
+    },
+    {
+      "email": "lungelo.zulu.za007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lungelo Zulu",
+      "date_of_birth": "1995-12-02"
+    },
+    {
+      "email": "bongiwe.ndlovu.za008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bongiwe Ndlovu",
+      "date_of_birth": "1996-01-08"
+    },
+    {
+      "email": "mthokozisi.cele.za009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mthokozisi Cele",
+      "date_of_birth": "1996-02-14"
+    },
+    {
+      "email": "nosipho.buthelezi.za010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nosipho Buthelezi",
+      "date_of_birth": "1996-03-22"
+    },
+    {
+      "email": "thabo.nkosi.za011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thabo Nkosi",
+      "date_of_birth": "1996-04-28"
+    },
+    {
+      "email": "zanele.dlamini.za012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zanele Dlamini",
+      "date_of_birth": "1996-06-04"
+    },
+    {
+      "email": "bongani.mkhize.za013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bongani Mkhize",
+      "date_of_birth": "1996-07-11"
+    },
+    {
+      "email": "nompumelelo.ntuli.za014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nompumelelo Ntuli",
+      "date_of_birth": "1996-08-17"
+    },
+    {
+      "email": "siyanda.shabalala.za015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Siyanda Shabalala",
+      "date_of_birth": "1996-09-23"
+    },
+    {
+      "email": "nokuthula.vilakazi.za016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nokuthula Vilakazi",
+      "date_of_birth": "1996-10-30"
+    },
+    {
+      "email": "lungelo.zulu.za017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lungelo Zulu",
+      "date_of_birth": "1996-12-06"
+    },
+    {
+      "email": "bongiwe.ndlovu.za018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bongiwe Ndlovu",
+      "date_of_birth": "1997-01-12"
+    },
+    {
+      "email": "mthokozisi.cele.za019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mthokozisi Cele",
+      "date_of_birth": "1997-02-18"
+    },
+    {
+      "email": "nosipho.buthelezi.za020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nosipho Buthelezi",
+      "date_of_birth": "1997-03-27"
+    },
+    {
+      "email": "john.kamau.ke001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "John Kamau",
+      "date_of_birth": "1997-05-03"
+    },
+    {
+      "email": "grace.otieno.ke002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Grace Otieno",
+      "date_of_birth": "1997-06-09"
+    },
+    {
+      "email": "james.mwangi.ke003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Mwangi",
+      "date_of_birth": "1997-07-16"
+    },
+    {
+      "email": "ann.njoroge.ke004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ann Njoroge",
+      "date_of_birth": "1997-08-22"
+    },
+    {
+      "email": "peter.odhiambo.ke005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Peter Odhiambo",
+      "date_of_birth": "1997-09-28"
+    },
+    {
+      "email": "caroline.waweru.ke006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Caroline Waweru",
+      "date_of_birth": "1997-11-04"
+    },
+    {
+      "email": "samuel.kimani.ke007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Samuel Kimani",
+      "date_of_birth": "1997-12-11"
+    },
+    {
+      "email": "lucy.kariuki.ke008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucy Kariuki",
+      "date_of_birth": "1998-01-17"
+    },
+    {
+      "email": "paul.gitonga.ke009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Paul Gitonga",
+      "date_of_birth": "1998-02-23"
+    },
+    {
+      "email": "esther.muthoni.ke010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Esther Muthoni",
+      "date_of_birth": "1998-04-01"
+    },
+    {
+      "email": "john.kamau.ke011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "John Kamau",
+      "date_of_birth": "1998-05-08"
+    },
+    {
+      "email": "grace.otieno.ke012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Grace Otieno",
+      "date_of_birth": "1998-06-14"
+    },
+    {
+      "email": "james.mwangi.ke013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "James Mwangi",
+      "date_of_birth": "1998-07-21"
+    },
+    {
+      "email": "ann.njoroge.ke014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ann Njoroge",
+      "date_of_birth": "1998-08-27"
+    },
+    {
+      "email": "peter.odhiambo.ke015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Peter Odhiambo",
+      "date_of_birth": "1998-10-03"
+    },
+    {
+      "email": "caroline.waweru.ke016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Caroline Waweru",
+      "date_of_birth": "1998-11-09"
+    },
+    {
+      "email": "samuel.kimani.ke017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Samuel Kimani",
+      "date_of_birth": "1998-12-16"
+    },
+    {
+      "email": "lucy.kariuki.ke018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lucy Kariuki",
+      "date_of_birth": "1999-01-22"
+    },
+    {
+      "email": "mohamed.benali.tn001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Ben Ali",
+      "date_of_birth": "1999-02-28"
+    },
+    {
+      "email": "nour.trabelsi.tn002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nour Trabelsi",
+      "date_of_birth": "1999-04-06"
+    },
+    {
+      "email": "ali.gharbi.tn003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ali Gharbi",
+      "date_of_birth": "1999-05-13"
+    },
+    {
+      "email": "mariam.sfar.tn004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mariam Sfar",
+      "date_of_birth": "1999-06-19"
+    },
+    {
+      "email": "sami.jebali.tn005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sami Jebali",
+      "date_of_birth": "1999-07-26"
+    },
+    {
+      "email": "olfa.salah.tn006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olfa Salah",
+      "date_of_birth": "1999-09-01"
+    },
+    {
+      "email": "tarek.hamdi.tn007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tarek Hamdi",
+      "date_of_birth": "1999-10-08"
+    },
+    {
+      "email": "hanen.souissi.tn008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hanen Souissi",
+      "date_of_birth": "1999-11-14"
+    },
+    {
+      "email": "chokri.lahmar.tn009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chokri Lahmar",
+      "date_of_birth": "1999-12-21"
+    },
+    {
+      "email": "rim.karray.tn010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rim Karray",
+      "date_of_birth": "2000-01-27"
+    },
+    {
+      "email": "mohamed.benali.tn011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Ben Ali",
+      "date_of_birth": "2000-03-04"
+    },
+    {
+      "email": "nour.trabelsi.tn012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nour Trabelsi",
+      "date_of_birth": "2000-04-10"
+    },
+    {
+      "email": "ali.gharbi.tn013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ali Gharbi",
+      "date_of_birth": "2000-05-17"
+    },
+    {
+      "email": "mariam.sfar.tn014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mariam Sfar",
+      "date_of_birth": "2000-06-23"
+    },
+    {
+      "email": "sami.jebali.tn015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sami Jebali",
+      "date_of_birth": "2000-07-30"
+    },
+    {
+      "email": "olfa.salah.tn016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olfa Salah",
+      "date_of_birth": "2000-09-05"
+    },
+    {
+      "email": "kofi.kouassi.ci001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kofi Kouassi",
+      "date_of_birth": "2000-10-12"
+    },
+    {
+      "email": "adou.diallo.ci002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adou Diallo",
+      "date_of_birth": "2000-11-18"
+    },
+    {
+      "email": "adou.kone.ci003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adou Koné",
+      "date_of_birth": "2000-12-25"
+    },
+    {
+      "email": "adjoua.bamba.ci004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adjoua Bamba",
+      "date_of_birth": "2001-01-31"
+    },
+    {
+      "email": "kouame.toure.ci005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kouame Touré",
+      "date_of_birth": "2001-03-09"
+    },
+    {
+      "email": "bintou.coulibaly.ci006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bintou Coulibaly",
+      "date_of_birth": "2001-04-15"
+    },
+    {
+      "email": "ngoran.traore.ci007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "N'Goran Traoré",
+      "date_of_birth": "2001-05-22"
+    },
+    {
+      "email": "estelle.konate.ci008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Estelle Konaté",
+      "date_of_birth": "2001-06-28"
+    },
+    {
+      "email": "didier.ouattara.ci009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Didier Ouattara",
+      "date_of_birth": "2001-08-04"
+    },
+    {
+      "email": "sandrine.dembele.ci010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sandrine Dembélé",
+      "date_of_birth": "2001-09-10"
+    },
+    {
+      "email": "kofi.kouassi.ci011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kofi Kouassi",
+      "date_of_birth": "2001-10-17"
+    },
+    {
+      "email": "adou.diallo.ci012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adou Diallo",
+      "date_of_birth": "2001-11-23"
+    },
+    {
+      "email": "adou.kone.ci013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adou Koné",
+      "date_of_birth": "2001-12-30"
+    },
+    {
+      "email": "adjoua.bamba.ci014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Adjoua Bamba",
+      "date_of_birth": "2002-02-05"
+    },
+    {
+      "email": "kouame.toure.ci015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kouame Touré",
+      "date_of_birth": "2002-03-14"
+    },
+    {
+      "email": "bintou.coulibaly.ci016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bintou Coulibaly",
+      "date_of_birth": "2002-04-20"
+    },
+    {
+      "email": "mohamed.boudiaf.dz001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Boudiaf",
+      "date_of_birth": "2002-05-27"
+    },
+    {
+      "email": "amina.mekhloufi.dz002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amina Mekhloufi",
+      "date_of_birth": "2002-07-03"
+    },
+    {
+      "email": "karim.ziani.dz003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Karim Ziani",
+      "date_of_birth": "2002-08-09"
+    },
+    {
+      "email": "nour.ghilas.dz004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nour Ghilas",
+      "date_of_birth": "2002-09-15"
+    },
+    {
+      "email": "rachid.bougherra.dz005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rachid Bougherra",
+      "date_of_birth": "2002-10-22"
+    },
+    {
+      "email": "yasmine.feghouli.dz006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yasmine Feghouli",
+      "date_of_birth": "2002-11-28"
+    },
+    {
+      "email": "riyad.brahimi.dz007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Riyad Brahimi",
+      "date_of_birth": "2003-01-04"
+    },
+    {
+      "email": "souhila.taider.dz008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Souhila Taider",
+      "date_of_birth": "2003-02-10"
+    },
+    {
+      "email": "bilal.mahrez.dz009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bilal Mahrez",
+      "date_of_birth": "2003-03-19"
+    },
+    {
+      "email": "lynda.bennacer.dz010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lynda Bennacer",
+      "date_of_birth": "2003-04-25"
+    },
+    {
+      "email": "mohamed.boudiaf.dz011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohamed Boudiaf",
+      "date_of_birth": "2003-06-01"
+    },
+    {
+      "email": "amina.mekhloufi.dz012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amina Mekhloufi",
+      "date_of_birth": "2003-07-08"
+    },
+    {
+      "email": "karim.ziani.dz013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Karim Ziani",
+      "date_of_birth": "2003-08-14"
+    },
+    {
+      "email": "nour.ghilas.dz014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nour Ghilas",
+      "date_of_birth": "2003-09-20"
+    },
+    {
+      "email": "rachid.bougherra.dz015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rachid Bougherra",
+      "date_of_birth": "2003-10-27"
+    },
+    {
+      "email": "yasmine.feghouli.dz016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yasmine Feghouli",
+      "date_of_birth": "2003-12-03"
+    },
+    {
+      "email": "riyad.brahimi.dz017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Riyad Brahimi",
+      "date_of_birth": "2004-01-09"
+    },
+    {
+      "email": "souhila.taider.dz018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Souhila Taider",
+      "date_of_birth": "2004-02-15"
+    },
+    {
+      "email": "haruto.sato.jp001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Haruto Sato",
+      "date_of_birth": "2004-03-23"
+    },
+    {
+      "email": "aoi.suzuki.jp002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aoi Suzuki",
+      "date_of_birth": "2004-04-29"
+    },
+    {
+      "email": "yuto.tanaka.jp003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yuto Tanaka",
+      "date_of_birth": "2004-06-05"
+    },
+    {
+      "email": "rin.watanabe.jp004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rin Watanabe",
+      "date_of_birth": "2004-07-12"
+    },
+    {
+      "email": "ryusei.ito.jp005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ryusei Ito",
+      "date_of_birth": "2004-08-18"
+    },
+    {
+      "email": "saki.yamamoto.jp006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Saki Yamamoto",
+      "date_of_birth": "2004-09-24"
+    },
+    {
+      "email": "kaito.nakamura.jp007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kaito Nakamura",
+      "date_of_birth": "2004-10-31"
+    },
+    {
+      "email": "yuna.kobayashi.jp008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yuna Kobayashi",
+      "date_of_birth": "2004-12-07"
+    },
+    {
+      "email": "kento.kato.jp009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kento Kato",
+      "date_of_birth": "2005-01-13"
+    },
+    {
+      "email": "haruka.yoshida.jp010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Haruka Yoshida",
+      "date_of_birth": "2005-02-19"
+    },
+    {
+      "email": "haruto.sato.jp011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Haruto Sato",
+      "date_of_birth": "2005-03-28"
+    },
+    {
+      "email": "aoi.suzuki.jp012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aoi Suzuki",
+      "date_of_birth": "2005-05-04"
+    },
+    {
+      "email": "yuto.tanaka.jp013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yuto Tanaka",
+      "date_of_birth": "2005-06-10"
+    },
+    {
+      "email": "rin.watanabe.jp014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rin Watanabe",
+      "date_of_birth": "2005-07-17"
+    },
+    {
+      "email": "ryusei.ito.jp015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ryusei Ito",
+      "date_of_birth": "2005-08-23"
+    },
+    {
+      "email": "saki.yamamoto.jp016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Saki Yamamoto",
+      "date_of_birth": "2005-09-29"
+    },
+    {
+      "email": "kaito.nakamura.jp017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kaito Nakamura",
+      "date_of_birth": "2005-11-05"
+    },
+    {
+      "email": "yuna.kobayashi.jp018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yuna Kobayashi",
+      "date_of_birth": "2005-12-12"
+    },
+    {
+      "email": "kento.kato.jp019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kento Kato",
+      "date_of_birth": "2006-01-18"
+    },
+    {
+      "email": "haruka.yoshida.jp020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Haruka Yoshida",
+      "date_of_birth": "2006-02-24"
+    },
+    {
+      "email": "haruto.sato.jp021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Haruto Sato",
+      "date_of_birth": "2006-04-02"
+    },
+    {
+      "email": "aoi.suzuki.jp022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aoi Suzuki",
+      "date_of_birth": "2006-05-09"
+    },
+    {
+      "email": "yuto.tanaka.jp023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yuto Tanaka",
+      "date_of_birth": "2006-06-15"
+    },
+    {
+      "email": "rin.watanabe.jp024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rin Watanabe",
+      "date_of_birth": "2006-07-22"
+    },
+    {
+      "email": "jimin.kim.kr001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jimin Kim",
+      "date_of_birth": "2006-08-28"
+    },
+    {
+      "email": "somi.lee.kr002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Somi Lee",
+      "date_of_birth": "2006-10-04"
+    },
+    {
+      "email": "jungkook.park.kr003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jungkook Park",
+      "date_of_birth": "2006-11-10"
+    },
+    {
+      "email": "nayeon.choi.kr004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nayeon Choi",
+      "date_of_birth": "2006-12-17"
+    },
+    {
+      "email": "kai.jeong.kr005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kai Jeong",
+      "date_of_birth": "2007-01-23"
+    },
+    {
+      "email": "jennie.han.kr006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennie Han",
+      "date_of_birth": "2007-03-01"
+    },
+    {
+      "email": "chanyeol.im.kr007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chanyeol Im",
+      "date_of_birth": "2007-04-07"
+    },
+    {
+      "email": "lisa.oh.kr008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lisa Oh",
+      "date_of_birth": "2007-05-14"
+    },
+    {
+      "email": "hyun.seo.kr009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hyun Seo",
+      "date_of_birth": "2007-06-20"
+    },
+    {
+      "email": "irene.yoon.kr010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Irene Yoon",
+      "date_of_birth": "2007-07-27"
+    },
+    {
+      "email": "jimin.kim.kr011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jimin Kim",
+      "date_of_birth": "2007-09-02"
+    },
+    {
+      "email": "somi.lee.kr012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Somi Lee",
+      "date_of_birth": "2007-10-09"
+    },
+    {
+      "email": "jungkook.park.kr013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jungkook Park",
+      "date_of_birth": "2007-11-15"
+    },
+    {
+      "email": "nayeon.choi.kr014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nayeon Choi",
+      "date_of_birth": "2007-12-22"
+    },
+    {
+      "email": "kai.jeong.kr015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Kai Jeong",
+      "date_of_birth": "1991-02-01"
+    },
+    {
+      "email": "jennie.han.kr016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jennie Han",
+      "date_of_birth": "1991-03-10"
+    },
+    {
+      "email": "chanyeol.im.kr017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Chanyeol Im",
+      "date_of_birth": "1991-04-16"
+    },
+    {
+      "email": "lisa.oh.kr018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lisa Oh",
+      "date_of_birth": "1991-05-23"
+    },
+    {
+      "email": "hyun.seo.kr019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hyun Seo",
+      "date_of_birth": "1991-06-29"
+    },
+    {
+      "email": "irene.yoon.kr020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Irene Yoon",
+      "date_of_birth": "1991-08-05"
+    },
+    {
+      "email": "jimin.kim.kr021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jimin Kim",
+      "date_of_birth": "1991-09-11"
+    },
+    {
+      "email": "somi.lee.kr022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Somi Lee",
+      "date_of_birth": "1991-10-18"
+    },
+    {
+      "email": "jungkook.park.kr023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jungkook Park",
+      "date_of_birth": "1991-11-24"
+    },
+    {
+      "email": "nayeon.choi.kr024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nayeon Choi",
+      "date_of_birth": "1991-12-31"
+    },
+    {
+      "email": "wei.wang.cn001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Wei Wang",
+      "date_of_birth": "1992-02-06"
+    },
+    {
+      "email": "ying.li.cn002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ying Li",
+      "date_of_birth": "1992-03-14"
+    },
+    {
+      "email": "yang.zhang.cn003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yang Zhang",
+      "date_of_birth": "1992-04-20"
+    },
+    {
+      "email": "li.liu.cn004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Li Liu",
+      "date_of_birth": "1992-05-27"
+    },
+    {
+      "email": "tao.chen.cn005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tao Chen",
+      "date_of_birth": "1992-07-03"
+    },
+    {
+      "email": "na.yang.cn006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Na Yang",
+      "date_of_birth": "1992-08-09"
+    },
+    {
+      "email": "fang.huang.cn007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fang Huang",
+      "date_of_birth": "1992-09-15"
+    },
+    {
+      "email": "yan.zhao.cn008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yan Zhao",
+      "date_of_birth": "1992-10-22"
+    },
+    {
+      "email": "xin.wu.cn009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Xin Wu",
+      "date_of_birth": "1992-11-28"
+    },
+    {
+      "email": "qing.zhou.cn010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Qing Zhou",
+      "date_of_birth": "1993-01-04"
+    },
+    {
+      "email": "wei.wang.cn011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Wei Wang",
+      "date_of_birth": "1993-02-10"
+    },
+    {
+      "email": "ying.li.cn012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ying Li",
+      "date_of_birth": "1993-03-19"
+    },
+    {
+      "email": "yang.zhang.cn013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yang Zhang",
+      "date_of_birth": "1993-04-25"
+    },
+    {
+      "email": "li.liu.cn014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Li Liu",
+      "date_of_birth": "1993-06-01"
+    },
+    {
+      "email": "tao.chen.cn015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Tao Chen",
+      "date_of_birth": "1993-07-08"
+    },
+    {
+      "email": "na.yang.cn016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Na Yang",
+      "date_of_birth": "1993-08-14"
+    },
+    {
+      "email": "fang.huang.cn017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Fang Huang",
+      "date_of_birth": "1993-09-20"
+    },
+    {
+      "email": "yan.zhao.cn018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yan Zhao",
+      "date_of_birth": "1993-10-27"
+    },
+    {
+      "email": "xin.wu.cn019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Xin Wu",
+      "date_of_birth": "1993-12-03"
+    },
+    {
+      "email": "qing.zhou.cn020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Qing Zhou",
+      "date_of_birth": "1994-01-09"
+    },
+    {
+      "email": "wei.wang.cn021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Wei Wang",
+      "date_of_birth": "1994-02-15"
+    },
+    {
+      "email": "ying.li.cn022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ying Li",
+      "date_of_birth": "1994-03-24"
+    },
+    {
+      "email": "yang.zhang.cn023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Yang Zhang",
+      "date_of_birth": "1994-04-30"
+    },
+    {
+      "email": "li.liu.cn024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Li Liu",
+      "date_of_birth": "1994-06-06"
+    },
+    {
+      "email": "budi.santoso.id001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Budi Santoso",
+      "date_of_birth": "1994-07-13"
+    },
+    {
+      "email": "dewi.suharto.id002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dewi Suharto",
+      "date_of_birth": "1994-08-19"
+    },
+    {
+      "email": "rizky.wibowo.id003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rizky Wibowo",
+      "date_of_birth": "1994-09-25"
+    },
+    {
+      "email": "ratna.kusuma.id004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ratna Kusuma",
+      "date_of_birth": "1994-11-01"
+    },
+    {
+      "email": "dian.prasetyo.id005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dian Prasetyo",
+      "date_of_birth": "1994-12-08"
+    },
+    {
+      "email": "wulan.nugroho.id006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Wulan Nugroho",
+      "date_of_birth": "1995-01-14"
+    },
+    {
+      "email": "hendra.purnomo.id007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hendra Purnomo",
+      "date_of_birth": "1995-02-20"
+    },
+    {
+      "email": "ani.setiawan.id008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ani Setiawan",
+      "date_of_birth": "1995-03-29"
+    },
+    {
+      "email": "agus.hartono.id009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Agus Hartono",
+      "date_of_birth": "1995-05-05"
+    },
+    {
+      "email": "dini.wahyudi.id010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dini Wahyudi",
+      "date_of_birth": "1995-06-11"
+    },
+    {
+      "email": "budi.santoso.id011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Budi Santoso",
+      "date_of_birth": "1995-07-18"
+    },
+    {
+      "email": "dewi.suharto.id012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dewi Suharto",
+      "date_of_birth": "1995-08-24"
+    },
+    {
+      "email": "rizky.wibowo.id013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rizky Wibowo",
+      "date_of_birth": "1995-09-30"
+    },
+    {
+      "email": "ratna.kusuma.id014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ratna Kusuma",
+      "date_of_birth": "1995-11-06"
+    },
+    {
+      "email": "dian.prasetyo.id015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dian Prasetyo",
+      "date_of_birth": "1995-12-13"
+    },
+    {
+      "email": "wulan.nugroho.id016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Wulan Nugroho",
+      "date_of_birth": "1996-01-19"
+    },
+    {
+      "email": "hendra.purnomo.id017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hendra Purnomo",
+      "date_of_birth": "1996-02-25"
+    },
+    {
+      "email": "ani.setiawan.id018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ani Setiawan",
+      "date_of_birth": "1996-04-02"
+    },
+    {
+      "email": "agus.hartono.id019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Agus Hartono",
+      "date_of_birth": "1996-05-09"
+    },
+    {
+      "email": "dini.wahyudi.id020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dini Wahyudi",
+      "date_of_birth": "1996-06-15"
+    },
+    {
+      "email": "budi.santoso.id021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Budi Santoso",
+      "date_of_birth": "1996-07-22"
+    },
+    {
+      "email": "dewi.suharto.id022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dewi Suharto",
+      "date_of_birth": "1996-08-28"
+    },
+    {
+      "email": "minh.nguyen.vn001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Minh Nguyễn",
+      "date_of_birth": "1996-10-04"
+    },
+    {
+      "email": "hoa.tran.vn002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hoa Trần",
+      "date_of_birth": "1996-11-10"
+    },
+    {
+      "email": "nam.le.vn003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nam Lê",
+      "date_of_birth": "1996-12-17"
+    },
+    {
+      "email": "linh.pham.vn004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Linh Phạm",
+      "date_of_birth": "1997-01-23"
+    },
+    {
+      "email": "uc.huynh.vn005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Đức Huỳnh",
+      "date_of_birth": "1997-03-01"
+    },
+    {
+      "email": "thao.phan.vn006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thảo Phan",
+      "date_of_birth": "1997-04-07"
+    },
+    {
+      "email": "long.vu.vn007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Long Vũ",
+      "date_of_birth": "1997-05-14"
+    },
+    {
+      "email": "huong.ang.vn008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hương Đặng",
+      "date_of_birth": "1997-06-20"
+    },
+    {
+      "email": "dung.bui.vn009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dũng Bùi",
+      "date_of_birth": "1997-07-27"
+    },
+    {
+      "email": "anh.o.vn010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ánh Đỗ",
+      "date_of_birth": "1997-09-02"
+    },
+    {
+      "email": "minh.nguyen.vn011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Minh Nguyễn",
+      "date_of_birth": "1997-10-09"
+    },
+    {
+      "email": "hoa.tran.vn012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hoa Trần",
+      "date_of_birth": "1997-11-15"
+    },
+    {
+      "email": "nam.le.vn013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nam Lê",
+      "date_of_birth": "1997-12-22"
+    },
+    {
+      "email": "linh.pham.vn014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Linh Phạm",
+      "date_of_birth": "1998-01-28"
+    },
+    {
+      "email": "uc.huynh.vn015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Đức Huỳnh",
+      "date_of_birth": "1998-03-06"
+    },
+    {
+      "email": "thao.phan.vn016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thảo Phan",
+      "date_of_birth": "1998-04-12"
+    },
+    {
+      "email": "long.vu.vn017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Long Vũ",
+      "date_of_birth": "1998-05-19"
+    },
+    {
+      "email": "huong.ang.vn018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hương Đặng",
+      "date_of_birth": "1998-06-25"
+    },
+    {
+      "email": "dung.bui.vn019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dũng Bùi",
+      "date_of_birth": "1998-08-01"
+    },
+    {
+      "email": "anh.o.vn020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ánh Đỗ",
+      "date_of_birth": "1998-09-07"
+    },
+    {
+      "email": "minh.nguyen.vn021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Minh Nguyễn",
+      "date_of_birth": "1998-10-14"
+    },
+    {
+      "email": "hoa.tran.vn022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hoa Trần",
+      "date_of_birth": "1998-11-20"
+    },
+    {
+      "email": "jack.smith.au001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jack Smith",
+      "date_of_birth": "1998-12-27"
+    },
+    {
+      "email": "olivia.jones.au002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Jones",
+      "date_of_birth": "1999-02-02"
+    },
+    {
+      "email": "william.williams.au003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Williams",
+      "date_of_birth": "1999-03-11"
+    },
+    {
+      "email": "ava.brown.au004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Brown",
+      "date_of_birth": "1999-04-17"
+    },
+    {
+      "email": "thomas.wilson.au005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "1999-05-24"
+    },
+    {
+      "email": "isla.taylor.au006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Isla Taylor",
+      "date_of_birth": "1999-06-30"
+    },
+    {
+      "email": "henry.johnson.au007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Henry Johnson",
+      "date_of_birth": "1999-08-06"
+    },
+    {
+      "email": "lily.white.au008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lily White",
+      "date_of_birth": "1999-09-12"
+    },
+    {
+      "email": "ethan.martin.au009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Martin",
+      "date_of_birth": "1999-10-19"
+    },
+    {
+      "email": "sophie.anderson.au010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sophie Anderson",
+      "date_of_birth": "1999-11-25"
+    },
+    {
+      "email": "jack.smith.au011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jack Smith",
+      "date_of_birth": "2000-01-01"
+    },
+    {
+      "email": "olivia.jones.au012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Jones",
+      "date_of_birth": "2000-02-07"
+    },
+    {
+      "email": "william.williams.au013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "William Williams",
+      "date_of_birth": "2000-03-15"
+    },
+    {
+      "email": "ava.brown.au014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ava Brown",
+      "date_of_birth": "2000-04-21"
+    },
+    {
+      "email": "thomas.wilson.au015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Thomas Wilson",
+      "date_of_birth": "2000-05-28"
+    },
+    {
+      "email": "isla.taylor.au016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Isla Taylor",
+      "date_of_birth": "2000-07-04"
+    },
+    {
+      "email": "henry.johnson.au017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Henry Johnson",
+      "date_of_birth": "2000-08-10"
+    },
+    {
+      "email": "lily.white.au018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Lily White",
+      "date_of_birth": "2000-09-16"
+    },
+    {
+      "email": "ethan.martin.au019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ethan Martin",
+      "date_of_birth": "2000-10-23"
+    },
+    {
+      "email": "sophie.anderson.au020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sophie Anderson",
+      "date_of_birth": "2000-11-29"
+    },
+    {
+      "email": "jack.smith.au021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Jack Smith",
+      "date_of_birth": "2001-01-05"
+    },
+    {
+      "email": "olivia.jones.au022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Olivia Jones",
+      "date_of_birth": "2001-02-11"
+    },
+    {
+      "email": "rahul.sharma.in001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rahul Sharma",
+      "date_of_birth": "2001-03-20"
+    },
+    {
+      "email": "anjali.singh.in002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anjali Singh",
+      "date_of_birth": "2001-04-26"
+    },
+    {
+      "email": "vikram.patel.in003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Vikram Patel",
+      "date_of_birth": "2001-06-02"
+    },
+    {
+      "email": "divya.kumar.in004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Divya Kumar",
+      "date_of_birth": "2001-07-09"
+    },
+    {
+      "email": "amit.gupta.in005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amit Gupta",
+      "date_of_birth": "2001-08-15"
+    },
+    {
+      "email": "sneha.verma.in006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sneha Verma",
+      "date_of_birth": "2001-09-21"
+    },
+    {
+      "email": "arun.joshi.in007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Arun Joshi",
+      "date_of_birth": "2001-10-28"
+    },
+    {
+      "email": "ananya.rao.in008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ananya Rao",
+      "date_of_birth": "2001-12-04"
+    },
+    {
+      "email": "raj.nair.in009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Raj Nair",
+      "date_of_birth": "2002-01-10"
+    },
+    {
+      "email": "meera.reddy.in010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Meera Reddy",
+      "date_of_birth": "2002-02-16"
+    },
+    {
+      "email": "rahul.sharma.in011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rahul Sharma",
+      "date_of_birth": "2002-03-25"
+    },
+    {
+      "email": "anjali.singh.in012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anjali Singh",
+      "date_of_birth": "2002-05-01"
+    },
+    {
+      "email": "vikram.patel.in013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Vikram Patel",
+      "date_of_birth": "2002-06-07"
+    },
+    {
+      "email": "divya.kumar.in014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Divya Kumar",
+      "date_of_birth": "2002-07-14"
+    },
+    {
+      "email": "amit.gupta.in015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Amit Gupta",
+      "date_of_birth": "2002-08-20"
+    },
+    {
+      "email": "sneha.verma.in016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sneha Verma",
+      "date_of_birth": "2002-09-26"
+    },
+    {
+      "email": "arun.joshi.in017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Arun Joshi",
+      "date_of_birth": "2002-11-02"
+    },
+    {
+      "email": "ananya.rao.in018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ananya Rao",
+      "date_of_birth": "2002-12-09"
+    },
+    {
+      "email": "raj.nair.in019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Raj Nair",
+      "date_of_birth": "2003-01-15"
+    },
+    {
+      "email": "meera.reddy.in020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Meera Reddy",
+      "date_of_birth": "2003-02-21"
+    },
+    {
+      "email": "rahul.sharma.in021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rahul Sharma",
+      "date_of_birth": "2003-03-30"
+    },
+    {
+      "email": "anjali.singh.in022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Anjali Singh",
+      "date_of_birth": "2003-05-06"
+    },
+    {
+      "email": "vikram.patel.in023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Vikram Patel",
+      "date_of_birth": "2003-06-12"
+    },
+    {
+      "email": "divya.kumar.in024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Divya Kumar",
+      "date_of_birth": "2003-07-19"
+    },
+    {
+      "email": "mohammed.alghamdi.sa001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohammed Al-Ghamdi",
+      "date_of_birth": "2003-08-25"
+    },
+    {
+      "email": "nora.alzahrani.sa002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nora Al-Zahrani",
+      "date_of_birth": "2003-10-01"
+    },
+    {
+      "email": "abdulrahman.alqahtani.sa003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abdulrahman Al-Qahtani",
+      "date_of_birth": "2003-11-07"
+    },
+    {
+      "email": "reem.alshehri.sa004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Reem Al-Shehri",
+      "date_of_birth": "2003-12-14"
+    },
+    {
+      "email": "sultan.alotaibi.sa005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sultan Al-Otaibi",
+      "date_of_birth": "2004-01-20"
+    },
+    {
+      "email": "maha.alharbi.sa006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maha Al-Harbi",
+      "date_of_birth": "2004-02-26"
+    },
+    {
+      "email": "khalid.aldossari.sa007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Khalid Al-Dossari",
+      "date_of_birth": "2004-04-03"
+    },
+    {
+      "email": "dalal.alasmari.sa008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dalal Al-Asmari",
+      "date_of_birth": "2004-05-10"
+    },
+    {
+      "email": "bandar.almutairi.sa009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bandar Al-Mutairi",
+      "date_of_birth": "2004-06-16"
+    },
+    {
+      "email": "rasha.almalki.sa010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rasha Al-Malki",
+      "date_of_birth": "2004-07-23"
+    },
+    {
+      "email": "mohammed.alghamdi.sa011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohammed Al-Ghamdi",
+      "date_of_birth": "2004-08-29"
+    },
+    {
+      "email": "nora.alzahrani.sa012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Nora Al-Zahrani",
+      "date_of_birth": "2004-10-05"
+    },
+    {
+      "email": "abdulrahman.alqahtani.sa013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Abdulrahman Al-Qahtani",
+      "date_of_birth": "2004-11-11"
+    },
+    {
+      "email": "reem.alshehri.sa014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Reem Al-Shehri",
+      "date_of_birth": "2004-12-18"
+    },
+    {
+      "email": "sultan.alotaibi.sa015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Sultan Al-Otaibi",
+      "date_of_birth": "2005-01-24"
+    },
+    {
+      "email": "maha.alharbi.sa016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maha Al-Harbi",
+      "date_of_birth": "2005-03-02"
+    },
+    {
+      "email": "khalid.aldossari.sa017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Khalid Al-Dossari",
+      "date_of_birth": "2005-04-08"
+    },
+    {
+      "email": "dalal.alasmari.sa018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Dalal Al-Asmari",
+      "date_of_birth": "2005-05-15"
+    },
+    {
+      "email": "bandar.almutairi.sa019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Bandar Al-Mutairi",
+      "date_of_birth": "2005-06-21"
+    },
+    {
+      "email": "rasha.almalki.sa020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rasha Al-Malki",
+      "date_of_birth": "2005-07-28"
+    },
+    {
+      "email": "mohammed.almansoori.ae001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohammed Al-Mansoori",
+      "date_of_birth": "2005-09-03"
+    },
+    {
+      "email": "mariam.almazrouei.ae002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mariam Al-Mazrouei",
+      "date_of_birth": "2005-10-10"
+    },
+    {
+      "email": "khalid.alshamsi.ae003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Khalid Al-Shamsi",
+      "date_of_birth": "2005-11-16"
+    },
+    {
+      "email": "hessa.almaktoum.ae004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hessa Al-Maktoum",
+      "date_of_birth": "2005-12-23"
+    },
+    {
+      "email": "saeed.alnahyan.ae005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Saeed Al-Nahyan",
+      "date_of_birth": "2006-01-29"
+    },
+    {
+      "email": "aisha.alsuwaidi.ae006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aisha Al-Suwaidi",
+      "date_of_birth": "2006-03-07"
+    },
+    {
+      "email": "hamdan.alketbi.ae007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hamdan Al-Ketbi",
+      "date_of_birth": "2006-04-13"
+    },
+    {
+      "email": "maitha.alkaabi.ae008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maitha Al-Kaabi",
+      "date_of_birth": "2006-05-20"
+    },
+    {
+      "email": "rashed.alrashidi.ae009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Rashed Al-Rashidi",
+      "date_of_birth": "2006-06-26"
+    },
+    {
+      "email": "moza.alblooshi.ae010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Moza Al-Blooshi",
+      "date_of_birth": "2006-08-02"
+    },
+    {
+      "email": "mohammed.almansoori.ae011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mohammed Al-Mansoori",
+      "date_of_birth": "2006-09-08"
+    },
+    {
+      "email": "mariam.almazrouei.ae012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mariam Al-Mazrouei",
+      "date_of_birth": "2006-10-15"
+    },
+    {
+      "email": "khalid.alshamsi.ae013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Khalid Al-Shamsi",
+      "date_of_birth": "2006-11-21"
+    },
+    {
+      "email": "hessa.almaktoum.ae014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hessa Al-Maktoum",
+      "date_of_birth": "2006-12-28"
+    },
+    {
+      "email": "saeed.alnahyan.ae015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Saeed Al-Nahyan",
+      "date_of_birth": "2007-02-03"
+    },
+    {
+      "email": "aisha.alsuwaidi.ae016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Aisha Al-Suwaidi",
+      "date_of_birth": "2007-03-12"
+    },
+    {
+      "email": "hamdan.alketbi.ae017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Hamdan Al-Ketbi",
+      "date_of_birth": "2007-04-18"
+    },
+    {
+      "email": "maitha.alkaabi.ae018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Maitha Al-Kaabi",
+      "date_of_birth": "2007-05-25"
+    },
+    {
+      "email": "emre.ylmaz.tr001@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emre Yılmaz",
+      "date_of_birth": "2007-07-01"
+    },
+    {
+      "email": "zeynep.kaya.tr002@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zeynep Kaya",
+      "date_of_birth": "2007-08-07"
+    },
+    {
+      "email": "can.demir.tr003@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Can Demir",
+      "date_of_birth": "2007-09-13"
+    },
+    {
+      "email": "ayse.sahin.tr004@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ayşe Şahin",
+      "date_of_birth": "2007-10-20"
+    },
+    {
+      "email": "burak.celik.tr005@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Burak Çelik",
+      "date_of_birth": "2007-11-26"
+    },
+    {
+      "email": "esra.yldz.tr006@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Esra Yıldız",
+      "date_of_birth": "1991-01-06"
+    },
+    {
+      "email": "berkay.yldrm.tr007@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Berkay Yıldırım",
+      "date_of_birth": "1991-02-12"
+    },
+    {
+      "email": "deniz.ozdemir.tr008@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Deniz Özdemir",
+      "date_of_birth": "1991-03-21"
+    },
+    {
+      "email": "mehmet.arslan.tr009@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mehmet Arslan",
+      "date_of_birth": "1991-04-27"
+    },
+    {
+      "email": "ceren.dogan.tr010@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ceren Doğan",
+      "date_of_birth": "1991-06-03"
+    },
+    {
+      "email": "emre.ylmaz.tr011@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emre Yılmaz",
+      "date_of_birth": "1991-07-10"
+    },
+    {
+      "email": "zeynep.kaya.tr012@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zeynep Kaya",
+      "date_of_birth": "1991-08-16"
+    },
+    {
+      "email": "can.demir.tr013@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Can Demir",
+      "date_of_birth": "1991-09-22"
+    },
+    {
+      "email": "ayse.sahin.tr014@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ayşe Şahin",
+      "date_of_birth": "1991-10-29"
+    },
+    {
+      "email": "burak.celik.tr015@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Burak Çelik",
+      "date_of_birth": "1991-12-05"
+    },
+    {
+      "email": "esra.yldz.tr016@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Esra Yıldız",
+      "date_of_birth": "1992-01-11"
+    },
+    {
+      "email": "berkay.yldrm.tr017@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Berkay Yıldırım",
+      "date_of_birth": "1992-02-17"
+    },
+    {
+      "email": "deniz.ozdemir.tr018@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Deniz Özdemir",
+      "date_of_birth": "1992-03-25"
+    },
+    {
+      "email": "mehmet.arslan.tr019@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Mehmet Arslan",
+      "date_of_birth": "1992-05-01"
+    },
+    {
+      "email": "ceren.dogan.tr020@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ceren Doğan",
+      "date_of_birth": "1992-06-07"
+    },
+    {
+      "email": "emre.ylmaz.tr021@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Emre Yılmaz",
+      "date_of_birth": "1992-07-14"
+    },
+    {
+      "email": "zeynep.kaya.tr022@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Zeynep Kaya",
+      "date_of_birth": "1992-08-20"
+    },
+    {
+      "email": "can.demir.tr023@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Can Demir",
+      "date_of_birth": "1992-09-26"
+    },
+    {
+      "email": "ayse.sahin.tr024@lfa-seed.hu",
+      "password": "LfaScale2026!",
+      "name": "Ayşe Şahin",
+      "date_of_birth": "1992-11-02"
+    }
+  ],
+  "specialization": "LFA_FOOTBALL_PLAYER",
+  "skip_existing": true
+}
