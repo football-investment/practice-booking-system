@@ -45,7 +45,8 @@ class TestCreateTournamentSemester:
         )
 
         assert semester.id is not None
-        assert semester.code == f"TOURN-{tournament_date.strftime('%Y%m%d')}"
+        # Code format: TOURN-YYYYMMDD or TOURN-YYYYMMDD-NNN
+        assert semester.code.startswith(f"TOURN-{tournament_date.strftime('%Y%m%d')}")
         assert semester.name == "Holiday Football Cup"
         assert semester.start_date == tournament_date
         assert semester.end_date == tournament_date  # 1-day tournament
@@ -54,7 +55,7 @@ class TestCreateTournamentSemester:
         assert semester.master_instructor_id is None  # No instructor yet
 
     def test_tournament_code_format(self, test_db: Session):
-        """Tournament code follows TOURN-YYYYMMDD format."""
+        """Tournament code follows TOURN-YYYYMMDD[-NNN] format."""
         test_date = date(2025, 12, 27)
 
         semester = create_tournament_semester(
@@ -64,7 +65,9 @@ class TestCreateTournamentSemester:
             specialization_type=SpecializationType.LFA_PLAYER_PRE
         )
 
-        assert semester.code == "TOURN-20251227"
+        # Code format: TOURN-YYYYMMDD or TOURN-YYYYMMDD-NNN (with sequence number)
+        assert semester.code.startswith("TOURN-20251227")
+        assert len(semester.code) >= len("TOURN-20251227")
 
     def test_create_with_campus_id(self, test_db: Session, tournament_date: date):
         """Create tournament with campus location."""

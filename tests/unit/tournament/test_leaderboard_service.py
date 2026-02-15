@@ -5,6 +5,7 @@ Tests all 9 functions with happy path, edge cases, error handling, and validatio
 Covers individual and team-based tournaments, multi-day tournaments, and ranking calculations.
 """
 import pytest
+import uuid
 from sqlalchemy.orm import Session
 from decimal import Decimal
 from datetime import date, datetime, timedelta
@@ -31,9 +32,16 @@ from app.models.specialization import SpecializationType
 
 
 def create_test_user(db: Session, email: str, name: str, role: UserRole = UserRole.STUDENT) -> User:
-    """Helper function to create a test user"""
+    """Helper function to create a test user.
+
+    Note: Email is made unique per test run by appending UUID suffix.
+    This prevents collisions with legacy test data in DB.
+    """
+    # Make email unique to avoid collisions with existing test data
+    unique_email = f"{email.split('@')[0]}+{uuid.uuid4().hex[:8]}@{email.split('@')[1]}"
+
     user = User(
-        email=email,
+        email=unique_email,
         name=name,
         password_hash="test_hash_123",
         role=role  # Pass enum directly
@@ -45,13 +53,24 @@ def create_test_user(db: Session, email: str, name: str, role: UserRole = UserRo
 
 
 def create_test_team(db: Session, name: str, captain_user_id: int, code: str = None) -> Team:
-    """Helper function to create a test team"""
+    """Helper function to create a test team.
+
+    Note: Team code is made unique per test run by appending UUID suffix.
+    This prevents collisions with legacy test data in DB.
+    Max length: 20 chars (DB constraint).
+    """
     if code is None:
         code = f"TEAM-{name.upper().replace(' ', '-')[:10]}"
 
+    # Make code unique to avoid collisions (max 20 chars total)
+    # Format: "TM-{short_name}-{uuid4}" where short_name is truncated to fit
+    uuid_suffix = uuid.uuid4().hex[:4]  # 4 chars
+    max_prefix = 20 - 1 - len(uuid_suffix)  # -1 for hyphen
+    unique_code = f"{code[:max_prefix]}-{uuid_suffix}"
+
     team = Team(
         name=name,
-        code=code,
+        code=unique_code,
         captain_user_id=captain_user_id,
         specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,
         is_active=True
@@ -505,7 +524,7 @@ class TestGetLeaderboard:
         assert leaderboard[0]['rank'] == 1
         assert leaderboard[0]['user_id'] == user1.id
         assert leaderboard[0]['user_name'] == "Player 17"
-        assert leaderboard[0]['user_email'] == "player17@test.com"
+        assert leaderboard[0]['user_email'] == user1.email  # Use actual generated email
         assert leaderboard[0]['points'] == 11.0
         assert leaderboard[0]['wins'] == 1
         assert leaderboard[0]['draws'] == 1
@@ -539,7 +558,7 @@ class TestGetLeaderboard:
         assert len(leaderboard) == 2
         assert leaderboard[0]['team_id'] == team1.id
         assert leaderboard[0]['team_name'] == "Team Alpha"
-        assert leaderboard[0]['team_code'] == "ALPHA"
+        assert leaderboard[0]['team_code'] == team1.code  # Use actual generated code
         assert leaderboard[0]['participant_type'] == ParticipantType.TEAM.value
 
     def test_get_leaderboard_filter_by_participant_type(self, test_db: Session):
