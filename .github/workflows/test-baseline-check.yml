@@ -1,0 +1,163 @@
+name: Test Baseline Check
+
+on:
+  pull_request:
+    branches: [ main, develop, feature/* ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  unit-tests:
+    name: Unit Tests (Baseline: 0 failed, 0 errors)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-mock
+
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+      run: |
+        pytest tests/unit/ -q --tb=line -v
+
+    - name: Parse test results
+      id: test-results
+      run: |
+        # Extract test counts from pytest output
+        RESULTS=$(pytest tests/unit/ -q --tb=no 2>&1 | tail -1)
+        echo "results=$RESULTS" >> $GITHUB_OUTPUT
+
+        # Check for failures or errors
+        if echo "$RESULTS" | grep -qE "[0-9]+ failed"; then
+          echo "❌ Tests FAILED - merge blocked"
+          exit 1
+        fi
+        if echo "$RESULTS" | grep -qE "[0-9]+ error"; then
+          echo "❌ Tests have ERRORS - merge blocked"
+          exit 1
+        fi
+
+        echo "✅ All tests passed - baseline maintained"
+
+    - name: Baseline validation
+      if: failure()
+      run: |
+        echo "::error::Test baseline violated. Required: 0 failed, 0 errors"
+        echo "Current test suite must maintain 100% pass rate."
+        echo "See test-infra-stable-baseline tag for reference."
+        exit 1
+
+  smoke-tests:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-playwright
+        playwright install chromium
+
+    - name: Run E2E smoke tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        BASE_URL: http://localhost:8501
+        API_URL: http://localhost:8000
+      run: |
+        # Start services in background
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+
+        # Wait for services to be ready
+        sleep 10
+
+        # Run smoke tests
+        pytest tests_e2e/ -m smoke --tb=short -v
+
+    - name: Smoke test validation
+      if: failure()
+      run: |
+        echo "::error::E2E smoke tests failed - merge blocked"
+        echo "Critical user flows are broken."
+        exit 1
+
+  baseline-report:
+    name: Generate Baseline Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, smoke-tests]
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Baseline Status
+      run: |
+        echo "## Test Baseline Status" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${{ needs.unit-tests.result }}" == "success" ] && [ "${{ needs.smoke-tests.result }}" == "success" ]; then
+          echo "✅ **PASS** - Baseline maintained" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit tests: 0 failed, 0 errors" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E smoke tests: All passing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Safe to merge ✅" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **FAIL** - Baseline violated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**DO NOT MERGE** - Fix tests first" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Reference: \`test-infra-stable-baseline\` tag" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
