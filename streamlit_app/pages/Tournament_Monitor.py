@@ -19,15 +19,44 @@ import streamlit as st
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY
 from session_manager import restore_session_from_url, clear_session
 
-# Import directly from the module file to avoid __init__.py pulling in heavy
-# dependencies (tournament_list → streamlit_components) that are not needed here.
+# Import directly from the module file.
+# IMPORTANT: module name must be the full dotted path so that relative imports
+# inside tournament_monitor.py (e.g. `from .tournament_card.leaderboard`) can
+# resolve their parent package correctly.  Without this, Python's import system
+# has no way to walk up the package hierarchy and the relative import fails with
+# "attempted relative import with no known parent package".
 import importlib.util as _ilu
-_spec = _ilu.spec_from_file_location(
-    "tournament_monitor",
+import types as _types
+
+def _load_component(dotted_name: str, file_path: Path):
+    """Load a component module preserving package context for relative imports."""
+    parts = dotted_name.rsplit(".", 1)
+    parent_pkg = parts[0] if len(parts) > 1 else None
+
+    # Ensure every ancestor package is present in sys.modules so that
+    # relative imports inside the loaded module can walk upwards.
+    if parent_pkg:
+        pkg_parts = parent_pkg.split(".")
+        for i in range(len(pkg_parts)):
+            pkg_name = ".".join(pkg_parts[: i + 1])
+            if pkg_name not in sys.modules:
+                pkg_path = Path(__file__).parent.parent.joinpath(*pkg_parts[: i + 1])
+                pkg_mod = _types.ModuleType(pkg_name)
+                pkg_mod.__path__ = [str(pkg_path)]
+                pkg_mod.__package__ = pkg_name
+                sys.modules[pkg_name] = pkg_mod
+
+    spec = _ilu.spec_from_file_location(dotted_name, file_path)
+    mod = _ilu.module_from_spec(spec)
+    mod.__package__ = parent_pkg or dotted_name
+    sys.modules[dotted_name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+_mod = _load_component(
+    "components.admin.tournament_monitor",
     Path(__file__).parent.parent / "components" / "admin" / "tournament_monitor.py",
 )
-_mod = _ilu.module_from_spec(_spec)
-_spec.loader.exec_module(_mod)
 render_tournament_monitor = _mod.render_tournament_monitor
 
 
