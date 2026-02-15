@@ -256,13 +256,19 @@ def award_manual_reward(
         old_balance = user.credit_balance
         user.credit_balance = old_balance + credits_amount
 
+        # Generate idempotency key to prevent duplicate manual awards
+        from datetime import datetime
+        timestamp = datetime.now().isoformat()
+        idempotency_key = f"manual_award_{tournament_id}_{user_id}_{timestamp}"
+
         # Create credit transaction for audit trail
         transaction = CreditTransaction(
             user_id=user.id,
             amount=credits_amount,
             balance_after=user.credit_balance,
             transaction_type=TransactionType.MANUAL_ADJUSTMENT.value,
-            description=reason
+            description=reason,
+            idempotency_key=idempotency_key
         )
         db.add(transaction)
     

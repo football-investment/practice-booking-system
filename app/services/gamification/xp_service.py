@@ -151,6 +151,7 @@ def calculate_user_stats(db: Session, user_id: int) -> UserStats:
 
 def award_xp(db: Session, user_id: int, xp_amount: int, reason: str = "Quiz completion") -> UserStats:
     """Award XP to a user and update their stats"""
+    # Update UserStats for gamification
     stats = get_or_create_user_stats(db, user_id)
 
     stats.total_xp = (stats.total_xp or 0) + xp_amount
@@ -158,6 +159,13 @@ def award_xp(db: Session, user_id: int, xp_amount: int, reason: str = "Quiz comp
     level_up = new_level > stats.level
     stats.level = new_level
     stats.updated_at = datetime.now(timezone.utc)
+
+    # Also update User.xp_balance (primary XP balance)
+    from ...models.user import User
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        user.xp_balance = (user.xp_balance or 0) + xp_amount
+
     db.commit()
 
     if level_up:

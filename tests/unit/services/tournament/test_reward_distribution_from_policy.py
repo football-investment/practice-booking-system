@@ -91,7 +91,7 @@ class TestRewardDistributionFromPolicy:
         test_db.refresh(user)
 
         # Verify XP awarded
-        assert user.total_xp == 500
+        assert user.xp_balance == 500
         assert stats['xp_distributed'] == 500
 
         # Verify credits awarded
@@ -126,7 +126,7 @@ class TestRewardDistributionFromPolicy:
         distribute_rewards(test_db, tournament.id)
         test_db.refresh(user)
 
-        assert user.total_xp == 300
+        assert user.xp_balance == 300
         assert user.credit_balance == 50
 
     def test_distribute_third_place_reward(self, test_db, tournament_with_policy, test_users):
@@ -147,7 +147,7 @@ class TestRewardDistributionFromPolicy:
         distribute_rewards(test_db, tournament.id)
         test_db.refresh(user)
 
-        assert user.total_xp == 200
+        assert user.xp_balance == 200
         assert user.credit_balance == 25
 
     def test_distribute_participant_reward(self, test_db, tournament_with_policy, test_users):
@@ -168,7 +168,7 @@ class TestRewardDistributionFromPolicy:
         distribute_rewards(test_db, tournament.id)
         test_db.refresh(user)
 
-        assert user.total_xp == 50
+        assert user.xp_balance == 50
         assert user.credit_balance == 0
 
         # Verify NO credit transaction for 0 credits
@@ -210,23 +210,36 @@ class TestRewardDistributionFromPolicy:
         for user in test_users:
             test_db.refresh(user)
 
-        assert test_users[0].total_xp == 500
+        assert test_users[0].xp_balance == 500
         assert test_users[0].credit_balance == 100
 
-        assert test_users[1].total_xp == 300
+        assert test_users[1].xp_balance == 300
         assert test_users[1].credit_balance == 50
 
-        assert test_users[2].total_xp == 200
+        assert test_users[2].xp_balance == 200
         assert test_users[2].credit_balance == 25
 
-        assert test_users[3].total_xp == 50
+        assert test_users[3].xp_balance == 50
         assert test_users[3].credit_balance == 0
 
-        assert test_users[4].total_xp == 50
+        assert test_users[4].xp_balance == 50
         assert test_users[4].credit_balance == 0
 
     def test_rewards_identical_across_specializations(self, test_db, test_users):
         """All 4 specializations receive identical rewards"""
+        from app.models.user import User, UserRole
+        from app.models.semester import SemesterStatus
+
+        # Create instructor for tournaments
+        instructor = User(
+            email=f"instructor+{uuid.uuid4().hex[:8]}@test.com",
+            name="Test Instructor",
+            password_hash="test_hash",
+            role=UserRole.INSTRUCTOR
+        )
+        test_db.add(instructor)
+        test_db.flush()
+
         specializations = [
             SpecializationType.LFA_FOOTBALL_PLAYER,
             SpecializationType.LFA_COACH,
@@ -244,9 +257,13 @@ class TestRewardDistributionFromPolicy:
                 specialization_type=spec
             )
 
+            # Assign instructor and set status
+            tournament.master_instructor_id = instructor.id
+            tournament.status = SemesterStatus.READY_FOR_ENROLLMENT
+
             # Use different user for each tournament
             user = test_users[i]
-            user.total_xp = 0
+            user.xp_balance = 0
             user.credit_balance = 0
             test_db.commit()
 
@@ -267,7 +284,7 @@ class TestRewardDistributionFromPolicy:
 
             results.append({
                 "spec": spec.value,
-                "xp": user.total_xp,
+                "xp": user.xp_balance,
                 "credits": user.credit_balance
             })
 
@@ -309,13 +326,19 @@ class TestRewardDistributionFromPolicy:
 
     def test_rewards_use_policy_snapshot_not_current_file(self, test_db, tournament_with_policy, test_users):
         """Rewards use policy snapshot, not current policy file"""
+        import copy
         tournament = tournament_with_policy
         user = test_users[0]
 
         # Manually modify the snapshot (simulating policy file change)
-        tournament.reward_policy_snapshot["placement_rewards"]["1ST"]["xp"] = 999
-        tournament.reward_policy_snapshot["placement_rewards"]["1ST"]["credits"] = 888
-        test_db.commit()
+        # Note: reward_policy_snapshot is a @property, must modify the underlying column
+        if tournament.reward_config_obj:
+            snapshot = copy.deepcopy(tournament.reward_config_obj.reward_policy_snapshot)
+            snapshot["placement_rewards"]["1ST"]["xp"] = 999
+            snapshot["placement_rewards"]["1ST"]["credits"] = 888
+            tournament.reward_config_obj.reward_policy_snapshot = snapshot
+            test_db.commit()
+            test_db.refresh(tournament)
 
         ranking = TournamentRanking(
             tournament_id=tournament.id,
@@ -331,7 +354,7 @@ class TestRewardDistributionFromPolicy:
         test_db.refresh(user)
 
         # Should use modified snapshot values, not default policy file
-        assert user.total_xp == 999
+        assert user.xp_balance == 999
         assert user.credit_balance == 888
 
     def test_no_rewards_for_nonexistent_tournament(self, test_db):
@@ -367,18 +390,32 @@ class TestRewardDistributionFromPolicy:
         """Fallback to TournamentReward table if no policy snapshot exists"""
         # Create tournament without using the service (to skip policy snapshot)
         from app.models.semester import Semester, SemesterStatus
+        from app.models.user import User, UserRole
+
+        # Create instructor
+        instructor = User(
+            email=f"instructor+{uuid.uuid4().hex[:8]}@test.com",
+            name="Test Instructor",
+            password_hash="test_hash",
+            role=UserRole.INSTRUCTOR
+        )
+        test_db.add(instructor)
+        test_db.flush()
 
         semester = Semester(
-            code="TOURN-20260215",
+            code=f"TOURN-{uuid.uuid4().hex[:8]}",
             name="Legacy Tournament",
             start_date=date(2026, 2, 15),
             end_date=date(2026, 2, 15),
             is_active=True,
             status=SemesterStatus.READY_FOR_ENROLLMENT,
-            specialization_type=SpecializationType.LFA_PLAYER.value,
-            reward_policy_snapshot=None  # No policy snapshot (legacy)
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            master_instructor_id=instructor.id
         )
         test_db.add(semester)
+        test_db.flush()
+        # Ensure no policy snapshot (legacy mode)
+        # Note: reward_policy_snapshot is a @property, cannot be set in constructor
         test_db.commit()
         test_db.refresh(semester)
 
@@ -399,5 +436,5 @@ class TestRewardDistributionFromPolicy:
 
         # Should still work with default values
         test_db.refresh(user)
-        assert user.total_xp == 500
+        assert user.xp_balance == 500
         assert user.credit_balance == 100

@@ -29,15 +29,23 @@ def create_team(
 
     # Generate code if not provided
     if not code:
-        code = f"TEAM-{name.upper().replace(' ', '-')[:10]}"
+        base_code = f"TEAM-{name.upper().replace(' ', '-')[:10]}"
+        code = base_code
+        counter = 1
 
-    # Check if code already exists
-    existing = db.query(Team).filter(Team.code == code).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Team code '{code}' already exists"
-        )
+        # Auto-increment if code exists (e.g., TEAM-TEST-01, TEAM-TEST-02)
+        while db.query(Team).filter(Team.code == code).first():
+            code = f"{base_code[:16]}-{counter:02d}"
+            counter += 1
+
+    # If explicit code was provided, check if it already exists
+    else:
+        existing = db.query(Team).filter(Team.code == code).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Team code '{code}' already exists"
+            )
 
     # Create team
     team = Team(

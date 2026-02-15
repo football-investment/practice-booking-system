@@ -4,6 +4,7 @@ Comprehensive unit tests for team_service.py
 Tests all 8 functions with happy path, edge cases, error handling, and validation.
 """
 import pytest
+import uuid
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime
@@ -14,9 +15,11 @@ from app.models.user import UserRole
 
 
 def create_test_user(db: Session, email: str, name: str, role: UserRole = UserRole.STUDENT) -> User:
-    """Helper function to create a test user"""
+    """Helper function to create a test user with unique email"""
+    # Add UUID suffix to prevent duplicate key violations
+    unique_email = f"{email.split('@')[0]}+{uuid.uuid4().hex[:8]}@{email.split('@')[1]}"
     user = User(
-        email=email,
+        email=unique_email,
         name=name,
         password_hash="test_hash_123",
         role=role  # Pass enum directly, SQLAlchemy handles conversion
