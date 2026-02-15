@@ -129,11 +129,22 @@ def get_tournament_rankings(token: str, tournament_id: int) -> Tuple[bool, Optio
     We use GET /rankings (read-only) if it exists, otherwise we call
     GET /calculate-rankings — some backends expose it as GET for polling.
     Returns empty list gracefully if endpoint not available yet.
+
+    **Migrated to APIClient** (Phase B, Batch 1)
     """
-    ok, err, data = _get(f"/api/v1/tournaments/{tournament_id}/rankings", token)
+    from api_client import APIClient
+
+    client = APIClient.from_config(token)
+    response = client.tournaments.get_rankings(tournament_id)
+
+    # Backward-compatible tuple unpacking
+    ok, err, data = response
+
     if ok:
+        # Preserve original graceful degradation logic
         rankings = data if isinstance(data, list) else data.get("rankings", [])
         return True, None, rankings
+
     # Graceful degradation — leaderboard not yet available is normal for ongoing tournaments
     return True, None, []
 
