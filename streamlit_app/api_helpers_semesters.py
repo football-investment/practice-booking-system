@@ -474,26 +474,25 @@ def get_all_semesters(token: str) -> Tuple[bool, Optional[str], Optional[dict]]:
             "semesters": [...],
             "total": int
         }
-
-    **Migrated to APIClient** (Phase B, Batch 1)
     """
-    from api_client import APIClient
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/semesters/",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30
+        )
 
-    client = APIClient.from_config(token)
-    response = client.semesters.get_list(is_active=None, limit=1000)
+        if response.status_code == 200:
+            data = response.json()
+            return True, None, data
+        else:
+            error_msg = f"HTTP {response.status_code}: {response.text}"
+            return False, error_msg, None
 
-    # Backward-compatible tuple unpacking
-    ok, err, data = response
-
-    if ok:
-        # Preserve original return format: {"semesters": [...], "total": int}
-        # If backend returns list directly, wrap it
-        if isinstance(data, list):
-            return True, None, {"semesters": data, "total": len(data)}
-        # If backend already returns dict format, pass through
-        return True, None, data
-
-    return False, err, None
+    except requests.exceptions.RequestException as e:
+        return False, f"Network error: {str(e)}", None
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}", None
 
 
 def update_semester(token: str, semester_id: int, update_data: dict) -> Tuple[bool, Optional[str], Optional[dict]]:
