@@ -16,6 +16,7 @@ from api_helpers_notifications import get_unread_notification_count
 from api_helpers_instructors import get_my_master_offers, get_user_licenses
 from components.instructor.tabs.tab7_profile import render_profile_tab
 from components.instructor.tabs.tab6_inbox import render_inbox_tab
+from components.instructor.tabs.tab4_students import render_students_tab
 from components.instructor.tournament_applications import (
     render_open_tournaments_tab,
     render_my_applications_tab,
@@ -931,50 +932,9 @@ with tab3:
 # TAB 4: MY STUDENTS
 # ========================================
 with tab4:
-    st.markdown("### 👥 My Students")
-    st.caption("Students enrolled in your master-led semesters")
+    render_students_tab(token)
 
-    # Check if user is an active Master Instructor
-    with st.spinner("Checking master instructor status..."):
-        try:
-            my_offers = get_my_master_offers(token, include_expired=False)
-            active_master_offers = [o for o in my_offers if o.get('offer_status') == 'ACCEPTED' and o.get('is_active')]
-        except:
-            active_master_offers = []
 
-    if not active_master_offers:
-        # Not a Master Instructor - show info message
-        st.info("👨‍🏫 **Master Instructor Only**")
-        st.markdown("""
-        This section is only available when you are an **active Master Instructor** at a training location.
-
-        **How to become a Master Instructor:**
-        1. Check the "📩 Master Offers" tab for pending invitations
-        2. Accept an offer from a training location
-        3. Once accepted, you'll see your students here
-
-        **Current Status:** Not currently serving as Master Instructor
-        """)
-    else:
-        # Active Master Instructor - show students
-        master_location = active_master_offers[0].get('location_name', 'Unknown Location')
-        master_city = active_master_offers[0].get('location_city', '')
-
-        st.success(f"✅ Master Instructor at: **{master_location}** ({master_city})")
-
-        with st.spinner("Loading students..."):
-            # TODO: Implement proper endpoint to get students for master's semesters
-            # For now, show placeholder
-            st.info("🚧 Student management feature coming soon")
-            st.caption("This will show all students enrolled in semesters at your location.")
-
-        # FUTURE: Replace with actual student query
-        # success, students = get_master_students(token, location_id)
-        # Display students with same pattern as before
-
-# ========================================
-# TAB 5: CHECK-IN & GROUPS
-# ========================================
 with tab5:
     st.markdown("### ✅ Check-in & Group Assignment")
     st.caption("Mark attendance and create groups for your regular sessions")
