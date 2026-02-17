@@ -6,7 +6,7 @@ EXACT API patterns + EXACT UI/UX patterns
 
 import streamlit as st
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, CUSTOM_CSS, SESSION_TOKEN_KEY, SESSION_USER_KEY, SESSION_ROLE_KEY, SPECIALIZATIONS
-from api_helpers import get_sessions, get_users, get_semesters
+# api_helpers: get_sessions/get_semesters/get_users → moved to data_loader.py / unused
 from session_manager import restore_session_from_url
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -15,6 +15,7 @@ from collections import defaultdict
 from api_helpers_notifications import get_unread_notification_count
 from api_helpers_instructors import get_my_master_offers, get_user_licenses
 from components.instructor.tabs.tab7_profile import render_profile_tab
+from components.instructor.data_loader import load_dashboard_data
 from components.instructor.tabs.tab6_inbox import render_inbox_tab
 from components.instructor.tabs.tab4_students import render_students_tab
 from components.instructor.tournament_applications import (
@@ -160,61 +161,28 @@ def get_age_group_icon(age_group: str) -> str:
     return icons.get(age_group, '❓')
 
 # ========================================
-# DATA PREPARATION (Fetch ONCE, use across all tabs)
+# DATA BOUNDARY (Phase 3 Step 3.4)
 # ========================================
+# load_dashboard_data() encapsulates all session/semester fetching and
+# pre-computation.  Inline data-prep block removed — see data_loader.py.
 
 with st.spinner("Loading your data..."):
-    # Fetch ALL sessions (shared across tabs)
-    success, all_sessions = get_sessions(token, size=100, specialization_filter=True)
+    data = load_dashboard_data(token)
 
-    # Fetch ALL master-led semesters (to show future commitments without sessions)
-    semester_success, all_semesters = get_semesters(token)
-
-if not success:
-    st.error("❌ Failed to load sessions. Please refresh the page.")
+if data.load_error:
+    st.error(f"❌ {data.load_error}")
     st.stop()
 
-if not semester_success:
-    st.warning("⚠️ Could not load semester data. Some information may be incomplete.")
-    all_semesters = []
-
-# Separate seasons vs tournaments
-seasons_sessions = [s for s in all_sessions if not s.get('semester', {}).get('code', '').startswith('TOURN-')]
-tournament_sessions = [s for s in all_sessions if s.get('semester', {}).get('code', '').startswith('TOURN-')]
-
-# Group by semester_id
-seasons_by_semester = defaultdict(list)
-for s in seasons_sessions:
-    semester_id = s.get('semester_id')
-    if semester_id:
-        seasons_by_semester[semester_id].append(s)
-
-tournaments_by_semester = defaultdict(list)
-for t in tournament_sessions:
-    semester_id = t.get('semester_id')
-    if semester_id:
-        tournaments_by_semester[semester_id].append(t)
-
-# Filter for today and next 7 days
-today = datetime.now().date()
-next_week = today + timedelta(days=7)
-
-upcoming_sessions = []
-for s in all_sessions:
-    date_start_str = s.get('date_start')
-    if date_start_str:
-        try:
-            session_date = datetime.fromisoformat(date_start_str.replace('Z', '+00:00')).date()
-            if today <= session_date <= next_week:
-                upcoming_sessions.append(s)
-        except:
-            pass  # Skip sessions with invalid date
-
-# Sort upcoming sessions by date
-upcoming_sessions.sort(key=lambda x: x.get('date_start', ''))
-
-# Filter today's sessions
-todays_sessions = [s for s in upcoming_sessions if datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date() == today]
+# Local name bindings for remaining inline tab bodies (tabs 1, 2, 3).
+# Remove each binding as the corresponding tab is extracted in steps 3.5–3.8.
+all_sessions            = data.all_sessions
+all_semesters           = data.all_semesters
+seasons_by_semester     = data.seasons_by_semester
+tournaments_by_semester = data.tournaments_by_semester
+upcoming_sessions       = data.upcoming_sessions
+todays_sessions         = data.todays_sessions
+today                   = datetime.now().date()      # still needed by inline tab bodies
+next_week               = today + timedelta(days=7)  # same
 
 # Main tabs
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
