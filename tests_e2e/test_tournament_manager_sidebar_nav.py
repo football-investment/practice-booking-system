@@ -30,8 +30,8 @@ Credentials:
     Override defaults via environment variables:
         TEST_ADMIN_EMAIL      (default: admin@lfa.com)
         TEST_ADMIN_PASSWORD   (default: admin123)
-        TEST_INSTRUCTOR_EMAIL (default: instructor@lfa.com)
-        TEST_INSTRUCTOR_PASSWORD (default: instructor123)
+        TEST_INSTRUCTOR_EMAIL    (default: grandmaster@lfa.com)
+        TEST_INSTRUCTOR_PASSWORD (default: GrandMaster2026!)
 """
 
 import json
@@ -48,8 +48,8 @@ from playwright.sync_api import Page, expect
 
 _ADMIN_EMAIL    = os.environ.get("TEST_ADMIN_EMAIL",       "admin@lfa.com")
 _ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD",    "admin123")
-_INSTR_EMAIL    = os.environ.get("TEST_INSTRUCTOR_EMAIL",  "instructor@lfa.com")
-_INSTR_PASSWORD = os.environ.get("TEST_INSTRUCTOR_PASSWORD", "instructor123")
+_INSTR_EMAIL    = os.environ.get("TEST_INSTRUCTOR_EMAIL",  "grandmaster@lfa.com")
+_INSTR_PASSWORD = os.environ.get("TEST_INSTRUCTOR_PASSWORD", "GrandMaster2026!")
 
 _LOAD_TIMEOUT     = 30_000   # ms — page / navigation loads
 _STREAMLIT_SETTLE = 3        # s  — wait after Streamlit reruns/switch_page

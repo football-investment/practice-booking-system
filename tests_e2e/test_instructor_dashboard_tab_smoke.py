@@ -26,8 +26,8 @@ Run:
     pytest tests_e2e/test_instructor_dashboard_tab_smoke.py -m smoke -v
 
 Credentials:
-    TEST_INSTRUCTOR_EMAIL    (default: instructor@lfa.com)
-    TEST_INSTRUCTOR_PASSWORD (default: instructor123)
+    TEST_INSTRUCTOR_EMAIL    (default: grandmaster@lfa.com)
+    TEST_INSTRUCTOR_PASSWORD (default: GrandMaster2026!)
 """
 
 import json
@@ -42,8 +42,8 @@ from playwright.sync_api import Page, expect
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-_INSTR_EMAIL    = os.environ.get("TEST_INSTRUCTOR_EMAIL",    "instructor@lfa.com")
-_INSTR_PASSWORD = os.environ.get("TEST_INSTRUCTOR_PASSWORD", "instructor123")
+_INSTR_EMAIL    = os.environ.get("TEST_INSTRUCTOR_EMAIL",    "grandmaster@lfa.com")
+_INSTR_PASSWORD = os.environ.get("TEST_INSTRUCTOR_PASSWORD", "GrandMaster2026!")
 
 _LOAD_TIMEOUT     = 30_000   # ms
 _STREAMLIT_SETTLE = 3        # s — after page load / tab click
