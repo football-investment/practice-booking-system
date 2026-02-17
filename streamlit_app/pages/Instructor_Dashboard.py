@@ -15,6 +15,7 @@ from collections import defaultdict
 from api_helpers_notifications import get_unread_notification_count
 from api_helpers_instructors import get_my_master_offers, get_user_licenses
 from components.instructor.tabs.tab7_profile import render_profile_tab
+from components.instructor.tabs.tab6_inbox import render_inbox_tab
 from components.instructor.tournament_applications import (
     render_open_tournaments_tab,
     render_my_applications_tab,
@@ -988,12 +989,9 @@ with tab5:
 # TAB 6: INBOX (Universal Messaging System)
 # ========================================
 with tab6:
-    # Use the new universal inbox component
-    render_my_applications_tab(token, user)
+    render_inbox_tab(token, user)
 
-# ========================================
-# TAB 7: MY PROFILE
-# ========================================
+
 with tab7:
     render_profile_tab(token, user)
 
