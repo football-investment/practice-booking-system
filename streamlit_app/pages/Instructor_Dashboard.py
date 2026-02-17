@@ -120,6 +120,11 @@ with st.sidebar:
 
     st.markdown("---")
 
+    if st.button("🏆 Tournament Manager", use_container_width=True, type="primary"):
+        st.switch_page("pages/Tournament_Manager.py")
+
+    st.markdown("---")
+
     # Logout and Refresh buttons
     col1, col2 = st.columns(2)
     with col1:
@@ -864,54 +869,14 @@ with tab3:
         render_my_tournaments_tab(token, user)
 
     with tourn_tab3:
-        # Match Command Center (Concept A) - POST-START tournament management
-        from components.tournaments.instructor.match_command_center import render_match_command_center
-
         st.markdown("### ⚽ Match Command Center")
-        st.caption("Manage active tournaments: attendance, results, and leaderboard")
-
-        # Get instructor's active tournaments (IN_PROGRESS status)
-        try:
-            response = requests.get(
-                f"{API_BASE_URL}/api/v1/semesters",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=API_TIMEOUT
-            )
-            if response.status_code == 200:
-                all_semesters = response.json().get('semesters', [])
-                # Filter for active tournaments assigned to this instructor
-                # Tournaments have code starting with "TOURN-"
-                active_tournaments = [
-                    t for t in all_semesters
-                    if t.get('code', '').startswith('TOURN-') and
-                       t.get('master_instructor_id') == user.get('id') and
-                       t.get('tournament_status') == 'IN_PROGRESS'
-                ]
-
-                if active_tournaments:
-                    # Let user select tournament
-                    tournament_options = {
-                        f"{t['name']} (ID: {t['id']})": t['id']
-                        for t in active_tournaments
-                    }
-
-                    selected_tournament_name = st.selectbox(
-                        "Select Active Tournament",
-                        options=list(tournament_options.keys()),
-                        key="match_center_tournament_select"
-                    )
-
-                    if selected_tournament_name:
-                        tournament_id = tournament_options[selected_tournament_name]
-                        st.divider()
-                        render_match_command_center(token, tournament_id)
-                else:
-                    st.info("📋 No active tournaments")
-                    st.caption("Tournaments appear here once they are IN_PROGRESS")
-            else:
-                st.error(f"Failed to load tournaments: {response.status_code}")
-        except Exception as e:
-            st.error(f"Error loading tournaments: {str(e)}")
+        st.info(
+            "Match management has moved to the unified **Tournament Manager**. "
+            "Use the sidebar button or click below.",
+            icon="ℹ️",
+        )
+        if st.button("🏆 Open Tournament Manager", type="primary", use_container_width=True, key="btn_mcc_redirect"):
+            st.switch_page("pages/Tournament_Manager.py")
 
     with tourn_tab4:
         # Fixtures Validation View - ONLY show schedule, NO result entry

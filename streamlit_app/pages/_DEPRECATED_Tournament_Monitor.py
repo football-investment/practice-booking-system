@@ -10,9 +10,21 @@ Direct URL: /Tournament_Monitor
 import sys
 from pathlib import Path
 
-# Ensure the streamlit_app directory is on the path
-parent_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(parent_dir))
+# ── Robust sys.path setup ────────────────────────────────────────────────────
+_app_root = str(Path(__file__).parent.parent.resolve())
+sys.path = [
+    p for p in sys.path
+    if not (p.endswith(("/components", "/components/admin", "/components/admin/ops_wizard",
+                        "/components/admin/tournament_card")))
+]
+if _app_root not in sys.path:
+    sys.path.insert(0, _app_root)
+import importlib
+for _mod in [k for k in sys.modules if k.startswith("components")]:
+    _m = sys.modules.get(_mod)
+    if _m and getattr(_m, "__file__", None) is None:
+        del sys.modules[_mod]
+del importlib
 
 import streamlit as st
 
@@ -103,7 +115,12 @@ with st.sidebar:
 
 st.title("📡 Tournament Monitor")
 st.caption("Real-time view of active tournaments across all campuses")
-
+st.info(
+    "**Heads up:** This page has been superseded by the unified "
+    "[Tournament Manager](/Tournament_Manager) which also supports Instructor access. "
+    "It remains active for backward compatibility.",
+    icon="ℹ️",
+)
 st.divider()
 
 # ── Main component ────────────────────────────────────────────────────────────

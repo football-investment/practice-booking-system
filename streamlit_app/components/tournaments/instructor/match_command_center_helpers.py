@@ -52,9 +52,19 @@ def format_time_display(total_seconds: float) -> str:
 
 
 def get_active_match(tournament_id: int) -> Optional[Dict[str, Any]]:
-    """Fetch the active match for the tournament"""
+    """Fetch the active match for the tournament.
+
+    The endpoint returns an envelope:
+        {"active_match": {...} | None, "upcoming_matches": [...], "tournament_id": ...}
+
+    Unwraps the envelope and returns the inner active_match dict,
+    or None when the tournament has no pending match (all completed).
+    """
     try:
-        return api_client.get(f"/api/v1/tournaments/{tournament_id}/active-match")
+        envelope = api_client.get(f"/api/v1/tournaments/{tournament_id}/active-match")
+        if not isinstance(envelope, dict):
+            return None
+        return envelope.get("active_match")  # None when all matches completed
     except APIError as e:
         Error.message(f"Failed to fetch active match: {e.message}")
         return None
@@ -135,9 +145,34 @@ def submit_match_results(session_id: int, results: Dict) -> bool:
 
 
 def get_leaderboard(tournament_id: int) -> Optional[Dict[str, Any]]:
-    """Fetch tournament leaderboard"""
+    """Fetch tournament leaderboard
+
+    .. deprecated::
+        Calls the legacy /leaderboard endpoint.  Prefer get_tournament_rankings()
+        which uses the /rankings endpoint (same format as tournament_card/leaderboard.py).
+    """
     try:
         return api_client.get(f"/api/v1/tournaments/{tournament_id}/leaderboard")
     except APIError as e:
         Error.message(f"Failed to fetch leaderboard: {e.message}")
         return None
+
+
+def get_tournament_rankings(tournament_id: int) -> List[Dict[str, Any]]:
+    """Fetch tournament rankings in the format expected by tournament_card/leaderboard.py.
+
+    Calls /rankings (not /leaderboard) and normalises the response to a flat list
+    so it can be passed directly to render_leaderboard().
+
+    Returns:
+        List of ranking dicts: [{rank, user_id, name, points, wins, ...}]
+        Empty list on error or missing data.
+    """
+    try:
+        data = api_client.get(f"/api/v1/tournaments/{tournament_id}/rankings")
+        if not data:
+            return []
+        return data if isinstance(data, list) else data.get("rankings", [])
+    except APIError as e:
+        Error.message(f"Failed to fetch rankings: {e.message}")
+        return []

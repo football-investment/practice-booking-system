@@ -77,9 +77,8 @@ def render_dashboard_header():
 
         st.markdown("---")
 
-        # Quick link to the real-time tournament monitor
-        if st.button("📡 Tournament Monitor", use_container_width=True, type="secondary"):
-            st.switch_page("pages/Tournament_Monitor.py")
+        if st.button("🏆 Tournament Manager", use_container_width=True, type="primary"):
+            st.switch_page("pages/Tournament_Manager.py")
 
         st.markdown("---")
 
