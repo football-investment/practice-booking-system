@@ -96,6 +96,70 @@ pytest tests/unit/tournament/test_core.py::TestDeleteTournament -v
 
 ---
 
+---
+
+## Refactoring Sprint Log
+
+### Sprint 2026-02-18 — Tournament Endpoint File-Size Refactoring
+
+**Status**: ✅ Completed
+**Branch**: `feature/performance-card-option-a`
+
+Two large files were split to improve maintainability and reduce cognitive load per module.
+
+#### Split 1: `generator.py` (2475 lines) → `generator.py` + `ops_scenario.py`
+
+| File | Before | After |
+|---|---|---|
+| `generator.py` | 2475 lines | 885 lines (−64%) |
+| `ops_scenario.py` | — | ~1615 lines (new) |
+
+**Boundary**: Line 886 (`# OPS SCENARIO ENDPOINT` comment).
+`generator.py` retains: tournament CRUD + instructor schema endpoints.
+`ops_scenario.py` contains: OPS simulation infrastructure, all `_simulate_*()` helpers, `OpsScenarioRequest/Response` schemas, `run_ops_scenario()` endpoint.
+
+**External import changes**:
+- 3 test files updated: `test_real_user_integration.py`, `test_async_production_readiness.py`, `test_scale_1024_real_structure.py`
+- Import path: `...generator` → `...ops_scenario` for `_simulate_tournament_results`
+
+**Exported symbol `record_status_change`**: N/A for this split.
+
+---
+
+#### Split 2: `lifecycle.py` (1133 lines) → `lifecycle.py` + `lifecycle_instructor.py` + `lifecycle_updates.py`
+
+| File | Before | After |
+|---|---|---|
+| `lifecycle.py` | 1133 lines | 543 lines (−52%) |
+| `lifecycle_instructor.py` | — | ~269 lines (new) |
+| `lifecycle_updates.py` | — | ~291 lines (new) |
+
+**Boundaries**:
+- `lifecycle.py` retains: CREATE (`POST /`), STATUS TRANSITION (`PATCH /{id}/status`), STATUS HISTORY (`GET /{id}/status-history`), `record_status_change()` helper
+- `lifecycle_instructor.py`: Cycle 2 instructor assignment (`POST /{id}/assign-instructor`, `POST /{id}/instructor/accept`, `POST /{id}/instructor/decline`)
+- `lifecycle_updates.py`: Admin update endpoint (`PATCH /{id}` — 15+ fields, auto-session triggers)
+
+**External import compatibility**:
+- `rewards.py` (3 occurrences) and `rewards_v2.py` (1 occurrence) import `record_status_change` from `lifecycle.py` — **unchanged**, helper stays in `lifecycle.py`
+- No test files import directly from `lifecycle.py` — zero test changes required
+
+**Route count**: 71 (unchanged across both splits)
+**Unit test baseline**: 347 passed, 2 failed (pre-existing cascade delete state pollution — see entry above)
+
+---
+
+### Known Remaining Large Files (post-sprint audit)
+
+Files still above 500 lines in `app/api/api_v1/endpoints/tournaments/` that may warrant future splitting:
+
+| File | Lines | Candidate split |
+|---|---|---|
+| `ops_scenario.py` | ~1615 | Could extract simulation helpers to `app/services/tournament/simulation/` |
+| `instructor_assignment.py` | ~1130 | Could split apply-flow vs approve-flow |
+| `rewards.py` | (not audited) | Legacy — consider deprecating in favour of `rewards_v2.py` |
+
+---
+
 ## Template for New Entries
 
 ```markdown

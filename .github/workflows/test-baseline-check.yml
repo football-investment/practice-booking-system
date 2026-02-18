@@ -124,6 +124,97 @@ jobs:
       run: |
         pytest tests/unit/tournament/test_core.py::TestDeleteTournament -v --tb=short
 
+  api-module-integrity:
+    # Verifies that all tournament endpoint modules import cleanly and the
+    # route registry is intact after every refactoring split.
+    # No database required — pure Python import + router introspection.
+    # Add new modules here whenever a split is done.
+    name: API Module Integrity (import + route count)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Verify tournament endpoint modules import cleanly
+      env:
+        # Fake URL — create_engine() validates format only, no connection at import time
+        DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_check
+      run: |
+        python -c "
+        import sys
+
+        # ── lifecycle split (2026-02-18) ──────────────────────────────────────
+        from app.api.api_v1.endpoints.tournaments.lifecycle import router, record_status_change
+        print('✅ lifecycle: router + record_status_change')
+
+        from app.api.api_v1.endpoints.tournaments.lifecycle_instructor import router as r_instructor
+        print('✅ lifecycle_instructor: router')
+
+        from app.api.api_v1.endpoints.tournaments.lifecycle_updates import router as r_updates
+        print('✅ lifecycle_updates: router')
+
+        # ── generator split (2026-02-18) ──────────────────────────────────────
+        from app.api.api_v1.endpoints.tournaments.ops_scenario import router as r_ops
+        from app.api.api_v1.endpoints.tournaments.ops_scenario import _simulate_tournament_results
+        print('✅ ops_scenario: router + _simulate_tournament_results')
+
+        from app.api.api_v1.endpoints.tournaments.generator import router as r_gen
+        print('✅ generator: router')
+
+        # ── record_status_change external-import compat ───────────────────────
+        # rewards.py and rewards_v2.py import this; must stay importable from lifecycle
+        from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change as rsc
+        assert callable(rsc), 'record_status_change must be callable'
+        print('✅ record_status_change importable from lifecycle (rewards compat)')
+
+        # ── route count guard ──────────────────────────────────────────────────
+        from app.api.api_v1.endpoints.tournaments import router as main_router
+        routes = [r.path for r in main_router.routes]
+        route_count = len(routes)
+        EXPECTED_MIN = 71  # Bump this whenever new routes are added
+        assert route_count >= EXPECTED_MIN, (
+            f'Route count {route_count} < expected minimum {EXPECTED_MIN}. '
+            'A router include_router() call may be missing in __init__.py.'
+        )
+        print(f'✅ Route count: {route_count} (minimum: {EXPECTED_MIN})')
+
+        # ── lifecycle split route presence ─────────────────────────────────────
+        required_routes = [
+            '/{tournament_id}/assign-instructor',
+            '/{tournament_id}/instructor/accept',
+            '/{tournament_id}/instructor/decline',
+        ]
+        for path in required_routes:
+            assert path in routes, f'Missing route: {path}'
+        print(f'✅ All {len(required_routes)} lifecycle_instructor routes present')
+
+        # ── ops route presence ─────────────────────────────────────────────────
+        assert '/ops/run-scenario' in routes, 'Missing route: /ops/run-scenario'
+        print('✅ /ops/run-scenario route present')
+
+        print()
+        print('✅ API module integrity: ALL CHECKS PASSED')
+        "
+
+    - name: Integrity check failure annotation
+      if: failure()
+      run: |
+        echo "::error::API module integrity check failed."
+        echo "A recent refactoring split likely broke an import or forgot to register a router."
+        echo "Run locally: python -c \"from app.api.api_v1.endpoints.tournaments import router\""
+        exit 1
+
   smoke-tests:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
@@ -186,7 +277,7 @@ jobs:
   baseline-report:
     name: Generate Baseline Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, cascade-isolation-guard, smoke-tests]
+    needs: [unit-tests, cascade-isolation-guard, smoke-tests, api-module-integrity]
     if: always()
 
     steps:
@@ -200,12 +291,14 @@ jobs:
         UNIT="${{ needs.unit-tests.result }}"
         CASCADE="${{ needs.cascade-isolation-guard.result }}"
         SMOKE="${{ needs.smoke-tests.result }}"
+        INTEGRITY="${{ needs.api-module-integrity.result }}"
 
-        if [ "$UNIT" == "success" ] && [ "$CASCADE" == "success" ] && [ "$SMOKE" == "success" ]; then
+        if [ "$UNIT" == "success" ] && [ "$CASCADE" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ]; then
           echo "✅ **PASS** - Baseline maintained" >> $GITHUB_STEP_SUMMARY
           echo "- Unit tests (full suite, deselected cascade class): 0 failed, 0 errors" >> $GITHUB_STEP_SUMMARY
           echo "- Cascade delete tests (isolated): passing — _run in isolation due to known state pollution, see [TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md)_" >> $GITHUB_STEP_SUMMARY
           echo "- E2E smoke tests: All passing" >> $GITHUB_STEP_SUMMARY
+          echo "- API module integrity: All imports clean, route count ≥ 71" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Safe to merge ✅" >> $GITHUB_STEP_SUMMARY
         else
@@ -216,6 +309,7 @@ jobs:
           echo "| Unit tests | $UNIT |" >> $GITHUB_STEP_SUMMARY
           echo "| Cascade isolation guard | $CASCADE |" >> $GITHUB_STEP_SUMMARY
           echo "| E2E smoke tests | $SMOKE |" >> $GITHUB_STEP_SUMMARY
+          echo "| API module integrity | $INTEGRITY |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**DO NOT MERGE** - Fix tests first" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
