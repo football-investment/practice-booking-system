@@ -54,6 +54,26 @@ class RankingService:
         # Calculate rankings — forward ranking_direction so strategies can override direction
         return strategy.calculate_rankings(round_results, participants, ranking_direction=ranking_direction)
 
+    def get_aggregation_label(
+        self,
+        scoring_type: str,
+        ranking_direction: str = None
+    ) -> str:
+        """
+        Return the aggregation method label for a given scoring_type and direction.
+
+        Used to populate session.game_results["aggregation_method"] accurately (fixes BUG-03).
+
+        Args:
+            scoring_type: e.g. 'TIME_BASED', 'SCORE_BASED', 'ROUNDS_BASED', 'PLACEMENT'
+            ranking_direction: Optional 'ASC' or 'DESC' override
+
+        Returns:
+            Label string: 'MIN_VALUE', 'MAX_VALUE', 'SUM', 'SUM_PLACEMENT'
+        """
+        strategy = RankingStrategyFactory.create(scoring_type)
+        return strategy.get_aggregation_label(ranking_direction=ranking_direction)
+
     def convert_to_legacy_format(
         self,
         rank_groups: List[RankGroup],

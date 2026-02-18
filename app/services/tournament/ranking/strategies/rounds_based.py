@@ -55,6 +55,10 @@ class RoundsBasedStrategy(RankingStrategy):
         """ROUNDS_BASED uses descending sort (higher is better)"""
         return 'DESC'
 
+    def get_aggregation_label(self, ranking_direction: str = None) -> str:
+        effective = ranking_direction or self.get_sort_direction()
+        return "MIN_VALUE" if effective == "ASC" else "MAX_VALUE"
+
     def calculate_rankings(
         self,
         round_results: Dict[str, Dict[str, str]],

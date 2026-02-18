@@ -54,6 +54,9 @@ class ScoreBasedStrategy(RankingStrategy):
         """SCORE_BASED uses descending sort (higher is better)"""
         return 'DESC'
 
+    def get_aggregation_label(self, ranking_direction: str = None) -> str:
+        return "SUM"  # always SUM regardless of direction
+
     def calculate_rankings(
         self,
         round_results: Dict[str, Dict[str, str]],

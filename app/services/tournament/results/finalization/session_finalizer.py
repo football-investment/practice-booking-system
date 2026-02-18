@@ -13,7 +13,6 @@ import json
 
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
-from app.services.tournament.results.calculators import RankingAggregator  # DEPRECATED: Use RankingService instead
 from app.services.tournament.ranking.ranking_service import RankingService
 from app.services.tournament.leaderboard_service import (
     get_or_create_ranking,
@@ -41,8 +40,7 @@ class SessionFinalizer:
             db: SQLAlchemy database session
         """
         self.db = db
-        self.ranking_aggregator = RankingAggregator()  # DEPRECATED: Kept for backward compatibility
-        self.ranking_service = RankingService()  # ✅ NEW: Modern strategy-based ranking
+        self.ranking_service = RankingService()
 
     def validate_all_rounds_completed(
         self,
@@ -291,7 +289,7 @@ class SessionFinalizer:
             "measurement_unit": measurement_unit,
             "ranking_direction": ranking_direction,
             "total_rounds": total_rounds,
-            "aggregation_method": "BEST_VALUE",
+            "aggregation_method": self.ranking_service.get_aggregation_label(scoring_type, ranking_direction),
             "rounds_data": rounds_data,
             # Dual ranking system
             "derived_rankings": derived_rankings,

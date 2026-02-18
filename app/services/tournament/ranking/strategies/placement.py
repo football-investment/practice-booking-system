@@ -54,6 +54,9 @@ class PlacementStrategy(RankingStrategy):
         """PLACEMENT uses ascending sort (lower placement-sum is better)"""
         return 'ASC'
 
+    def get_aggregation_label(self, ranking_direction: str = None) -> str:
+        return "SUM_PLACEMENT"  # total placement positions across rounds
+
     def calculate_rankings(
         self,
         round_results: Dict[str, Dict[str, str]],

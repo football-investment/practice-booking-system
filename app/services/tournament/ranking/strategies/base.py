@@ -110,6 +110,21 @@ class RankingStrategy(ABC):
         """
         pass
 
+    def get_aggregation_label(self, ranking_direction: str = None) -> str:
+        """
+        Return a human-readable label for the aggregation method used.
+
+        Stored in session.game_results["aggregation_method"] JSONB field.
+        Overridden by concrete strategies to reflect actual logic (fixes BUG-03).
+
+        Args:
+            ranking_direction: Optional override — affects label for direction-sensitive strategies.
+
+        Returns:
+            String label: 'MIN_VALUE', 'MAX_VALUE', 'SUM', 'SUM_PLACEMENT', etc.
+        """
+        return "BEST_VALUE"  # fallback for H2H and unknown strategies
+
     def _aggregate_direction_sensitive(
         self,
         values: List[float],
