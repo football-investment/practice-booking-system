@@ -31,15 +31,19 @@ class RankingService:
         self,
         scoring_type: str,
         round_results: Dict[str, Dict[str, str]],
-        participants: List[Dict[str, Any]]
+        participants: List[Dict[str, Any]],
+        ranking_direction: str = None
     ) -> List[RankGroup]:
         """
         Calculate rankings using the appropriate strategy.
 
         Args:
-            scoring_type: One of 'TIME_BASED', 'SCORE_BASED', 'ROUNDS_BASED'
+            scoring_type: One of 'TIME_BASED', 'SCORE_BASED', 'ROUNDS_BASED', 'PLACEMENT'
             round_results: {"1": {"13": "11 pts", ...}, "2": {...}, ...}
             participants: [{"user_id": 13, ...}, ...]
+            ranking_direction: Optional override — 'ASC' (lower=better) or 'DESC' (higher=better).
+                If None, each strategy uses its hardcoded default direction.
+                Fixed: previously ignored (BUG-01). Now forwarded to the strategy.
 
         Returns:
             List[RankGroup] with proper tied ranks
@@ -47,8 +51,8 @@ class RankingService:
         # Get the appropriate strategy
         strategy = RankingStrategyFactory.create(scoring_type)
 
-        # Calculate rankings
-        return strategy.calculate_rankings(round_results, participants)
+        # Calculate rankings — forward ranking_direction so strategies can override direction
+        return strategy.calculate_rankings(round_results, participants, ranking_direction=ranking_direction)
 
     def convert_to_legacy_format(
         self,

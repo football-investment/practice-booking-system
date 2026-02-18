@@ -57,7 +57,8 @@ class ScoreBasedStrategy(RankingStrategy):
     def calculate_rankings(
         self,
         round_results: Dict[str, Dict[str, str]],
-        participants: List[Dict[str, Any]]
+        participants: List[Dict[str, Any]],
+        ranking_direction: str = None
     ) -> List[RankGroup]:
         """
         Calculate SCORE_BASED rankings.
@@ -94,9 +95,9 @@ class ScoreBasedStrategy(RankingStrategy):
                     except (ValueError, TypeError):
                         continue
 
-            # Aggregate: total (sum) score
+            # Aggregate: total (sum) score — SUM regardless of direction
             if scores:
                 user_total_scores[user_id] = self.aggregate_value(scores)
 
-        # Group by value and assign ranks (handles ties)
-        return self._group_by_value(user_total_scores)
+        # Group by value and assign ranks (direction override for sort only; SUM stays)
+        return self._group_by_value(user_total_scores, direction_override=ranking_direction)

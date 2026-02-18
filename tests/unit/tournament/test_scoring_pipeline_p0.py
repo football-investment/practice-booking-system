@@ -34,6 +34,7 @@ from app.services.tournament.ranking.strategies.base import RankGroup
 from app.services.tournament.ranking.strategies.time_based import TimeBasedStrategy
 from app.services.tournament.ranking.strategies.score_based import ScoreBasedStrategy
 from app.services.tournament.ranking.strategies.rounds_based import RoundsBasedStrategy
+from app.services.tournament.ranking.strategies.placement import PlacementStrategy
 from app.services.tournament.ranking.strategies.factory import RankingStrategyFactory
 
 
@@ -294,10 +295,11 @@ class TestRankingStrategyFactory:
         assert isinstance(s, ScoreBasedStrategy)
 
     # F-05
-    def test_placement_creates_score_based_strategy(self):
-        """PLACEMENT is currently mapped to ScoreBasedStrategy (this is BUG-02)."""
+    def test_placement_creates_placement_strategy(self):
+        """PLACEMENT now maps to PlacementStrategy (BUG-02 fixed)."""
         s = RankingStrategyFactory.create("PLACEMENT")
-        assert isinstance(s, ScoreBasedStrategy)
+        assert isinstance(s, PlacementStrategy)
+        assert not isinstance(s, ScoreBasedStrategy)
 
     # F-06
     def test_unknown_scoring_type_raises_value_error(self):
@@ -408,16 +410,14 @@ class TestRankingServiceDispatch:
         assert _winner(groups) == [1], "ROUNDS_BASED: highest single-round value wins"
 
     # RS-04
-    def test_calculate_rankings_signature_has_no_ranking_direction_param(self):
+    def test_calculate_rankings_signature_has_ranking_direction_param(self):
         """
-        Document BUG-01 precondition: RankingService.calculate_rankings() does not
-        accept ranking_direction. Passing it as kwargs silently does nothing.
+        BUG-01 fixed: RankingService.calculate_rankings() now accepts ranking_direction.
         """
         import inspect
         sig = inspect.signature(self.service.calculate_rankings)
-        assert "ranking_direction" not in sig.parameters, (
-            "If ranking_direction appears in this signature, BUG-01 is fixed — "
-            "update this test and TestBUG01_RankingDirectionIgnored."
+        assert "ranking_direction" in sig.parameters, (
+            "BUG-01 fix was reverted: ranking_direction missing from RankingService.calculate_rankings()."
         )
 
 
@@ -425,70 +425,44 @@ class TestRankingServiceDispatch:
 # 7. BUG-01 reproduction — ranking_direction ignored [xfail → RED]
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestBUG01_RankingDirectionIgnored:
+class TestBUG01_RankingDirectionFixed:
     """
-    BUG-01: ranking_direction is read in SessionFinalizer (line 235) but is never
-    forwarded to RankingService.calculate_rankings().
+    BUG-01 FIXED: ranking_direction is now forwarded through the full chain:
+      SessionFinalizer → RankingService.calculate_rankings(ranking_direction=...) → strategy
 
-    Each strategy has a hardcoded direction that cannot be overridden at call time.
-    These tests assert the CORRECT desired behavior (direction respected) and will
-    FAIL until BUG-01 is fixed — confirming the bug is present.
-
-    Fix required:
-      1. Add ranking_direction parameter to RankingService.calculate_rankings()
-      2. Pass it through to each strategy's aggregate/sort logic
+    Each strategy now respects the ranking_direction override when provided.
+    These tests verify the fix is working correctly.
     """
 
     def setup_method(self):
         self.service = RankingService()
 
-    # BUG01-A
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BUG-01: SCORE_BASED with ranking_direction='ASC' (lower score = better, e.g. fewest errors). "
-            "RankingService has no ranking_direction parameter. ScoreBasedStrategy always uses DESC. "
-            "Player with score=1 (fewer errors = better) should be rank 1, but rank goes to score=5."
-        )
-    )
-    def test_bug01a_score_based_asc_direction_lower_score_should_win(self):
+    # BUG01-A (was xfail, now GREEN)
+    def test_bug01a_score_based_asc_direction_lower_score_wins(self):
         """
-        Scenario: 'Fewest errors' tournament, SCORE_BASED, ranking_direction='ASC'.
+        SCORE_BASED with ranking_direction='ASC' (lower score = better, e.g. fewest errors).
         Player A: 1 error.  Player B: 5 errors.
-        Expected rank 1: Player A (fewer errors).
-        Current behaviour: Player B (score=5, DESC) gets rank 1. WRONG.
+        With ranking_direction='ASC': Player A (fewer errors) must be rank 1.
         """
         rr = _round_results_single((1, "1"), (2, "5"))
-        # BUG: ranking_direction cannot be passed — it silently does nothing
         groups = self.service.calculate_rankings(
             scoring_type="SCORE_BASED",
             round_results=rr,
             participants=_participants(1, 2),
-            # ranking_direction="ASC"  ← parameter does not exist in current API
+            ranking_direction="ASC",
         )
         winner = _winner(groups)
         assert winner == [1], (
-            f"Player 1 (score=1, fewer errors) should win with ASC direction. "
-            f"Got winner={winner} (ScoreBasedStrategy ranks DESC: score=5 wins). "
-            f"BUG-01: ranking_direction is not forwarded to RankingService."
+            f"Player 1 (score=1, fewer errors) must win with ranking_direction='ASC'. "
+            f"Got winner={winner}."
         )
 
-    # BUG01-B
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BUG-01: ROUNDS_BASED with ranking_direction='ASC' (lower best-round = better). "
-            "RoundsBasedStrategy always uses DESC/MAX. "
-            "Player with best round=2.0 should beat player with best round=9.0 under ASC, but doesn't."
-        )
-    )
-    def test_bug01b_rounds_based_asc_direction_lower_best_should_win(self):
+    # BUG01-B (was xfail, now GREEN)
+    def test_bug01b_rounds_based_asc_direction_lower_best_wins(self):
         """
-        Scenario: Sprint tournament, ROUNDS_BASED (multi-round), ranking_direction='ASC'.
-        Player A: rounds [2.0s, 5.0s] → best (MIN intended) = 2.0
-        Player B: rounds [9.0s, 9.0s] → best (MIN intended) = 9.0
-        Expected rank 1: Player A (faster best round).
-        Current: RoundsBasedStrategy uses MAX/DESC → Player B (MAX=9.0 > 2.0) wins. WRONG.
+        ROUNDS_BASED with ranking_direction='ASC' (sprint: lower time = faster).
+        Player A: best round = 2.0s.  Player B: best round = 9.0s.
+        With ranking_direction='ASC': Player A (faster) must be rank 1.
         """
         rr = _round_results_multi([
             {1: "2.0s", 2: "9.0s"},
@@ -498,73 +472,90 @@ class TestBUG01_RankingDirectionIgnored:
             scoring_type="ROUNDS_BASED",
             round_results=rr,
             participants=_participants(1, 2),
+            ranking_direction="ASC",
         )
         winner = _winner(groups)
         assert winner == [1], (
-            f"Player 1 (best round=2.0s) should win if ranking_direction='ASC'. "
-            f"Got winner={winner}. BUG-01: no direction override supported in RoundsBasedStrategy."
+            f"Player 1 (best round=2.0s) must win with ranking_direction='ASC'. "
+            f"Got winner={winner}."
         )
 
-    # BUG01-C
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BUG-01: SessionFinalizer reads tournament.ranking_direction (line 235) "
-            "but the value is never forwarded to self.ranking_service.calculate_rankings(). "
-            "This test verifies the disconnect by inspecting the call signature."
-        )
-    )
+    # BUG01-C (was xfail, now GREEN)
     def test_bug01c_ranking_service_api_accepts_ranking_direction(self):
         """
-        This test asserts that RankingService.calculate_rankings() ACCEPTS a
-        ranking_direction parameter. Currently it does not — BUG-01.
-        When BUG-01 is fixed, this test will pass (and should be marked as such).
+        RankingService.calculate_rankings() now accepts ranking_direction — BUG-01 fixed.
         """
         import inspect
         sig = inspect.signature(self.service.calculate_rankings)
         assert "ranking_direction" in sig.parameters, (
-            "RankingService.calculate_rankings() must accept 'ranking_direction' to fix BUG-01. "
-            "Currently missing — SessionFinalizer reads it but has nowhere to forward it."
+            "RankingService.calculate_rankings() must accept 'ranking_direction'. "
+            "If this fails, the BUG-01 fix was reverted."
         )
+
+    def test_bug01_default_none_preserves_original_behaviour(self):
+        """
+        ranking_direction=None (default) must produce same results as before the fix.
+        SCORE_BASED without override → DESC (highest score wins).
+        """
+        rr = _round_results_single((1, "1"), (2, "5"))
+        groups = self.service.calculate_rankings(
+            scoring_type="SCORE_BASED",
+            round_results=rr,
+            participants=_participants(1, 2),
+            # no ranking_direction → default DESC
+        )
+        winner = _winner(groups)
+        assert winner == [2], (
+            "Without ranking_direction override, SCORE_BASED must keep DESC (highest=5 wins). "
+            f"Got winner={winner}."
+        )
+
+    def test_bug01_desc_override_matches_default_for_score_based(self):
+        """Explicit DESC == no override for SCORE_BASED."""
+        rr = _round_results_single((1, "1"), (2, "5"))
+        g_default = self.service.calculate_rankings("SCORE_BASED", rr, _participants(1, 2))
+        g_explicit = self.service.calculate_rankings("SCORE_BASED", rr, _participants(1, 2), ranking_direction="DESC")
+        assert _rank_map(g_default) == _rank_map(g_explicit)
+
+    def test_bug01_rounds_based_asc_uses_min_aggregation(self):
+        """
+        ROUNDS_BASED + ASC: aggregation must flip from MAX to MIN.
+        A: [1, 5], B: [3, 4] → A MAX=5, B MAX=4 (B wins DESC); A MIN=1, B MIN=3 (A wins ASC).
+        """
+        rr = _round_results_multi([{1: "1", 2: "3"}, {1: "5", 2: "4"}])
+        groups_asc = self.service.calculate_rankings("ROUNDS_BASED", rr, _participants(1, 2), ranking_direction="ASC")
+        groups_desc = self.service.calculate_rankings("ROUNDS_BASED", rr, _participants(1, 2), ranking_direction="DESC")
+        assert _winner(groups_asc) == [1], "ASC: A (MIN=1) beats B (MIN=3)"
+        assert _winner(groups_desc) == [1], "DESC: A (MAX=5) beats B (MAX=4)"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. BUG-02 reproduction — PLACEMENT sort direction wrong [xfail → RED]
 # ─────────────────────────────────────────────────────────────────────────────
 
-class TestBUG02_PlacementSortWrong:
+class TestBUG02_PlacementStrategyFixed:
     """
-    BUG-02: PLACEMENT scoring_type maps to ScoreBasedStrategy (SUM, DESC).
+    BUG-02 FIXED: PLACEMENT now maps to PlacementStrategy (SUM/ASC).
 
-    In a PLACEMENT tournament, submitted values ARE placement numbers:
-      player A submits "1" (finished 1st)
-      player B submits "3" (finished 3rd)
+    PlacementStrategy:
+      - Aggregation: SUM (total placement positions across rounds)
+      - Sort: ASC (lower placement-sum = better, like golf scoring)
 
-    With ScoreBasedStrategy (DESC): B (value=3) beats A (value=1). WRONG.
-    Correct sort direction: ASC — player with lowest placement number wins.
-
-    Fix required: Add PlacementStrategy (or adjust factory to use ASC for PLACEMENT).
+    Previously PLACEMENT mapped to ScoreBasedStrategy (DESC/SUM) which incorrectly
+    ranked placement=3 above placement=1.
     """
 
     def setup_method(self):
         self.service = RankingService()
 
-    # BUG02-A
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BUG-02: PLACEMENT maps to ScoreBasedStrategy(DESC/SUM). "
-            "Player with placement=1 (winner) should be rank 1, "
-            "but ScoreBasedStrategy ranks highest value first — placement=3 wins. WRONG."
-        )
-    )
+    # BUG02-A (was xfail, now GREEN)
     def test_bug02a_placement_winner_has_lowest_placement_number(self):
         """
         Single-round placement tournament.
         Player A: placement=1 (race winner).
         Player B: placement=2.
         Player C: placement=3.
-        Expected: A at rank 1. Current: C at rank 1 (DESC: 3 > 2 > 1).
+        Expected and actual: A at rank 1.
         """
         rr = _round_results_single((1, "1"), (2, "2"), (3, "3"))
         groups = self.service.calculate_rankings(
@@ -574,28 +565,17 @@ class TestBUG02_PlacementSortWrong:
         )
         winner = _winner(groups)
         assert winner == [1], (
-            f"Player 1 (placement=1, i.e. race winner) must be rank 1. "
-            f"Got winner={winner}. "
-            f"BUG-02: PLACEMENT→ScoreBasedStrategy ranks DESC: placement=3 comes first."
+            f"Player 1 (placement=1) must be rank 1 with PlacementStrategy (ASC). "
+            f"Got winner={winner}."
         )
 
-    # BUG02-B
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "BUG-02: PLACEMENT strategy currently uses SUM aggregation across rounds. "
-            "For a 2-round placement event, player who finished 1st twice (sum=2) "
-            "should beat player who finished 1st + 3rd (sum=4). "
-            "With SUM+DESC: sum=4 incorrectly wins over sum=2."
-        )
-    )
-    def test_bug02b_multi_round_placement_lower_sum_should_win(self):
+    # BUG02-B (was xfail, now GREEN)
+    def test_bug02b_multi_round_placement_lower_sum_wins(self):
         """
         2-round placement event:
         Player A: placed 1st + 1st = sum 2 (best).
         Player B: placed 1st + 3rd = sum 4 (worse).
-        Expected: A wins (lower placement-sum is better).
-        Current: B (sum=4) wins with ScoreBasedStrategy DESC.
+        PlacementStrategy (SUM/ASC): A wins.
         """
         rr = _round_results_multi([
             {1: "1", 2: "1"},   # round 1: both 1st (tie)
@@ -608,22 +588,38 @@ class TestBUG02_PlacementSortWrong:
         )
         winner = _winner(groups)
         assert winner == [1], (
-            f"Player 1 (placement-sum=2) should beat Player 2 (sum=4). "
-            f"Got winner={winner}. BUG-02: SUM+DESC gives B (sum=4) rank 1."
+            f"Player 1 (sum=2) must beat Player 2 (sum=4) with ASC sort. Got winner={winner}."
         )
 
-    # BUG02-C — [GREEN] — documents that PLACEMENT currently produces a ScoreBasedStrategy
-    def test_bug02c_placement_currently_returns_score_based_strategy_instance(self):
+    # BUG02-C — updated: PLACEMENT now produces PlacementStrategy (not ScoreBasedStrategy)
+    def test_bug02c_placement_returns_placement_strategy_instance(self):
         """
-        Documents current (wrong) factory mapping as an explicit assertion.
-        When BUG-02 is fixed, this test should be UPDATED — PLACEMENT should
-        no longer produce a ScoreBasedStrategy.
+        Factory now maps PLACEMENT → PlacementStrategy (BUG-02 fixed).
         """
         strategy = RankingStrategyFactory.create("PLACEMENT")
-        assert isinstance(strategy, ScoreBasedStrategy), (
-            "PLACEMENT currently maps to ScoreBasedStrategy. "
-            "This test documents the bug. When fixed, update to check PlacementStrategy."
+        assert isinstance(strategy, PlacementStrategy), (
+            f"PLACEMENT must map to PlacementStrategy, got {type(strategy).__name__}. "
+            "BUG-02 fix may have been reverted."
         )
+        assert not isinstance(strategy, ScoreBasedStrategy), (
+            "PLACEMENT must NOT map to ScoreBasedStrategy any more."
+        )
+
+    def test_bug02_placement_aggregate_is_sum(self):
+        strategy = PlacementStrategy()
+        assert strategy.aggregate_value([1.0, 3.0, 2.0]) == 6.0
+
+    def test_bug02_placement_sort_direction_is_asc(self):
+        strategy = PlacementStrategy()
+        assert strategy.get_sort_direction() == "ASC"
+
+    def test_bug02_placement_tied_placements_share_rank(self):
+        """Two players with same placement-sum share rank; next rank skips."""
+        rr = _round_results_single((1, "2"), (2, "2"), (3, "4"))
+        groups = self.service.calculate_rankings("PLACEMENT", rr, _participants(1, 2, 3))
+        ranks = _rank_map(groups)
+        assert ranks[1] == ranks[2] == 1, "Both with sum=2 share rank 1"
+        assert ranks[3] == 3, "After 2-way tie at 1, next rank is 3"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

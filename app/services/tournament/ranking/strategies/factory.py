@@ -20,6 +20,7 @@ from .rounds_based import RoundsBasedStrategy
 from .head_to_head_league import HeadToHeadLeagueRankingStrategy
 from .head_to_head_knockout import HeadToHeadKnockoutRankingStrategy
 from .head_to_head_group_knockout import HeadToHeadGroupKnockoutRankingStrategy
+from .placement import PlacementStrategy
 
 
 class RankingStrategyFactory:
@@ -81,9 +82,10 @@ class RankingStrategyFactory:
             return ScoreBasedStrategy()
 
         elif scoring_type == "PLACEMENT":
-            # PLACEMENT uses direct ranking (no scores, just ranks)
-            # Uses same logic as SCORE_BASED but ranks are inverted (lower rank = better)
-            return ScoreBasedStrategy()
+            # PLACEMENT: lower placement number = better (1st place wins).
+            # Uses SUM aggregation (total placement across rounds) + ASC sort.
+            # Fixed: previously incorrectly mapped to ScoreBasedStrategy (DESC) — BUG-02.
+            return PlacementStrategy()
 
         else:
             raise ValueError(

@@ -51,7 +51,8 @@ class TimeBasedStrategy(RankingStrategy):
     def calculate_rankings(
         self,
         round_results: Dict[str, Dict[str, str]],
-        participants: List[Dict[str, Any]]
+        participants: List[Dict[str, Any]],
+        ranking_direction: str = None
     ) -> List[RankGroup]:
         """
         Calculate TIME_BASED rankings.
@@ -88,9 +89,10 @@ class TimeBasedStrategy(RankingStrategy):
                     except (ValueError, TypeError):
                         continue
 
-            # Aggregate: best (minimum) time
+            # Aggregate: direction-sensitive (default ASC → MIN; override DESC → MAX)
             if times:
-                user_best_times[user_id] = self.aggregate_value(times)
+                effective_dir = ranking_direction or self.get_sort_direction()
+                user_best_times[user_id] = self._aggregate_direction_sensitive(times, effective_dir)
 
-        # Group by value and assign ranks (handles ties)
-        return self._group_by_value(user_best_times)
+        # Group by value and assign ranks (handles ties + direction override)
+        return self._group_by_value(user_best_times, direction_override=ranking_direction)

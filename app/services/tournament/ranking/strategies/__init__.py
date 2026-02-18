@@ -33,6 +33,7 @@ from .base import RankingStrategy, RankGroup
 from .time_based import TimeBasedStrategy
 from .score_based import ScoreBasedStrategy
 from .rounds_based import RoundsBasedStrategy
+from .placement import PlacementStrategy
 from .factory import RankingStrategyFactory
 
 __all__ = [
@@ -41,5 +42,6 @@ __all__ = [
     "TimeBasedStrategy",
     "ScoreBasedStrategy",
     "RoundsBasedStrategy",
+    "PlacementStrategy",
     "RankingStrategyFactory",
 ]

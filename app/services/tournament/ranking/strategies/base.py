@@ -110,9 +110,35 @@ class RankingStrategy(ABC):
         """
         pass
 
+    def _aggregate_direction_sensitive(
+        self,
+        values: List[float],
+        direction: str
+    ) -> float:
+        """
+        Aggregate values for strategies where the aggregation method depends on direction.
+
+        Used by TIME_BASED and ROUNDS_BASED strategies when ranking_direction is overridden:
+          - ASC (lower=better): take MIN (fastest/lowest)
+          - DESC (higher=better): take MAX (highest/best)
+
+        SCORE_BASED and PLACEMENT always use SUM regardless of direction.
+
+        Args:
+            values: List of numeric values from each round
+            direction: 'ASC' or 'DESC'
+
+        Returns:
+            Aggregated float value
+        """
+        if direction == 'ASC':
+            return min(values) if values else float('inf')
+        return max(values) if values else 0.0
+
     def _group_by_value(
         self,
-        user_values: Dict[int, float]
+        user_values: Dict[int, float],
+        direction_override: str = None
     ) -> List[RankGroup]:
         """
         Helper: Group users by their final value and assign ranks.
@@ -123,12 +149,15 @@ class RankingStrategy(ABC):
 
         Args:
             user_values: {user_id: final_value}
+            direction_override: Optional 'ASC' or 'DESC' to override get_sort_direction().
+                Used when ranking_direction is passed to calculate_rankings().
 
         Returns:
             List[RankGroup] with tied ranks grouped
         """
-        # Sort by value (direction depends on strategy)
-        reverse = self.get_sort_direction() == 'DESC'
+        # Sort by value (direction_override takes precedence over hardcoded strategy direction)
+        effective_direction = direction_override or self.get_sort_direction()
+        reverse = effective_direction == 'DESC'
         sorted_items = sorted(user_values.items(), key=lambda x: x[1], reverse=reverse)
 
         rank_groups = []

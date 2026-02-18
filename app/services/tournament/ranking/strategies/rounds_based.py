@@ -58,15 +58,16 @@ class RoundsBasedStrategy(RankingStrategy):
     def calculate_rankings(
         self,
         round_results: Dict[str, Dict[str, str]],
-        participants: List[Dict[str, Any]]
+        participants: List[Dict[str, Any]],
+        ranking_direction: str = None
     ) -> List[RankGroup]:
         """
         Calculate ROUNDS_BASED rankings.
 
         Process:
         1. Extract numeric score values from each round
-        2. Find best (maximum) score for each participant
-        3. Sort by best score (DESC)
+        2. Find best score for each participant (MAX by default; MIN if ranking_direction='ASC')
+        3. Sort by best score (DESC by default; ASC if ranking_direction='ASC')
         4. Group participants with same best score (tied ranks)
 
         Args:
@@ -103,9 +104,10 @@ class RoundsBasedStrategy(RankingStrategy):
                     except (ValueError, TypeError):
                         continue
 
-            # Aggregate: best (maximum) score
+            # Aggregate: direction-sensitive (default DESC → MAX; override ASC → MIN)
             if scores:
-                user_best_scores[user_id] = self.aggregate_value(scores)
+                effective_dir = ranking_direction or self.get_sort_direction()
+                user_best_scores[user_id] = self._aggregate_direction_sensitive(scores, effective_dir)
 
-        # Group by value and assign ranks (handles ties)
-        return self._group_by_value(user_best_scores)
+        # Group by value and assign ranks (handles ties + direction override)
+        return self._group_by_value(user_best_scores, direction_override=ranking_direction)

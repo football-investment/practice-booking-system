@@ -263,10 +263,12 @@ class SessionFinalizer:
         participants = [{"user_id": user_id} for user_id in unique_user_ids]
 
         # Calculate rankings using appropriate strategy
+        # ranking_direction is now forwarded so strategies can respect ASC/DESC — fixed BUG-01
         rank_groups = self.ranking_service.calculate_rankings(
             scoring_type=scoring_type,
             round_results=round_results,
-            participants=participants
+            participants=participants,
+            ranking_direction=ranking_direction
         )
 
         # Convert to legacy format for backward compatibility
