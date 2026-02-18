@@ -72,7 +72,7 @@ class TournamentSessionGenerator:
             session_duration_minutes: Duration of each session
             break_minutes: Break time between sessions
             number_of_rounds: Number of rounds for INDIVIDUAL_RANKING tournaments (1-10)
-            campus_ids: List of campus IDs for multi-venue distribution (group_knockout only)
+            campus_ids: List of campus IDs for multi-venue round-robin distribution (all formats)
 
         Returns:
             (success, message, sessions_created)
@@ -162,13 +162,58 @@ class TournamentSessionGenerator:
                     f"parallel_fields={parallel_fields}"
                 )
 
-            # Get enrolled player count
-            player_count = self.db.query(SemesterEnrollment).filter(
+            # Determine seeding pool: prefer pre-tournament check-in confirmed players.
+            # If no check-ins exist (OPS auto-mode, legacy data), fall back to all APPROVED enrollments.
+            _base_filter = [
                 SemesterEnrollment.semester_id == tournament_id,
                 SemesterEnrollment.is_active == True,
-                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+            ]
+            checked_in_count = self.db.query(SemesterEnrollment).filter(
+                *_base_filter,
+                SemesterEnrollment.tournament_checked_in_at.isnot(None),
             ).count()
-            logger.info(f"👥 Enrolled player count: {player_count}")
+
+            if checked_in_count > 0:
+                # REGRESSION FIX: bracket seeded from confirmed check-in pool only
+                _player_filter = _base_filter + [
+                    SemesterEnrollment.tournament_checked_in_at.isnot(None),
+                ]
+                logger.info(
+                    f"✅ Pre-tournament check-in active: {checked_in_count} confirmed players "
+                    f"(seeding from confirmed pool only)"
+                )
+            else:
+                # Backward compat: no check-ins recorded → use all APPROVED enrollments
+                _player_filter = _base_filter
+                logger.info(
+                    "⚠️  No pre-tournament check-ins found — falling back to all APPROVED enrollments "
+                    "(OPS auto-mode or legacy tournament)"
+                )
+
+            total_approved = self.db.query(SemesterEnrollment).filter(*_base_filter).count()
+            player_count = self.db.query(SemesterEnrollment).filter(*_player_filter).count()
+
+            # Monitoring snapshot: always log seeding pool composition
+            _pool_label = 'check-in confirmed' if checked_in_count > 0 else 'fallback: all approved'
+            logger.info(
+                f"📊 SEEDING POOL SNAPSHOT | tournament={tournament_id} | "
+                f"total_approved={total_approved} | "
+                f"total_checked_in={checked_in_count} | "
+                f"seeded_count={player_count} | "
+                f"pool={_pool_label}"
+            )
+
+            # ⚠️ INTEGRITY ALERT: when check-ins exist, seeded_count MUST equal total_checked_in.
+            # Any divergence indicates a filter bug (e.g. concurrent enrollment approval
+            # between the two queries, or a corrupted filter list).
+            if checked_in_count > 0 and player_count != checked_in_count:
+                logger.error(
+                    f"🚨 SEEDING POOL INTEGRITY VIOLATION | tournament={tournament_id} | "
+                    f"total_checked_in={checked_in_count} != seeded_count={player_count} | "
+                    f"Bracket will be generated with {player_count} players — "
+                    f"investigate _player_filter and concurrent DB state before proceeding."
+                )
 
             # ✅ CRITICAL: Check tournament format
             logger.info(f"🔀 Checking tournament format: {tournament.format}")
@@ -194,7 +239,8 @@ class TournamentSessionGenerator:
                     parallel_fields=parallel_fields,
                     session_duration=session_duration_minutes,
                     break_minutes=break_minutes,
-                    number_of_rounds=number_of_rounds
+                    number_of_rounds=number_of_rounds,
+                    campus_ids=campus_ids,
                 )
                 logger.info(f"✅ individual_ranking_generator.generate() returned {len(sessions)} sessions")
             else:
@@ -219,7 +265,8 @@ class TournamentSessionGenerator:
                         player_count=player_count,
                         parallel_fields=parallel_fields,
                         session_duration=session_duration_minutes,
-                        break_minutes=break_minutes
+                        break_minutes=break_minutes,
+                        campus_ids=campus_ids,
                     )
                 elif tournament_type.code == "knockout":
                     sessions = self.knockout_generator.generate(
@@ -228,7 +275,8 @@ class TournamentSessionGenerator:
                         player_count=player_count,
                         parallel_fields=parallel_fields,
                         session_duration=session_duration_minutes,
-                        break_minutes=break_minutes
+                        break_minutes=break_minutes,
+                        campus_ids=campus_ids,
                     )
                 elif tournament_type.code == "group_knockout":
                     sessions = self.group_knockout_generator.generate(
@@ -248,18 +296,17 @@ class TournamentSessionGenerator:
                         player_count=player_count,
                         parallel_fields=parallel_fields,
                         session_duration=session_duration_minutes,
-                        break_minutes=break_minutes
+                        break_minutes=break_minutes,
+                        campus_ids=campus_ids,
                     )
                 else:
                     return False, f"Unknown tournament type: {tournament_type.code}", []
 
-            # Get all enrolled players
+            # Fetch seeding pool (mirrors the player_count query above)
             enrolled_players = self.db.query(SemesterEnrollment).filter(
-                SemesterEnrollment.semester_id == tournament_id,
-                SemesterEnrollment.is_active == True,
-                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+                *_player_filter
             ).all()
-            logger.info(f"👥 Fetched {len(enrolled_players)} enrolled players from database")
+            logger.info(f"👥 Fetched {len(enrolled_players)} players in seeding pool from database")
 
             # Create session records in database (bulk insert — no per-session flush)
             created_sessions = []

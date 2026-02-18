@@ -3,11 +3,30 @@ Tournament Session Generation Utilities
 
 Helper functions for session generation.
 """
-from typing import Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from app.models.semester import Semester
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as DBSession
+
+
+def pick_campus(session_index: int, campus_ids: Optional[List[int]]) -> Optional[int]:
+    """
+    Round-robin campus selection for multi-campus session distribution.
+
+    Returns campus_ids[session_index % len(campus_ids)] when campus_ids is provided,
+    otherwise None (session inherits tournament.campus_id — existing behaviour).
+
+    Args:
+        session_index: Zero-based index of the session being created (use len(sessions)).
+        campus_ids: Explicit list of campus IDs from the request. None = single-campus mode.
+
+    Returns:
+        int | None: Campus ID to assign to this session, or None.
+    """
+    if not campus_ids:
+        return None
+    return campus_ids[session_index % len(campus_ids)]
 
 
 def get_tournament_venue(tournament: Semester) -> str:

@@ -16,7 +16,7 @@ VALID_TRANSITIONS = {
     "INSTRUCTOR_CONFIRMED": ["ENROLLMENT_OPEN", "CANCELLED"],  # Direct to ENROLLMENT_OPEN
     "ENROLLMENT_OPEN": ["ENROLLMENT_CLOSED", "CANCELLED"],
     "ENROLLMENT_CLOSED": ["IN_PROGRESS", "CANCELLED"],  # Scheduled start (enrollment closed, waiting for start_date)
-    "IN_PROGRESS": ["COMPLETED", "CANCELLED"],
+    "IN_PROGRESS": ["COMPLETED", "CANCELLED", "ENROLLMENT_CLOSED"],  # ENROLLMENT_CLOSED: admin rollback for stuck (0 sessions)
     "COMPLETED": ["REWARDS_DISTRIBUTED", "ARCHIVED"],
     "REWARDS_DISTRIBUTED": ["ARCHIVED"],
     "CANCELLED": ["ARCHIVED"],
@@ -79,6 +79,12 @@ def validate_status_transition(
         # Must have enrollment capacity and dates configured
         if not hasattr(tournament, 'max_players') or tournament.max_players is None:
             return False, "Cannot open enrollment: Max participants not configured"
+        # Must have campus assigned — campus_id is required before sessions can be generated
+        if not getattr(tournament, 'campus_id', None):
+            return False, (
+                "Cannot open enrollment: No campus assigned. "
+                "Set campus_id via PATCH /{id} before opening enrollment."
+            )
 
     if new_status == "ENROLLMENT_CLOSED":
         # Must have at least minimum participants for tournament type

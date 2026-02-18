@@ -36,6 +36,32 @@ def _get(path: str, token: str, params: Optional[Dict] = None) -> Tuple[bool, Op
         )
         if resp.status_code == 200:
             return True, None, resp.json()
+        if resp.status_code == 401:
+            return False, "SESSION_EXPIRED", None
+        ct = resp.headers.get("content-type", "")
+        err = resp.json().get("detail", resp.text) if "json" in ct else resp.text
+        return False, f"HTTP {resp.status_code}: {err}", None
+    except requests.exceptions.Timeout:
+        return False, "Request timed out.", None
+    except requests.exceptions.ConnectionError:
+        return False, "Cannot connect to server.", None
+    except Exception as exc:
+        return False, f"Unexpected error: {exc}", None
+
+
+def _post(path: str, token: str, payload: Dict) -> Tuple[bool, Optional[str], Any]:
+    """Perform an authenticated POST and return (success, error, data)."""
+    try:
+        resp = requests.post(
+            f"{API_BASE_URL}{path}",
+            headers={"Authorization": f"Bearer {token}"},
+            json=payload,
+            timeout=API_TIMEOUT,
+        )
+        if resp.status_code in (200, 201):
+            return True, None, resp.json()
+        if resp.status_code == 401:
+            return False, "SESSION_EXPIRED", None
         ct = resp.headers.get("content-type", "")
         err = resp.json().get("detail", resp.text) if "json" in ct else resp.text
         return False, f"HTTP {resp.status_code}: {err}", None
@@ -58,6 +84,8 @@ def _patch(path: str, token: str, payload: Dict) -> Tuple[bool, Optional[str], A
         )
         if resp.status_code in (200, 201):
             return True, None, resp.json()
+        if resp.status_code == 401:
+            return False, "SESSION_EXPIRED", None
         ct = resp.headers.get("content-type", "")
         err = resp.json().get("detail", resp.text) if "json" in ct else resp.text
         return False, f"HTTP {resp.status_code}: {err}", None
@@ -178,6 +206,9 @@ def trigger_ops_scenario(
     simulation_mode: str = "accelerated",
     game_preset_id: Optional[int] = None,
     reward_config: Optional[Dict] = None,
+    number_of_rounds: Optional[int] = None,
+    player_ids: Optional[List[int]] = None,
+    campus_ids: Optional[List[int]] = None,
 ) -> Tuple[bool, Optional[str], Dict]:
     """
     POST /api/v1/tournaments/ops/run-scenario
@@ -208,6 +239,12 @@ def trigger_ops_scenario(
             payload["game_preset_id"] = game_preset_id
         if reward_config:
             payload["reward_config"] = reward_config
+        if number_of_rounds is not None and number_of_rounds > 1:
+            payload["number_of_rounds"] = number_of_rounds
+        if player_ids:
+            payload["player_ids"] = player_ids
+        if campus_ids:
+            payload["campus_ids"] = campus_ids
 
         resp = requests.post(
             f"{API_BASE_URL}/api/v1/tournaments/ops/run-scenario",
@@ -253,5 +290,53 @@ def submit_h2h_result(
     }
     ok, err, data = _patch(
         f"/api/v1/sessions/{session_id}/head-to-head-results", token, payload
+    )
+    return ok, err, data or {}
+
+
+def submit_ir_round(
+    token: str,
+    tournament_id: int,
+    session_id: int,
+    round_number: int,
+    results: Dict[str, str],
+) -> Tuple[bool, Optional[str], Dict]:
+    """Submit one round of results for a ROUNDS_BASED INDIVIDUAL_RANKING session.
+
+    POST /api/v1/tournaments/{tid}/sessions/{session_id}/rounds/{round_number}/submit-results
+
+    The `results` dict maps str(user_id) → measured_value string, e.g.:
+      {"123": "12.5s", "456": "13.2s"}  for TIME_BASED
+      {"123": "95",    "456": "82"}     for SCORE_BASED
+    """
+    payload = {"round_number": round_number, "results": results}
+    ok, err, data = _post(
+        f"/api/v1/tournaments/{tournament_id}/sessions/{session_id}/rounds/{round_number}/submit-results",
+        token,
+        payload,
+    )
+    return ok, err, data or {}
+
+
+def submit_individual_ranking_results(
+    token: str,
+    tournament_id: int,
+    session_id: int,
+    results: list,
+) -> Tuple[bool, Optional[str], Dict]:
+    """Submit results for an INDIVIDUAL_RANKING session.
+
+    POST /api/v1/tournaments/{tid}/sessions/{session_id}/submit-results
+
+    The `results` list always uses the unified format (all scoring types):
+      [{"user_id": 1, "measured_value": 10.5}, ...]
+    The backend derives placement from measured_value based on ranking_direction
+    (ASC for TIME_BASED → lower is better; DESC for DISTANCE/SCORE → higher is better).
+    """
+    payload = {"results": results, "notes": "OPS auto-simulated"}
+    ok, err, data = _post(
+        f"/api/v1/tournaments/{tournament_id}/sessions/{session_id}/submit-results",
+        token,
+        payload,
     )
     return ok, err, data or {}

@@ -11,7 +11,7 @@ import streamlit as st
 # Import API helpers
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from api_helpers_monitor import trigger_ops_scenario
 
 # Import wizard state management
@@ -32,6 +32,9 @@ def execute_launch():
     tournament_name = st.session_state.get("wizard_tournament_name_saved", "").strip() or None
     game_preset_id = st.session_state.get("wizard_game_preset_saved")  # int or None
     reward_config = st.session_state.get("wizard_reward_config_saved")  # dict or None
+    number_of_rounds = st.session_state.get("wizard_num_rounds_saved")  # int or None (IR only)
+    player_ids = st.session_state.get("wizard_player_ids_saved") or None  # List[int] or None
+    campus_ids = st.session_state.get("wizard_campus_ids_saved") or None  # List[int] or None
 
     with st.spinner("🚀 Launching test tournament..."):
         token = st.session_state.get("token")
@@ -50,6 +53,9 @@ def execute_launch():
             simulation_mode=simulation_mode,
             game_preset_id=game_preset_id,
             reward_config=reward_config,
+            number_of_rounds=number_of_rounds,
+            player_ids=player_ids,
+            campus_ids=campus_ids,
         )
 
         st.session_state["wizard_launching"] = False
@@ -66,18 +72,22 @@ def execute_launch():
             if new_tournament_id not in st.session_state["_ops_tracked_tournaments"]:
                 st.session_state["_ops_tracked_tournaments"].append(new_tournament_id)
 
-            st.toast(f"✅ Test Tournament #{new_tournament_id} launched and tracking started!", icon="🚀")
-            st.success(f"""
-**Test Tournament Launched Successfully!**
-
-**Tournament ID:** #{new_tournament_id}
-**Enrolled Players:** {enrolled_count}
-**Sessions:** {session_count}
-
-🔴 **Now tracking live:** The tournament is automatically added to the live tracking panel below.
-
-Auto-refresh is enabled - you'll see real-time updates as the test progresses.
-            """)
+            # Save launch result — wizard will show success screen until user starts a new one
+            st.session_state["wizard_launch_result"] = {
+                "tournament_id": new_tournament_id,
+                "enrolled_count": enrolled_count,
+                "session_count": session_count,
+                # snapshot of what was launched
+                "scenario": scenario,
+                "tournament_format": tournament_format,
+                "tournament_type": tournament_type,
+                "scoring_type": scoring_type,
+                "player_count": player_count,
+                "player_ids": player_ids,
+                "simulation_mode": simulation_mode,
+                "game_preset_id": game_preset_id,
+                "tournament_name": tournament_name,
+            }
 
             reset_wizard_state()
 
@@ -85,9 +95,7 @@ Auto-refresh is enabled - you'll see real-time updates as the test progresses.
             if "selected_id" in st.query_params:
                 del st.query_params["selected_id"]
 
-            st.session_state["wizard_current_step"] = 1
-
-            time.sleep(2)
+            st.toast(f"✅ Tournament #{new_tournament_id} launched!", icon="🚀")
             st.rerun()
         else:
             st.error(f"❌ Launch failed: {err}")

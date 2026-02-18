@@ -30,6 +30,15 @@ def init_wizard_state():
     if "wizard_launching" not in st.session_state:
         st.session_state["wizard_launching"] = False
 
+    if "wizard_location_id_saved" not in st.session_state:
+        st.session_state["wizard_location_id_saved"] = None
+
+    if "wizard_campus_ids_saved" not in st.session_state:
+        st.session_state["wizard_campus_ids_saved"] = []
+
+    if "wizard_campus_labels_saved" not in st.session_state:
+        st.session_state["wizard_campus_labels_saved"] = []
+
     if "wizard_initialized" not in st.session_state:
         st.session_state["wizard_initialized"] = True
         st.session_state["wizard_last_modified"] = time.time()
@@ -66,6 +75,16 @@ def reset_wizard_state():
         "wizard_tournament_name_saved",
         "wizard_game_preset_saved",
         "wizard_reward_config_saved",
+        "wizard_num_rounds_saved",
+        "wizard_player_ids_saved",
+        "wizard_selected_players",
+        "wizard_player_search_results",
+        "wizard_player_mode",
+        "wizard_location_id_widget",
+        "wizard_campus_ids_widget",
+        "wizard_location_id_saved",
+        "wizard_campus_ids_saved",
+        "wizard_campus_labels_saved",
         # Validity flags
         "wizard_completed_steps",
         "wizard_step1_valid",

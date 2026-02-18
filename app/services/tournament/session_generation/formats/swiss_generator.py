@@ -12,7 +12,7 @@ from app.models.tournament_type import TournamentType
 from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
-from ..utils import get_tournament_venue
+from ..utils import get_tournament_venue, pick_campus
 
 
 class SwissGenerator(BaseFormatGenerator):
@@ -40,6 +40,7 @@ class SwissGenerator(BaseFormatGenerator):
         Generate Swiss system tournament sessions
         """
         sessions = []
+        campus_ids = kwargs.get('campus_ids')
         total_rounds = math.ceil(math.log2(player_count))
 
         # ✅ Get enrolled players for participant_user_ids
@@ -106,7 +107,9 @@ class SwissGenerator(BaseFormatGenerator):
                             'pairing_type': 'random' if round_num == 1 else 'performance_based'
                         },
                         # ✅ Explicit 1v1 participants
-                        'participant_user_ids': [player1_id, player2_id]
+                        'participant_user_ids': [player1_id, player2_id],
+                        # ✅ Multi-campus: round-robin campus assignment
+                        'campus_id': pick_campus(len(sessions), campus_ids),
                     })
 
                     # Update field slot time
@@ -162,7 +165,9 @@ class SwissGenerator(BaseFormatGenerator):
                             'performance_tier': pod_num
                         },
                         # ✅ FIX: Add participant_user_ids - Initially all players in Round 1, then dynamic allocation by performance
-                        'participant_user_ids': player_ids if round_num == 1 else player_ids[(pod_num-1)*pod_size:pod_num*pod_size] if len(player_ids) >= pod_num*pod_size else player_ids[(pod_num-1)*pod_size:]
+                        'participant_user_ids': player_ids if round_num == 1 else player_ids[(pod_num-1)*pod_size:pod_num*pod_size] if len(player_ids) >= pod_num*pod_size else player_ids[(pod_num-1)*pod_size:],
+                        # ✅ Multi-campus: round-robin campus assignment
+                        'campus_id': pick_campus(len(sessions), campus_ids),
                     })
 
                     # Schedule parallel pods

@@ -12,7 +12,7 @@ from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..algorithms import RoundRobinPairing
-from ..utils import get_tournament_venue
+from ..utils import get_tournament_venue, pick_campus
 
 
 class LeagueGenerator(BaseFormatGenerator):
@@ -37,6 +37,7 @@ class LeagueGenerator(BaseFormatGenerator):
         Generate league sessions based on tournament format
         """
         sessions = []
+        campus_ids = kwargs.get('campus_ids')
 
         # ✅ Use tournament.format (from Semester table) to determine match structure
         # This is set by admin in UI and stored in semesters.format column
@@ -47,7 +48,8 @@ class LeagueGenerator(BaseFormatGenerator):
             # Total matches = n*(n-1)/2
             # Use pairing algorithm for fair scheduling
             sessions = self._generate_head_to_head_pairings(
-                tournament, tournament_type, player_count, parallel_fields, session_duration, break_minutes
+                tournament, tournament_type, player_count, parallel_fields, session_duration, break_minutes,
+                campus_ids=campus_ids,
             )
         else:
             # ✅ INDIVIDUAL_RANKING: Multi-player ranking rounds
@@ -94,7 +96,9 @@ class LeagueGenerator(BaseFormatGenerator):
                         'ranking_criteria': 'final_placement'
                     },
                     # ✅ FIX: Add participant_user_ids with all enrolled players
-                    'participant_user_ids': player_ids
+                    'participant_user_ids': player_ids,
+                    # ✅ Multi-campus: round-robin campus assignment
+                    'campus_id': pick_campus(len(sessions), campus_ids),
                 })
 
                 # Move to next time slot
@@ -109,7 +113,8 @@ class LeagueGenerator(BaseFormatGenerator):
         player_count: int,
         parallel_fields: int,
         session_duration: int,
-        break_minutes: int
+        break_minutes: int,
+        campus_ids=None,
     ) -> List[Dict[str, Any]]:
         """
         Generate HEAD_TO_HEAD round robin sessions (1v1 pairings)
@@ -180,7 +185,9 @@ class LeagueGenerator(BaseFormatGenerator):
                         'field_number': field_index + 1  # ✅ NEW: Track which field
                     },
                     # ✅ EXPLICIT PARTICIPANTS: 2 players
-                    'participant_user_ids': [player1_id, player2_id]
+                    'participant_user_ids': [player1_id, player2_id],
+                    # ✅ Multi-campus: round-robin campus assignment
+                    'campus_id': pick_campus(len(sessions), campus_ids),
                 })
 
                 # Update field slot to next available time

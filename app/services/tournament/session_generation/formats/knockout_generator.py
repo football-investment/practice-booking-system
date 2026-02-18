@@ -12,7 +12,7 @@ from app.models.tournament_type import TournamentType
 from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
-from ..utils import get_tournament_venue
+from ..utils import get_tournament_venue, pick_campus
 
 
 class KnockoutGenerator(BaseFormatGenerator):
@@ -40,6 +40,7 @@ class KnockoutGenerator(BaseFormatGenerator):
         Generate knockout tournament sessions
         """
         sessions = []
+        campus_ids = kwargs.get('campus_ids')
         total_rounds = math.ceil(math.log2(player_count))
         round_names = tournament_type.config.get('round_names', {})
 
@@ -111,7 +112,9 @@ class KnockoutGenerator(BaseFormatGenerator):
                         'total_matches_in_round': matches_in_round
                     },
                     # ✅ CRITICAL: Explicit participants (None for rounds 2+)
-                    'participant_user_ids': participant_ids
+                    'participant_user_ids': participant_ids,
+                    # ✅ Multi-campus: round-robin campus assignment
+                    'campus_id': pick_campus(len(sessions), campus_ids),
                 })
 
                 # Schedule parallel fields
@@ -151,7 +154,9 @@ class KnockoutGenerator(BaseFormatGenerator):
                     'is_bronze_match': True
                 },
                 # ✅ Participants determined after semifinals
-                'participant_user_ids': None
+                'participant_user_ids': None,
+                # ✅ Multi-campus: round-robin campus assignment
+                'campus_id': pick_campus(len(sessions), campus_ids),
             })
 
         return sessions

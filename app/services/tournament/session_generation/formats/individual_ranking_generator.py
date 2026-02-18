@@ -10,7 +10,7 @@ from app.models.semester import Semester
 from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
-from ..utils import get_tournament_venue
+from ..utils import get_tournament_venue, pick_campus
 
 
 class IndividualRankingGenerator(BaseFormatGenerator):
@@ -56,6 +56,7 @@ class IndividualRankingGenerator(BaseFormatGenerator):
 
             sessions = []
             number_of_rounds = kwargs.get('number_of_rounds', 1)
+            campus_ids = kwargs.get('campus_ids')
             logger.info(f"   number_of_rounds: {number_of_rounds}")
 
             # Get enrolled players
@@ -152,7 +153,9 @@ class IndividualRankingGenerator(BaseFormatGenerator):
                 # ✅ All enrolled players participate
                 'participant_user_ids': player_ids,
                 # 🔄 NEW: Rounds data for multi-round tracking
-                'rounds_data': rounds_data
+                'rounds_data': rounds_data,
+                # ✅ Multi-campus: pick first campus (single session format)
+                'campus_id': pick_campus(0, campus_ids),
             }
 
             logger.info(f"   Session dict created successfully")
