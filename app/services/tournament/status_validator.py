@@ -87,27 +87,33 @@ def validate_status_transition(
             )
 
     if new_status == "ENROLLMENT_CLOSED":
-        # Must have at least minimum participants for tournament type
-        enrollments = getattr(tournament, 'enrollments', [])
-        active_enrollments = [e for e in enrollments if e.is_active]
-        player_count = len(active_enrollments)
+        # SM-BUG-01 fix: bifurcate guard on source state.
+        # IN_PROGRESS → ENROLLMENT_CLOSED is an admin emergency rollback for a
+        # stuck tournament.  The player-count guard was designed for the forward
+        # path (ENROLLMENT_OPEN → ENROLLMENT_CLOSED) and must NOT block a rewind.
+        if current_status != "IN_PROGRESS":
+            # Forward path: must have at least minimum participants
+            enrollments = getattr(tournament, 'enrollments', [])
+            active_enrollments = [e for e in enrollments if e.is_active]
+            player_count = len(active_enrollments)
 
-        # Get minimum from tournament type (fallback to 2 if no type configured)
-        min_players_required = 2
-        if tournament.tournament_type_id:
-            # Load tournament type to get min_players
-            from app.models.tournament_type import TournamentType
-            from sqlalchemy.orm import Session
+            # Get minimum from tournament type (fallback to 2 if no type configured)
+            min_players_required = 2
+            if tournament.tournament_type_id:
+                # Load tournament type to get min_players
+                from app.models.tournament_type import TournamentType
+                from sqlalchemy.orm import Session
 
-            # Get db session from tournament
-            db: Session = tournament.__dict__.get('_sa_instance_state').session
-            if db:
-                tournament_type = db.query(TournamentType).filter(TournamentType.id == tournament.tournament_type_id).first()
-                if tournament_type:
-                    min_players_required = tournament_type.min_players
+                # Get db session from tournament
+                db: Session = tournament.__dict__.get('_sa_instance_state').session
+                if db:
+                    tournament_type = db.query(TournamentType).filter(TournamentType.id == tournament.tournament_type_id).first()
+                    if tournament_type:
+                        min_players_required = tournament_type.min_players
 
-        if player_count < min_players_required:
-            return False, f"Cannot close enrollment: Minimum {min_players_required} participants required (current: {player_count})"
+            if player_count < min_players_required:
+                return False, f"Cannot close enrollment: Minimum {min_players_required} participants required (current: {player_count})"
+        # else: rollback path (IN_PROGRESS → ENROLLMENT_CLOSED) — allow unconditionally
 
     if new_status == "IN_PROGRESS":
         # Must have instructor and participants

@@ -489,26 +489,28 @@ class TestRollbackEdgeInProgressToEnrollmentClosed:
         ok, err = validate_status_transition("IN_PROGRESS", "ENROLLMENT_CLOSED", t)
         assert ok is True, f"Rollback should be allowed with 4 players, got: {err}"
 
-    def test_rollback_blocked_when_no_players(self):
+    def test_rollback_allowed_when_no_players(self):
         """
-        SM-BUG-01 reproduction: rollback to ENROLLMENT_CLOSED is blocked when
-        active_enrollments < min_players, even if the admin intends recovery.
+        SM-BUG-01 FIX VERIFIED: rollback to ENROLLMENT_CLOSED must be allowed
+        even when active_enrollments == 0.
 
-        This is a guard collision: the ENROLLMENT_CLOSED guard was designed for
-        ENROLLMENT_OPEN→CLOSED, not for IN_PROGRESS→CLOSED rollback.
+        The player-count guard was bifurcated (SM-BUG-01 fix) so that
+        IN_PROGRESS → ENROLLMENT_CLOSED skips the count check entirely.
+        Admin emergency rewind must not be gated on current player count.
         """
         t = _tournament(enrollments=[])
         ok, err = validate_status_transition("IN_PROGRESS", "ENROLLMENT_CLOSED", t)
-        assert ok is False, (
-            "SM-BUG-01: Rollback blocked due to player count guard collision. "
-            "This is the known behaviour — document it if it causes ops issues."
+        assert ok is True, (
+            f"Rollback with 0 players should be ALLOWED after SM-BUG-01 fix, got: {err}"
         )
-        assert "minimum" in err.lower() or "participant" in err.lower()
 
-    def test_rollback_blocked_when_one_player(self):
+    def test_rollback_allowed_when_one_player(self):
+        """Rollback with only 1 active player (below forward-path minimum) must pass."""
         t = _tournament(enrollments=_active_enrollments(1))
         ok, err = validate_status_transition("IN_PROGRESS", "ENROLLMENT_CLOSED", t)
-        assert ok is False
+        assert ok is True, (
+            f"Rollback with 1 player should be ALLOWED after SM-BUG-01 fix, got: {err}"
+        )
 
     def test_rollback_with_minimum_players_ok(self):
         """Exactly 2 active players → rollback allowed."""
