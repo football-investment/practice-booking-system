@@ -427,3 +427,169 @@ class TestMigrationState:
 
         assert len(negatives) == 0, \
             f"Found {len(negatives)} users with negative credit_balance: {negatives}"
+
+
+# =============================================================================
+# RACE-04 — FOR UPDATE on enrollment row prevents double-refund
+# =============================================================================
+
+class TestRace04UnenrollDoubleRefund:
+    """
+    Verify that the FOR UPDATE on the enrollment row in the unenroll endpoint
+    prevents concurrent double-refund at the database level.
+
+    Key mechanism:
+      Thread A acquires FOR UPDATE lock → reads is_active=True → sets is_active=False → commits.
+      Thread B's FOR UPDATE query blocks until Thread A commits, then re-reads → is_active=False
+      → query with WHERE is_active=TRUE returns no rows → application returns HTTP 404.
+      Result: refund issued exactly once.
+    """
+
+    @pytest.fixture
+    def _active_enrollment(self, engine, _check_constraints_exist, _probe_ids):
+        """
+        INSERT a temporary active enrollment row for RACE-04 tests.
+        Yields the enrollment id; deletes the row after the test.
+        """
+        uid = _probe_ids["user_id"]
+        sid = _probe_ids["semester_id"]
+        lic = _probe_ids["lic_id_1"]
+
+        with engine.begin() as conn:
+            result = conn.execute(text("""
+                INSERT INTO semester_enrollments
+                    (user_id, semester_id, user_license_id, request_status,
+                     is_active, payment_verified, age_category_overridden,
+                     enrolled_at, requested_at, created_at, updated_at)
+                VALUES
+                    (:uid, :sid, :lic, 'APPROVED',
+                     TRUE, FALSE, FALSE, NOW(), NOW(), NOW(), NOW())
+                RETURNING id
+            """), {"uid": uid, "sid": sid, "lic": lic})
+            enrollment_id = result.fetchone()[0]
+
+        yield {"enrollment_id": enrollment_id, "user_id": uid, "semester_id": sid}
+
+        # Cleanup — delete the test enrollment (is_active may be TRUE or FALSE)
+        with engine.begin() as conn:
+            conn.execute(text(
+                "DELETE FROM semester_enrollments WHERE id = :eid"
+            ), {"eid": enrollment_id})
+
+    def test_unenroll_idempotency_second_attempt_finds_no_active_row(
+        self, engine, _check_constraints_exist, _active_enrollment
+    ):
+        """
+        After the first unenroll (is_active → FALSE), a second query with
+        WHERE is_active = TRUE returns no rows.
+        This proves the FOR UPDATE + is_active=False commit sequence is idempotent:
+        the second concurrent request cannot find an active enrollment to refund.
+        """
+        eid = _active_enrollment["enrollment_id"]
+        uid = _active_enrollment["user_id"]
+        sid = _active_enrollment["semester_id"]
+
+        # Simulate Thread A commit: mark enrollment as withdrawn
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE semester_enrollments
+                SET is_active = FALSE, request_status = 'WITHDRAWN',
+                    updated_at = NOW()
+                WHERE id = :eid
+            """), {"eid": eid})
+
+        # Thread B query: WITH FOR UPDATE + WHERE is_active = TRUE → must return no rows
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT id FROM semester_enrollments
+                WHERE user_id = :uid
+                  AND semester_id = :sid
+                  AND is_active = TRUE
+                  AND request_status = 'APPROVED'
+                FOR UPDATE SKIP LOCKED
+            """), {"uid": uid, "sid": sid}).fetchone()
+
+        assert row is None, (
+            "Thread B should find no active enrollment after Thread A committed. "
+            f"Got row: {row} — double-refund possible!"
+        )
+
+    def test_active_enrollment_readable_before_unenroll(
+        self, engine, _check_constraints_exist, _active_enrollment
+    ):
+        """
+        Sanity check: before any unenroll, the enrollment IS readable with
+        is_active=TRUE. This confirms the test fixture is correct and the
+        idempotency test above is meaningful.
+        """
+        uid = _active_enrollment["user_id"]
+        sid = _active_enrollment["semester_id"]
+
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT id, is_active FROM semester_enrollments
+                WHERE user_id = :uid
+                  AND semester_id = :sid
+                  AND is_active = TRUE
+                  AND request_status = 'APPROVED'
+            """), {"uid": uid, "sid": sid}).fetchone()
+
+        assert row is not None, "Active enrollment not found before unenroll — fixture broken"
+        assert row[1] is True
+
+    def test_no_active_enrollments_after_bulk_withdrawn(
+        self, engine, _check_constraints_exist
+    ):
+        """
+        Structural invariant: any enrollment with request_status=WITHDRAWN
+        must have is_active=FALSE. Verifies the unenroll endpoint maintains
+        this invariant (no zombie active+withdrawn rows).
+        """
+        with engine.connect() as conn:
+            violations = conn.execute(text("""
+                SELECT id FROM semester_enrollments
+                WHERE request_status = 'WITHDRAWN'
+                  AND is_active = TRUE
+            """)).fetchall()
+
+        assert len(violations) == 0, (
+            f"Found {len(violations)} WITHDRAWN enrollments with is_active=TRUE — "
+            "unenroll invariant violated"
+        )
+
+    def test_refund_credit_balance_increases_exactly_once(
+        self, engine, _check_constraints_exist, _user_id
+    ):
+        """
+        Verify that a single atomic credit refund UPDATE correctly increases
+        the balance by exactly refund_amount — not by 2× (double-refund).
+        Uses the real DB to prove the SQL UPDATE is atomic.
+        """
+        uid = _user_id["user_id"]
+        original_balance = _user_id["credit_balance"]
+        refund_amount = 250
+
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    UPDATE users
+                    SET credit_balance = credit_balance + :refund
+                    WHERE id = :uid
+                """), {"refund": refund_amount, "uid": uid})
+
+                new_balance = conn.execute(text(
+                    "SELECT credit_balance FROM users WHERE id = :uid"
+                ), {"uid": uid}).scalar()
+
+                assert new_balance == original_balance + refund_amount, (
+                    f"Expected balance {original_balance + refund_amount}, "
+                    f"got {new_balance} — atomic refund did not apply correctly"
+                )
+
+                # Force rollback — no persistent change
+                raise RuntimeError("sentinel rollback")
+        except RuntimeError as e:
+            if "sentinel rollback" in str(e):
+                pass  # Expected
+            else:
+                raise

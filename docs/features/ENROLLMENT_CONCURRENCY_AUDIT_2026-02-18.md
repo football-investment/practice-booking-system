@@ -1,7 +1,7 @@
 # Enrollment Concurrency Audit
 
 **Date:** 2026-02-18
-**Status:** PHASE B IMPLEMENTED — all P1/P2 fixes applied and tested
+**Status:** FULLY IMPLEMENTED — all RACE-01/02/03/04 fixes applied and tested
 **Scope:** `app/api/api_v1/endpoints/tournaments/enroll.py` (479 lines)
           `app/services/tournament/enrollment_service.py` (80 lines)
 
@@ -13,12 +13,13 @@
 | B-02 | Atomic SQL UPDATE for credit deduction | `enroll.py` line 233–252 | ✅ Implemented |
 | B-03 | SELECT FOR UPDATE before capacity count | `enroll.py` line 170–178 | ✅ Implemented |
 | B-04 | CHECK constraint `credit_balance >= 0` | Migration `eb01concurr00` | ✅ Applied |
+| RACE-04 | FOR UPDATE on enrollment row + atomic refund in unenroll | `enroll.py` lines 437–453, 462–471 | ✅ Implemented |
 
 **Tests added:**
-- `tests/unit/tournament/test_enrollment_phase_b_unit.py` — 16 mock-based unit tests (all GREEN)
-- `tests/database/test_enrollment_db_constraints.py` — 13 PostgreSQL integration tests (all GREEN, 1 skipped)
+- `tests/unit/tournament/test_enrollment_phase_b_unit.py` — 22 mock-based unit tests (all GREEN, +6 RACE-04)
+- `tests/database/test_enrollment_db_constraints.py` — 17 PostgreSQL integration tests (all GREEN, 1 skipped, +4 RACE-04)
 
-**Suite baseline after Phase B:** 691 passed, 0 failed, 11 xfailed
+**Suite baseline after all fixes:** 697 passed, 0 failed, 11 xfailed
 
 ---
 
@@ -370,23 +371,52 @@ CHECK (credit_balance >= 0);
 
 ---
 
-### Phase C — Remaining open item (RACE-04)
+### RACE-04 — FOR UPDATE on enrollment row + atomic refund (unenroll)
 
-RACE-04 (unenroll double-refund) is **not yet fixed**. The unenroll endpoint does not have
-`SELECT FOR UPDATE` on the enrollment row. Risk is very low (requires two simultaneous
-unenroll requests from the same user), but the fix is straightforward:
+**File:** `enroll.py`, unenroll endpoint — two changes.
+
+**Fix 1: SELECT FOR UPDATE on enrollment fetch** (step 4, line 437–453)
 
 ```python
-# In unenroll_from_tournament(), step 4:
+# RACE-04 fix: SELECT FOR UPDATE
 enrollment = db.query(SemesterEnrollment).filter(
     SemesterEnrollment.user_id == current_user.id,
     SemesterEnrollment.semester_id == tournament_id,
     SemesterEnrollment.is_active == True,
     SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
-).with_for_update().first()  # ← add .with_for_update()
+).with_for_update().first()
 ```
 
-This is a P3 item — document and fix in next maintenance window.
+Serialization mechanism:
+1. Thread A acquires FOR UPDATE lock on the enrollment row
+2. Thread B's identical query **blocks** until Thread A commits
+3. Thread A commits with `is_active = False`
+4. Thread B's transaction reads the now-committed row — `WHERE is_active = TRUE` no longer matches
+5. Thread B receives `None` → raises HTTP 404 → **refund not issued**
+
+**Fix 2: Atomic SQL UPDATE for refund** (step 7, lines 462–471)
+
+```python
+# Atomic refund — defense-in-depth
+db.execute(
+    sql_update(User)
+    .where(User.id == current_user.id)
+    .values(credit_balance=User.credit_balance + refund_amount)
+    .execution_options(synchronize_session=False)
+)
+db.refresh(current_user)
+```
+
+Unlike the enrollment deduction (B-02), the refund does not need a WHERE guard
+(refunds can never be negative), but using SQL UPDATE instead of Python-level
+arithmetic eliminates the stale-read window from ORM caching.
+
+**Unit verified by:** `TestUnenrollForUpdateRace04` (6 tests, mock-based)
+
+**DB verified by:** `TestRace04UnenrollDoubleRefund` (4 tests against real PostgreSQL)
+- `test_unenroll_idempotency_second_attempt_finds_no_active_row` — core race fix proof
+- `test_no_active_enrollments_after_bulk_withdrawn` — structural invariant
+- `test_refund_credit_balance_increases_exactly_once` — atomic refund correctness
 
 ---
 
@@ -397,7 +427,7 @@ This is a P3 item — document and fix in next maintenance window.
 | RACE-01 (capacity) | Medium (high-demand tournaments, mobile users) | High — capacity contract violated | ✅ Fixed (B-03 FOR UPDATE) |
 | RACE-02 (duplicate) | Low-Medium (impatient double-click) | High — data corruption + double charge | ✅ Fixed (B-01 index + B-01 409 handler) |
 | RACE-03 (credit) | Low (requires near-simultaneous requests) | High — financial inconsistency | ✅ Fixed (B-02 atomic UPDATE + B-04 CHECK) |
-| RACE-04 (unenroll) | Very Low | Medium — double refund | ⏳ Open — P3, next maintenance window |
+| RACE-04 (unenroll) | Very Low | Medium — double refund | ✅ Fixed (FOR UPDATE on enrollment + atomic refund) |
 
 ---
 

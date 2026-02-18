@@ -434,13 +434,18 @@ def unenroll_from_tournament(
             detail=f"Cannot unenroll from tournament in {tournament.tournament_status} status. Only ENROLLMENT_OPEN and IN_PROGRESS tournaments allow unenrollment."
         )
 
-    # 4. Find active enrollment
+    # 4. Find active enrollment — RACE-04 fix: SELECT FOR UPDATE
+    # Acquiring a row-level lock here serializes concurrent unenroll requests.
+    # If Thread B arrives while Thread A holds the lock, Thread B blocks until
+    # Thread A commits (setting is_active=False). After Thread A's commit,
+    # Thread B's query sees is_active=False → returns None → HTTP 404.
+    # This prevents the double-refund window where both threads read is_active=True.
     enrollment = db.query(SemesterEnrollment).filter(
         SemesterEnrollment.user_id == current_user.id,
         SemesterEnrollment.semester_id == tournament_id,
         SemesterEnrollment.is_active == True,
         SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
-    ).first()
+    ).with_for_update().first()
 
     if not enrollment:
         raise HTTPException(
@@ -459,9 +464,16 @@ def unenroll_from_tournament(
     enrollment.updated_at = datetime.utcnow()
     db.add(enrollment)
 
-    # 7. Refund credits to user (50% of enrollment cost)
-    current_user.credit_balance = current_user.credit_balance + refund_amount
-    db.add(current_user)
+    # 7. RACE-04 fix: Atomic refund credit — SQL UPDATE instead of Python-level addition.
+    # Defense-in-depth: even if the FOR UPDATE lock above is somehow bypassed,
+    # the atomic UPDATE ensures each refund is a separate, serialized DB write.
+    db.execute(
+        sql_update(User)
+        .where(User.id == current_user.id)
+        .values(credit_balance=User.credit_balance + refund_amount)
+        .execution_options(synchronize_session=False)
+    )
+    db.refresh(current_user)  # Sync ORM state before reading balance_after
 
     # 8. Create credit transaction record for refund
     refund_transaction = CreditTransaction(
