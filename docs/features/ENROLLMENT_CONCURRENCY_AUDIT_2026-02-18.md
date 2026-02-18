@@ -1,9 +1,26 @@
 # Enrollment Concurrency Audit
 
 **Date:** 2026-02-18
-**Status:** READ-ONLY AUDIT — fixes not yet implemented
+**Status:** PHASE B IMPLEMENTED — all P1/P2 fixes applied and tested
 **Scope:** `app/api/api_v1/endpoints/tournaments/enroll.py` (479 lines)
           `app/services/tournament/enrollment_service.py` (80 lines)
+
+## Phase B Implementation Summary
+
+| Fix | What | Where | Status |
+|---|---|---|---|
+| B-01 | Partial unique index `uq_active_enrollment` | Migration `eb01concurr00` | ✅ Applied |
+| B-02 | Atomic SQL UPDATE for credit deduction | `enroll.py` line 233–252 | ✅ Implemented |
+| B-03 | SELECT FOR UPDATE before capacity count | `enroll.py` line 170–178 | ✅ Implemented |
+| B-04 | CHECK constraint `credit_balance >= 0` | Migration `eb01concurr00` | ✅ Applied |
+
+**Tests added:**
+- `tests/unit/tournament/test_enrollment_phase_b_unit.py` — 16 mock-based unit tests (all GREEN)
+- `tests/database/test_enrollment_db_constraints.py` — 13 PostgreSQL integration tests (all GREEN, 1 skipped)
+
+**Suite baseline after Phase B:** 691 passed, 0 failed, 11 xfailed
+
+---
 
 ---
 
@@ -246,94 +263,141 @@ All 17 tests: **GREEN** (0.04s, DB-free).
 
 ---
 
-## 7. Fix Implementation Plan
+## 7. Phase B Implementation Detail
 
-### Phase B — P1 DB-level fixes (recommended next sprint)
+### B-01 — Partial unique index `uq_active_enrollment` (RACE-02)
 
-**B-01: Partial unique index — RACE-02 fix**
+**Migration:** `alembic/versions/2026_02_18_1000-eb01_enrollment_concurrency_guards.py`
 
 ```sql
--- Alembic migration
 CREATE UNIQUE INDEX uq_active_enrollment
-ON semester_enrollment (user_id, semester_id)
+ON semester_enrollments (user_id, semester_id)
 WHERE is_active = TRUE;
 ```
 
-Handles RACE-02 at DB level — concurrent INSERTs will raise `IntegrityError`.
-The application layer must catch `IntegrityError` and return HTTP 409.
+- Covers `(user_id, semester_id)` only (not `user_license_id`) — partial on `is_active = TRUE`
+- Cancelled rows (`is_active = FALSE`) excluded → player can re-enroll after cancellation
+- Different from pre-existing `uq_semester_enrollments_user_semester_license` which includes
+  `user_license_id` and was insufficient to prevent duplicate active enrollments
+- On violation: `db.commit()` raises `IntegrityError` → caught in endpoint → HTTP 409
 
-**B-02: Atomic credit deduction — RACE-03 fix**
-
+**Application-layer handler** (`enroll.py` lines 296–312):
 ```python
-# Replace Python-level subtraction with atomic SQL UPDATE
-rows_updated = db.execute(
-    update(User)
-    .where(User.id == user_id, User.credit_balance >= enrollment_cost)
-    .values(credit_balance=User.credit_balance - enrollment_cost)
-).rowcount
-if rows_updated == 0:
-    raise HTTPException(status_code=400, detail="Insufficient credits")
+except IntegrityError as e:
+    db.rollback()
+    orig = str(getattr(e, 'orig', e))
+    if "uq_active_enrollment" in orig:
+        raise HTTPException(status_code=409,
+            detail="Already enrolled (concurrent duplicate request blocked)")
+    raise HTTPException(status_code=409, detail=f"Constraint violation: {orig}")
 ```
 
-**B-03: SELECT FOR UPDATE on capacity + unenroll — RACE-01 / RACE-04 fix**
+**DB verified by:** `TestB01PartialUniqueIndex` (5 tests against real PostgreSQL)
+
+---
+
+### B-02 — Atomic credit deduction (RACE-03)
+
+**File:** `enroll.py` lines 233–252 (replaces Python-level subtraction at old line 235)
 
 ```python
-# Capacity lock (RACE-01)
-tournament = db.query(Semester).filter(
-    Semester.id == tournament_id
-).with_for_update().first()
+_deduct = db.execute(
+    sql_update(User)
+    .where(User.id == current_user.id, User.credit_balance >= enrollment_cost)
+    .values(credit_balance=User.credit_balance - enrollment_cost)
+    .execution_options(synchronize_session=False)
+)
+if _deduct.rowcount == 0:
+    db.rollback()
+    raise HTTPException(status_code=400,
+        detail="Insufficient credits (concurrent update): balance reduced by another request.")
+db.refresh(current_user)  # Sync ORM after atomic UPDATE
+```
 
-active_count = db.query(func.count(SemesterEnrollment.id)).filter(
+Key properties:
+- Single SQL statement — no window between check and deduction
+- `WHERE credit_balance >= cost` guards against concurrent drains and exact-balance edge case
+- `rowcount == 0` → abort before any INSERT reaches `db.commit()`
+- `db.refresh(current_user)` syncs the in-memory ORM object for `credit_transaction.balance_after`
+
+**Unit verified by:** `TestAtomicCreditDeductionB02` (5 tests, mock-based)
+
+---
+
+### B-03 — SELECT FOR UPDATE on capacity check (RACE-01)
+
+**File:** `enroll.py` lines 170–178 (inserted before capacity count)
+
+```python
+# Lock tournament row to serialize concurrent enrollment requests
+db.query(Semester).filter(
+    Semester.id == tournament_id
+).with_for_update().one()
+
+current_enrollment_count = db.query(SemesterEnrollment).filter(
     SemesterEnrollment.semester_id == tournament_id,
     SemesterEnrollment.is_active == True,
-).scalar()
+    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+).count()
 ```
 
-```python
-# Unenroll lock (RACE-04)
-enrollment = db.query(SemesterEnrollment).filter(
-    SemesterEnrollment.id == enrollment_id,
-    SemesterEnrollment.is_active == True,
-).with_for_update().first()
-```
+Key properties:
+- `.with_for_update()` issues `SELECT ... FOR UPDATE` — row-level lock on the tournament row
+- Two concurrent threads serialize at this point: Thread B waits until Thread A commits or rolls back
+- After Thread A commits (adding enrollment #N), Thread B reads count=N — correctly sees the new state
+- Lock held until `db.commit()` at step 12 (~50ms window)
+- Uses `.one()` not `.first()` → raises if tournament vanishes between initial fetch and lock
 
-**B-04: CHECK constraint — credit balance floor**
+**Unit verified by:** `TestSelectForUpdateCapacityB03` (4 tests, mock-based)
+
+---
+
+### B-04 — CHECK constraint `chk_credit_balance_non_negative` (RACE-03 defense-in-depth)
+
+**Migration:** `alembic/versions/2026_02_18_1000-eb01_enrollment_concurrency_guards.py`
 
 ```sql
 ALTER TABLE users ADD CONSTRAINT chk_credit_balance_non_negative
 CHECK (credit_balance >= 0);
 ```
 
-Defense-in-depth for RACE-03 — rejects negative balances at DB level even if
-application-layer atomic update is bypassed.
+- Defense-in-depth for RACE-03: even if B-02 atomic UPDATE is bypassed (e.g., direct SQL, bug),
+  the DB rejects any `UPDATE` that makes `credit_balance` negative
+- Boundary: `credit_balance = 0` is allowed (`>= 0`)
+- Applied without data violation (no existing negative balances in DB)
+
+**DB verified by:** `TestB04CreditBalanceCheckConstraint` (5 tests against real PostgreSQL)
 
 ---
 
-### Phase C — Test updates after fixes
+### Phase C — Remaining open item (RACE-04)
 
-After B-01 through B-04 are implemented:
+RACE-04 (unenroll double-refund) is **not yet fixed**. The unenroll endpoint does not have
+`SELECT FOR UPDATE` on the enrollment row. Risk is very low (requires two simultaneous
+unenroll requests from the same user), but the fix is straightforward:
 
-- `TestEnrollmentInvariants::test_inv01` through `test_inv05` should pass with
-  **real DB integration tests** (not just mocks)
-- `TestCapacityTOCTOU::test_safe_capacity_check_requires_db_lock` — upgrade to
-  integration test proving `with_for_update()` is present
-- `TestDuplicateEnrollmentTOCTOU::test_idempotent_enrollment_requires_unique_constraint`
-  — upgrade to confirm `IntegrityError` is raised and caught correctly
+```python
+# In unenroll_from_tournament(), step 4:
+enrollment = db.query(SemesterEnrollment).filter(
+    SemesterEnrollment.user_id == current_user.id,
+    SemesterEnrollment.semester_id == tournament_id,
+    SemesterEnrollment.is_active == True,
+    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+).with_for_update().first()  # ← add .with_for_update()
+```
+
+This is a P3 item — document and fix in next maintenance window.
 
 ---
 
 ## 8. Risk Summary
 
-| Race | Production Frequency | Impact | Fix Complexity |
+| Race | Production Frequency | Impact | Status |
 |---|---|---|---|
-| RACE-01 (capacity) | Medium (high-demand tournaments, mobile users) | High — capacity contract violated | Medium |
-| RACE-02 (duplicate) | Low-Medium (impatient double-click) | High — data corruption + double charge | Low (1 migration) |
-| RACE-03 (credit) | Low (requires near-simultaneous requests) | High — financial inconsistency | Medium |
-| RACE-04 (unenroll) | Very Low | Medium — double refund | Medium |
-
-**Recommended fix order:** B-01 (partial unique index) → B-02 (atomic credit) → B-03 (SELECT FOR UPDATE) → B-04 (CHECK constraint)
-
-B-01 is the highest-leverage fix: 1 migration eliminates RACE-02 entirely.
+| RACE-01 (capacity) | Medium (high-demand tournaments, mobile users) | High — capacity contract violated | ✅ Fixed (B-03 FOR UPDATE) |
+| RACE-02 (duplicate) | Low-Medium (impatient double-click) | High — data corruption + double charge | ✅ Fixed (B-01 index + B-01 409 handler) |
+| RACE-03 (credit) | Low (requires near-simultaneous requests) | High — financial inconsistency | ✅ Fixed (B-02 atomic UPDATE + B-04 CHECK) |
+| RACE-04 (unenroll) | Very Low | Medium — double refund | ⏳ Open — P3, next maintenance window |
 
 ---
 

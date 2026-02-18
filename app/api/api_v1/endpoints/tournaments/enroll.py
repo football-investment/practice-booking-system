@@ -4,6 +4,8 @@ Students can enroll in available tournaments
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import update as sql_update
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 
 from app.database import get_db
@@ -168,6 +170,15 @@ def enroll_in_tournament(
         )
 
     # 8. Check tournament capacity (max_players)
+    # B-03: Acquire row-level lock on the tournament row to serialize concurrent
+    # enrollment requests. Two threads both reaching this point will now execute
+    # serially — the second waits until the first commits or rolls back, at which
+    # point it reads the updated enrollment count and may correctly see "full".
+    # Lock is held until db.commit() at step 12.
+    db.query(Semester).filter(
+        Semester.id == tournament_id
+    ).with_for_update().one()
+
     current_enrollment_count = db.query(SemesterEnrollment).filter(
         SemesterEnrollment.semester_id == tournament_id,
         SemesterEnrollment.is_active == True,
@@ -230,10 +241,26 @@ def enroll_in_tournament(
 
     db.add(enrollment)
 
-    # 11. Deduct credits from user (INSTANT payment - uses deprecated user-level credit_balance)
-    # CRITICAL: Must explicitly add user to session for SQLAlchemy to track changes
-    current_user.credit_balance = current_user.credit_balance - enrollment_cost
-    db.add(current_user)  # ✅ THIS IS REQUIRED! Without this, SQLAlchemy won't track the change
+    # 11. B-02: Atomic credit deduction — prevents RACE-03 concurrent double-spend.
+    # Uses SQL UPDATE ... WHERE credit_balance >= cost so that if another request
+    # has already drained the balance between our check (step 8.5) and this UPDATE,
+    # rowcount will be 0 and we abort cleanly without persisting a negative balance.
+    _deduct = db.execute(
+        sql_update(User)
+        .where(User.id == current_user.id, User.credit_balance >= enrollment_cost)
+        .values(credit_balance=User.credit_balance - enrollment_cost)
+        .execution_options(synchronize_session=False)
+    )
+    if _deduct.rowcount == 0:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Insufficient credits (concurrent update): need {enrollment_cost}, "
+                f"but balance was reduced by another concurrent request."
+            )
+        )
+    db.refresh(current_user)  # Sync ORM state with DB after atomic UPDATE
 
     # 11.5. Create credit transaction record for audit trail
     credit_transaction = CreditTransaction(
@@ -293,12 +320,27 @@ def enroll_in_tournament(
         db.refresh(current_user)
 
         logger.info(f"✅ ENROLLMENT SUCCESS: Enrollment ID = {enrollment.id}")
+    except IntegrityError as e:
+        # B-01: Partial unique index uq_active_enrollment blocked a concurrent duplicate.
+        # The second of two simultaneous POST /enroll requests from the same player
+        # reaches commit() but the DB rejects the INSERT with a unique violation.
+        db.rollback()
+        orig = str(getattr(e, 'orig', e))
+        if "uq_active_enrollment" in orig:
+            logger.warning(f"⚠️ Duplicate enrollment blocked by DB constraint for user {current_user.id}, tournament {tournament_id}")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Already enrolled in this tournament (concurrent duplicate request blocked)"
+            )
+        logger.error(f"❌ ENROLLMENT IntegrityError: {orig}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Database constraint violation: {orig}"
+        )
     except Exception as e:
         db.rollback()
         logger.error(f"❌ TOURNAMENT ENROLLMENT FAILED: {str(e)}")
         logger.error(f"❌ ERROR TYPE: {type(e).__name__}")
-        logger.error(f"❌ FULL TRACEBACK:")
-        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create enrollment: {str(e)}"
