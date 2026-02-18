@@ -52,6 +52,50 @@ class TournamentCreateRequest(BaseModel):
 
 ---
 
+## Test Infrastructure
+
+### Test Suite State Isolation Issue – Cascading Delete Tests
+
+**Status**: 🟡 Known Limitation
+**Impact**: 2 tests fail when run as part of the full suite but pass in isolation
+**Severity**: Low
+**Date Identified**: 2026-02-18
+
+**Description**:
+Two tests in `tests/unit/tournament/test_core.py` exhibit state pollution when run as part of the full test suite (`pytest tests/`), but pass individually or in their own module:
+
+- `TestDeleteTournament::test_delete_tournament_cascades_to_sessions`
+- `TestDeleteTournament::test_delete_tournament_cascades_to_bookings`
+
+Confirmed pre-existing: `git stash` + `pytest tests/` on clean branch (pre-refactor) exhibits the same failures, ruling out any relation to the refactoring work done in this sprint.
+
+**Likely Root Causes** (in order of probability):
+1. **Non-rollbacking fixture** — a test earlier in the suite inserts rows without rolling back, leaving the DB in a dirty state that causes the cascade delete assertions to fail (unexpected row count or FK constraint violation)
+2. **Shared DB session** — test fixtures share a `Session` object across test modules; side-effects accumulate
+3. **Global in-memory cache** — a module-level dict or list (e.g. tournament registry, mock store) is mutated by earlier tests and not reset between test classes
+
+**Current Workaround**:
+Run the failing tests in isolation when their result is needed:
+```bash
+pytest tests/unit/tournament/test_core.py::TestDeleteTournament -v
+```
+
+**Impact**:
+- ✅ Failing tests pass in isolation — logic is correct
+- ✅ No production code is affected — purely a test harness problem
+- ⚠️ Full-suite run shows 2 red tests, which can mask real regressions
+- ⚠️ CI pipelines that use `pytest tests/` without isolation may report false failures
+
+**Recommended Fix** (Future):
+1. Audit `conftest.py` fixtures for missing `db.rollback()` / `transaction` scope
+2. Add `autouse=True` session-scoped or function-scoped rollback fixture
+3. If a global cache is involved, reset it in a `pytest_runtest_setup` hook
+
+**Effort Estimate**: 2–4 hours
+**Priority**: P3 (Non-blocker — investigate before next major test-suite expansion)
+
+---
+
 ## Template for New Entries
 
 ```markdown
