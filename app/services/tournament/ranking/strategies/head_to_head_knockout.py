@@ -7,7 +7,8 @@ Calculates rankings for knockout tournaments based on:
 """
 from typing import Dict, List
 from collections import defaultdict
-import json
+
+from app.utils.game_results import parse_game_results
 
 
 class HeadToHeadKnockoutRankingStrategy:
@@ -64,9 +65,8 @@ class HeadToHeadKnockoutRankingStrategy:
             if not session.game_results:
                 continue
 
-            try:
-                match_data = json.loads(session.game_results)
-            except (json.JSONDecodeError, TypeError):
+            match_data = parse_game_results(session.game_results)
+            if not match_data:
                 continue
 
             if match_data.get("match_format") != "HEAD_TO_HEAD":

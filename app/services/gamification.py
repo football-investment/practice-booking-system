@@ -14,6 +14,11 @@ from ..models.achievement import Achievement
 from ..models.audit_log import AuditLog, AuditAction
 from ..models.license import UserLicense
 
+# Single source of truth for XP → level conversion.
+# Level = floor(total_xp / LEVEL_UP_XP_THRESHOLD) + 1, minimum 1.
+# All level calculations in this file MUST use this constant.
+LEVEL_UP_XP_THRESHOLD = 500
+
 class GamificationService:
     """Service to handle gamification logic and achievements"""
     
@@ -135,8 +140,8 @@ class GamificationService:
         stats = self.get_or_create_user_stats(attendance.user_id)
         stats.total_xp += xp_earned
 
-        # Update level: Level = floor(Total_XP / 500) + 1
-        stats.level = max(1, (stats.total_xp // 500) + 1)
+        # Update level: Level = floor(Total_XP / LEVEL_UP_XP_THRESHOLD) + 1
+        stats.level = max(1, (stats.total_xp // LEVEL_UP_XP_THRESHOLD) + 1)
 
         stats.updated_at = datetime.now(timezone.utc)
         self.db.commit()
@@ -205,12 +210,12 @@ class GamificationService:
             # This will be the baseline, quiz/achievement bonuses add on top
             stats.total_xp = max(stats.total_xp, attendance_xp)
 
-        # Update level: Level = floor(Total_XP / 500) + 1
-        stats.level = max(1, (stats.total_xp // 500) + 1)
-        
+        # Update level: Level = floor(Total_XP / LEVEL_UP_XP_THRESHOLD) + 1
+        stats.level = max(1, (stats.total_xp // LEVEL_UP_XP_THRESHOLD) + 1)
+
         stats.updated_at = datetime.now(timezone.utc)
         self.db.commit()
-        
+
         return stats
         
     def award_achievement(self, user_id: int, badge_type: BadgeType, title: str,
@@ -409,7 +414,7 @@ class GamificationService:
         stats.total_xp = (stats.total_xp or 0) + xp_amount
         
         # Recalculate level
-        new_level = max(1, stats.total_xp // 1000)
+        new_level = max(1, (stats.total_xp // LEVEL_UP_XP_THRESHOLD) + 1)
         
         # Check if level up occurred
         level_up = new_level > stats.level

@@ -19,7 +19,7 @@ from app.models.semester import Semester
 from app.models.session import Session as SessionModel
 from app.models.tournament_enums import TournamentPhase  # Phase 2.1: Import enum
 from app.services.tournament.repositories import SessionRepository, SQLSessionRepository  # Phase 2.2: DI
-import json
+from app.utils.game_results import parse_game_results
 
 
 class KnockoutProgressionService:
@@ -139,7 +139,7 @@ class KnockoutProgressionService:
         for sf in all_semifinals:
             if sf.game_results:
                 # Parse game_results
-                results = json.loads(sf.game_results) if isinstance(sf.game_results, str) else sf.game_results
+                results = parse_game_results(sf.game_results)
                 if results and "raw_results" in results and len(results["raw_results"]) > 0:
                     completed_semifinals.append({
                         "session": sf,
@@ -318,7 +318,7 @@ class KnockoutProgressionService:
                 continue
 
             # Parse game_results
-            results = json.loads(match.game_results) if isinstance(match.game_results, str) else match.game_results
+            results = parse_game_results(match.game_results)
 
             # ✅ NATIVE SUPPORT: Handle both HEAD_TO_HEAD and INDIVIDUAL formats
             if "match_format" in results and results["match_format"] == "HEAD_TO_HEAD":

@@ -28,7 +28,7 @@ from datetime import datetime
 
 from ..models.user import User
 from ..models.license import UserLicense
-from ..models.tournament_achievement import TournamentParticipation
+from ..models.tournament_achievement import TournamentParticipation, TournamentSkillMapping
 from ..skills_config import SKILL_CATEGORIES
 
 
@@ -185,6 +185,50 @@ def _compute_match_performance_modifier(
     modifier = raw_signal * confidence
 
     return round(max(-1.0, min(1.0, modifier)), 4)
+
+
+def _extract_tournament_skills(
+    db: Session,
+    tournament,
+    skill_keys: set,
+) -> Dict[str, float]:
+    """
+    Resolve which skills (with weights) a tournament affects.
+
+    Priority 1: reward_config.skill_mappings (V2 config-based)
+    Priority 2: TournamentSkillMapping table (legacy / E2E seeded tournaments)
+
+    Returns a dict of {skill_name: weight} for enabled skills that are present in
+    ``skill_keys``.  Returns an empty dict if no skills could be resolved.
+    """
+    result: Dict[str, float] = {}
+
+    reward_config = tournament.reward_config or {}
+    skill_mappings = reward_config.get("skill_mappings", [])
+
+    if isinstance(skill_mappings, list) and skill_mappings:
+        # V2 format: [{"skill": "passing", "enabled": true, "weight": 1.0}, ...]
+        for mapping in skill_mappings:
+            if mapping.get("enabled", False) and mapping.get("skill") in skill_keys:
+                result[mapping["skill"]] = mapping.get("weight", 1.0)
+    elif isinstance(skill_mappings, dict) and skill_mappings:
+        # Legacy dict format: {"passing": {...}, ...}
+        for sk in skill_mappings:
+            if sk in skill_keys:
+                result[sk] = 1.0
+
+    # Fallback: TournamentSkillMapping table (covers tournaments without reward_config skill_mappings)
+    if not result:
+        table_mappings = (
+            db.query(TournamentSkillMapping)
+            .filter(TournamentSkillMapping.semester_id == tournament.id)
+            .all()
+        )
+        for tm in table_mappings:
+            if tm.skill_name in skill_keys:
+                result[tm.skill_name] = float(tm.weight) if tm.weight else 1.0
+
+    return result
 
 
 def calculate_skill_value_from_placement(
@@ -419,37 +463,7 @@ def calculate_tournament_skill_contribution(
         if not tournament:
             continue
 
-        # Build dict of enabled skills with their weights.
-        # Priority 1: reward_config.skill_mappings (V2 config-based)
-        # Priority 2: TournamentSkillMapping table (legacy / E2E seeded tournaments)
-        tournament_skills_with_weights = {}
-
-        reward_config = tournament.reward_config or {}
-        skill_mappings = reward_config.get("skill_mappings", [])
-
-        if isinstance(skill_mappings, list) and skill_mappings:
-            # V2 format: [{"skill": "passing", "enabled": true, "weight": 1.0}, ...]
-            for mapping in skill_mappings:
-                if mapping.get("enabled", False) and mapping.get("skill") in skill_keys:
-                    tournament_skills_with_weights[mapping["skill"]] = mapping.get("weight", 1.0)
-        elif isinstance(skill_mappings, dict) and skill_mappings:
-            # Legacy dict format: {"passing": {...}, ...}
-            for sk in skill_mappings:
-                if sk in skill_keys:
-                    tournament_skills_with_weights[sk] = 1.0
-
-        # Fallback: TournamentSkillMapping table (covers tournaments without reward_config skill_mappings)
-        if not tournament_skills_with_weights:
-            from app.models.tournament_achievement import TournamentSkillMapping as TSM
-            table_mappings = (
-                db.query(TSM)
-                .filter(TSM.semester_id == tournament.id)
-                .all()
-            )
-            for tm in table_mappings:
-                if tm.skill_name in skill_keys:
-                    tournament_skills_with_weights[tm.skill_name] = float(tm.weight) if tm.weight else 1.0
-
+        tournament_skills_with_weights = _extract_tournament_skills(db, tournament, skill_keys)
         if not tournament_skills_with_weights:
             continue
 
@@ -558,33 +572,7 @@ def compute_single_tournament_skill_delta(
         if not placement:
             continue
 
-        # Resolve which skills (with weights) this tournament affects
-        tournament_skills_with_weights: Dict[str, float] = {}
-        reward_config = tournament.reward_config or {}
-        skill_mappings = reward_config.get("skill_mappings", [])
-
-        if isinstance(skill_mappings, list) and skill_mappings:
-            for mapping in skill_mappings:
-                if mapping.get("enabled", False) and mapping.get("skill") in all_skill_keys:
-                    tournament_skills_with_weights[mapping["skill"]] = mapping.get("weight", 1.0)
-        elif isinstance(skill_mappings, dict) and skill_mappings:
-            for sk in skill_mappings:
-                if sk in all_skill_keys:
-                    tournament_skills_with_weights[sk] = 1.0
-
-        if not tournament_skills_with_weights:
-            from app.models.tournament_achievement import TournamentSkillMapping as TSM
-            table_mappings = (
-                db.query(TSM)
-                .filter(TSM.semester_id == tournament.id)
-                .all()
-            )
-            for tm in table_mappings:
-                if tm.skill_name in all_skill_keys:
-                    tournament_skills_with_weights[tm.skill_name] = (
-                        float(tm.weight) if tm.weight else 1.0
-                    )
-
+        tournament_skills_with_weights = _extract_tournament_skills(db, tournament, all_skill_keys)
         if not tournament_skills_with_weights:
             continue
 
@@ -784,34 +772,7 @@ def get_skill_timeline(
         if not tournament or not participation.placement:
             continue
 
-        # Resolve skill weights (same priority as calculate_tournament_skill_contribution)
-        tournament_skills_with_weights: Dict[str, float] = {}
-
-        reward_config = tournament.reward_config or {}
-        skill_mappings = reward_config.get("skill_mappings", [])
-
-        if isinstance(skill_mappings, list) and skill_mappings:
-            for mapping in skill_mappings:
-                if mapping.get("enabled", False) and mapping.get("skill") in all_skill_keys:
-                    tournament_skills_with_weights[mapping["skill"]] = mapping.get("weight", 1.0)
-        elif isinstance(skill_mappings, dict) and skill_mappings:
-            for sk in skill_mappings:
-                if sk in all_skill_keys:
-                    tournament_skills_with_weights[sk] = 1.0
-
-        if not tournament_skills_with_weights:
-            from app.models.tournament_achievement import TournamentSkillMapping as TSM
-            table_mappings = (
-                db.query(TSM)
-                .filter(TSM.semester_id == tournament.id)
-                .all()
-            )
-            for tm in table_mappings:
-                if tm.skill_name in all_skill_keys:
-                    tournament_skills_with_weights[tm.skill_name] = (
-                        float(tm.weight) if tm.weight else 1.0
-                    )
-
+        tournament_skills_with_weights = _extract_tournament_skills(db, tournament, all_skill_keys)
         # This tournament does not affect the requested skill → skip
         if skill_key not in tournament_skills_with_weights:
             continue
@@ -938,33 +899,7 @@ def get_skill_audit(db: Session, user_id: int) -> List[Dict]:
         if not tournament or not participation.placement:
             continue
 
-        # Resolve skill weights for this tournament (same priority logic)
-        tournament_skills_with_weights: Dict[str, float] = {}
-        reward_config = tournament.reward_config or {}
-        skill_mappings = reward_config.get("skill_mappings", [])
-
-        if isinstance(skill_mappings, list) and skill_mappings:
-            for mapping in skill_mappings:
-                if mapping.get("enabled", False) and mapping.get("skill") in all_skill_keys:
-                    tournament_skills_with_weights[mapping["skill"]] = mapping.get("weight", 1.0)
-        elif isinstance(skill_mappings, dict) and skill_mappings:
-            for sk in skill_mappings:
-                if sk in all_skill_keys:
-                    tournament_skills_with_weights[sk] = 1.0
-
-        if not tournament_skills_with_weights:
-            from app.models.tournament_achievement import TournamentSkillMapping as TSM
-            table_mappings = (
-                db.query(TSM)
-                .filter(TSM.semester_id == tournament.id)
-                .all()
-            )
-            for tm in table_mappings:
-                if tm.skill_name in all_skill_keys:
-                    tournament_skills_with_weights[tm.skill_name] = (
-                        float(tm.weight) if tm.weight else 1.0
-                    )
-
+        tournament_skills_with_weights = _extract_tournament_skills(db, tournament, all_skill_keys)
         if not tournament_skills_with_weights:
             continue
 

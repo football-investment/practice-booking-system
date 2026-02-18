@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 
 from .....database import get_db
-from .....models.semester import Semester
 from .....models.tournament_reward_config import TournamentRewardConfig as TournamentRewardConfigModel
 from .....models.user import User, UserRole
 from .....dependencies import get_current_active_user
+from .....repositories import TournamentRepository
 from .....schemas.reward_config import TournamentRewardConfig, REWARD_CONFIG_TEMPLATES
 
 
@@ -53,10 +53,7 @@ def get_tournament_reward_config(
     Returns:
         Reward configuration dict or empty dict if not configured
     """
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(status_code=404, detail=f"Tournament {tournament_id} not found")
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # Return reward_config if exists, otherwise empty dict
     if tournament.reward_config:
@@ -94,10 +91,7 @@ def save_tournament_reward_config(
         raise HTTPException(status_code=403, detail="Only admins can configure tournament rewards")
 
     # Get tournament
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(status_code=404, detail=f"Tournament {tournament_id} not found")
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # 🔒 VALIDATION GUARD: Check enabled skills
     is_valid, error_message = reward_config.validate_enabled_skills()
@@ -181,10 +175,7 @@ def delete_tournament_reward_config(
         raise HTTPException(status_code=403, detail="Only admins can delete tournament reward configs")
 
     # Get tournament
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(status_code=404, detail=f"Tournament {tournament_id} not found")
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # Reset reward_config
     tournament.reward_config = None
@@ -211,10 +202,7 @@ def preview_tournament_rewards(
         Estimated reward summary (total badges, credits, XP, etc.)
     """
     # Get tournament
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-
-    if not tournament:
-        raise HTTPException(status_code=404, detail=f"Tournament {tournament_id} not found")
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # Get reward config
     if not tournament.reward_config:

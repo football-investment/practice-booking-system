@@ -7,6 +7,54 @@ from typing import Tuple, Optional, List, Dict, Any
 from config import API_BASE_URL, API_TIMEOUT
 
 
+def _api_call(
+    method: str,
+    endpoint: str,
+    token: str,
+    *,
+    json: Optional[Dict] = None,
+    params: Optional[Dict] = None,
+    empty: Any = None,
+) -> Tuple[bool, Optional[str], Any]:
+    """Centralized HTTP wrapper — single error-handling path for all tournament API calls.
+
+    Args:
+        method:   HTTP verb ("GET", "POST", "PATCH", "DELETE").
+        endpoint: Path relative to API_BASE_URL (e.g. "/api/v1/tournaments/available").
+        token:    Bearer token.
+        json:     Request body for POST/PATCH.
+        params:   Query parameters for GET.
+        empty:    Value returned as the data element on failure (default: None → [] for lists).
+
+    Returns:
+        (success: bool, error_message: str | None, data: Any)
+    """
+    if empty is None:
+        empty = []
+    url = f"{API_BASE_URL}{endpoint}"
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        response = requests.request(
+            method,
+            url,
+            headers=headers,
+            json=json,
+            params=params,
+            timeout=API_TIMEOUT,
+        )
+        if response.status_code in (200, 201):
+            return True, None, response.json()
+        ct = response.headers.get("content-type", "")
+        error_data = response.json() if "application/json" in ct else {}
+        return False, error_data.get("detail", response.text), empty
+    except requests.exceptions.Timeout:
+        return False, "Request timed out. Please try again.", empty
+    except requests.exceptions.ConnectionError:
+        return False, "Could not connect to server. Please check your connection.", empty
+    except Exception as e:  # noqa: BLE001
+        return False, f"Unexpected error: {str(e)}", empty
+
+
 def get_available_tournaments(
     token: str,
     age_group: Optional[str] = None,
@@ -44,26 +92,7 @@ def get_available_tournaments(
     if end_date:
         params['end_date'] = end_date
 
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/available",
-            headers={"Authorization": f"Bearer {token}"},
-            params=params,
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, []
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", []
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", []
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", []
+    return _api_call("GET", "/api/v1/tournaments/available", token, params=params)
 
 
 def enroll_in_tournament(
@@ -88,25 +117,7 @@ def enroll_in_tournament(
           - warnings: List of warning messages
           - credits_remaining: Credits left after enrollment
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/enroll",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call("POST", f"/api/v1/tournaments/{tournament_id}/enroll", token, empty={})
 
 
 def update_session_game_type(
@@ -127,26 +138,11 @@ def update_session_game_type(
         - success: True if update succeeded
         - error_message: Error message if failed, None if succeeded
     """
-    try:
-        response = requests.patch(
-            f"{API_BASE_URL}/api/v1/sessions/{session_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"game_type": game_type},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again."
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection."
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}"
+    ok, err, _ = _api_call(
+        "PATCH", f"/api/v1/sessions/{session_id}", token,
+        json={"game_type": game_type}, empty={},
+    )
+    return ok, err
 
 
 def update_tournament(
@@ -173,29 +169,12 @@ def update_tournament(
         - error_message: Error message if failed, None if succeeded
         - updated_tournament: Updated tournament data if success
     """
-    try:
-        # ✅ NEW: Use PATCH /tournaments/{id} for ALL updates (including tournament_status)
-        # This bypasses state machine validation and allows admin full control
-        response = requests.patch(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            json=update_data,
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            result = response.json()
-            return True, None, result
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, None
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", None
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", None
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", None
+    # ✅ NEW: Use PATCH /tournaments/{id} for ALL updates (including tournament_status)
+    # This bypasses state machine validation and allows admin full control
+    return _api_call(
+        "PATCH", f"/api/v1/tournaments/{tournament_id}", token,
+        json=update_data, empty={},
+    )
 
 
 def get_reward_policies(token: str) -> Tuple[bool, Optional[str], List[Dict[str, Any]]]:
@@ -211,26 +190,10 @@ def get_reward_policies(token: str) -> Tuple[bool, Optional[str], List[Dict[str,
         - error_message: Error message if failed, None if succeeded
         - policies_list: List of reward policy dicts with metadata
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/reward-policies",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            return True, None, data.get('policies', [])
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, []
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", []
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", []
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", []
+    ok, err, data = _api_call("GET", "/api/v1/tournaments/reward-policies", token)
+    if ok:
+        return True, None, data.get('policies', [])
+    return False, err, []
 
 
 def get_reward_policy_details(
@@ -250,25 +213,9 @@ def get_reward_policy_details(
         - error_message: Error message if failed, None if succeeded
         - policy_details: Policy details dict with placement/participation rewards
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/reward-policies/{policy_name}",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/reward-policies/{policy_name}", token, empty={},
+    )
 
 
 def distribute_tournament_rewards(
@@ -291,25 +238,9 @@ def distribute_tournament_rewards(
         - error_message: Error message if failed, None if succeeded
         - distribution_stats: Stats dict with total_participants, xp_distributed, credits_distributed
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "POST", f"/api/v1/tournaments/{tournament_id}/distribute-rewards", token, empty={},
+    )
 
 
 def distribute_tournament_rewards_v2(
@@ -348,29 +279,11 @@ def distribute_tournament_rewards_v2(
             "message": str
           }
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/distribute-rewards-v2",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "tournament_id": tournament_id,
-                "force_redistribution": force_redistribution
-            },
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "POST", f"/api/v1/tournaments/{tournament_id}/distribute-rewards-v2", token,
+        json={"tournament_id": tournament_id, "force_redistribution": force_redistribution},
+        empty={},
+    )
 
 
 def get_user_tournament_rewards(
@@ -413,25 +326,9 @@ def get_user_tournament_rewards(
             "distributed_at": str
           }
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/rewards/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/{tournament_id}/rewards/{user_id}", token, empty={},
+    )
 
 
 def get_user_badge_showcase(
@@ -453,25 +350,9 @@ def get_user_badge_showcase(
         - error_message: Error message if failed, None if succeeded
         - showcase_data: Dict with user_id and showcase structure
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/badges/showcase/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/badges/showcase/{user_id}", token, empty={},
+    )
 
 
 def get_user_badges(
@@ -495,30 +376,14 @@ def get_user_badges(
         - error_message: Error message if failed, None if succeeded
         - badges_data: Dict with user_id, total_badges, and badges list
     """
-    try:
-        params = {"limit": limit}
-        if tournament_id:
-            params['tournament_id'] = tournament_id
+    params: Dict[str, Any] = {"limit": limit}
+    if tournament_id:
+        params['tournament_id'] = tournament_id
 
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/badges/user/{user_id}",
-            headers={"Authorization": f"Bearer {token}"},
-            params=params,
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/badges/user/{user_id}", token,
+        params=params, empty={},
+    )
 
 
 def get_tournament_enrollment_count(
@@ -588,25 +453,7 @@ def get_tournament_types(token: str) -> Tuple[bool, Optional[str], List[Dict[str
         - tournament_types_list: List of tournament type dicts with:
           - id, code, display_name, min_players, max_players, requires_power_of_two, config
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournament-types/",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, []
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", []
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", []
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", []
+    return _api_call("GET", "/api/v1/tournament-types/", token)
 
 
 def estimate_tournament_duration(
@@ -634,29 +481,11 @@ def estimate_tournament_duration(
           - estimated_duration_minutes: int
           - estimated_duration_days: float
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournament-types/{tournament_type_id}/estimate",
-            headers={"Authorization": f"Bearer {token}"},
-            params={
-                "player_count": player_count,
-                "parallel_fields": parallel_fields
-            },
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "POST", f"/api/v1/tournament-types/{tournament_type_id}/estimate", token,
+        params={"player_count": player_count, "parallel_fields": parallel_fields},
+        empty={},
+    )
 
 
 def preview_tournament_sessions(
@@ -684,30 +513,15 @@ def preview_tournament_sessions(
           - tournament_id, tournament_name, tournament_type_code
           - player_count, sessions (list of session previews)
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/preview-sessions",
-            headers={"Authorization": f"Bearer {token}"},
-            params={
-                "parallel_fields": parallel_fields,
-                "session_duration_minutes": session_duration_minutes,
-                "break_minutes": break_minutes
-            },
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/{tournament_id}/preview-sessions", token,
+        params={
+            "parallel_fields": parallel_fields,
+            "session_duration_minutes": session_duration_minutes,
+            "break_minutes": break_minutes,
+        },
+        empty={},
+    )
 
 
 def generate_tournament_sessions(
@@ -716,7 +530,8 @@ def generate_tournament_sessions(
     parallel_fields: int = 1,
     session_duration_minutes: int = 90,
     break_minutes: int = 15,
-    number_of_rounds: int = 1
+    number_of_rounds: int = 1,
+    campus_ids: Optional[List[int]] = None,
 ) -> Tuple[bool, Optional[str], Dict[str, Any]]:
     """
     Generate tournament sessions based on tournament type and enrolled player count
@@ -730,6 +545,9 @@ def generate_tournament_sessions(
         session_duration_minutes: Duration of each session
         break_minutes: Break time between sessions
         number_of_rounds: Number of rounds for INDIVIDUAL_RANKING tournaments (1-10)
+        campus_ids: Optional list of campus IDs for multi-venue tournaments.
+                    Admin: multiple campuses allowed.
+                    Instructor: at most 1 campus (backend enforces 403 if > 1).
 
     Returns:
         Tuple of (success, error_message, generation_data)
@@ -738,31 +556,19 @@ def generate_tournament_sessions(
         - generation_data: Dict with:
           - tournament_id, tournament_name, sessions_created, sessions_generated_at
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/generate-sessions",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "parallel_fields": parallel_fields,
-                "session_duration_minutes": session_duration_minutes,
-                "break_minutes": break_minutes,
-                "number_of_rounds": number_of_rounds
-            },
-            timeout=API_TIMEOUT
-        )
+    payload: Dict[str, Any] = {
+        "parallel_fields": parallel_fields,
+        "session_duration_minutes": session_duration_minutes,
+        "break_minutes": break_minutes,
+        "number_of_rounds": number_of_rounds,
+    }
+    if campus_ids:
+        payload["campus_ids"] = campus_ids
 
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "POST", f"/api/v1/tournaments/{tournament_id}/generate-sessions", token,
+        json=payload, empty={},
+    )
 
 
 def finalize_group_stage(
@@ -788,25 +594,9 @@ def finalize_group_stage(
         - error_message: Error message if failed, None if succeeded
         - finalization_data: Dict with group_standings and qualified_participants
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/finalize-group-stage",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "POST", f"/api/v1/tournaments/{tournament_id}/finalize-group-stage", token, empty={},
+    )
 
 
 def delete_generated_sessions(
@@ -826,25 +616,9 @@ def delete_generated_sessions(
         - error_message: Error message if failed, None if succeeded
         - deletion_data: Dict with sessions_deleted count
     """
-    try:
-        response = requests.delete(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/sessions",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "DELETE", f"/api/v1/tournaments/{tournament_id}/sessions", token, empty={},
+    )
 
 
 # ============================================================================
@@ -864,25 +638,7 @@ def get_reward_config_templates(token: str) -> Tuple[bool, Optional[str], Dict[s
         - error_message: Error message if failed, None if succeeded
         - templates_dict: Dict of template_name -> template_config
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/templates",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call("GET", "/api/v1/tournaments/templates", token, empty={})
 
 
 def get_tournament_reward_config(
@@ -902,25 +658,9 @@ def get_tournament_reward_config(
         - error_message: Error message if failed, None if succeeded
         - reward_config: Reward configuration dict or empty dict if not configured
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/{tournament_id}/reward-config", token, empty={},
+    )
 
 
 def save_tournament_reward_config(
@@ -942,26 +682,10 @@ def save_tournament_reward_config(
         - error_message: Error message if failed, None if succeeded
         - saved_config: Saved reward configuration dict
     """
-    try:
-        response = requests.post(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config",
-            headers={"Authorization": f"Bearer {token}"},
-            json=reward_config,
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "POST", f"/api/v1/tournaments/{tournament_id}/reward-config", token,
+        json=reward_config, empty={},
+    )
 
 
 def delete_tournament_reward_config(
@@ -981,25 +705,9 @@ def delete_tournament_reward_config(
         - error_message: Error message if failed, None if succeeded
         - result: Success message dict
     """
-    try:
-        response = requests.delete(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "DELETE", f"/api/v1/tournaments/{tournament_id}/reward-config", token, empty={},
+    )
 
 
 def preview_tournament_reward_distribution(
@@ -1019,22 +727,6 @@ def preview_tournament_reward_distribution(
         - error_message: Error message if failed, None if succeeded
         - preview_data: Dict with estimated reward summary
     """
-    try:
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/tournaments/{tournament_id}/reward-config/preview",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=API_TIMEOUT
-        )
-
-        if response.status_code == 200:
-            return True, None, response.json()
-        else:
-            error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
-            error_msg = error_data.get('detail', response.text)
-            return False, error_msg, {}
-    except requests.exceptions.Timeout:
-        return False, "Request timed out. Please try again.", {}
-    except requests.exceptions.ConnectionError:
-        return False, "Could not connect to server. Please check your connection.", {}
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}", {}
+    return _api_call(
+        "GET", f"/api/v1/tournaments/{tournament_id}/reward-config/preview", token, empty={},
+    )

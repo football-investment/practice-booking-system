@@ -17,10 +17,10 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db, SessionLocal
 from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
-from app.models.user import User
-from app.models.semester import Semester
+from app.models.user import User, UserRole
 from app.models.tournament_type import TournamentType
 from app.models.session import Session as SessionModel
+from app.repositories import TournamentRepository
 from app.services.tournament_session_generator import TournamentSessionGenerator
 
 logger = logging.getLogger(__name__)
@@ -122,6 +122,14 @@ class SessionGenerationRequest(BaseModel):
     session_duration_minutes: int = Field(default=90, ge=1, le=180, description="Duration of each session in minutes (business allows 1-5 min matches)")
     break_minutes: int = Field(default=15, ge=0, le=60, description="Break time between sessions in minutes")
     number_of_rounds: int = Field(default=1, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (e.g., 3 attempts for 100m sprint)")
+    campus_ids: Optional[List[int]] = Field(
+        default=None,
+        description=(
+            "Explicit list of campus IDs for multi-venue group_knockout tournaments. "
+            "Admin: multiple campuses allowed. "
+            "Instructor: exactly 1 campus allowed — request is rejected if more than 1 ID is provided."
+        )
+    )
     campus_schedule_overrides: Optional[Dict[str, CampusScheduleConfig]] = Field(
         default=None,
         description=(
@@ -206,12 +214,7 @@ def preview_tournament_sessions(
     ```
     """
     # Fetch tournament
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tournament not found"
-        )
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # Check if tournament has tournament_type_id
     if not tournament.tournament_type_id:
@@ -304,12 +307,104 @@ def preview_tournament_sessions(
     }
 
 
+def _assert_campus_scope(
+    current_user: User,
+    campus_ids: Optional[List[int]],
+    campus_schedule_overrides: Optional[dict],
+    db: Optional["Session"] = None,
+) -> None:
+    """
+    Backend guard — enforces campus-scope ownership by role.
+
+    Rules:
+      ADMIN   → multi-campus allowed (no restriction)
+      INSTRUCTOR → single-campus only:
+                   • campus_ids must not exceed 1 entry
+                   • campus_schedule_overrides must not exceed 1 key
+
+    Raises HTTP 403 if the instructor tries to operate across multiple campuses.
+    This is a defence-in-depth measure that enforces the architectural rule at
+    the API boundary, independent of any UI-level restrictions.
+
+    Security audit: every 403 emits a WARNING log AND a SECURITY-level
+    system_event record (rate-limited to 1 per 10 min per user+event_type).
+    """
+    if current_user.role == UserRole.ADMIN:
+        return  # Admins have unrestricted campus access
+
+    # Instructor scope: single campus only
+    if campus_ids and len(campus_ids) > 1:
+        logger.warning(
+            "SECURITY: instructor multi-campus attempt blocked — "
+            "user_id=%s email=%s role=%s campus_ids=%s",
+            current_user.id, current_user.email, current_user.role, campus_ids,
+        )
+        if db is not None:
+            try:
+                from app.services.system_event_service import SystemEventService
+                from app.models.system_event import SystemEventLevel, SystemEventType
+                SystemEventService(db).emit(
+                    SystemEventLevel.SECURITY,
+                    SystemEventType.MULTI_CAMPUS_BLOCKED,
+                    user_id=current_user.id,
+                    role=str(current_user.role),
+                    payload={
+                        "email": current_user.email,
+                        "campus_ids": campus_ids,
+                        "campus_count": len(campus_ids),
+                    },
+                )
+            except Exception:
+                logger.warning("system_event emit failed (non-fatal)", exc_info=True)
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Instructors may only generate sessions for a single campus. "
+                f"Received {len(campus_ids)} campus IDs — remove the extra entries."
+            ),
+        )
+
+    if campus_schedule_overrides and len(campus_schedule_overrides) > 1:
+        logger.warning(
+            "SECURITY: instructor multi-campus override attempt blocked — "
+            "user_id=%s email=%s role=%s override_keys=%s",
+            current_user.id, current_user.email, current_user.role,
+            list(campus_schedule_overrides.keys()),
+        )
+        if db is not None:
+            try:
+                from app.services.system_event_service import SystemEventService
+                from app.models.system_event import SystemEventLevel, SystemEventType
+                SystemEventService(db).emit(
+                    SystemEventLevel.SECURITY,
+                    SystemEventType.MULTI_CAMPUS_OVERRIDE_BLOCKED,
+                    user_id=current_user.id,
+                    role=str(current_user.role),
+                    payload={
+                        "email": current_user.email,
+                        "override_keys": list(campus_schedule_overrides.keys()),
+                        "key_count": len(campus_schedule_overrides),
+                    },
+                )
+            except Exception:
+                logger.warning("system_event emit failed (non-fatal)", exc_info=True)
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Instructors may only configure schedule overrides for a single campus. "
+                f"Received {len(campus_schedule_overrides)} campus entries in campus_schedule_overrides."
+            ),
+        )
+
+
 @router.post("/{tournament_id}/generate-sessions", response_model=Dict[str, Any])
 def generate_tournament_sessions(
     tournament_id: int,
     request: SessionGenerationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user)
 ) -> Dict[str, Any]:
     """
     Generate tournament sessions based on tournament type and enrolled player count.
@@ -333,6 +428,10 @@ def generate_tournament_sessions(
     """
     from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 
+    # ── Campus-scope guard (role-based enforcement) ───────────────────────────
+    # Must be called BEFORE any DB writes so a 403 never leaves partial state.
+    _assert_campus_scope(current_user, request.campus_ids, request.campus_schedule_overrides, db)
+
     generator = TournamentSessionGenerator(db)
 
     # Check if can generate (includes all validations)
@@ -344,13 +443,16 @@ def generate_tournament_sessions(
         )
 
     # Fetch tournament to get schedule configuration
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # Use semester's saved schedule configuration if available, otherwise use request parameters
     session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else request.session_duration_minutes
     break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else request.break_minutes
     parallel_fields = tournament.parallel_fields if tournament.parallel_fields else request.parallel_fields
     number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else request.number_of_rounds
+
+    # campus_ids from request (None = use DB defaults / no multi-campus)
+    request_campus_ids: Optional[List[int]] = request.campus_ids
 
     # Serialise campus overrides (Pydantic → plain dict for JSON storage)
     campus_overrides_raw: Optional[Dict[str, Any]] = None
@@ -444,7 +546,8 @@ def generate_tournament_sessions(
         parallel_fields=parallel_fields,
         session_duration_minutes=session_duration,
         break_minutes=break_duration,
-        number_of_rounds=number_of_rounds
+        number_of_rounds=number_of_rounds,
+        campus_ids=request_campus_ids,
     )
 
     if not success:
@@ -454,7 +557,7 @@ def generate_tournament_sessions(
         )
 
     # Refresh tournament name after generation (sessions_generated flag may change)
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     return {
         "success": True,
@@ -635,7 +738,14 @@ def get_tournament_sessions(
             "participants": participants,  # ✅ NEW: Full participant details with names
             "game_results": session.game_results,  # ✅ FIX: Add game_results field for Step 4
             "rounds_data": session.rounds_data,
-            "result_submitted": bool(session.game_results),  # True if any results have been recorded
+            # ROUNDS_BASED: complete only when all rounds are submitted
+            "result_submitted": (
+                (lambda rd: int(rd.get("completed_rounds", 0)) >= int(rd.get("total_rounds", 1)) > 0)(
+                    session.rounds_data or {}
+                )
+                if session.scoring_type == "ROUNDS_BASED"
+                else bool(session.game_results)
+            ),
         })
 
     return sessions_list
@@ -669,12 +779,7 @@ def delete_generated_sessions(
     from app.models.session import Session as SessionModel
     from app.models.attendance import Attendance
 
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
-    if not tournament:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tournament not found"
-        )
+    tournament = TournamentRepository(db).get_or_404(tournament_id)
 
     # Get session IDs that will be deleted
     session_ids_to_delete = [

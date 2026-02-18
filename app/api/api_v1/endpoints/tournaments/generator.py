@@ -272,6 +272,9 @@ class TournamentSummaryResponse(BaseModel):
     total_bookings: int
     fill_percentage: float
     rankings_count: int = 0  # ✅ Count of tournament_rankings entries
+    game_preset_id: Optional[int] = None
+    game_preset_name: Optional[str] = None
+    skills_config: Optional[dict] = None  # {skill_name: weight, ...} from tournament_skill_mappings
 
 
 # ============================================================================
@@ -309,10 +312,12 @@ def list_tournaments_admin(
     tournaments = query.order_by(Semester.id.desc()).all()
 
     from app.models.semester_enrollment import SemesterEnrollment
+    from app.models.session import Session as _SessionModel
     from sqlalchemy import func
 
-    # Batch-count enrollments in a single query (avoids N+1)
     t_ids = [t.id for t in tournaments]
+
+    # Batch-count enrollments (avoids N+1)
     counts = {}
     if t_ids:
         rows = (
@@ -323,18 +328,41 @@ def list_tournaments_admin(
         )
         counts = {row[0]: row[1] for row in rows}
 
+    # Batch-count tournament sessions (for STUCK detection: IN_PROGRESS + 0 sessions)
+    session_counts = {}
+    if t_ids:
+        s_rows = (
+            db.query(_SessionModel.semester_id, func.count(_SessionModel.id))
+            .filter(
+                _SessionModel.semester_id.in_(t_ids),
+                _SessionModel.is_tournament_game == True,
+            )
+            .group_by(_SessionModel.semester_id)
+            .all()
+        )
+        session_counts = {row[0]: row[1] for row in s_rows}
+
     result = []
     for t in tournaments:
         enrolled_count = counts.get(t.id, 0)
+        t_status = t.tournament_status or (t.status.value if t.status else "UNKNOWN")
+        sc = session_counts.get(t.id, 0)
+        # Derive source from code prefix: OPS-* = ops wizard, TOURN-* = manual form
+        code = t.code or ""
+        source = "ops" if code.startswith("OPS-") else "manual"
         result.append({
-            "id":                t.id,
-            "tournament_id":     t.id,
-            "name":              t.name,
-            "status":            t.tournament_status or (t.status.value if t.status else "UNKNOWN"),
-            "enrolled_count":    enrolled_count,
-            "participant_count": enrolled_count,
-            "start_date":        str(t.start_date) if t.start_date else None,
-            "end_date":          str(t.end_date) if t.end_date else None,
+            "id":                  t.id,
+            "tournament_id":       t.id,
+            "code":                code,
+            "name":                t.name,
+            "status":              t_status,
+            "tournament_status":   t_status,
+            "enrolled_count":      enrolled_count,
+            "participant_count":   enrolled_count,
+            "session_count":       sc,
+            "source":              source,
+            "start_date":          str(t.start_date) if t.start_date else None,
+            "end_date":            str(t.end_date) if t.end_date else None,
             "specialization_type": t.specialization_type,
         })
 
@@ -644,6 +672,15 @@ def get_tournament_summary(
     Get tournament summary
 
     **Authorization:** Any authenticated user
+
+    # TICKET-UI-01: Extend response with seeding metrics post-generation
+    # Add to TournamentSummaryResponse (and get_tournament_summary service):
+    #   seeded_count    : int | None  — number of players in the bracket pool
+    #   checked_in_count: int | None  — confirmed check-ins at generation time
+    #   pool_label      : str | None  — "check-in confirmed" | "fallback: all approved"
+    # These fields are available in session_generator.py after generate_sessions() runs.
+    # Consumer: Tournament Monitor header (Enrolled / Confirmed / Seeded display).
+    # Priority: UX improvement, not a correctness fix. Does NOT block current release.
     """
     summary = TournamentService.get_tournament_summary(db, tournament_id)
 
@@ -921,6 +958,23 @@ class OpsScenarioRequest(BaseModel):
             "If omitted, the OPS default policy is used."
         ),
     )
+    number_of_rounds: Optional[int] = Field(
+        None,
+        ge=1,
+        le=20,
+        description=(
+            "Number of rounds for INDIVIDUAL_RANKING tournaments (1–20). "
+            "Defaults to 1 if omitted."
+        ),
+    )
+    player_ids: Optional[List[int]] = Field(
+        None,
+        description=(
+            "Explicit list of user IDs to enroll. When provided, overrides player_count "
+            "and skips the @lfa-seed.hu pool lookup — any active users can be selected. "
+            "player_count is ignored when player_ids is set."
+        ),
+    )
 
 
 class OpsScenarioResponse(BaseModel):
@@ -931,13 +985,151 @@ class OpsScenarioResponse(BaseModel):
     tournament_name: Optional[str] = None
     task_id: Optional[str] = None
     enrolled_count: Optional[int] = None
+    session_count: Optional[int] = None
     dry_run: bool
     audit_log_id: Optional[int] = None
     message: str
 
 
 import logging as _logging
+import json as _json
 _ops_logger = _logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Private simulation helpers
+# ---------------------------------------------------------------------------
+
+def _get_tournament_sessions(
+    db,
+    tournament_id: int,
+    ordered: bool = False,
+    with_phase: bool = False,
+):
+    """Fetch all is_tournament_game sessions for a tournament.
+
+    Consolidates the repeated:
+        db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True,
+        ).order_by(...).all()
+    pattern used across every simulation function.
+
+    Args:
+        db:            SQLAlchemy session.
+        tournament_id: Semester / tournament primary key.
+        ordered:       Sort by (tournament_round ASC, tournament_match_number ASC).
+        with_phase:    Sort by (tournament_phase, round ASC, match_number ASC).
+                       Takes precedence over ``ordered``.
+
+    Returns:
+        List of SessionModel instances.
+    """
+    from app.models.session import Session as _SM
+    from sqlalchemy import asc as _asc
+    q = db.query(_SM).filter(
+        _SM.semester_id == tournament_id,
+        _SM.is_tournament_game == True,
+    )
+    if with_phase:
+        q = q.order_by(_SM.tournament_phase, _asc(_SM.tournament_round), _asc(_SM.tournament_match_number))
+    elif ordered:
+        q = q.order_by(_asc(_SM.tournament_round), _asc(_SM.tournament_match_number))
+    return q.all()
+
+
+def _build_h2h_game_results(
+    participants: list,
+    round_number: int,
+) -> str:
+    """Serialise a HEAD_TO_HEAD game_results dict to JSON.
+
+    Consolidates the repeated:
+        {"match_format": "HEAD_TO_HEAD", "round_number": ..., "participants": [...]}
+    pattern used in every simulation function.
+
+    Args:
+        participants:  List of participant dicts, each with keys
+                       ``user_id``, ``result`` ("win"/"loss"), ``score`` (int).
+        round_number:  Tournament round (used by ranking strategies for bracket ordering).
+
+    Returns:
+        JSON string ready to assign to ``session.game_results``.
+    """
+    return _json.dumps({
+        "match_format": "HEAD_TO_HEAD",
+        "round_number": round_number,
+        "participants": participants,
+    })
+
+
+def _calculate_ir_rankings(tournament, sessions: list, logger: _logging.Logger) -> list:
+    """Calculate INDIVIDUAL_RANKING rankings using RankingAggregator.
+
+    Aggregates per-round results across all sessions for the tournament,
+    then ranks players by their final value (direction-aware: ASC for time, DESC for score).
+
+    Returns:
+        List of ranking dicts: [{"user_id": int, "rank": int, "final_value": float}]
+        Empty list if no round results are found.
+    """
+    from app.services.tournament.results.calculators.ranking_aggregator import RankingAggregator
+
+    _combined_rr: dict = {}
+    for _s in sessions:
+        _rd = _s.rounds_data or {}
+        _rr = _rd.get("round_results", {})
+        if isinstance(_rr, dict):
+            for _rk, _pv in _rr.items():
+                if isinstance(_pv, dict):
+                    _combined_rr[_rk] = _pv
+
+    _ranking_direction = "ASC"
+    if tournament.tournament_config_obj:
+        _ranking_direction = tournament.tournament_config_obj.ranking_direction or "ASC"
+
+    logger.info(
+        "[ops] INDIVIDUAL_RANKING aggregator: direction=%s, rounds=%d",
+        _ranking_direction,
+        len(_combined_rr),
+    )
+    if _combined_rr:
+        _user_finals = RankingAggregator.aggregate_user_values(_combined_rr, _ranking_direction)
+        return RankingAggregator.calculate_performance_rankings(_user_finals, _ranking_direction)
+    return []
+
+
+def _finalize_tournament_with_rewards(tid: int, db, logger: _logging.Logger) -> None:
+    """Run TournamentFinalizer to advance tournament COMPLETED → REWARDS_DISTRIBUTED.
+
+    Non-fatal: any exception is logged and the DB transaction is rolled back.
+    """
+    try:
+        from app.models.semester import Semester as _Semester
+        from app.services.tournament.results.finalization.tournament_finalizer import TournamentFinalizer
+        _t = db.query(_Semester).filter(_Semester.id == tid).first()
+        if _t:
+            finalizer = TournamentFinalizer(db)
+            fin_result = finalizer.finalize(_t)
+            if fin_result.get("success"):
+                logger.info(
+                    "[ops] Tournament lifecycle complete: status=%s — %s",
+                    fin_result.get("tournament_status"),
+                    fin_result.get("rewards_message", "no rewards message"),
+                )
+            else:
+                logger.warning(
+                    "[ops] Tournament finalization returned non-success: %s",
+                    fin_result.get("message"),
+                )
+    except Exception as fin_exc:
+        import traceback
+        logger.warning("[ops] Tournament finalization failed (non-fatal): %s", fin_exc)
+        logger.warning("[ops] Finalization traceback:\n%s", traceback.format_exc())
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
 
 def _simulate_tournament_results(
@@ -973,10 +1165,7 @@ def _simulate_tournament_results(
     tournament_format = tournament.format if tournament.format else "INDIVIDUAL_RANKING"
 
     # Check if tournament has multiple phases (GROUP_STAGE + KNOCKOUT)
-    sessions = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-    ).all()
+    sessions = _get_tournament_sessions(db, tournament_id)
 
     phases_present = set([s.tournament_phase for s in sessions if s.tournament_phase])
     has_group_stage = TournamentPhase.GROUP_STAGE in phases_present or TournamentPhase.GROUP_STAGE.value in phases_present
@@ -1026,10 +1215,7 @@ def _simulate_head_to_head_knockout(
     logger.info("[ops] Starting HEAD_TO_HEAD knockout bracket simulation for tournament_id=%d", tournament_id)
 
     # Get all tournament sessions, ordered by tournament_round
-    sessions = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-    ).order_by(asc(SessionModel.tournament_round), asc(SessionModel.tournament_match_number)).all()
+    sessions = _get_tournament_sessions(db, tournament_id, ordered=True)
 
     if not sessions:
         return False, "No tournament sessions found for simulation"
@@ -1077,19 +1263,12 @@ def _simulate_head_to_head_knockout(
             winner_id = random.choice(session.participant_user_ids)
             loser_id = [uid for uid in session.participant_user_ids if uid != winner_id][0]
 
-            # Build game_results in HEAD_TO_HEAD format
-            # Include round_number for correct ranking calculation
-            game_results = {
-                "match_format": "HEAD_TO_HEAD",
-                "round_number": session.tournament_round,  # Critical for knockout ranking
-                "participants": [
-                    {"user_id": winner_id, "result": "win", "score": 3},
-                    {"user_id": loser_id, "result": "loss", "score": 0}
-                ]
-            }
-
             # Update session
-            session.game_results = json.dumps(game_results)
+            session.game_results = _build_h2h_game_results(
+                [{"user_id": winner_id, "result": "win", "score": 3},
+                 {"user_id": loser_id, "result": "loss", "score": 0}],
+                session.tournament_round,
+            )
             session.session_status = "completed"
             round_simulated += 1
 
@@ -1178,10 +1357,7 @@ def _simulate_individual_ranking(
     logger.info("[ops] Starting INDIVIDUAL_RANKING simulation: scoring_type=%s", scoring_type)
 
     # Get all tournament sessions
-    sessions = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-    ).all()
+    sessions = _get_tournament_sessions(db, tournament_id)
 
     if not sessions:
         return False, "No tournament sessions found"
@@ -1190,62 +1366,98 @@ def _simulate_individual_ranking(
     skipped_count = 0
 
     for session in sessions:
-        # Skip if already has results
-        if session.rounds_data and session.rounds_data.get("round_results"):
-            skipped_count += 1
-            continue
-
         # Skip if no participants
         if not session.participant_user_ids or len(session.participant_user_ids) == 0:
             skipped_count += 1
             continue
 
-        # Generate random performance data based on scoring_type
         participants = session.participant_user_ids
-        round_results = []
+        is_rounds_based = session.scoring_type == "ROUNDS_BASED"
 
-        if scoring_type == "TIME_BASED":
-            # Generate random times (30-120 seconds, lower is better)
-            for user_id in participants:
-                time_seconds = random.uniform(30.0, 120.0)
-                round_results.append({
-                    "user_id": user_id,
-                    "time_seconds": round(time_seconds, 2),
-                    "completed": True
-                })
+        if is_rounds_based:
+            # Multi-round session: skip only if ALL rounds already done
+            rd = session.rounds_data or {}
+            total_r = int(rd.get("total_rounds", 1))
+            completed_r = int(rd.get("completed_rounds", 0))
+            if completed_r >= total_r > 0:
+                skipped_count += 1
+                continue
 
-        elif scoring_type == "SCORE_BASED":
-            # Generate random scores (50-100 points, higher is better)
-            for user_id in participants:
-                score = random.randint(50, 100)
-                round_results.append({
-                    "user_id": user_id,
-                    "score": score,
-                    "completed": True
-                })
+            # Simulate each missing round using the underlying scoring type
+            underlying = (session.structure_config or {}).get("scoring_method") or scoring_type
+            new_rd = dict(rd)
+            if "round_results" not in new_rd:
+                new_rd["round_results"] = {}
 
-        elif scoring_type == "ROUNDS_BASED":
-            # Generate random rounds completed (1-10 rounds, higher is better)
-            for user_id in participants:
-                rounds_completed = random.randint(1, 10)
-                round_results.append({
-                    "user_id": user_id,
-                    "rounds_completed": rounds_completed,
-                    "completed": True
-                })
+            for rn in range(completed_r + 1, total_r + 1):
+                rn_key = str(rn)
+                if rn_key in new_rd["round_results"]:
+                    continue  # already submitted
+                round_entry = {}
+                for user_id in participants:
+                    if "TIME" in underlying:
+                        val = f"{round(random.uniform(30.0, 120.0), 2)}"
+                    elif "DISTANCE" in underlying:
+                        val = f"{round(random.uniform(1.0, 50.0), 2)}"
+                    else:
+                        val = f"{random.randint(50, 100)}"
+                    round_entry[str(user_id)] = val
+                new_rd["round_results"][rn_key] = round_entry
+
+            new_rd["completed_rounds"] = total_r
+            session.rounds_data = new_rd
+            from sqlalchemy.orm.attributes import flag_modified as _fm
+            _fm(session, "rounds_data")
 
         else:
-            logger.warning("[ops] Unsupported scoring_type: %s, skipping session %d",
-                          scoring_type, session.id)
-            skipped_count += 1
-            continue
+            # Single-round session: skip if already has results
+            if session.game_results:
+                skipped_count += 1
+                continue
 
-        # Update session rounds_data
-        if not session.rounds_data:
-            session.rounds_data = {}
+            round_results = []
+            if scoring_type == "TIME_BASED":
+                for user_id in participants:
+                    round_results.append({
+                        "user_id": user_id,
+                        "measured_value": round(random.uniform(30.0, 120.0), 2),
+                    })
+            elif scoring_type == "SCORE_BASED":
+                for user_id in participants:
+                    round_results.append({
+                        "user_id": user_id,
+                        "measured_value": float(random.randint(50, 100)),
+                    })
+            elif scoring_type == "DISTANCE_BASED":
+                for user_id in participants:
+                    round_results.append({
+                        "user_id": user_id,
+                        "measured_value": round(random.uniform(1.0, 50.0), 2),
+                    })
+            else:
+                logger.warning("[ops] Unsupported scoring_type: %s, skipping session %d",
+                               scoring_type, session.id)
+                skipped_count += 1
+                continue
 
-        session.rounds_data["round_results"] = round_results
-        session.session_status = "completed"
+            # Use the same ResultProcessor that the manual submit endpoint uses
+            try:
+                from app.services.tournament.result_processor import ResultProcessor
+                processor = ResultProcessor(db)
+                processor.process_match_results(
+                    db=db,
+                    session=session,
+                    tournament=tournament,
+                    raw_results=round_results,
+                    match_notes="OPS auto-simulated",
+                    recorded_by_user_id=0,
+                    recorded_by_name="OPS",
+                )
+            except Exception as _e:
+                logger.warning("[ops] process_match_results failed for session %d: %s", session.id, _e)
+                skipped_count += 1
+                continue
+
         simulated_count += 1
 
     db.commit()
@@ -1284,14 +1496,7 @@ def _simulate_group_knockout_tournament(
     logger.info("[ops] Starting GROUP + KNOCKOUT simulation for tournament_id=%d", tournament_id)
 
     # Get all tournament sessions, ordered by phase, round, match
-    sessions = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-    ).order_by(
-        SessionModel.tournament_phase,
-        asc(SessionModel.tournament_round),
-        asc(SessionModel.tournament_match_number)
-    ).all()
+    sessions = _get_tournament_sessions(db, tournament_id, with_phase=True)
 
     if not sessions:
         return False, "No tournament sessions found for simulation"
@@ -1352,17 +1557,11 @@ def _simulate_group_knockout_tournament(
                 result_1 = "loss"
                 result_2 = "win"
 
-        # Build game_results in HEAD_TO_HEAD format
-        game_results = {
-            "match_format": "HEAD_TO_HEAD",
-            "round_number": session.tournament_round or 1,
-            "participants": [
-                {"user_id": user_id_1, "result": result_1, "score": score_1},
-                {"user_id": user_id_2, "result": result_2, "score": score_2}
-            ]
-        }
-
-        session.game_results = json.dumps(game_results)
+        session.game_results = _build_h2h_game_results(
+            [{"user_id": user_id_1, "result": result_1, "score": score_1},
+             {"user_id": user_id_2, "result": result_2, "score": score_2}],
+            session.tournament_round or 1,
+        )
         session.session_status = "completed"
 
         # Update group standings
@@ -1510,10 +1709,7 @@ def _simulate_league_tournament(
     logger.info("[ops] Starting LEAGUE (Round Robin) simulation for tournament_id=%d", tournament_id)
 
     # Get all tournament sessions
-    sessions = db.query(SessionModel).filter(
-        SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
-    ).order_by(asc(SessionModel.tournament_round), asc(SessionModel.tournament_match_number)).all()
+    sessions = _get_tournament_sessions(db, tournament_id, ordered=True)
 
     if not sessions:
         return False, "No tournament sessions found for simulation"
@@ -1560,17 +1756,11 @@ def _simulate_league_tournament(
                 result_1 = "loss"
                 result_2 = "win"
 
-        # Build game_results in HEAD_TO_HEAD format
-        game_results = {
-            "match_format": "HEAD_TO_HEAD",
-            "round_number": session.tournament_round or 1,
-            "participants": [
-                {"user_id": user_id_1, "result": result_1, "score": score_1},
-                {"user_id": user_id_2, "result": result_2, "score": score_2}
-            ]
-        }
-
-        session.game_results = json.dumps(game_results)
+        session.game_results = _build_h2h_game_results(
+            [{"user_id": user_id_1, "result": result_1, "score": score_1},
+             {"user_id": user_id_2, "result": result_2, "score": score_2}],
+            session.tournament_round or 1,
+        )
         session.session_status = "completed"
         simulated_count += 1
 
@@ -1634,17 +1824,11 @@ def _simulate_knockout_bracket(
             winner_id = random.choice(session.participant_user_ids)
             loser_id = [uid for uid in session.participant_user_ids if uid != winner_id][0]
 
-            # Build game_results in HEAD_TO_HEAD format with round_number
-            game_results = {
-                "match_format": "HEAD_TO_HEAD",
-                "round_number": session.tournament_round,
-                "participants": [
-                    {"user_id": winner_id, "result": "win", "score": random.randint(1, 5)},
-                    {"user_id": loser_id, "result": "loss", "score": random.randint(0, 3)}
-                ]
-            }
-
-            session.game_results = json.dumps(game_results)
+            session.game_results = _build_h2h_game_results(
+                [{"user_id": winner_id, "result": "win", "score": random.randint(1, 5)},
+                 {"user_id": loser_id, "result": "loss", "score": random.randint(0, 3)}],
+                session.tournament_round,
+            )
             session.session_status = "completed"
 
             round_winners.append(winner_id)
@@ -1732,28 +1916,32 @@ def run_ops_scenario(
             ),
         )
 
+    # ── Effective player count ────────────────────────────────────────────────
+    # player_count is always the TARGET (total including pinned + auto-fill).
+    # player_ids are the PINNED subset; remaining slots are filled from seed pool.
+    # Fallback to len(player_ids) only if player_count was not provided.
+    _effective_count = request.player_count or (len(request.player_ids) if request.player_ids else 0)
+
     # ── Safety gate (only applies to real runs) ───────────────────────────────
-    if request.player_count >= _OPS_CONFIRM_THRESHOLD and not request.confirmed:
+    if _effective_count >= _OPS_CONFIRM_THRESHOLD and not request.confirmed:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"Large-scale operation ({request.player_count} players) requires confirmed=True. "
+                f"Large-scale operation ({_effective_count} players) requires confirmed=True. "
                 "Set confirmed=True to proceed."
             ),
         )
 
     # ── Resolve tournament name ───────────────────────────────────────────────
-    # Naming convention: OPS-LF-{n} for large-field (≥128p), OPS-SMOKE-{n} for smoke (<128p).
-    # Player count is always embedded so the monitor immediately shows scale.
     ts_label = _dt.utcnow().strftime("%Y%m%d-%H%M%S")
     if request.tournament_name:
         tournament_name = request.tournament_name
-    elif request.player_count >= _OPS_CONFIRM_THRESHOLD:
-        tournament_name = f"OPS-LF-{request.player_count}-{ts_label}"
+    elif _effective_count >= _OPS_CONFIRM_THRESHOLD:
+        tournament_name = f"OPS-LF-{_effective_count}-{ts_label}"
     else:
-        tournament_name = f"OPS-SMOKE-{request.player_count}-{ts_label}"
+        tournament_name = f"OPS-SMOKE-{_effective_count}-{ts_label}"
 
-    # ── Step 1: Query existing seed players ───────────────────────────────────
+    # ── Step 1: Resolve player pool ───────────────────────────────────────────
     import uuid as _uuid
     from datetime import timezone as _tz
     from app.models.user import User as _User, UserRole as _UserRole
@@ -1763,53 +1951,113 @@ def run_ops_scenario(
     # Generate a run-specific short ID for logging purposes
     _run_id = _uuid.uuid4().hex[:8]  # e.g. "a3f2b1c0"
 
-    _ops_logger.info(
-        "[ops] Querying %d @lfa-seed.hu players for scenario=%s admin=%s run_id=%s",
-        request.player_count, request.scenario, current_user.email, _run_id,
-    )
-
-    # ✅ USE EXISTING SEED USERS: Query all active @lfa-seed.hu users with active licenses
-    seed_rows = (
-        db.query(_User.id, _User.name, _User.email)
-        .join(UserLicense, UserLicense.user_id == _User.id)
-        .filter(
-            _User.email.like("%@lfa-seed.hu"),
-            _User.is_active == True,
-            UserLicense.is_active == True,
+    if request.player_ids:
+        # ── Manual / hybrid player selection ──────────────────────────────
+        _ops_logger.info(
+            "[ops] player_ids provided (%d) effective_count=%d scenario=%s admin=%s run_id=%s",
+            len(request.player_ids), _effective_count, request.scenario, current_user.email, _run_id,
         )
-        .order_by(_User.id)
-        .all()
-    )
-    seed_user_ids = [row.id for row in seed_rows]
-
-    if not seed_user_ids:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                f"No active @lfa-seed.hu users found with licenses. "
-                f"Run 'python scripts/seed_star_players.py' to create seed users first."
-            ),
+        # 1. Validate the manually picked players
+        valid_rows = (
+            db.query(_User.id, _User.name, _User.email)
+            .filter(
+                _User.id.in_(request.player_ids),
+                _User.is_active == True,
+            )
+            .order_by(_User.id)
+            .all()
         )
+        found_ids = {row.id for row in valid_rows}
+        missing = [uid for uid in request.player_ids if uid not in found_ids]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"player_ids not found or inactive: {missing}",
+            )
+        manual_ids = [row.id for row in valid_rows]
 
-    if request.player_count > len(seed_user_ids):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Cannot enroll {request.player_count} players: only {len(seed_user_ids)} "
-                f"@lfa-seed.hu seed users available. Increase seed user count or reduce player_count."
-            ),
+        # 2. Hybrid fill: if target count > manual count, top-up from seed pool
+        remaining = _effective_count - len(manual_ids)
+        if remaining > 0:
+            fill_rows = (
+                db.query(_User.id)
+                .join(UserLicense, UserLicense.user_id == _User.id)
+                .filter(
+                    _User.email.like("%@lfa-seed.hu"),
+                    _User.is_active == True,
+                    UserLicense.is_active == True,
+                    ~_User.id.in_(set(manual_ids)),
+                )
+                .order_by(_User.id)
+                .limit(remaining)
+                .all()
+            )
+            if len(fill_rows) < remaining:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Hybrid fill: need {remaining} more seed players but only "
+                        f"{len(fill_rows)} available. Reduce target count or add more seed users."
+                    ),
+                )
+            seeded_ids = manual_ids + [r.id for r in fill_rows]
+            _ops_logger.info(
+                "[ops] Hybrid: %d manual + %d seed fill = %d total (run_id=%s)",
+                len(manual_ids), remaining, len(seeded_ids), _run_id,
+            )
+        else:
+            # Manual-only: exactly the picked players
+            seeded_ids = manual_ids
+            _ops_logger.info(
+                "[ops] Manual-only: %d players (run_id=%s)", len(seeded_ids), _run_id,
+            )
+    else:
+        # ── Auto mode: query @lfa-seed.hu pool ────────────────────────────
+        _ops_logger.info(
+            "[ops] Querying %d @lfa-seed.hu players for scenario=%s admin=%s run_id=%s",
+            request.player_count, request.scenario, current_user.email, _run_id,
         )
+        seed_rows = (
+            db.query(_User.id, _User.name, _User.email)
+            .join(UserLicense, UserLicense.user_id == _User.id)
+            .filter(
+                _User.email.like("%@lfa-seed.hu"),
+                _User.is_active == True,
+                UserLicense.is_active == True,
+            )
+            .order_by(_User.id)
+            .all()
+        )
+        seed_user_ids = [row.id for row in seed_rows]
 
-    # ✅ DETERMINISTIC: Take first N players from ordered pool
-    seeded_ids = seed_user_ids[:request.player_count]
-    _ops_logger.info(
-        "[ops] Using %d existing seed players (pool size: %d, run_id=%s)",
-        len(seeded_ids), len(seed_user_ids), _run_id
-    )
-    _ops_logger.debug(
-        "[ops] Sample seed users: %s",
-        [(r.id, r.name, r.email) for r in seed_rows[:5]]
-    )
+        if not seed_user_ids:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=(
+                    f"No active @lfa-seed.hu users found with licenses. "
+                    f"Run 'python scripts/seed_star_players.py' to create seed users first."
+                ),
+            )
+
+        if request.player_count > len(seed_user_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Cannot enroll {request.player_count} players: only {len(seed_user_ids)} "
+                    f"@lfa-seed.hu seed users available. Increase seed user count or reduce player_count."
+                ),
+            )
+
+        # ✅ DETERMINISTIC: Take first N players from ordered pool
+        seeded_ids = seed_user_ids[:request.player_count]
+        _ops_logger.info(
+            "[ops] Using %d existing seed players (pool size: %d, run_id=%s)",
+            len(seeded_ids), len(seed_user_ids), _run_id
+        )
+        _ops_logger.debug(
+            "[ops] Sample seed users: %s",
+            [(r.id, r.name, r.email) for r in seed_rows[:5]]
+        )
 
     # ── Step 2: Create tournament ─────────────────────────────────────────────
     from app.models.semester import Semester as _Semester, SemesterStatus as _SemStatus
@@ -1856,10 +2104,10 @@ def run_ops_scenario(
             tournament_type_id=tt.id,
             participant_type="INDIVIDUAL",
             is_multi_day=False,
-            max_players=request.player_count,
+            max_players=_effective_count,
             parallel_fields=1,
             scoring_type="HEAD_TO_HEAD",
-            number_of_rounds=1,
+            number_of_rounds=request.number_of_rounds or 1,
         )
     else:
         # INDIVIDUAL_RANKING: no tournament_type, use scoring_type from request
@@ -1869,11 +2117,11 @@ def run_ops_scenario(
             tournament_type_id=None,
             participant_type="INDIVIDUAL",
             is_multi_day=False,
-            max_players=request.player_count,
+            max_players=_effective_count,
             parallel_fields=1,
             scoring_type=_scoring,
             ranking_direction=request.ranking_direction,
-            number_of_rounds=1,
+            number_of_rounds=request.number_of_rounds or 1,
         )
     db.add(t_cfg)
     db.flush()
@@ -1961,6 +2209,9 @@ def run_ops_scenario(
             is_active=True,
             enrolled_at=_dt.utcnow(),
             requested_at=_dt.utcnow(),
+            # OPS scenarios bypass the real 15-min check-in window:
+            # auto-confirm all players as checked-in at enrollment time
+            tournament_checked_in_at=_dt.utcnow(),
         )
         db.add(enroll)
         enrolled_count += 1
@@ -1989,11 +2240,35 @@ def run_ops_scenario(
     _ops_logger.info("[ops] Using %d physical campuses for distributed sessions: %s",
                      len(campus_ids), campus_ids)
 
+    # Persist one CampusScheduleConfig row per physical campus so the monitor
+    # UI can show named campus cards (1 field per campus in the display).
+    # parallel_fields=None → falls back to the global value in session_generator,
+    # so sessions are distributed across all campus-fields (field_numbers 1..N).
+    if campus_ids:
+        from app.models.campus_schedule_config import CampusScheduleConfig as _CSC
+        for _cid in campus_ids:
+            _existing = db.query(_CSC).filter_by(tournament_id=tid, campus_id=_cid).first()
+            if not _existing:
+                db.add(_CSC(
+                    tournament_id=tid,
+                    campus_id=_cid,
+                    parallel_fields=None,   # NULL → resolved from global parallel_fields
+                    is_active=True,
+                ))
+        db.flush()
+
     campus_overrides_raw = None
-    parallel_fields = 1
+    # 1 field per physical campus — distributes sessions across campus-field slots.
+    # Without this, every session lands on field_number=1 regardless of campus count.
+    parallel_fields = len(campus_ids) if campus_ids else 1
     session_duration = 90
     break_duration = 15
-    number_of_rounds = 10  # log2(1024) = 10 rounds for knockout
+    # INDIVIDUAL_RANKING: use requested rounds (default 1)
+    # HEAD_TO_HEAD knockout: 10 rounds supports up to 1024 players (log2(1024)=10)
+    if request.tournament_format == "INDIVIDUAL_RANKING":
+        number_of_rounds = request.number_of_rounds or 1
+    else:
+        number_of_rounds = 10
 
     task_id: Optional[str] = None
 
@@ -2049,6 +2324,19 @@ def run_ops_scenario(
             campus_ids=campus_ids,
         )
         task_id = "sync-done"
+        if not _gen_ok:
+            _ops_logger.error(
+                "[ops] Sync generation FAILED for %d players: %s",
+                request.player_count, _gen_msg,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Session generation failed: {_gen_msg}. "
+                    f"Tournament id={tid} was created but has 0 sessions. "
+                    f"Adjust player_count or tournament_type_code and retry."
+                ),
+            )
         _ops_logger.info(
             "[ops] Sync generation done for %d players: %s",
             request.player_count, _gen_msg,
@@ -2079,24 +2367,11 @@ def run_ops_scenario(
                     tournament_type_code = tournament.tournament_config_obj.tournament_type.code
 
                 # Get all sessions for ranking calculation
-                from app.models.session import Session as SessionModel
-                sessions = db.query(SessionModel).filter(
-                    SessionModel.semester_id == tid,
-                    SessionModel.is_tournament_game == True,
-                ).all()
+                sessions = _get_tournament_sessions(db, tid)
 
                 if tournament_format == "INDIVIDUAL_RANKING":
-                    # INDIVIDUAL_RANKING: use scoring_type from tournament config
-                    _scoring_type = (
-                        tournament.tournament_config_obj.scoring_type
-                        if tournament.tournament_config_obj else "PLACEMENT"
-                    ) or "PLACEMENT"
-                    strategy = RankingStrategyFactory.create(
-                        tournament_format="INDIVIDUAL_RANKING",
-                        tournament_type_code=None,
-                        scoring_type=_scoring_type,
-                    )
-                    _ops_logger.info("[ops] INDIVIDUAL_RANKING strategy created (scoring=%s)", _scoring_type)
+                    rankings = _calculate_ir_rankings(tournament, sessions, _ops_logger)
+                    strategy = True  # Sentinel so the insert block runs
                 elif tournament_type_code:
                     # HEAD_TO_HEAD: use tournament type-based strategy
                     strategy = RankingStrategyFactory.create(
@@ -2108,8 +2383,9 @@ def run_ops_scenario(
                     strategy = None
 
                 if strategy is not None:
-                    # Calculate rankings
-                    rankings = strategy.calculate_rankings(sessions, db)
+                    if tournament_format != "INDIVIDUAL_RANKING":
+                        # H2H strategies expect (sessions, db) and return List[Dict]
+                        rankings = strategy.calculate_rankings(sessions, db)
 
                     # Delete existing rankings (idempotency)
                     db.query(TournamentRanking).filter(
@@ -2123,7 +2399,8 @@ def run_ops_scenario(
                             user_id=ranking_data["user_id"],
                             participant_type="INDIVIDUAL",
                             rank=ranking_data["rank"],
-                            points=ranking_data.get("points", 0),
+                            # IR strategies return "final_value"; H2H returns "points"
+                            points=ranking_data.get("points") or ranking_data.get("final_value", 0),
                             wins=ranking_data.get("wins", 0),
                             losses=ranking_data.get("losses", 0),
                             draws=ranking_data.get("ties", 0),
@@ -2143,31 +2420,7 @@ def run_ops_scenario(
 
             # ── Step 4.3: Finalize tournament + auto-distribute rewards ───────────
             # Runs TournamentFinalizer to set COMPLETED → REWARDS_DISTRIBUTED lifecycle
-            try:
-                from app.services.tournament.results.finalization.tournament_finalizer import TournamentFinalizer
-                _t = db.query(_Semester).filter(_Semester.id == tid).first()
-                if _t:
-                    finalizer = TournamentFinalizer(db)
-                    fin_result = finalizer.finalize(_t)
-                    if fin_result.get("success"):
-                        _ops_logger.info(
-                            "[ops] Tournament lifecycle complete: status=%s — %s",
-                            fin_result.get("tournament_status"),
-                            fin_result.get("rewards_message", "no rewards message"),
-                        )
-                    else:
-                        _ops_logger.warning(
-                            "[ops] Tournament finalization returned non-success: %s",
-                            fin_result.get("message"),
-                        )
-            except Exception as fin_exc:
-                import traceback
-                _ops_logger.warning("[ops] Tournament finalization failed (non-fatal): %s", fin_exc)
-                _ops_logger.warning("[ops] Finalization traceback:\n%s", traceback.format_exc())
-                try:
-                    db.rollback()
-                except Exception:
-                    pass
+            _finalize_tournament_with_rewards(tid, db, _ops_logger)
 
         else:
             _ops_logger.warning("[ops] Auto-result simulation skipped or failed (non-fatal): %s", sim_msg)
@@ -2197,6 +2450,13 @@ def run_ops_scenario(
     except Exception as audit_exc:
         _ops_logger.warning("[ops] Audit log failed (non-fatal): %s", audit_exc)
 
+    # Count sessions created (query after generation)
+    from app.models.session import Session as _SessionModel
+    _session_count = db.query(_SessionModel).filter(
+        _SessionModel.semester_id == tid,
+        _SessionModel.is_tournament_game == True,
+    ).count()
+
     return OpsScenarioResponse(
         triggered=True,
         scenario=request.scenario,
@@ -2204,11 +2464,12 @@ def run_ops_scenario(
         tournament_name=tournament_name,
         task_id=task_id,
         enrolled_count=enrolled_count,
+        session_count=_session_count,
         dry_run=False,
         audit_log_id=audit_log_id,
         message=(
             f"Ops scenario '{request.scenario}' launched: "
             f"tournament_id={tid}, {enrolled_count} players enrolled, "
-            f"generation task_id={task_id}"
+            f"{_session_count} sessions created, task_id={task_id}"
         ),
     )

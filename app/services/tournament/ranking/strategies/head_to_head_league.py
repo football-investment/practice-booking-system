@@ -9,7 +9,8 @@ Calculates rankings for league tournaments based on:
 """
 from typing import Dict, List, Tuple
 from collections import defaultdict
-import json
+
+from app.utils.game_results import parse_game_results
 
 
 class HeadToHeadLeagueRankingStrategy:
@@ -71,9 +72,8 @@ class HeadToHeadLeagueRankingStrategy:
             if not session.game_results:
                 continue
 
-            try:
-                match_data = json.loads(session.game_results)
-            except (json.JSONDecodeError, TypeError):
+            match_data = parse_game_results(session.game_results)
+            if not match_data:
                 continue
 
             if match_data.get("match_format") != "HEAD_TO_HEAD":
