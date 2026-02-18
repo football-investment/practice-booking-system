@@ -435,7 +435,38 @@ arithmetic eliminates the stale-read window from ORM caching.
 
 | File | Role |
 |---|---|
-| `app/api/api_v1/endpoints/tournaments/enroll.py` | Main enrollment + unenroll HTTP endpoints (479 lines) |
+| `app/api/api_v1/endpoints/tournaments/enroll.py` | Main enrollment + unenroll HTTP endpoints (all fixes applied) |
 | `app/services/tournament/enrollment_service.py` | Batch enrollment helper for OPS scenarios (80 lines) |
 | `app/models/semester_enrollment.py` | `SemesterEnrollment` ORM model |
-| `tests/unit/tournament/test_enrollment_concurrency_p0.py` | 17 P0 race condition + invariant tests (all GREEN) |
+| `alembic/versions/2026_02_18_1000-eb01_enrollment_concurrency_guards.py` | Migration: B-01 index + B-04 CHECK constraint |
+| `tests/unit/tournament/test_enrollment_concurrency_p0.py` | 17 P0 race documentation tests (all GREEN) |
+| `tests/unit/tournament/test_enrollment_phase_b_unit.py` | 22 application-layer unit tests (all GREEN) |
+| `tests/database/test_enrollment_db_constraints.py` | 17 PostgreSQL integration tests (GREEN, 1 skipped) |
+| `scripts/validate_enrollment_pipeline.py` | Weekly monitoring — 5 invariant checks |
+| `docs/release_notes/2026-02-18_enrollment-concurrency-hardening.md` | Production deploy checklist + rollback plan |
+
+---
+
+## 10. Formal Closure
+
+**Audit closed:** 2026-02-18
+**Closed by:** Sprint — enrollment concurrency hardening (Phase B + RACE-04)
+
+All four TOCTOU race conditions identified in the read-only audit phase are
+resolved. The enrollment pipeline is now protected by three independent layers:
+
+1. **Application-layer guards:** `SELECT FOR UPDATE` (B-03, RACE-04) +
+   atomic SQL UPDATE (B-02, RACE-04) + `IntegrityError` handler (B-01)
+
+2. **DB-level constraints:** `uq_active_enrollment` partial unique index (B-01)
+   + `chk_credit_balance_non_negative` CHECK constraint (B-04)
+
+3. **Monitoring:** `scripts/validate_enrollment_pipeline.py` — weekly verification
+   of all 5 invariants with automated exit code for CI integration
+
+**Production monitoring cadence:** weekly — see
+`docs/release_notes/2026-02-18_enrollment-concurrency-hardening.md`
+for cron schedule and alert conditions.
+
+**Next audit target:** Booking pipeline (session conflicts, double-booking)
+or reward/XP distribution pipeline (concurrent finalization edge cases).
