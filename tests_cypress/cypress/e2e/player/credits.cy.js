@@ -15,6 +15,7 @@ describe('Player / My Credits', () => {
   beforeEach(() => {
     cy.loginAsPlayer();
     cy.navigateTo('/My_Credits');
+    cy.waitForSidebarButton('🔄 Refresh');  // Wait for sidebar buttons to render
   });
 
   // ── Page loads ────────────────────────────────────────────────────────────

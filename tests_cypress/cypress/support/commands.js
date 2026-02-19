@@ -205,6 +205,33 @@ Cypress.Commands.add('waitForAdminTabs', (options = {}) => {
   cy.wait(500);
 });
 
+/**
+ * Wait for sidebar navigation buttons to fully render after login/page load.
+ *
+ * Sidebar buttons render after auth state propagation and role-based conditional
+ * rendering (200-800ms delay). This helper waits for role-specific navigation
+ * buttons to appear.
+ *
+ * Use after login or navigation to dashboards that have sidebar nav buttons.
+ *
+ * @param {string} buttonText  Expected button text (e.g., '🏆 Tournament Manager', '💰 My Credits')
+ * @param {object} options  Optional: { timeout: number }
+ */
+Cypress.Commands.add('waitForSidebarButton', (buttonText, options = {}) => {
+  const timeout = options.timeout || 10000;
+
+  // Wait for sidebar to exist first
+  cy.get('[data-testid="stSidebar"]', { timeout: 5000 }).should('exist');
+
+  // Wait for specific button to appear in sidebar
+  cy.get('[data-testid="stSidebar"]')
+    .contains('[data-testid="stButton"] button', buttonText, { timeout })
+    .should('exist');
+
+  // Brief stabilization pause
+  cy.wait(300);
+});
+
 
 // ── Streamlit widget helpers ─────────────────────────────────────────────────
 

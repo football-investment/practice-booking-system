@@ -24,10 +24,11 @@
 describe('Student / My Credits', () => {
   beforeEach(() => {
     cy.loginAsPlayer();
-    // Click the Credits sidebar button regardless of which landing page the player is on.
-    // Specialization Hub:   '💰 My Credits'
-    // LFA Player Dashboard: '💳 Credits'
-    // cy.contains() accepts regex — this matches both button texts.
+    // Wait for Credits button to render (text varies by landing page)
+    cy.get('[data-testid="stSidebar"]')
+      .contains('[data-testid="stButton"] button', /💰 My Credits|💳 Credits/, { timeout: 10000 })
+      .should('exist');
+    // Click the Credits sidebar button
     cy.clickSidebarButton(/💰 My Credits|💳 Credits/);
   });
 

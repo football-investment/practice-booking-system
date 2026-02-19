@@ -16,6 +16,7 @@ describe('Player / Specialization Hub', () => {
   beforeEach(() => {
     cy.loginAsPlayer();
     cy.navigateTo('/Specialization_Hub');
+    cy.waitForSidebarButton('🔄 Refresh');  // Wait for sidebar buttons to render
   });
 
   // ── Page loads ────────────────────────────────────────────────────────────

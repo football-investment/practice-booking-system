@@ -16,6 +16,7 @@ describe('Admin / Tournament Monitor', () => {
     // loginAsAdmin() lands on Admin Dashboard via st.switch_page().
     // Navigate to Tournament Monitor via sidebar button (same WebSocket session).
     cy.loginAsAdmin();
+    cy.waitForSidebarButton('📡 Tournament Monitor');  // Wait for button to render
     cy.clickSidebarButton('📡 Tournament Monitor');
   });
 
