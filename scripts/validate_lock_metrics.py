@@ -196,14 +196,16 @@ else:
             print(f"  ℹ️  {pipeline:<12} — no events in window")
             continue
 
-        p50 = statistics.median(durations)
-        p95 = statistics.quantiles(durations, n=20)[18] if len(durations) >= 2 else durations[0]
-        p_max = max(durations)
-        count = len(durations)
+        count  = len(durations)
+        p50    = statistics.median(durations)
+        p95    = statistics.quantiles(durations, n=20)[18] if count >= 2 else durations[0]
+        p99    = statistics.quantiles(durations, n=100)[98] if count >= 2 else durations[0]
+        p_max  = max(durations)
 
         print(
             f"  {pipeline:<12}  count={count:>5}  "
-            f"P50={p50:>7.1f} ms  P95={p95:>7.1f} ms  max={p_max:>7.1f} ms"
+            f"P50={p50:>7.1f} ms  P95={p95:>7.1f} ms  "
+            f"P99={p99:>7.1f} ms  max={p_max:>7.1f} ms"
         )
 
         if p95 > P95_ERR_MS:

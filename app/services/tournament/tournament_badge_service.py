@@ -184,7 +184,8 @@ def award_badge(
     )
 
     # Check if badge already exists (prevent duplicates)
-    with lock_timer("reward", "TournamentBadge", user_id, logger):
+    with lock_timer("reward", "TournamentBadge", user_id, logger,
+                    caller="award_badge.duplicate_check"):
         existing_badge = db.query(TournamentBadge).filter(
             TournamentBadge.user_id == user_id,
             TournamentBadge.semester_id == tournament_id,

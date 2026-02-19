@@ -7,12 +7,13 @@ Usage
 
     from app.utils.lock_logger import lock_timer
 
-    with lock_timer("enrollment", "Semester", semester_id, logger):
+    with lock_timer("reward", "Semester", semester_id, logger,
+                    caller="TournamentFinalizer.finalize"):
         row = db.query(Semester).filter(...).with_for_update().one()
         # ... read-modify-write ...
 
 Emits one JSON log line at DEBUG level on entry (lock acquired) and one at
-INFO level on exit (lock released), plus a summary INFO line with duration_ms.
+INFO level on exit (lock released) with duration_ms.
 
 Log schema (all fields always present)
 --------------------------------------
@@ -20,6 +21,8 @@ Log schema (all fields always present)
 ``pipeline``       string label, e.g. ``"enrollment"`` | ``"reward"`` | ``"skill"`` | ``"booking"``
 ``entity_type``    ORM model name, e.g. ``"Semester"`` | ``"UserLicense"``
 ``entity_id``      int or None (None when the id is not known before the query)
+``caller``         dot-qualified function name, e.g. ``"TournamentFinalizer.finalize"``
+                   (empty string when not provided)
 ``lock_acquired_at`` ISO-8601 UTC timestamp (lock_acquired event only)
 ``lock_released_at`` ISO-8601 UTC timestamp (lock_released event only)
 ``duration_ms``    float — wall-clock milliseconds held under lock (lock_released event only)
@@ -29,8 +32,9 @@ Design decisions
 - Uses ``time.perf_counter()`` for sub-millisecond precision.
 - Wall-clock UTC timestamps via ``datetime.now(timezone.utc)``.
 - Emits ``lock_acquired`` at DEBUG so it does not flood production logs.
-- Emits ``lock_released`` at INFO so lock_metrics.py can grep for it.
-- Thread-safe: each ``with`` block has its own local ``t0``.
+- Emits ``lock_released`` at INFO so report_lock_performance.py can parse it.
+- ``caller`` is an explicit string — no inspect.stack() overhead on hot paths.
+- Thread-safe: each ``with`` block has its own local state.
 - Zero external dependencies (stdlib only + project logger).
 """
 from __future__ import annotations
@@ -51,6 +55,7 @@ def lock_timer(
     entity_type: str,
     entity_id: Optional[int],
     logger: logging.Logger,
+    caller: str = "",
 ):
     """
     Context manager that emits structured JSON log lines around a
@@ -68,16 +73,22 @@ def lock_timer(
         the query (e.g. when locking by a composite filter).
     logger:
         ``logging.Logger`` instance from the calling module.
+    caller:
+        Dot-qualified name of the calling function, e.g.
+        ``"TournamentFinalizer.finalize"`` or ``"award_badge"``.
+        Used by ``scripts/report_lock_performance.py`` to break down
+        lock frequency per call site.  Pass ``""`` if not relevant.
     """
     acquired_at = datetime.now(timezone.utc)
     t0 = time.perf_counter()
 
     logger.debug(
         json.dumps({
-            "event":           "lock_acquired",
-            "pipeline":        pipeline,
-            "entity_type":     entity_type,
-            "entity_id":       entity_id,
+            "event":            "lock_acquired",
+            "pipeline":         pipeline,
+            "entity_type":      entity_type,
+            "entity_id":        entity_id,
+            "caller":           caller,
             "lock_acquired_at": acquired_at.isoformat(),
         })
     )
@@ -95,6 +106,7 @@ def lock_timer(
                 "pipeline":         pipeline,
                 "entity_type":      entity_type,
                 "entity_id":        entity_id,
+                "caller":           caller,
                 "lock_released_at": released_at.isoformat(),
                 "duration_ms":      duration_ms,
             })

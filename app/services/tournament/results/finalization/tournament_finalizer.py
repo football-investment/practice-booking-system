@@ -267,7 +267,8 @@ class TournamentFinalizer:
         # so we see any status committed by a racing thread.
         # lock_timer measures wall-clock time from FOR UPDATE through db.commit()
         # — this is the true PostgreSQL lock hold time for the Semester row.
-        with lock_timer("reward", "Semester", tournament.id, logger):
+        with lock_timer("reward", "Semester", tournament.id, logger,
+                        caller="TournamentFinalizer.finalize"):
             tournament = self.db.query(Semester).filter(
                 Semester.id == tournament.id
             ).with_for_update().one()

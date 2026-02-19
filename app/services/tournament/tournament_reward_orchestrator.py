@@ -259,7 +259,8 @@ def distribute_rewards_for_user(
     # for the same (user_id, tournament_id) pair.  Thread B blocks here until
     # Thread A commits, then sees the committed row and returns early.
     # ========================================================================
-    with lock_timer("reward", "TournamentParticipation", user_id, logger):
+    with lock_timer("reward", "TournamentParticipation", user_id, logger,
+                    caller="distribute_rewards_for_user.idempotency_guard"):
         existing_participation = db.query(TournamentParticipation).filter(
             TournamentParticipation.user_id == user_id,
             TournamentParticipation.semester_id == tournament_id
@@ -333,7 +334,8 @@ def distribute_rewards_for_user(
             # Prevents two concurrent distributions from both reading stale skills,
             # merging independently, and last-writer-wins overwriting the other.
             # lock_timer measures time from FOR UPDATE through flag_modified (true hold time).
-            with lock_timer("skill", "UserLicense", None, logger):
+            with lock_timer("skill", "UserLicense", None, logger,
+                            caller="distribute_rewards_for_user.skill_writeback"):
                 active_license = db.query(UserLicense).filter(
                     UserLicense.user_id == user_id,
                     UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",

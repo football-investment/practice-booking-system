@@ -120,7 +120,8 @@ class FootballSkillService:
         # Lock order: both paths target the same physical row; whichever arrives first
         # holds the lock and the other blocks — no deadlock possible.
         # lock_timer measures time from FOR UPDATE through flag_modified (true hold time).
-        with lock_timer("skill", "UserLicense", user_license_id, logger):
+        with lock_timer("skill", "UserLicense", user_license_id, logger,
+                        caller="FootballSkillService.recalculate_skill_average"):
             license = self.db.query(UserLicense).filter(
                 UserLicense.id == user_license_id
             ).with_for_update().first()
