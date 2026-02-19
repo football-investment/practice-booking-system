@@ -13,6 +13,7 @@ import logging
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.models.user import User
+from app.utils.lock_logger import lock_timer
 from app.schemas.tournament_rewards import (
     TournamentRewardResult,
     ParticipationReward,
@@ -258,10 +259,11 @@ def distribute_rewards_for_user(
     # for the same (user_id, tournament_id) pair.  Thread B blocks here until
     # Thread A commits, then sees the committed row and returns early.
     # ========================================================================
-    existing_participation = db.query(TournamentParticipation).filter(
-        TournamentParticipation.user_id == user_id,
-        TournamentParticipation.semester_id == tournament_id
-    ).with_for_update().first()
+    with lock_timer("reward", "TournamentParticipation", user_id, logger):
+        existing_participation = db.query(TournamentParticipation).filter(
+            TournamentParticipation.user_id == user_id,
+            TournamentParticipation.semester_id == tournament_id
+        ).with_for_update().first()
 
     if existing_participation and not force_redistribution:
         # Already distributed - return existing summary
@@ -330,59 +332,61 @@ def distribute_rewards_for_user(
             # R04: Lock UserLicense row before reading football_skills JSONB.
             # Prevents two concurrent distributions from both reading stale skills,
             # merging independently, and last-writer-wins overwriting the other.
-            active_license = db.query(UserLicense).filter(
-                UserLicense.user_id == user_id,
-                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
-                UserLicense.is_active == True
-            ).with_for_update().first()
+            # lock_timer measures time from FOR UPDATE through flag_modified (true hold time).
+            with lock_timer("skill", "UserLicense", None, logger):
+                active_license = db.query(UserLicense).filter(
+                    UserLicense.user_id == user_id,
+                    UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+                    UserLicense.is_active == True
+                ).with_for_update().first()
 
-            if active_license and active_license.football_skills and participation_record:
-                # Compute the full skill profile from all participations (idempotent)
-                skill_profile = skill_progression_service.get_skill_profile(db, user_id)
-                computed = skill_profile.get("skills", {})
+                if active_license and active_license.football_skills and participation_record:
+                    # Compute the full skill profile from all participations (idempotent)
+                    skill_profile = skill_progression_service.get_skill_profile(db, user_id)
+                    computed = skill_profile.get("skills", {})
 
-                if computed:
-                    updated_skills = dict(active_license.football_skills)
+                    if computed:
+                        updated_skills = dict(active_license.football_skills)
 
-                    # S03: promote any float-format entries to dict before the merge loop.
-                    # Prevents silent omission of skills written by the assessment path
-                    # (FootballSkillService) or by V1 onboarding (bare float format).
-                    for sk in list(updated_skills.keys()):
-                        updated_skills[sk] = _normalise_skill_entry(updated_skills[sk])
+                        # S03: promote any float-format entries to dict before the merge loop.
+                        # Prevents silent omission of skills written by the assessment path
+                        # (FootballSkillService) or by V1 onboarding (bare float format).
+                        for sk in list(updated_skills.keys()):
+                            updated_skills[sk] = _normalise_skill_entry(updated_skills[sk])
 
-                    changed = 0
-                    for skill_key, sdata in computed.items():
-                        if skill_key not in updated_skills:
-                            continue
-                        entry = updated_skills[skill_key]
-                        if not isinstance(entry, dict):
-                            # Should not happen after normalisation — defensive guard
-                            continue
-                        # Only update delta-related fields; preserve baseline & assessment fields
-                        entry["current_level"]    = sdata["current_level"]
-                        entry["tournament_delta"] = sdata["tournament_delta"]
-                        entry["total_delta"]      = sdata["total_delta"]
-                        entry["tournament_count"] = sdata["tournament_count"]
-                        entry["last_updated"]     = datetime.now(timezone.utc).isoformat()
-                        updated_skills[skill_key] = entry
-                        changed += 1
+                        changed = 0
+                        for skill_key, sdata in computed.items():
+                            if skill_key not in updated_skills:
+                                continue
+                            entry = updated_skills[skill_key]
+                            if not isinstance(entry, dict):
+                                # Should not happen after normalisation — defensive guard
+                                continue
+                            # Only update delta-related fields; preserve baseline & assessment fields
+                            entry["current_level"]    = sdata["current_level"]
+                            entry["tournament_delta"] = sdata["tournament_delta"]
+                            entry["total_delta"]      = sdata["total_delta"]
+                            entry["tournament_count"] = sdata["tournament_count"]
+                            entry["last_updated"]     = datetime.now(timezone.utc).isoformat()
+                            updated_skills[skill_key] = entry
+                            changed += 1
 
-                    active_license.football_skills = updated_skills
-                    active_license.skills_last_updated_at = datetime.now(timezone.utc)
-                    active_license.skills_updated_by = distributed_by or user_id
-                    flag_modified(active_license, "football_skills")
-                    logger.info(
-                        f"✅ Persisted skill deltas for user {user_id} "
-                        f"(license {active_license.id}): {changed} skills updated, "
-                        f"placement={participation_record.placement}"
+                        active_license.football_skills = updated_skills
+                        active_license.skills_last_updated_at = datetime.now(timezone.utc)
+                        active_license.skills_updated_by = distributed_by or user_id
+                        flag_modified(active_license, "football_skills")
+                        logger.info(
+                            f"✅ Persisted skill deltas for user {user_id} "
+                            f"(license {active_license.id}): {changed} skills updated, "
+                            f"placement={participation_record.placement}"
+                        )
+                else:
+                    logger.warning(
+                        f"Skipped skill write-back: user_id={user_id}, "
+                        f"has_license={active_license is not None}, "
+                        f"has_skills={active_license.football_skills is not None if active_license else False}, "
+                        f"has_participation={participation_record is not None}"
                     )
-            else:
-                logger.warning(
-                    f"Skipped skill write-back: user_id={user_id}, "
-                    f"has_license={active_license is not None}, "
-                    f"has_skills={active_license.football_skills is not None if active_license else False}, "
-                    f"has_participation={participation_record is not None}"
-                )
         except Exception as e:
             logger.error(f"Failed to persist skill deltas for user {user_id}: {e}", exc_info=True)
             # Non-fatal: badges and XP are still awarded even if skill write-back fails

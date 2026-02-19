@@ -14,6 +14,7 @@ import logging
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
 from app.models.tournament_enums import TournamentPhase
+from app.utils.lock_logger import lock_timer
 
 logger = logging.getLogger(__name__)
 
@@ -264,78 +265,81 @@ class TournamentFinalizer:
         # R01/R03: Lock tournament row before any mutation — serialises concurrent
         # finalize() calls (auto-path + manual admin trigger).  Re-read after lock
         # so we see any status committed by a racing thread.
-        tournament = self.db.query(Semester).filter(
-            Semester.id == tournament.id
-        ).with_for_update().one()
+        # lock_timer measures wall-clock time from FOR UPDATE through db.commit()
+        # — this is the true PostgreSQL lock hold time for the Semester row.
+        with lock_timer("reward", "Semester", tournament.id, logger):
+            tournament = self.db.query(Semester).filter(
+                Semester.id == tournament.id
+            ).with_for_update().one()
 
-        # Idempotency guard: if already finalized, return without re-distributing.
-        if tournament.tournament_status in _FINALIZED_STATUSES:
-            logger.info(
-                "finalize() called on already-finalized tournament %d (status=%s) — "
-                "returning idempotent result.",
-                tournament.id, tournament.tournament_status,
-            )
-            return {
-                "success": True,
-                "message": "Tournament already finalized (idempotent — no duplicate distribution)",
-                "tournament_status": tournament.tournament_status,
-            }
+            # Idempotency guard: if already finalized, return without re-distributing.
+            if tournament.tournament_status in _FINALIZED_STATUSES:
+                logger.info(
+                    "finalize() called on already-finalized tournament %d (status=%s) — "
+                    "returning idempotent result.",
+                    tournament.id, tournament.tournament_status,
+                )
+                return {
+                    "success": True,
+                    "message": "Tournament already finalized (idempotent — no duplicate distribution)",
+                    "tournament_status": tournament.tournament_status,
+                }
 
-        # Get all tournament sessions
-        all_sessions = self.get_all_sessions(tournament.id)
+            # Get all tournament sessions
+            all_sessions = self.get_all_sessions(tournament.id)
 
-        if not all_sessions:
-            return {
-                "success": False,
-                "message": "No tournament matches found"
-            }
+            if not all_sessions:
+                return {
+                    "success": False,
+                    "message": "No tournament matches found"
+                }
 
-        # Check if all matches are completed
-        all_completed, incomplete_matches = self.check_all_matches_completed(
-            all_sessions
-        )
-
-        if not all_completed:
-            return {
-                "success": False,
-                "message": f"{len(incomplete_matches)} matches are not completed yet",
-                "incomplete_matches": incomplete_matches
-            }
-
-        # Extract final rankings from final matches
-        final_rankings = self.extract_final_rankings(tournament.id)
-
-        # Update tournament_rankings table
-        self.update_tournament_rankings_table(tournament.id, final_rankings)
-
-        # Update tournament status to COMPLETED first
-        tournament.tournament_status = "COMPLETED"
-        self.db.flush()
-
-        # Auto-distribute rewards as part of the lifecycle
-        # COMPLETED → distribute_rewards → REWARDS_DISTRIBUTED
-        final_status = "COMPLETED"
-        rewards_message = None
-        try:
-            from app.services.tournament.tournament_reward_orchestrator import distribute_rewards_for_tournament
-            # Returns BulkRewardDistributionResult (Pydantic model)
-            reward_result = distribute_rewards_for_tournament(db=self.db, tournament_id=tournament.id)
-            players_rewarded = len(reward_result.rewards_distributed)
-            tournament.tournament_status = "REWARDS_DISTRIBUTED"
-            final_status = "REWARDS_DISTRIBUTED"
-            rewards_message = f"Rewards distributed to {players_rewarded} players"
-            logger.info(
-                "✅ Auto reward distribution completed for tournament %d: %s",
-                tournament.id, rewards_message
-            )
-        except Exception as e:
-            logger.error(
-                "❌ Auto reward distribution failed for tournament %d: %s — "
-                "tournament remains COMPLETED, rewards can be retried manually.",
-                tournament.id, e
+            # Check if all matches are completed
+            all_completed, incomplete_matches = self.check_all_matches_completed(
+                all_sessions
             )
 
-        self.db.commit()
+            if not all_completed:
+                return {
+                    "success": False,
+                    "message": f"{len(incomplete_matches)} matches are not completed yet",
+                    "incomplete_matches": incomplete_matches
+                }
+
+            # Extract final rankings from final matches
+            final_rankings = self.extract_final_rankings(tournament.id)
+
+            # Update tournament_rankings table
+            self.update_tournament_rankings_table(tournament.id, final_rankings)
+
+            # Update tournament status to COMPLETED first
+            tournament.tournament_status = "COMPLETED"
+            self.db.flush()
+
+            # Auto-distribute rewards as part of the lifecycle
+            # COMPLETED → distribute_rewards → REWARDS_DISTRIBUTED
+            final_status = "COMPLETED"
+            rewards_message = None
+            try:
+                from app.services.tournament.tournament_reward_orchestrator import distribute_rewards_for_tournament
+                # Returns BulkRewardDistributionResult (Pydantic model)
+                reward_result = distribute_rewards_for_tournament(db=self.db, tournament_id=tournament.id)
+                players_rewarded = len(reward_result.rewards_distributed)
+                tournament.tournament_status = "REWARDS_DISTRIBUTED"
+                final_status = "REWARDS_DISTRIBUTED"
+                rewards_message = f"Rewards distributed to {players_rewarded} players"
+                logger.info(
+                    "✅ Auto reward distribution completed for tournament %d: %s",
+                    tournament.id, rewards_message
+                )
+            except Exception as e:
+                logger.error(
+                    "❌ Auto reward distribution failed for tournament %d: %s — "
+                    "tournament remains COMPLETED, rewards can be retried manually.",
+                    tournament.id, e
+                )
+
+            self.db.commit()
 
         result = {
             "success": True,

@@ -25,6 +25,7 @@ from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.models.session import Session as SessionModel
 from app.schemas.reward_config import TournamentRewardConfig
+from app.utils.lock_logger import lock_timer
 
 logger = logging.getLogger(__name__)
 
@@ -183,11 +184,12 @@ def award_badge(
     )
 
     # Check if badge already exists (prevent duplicates)
-    existing_badge = db.query(TournamentBadge).filter(
-        TournamentBadge.user_id == user_id,
-        TournamentBadge.semester_id == tournament_id,
-        TournamentBadge.badge_type == badge_type
-    ).with_for_update().first()
+    with lock_timer("reward", "TournamentBadge", user_id, logger):
+        existing_badge = db.query(TournamentBadge).filter(
+            TournamentBadge.user_id == user_id,
+            TournamentBadge.semester_id == tournament_id,
+            TournamentBadge.badge_type == badge_type
+        ).with_for_update().first()
 
     if existing_badge:
         return existing_badge  # Don't award duplicate badges

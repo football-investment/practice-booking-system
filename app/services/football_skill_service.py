@@ -15,6 +15,7 @@ from ..models.license import UserLicense
 from ..models.user import User
 from ..models.skill_reward import SkillReward
 from ..skills_config import get_all_skill_keys
+from app.utils.lock_logger import lock_timer
 
 logger = logging.getLogger(__name__)
 
@@ -118,25 +119,27 @@ class FootballSkillService:
         # that also hold FOR UPDATE on the same UserLicense row (Step 1.5 in orchestrator).
         # Lock order: both paths target the same physical row; whichever arrives first
         # holds the lock and the other blocks — no deadlock possible.
-        license = self.db.query(UserLicense).filter(
-            UserLicense.id == user_license_id
-        ).with_for_update().first()
-        if license:
-            if not license.football_skills:
-                license.football_skills = {}
+        # lock_timer measures time from FOR UPDATE through flag_modified (true hold time).
+        with lock_timer("skill", "UserLicense", user_license_id, logger):
+            license = self.db.query(UserLicense).filter(
+                UserLicense.id == user_license_id
+            ).with_for_update().first()
+            if license:
+                if not license.football_skills:
+                    license.football_skills = {}
 
-            existing = license.football_skills.get(skill_name)
-            if isinstance(existing, dict):
-                # S03: dict-format entry (V2 / tournament path) — preserve structure.
-                # Only update the 'baseline' sub-key; leave current_level / deltas intact.
-                existing["baseline"] = average
-                license.football_skills[skill_name] = existing
-            else:
-                # Scalar-format entry (V1 / assessment-only user) — write as float.
-                license.football_skills[skill_name] = average
+                existing = license.football_skills.get(skill_name)
+                if isinstance(existing, dict):
+                    # S03: dict-format entry (V2 / tournament path) — preserve structure.
+                    # Only update the 'baseline' sub-key; leave current_level / deltas intact.
+                    existing["baseline"] = average
+                    license.football_skills[skill_name] = existing
+                else:
+                    # Scalar-format entry (V1 / assessment-only user) — write as float.
+                    license.football_skills[skill_name] = average
 
-            # Mark as modified (for JSON field)
-            flag_modified(license, 'football_skills')
+                # Mark as modified (for JSON field)
+                flag_modified(license, 'football_skills')
 
         return average
 
