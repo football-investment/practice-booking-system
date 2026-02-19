@@ -1,0 +1,131 @@
+# =============================================================================
+# docker-compose.test.yml — Champion Badge Regression Guard (containerised)
+# =============================================================================
+#
+# Orchestrates a complete, isolated test environment:
+#   db          → PostgreSQL 16 (ephemeral, test data only)
+#   api-migrate → Alembic schema migrations (runs once)
+#   db-seed     → Seeds junior.intern@lfa.com + CHAMPION badge (runs once)
+#   api         → FastAPI backend (waits for db-seed complete)
+#   streamlit   → Streamlit frontend on port 8599 (waits for api healthy)
+#   e2e-tests   → Playwright test runner (waits for streamlit healthy)
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+#   docker compose -f docker-compose.test.yml logs -f e2e-tests
+#   docker compose -f docker-compose.test.yml down -v   # full teardown + volumes
+#
+# Screenshots on failure are written to tests_e2e/screenshots/ (bind-mounted).
+# =============================================================================
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lfa_test
+    # Ephemeral volume — destroyed on `down -v`
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  # ── FastAPI migrations + server ─────────────────────────────────────────────
+  api-migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+    command: >
+      sh -c "alembic upgrade head && echo 'Migrations complete'"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Test data seed ──────────────────────────────────────────────────────────
+  db-seed:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+    command: >
+      python scripts/seed_champion_test_data.py
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+    command: >
+      uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --workers 1
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
+    depends_on:
+      db:
+        condition: service_healthy
+      db-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/docs"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+
+  # ── Streamlit frontend ───────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+    command: >
+      python3 -m streamlit run "streamlit_app/🏠_Home.py"
+        --server.port 8599
+        --server.headless true
+        --server.address 0.0.0.0
+        --browser.gatherUsageStats false
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
+      API_BASE_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8599"]
+      interval: 5s
+      timeout: 15s
+      retries: 20
+
+  # ── E2E test runner ──────────────────────────────────────────────────────────
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+    command: >
+      python3 -m pytest
+        tests_e2e/test_champion_badge_regression.py
+          ::test_champion_badge_no_ranking_data_regression
+        -v -s --tb=short --no-header
+    environment:
+      CHAMPION_TEST_URL: http://streamlit:8599
+    depends_on:
+      streamlit:
+        condition: service_healthy
+    # Screenshots bind-mounted so they survive container exit
+    volumes:
+      - ./tests_e2e/screenshots:/app/tests_e2e/screenshots
+    # Exit code propagates to `docker compose up --abort-on-container-exit`
+    restart: "no"

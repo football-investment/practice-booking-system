@@ -4,14 +4,13 @@ Handles intelligent session visibility based on user specializations and project
 """
 
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 
 from ..models.user import User, UserRole
-from ..models.session import Session as SessionModel
+from ..models.session import Session as SessionTypel
 from ..models.project import Project, ProjectEnrollment
-from ..models.semester import Semester
 
 # ProjectSession might not exist yet - let's simplify for now
 # from ..models.project_session import ProjectSession
@@ -45,7 +44,6 @@ class SessionFilterService:
             specialization = UserSpecialization.GENERAL
             self._user_specialization_cache[user.id] = specialization
             return specialization
-            
         # Check user's enrolled projects
         enrolled_projects = self.db.query(Project).join(
             ProjectEnrollment
@@ -96,7 +94,7 @@ class SessionFilterService:
         self._user_specialization_cache[user.id] = specialization
         return specialization
     
-    def get_session_target_groups(self, session: SessionModel) -> List[str]:
+    def get_session_target_groups(self, session: SessionTypel) -> List[str]:
         """
         Determine which user groups a session is targeted for
         Enhanced to handle parallel semesters and shared sessions
@@ -142,7 +140,7 @@ class SessionFilterService:
             
         return target_groups
     
-    def get_relevant_sessions_for_user(self, user: User, base_query, limit: int = None) -> List[SessionModel]:
+    def get_relevant_sessions_for_user(self, user: User, base_query, limit: int = None) -> List[SessionTypel]:
         """
         Filter sessions based on user specialization and relevance
         Optimized for performance with optional result limiting
@@ -178,7 +176,7 @@ class SessionFilterService:
     
     def _calculate_session_relevance(
         self, 
-        session: SessionModel, 
+        session: SessionTypel, 
         user: User, 
         user_specialization: str
     ) -> float:
@@ -262,3 +260,54 @@ class SessionFilterService:
                 'interest_matching': user.interests is not None
             }
         }
+
+    def apply_specialization_filter(
+        self,
+        query,
+        user: User,
+        include_mixed: bool = True
+    ):
+        """
+        Apply specialization filtering to session query.
+
+        Extracted from list_sessions() lines 123-146 (Phase 0 analysis).
+        Only applies to STUDENTS with specialization - skips admin/instructor.
+
+        Args:
+            query: SQLAlchemy query for sessions
+            user: Current user
+            include_mixed: Include mixed specialization sessions (default: True)
+
+        Returns:
+            Filtered query
+
+        Complexity: B (6) - role check + hasattr + 3 OR conditions
+        """
+        # Only apply to STUDENTS with specialization
+        if user.role != UserRole.STUDENT:
+            return query
+
+        if not (hasattr(user, 'has_specialization') and user.has_specialization):
+            return query
+
+        specialization_conditions = []
+
+        # Sessions with no specific target (accessible to all)
+        specialization_conditions.append(SessionTypel.target_specialization.is_(None))
+
+        # Sessions matching user's specialization
+        if user.specialization:
+            specialization_conditions.append(
+                SessionTypel.target_specialization == user.specialization
+            )
+
+        # Mixed specialization sessions (if include_mixed is True)
+        if include_mixed:
+            specialization_conditions.append(SessionTypel.mixed_specialization == True)
+
+        query = query.filter(or_(*specialization_conditions))
+
+        if user.specialization:
+            print(f"🎓 Specialization filtering applied for {user.name}: {user.specialization.value}")
+
+        return query

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Semester Enrollment - LFA{% endblock %}
+
+{% block content %}
+<!-- COLORED SPECIALIZATION SWITCHER CARD -->
+{% if user.role.value == 'student' and specialization_color and user.specialization %}
+<div style="background: {{ specialization_color }}; color: white; padding: 1.5rem; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin-bottom: 1.5rem; border-radius: 12px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="font-size: 1.4rem; font-weight: 700; flex: 1; min-width: 250px;">
+            {% if user.specialization.value == 'GANCUJU_PLAYER' %}
+                🥋 ACTIVE: GānCuju Player
+            {% elif user.specialization.value == 'LFA_FOOTBALL_PLAYER' %}
+                ⚽ ACTIVE: LFA Football Player
+            {% elif user.specialization.value == 'LFA_COACH' %}
+                👨‍🏫 ACTIVE: LFA Coach
+            {% elif user.specialization.value == 'INTERNSHIP' %}
+                💼 ACTIVE: Internship
+            {% endif %}
+        </div>
+
+        {% if user_licenses and user_licenses|length > 1 %}
+        <form method="POST" action="/specialization/switch" style="display: flex; align-items: center; gap: 0.8rem;">
+            <input type="hidden" name="return_url" value="/semesters/enroll">
+            <select name="specialization" style="padding: 0.7rem 1.2rem; border: 3px solid white; border-radius: 8px; font-size: 1rem; font-weight: 600; background-color: white; color: #2c3e50; min-width: 200px; cursor: pointer;">
+                {% for license in user_licenses %}
+                    {% if license.specialization_type == 'GANCUJU_PLAYER' %}
+                        <option value="GANCUJU_PLAYER" {% if user.specialization.value == 'GANCUJU_PLAYER' %}selected{% endif %}>🥋 GānCuju Player</option>
+                    {% elif license.specialization_type == 'LFA_FOOTBALL_PLAYER' %}
+                        <option value="LFA_FOOTBALL_PLAYER" {% if user.specialization.value == 'LFA_FOOTBALL_PLAYER' %}selected{% endif %}>⚽ LFA Football Player</option>
+                    {% elif license.specialization_type == 'LFA_COACH' %}
+                        <option value="LFA_COACH" {% if user.specialization.value == 'LFA_COACH' %}selected{% endif %}>👨‍🏫 LFA Coach</option>
+                    {% elif license.specialization_type == 'INTERNSHIP' %}
+                        <option value="INTERNSHIP" {% if user.specialization.value == 'INTERNSHIP' %}selected{% endif %}>💼 Internship</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <button type="submit" style="padding: 0.7rem 1.8rem; font-size: 1.05rem; font-weight: 700; background: white; color: {{ specialization_color }}; border: 3px solid white; border-radius: 8px; cursor: pointer; box-shadow: 0 3px 6px rgba(0,0,0,0.3); transition: all 0.2s;">
+                🔄 SWITCH
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="welcome-section" {% if specialization_color %}style="background: {{ specialization_color }}; color: white;"{% endif %}>
+    <h1>📅 Semester Enrollment</h1>
+    <p>Request enrollment in available semesters for your specialization</p>
+</div>
+
+<div class="card">
+    <h2>Available Semesters
+        {% if user.specialization %}
+            {% if user.specialization.value == 'GANCUJU_PLAYER' %}
+                (🥋 GānCuju Player)
+            {% elif user.specialization.value == 'LFA_FOOTBALL_PLAYER' %}
+                (⚽ LFA Football Player)
+            {% elif user.specialization.value == 'LFA_COACH' %}
+                (👨‍🏫 LFA Coach)
+            {% elif user.specialization.value == 'INTERNSHIP' %}
+                (💼 Internship)
+            {% endif %}
+        {% endif %}
+    </h2>
+
+    {% if not user.specialization %}
+    <div style="padding: 2rem; text-align: center; background: #fff3cd; border-radius: 8px; margin-top: 1rem;">
+        <h3 style="color: #856404; margin: 0 0 1rem 0;">⚠️ No Specialization Selected</h3>
+        <p style="color: #856404; margin: 0;">Please select a specialization first to view available semesters.</p>
+        <a href="/dashboard" class="btn btn-primary" style="margin-top: 1rem; display: inline-block; padding: 0.75rem 1.5rem; background: #667eea; color: white; text-decoration: none; border-radius: 6px;">
+            Go to Dashboard
+        </a>
+    </div>
+    {% elif available_semesters|length == 0 %}
+    <div style="padding: 2rem; text-align: center; background: #f8f9fa; border-radius: 8px; margin-top: 1rem;">
+        <h3 style="color: #6c757d; margin: 0 0 1rem 0;">📭 No Semesters Available</h3>
+        <p style="color: #6c757d; margin: 0;">There are currently no semesters available for this specialization.</p>
+    </div>
+    {% else %}
+    <div style="margin-top: 1.5rem;">
+        {% for semester in available_semesters %}
+        <div style="background: {{ specialization_color if specialization_color else '#667eea' }}; border: 2px solid {{ specialization_color if specialization_color else '#667eea' }}; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1rem;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.3rem;">{{ semester.name }}</h3>
+                    <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
+                        <strong>Period:</strong> {{ semester.start_date.strftime('%B %d, %Y') }} - {{ semester.end_date.strftime('%B %d, %Y') }}
+                    </p>
+
+                    {% set enrollment = enrollment_map.get(semester.id) %}
+                    {% if enrollment %}
+                    <div style="margin-top: 1rem; padding: 1rem; border-radius: 8px;
+                        {% if enrollment.request_status.value == 'APPROVED' %}
+                            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                        {% elif enrollment.request_status.value == 'PENDING' %}
+                            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                        {% elif enrollment.request_status.value == 'REJECTED' %}
+                            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                        {% endif %}">
+                        <p style="color: white; margin: 0; font-weight: 600; font-size: 1rem;">
+                            {{ enrollment.status_display }}
+                        </p>
+                        {% if enrollment.request_status.value == 'APPROVED' %}
+                            <small style="color: rgba(255,255,255,0.9); display: block; margin-top: 0.3rem;">
+                                Enrolled on {{ enrollment.enrolled_at.strftime('%B %d, %Y') if enrollment.enrolled_at else enrollment.approved_at.strftime('%B %d, %Y') }}
+                            </small>
+                        {% elif enrollment.request_status.value == 'PENDING' %}
+                            <small style="color: rgba(255,255,255,0.9); display: block; margin-top: 0.3rem;">
+                                Requested on {{ enrollment.requested_at.strftime('%B %d, %Y') }}
+                            </small>
+                        {% elif enrollment.request_status.value == 'REJECTED' and enrollment.rejection_reason %}
+                            <small style="color: rgba(255,255,255,0.9); display: block; margin-top: 0.3rem;">
+                                Reason: {{ enrollment.rejection_reason }}
+                            </small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    {% if not enrollment %}
+                    <form method="POST" action="/semesters/request-enrollment">
+                        <input type="hidden" name="semester_id" value="{{ semester.id }}">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.5rem; background: white; color: {{ specialization_color if specialization_color else '#667eea' }}; border: 2px solid white; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            📝 Request Enrollment
+                        </button>
+                    </form>
+                    {% elif enrollment.request_status.value == 'PENDING' %}
+                    <form method="POST" action="/semesters/withdraw-enrollment">
+                        <input type="hidden" name="enrollment_id" value="{{ enrollment.id }}">
+                        <button type="submit" class="btn" style="padding: 0.75rem 1.5rem; background: white; color: #e74c3c; border: 2px solid white; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            🚫 Withdraw Request
+                        </button>
+                    </form>
+                    {% elif enrollment.request_status.value == 'REJECTED' %}
+                    <form method="POST" action="/semesters/request-enrollment">
+                        <input type="hidden" name="semester_id" value="{{ semester.id }}">
+                        <button type="submit" class="btn" style="padding: 0.75rem 1.5rem; background: white; color: #f39c12; border: 2px solid white; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            🔄 Request Again
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

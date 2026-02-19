@@ -8,10 +8,10 @@ from ..database import Base
 
 
 class BookingStatus(enum.Enum):
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
-    CANCELLED = "cancelled"
-    WAITLISTED = "waitlisted"
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    WAITLISTED = "WAITLISTED"
 
 
 class Booking(Base):
@@ -26,15 +26,19 @@ class Booking(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     cancelled_at = Column(DateTime, nullable=True)
-    
+
     # NEW: Track attendance status for easier queries
     attended_status = Column(String(20), nullable=True)
+
+    # NEW: Link booking to tournament enrollment (for tournaments only)
+    enrollment_id = Column(Integer, ForeignKey("semester_enrollments.id"), nullable=True, index=True)
 
     # Relationships
     user = relationship("User", back_populates="bookings")
     session = relationship("Session", back_populates="bookings")
     attendance = relationship("Attendance", back_populates="booking", uselist=False)
     notifications = relationship("Notification", back_populates="related_booking")
+    enrollment = relationship("SemesterEnrollment", back_populates="bookings")
 
     @hybrid_property
     def attended(self):

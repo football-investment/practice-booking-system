@@ -2,18 +2,21 @@
 Analytics endpoints - FIXED VERSION
 Claude Code broke these - now they work with real models
 """
+import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, text, case
+from sqlalchemy import func, and_, case
 
 from app.database import get_db
 from app.dependencies import get_current_admin_or_instructor_user
 from app.models.user import User, UserRole
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionTypel
 from app.models.booking import Booking, BookingStatus
 from app.models.attendance import Attendance, AttendanceStatus
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,23 +38,22 @@ async def get_analytics_metrics(
             start_date = (datetime.now().date() - timedelta(days=30)).isoformat()
         
         # Build base queries with CORRECT model fields
-        sessions_query = db.query(SessionModel).filter(
+        sessions_query = db.query(SessionTypel).filter(
             and_(
-                SessionModel.date_start >= datetime.fromisoformat(start_date),
-                SessionModel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
+                SessionTypel.date_start >= datetime.fromisoformat(start_date),
+                SessionTypel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
             )
         )
-        
-        bookings_query = db.query(Booking).join(SessionModel).filter(
+        bookings_query = db.query(Booking).join(SessionTypel).filter(
             and_(
-                SessionModel.date_start >= datetime.fromisoformat(start_date),
-                SessionModel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
+                SessionTypel.date_start >= datetime.fromisoformat(start_date),
+                SessionTypel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
             )
         )
         
         if semester_id:
-            sessions_query = sessions_query.filter(SessionModel.semester_id == semester_id)
-            bookings_query = bookings_query.filter(SessionModel.semester_id == semester_id)
+            sessions_query = sessions_query.filter(SessionTypel.semester_id == semester_id)
+            bookings_query = bookings_query.filter(SessionTypel.semester_id == semester_id)
         
         # Basic counts using ACTUAL fields
         total_sessions = sessions_query.count()
@@ -60,11 +62,12 @@ async def get_analytics_metrics(
         # Check ACTUAL booking status enum values
         try:
             confirmed_bookings = bookings_query.filter(Booking.status == BookingStatus.CONFIRMED).count()
-        except:
+        except Exception as e:
+            logger.error(f"Error filtering confirmed bookings by status: {e}")
             confirmed_bookings = bookings_query.filter(Booking.status.isnot(None)).count()
         
         # Calculate capacity
-        total_capacity = sessions_query.with_entities(func.sum(SessionModel.capacity)).scalar() or 0
+        total_capacity = sessions_query.with_entities(func.sum(SessionTypel.capacity)).scalar() or 0
         
         # Safe calculations
         booking_rate = round((confirmed_bookings / total_capacity * 100), 1) if total_capacity > 0 else 0
@@ -160,17 +163,17 @@ async def get_attendance_analytics(
         try:
             # Get attendance data with actual status
             attendance_query = db.query(
-                func.date(SessionModel.date_start).label('date'),
+                func.date(SessionTypel.date_start).label('date'),
                 func.count(Attendance.id).label('total_records'),
                 func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('attended_count')
             ).join(Booking, Attendance.booking_id == Booking.id
-            ).join(SessionModel, Booking.session_id == SessionModel.id
+            ).join(SessionTypel, Booking.session_id == SessionTypel.id
             ).filter(
                 and_(
-                    SessionModel.date_start >= datetime.fromisoformat(start_date),
-                    SessionModel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
+                    SessionTypel.date_start >= datetime.fromisoformat(start_date),
+                    SessionTypel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
                 )
-            ).group_by(func.date(SessionModel.date_start)).all()
+            ).group_by(func.date(SessionTypel.date_start)).all()
             
             return [
                 {
@@ -208,15 +211,15 @@ async def get_utilization_analytics(
         
         # Safe session utilization query
         sessions_query = db.query(
-            SessionModel.id.label('session_id'),
-            SessionModel.capacity,
+            SessionTypel.id.label('session_id'),
+            SessionTypel.capacity,
             func.count(Booking.id).label('booking_count')
         ).outerjoin(Booking).filter(
             and_(
-                SessionModel.date_start >= datetime.fromisoformat(start_date),
-                SessionModel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
+                SessionTypel.date_start >= datetime.fromisoformat(start_date),
+                SessionTypel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
             )
-        ).group_by(SessionModel.id, SessionModel.capacity).all()
+        ).group_by(SessionTypel.id, SessionTypel.capacity).all()
         
         utilization_data = []
         for session in sessions_query:
@@ -254,10 +257,10 @@ async def get_booking_analytics(
         booking_trends = db.query(
             func.date(Booking.created_at).label('date'),
             func.count(Booking.id).label('booking_count')
-        ).join(SessionModel).filter(
+        ).join(SessionTypel).filter(
             and_(
-                SessionModel.date_start >= datetime.fromisoformat(start_date),
-                SessionModel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
+                SessionTypel.date_start >= datetime.fromisoformat(start_date),
+                SessionTypel.date_start <= datetime.fromisoformat(end_date + "T23:59:59")
             )
         ).group_by(func.date(Booking.created_at)).all()
         

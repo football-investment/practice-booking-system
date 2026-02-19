@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics & Reports - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>📊 Analytics & Reports</h1>
+    <p>Platform statistics and performance metrics</p>
+</div>
+
+<div class="cards-grid">
+    <div class="card">
+        <h2>👥 Total Users</h2>
+        <p style="font-size: 3rem; font-weight: 700; color: #3498db; margin: 1rem 0;">{{ stats.total_users }}</p>
+        <p style="color: #7f8c8d;">All registered users</p>
+    </div>
+
+    <div class="card">
+        <h2>🎓 Students</h2>
+        <p style="font-size: 3rem; font-weight: 700; color: #27ae60; margin: 1rem 0;">{{ stats.total_students }}</p>
+        <p style="color: #7f8c8d;">Active students</p>
+    </div>
+
+    <div class="card">
+        <h2>👨‍🏫 Instructors</h2>
+        <p style="font-size: 3rem; font-weight: 700; color: #e74c3c; margin: 1rem 0;">{{ stats.total_instructors }}</p>
+        <p style="color: #7f8c8d;">Teaching staff</p>
+    </div>
+
+    <div class="card">
+        <h2>📚 Sessions</h2>
+        <p style="font-size: 3rem; font-weight: 700; color: #f39c12; margin: 1rem 0;">{{ stats.total_sessions }}</p>
+        <p style="color: #7f8c8d;">Total sessions created</p>
+    </div>
+
+    <div class="card">
+        <h2>📅 Bookings</h2>
+        <p style="font-size: 3rem; font-weight: 700; color: #9b59b6; margin: 1rem 0;">{{ stats.total_bookings }}</p>
+        <p style="color: #7f8c8d;">Session bookings</p>
+    </div>
+</div>
+{% endblock %}

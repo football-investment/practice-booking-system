@@ -1,0 +1,34 @@
+<!-- Student Specialization Switcher - STANDALONE TEST VERSION -->
+{% if user.role.value == 'STUDENT' %}
+    <div style="margin: 1rem; padding: 1rem; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px;">
+        <h3 style="margin: 0 0 1rem 0; color: #856404;">🔧 Specializáció Váltó (TEST)</h3>
+
+        <p><strong>User Role:</strong> {{ user.role.value }}</p>
+        <p><strong>Current Spec:</strong> {{ user.specialization.value if user.specialization else 'NONE' }}</p>
+        <p><strong>Licenses Count:</strong> {{ user_licenses|length if user_licenses else 0 }}</p>
+
+        {% if user_licenses %}
+            <p><strong>Available Licenses:</strong></p>
+            <ul>
+            {% for lic in user_licenses %}
+                <li>{{ lic.specialization_type }} (Level {{ lic.current_level }})</li>
+            {% endfor %}
+            </ul>
+
+            <form method="POST" action="/specialization/switch" style="margin-top: 1rem;">
+                <select name="specialization" style="padding: 0.5rem; font-size: 1rem; margin-right: 0.5rem;">
+                    {% for license in user_licenses %}
+                        <option value="{{ license.specialization_type }}" {% if user.specialization and user.specialization.value == license.specialization_type %}selected{% endif %}>
+                            {{ license.specialization_type }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" style="padding: 0.5rem 1rem; font-size: 1rem; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    🔄 SWITCH
+                </button>
+            </form>
+        {% else %}
+            <p style="color: red;"><strong>⚠️ NO LICENSES FOUND!</strong></p>
+        {% endif %}
+    </div>
+{% endif %}

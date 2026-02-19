@@ -10,8 +10,8 @@ from .booking import Booking
 class AttendanceBase(BaseModel):
     user_id: int
     session_id: int
-    booking_id: int
-    status: AttendanceStatus = AttendanceStatus.PRESENT
+    booking_id: Optional[int] = None  # Optional for tournament sessions
+    status: AttendanceStatus = AttendanceStatus.present
     notes: Optional[str] = None
 
 
@@ -40,7 +40,7 @@ class Attendance(AttendanceBase):
 class AttendanceWithRelations(Attendance):
     user: User
     session: Session
-    booking: Booking
+    booking: Optional[Booking] = None  # Optional for tournament sessions
     marker: Optional[User] = None
 
 

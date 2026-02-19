@@ -1,0 +1,355 @@
+# Prioritized Test Matrix - Tournament E2E Testing
+
+**Generated:** 2026-02-02
+**Current Coverage:** 7 / 720 configurations (0.97%)
+**Objective:** Expand test coverage to critical configurations (Target: 10-15% coverage)
+
+---
+
+## Executive Summary
+
+### Current Status
+- **Tested:** 7 configurations (100% pass rate)
+- **Total Possible:** ~720 configurations
+- **Coverage Gap:** 713 configurations untested
+- **Critical Risk:** Multi-round, multi-specialization, edge cases not validated
+
+### Coverage Goals
+- **Phase 1 (Immediate):** 30 configurations - 4.2% coverage
+- **Phase 2 (Near-term):** 60 configurations - 8.3% coverage
+- **Phase 3 (Future):** 100+ configurations - 14% coverage
+
+---
+
+## Test Priority Tiers
+
+### 🔴 TIER 1: CRITICAL (Must Test Immediately)
+**Risk:** High usage, production-critical paths
+**Target:** 30 configurations
+**Timeline:** Week 1
+
+#### 1.1 Multi-Round INDIVIDUAL_RANKING (12 configs)
+**Why Critical:** Most tournaments use 2-3 rounds, but we only tested 1-round scenarios
+
+| Config | Format | Scoring Type | Rounds | Specialization | Age Group | Priority |
+|--------|--------|--------------|--------|----------------|-----------|----------|
+| T8 | INDIVIDUAL_RANKING | ROUNDS_BASED | 2 | PLAYER | PRO | P0 |
+| T9 | INDIVIDUAL_RANKING | ROUNDS_BASED | 3 | PLAYER | PRO | P0 |
+| T10 | INDIVIDUAL_RANKING | TIME_BASED | 2 | PLAYER | PRO | P0 |
+| T11 | INDIVIDUAL_RANKING | TIME_BASED | 3 | PLAYER | PRO | P0 |
+| T12 | INDIVIDUAL_RANKING | SCORE_BASED | 2 | PLAYER | PRO | P0 |
+| T13 | INDIVIDUAL_RANKING | SCORE_BASED | 3 | PLAYER | PRO | P0 |
+| T14 | INDIVIDUAL_RANKING | DISTANCE_BASED | 2 | PLAYER | PRO | P1 |
+| T15 | INDIVIDUAL_RANKING | DISTANCE_BASED | 3 | PLAYER | PRO | P1 |
+| T16 | INDIVIDUAL_RANKING | PLACEMENT | 2 | PLAYER | PRO | P1 |
+| T17 | INDIVIDUAL_RANKING | PLACEMENT | 3 | PLAYER | PRO | P1 |
+| T18 | INDIVIDUAL_RANKING | ROUNDS_BASED | 2 | PLAYER | AMATEUR | P1 |
+| T19 | INDIVIDUAL_RANKING | TIME_BASED | 2 | PLAYER | YOUTH | P1 |
+
+**Critical Validations:**
+- ✅ Multi-round result aggregation (average, best, sum)
+- ✅ Frontend live standings update per round
+- ✅ Final ranking calculation across all rounds
+- ✅ Idempotency with multiple rounds (no duplicate rewards)
+
+---
+
+#### 1.2 HEAD_TO_HEAD Critical Variations (8 configs)
+**Why Critical:** Swiss System and Double Elimination are production features
+
+| Config | Format | Tournament Type | Specialization | Age Group | Priority |
+|--------|--------|-----------------|----------------|-----------|----------|
+| T20 | HEAD_TO_HEAD | Swiss System | PLAYER | PRO | P0 |
+| T21 | HEAD_TO_HEAD | Double Elimination | PLAYER | PRO | P0 |
+| T22 | HEAD_TO_HEAD | Group Stage + Knockout | PLAYER | PRO | P0 |
+| T23 | HEAD_TO_HEAD | League (Round Robin) | PLAYER | AMATEUR | P1 |
+| T24 | HEAD_TO_HEAD | Single Elimination | PLAYER | AMATEUR | P1 |
+| T25 | HEAD_TO_HEAD | Swiss System | PLAYER | YOUTH | P1 |
+| T26 | HEAD_TO_HEAD | League (Round Robin) | GOALKEEPER | PRO | P1 |
+| T27 | HEAD_TO_HEAD | Single Elimination | GOALKEEPER | PRO | P1 |
+
+**Critical Validations:**
+- ✅ Match pairing generation (Swiss, Double Elim brackets)
+- ✅ Bye handling in odd-player Swiss tournaments
+- ✅ Elimination bracket progression
+- ✅ Tie-breaking in group stages
+
+---
+
+#### 1.3 Specialization & Age Group Coverage (10 configs)
+**Why Critical:** GOALKEEPER and YOUTH age groups completely untested
+
+| Config | Format | Scoring Type | Specialization | Age Group | Rounds | Priority |
+|--------|--------|--------------|----------------|-----------|--------|----------|
+| T28 | INDIVIDUAL_RANKING | ROUNDS_BASED | GOALKEEPER | PRO | 1 | P0 |
+| T29 | INDIVIDUAL_RANKING | ROUNDS_BASED | GOALKEEPER | PRO | 2 | P0 |
+| T30 | INDIVIDUAL_RANKING | TIME_BASED | GOALKEEPER | PRO | 1 | P0 |
+| T31 | INDIVIDUAL_RANKING | SCORE_BASED | PLAYER | YOUTH | 1 | P0 |
+| T32 | INDIVIDUAL_RANKING | SCORE_BASED | PLAYER | YOUTH | 2 | P0 |
+| T33 | INDIVIDUAL_RANKING | PLACEMENT | PLAYER | PRE | 1 | P1 |
+| T34 | INDIVIDUAL_RANKING | ROUNDS_BASED | PLAYER | AMATEUR | 2 | P1 |
+| T35 | INDIVIDUAL_RANKING | TIME_BASED | GOALKEEPER | AMATEUR | 1 | P1 |
+| T36 | HEAD_TO_HEAD | League | PLAYER | YOUTH | N/A | P1 |
+| T37 | HEAD_TO_HEAD | Single Elimination | PLAYER | PRE | N/A | P1 |
+
+**Critical Validations:**
+- ✅ Goalkeeper-specific skill rewards (reflex, positioning, etc.)
+- ✅ YOUTH-specific XP/credit multipliers
+- ✅ PRE age group enrollment and reward policies
+- ✅ Age-appropriate tournament types
+
+---
+
+### 🟡 TIER 2: IMPORTANT (Near-term Testing)
+**Risk:** Medium usage, edge cases
+**Target:** 30 additional configurations
+**Timeline:** Week 2-3
+
+#### 2.1 Assignment Type Variations (10 configs)
+| Config | Format | Scoring Type | Assignment Type | Priority |
+|--------|--------|--------------|-----------------|----------|
+| T38 | INDIVIDUAL_RANKING | ROUNDS_BASED | MANUAL_ASSIGNMENT | P2 |
+| T39 | INDIVIDUAL_RANKING | TIME_BASED | INVITE_ONLY | P2 |
+| T40 | INDIVIDUAL_RANKING | SCORE_BASED | MANUAL_ASSIGNMENT | P2 |
+| T41 | HEAD_TO_HEAD | League | INVITE_ONLY | P2 |
+| T42 | HEAD_TO_HEAD | Swiss System | MANUAL_ASSIGNMENT | P2 |
+| T43 | INDIVIDUAL_RANKING | PLACEMENT | OPEN_ASSIGNMENT | P2 |
+| T44 | INDIVIDUAL_RANKING | DISTANCE_BASED | INVITE_ONLY | P2 |
+| T45 | HEAD_TO_HEAD | Double Elimination | MANUAL_ASSIGNMENT | P2 |
+| T46 | INDIVIDUAL_RANKING | ROUNDS_BASED | INVITE_ONLY | P2 |
+| T47 | HEAD_TO_HEAD | Group Stage + Knockout | OPEN_ASSIGNMENT | P2 |
+
+**Critical Validations:**
+- ✅ MANUAL_ASSIGNMENT: Admin manually selects participants
+- ✅ INVITE_ONLY: Application/approval workflow
+- ✅ OPEN_ASSIGNMENT: First-come enrollment validation
+
+---
+
+#### 2.2 Edge Cases - Tied Ranks (5 configs)
+| Config | Format | Scoring Type | Rounds | Tie Scenario | Priority |
+|--------|--------|--------------|--------|--------------|----------|
+| T48 | INDIVIDUAL_RANKING | SCORE_BASED | 1 | Two 1st place | P2 |
+| T49 | INDIVIDUAL_RANKING | TIME_BASED | 1 | Three 2nd place | P2 |
+| T50 | INDIVIDUAL_RANKING | PLACEMENT | 2 | Tied final ranks | P2 |
+| T51 | INDIVIDUAL_RANKING | ROUNDS_BASED | 3 | All tied round 1 | P2 |
+| T52 | HEAD_TO_HEAD | Swiss System | N/A | Tied match records | P2 |
+
+**Critical Validations:**
+- ✅ Tied players get FULL reward (not split)
+- ✅ Next rank skips correctly (e.g., 1, 2, 2, 4)
+- ✅ Frontend displays ties properly
+- ✅ Reward distribution handles ties
+
+---
+
+#### 2.3 Minimum/Maximum Participant Counts (10 configs)
+| Config | Format | Tournament Type | Players | Scenario | Priority |
+|--------|--------|-----------------|---------|----------|----------|
+| T53 | INDIVIDUAL_RANKING | N/A | 2 | Minimum participants | P2 |
+| T54 | INDIVIDUAL_RANKING | N/A | 3 | Odd number | P2 |
+| T55 | INDIVIDUAL_RANKING | N/A | 50 | Large tournament | P2 |
+| T56 | HEAD_TO_HEAD | Single Elimination | 7 | Odd elimination | P2 |
+| T57 | HEAD_TO_HEAD | Swiss System | 5 | Odd Swiss | P2 |
+| T58 | HEAD_TO_HEAD | League | 3 | Minimum Round Robin | P2 |
+| T59 | INDIVIDUAL_RANKING | N/A | 100 | Stress test | P2 |
+| T60 | HEAD_TO_HEAD | Double Elimination | 8 | Power of 2 | P2 |
+| T61 | HEAD_TO_HEAD | Double Elimination | 9 | Non-power of 2 | P2 |
+| T62 | HEAD_TO_HEAD | Group Stage + Knockout | 16 | 4 groups of 4 | P2 |
+
+**Critical Validations:**
+- ✅ Minimum participant enforcement (e.g., can't start with 1 player)
+- ✅ Odd-player handling (byes in Swiss/elimination)
+- ✅ Large tournament performance (100+ players)
+- ✅ Session generation scales correctly
+
+---
+
+#### 2.4 Reward Policy Variations (5 configs)
+| Config | Format | Scoring Type | Reward Template | Priority |
+|--------|--------|--------------|-----------------|----------|
+| T63 | INDIVIDUAL_RANKING | ROUNDS_BASED | Custom (Top 5 rewards) | P2 |
+| T64 | INDIVIDUAL_RANKING | TIME_BASED | No participation reward | P2 |
+| T65 | INDIVIDUAL_RANKING | SCORE_BASED | Tiered (1-3, 4-6, 7+) | P2 |
+| T66 | HEAD_TO_HEAD | Swiss System | Winner takes all | P2 |
+| T67 | INDIVIDUAL_RANKING | PLACEMENT | Negative rewards (penalties) | P2 |
+
+**Critical Validations:**
+- ✅ Custom reward policies apply correctly
+- ✅ Tiered rewards (placement-based)
+- ✅ Zero-reward participants handled
+- ✅ Negative skill point adjustments
+
+---
+
+### 🟢 TIER 3: NICE-TO-HAVE (Future Testing)
+**Risk:** Low usage, rare configurations
+**Target:** 40+ additional configurations
+**Timeline:** Month 2+
+
+#### 3.1 Rare Combinations (20 configs)
+- COACH specialization tournaments (all scoring types)
+- Extreme round counts (5, 10 rounds)
+- All possible tournament type + specialization + age group combinations
+- Mixed assignment types (OPEN_ASSIGNMENT + INVITE_ONLY)
+
+#### 3.2 Stress & Performance Tests (10 configs)
+- 500+ player tournaments
+- 50+ round tournaments
+- Concurrent tournament creation/completion
+- Database connection pool limits
+
+#### 3.3 Error Recovery & Rollback (10 configs)
+- Partial reward distribution failure recovery
+- Session generation mid-tournament failure
+- Database transaction rollback scenarios
+- Concurrent complete/distribute operations
+
+---
+
+## Test Execution Strategy
+
+### Phase 1: Automated Backend E2E (Week 1)
+**Goal:** Test all TIER 1 configurations (30 configs)
+
+```bash
+# Update comprehensive_tournament_e2e.py to include T8-T37
+python3 comprehensive_tournament_e2e.py --tier 1
+```
+
+**Expected Results:**
+- 30/30 PASS or identified blockers
+- Updated test documentation
+- Bug fixes for critical failures
+
+---
+
+### Phase 2: Hybrid UI + Backend (Week 2)
+**Goal:** Run TIER 1 configs through Streamlit UI validation
+
+```bash
+# Run Selenium tests for TIER 1
+pytest tests/e2e_frontend/test_tournament_e2e_selenium.py --tier 1
+```
+
+**UI Validations:**
+- Live standings display (multi-round)
+- Reward distribution UI confirmation
+- Tournament history accuracy
+- Button state idempotency
+
+---
+
+### Phase 3: Manual QA Spot-Checks (Week 2-3)
+**Goal:** Manual validation of 10 critical configs from TIER 1
+
+**Manual Test Checklist:**
+- [ ] T8: 2-round INDIVIDUAL_RANKING (verify round aggregation)
+- [ ] T20: Swiss System HEAD_TO_HEAD (verify pairing logic)
+- [ ] T28: GOALKEEPER specialization (verify skill rewards)
+- [ ] T31: YOUTH age group (verify XP multipliers)
+- [ ] T48: Tied ranks (verify reward distribution)
+
+---
+
+## Success Criteria
+
+### Phase 1 Complete (Week 1)
+- ✅ All 30 TIER 1 configs tested via backend E2E
+- ✅ 100% pass rate OR documented bugs with fixes
+- ✅ Multi-round aggregation validated
+- ✅ GOALKEEPER + YOUTH coverage achieved
+
+### Phase 2 Complete (Week 2)
+- ✅ 10 critical configs validated via UI
+- ✅ Frontend/backend sync confirmed for multi-round
+- ✅ Idempotency proven across all configs
+
+### Phase 3 Complete (Week 3)
+- ✅ 60 total configurations tested (8.3% coverage)
+- ✅ All critical edge cases validated
+- ✅ Regression test suite established
+
+---
+
+## Risk Mitigation
+
+### Identified Risks
+1. **Multi-round aggregation bugs:** Not tested in current 7 configs
+2. **GOALKEEPER/YOUTH untested:** Skill mappings may be incorrect
+3. **Swiss System pairing:** Complex logic, prone to edge cases
+4. **Tied ranks:** Reward split logic uncertain
+5. **Large tournaments:** Performance degradation at 100+ players
+
+### Mitigation Actions
+- **Immediate:** Execute TIER 1 tests (30 configs) - Week 1
+- **Near-term:** Frontend validation for critical paths - Week 2
+- **Ongoing:** Expand to TIER 2 (60 total configs) - Week 3+
+
+---
+
+## Test Configuration Details
+
+### Test Data Requirements
+- **Admin:** `admin@lfa.com` / `admin123`
+- **Test Players:** 8-50 pre-created users (IDs 4-53)
+- **Database:** `lfa_intern_system` (isolated test environment)
+- **Cleanup:** Auto-delete test tournaments after validation
+
+### Environment Setup
+```bash
+# Start backend
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/lfa_intern_system" \
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Start frontend (for UI tests)
+streamlit run streamlit_app.py --server.port 8501
+```
+
+### Test Execution
+```bash
+# Backend E2E (Tier 1)
+python3 comprehensive_tournament_e2e.py --configs T8-T37
+
+# Frontend UI (Tier 1 critical)
+pytest tests/e2e_frontend/test_tournament_e2e_selenium.py \
+  --configs T8,T9,T20,T28,T31,T48 -v
+
+# Full regression suite (all tiers)
+pytest tests/e2e_frontend/ tests/integration/ -v --cov
+```
+
+---
+
+## Appendix: Configuration Calculation
+
+### Total Possible Configurations: ~720
+
+**INDIVIDUAL_RANKING:** 540 configs
+- 5 scoring types × 3 rounds × 3 specializations × 4 age groups × 3 assignments = 540
+
+**HEAD_TO_HEAD:** 180 configs
+- 5 tournament types × 3 specializations × 4 age groups × 3 assignments = 180
+
+**Coverage Targets:**
+- **Current:** 7 / 720 = 0.97%
+- **Tier 1 (30):** 37 / 720 = 5.1%
+- **Tier 2 (60):** 67 / 720 = 9.3%
+- **Tier 3 (100):** 107 / 720 = 14.9%
+
+---
+
+## Next Actions
+
+1. ✅ **Complete endpoint restored** - DONE
+2. ✅ **Backend E2E validated (7 configs)** - DONE
+3. 🔄 **Selenium UI tests running** - IN PROGRESS
+4. ⏳ **Expand to Tier 1 (30 configs)** - PENDING
+5. ⏳ **Frontend validation (10 critical)** - PENDING
+6. ⏳ **Documentation update** - PENDING
+
+---
+
+**Document Version:** 1.0
+**Last Updated:** 2026-02-02
+**Owner:** Tournament Testing Team

@@ -1,0 +1,70 @@
+{
+  "id": 3,
+  "code": "stole_my_goal",
+  "name": "Stole My Goal",
+  "description": "Small-sided game testing finishing, marking and stamina",
+  "game_config": {
+    "version": "1.0",
+    "metadata": {
+      "game_category": "small_sided_games",
+      "difficulty_level": "beginner",
+      "recommended_player_count": {
+        "min": 6,
+        "max": 20
+      }
+    },
+    "skill_config": {
+      "skills_tested": [
+        "finishing",
+        "marking",
+        "stamina"
+      ],
+      "skill_weights": {
+        "stamina": 0.25,
+        "marking": 0.35,
+        "finishing": 0.4
+      },
+      "skill_impact_on_matches": true
+    },
+    "format_config": {
+      "HEAD_TO_HEAD": {
+        "ranking_rules": {
+          "primary": "points",
+          "tiebreakers": [
+            "goal_difference",
+            "goals_for",
+            "user_id"
+          ],
+          "points_system": {
+            "win": 3,
+            "draw": 1,
+            "loss": 0
+          }
+        },
+        "match_simulation": {
+          "score_ranges": {
+            "win": {
+              "loser_max": 5,
+              "winner_max": 6
+            },
+            "draw": {
+              "max": 3,
+              "min": 0
+            }
+          },
+          "draw_probability": 0.25,
+          "away_win_probability": 0.35,
+          "home_win_probability": 0.4
+        }
+      }
+    },
+    "simulation_config": {
+      "player_selection": "auto",
+      "ranking_distribution": "NORMAL",
+      "performance_variation": "HIGH"
+    }
+  },
+  "is_active": true,
+  "is_recommended": false,
+  "is_locked": false
+}

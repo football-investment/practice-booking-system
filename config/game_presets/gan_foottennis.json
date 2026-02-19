@@ -1,0 +1,70 @@
+{
+  "id": 2,
+  "code": "gan_foottennis",
+  "name": "GanFoottennis",
+  "description": "Racquet sports style game testing ball control, agility and reactions",
+  "game_config": {
+    "version": "1.0",
+    "metadata": {
+      "game_category": "racquet_sports",
+      "difficulty_level": "advanced",
+      "recommended_player_count": {
+        "min": 4,
+        "max": 12
+      }
+    },
+    "skill_config": {
+      "skills_tested": [
+        "ball_control",
+        "agility",
+        "reactions"
+      ],
+      "skill_weights": {
+        "ball_control": 0.40,
+        "agility": 0.30,
+        "reactions": 0.30
+      },
+      "skill_impact_on_matches": true
+    },
+    "format_config": {
+      "HEAD_TO_HEAD": {
+        "ranking_rules": {
+          "primary": "points",
+          "tiebreakers": [
+            "goal_difference",
+            "goals_for",
+            "user_id"
+          ],
+          "points_system": {
+            "win": 3,
+            "draw": 1,
+            "loss": 0
+          }
+        },
+        "match_simulation": {
+          "score_ranges": {
+            "win": {
+              "loser_max": 3,
+              "winner_max": 4
+            },
+            "draw": {
+              "max": 1,
+              "min": 0
+            }
+          },
+          "draw_probability": 0.1,
+          "away_win_probability": 0.4,
+          "home_win_probability": 0.5
+        }
+      }
+    },
+    "simulation_config": {
+      "player_selection": "auto",
+      "ranking_distribution": "NORMAL",
+      "performance_variation": "LOW"
+    }
+  },
+  "is_active": true,
+  "is_recommended": false,
+  "is_locked": false
+}

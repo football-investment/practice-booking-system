@@ -1,0 +1,218 @@
+{
+  "TOURN-20260125-001": {
+    "tournament_id": 18,
+    "name": "\ud83c\udde7\ud83c\uddf7 BR - \"NIKE Speed Test!\" - RIO",
+    "status": "REWARDS_DISTRIBUTED",
+    "has_reward_config": false,
+    "current_reward_config": null,
+    "participations_count": 8,
+    "badges_count": 14,
+    "rankings_count": 8,
+    "participations": [
+      {
+        "id": 2,
+        "user_id": 13,
+        "placement": 1,
+        "xp_awarded": 579,
+        "credits_awarded": 100,
+        "skill_points": {
+          "speed": 4.4,
+          "agility": 5.6
+        }
+      },
+      {
+        "id": 3,
+        "user_id": 14,
+        "placement": 2,
+        "xp_awarded": 355,
+        "credits_awarded": 50,
+        "skill_points": {
+          "speed": 3.1,
+          "agility": 3.9
+        }
+      },
+      {
+        "id": 4,
+        "user_id": 15,
+        "placement": 4,
+        "xp_awarded": 57,
+        "credits_awarded": 0,
+        "skill_points": {
+          "speed": 0.4,
+          "agility": 0.6
+        }
+      },
+      {
+        "id": 5,
+        "user_id": 16,
+        "placement": 3,
+        "xp_awarded": 239,
+        "credits_awarded": 25,
+        "skill_points": {
+          "speed": 2.2,
+          "agility": 2.8
+        }
+      },
+      {
+        "id": 6,
+        "user_id": 4,
+        "placement": 5,
+        "xp_awarded": 57,
+        "credits_awarded": 0,
+        "skill_points": {
+          "speed": 0.4,
+          "agility": 0.6
+        }
+      },
+      {
+        "id": 7,
+        "user_id": 5,
+        "placement": 8,
+        "xp_awarded": 57,
+        "credits_awarded": 0,
+        "skill_points": {
+          "speed": 0.4,
+          "agility": 0.6
+        }
+      },
+      {
+        "id": 8,
+        "user_id": 6,
+        "placement": 6,
+        "xp_awarded": 57,
+        "credits_awarded": 0,
+        "skill_points": {
+          "speed": 0.4,
+          "agility": 0.6
+        }
+      },
+      {
+        "id": 9,
+        "user_id": 7,
+        "placement": 7,
+        "xp_awarded": 57,
+        "credits_awarded": 0,
+        "skill_points": {
+          "speed": 0.4,
+          "agility": 0.6
+        }
+      }
+    ],
+    "badges": [
+      {
+        "id": 1,
+        "user_id": 13,
+        "badge_type": "CHAMPION",
+        "title": "Champion",
+        "rarity": "EPIC"
+      },
+      {
+        "id": 2,
+        "user_id": 13,
+        "badge_type": "PODIUM_FINISH",
+        "title": "Top 3 Finish",
+        "rarity": "RARE"
+      },
+      {
+        "id": 3,
+        "user_id": 13,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 4,
+        "user_id": 14,
+        "badge_type": "RUNNER_UP",
+        "title": "Runner-Up",
+        "rarity": "RARE"
+      },
+      {
+        "id": 5,
+        "user_id": 14,
+        "badge_type": "PODIUM_FINISH",
+        "title": "Top 3 Finish",
+        "rarity": "RARE"
+      },
+      {
+        "id": 6,
+        "user_id": 14,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 7,
+        "user_id": 15,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 8,
+        "user_id": 16,
+        "badge_type": "THIRD_PLACE",
+        "title": "Podium Finisher",
+        "rarity": "RARE"
+      },
+      {
+        "id": 9,
+        "user_id": 16,
+        "badge_type": "PODIUM_FINISH",
+        "title": "Top 3 Finish",
+        "rarity": "RARE"
+      },
+      {
+        "id": 10,
+        "user_id": 16,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 11,
+        "user_id": 4,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 12,
+        "user_id": 5,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 13,
+        "user_id": 6,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      },
+      {
+        "id": 14,
+        "user_id": 7,
+        "badge_type": "FIRST_TOURNAMENT",
+        "title": "Tournament Debut",
+        "rarity": "UNCOMMON"
+      }
+    ],
+    "total_xp": 1458,
+    "total_credits": 175
+  },
+  "TOURN-20260125-002": {
+    "tournament_id": 19,
+    "name": "\ud83c\udde7\ud83c\uddf7 BR - \"Plank Competition\" - RIO",
+    "status": "REWARDS_DISTRIBUTED",
+    "has_reward_config": false,
+    "current_reward_config": null,
+    "participations_count": 0,
+    "badges_count": 0,
+    "rankings_count": 8,
+    "participations": [],
+    "badges": [],
+    "total_xp": 0,
+    "total_credits": 0
+  }
+}

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coupon Management - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-info p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .admin-badge {
+            background: rgba(255,255,255,0.3);
+            border: 2px solid white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #dc3545;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-left: 4px solid #3498db;
+        }
+
+        .stat-card h3 {
+            color: #718096;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-description {
+            color: #a0aec0;
+            font-size: 0.85rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .section-card h2 {
+            font-size: 1.8rem;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-subtitle {
+            color: #718096;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        .coupons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .coupon-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+
+        .coupon-card:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        .coupon-card.inactive {
+            opacity: 0.6;
+        }
+
+        .coupon-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .coupon-code {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            font-family: monospace;
+        }
+
+        .type-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .type-percent {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .type-fixed {
+            background: #f3e5f5;
+            color: #6a1b9a;
+        }
+
+        .type-credits {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .coupon-description {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .coupon-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .detail-item {
+            font-size: 0.85rem;
+        }
+
+        .detail-label {
+            color: #718096;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .coupon-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-expired {
+            background: #d6d8d9;
+            color: #383d41;
+        }
+
+        .toggle-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: #dc3545;
+            color: white;
+        }
+
+        .toggle-btn.inactive {
+            background: #28a745;
+            color: white;
+        }
+
+        .toggle-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .footer {
+            background: #2d3748;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .coupons-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="user-info">
+                <h1>🎟️ Coupon Management</h1>
+                <p>Welcome, {{ user.name }}</p>
+            </div>
+            <div class="header-actions">
+                <div class="admin-badge">👑 ADMIN</div>
+                <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
+                <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
+                <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
+                <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
+                <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
+                <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+                <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <h2 class="page-title">🎟️ Coupon Management</h2>
+        <p class="page-subtitle">Create and manage discount coupons for credit purchases</p>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: #28a745;">
+                <h3>✅ ACTIVE COUPONS</h3>
+                <div class="stat-value">{{ coupons|selectattr('is_active', 'equalto', True)|list|length }}</div>
+                <p class="stat-description">Currently usable</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #dc3545;">
+                <h3>❌ INACTIVE</h3>
+                <div class="stat-value">{{ coupons|selectattr('is_active', 'equalto', False)|list|length }}</div>
+                <p class="stat-description">Deactivated coupons</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #ffc107;">
+                <h3>📊 TOTAL USES</h3>
+                <div class="stat-value">{{ coupons|sum(attribute='current_uses') }}</div>
+                <p class="stat-description">Times used</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #3498db;">
+                <h3>💰 TOTAL COUPONS</h3>
+                <div class="stat-value">{{ coupons|length }}</div>
+                <p class="stat-description">All coupons</p>
+            </div>
+        </div>
+
+        <!-- Coupons Section -->
+        <div class="section-card">
+            <h2>🎟️ All Coupons</h2>
+            <p class="section-subtitle">Manage your discount and bonus coupons</p>
+
+            {% if coupons %}
+            <div class="coupons-grid">
+                {% for coupon in coupons %}
+                <div class="coupon-card {% if not coupon.is_active %}inactive{% endif %}">
+                    <div class="coupon-header">
+                        <div class="coupon-code">{{ coupon.code }}</div>
+                        <span class="type-badge type-{{ coupon.type.lower() }}">
+                            {% if coupon.type == 'PERCENT' %}📊 PERCENT
+                            {% elif coupon.type == 'FIXED' %}💵 FIXED
+                            {% elif coupon.type == 'CREDITS' %}💰 CREDITS
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="coupon-description">
+                        {{ coupon.description }}
+                    </div>
+
+                    <div class="coupon-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Value</div>
+                            <div class="detail-value">
+                                {% if coupon.type == 'PERCENT' %}
+                                    {{ (coupon.discount_value * 100)|int }}%
+                                {% elif coupon.type == 'FIXED' %}
+                                    {{ coupon.discount_value }} €
+                                {% elif coupon.type == 'CREDITS' %}
+                                    +{{ coupon.discount_value }} credits
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Uses</div>
+                            <div class="detail-value">
+                                {{ coupon.current_uses }}{% if coupon.max_uses %} / {{ coupon.max_uses }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Expires</div>
+                            <div class="detail-value">
+                                {% if coupon.expires_at %}
+                                    {{ coupon.expires_at.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Created</div>
+                            <div class="detail-value">
+                                {{ coupon.created_at.strftime('%Y-%m-%d') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="coupon-footer">
+                        <span class="status-badge {% if coupon.is_currently_valid and coupon.is_active %}status-active{% elif not coupon.is_active %}status-inactive{% else %}status-expired{% endif %}">
+                            {% if coupon.is_currently_valid and coupon.is_active %}
+                                ✅ Active & Valid
+                            {% elif not coupon.is_active %}
+                                ❌ Inactive
+                            {% else %}
+                                ⏰ Expired/Maxed
+                            {% endif %}
+                        </span>
+                        <button onclick="toggleCoupon({{ coupon.id }}, {{ 'true' if coupon.is_active else 'false' }})"
+                                class="toggle-btn {% if coupon.is_active %}active{% else %}inactive{% endif %}">
+                            {% if coupon.is_active %}
+                                🔴 Deactivate
+                            {% else %}
+                                🟢 Activate
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🎟️</div>
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">No coupons created yet</p>
+                <p style="font-size: 0.9rem;">Create coupons to offer discounts and bonuses to students</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+    async function toggleCoupon(couponId, isCurrentlyActive) {
+        const action = isCurrentlyActive ? 'deactivate' : 'activate';
+
+        if (!confirm(`Are you sure you want to ${action} this coupon?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/v1/admin/coupons/${couponId}/toggle`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                alert(`✅ Coupon ${action}d successfully!`);
+                location.reload();
+            } else {
+                const data = await response.json();
+                alert(`❌ Error: ${data.detail || `Failed to ${action} coupon`}`);
+            }
+        } catch (error) {
+            alert('❌ Error toggling coupon: ' + error.message);
+        }
+    }
+    </script>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2025 LFA Education Center. All rights reserved.</p>
+    </div>
+</body>
+</html>

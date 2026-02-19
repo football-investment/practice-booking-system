@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Motivation Questionnaire - LFA Education Center{% endblock %}
+
+{% block content %}
+<div class="welcome-section text-center">
+    <h1>📊 Your Motivation Assessment</h1>
+    <p>Help us understand your goals for {{ specialization_display }}</p>
+    <p style="color: #7f8c8d; font-size: 0.9rem;">This is a self-assessment to establish your baseline motivation</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error mb-3" style="background-color: #e74c3c; color: white; padding: 1rem; border-radius: 8px; margin: 2rem auto; max-width: 600px;">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="card" style="max-width: 800px; margin: 2rem auto;">
+    <form method="POST" action="/specialization/motivation-submit">
+        <input type="hidden" name="specialization" value="{{ specialization }}">
+
+        <h3 style="margin-bottom: 1.5rem;">Rate yourself on a scale of 1-5</h3>
+        <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 2rem;">
+            1 = Very Low | 2 = Low | 3 = Moderate | 4 = High | 5 = Very High
+        </p>
+
+        <!-- Question 1: Goal Clarity -->
+        <div style="margin-bottom: 2rem; padding: 1rem; background-color: #ecf0f1; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.8rem; font-size: 1rem;">
+                1. How clear are your goals for this specialization?
+            </label>
+            <div style="display: flex; gap: 1.5rem; justify-content: center;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
+                    <input type="radio" name="goal_clarity" value="{{ score }}" required style="margin-bottom: 0.3rem;">
+                    <span style="font-size: 1.2rem; font-weight: bold;">{{ score }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 2: Commitment Level -->
+        <div style="margin-bottom: 2rem; padding: 1rem; background-color: #ecf0f1; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.8rem; font-size: 1rem;">
+                2. How committed are you to succeeding in this specialization?
+            </label>
+            <div style="display: flex; gap: 1.5rem; justify-content: center;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
+                    <input type="radio" name="commitment_level" value="{{ score }}" required style="margin-bottom: 0.3rem;">
+                    <span style="font-size: 1.2rem; font-weight: bold;">{{ score }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 3: Engagement -->
+        <div style="margin-bottom: 2rem; padding: 1rem; background-color: #ecf0f1; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.8rem; font-size: 1rem;">
+                3. How engaged do you expect to be during sessions and activities?
+            </label>
+            <div style="display: flex; gap: 1.5rem; justify-content: center;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
+                    <input type="radio" name="engagement" value="{{ score }}" required style="margin-bottom: 0.3rem;">
+                    <span style="font-size: 1.2rem; font-weight: bold;">{{ score }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 4: Progress Mindset -->
+        <div style="margin-bottom: 2rem; padding: 1rem; background-color: #ecf0f1; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.8rem; font-size: 1rem;">
+                4. How well do you typically handle challenges and setbacks?
+            </label>
+            <div style="display: flex; gap: 1.5rem; justify-content: center;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
+                    <input type="radio" name="progress_mindset" value="{{ score }}" required style="margin-bottom: 0.3rem;">
+                    <span style="font-size: 1.2rem; font-weight: bold;">{{ score }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 5: Initiative -->
+        <div style="margin-bottom: 2rem; padding: 1rem; background-color: #ecf0f1; border-radius: 8px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.8rem; font-size: 1rem;">
+                5. How proactive are you in seeking learning opportunities?
+            </label>
+            <div style="display: flex; gap: 1.5rem; justify-content: center;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0.5rem;">
+                    <input type="radio" name="initiative" value="{{ score }}" required style="margin-bottom: 0.3rem;">
+                    <span style="font-size: 1.2rem; font-weight: bold;">{{ score }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Optional Notes -->
+        <div style="margin-bottom: 2rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                Additional thoughts or goals (Optional):
+            </label>
+            <textarea name="notes" rows="4" style="width: 100%; padding: 0.8rem; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 1rem;" placeholder="What are your specific goals? What motivates you?"></textarea>
+        </div>
+
+        <div style="text-align: center;">
+            <button type="submit" class="btn btn-primary" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                Complete Onboarding
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

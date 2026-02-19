@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.services.session_filter_service import SessionFilterService, UserSpecialization
 from app.models.user import User, UserRole
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionTypel
 from app.models.project import Project, ProjectEnrollment, ProjectEnrollmentStatus
 from app.models.semester import Semester
 
@@ -80,7 +80,7 @@ class TestSessionFilterService:
     @pytest.fixture
     def test_session(self, db_session: Session, test_instructor, test_semester):
         """Create a test session"""
-        session = SessionModel(
+        session = SessionTypel(
             title="Test Session",
             description="A test session for filtering",
             instructor_id=test_instructor.id,

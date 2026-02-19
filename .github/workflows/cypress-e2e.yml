@@ -1,0 +1,292 @@
+name: Cypress E2E
+
+on:
+  # ── PR gate: smoke suite only (fast, ~3 min) ─────────────────────────────
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'streamlit_app/**'
+      - 'app/**'
+      - 'tests_cypress/**'
+
+  # ── Nightly: full suite + error suite ────────────────────────────────────
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC every night
+
+  # ── Manual trigger for all jobs ──────────────────────────────────────────
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'full'
+        type: choice
+        options: [full, smoke, errors]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared environment
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION:   '20'
+  BACKEND_PORT:   8000
+  STREAMLIT_PORT: 8501
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 1 — PR smoke  (triggers on every PR)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  smoke:
+    name: Smoke Suite (PR Gate)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'smoke')
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER:     lfa
+          POSTGRES_PASSWORD: lfa
+          POSTGRES_DB:       lfa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: python scripts/seed_test_data.py || true
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
+          ENVIRONMENT:  test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
+          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
+          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run smoke suite
+        working-directory: tests_cypress
+        env:
+          CYPRESS_BASE_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:        http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:    admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD: password123
+        run: npx cypress run --env grepTags=@smoke --browser chrome --headless
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-smoke-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 2 — Full nightly suite (all specs, live backend)
+# ─────────────────────────────────────────────────────────────────────────────
+  full:
+    name: Full Suite (Nightly)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER:     lfa
+          POSTGRES_PASSWORD: lfa
+          POSTGRES_DB:       lfa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: python scripts/seed_test_data.py || true
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
+          ENVIRONMENT:  test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
+          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
+          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run full suite
+        working-directory: tests_cypress
+        env:
+          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:     password123
+          CYPRESS_INSTRUCTOR_EMAIL:   instructor@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: password123
+          CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com
+          CYPRESS_PLAYER_PASSWORD:    password123
+        run: npx cypress run --browser chrome --headless
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-full-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 14
+
+      - name: Upload videos on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-full-videos-${{ github.run_id }}
+          path: tests_cypress/cypress/videos/
+          retention-days: 14
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 3 — Error-state suite (no live backend — all stubs via cy.intercept)
+# Runs alongside the full suite on nightly, or standalone via workflow_dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+  error-states:
+    name: Error State Suite (No Backend)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'errors')
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start Streamlit (stub mode — no DB, no backend)
+        env:
+          # Point at a non-existent backend; all API calls will be intercepted
+          BACKEND_URL:               http://localhost:9999
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run error-state specs
+        working-directory: tests_cypress
+        env:
+          CYPRESS_BASE_URL:    http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:     http://localhost:9999
+          CYPRESS_SKIP_API_TESTS: 'true'
+        run: npx cypress run --spec 'cypress/e2e/error_states/**' --browser chrome --headless
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-error-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 7

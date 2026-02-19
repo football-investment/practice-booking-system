@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -9,18 +9,33 @@ from ..database import Base
 class BadgeType(enum.Enum):
     """Different types of achievements/badges"""
     RETURNING_STUDENT = "returning_student"
-    VETERAN_STUDENT = "veteran_student" 
+    VETERAN_STUDENT = "veteran_student"
     MASTER_STUDENT = "master_student"
     ATTENDANCE_STAR = "attendance_star"
     PUNCTUAL_STUDENT = "punctual_student"
     FEEDBACK_CHAMPION = "feedback_champion"
     SEMESTER_WARRIOR = "semester_warrior"
-    
+
     # New first-time achievement badges
     FIRST_QUIZ_COMPLETED = "first_quiz_completed"
     FIRST_PROJECT_ENROLLED = "first_project_enrolled"
     QUIZ_ENROLLMENT_COMBO = "quiz_enrollment_combo"
     NEWCOMER_WELCOME = "newcomer_welcome"
+
+    # 🆕 SPECIALIZATION-SPECIFIC BADGES
+    # Level progression
+    FIRST_LEVEL_UP = "first_level_up"
+    SKILL_MILESTONE = "skill_milestone"
+    ADVANCED_SKILL = "advanced_skill"
+    MASTER_LEVEL = "master_level"
+
+    # Specialization dedication
+    PLAYER_DEDICATION = "player_dedication"
+    COACH_DEDICATION = "coach_dedication"
+    INTERNSHIP_DEDICATION = "internship_dedication"
+
+    # Other
+    PROJECT_COMPLETE = "project_complete"
 
 
 class UserAchievement(Base):
@@ -29,15 +44,18 @@ class UserAchievement(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    achievement_id = Column(Integer, ForeignKey("achievements.id"), nullable=True)  # 🆕 NEW: Link to achievement definition
     badge_type = Column(String, nullable=False)  # BadgeType enum values
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     icon = Column(String, nullable=True)  # Emoji or icon identifier
     earned_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     semester_count = Column(Integer, nullable=True)  # For semester-based badges
-    
+    specialization_id = Column(String(50), ForeignKey('specializations.id'), nullable=True)  # 🆕 NEW
+
     # Relationships
     user = relationship("User", back_populates="achievements")
+    achievement = relationship("Achievement", back_populates="user_achievements")
 
 
 class UserStats(Base):

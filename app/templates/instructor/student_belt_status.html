@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🥋 Belt Status - {{ student.name }} | LFA Internship System</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .header .student-info {
+            color: #718096;
+            font-size: 16px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            font-size: 22px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .belt-display {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            padding: 30px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .belt-icon {
+            font-size: 80px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        }
+
+        .belt-info {
+            flex: 1;
+        }
+
+        .belt-name {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .belt-color {
+            font-size: 18px;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+
+        .belt-stage {
+            font-size: 14px;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progression-timeline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            margin: 20px 0;
+        }
+
+        .timeline-belt {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f7fafc;
+            margin: 0 5px;
+            transition: all 0.3s;
+        }
+
+        .timeline-belt.current {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.1);
+            font-weight: 600;
+        }
+
+        .timeline-belt.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .promotion-form {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .history-item {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .history-date {
+            font-size: 12px;
+            color: #718096;
+            min-width: 150px;
+        }
+
+        .history-content {
+            flex: 1;
+        }
+
+        .history-promotion {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .history-notes {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .history-exam {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .back-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .back-link:hover {
+            background: #f7fafc;
+        }
+
+        .next-belt-preview {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .next-belt-preview h3 {
+            font-size: 14px;
+            color: #92400e;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .next-belt-preview .belt-name {
+            font-size: 20px;
+            color: #78350f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+
+        <div class="header">
+            <h1>🥋 Gancuju Belt Status</h1>
+            <div class="student-info">
+                Student: <strong>{{ student.name }}</strong> ({{ student.email }}) |
+                License: {{ specialization_display }}
+            </div>
+        </div>
+
+        {% if success %}
+        <div class="alert alert-success">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert alert-error">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <!-- Current Belt Display -->
+        <div class="card">
+            <h2>📍 Current Belt</h2>
+            <div class="belt-display">
+                <div class="belt-icon">🥋</div>
+                <div class="belt-info">
+                    <div class="belt-name">{{ belt_info.name }}</div>
+                    <div class="belt-color">{{ belt_info.color }} Belt</div>
+                    <div class="belt-stage">{{ belt_info.stage }}</div>
+                </div>
+            </div>
+
+            {% if next_belt %}
+            <div class="next-belt-preview">
+                <h3>Next Belt:</h3>
+                <div class="belt-name">{{ next_belt_info.name }} ({{ next_belt_info.color }} Belt)</div>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                🎉 Congratulations! Student has achieved the highest belt: Dragon Wisdom (Red Belt)
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Belt Promotion Form -->
+        {% if next_belt %}
+        <div class="card">
+            <h2>⬆️ Belt Promotion</h2>
+            <p style="color: #718096; margin-bottom: 20px;">
+                Promote <strong>{{ student.name }}</strong> from
+                <strong>{{ belt_info.name }}</strong> to
+                <strong>{{ next_belt_info.name }}</strong>
+            </p>
+
+            <form method="POST" action="/instructor/students/{{ student.id }}/promote-belt/{{ license_id }}" class="promotion-form">
+                <div class="form-group">
+                    <label for="exam_score">Exam Score (Optional, 0-100):</label>
+                    <input type="number" id="exam_score" name="exam_score" min="0" max="100" placeholder="e.g., 85">
+                </div>
+
+                <div class="form-group">
+                    <label for="exam_notes">Exam Notes (Optional):</label>
+                    <textarea id="exam_notes" name="exam_notes" placeholder="Notes about exam performance..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Promotion Notes (Optional):</label>
+                    <textarea id="notes" name="notes" placeholder="General notes about the promotion..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    ✅ Promote to {{ next_belt_info.name }}
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Belt History -->
+        <div class="card">
+            <h2>📜 Promotion History</h2>
+
+            {% if belt_history %}
+                {% for item in belt_history %}
+                <div class="history-item">
+                    <div class="history-date">
+                        {{ item.promoted_at[:10] }}<br>
+                        <small>{{ item.promoter_name }}</small>
+                    </div>
+                    <div class="history-content">
+                        <div class="history-promotion">
+                            {% if item.from_belt %}
+                                {{ item.from_belt_info.name }} → {{ item.to_belt_info.name }}
+                            {% else %}
+                                Initial Belt: {{ item.to_belt_info.name }}
+                            {% endif %}
+                        </div>
+                        <div style="font-size: 13px; color: #a0aec0;">
+                            {{ item.to_belt_info.color }} Belt ({{ item.to_belt_info.stage }})
+                        </div>
+                        {% if item.exam_score %}
+                        <span class="history-exam">Exam: {{ item.exam_score }}/100</span>
+                        {% endif %}
+                        {% if item.notes %}
+                        <div class="history-notes">{{ item.notes }}</div>
+                        {% endif %}
+                        {% if item.exam_notes %}
+                        <div class="history-notes"><strong>Exam:</strong> {{ item.exam_notes }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: #718096; text-align: center; padding: 20px;">
+                    No belt promotions yet. Assign initial belt to start tracking progress.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

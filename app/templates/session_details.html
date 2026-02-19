@@ -1,0 +1,1061 @@
+{% extends "base.html" %}
+
+{% block title %}Session Details - LFA Education Center{% endblock %}
+
+{% block content %}
+
+<style>
+.spec-badge-GANCUJU_PLAYER { background-color: #e74c3c; color: white; }
+.spec-badge-LFA_FOOTBALL_PLAYER { background-color: #27ae60; color: white; }
+.spec-badge-LFA_COACH { background-color: #3498db; color: white; }
+.spec-badge-INTERNSHIP { background-color: #f39c12; color: white; }
+
+/* Star Rating Style (used by both instructor→student and student→instructor evaluation forms) */
+.star-rating {
+    display: flex;
+    gap: 0.25rem;
+    flex-direction: row-reverse; /* Reverse the visual order so stars appear left-to-right */
+    justify-content: flex-end; /* Align to the left */
+}
+.star-rating input[type="radio"] { display: none; }
+.star-rating label { cursor: pointer; font-size: 1.5rem; color: #ddd; transition: color 0.2s; }
+/* When checked, color this and all following siblings (which visually appear to the LEFT due to row-reverse) */
+.star-rating input[type="radio"]:checked ~ label { color: #ddd; }
+.star-rating input[type="radio"]:checked + label,
+.star-rating input[type="radio"]:checked + label ~ label { color: #ffc107; }
+/* Hover effect */
+.star-rating label:hover,
+.star-rating label:hover ~ label { color: #ffc107; }
+</style>
+
+<!-- Success/Error Messages -->
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('error') === 'session_ended_cannot_modify') {
+    alert('❌ ERROR: Cannot modify performance review!\n\nThe session has ended. Performance reviews can only be modified during the session with mutual agreement between instructor and student.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (urlParams.get('error') === 'session_not_ended') {
+    alert('❌ ERROR: Cannot evaluate yet!\n\nThe session has not ended. You can only evaluate after the session has finished.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (urlParams.get('error') === 'session_not_stopped') {
+    alert('❌ ERROR: Cannot evaluate yet!\n\nThe instructor must stop the session first before evaluations can be submitted.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (urlParams.get('success') === 'session_started') {
+    alert('✅ Session started!\n\nThe session timer has started. You can now mark attendance.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (urlParams.get('success') === 'session_stopped') {
+    alert('✅ Session stopped!\n\nThe session has ended. You can now submit evaluations.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (urlParams.get('success') === 'quiz_unlocked') {
+    alert('🔓 Quiz Unlocked!\n\nStudents can now start taking the Understanding Check quiz on their devices.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+if (urlParams.get('error') === 'quiz_locked') {
+    alert('🔒 Quiz Locked!\n\nThe instructor has not yet unlocked the quiz. Please wait for the instructor to enable it.');
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+</script>
+
+<div class="welcome-section">
+    <h1>📋 Session Details</h1>
+    <a href="/sessions" class="btn btn-secondary" style="margin-top: 1rem;">← Back to Sessions</a>
+</div>
+
+<div class="mt-3">
+    <div class="card">
+        <!-- Session Title -->
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
+            <div>
+                <h2 style="margin: 0;">{{ session.title }}</h2>
+                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <!-- Session Type Badge -->
+                    <span class="badge" style="background-color: {{ session.type_badge_color }}; color: white;">
+                        {{ session.type_icon }} {{ session.type_display }}
+                    </span>
+                    <!-- Specialization Badge -->
+                    {% if session.target_specialization %}
+                    <span class="badge spec-badge-{{ session.target_specialization.value }}">
+                        {% if session.target_specialization.value == 'GANCUJU_PLAYER' %}🥋 GānCuju Player
+                        {% elif session.target_specialization.value == 'LFA_FOOTBALL_PLAYER' %}⚽ LFA Football Player
+                        {% elif session.target_specialization.value == 'LFA_COACH' %}👨‍🏫 LFA Coach
+                        {% elif session.target_specialization.value == 'INTERNSHIP' %}💼 Internship
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Description -->
+        {% if session.description %}
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background-color: #f8f9fa; border-radius: 6px;">
+            <strong>📝 Description:</strong>
+            <p style="margin-top: 0.5rem; margin-bottom: 0;">{{ session.description }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Session Info Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <div>
+                <strong>📅 Date:</strong>
+                <p style="margin: 0.25rem 0 0 0;">{{ session.date_start.strftime('%B %d, %Y') }}</p>
+            </div>
+            <div>
+                <strong>🕐 Time:</strong>
+                <p style="margin: 0.25rem 0 0 0;">{{ session.date_start.strftime('%H:%M') }} - {{ session.date_end.strftime('%H:%M') }}</p>
+            </div>
+            <div>
+                <strong>📍 Location:</strong>
+                <p style="margin: 0.25rem 0 0 0;">{{ session.location or 'TBA' }}</p>
+            </div>
+            <div>
+                <strong>👨‍🏫 Instructor:</strong>
+                <p style="margin: 0.25rem 0 0 0;">{{ session.instructor_name }}</p>
+            </div>
+        </div>
+
+        <!-- Enrollment Info -->
+        <div style="margin-bottom: 1.5rem;">
+            <strong>👥 Enrollment:</strong>
+            <div style="margin-top: 0.5rem;">
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>{{ enrolled_students|length }}/{{ session.capacity }} students enrolled</span>
+                        <span>{{ ((enrolled_students|length / session.capacity * 100) if session.capacity > 0 else 0)|round }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ ((enrolled_students|length / session.capacity * 100) if session.capacity > 0 else 0) }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        {% if is_instructor %}
+            <!-- INSTRUCTOR VIEW -->
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <a href="/sessions" class="btn btn-secondary" style="flex: 1; min-width: 150px;">Back to Sessions</a>
+
+                <!-- Session Timer Controls (On-Site & Hybrid only - NOT Virtual) -->
+                {% if session.session_type.value in ['on_site', 'hybrid'] %}
+                    {% if not session.actual_start_time %}
+                        <!-- Session not started yet -->
+                        <form method="POST" action="/sessions/{{ session.id }}/start" style="margin: 0; flex: 1; min-width: 150px;" onsubmit="return confirm('🟢 Start Session?\n\nAre you sure you want to start this session now?\n\nThis will:\n- Record the actual start time\n- Enable attendance marking\n- Mark session as IN PROGRESS');">
+                            <button type="submit" class="btn" style="width: 100%; background-color: #27ae60; color: white;">
+                                🟢 Start Session
+                            </button>
+                        </form>
+                    {% elif not session.actual_end_time %}
+                        <!-- Session in progress -->
+
+                        <!-- HYBRID SESSION: Unlock Quiz button (before Stop Session) -->
+                        {% if session.session_type.value == 'hybrid' and not session.quiz_unlocked %}
+                        <form method="POST" action="/sessions/{{ session.id }}/unlock-quiz" style="margin: 0; flex: 1; min-width: 150px;" onsubmit="return confirm('🔓 Unlock Quiz?\n\nAre you sure you want to unlock the quiz for students?\n\nThis will:\n- Allow students to start the Understanding Check quiz\n- Students can take the quiz on their devices\n\nRecommended: Do this after teaching the lesson content.');">
+                            <button type="submit" class="btn" style="width: 100%; background-color: #3498db; color: white;">
+                                🔓 Unlock Quiz for Students
+                            </button>
+                        </form>
+                        {% elif session.session_type.value == 'hybrid' and session.quiz_unlocked %}
+                        <div style="flex: 1; min-width: 150px; padding: 0.6rem; background-color: #3498db; color: white; border-radius: 4px; text-align: center; font-weight: bold;">
+                            ✅ Quiz Unlocked
+                        </div>
+                        {% endif %}
+
+                        <form method="POST" action="/sessions/{{ session.id }}/stop" style="margin: 0; flex: 1; min-width: 150px;" onsubmit="return confirm('🔴 Stop Session?\n\nAre you sure you want to end this session now?\n\nThis will:\n- Record the actual end time\n- Enable performance evaluations\n- Mark session as COMPLETED\n\nThis action cannot be undone!');">
+                            <button type="submit" class="btn" style="width: 100%; background-color: #e74c3c; color: white;">
+                                🔴 Stop Session
+                            </button>
+                        </form>
+                    {% else %}
+                        <!-- Session completed -->
+                        <div style="flex: 1; min-width: 150px; padding: 0.6rem; background-color: #27ae60; color: white; border-radius: 4px; text-align: center; font-weight: bold;">
+                            ✅ Session Completed
+                        </div>
+                    {% endif %}
+                {% elif session.session_type.value == 'virtual' %}
+                    <!-- Virtual sessions: NO start/stop button, students start/complete on their own -->
+                    <div style="flex: 1; min-width: 150px; padding: 0.6rem; background-color: #3498db; color: white; border-radius: 4px; text-align: center; font-weight: bold;">
+                        📝 Virtual Exam - Student Self-Paced
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Display actual session duration if available -->
+            {% if session.actual_start_time %}
+            <div style="margin-top: 1rem; padding: 1rem; background-color: #e8f5e9; border-left: 4px solid #27ae60; border-radius: 4px;">
+                <strong>⏱️ Actual Session Times:</strong>
+                <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                    <div><strong>Started:</strong> {{ session.actual_start_time.strftime('%Y-%m-%d %H:%M') }}</div>
+                    {% if session.actual_end_time %}
+                    <div><strong>Ended:</strong> {{ session.actual_end_time.strftime('%Y-%m-%d %H:%M') }}</div>
+                    <div><strong>Duration:</strong> {{ ((session.actual_end_time - session.actual_start_time).total_seconds() / 60)|int }} minutes</div>
+                    {% else %}
+                    <div style="color: #f39c12;"><strong>Status:</strong> ⏳ In Progress...</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <!-- STUDENT VIEW -->
+            <div id="booking-section" style="display: flex; gap: 0.5rem;">
+                <a href="/sessions" class="btn btn-secondary" style="flex: 1;">Back to Sessions</a>
+                {% if is_enrolled %}
+                    {% if can_cancel_booking %}
+                        <!-- Can cancel - within 12-hour deadline -->
+                        <form method="POST" action="/sessions/cancel/{{ session.id }}" style="margin: 0; flex: 1;">
+                            <button type="submit" class="btn" style="width: 100%; background-color: #e74c3c; border-color: #c0392b; color: white;"
+                                    onclick="return confirm('Are you sure you want to cancel this booking?')">Cancel Booking</button>
+                        </form>
+                    {% else %}
+                        <!-- Cannot cancel - deadline passed or attendance marked -->
+                        <button class="btn" style="flex: 1; background-color: #95a5a6; border-color: #7f8c8d; color: white;" disabled
+                                title="{% if my_attendance %}Cannot cancel - attendance already marked{% else %}Cannot cancel - within 12 hours of session{% endif %}">
+                            Cancel Booking
+                        </button>
+                    {% endif %}
+                {% else %}
+                    {% if can_book_session %}
+                        <form method="POST" action="/sessions/book/{{ session.id }}" style="margin: 0; flex: 1;">
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Book Session</button>
+                        </form>
+                    {% else %}
+                        <button class="btn" style="flex: 1; background-color: #95a5a6; border-color: #7f8c8d; color: white;" disabled
+                                title="Booking deadline passed - must book 12+ hours before session">
+                            ⏰ Booking Closed
+                        </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quiz Section (HYBRID & VIRTUAL sessions only) -->
+    {% if session.session_type.value in ['hybrid', 'virtual'] and session_quizzes %}
+    <div class="card mt-3">
+        <h3>📝 {{ 'Understanding Check' if session.session_type.value == 'hybrid' else 'Certification Exam' }}</h3>
+
+        {% for sq in session_quizzes %}
+        <div style="padding: 1.5rem; margin-top: 1rem; background-color: #f8f9fa; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0 0 0.5rem 0;">{{ sq.quiz.title }}</h4>
+                    <p style="margin: 0; color: #7f8c8d; font-size: 0.9rem;">{{ sq.quiz.description }}</p>
+                </div>
+            </div>
+
+            <!-- Quiz Requirements -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="padding: 0.75rem; background-color: white; border-radius: 4px;">
+                    <strong style="color: #3498db;">📊 Passing Score:</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold; color: #2c3e50;">
+                        {{ (sq.quiz.passing_score * 100)|int }}%
+                    </p>
+                </div>
+
+                <div style="padding: 0.75rem; background-color: white; border-radius: 4px;">
+                    <strong style="color: #e74c3c;">🔄 Attempts:</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold; color: #2c3e50;">
+                        {% if sq.max_attempts %}{{ sq.max_attempts }} max{% else %}Unlimited{% endif %}
+                    </p>
+                </div>
+
+                {% if sq.quiz.time_limit_minutes > 0 %}
+                <div style="padding: 0.75rem; background-color: white; border-radius: 4px;">
+                    <strong style="color: #f39c12;">⏱️ Time Limit:</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold; color: #2c3e50;">
+                        {{ sq.quiz.time_limit_minutes }} minutes
+                    </p>
+                </div>
+                {% else %}
+                <div style="padding: 0.75rem; background-color: white; border-radius: 4px;">
+                    <strong style="color: #27ae60;">⏱️ Time Limit:</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold; color: #2c3e50;">
+                        No limit
+                    </p>
+                </div>
+                {% endif %}
+
+                <div style="padding: 0.75rem; background-color: white; border-radius: 4px;">
+                    <strong style="color: #9b59b6;">❓ Questions:</strong>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold; color: #2c3e50;">
+                        {{ sq.quiz.question_count or '?' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Student: Quiz Attempt Status & Actions -->
+            {% if not is_instructor %}
+                {% set user_attempts = sq.quiz.user_attempts or [] %}
+                {% set attempts_count = user_attempts|length %}
+                {% set latest_attempt = user_attempts[0] if user_attempts else None %}
+
+                <!-- Previous Attempts -->
+                {% if user_attempts %}
+                <div style="margin-bottom: 1.5rem;">
+                    <strong>📋 Your Attempts ({{ attempts_count }}{% if sq.max_attempts %}/{{ sq.max_attempts }}{% endif %}):</strong>
+                    <div style="margin-top: 0.5rem;">
+                        {% for attempt in user_attempts %}
+                        <div style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: white; border-left: 4px solid
+                            {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %}; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>Attempt #{{ loop.revindex }}</strong> -
+                                <span style="color: {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %}; font-weight: bold;">
+                                    {% if attempt.passed %}✓ PASSED{% else %}✗ FAILED{% endif %}
+                                </span>
+                                <br>
+                                <span style="font-size: 0.85rem; color: #7f8c8d;">
+                                    {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if attempt.completed_at else 'In Progress' }}
+                                </span>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.2rem; font-weight: bold; color: {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                    {{ attempt.score|int }}%
+                                </div>
+                                <div style="font-size: 0.75rem; color: #7f8c8d;">
+                                    {{ attempt.correct_answers }}/{{ attempt.total_questions }} correct
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                {% set can_attempt = (not sq.max_attempts) or (attempts_count < sq.max_attempts) %}
+                {% set has_passed = latest_attempt and latest_attempt.passed %}
+
+                {% if has_passed %}
+                    <!-- Already Passed -->
+                    <div style="padding: 1.5rem; background-color: #d4edda; border: 2px solid #27ae60; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                        <strong style="color: #155724; font-size: 1.2rem;">
+                            {% if session.session_type.value == 'hybrid' %}Understood!{% else %}PASSED - Certificate Awarded!{% endif %}
+                        </strong>
+                        <p style="margin: 0.5rem 0 0 0; color: #155724;">
+                            Score: {{ latest_attempt.score|int }}% ({{ latest_attempt.correct_answers }}/{{ latest_attempt.total_questions }} correct)
+                        </p>
+                    </div>
+                {% elif can_attempt %}
+                    <!-- Can Take Quiz -->
+
+                    {% if not is_enrolled %}
+                        <!-- NOT BOOKED: Must book session first -->
+                        <div style="padding: 1.5rem; background-color: #f8d7da; border: 2px solid #e74c3c; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
+                            <strong style="color: #721c24; font-size: 1.2rem;">Enrollment Required</strong>
+                            <p style="margin: 0.5rem 0 1rem 0; color: #721c24;">
+                                You must book this session before you can take the quiz.
+                            </p>
+                            <a href="#booking-section" class="btn" style="background-color: #e74c3c; color: white; text-decoration: none; padding: 0.75rem 1.5rem; display: inline-block;">
+                                📝 Book Session First
+                            </a>
+                        </div>
+                    {% elif now < session.date_start %}
+                        <!-- SESSION NOT STARTED: Quiz not available yet -->
+                        <div style="padding: 1.5rem; background-color: #d1ecf1; border: 2px solid #17a2b8; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏰</div>
+                            <strong style="color: #0c5460; font-size: 1.2rem;">Quiz Not Yet Available</strong>
+                            <p style="margin: 0.5rem 0 0 0; color: #0c5460;">
+                                The quiz will be available when the session starts:<br>
+                                <strong>{{ session.date_start.strftime('%Y-%m-%d %H:%M') }}</strong>
+                            </p>
+                        </div>
+                    {% elif session.session_type.value == 'hybrid' and not session.quiz_unlocked %}
+                        <!-- HYBRID: Quiz is LOCKED until instructor unlocks -->
+                        <div style="padding: 1.5rem; background-color: #fff3cd; border: 2px solid #f39c12; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
+                            <strong style="color: #856404; font-size: 1.2rem;">Quiz Locked</strong>
+                            <p style="margin: 0.5rem 0 0 0; color: #856404;">
+                                The instructor will unlock the quiz when ready. Please wait.
+                            </p>
+                        </div>
+                    {% else %}
+                        <!-- Quiz is available (ENROLLED + either VIRTUAL or HYBRID unlocked) -->
+                        <a href="/quizzes/{{ sq.quiz.id }}/take?session_id={{ session.id }}"
+                           class="btn"
+                           style="width: 100%; background-color: {% if session.session_type.value == 'hybrid' %}#3498db{% else %}#e74c3c{% endif %}; color: white; text-align: center; padding: 1rem; font-size: 1.1rem; text-decoration: none; display: block;">
+                            {% if attempts_count > 0 %}
+                                🔄 Retry Quiz (Attempt {{ attempts_count + 1 }}{% if sq.max_attempts %}/{{ sq.max_attempts }}{% endif %})
+                            {% else %}
+                                ▶️ Start {{ 'Understanding Check' if session.session_type.value == 'hybrid' else 'Certification Exam' }}
+                            {% endif %}
+                        </a>
+                    {% endif %}
+
+                    {% if session.session_type.value == 'virtual' %}
+                    <div style="margin-top: 1rem; padding: 1rem; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <strong style="color: #856404;">⚠️ Important:</strong>
+                        <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: #856404;">
+                            <li>This is an official certification exam</li>
+                            <li>You have {{ sq.max_attempts }} attempt(s) maximum</li>
+                            <li>Passing awards you an official certificate</li>
+                            <li>Make sure you're ready before starting!</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <!-- No More Attempts -->
+                    <div style="padding: 1.5rem; background-color: #f8d7da; border: 2px solid #e74c3c; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">❌</div>
+                        <strong style="color: #721c24; font-size: 1.2rem;">No More Attempts</strong>
+                        <p style="margin: 0.5rem 0 0 0; color: #721c24;">
+                            You have used all {{ sq.max_attempts }} attempts. Best score: {{ (latest_attempt.score * 100)|int }}%
+                        </p>
+                    </div>
+                {% endif %}
+            {% else %}
+                <!-- Instructor View: Show student quiz results -->
+                <div style="padding: 1rem; background-color: #e8f5e9; border-left: 4px solid #27ae60; border-radius: 4px; margin-bottom: 1rem;">
+                    <strong>👨‍🏫 Instructor View - Student Results</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: #2e7d32; font-size: 0.9rem;">
+                        {% if session.session_type.value == 'virtual' %}
+                        Virtual exam results are shown below. Students complete the exam on their own schedule.
+                        {% else %}
+                        Quiz results are shown for enrolled students below.
+                        {% endif %}
+                    </p>
+                </div>
+
+                <!-- Student Quiz Results Table -->
+                {% if sq.student_results %}
+                <div style="margin-top: 1rem;">
+                    <strong>📊 Student Results ({{ sq.student_results|length }}/{{ enrolled_students|length }})</strong>
+                    <div style="margin-top: 0.5rem;">
+                        {% for result in sq.student_results %}
+                        <div style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: white; border-left: 4px solid
+                            {% if result.best_passed %}#27ae60{% elif result.attempts_count > 0 %}#e74c3c{% else %}#95a5a6{% endif %}; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>{{ result.student_name }}</strong>
+                                    <span style="margin-left: 0.5rem; font-size: 0.85rem; color: #7f8c8d;">{{ result.student_email }}</span>
+                                    <br>
+                                    <span style="font-size: 0.85rem; color: #7f8c8d;">
+                                        {% if result.attempts_count > 0 %}
+                                            {{ result.attempts_count }} attempt{{ 's' if result.attempts_count != 1 else '' }}
+                                            {% if sq.max_attempts %}/ {{ sq.max_attempts }} max{% endif %}
+                                        {% else %}
+                                            Not attempted yet
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div style="text-align: right;">
+                                    {% if result.best_score is not none %}
+                                        <div style="font-size: 1.2rem; font-weight: bold; color: {% if result.best_passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                            {% if result.best_passed %}✓ PASSED{% else %}✗ FAILED{% endif %}
+                                        </div>
+                                        <div style="font-size: 1rem; color: {% if result.best_passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                            Best: {{ result.best_score|int }}%
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #7f8c8d;">
+                                            {{ result.best_correct }}/{{ result.total_questions }} correct
+                                        </div>
+                                        {% if result.last_attempt_date %}
+                                        <div style="font-size: 0.75rem; color: #7f8c8d; margin-top: 0.25rem;">
+                                            Last: {{ result.last_attempt_date.strftime('%Y-%m-%d %H:%M') }}
+                                        </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div style="font-size: 0.9rem; color: #95a5a6;">
+                                            Not started
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Show all attempts in expandable section -->
+                            {% if result.all_attempts and result.all_attempts|length > 1 %}
+                            <details style="margin-top: 0.5rem;">
+                                <summary style="cursor: pointer; font-size: 0.85rem; color: #3498db; padding: 0.25rem;">
+                                    📋 View All {{ result.all_attempts|length }} Attempts
+                                </summary>
+                                <div style="margin-top: 0.5rem; padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px;">
+                                    {% for attempt in result.all_attempts %}
+                                    <div style="padding: 0.5rem; margin-bottom: 0.25rem; border-left: 2px solid {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %}; background-color: white; font-size: 0.85rem;">
+                                        <strong>Attempt #{{ loop.revindex }}</strong> -
+                                        <span style="color: {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                            {{ (attempt.score * 100)|int }}% ({{ attempt.correct_answers }}/{{ attempt.total_questions }})
+                                        </span>
+                                        {% if attempt.passed %}<strong style="color: #27ae60;">✓ PASSED</strong>{% else %}<strong style="color: #e74c3c;">✗ FAILED</strong>{% endif %}
+                                        <br>
+                                        <span style="color: #7f8c8d; font-size: 0.8rem;">
+                                            {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if attempt.completed_at else 'In progress' }}
+                                            {% if attempt.time_spent_minutes %}
+                                            - {{ attempt.time_spent_minutes|int }} min
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px; text-align: center; color: #7f8c8d;">
+                    No student results yet. Students will appear here after they start the quiz.
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Student Enrollment Status (Student only - always show if enrolled) -->
+    {% if not is_instructor and is_enrolled %}
+    <div class="card mt-3">
+        {% if my_attendance %}
+        <!-- Student has attendance marked by instructor -->
+        <h3>📋 Your Attendance Status</h3>
+        <div style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                    <strong>Instructor marked you as:</strong>
+                    <span class="badge" style="margin-left: 0.5rem;
+                        {% if my_attendance.status.value == 'present' %}background-color: #27ae60;
+                        {% elif my_attendance.status.value == 'absent' %}background-color: #e74c3c;
+                        {% elif my_attendance.status.value == 'late' %}background-color: #f39c12;
+                        {% elif my_attendance.status.value == 'excused' %}background-color: #3498db;
+                        {% endif %}
+                    ">
+                        {% if my_attendance.status.value == 'present' %}✓ Present
+                        {% elif my_attendance.status.value == 'absent' %}✗ Absent
+                        {% elif my_attendance.status.value == 'late' %}⏰ Late
+                        {% elif my_attendance.status.value == 'excused' %}📝 Excused
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if my_attendance.confirmation_status %}
+                <span class="badge" style="
+                    {% if my_attendance.confirmation_status.value == 'confirmed' %}background-color: #27ae60;
+                    {% elif my_attendance.confirmation_status.value == 'disputed' %}background-color: #e74c3c;
+                    {% elif my_attendance.confirmation_status.value == 'pending_confirmation' %}background-color: #f39c12;
+                    {% endif %}
+                ">
+                    {% if my_attendance.confirmation_status.value == 'confirmed' %}✓ Confirmed
+                    {% elif my_attendance.confirmation_status.value == 'disputed' %}⚠️ Disputed
+                    {% elif my_attendance.confirmation_status.value == 'pending_confirmation' %}⏳ Pending
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Show change request if instructor requested a change -->
+            {% if my_attendance.pending_change_to %}
+            <div style="margin-bottom: 1rem; padding: 1rem; background-color: #fff3cd; border-left: 4px solid #f39c12; border-radius: 4px;">
+                <strong style="color: #856404;">🔔 Instructor Requested Change</strong>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                    Instructor wants to change your status from <strong>{{ my_attendance.status.value }}</strong> to <strong>{{ my_attendance.pending_change_to }}</strong>
+                    {% if my_attendance.change_request_reason %}
+                    <br><em>Reason: {{ my_attendance.change_request_reason }}</em>
+                    {% endif %}
+                </p>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <form method="POST" action="/sessions/{{ session.id }}/attendance/change-request" style="flex: 1;">
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="btn" style="width: 100%; background-color: #27ae60; color: white;">
+                            ✓ Approve Change
+                        </button>
+                    </form>
+                    <form method="POST" action="/sessions/{{ session.id }}/attendance/change-request" style="flex: 1;">
+                        <input type="hidden" name="action" value="reject">
+                        <button type="submit" class="btn" style="width: 100%; background-color: #e74c3c; color: white;">
+                            ✗ Reject Change
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if my_attendance.confirmation_status.value == 'pending_confirmation' %}
+            <!-- VIRTUAL sessions: NO CONFIRMATION NEEDED - auto-marked when quiz completed -->
+            {% if session.session_type.value == 'virtual' %}
+            <p style="margin: 0; color: #3498db; font-size: 0.9rem;">
+                💡 <strong>VIRTUAL session:</strong> Your attendance was automatically confirmed when you completed the Understanding Check quiz.
+            </p>
+            {% else %}
+            <!-- HYBRID/ON-SITE: Need student confirmation -->
+            <div style="margin-bottom: 1rem;">
+                <p style="margin: 0 0 0.5rem 0; color: #7f8c8d; font-size: 0.9rem;">Please confirm if this is correct:</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <form method="POST" action="/sessions/{{ session.id }}/attendance/confirm" style="flex: 1;">
+                    <input type="hidden" name="action" value="confirm">
+                    <button type="submit" class="btn" style="width: 100%; background-color: #27ae60; border-color: #229954; color: white;">
+                        ✓ Confirm - This is correct
+                    </button>
+                </form>
+                <button class="btn" style="flex: 1; background-color: #e74c3c; border-color: #c0392b; color: white;"
+                        onclick="document.getElementById('dispute-form').style.display='block'; this.parentElement.style.display='none';">
+                    ⚠️ Dispute - This is incorrect
+                </button>
+            </div>
+
+            <!-- Dispute form (hidden by default) -->
+            <form id="dispute-form" method="POST" action="/sessions/{{ session.id }}/attendance/confirm" style="display: none; margin-top: 1rem;">
+                <input type="hidden" name="action" value="dispute">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Why do you disagree?</label>
+                <textarea name="dispute_reason" class="form-control" rows="3" placeholder="Explain why the attendance marking is incorrect..." required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;"></textarea>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="submit" class="btn" style="flex: 1; background-color: #e74c3c; border-color: #c0392b; color: white;">
+                        Submit Dispute
+                    </button>
+                    <button type="button" class="btn btn-secondary" style="flex: 1;"
+                            onclick="this.closest('form').style.display='none'; this.closest('form').previousElementSibling.style.display='flex';">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+            {% elif my_attendance.confirmation_status.value == 'confirmed' %}
+            <p style="margin: 0; color: #27ae60; font-size: 0.9rem;">✓ You have confirmed this attendance record.</p>
+            {% elif my_attendance.confirmation_status.value == 'disputed' %}
+            <div style="padding: 0.75rem; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <p style="margin: 0 0 0.5rem 0; font-weight: bold; color: #856404;">⚠️ You disputed this record</p>
+                {% if my_attendance.dispute_reason %}
+                <p style="margin: 0; font-size: 0.9rem; color: #856404;">Reason: {{ my_attendance.dispute_reason }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <!-- Student enrolled but no attendance yet -->
+        <h3>✅ You are enrolled in this session</h3>
+        <div style="margin-top: 1rem; padding: 1rem; background-color: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 4px;">
+            <p style="margin: 0; color: #2e7d32;">
+                <strong>✓ Booking confirmed!</strong> You're registered for this session.
+            </p>
+            <p style="margin: 0.5rem 0 0 0; color: #558b2f; font-size: 0.9rem;">
+                The instructor will mark attendance during the session.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Enrolled Students List with Attendance (Instructor only) -->
+    {% if is_instructor and enrolled_students %}
+    <div class="card mt-3">
+        {% if session.session_type.value == 'virtual' %}
+            <h3>👥 Enrolled Students ({{ enrolled_students|length }})</h3>
+            <div style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                <strong>💻 Virtual Session - Attendance is Automatic</strong>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Students are marked 'present' automatically when they pass the quiz.</p>
+            </div>
+        {% else %}
+            <h3>👥 Enrolled Students & Attendance ({{ enrolled_students|length }})</h3>
+            {% if not can_mark_attendance %}
+            <div style="margin-top: 1rem; padding: 1rem; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <strong>⏰ Attendance marking is not available yet</strong>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">You can mark attendance 15 minutes before the session starts.</p>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 1rem;">
+            {% for student in enrolled_students %}
+            <div style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: #f8f9fa; border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: {% if can_mark_attendance %}0.5rem{% else %}0{% endif %};">
+                    <div>
+                        <strong>{{ student.name }}</strong>
+                        <p style="margin: 0; font-size: 0.9rem; color: #7f8c8d;">{{ student.email }}</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        {% if student.attendance_status %}
+                            <span class="badge" style="
+                                {% if student.attendance_status == 'present' %}background-color: #27ae60;
+                                {% elif student.attendance_status == 'absent' %}background-color: #e74c3c;
+                                {% elif student.attendance_status == 'late' %}background-color: #f39c12;
+                                {% elif student.attendance_status == 'excused' %}background-color: #3498db;
+                                {% endif %}
+                            ">
+                                {% if student.attendance_status == 'present' %}✓ Present
+                                {% elif student.attendance_status == 'absent' %}✗ Absent
+                                {% elif student.attendance_status == 'late' %}⏰ Late
+                                {% elif student.attendance_status == 'excused' %}📝 Excused
+                                {% endif %}
+                            </span>
+
+                            <!-- Confirmation status -->
+                            {% if student.confirmation_status %}
+                            <span class="badge" style="font-size: 0.75rem;
+                                {% if student.confirmation_status == 'confirmed' %}background-color: #27ae60;
+                                {% elif student.confirmation_status == 'disputed' %}background-color: #e74c3c;
+                                {% elif student.confirmation_status == 'pending_confirmation' %}background-color: #f39c12;
+                                {% endif %}
+                            ">
+                                {% if student.confirmation_status == 'confirmed' %}✓ Confirmed
+                                {% elif student.confirmation_status == 'disputed' %}⚠️ Disputed
+                                {% elif student.confirmation_status == 'pending_confirmation' %}⏳ Pending
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge badge-secondary">⚪ Not Marked</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Show dispute information if student disputed -->
+                {% if student.confirmation_status == 'disputed' and student.dispute_reason %}
+                <div style="margin-top: 0.5rem; padding: 0.75rem; background-color: #fee; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                    <strong style="color: #e74c3c;">⚠️ Student disputed this attendance:</strong>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #333;">{{ student.dispute_reason }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Show pending change request -->
+                {% if student.pending_change_to %}
+                <div style="margin-top: 0.5rem; padding: 0.75rem; background-color: #fff3cd; border-left: 4px solid #f39c12; border-radius: 4px;">
+                    <strong style="color: #856404;">⏳ Change Request Pending</strong>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #333;">
+                        Waiting for student approval to change from <strong>{{ student.attendance_status }}</strong> to <strong>{{ student.pending_change_to }}</strong>
+                        {% if student.change_request_reason %}
+                        <br><em>Your reason: {{ student.change_request_reason }}</em>
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Show attendance change history -->
+                {% if student.history and student.history|length > 0 %}
+                <details style="margin-top: 0.5rem;">
+                    <summary style="cursor: pointer; font-size: 0.9rem; color: #3498db; padding: 0.25rem;">
+                        📋 View Change History ({{ student.history|length }})
+                    </summary>
+                    <div style="margin-top: 0.5rem; padding: 0.75rem; background-color: #f8f9fa; border-radius: 4px; font-size: 0.85rem;">
+                        {% for h in student.history %}
+                        <div style="padding: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid
+                            {% if h.change_type == 'status_change' %}#3498db
+                            {% elif h.change_type == 'confirmation' %}#27ae60
+                            {% elif h.change_type == 'dispute' %}#e74c3c
+                            {% endif %}; background-color: white; border-radius: 2px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                                <strong>
+                                    {% if h.change_type == 'status_change' %}📝 Status Changed
+                                    {% elif h.change_type == 'confirmation' %}✓ Confirmed
+                                    {% elif h.change_type == 'dispute' %}⚠️ Disputed
+                                    {% endif %}
+                                </strong>
+                                <span style="color: #7f8c8d; font-size: 0.8rem;">{{ h.created_at.strftime('%H:%M') }}</span>
+                            </div>
+                            <div style="color: #555;">
+                                By: <strong>{{ h.changed_by_name }}</strong>
+                                {% if h.old_value %}
+                                <br>{{ h.old_value }} → {{ h.new_value }}
+                                {% else %}
+                                <br>Initial: {{ h.new_value }}
+                                {% endif %}
+                                {% if h.reason %}
+                                <br><em style="color: #7f8c8d;">{{ h.reason }}</em>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
+
+                <!-- Attendance Marking Form (only show if can_mark_attendance AND not virtual) -->
+                {% if can_mark_attendance and session.session_type.value != 'virtual' %}
+                <form method="POST" action="/sessions/{{ session.id }}/attendance/mark" style="display: flex; gap: 0.5rem;">
+                    <input type="hidden" name="student_id" value="{{ student.id }}">
+                    <button type="submit" name="status" value="present" class="btn-small" style="flex: 1; background-color: #27ae60; border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                        ✓ Present
+                    </button>
+                    <button type="submit" name="status" value="absent" class="btn-small" style="flex: 1; background-color: #e74c3c; border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                        ✗ Absent
+                    </button>
+                    <button type="submit" name="status" value="late" class="btn-small" style="flex: 1; background-color: #f39c12; border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                        ⏰ Late
+                    </button>
+                    <button type="submit" name="status" value="excused" class="btn-small" style="flex: 1; background-color: #3498db; border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                        📝 Excused
+                    </button>
+                </form>
+                {% endif %}
+
+                <!-- Student Performance Evaluation (Instructor → Student, All session types) -->
+                {% if student.attendance_status in ['present', 'late'] %}
+                <details style="margin-top: 0.75rem;" {% if student.performance_review %}open{% endif %}>
+                    <summary style="cursor: pointer; font-size: 0.9rem; color: #9b59b6; padding: 0.5rem; background-color: #f3e5f5; border-radius: 4px;">
+                        ⭐ {% if student.performance_review %}Update{% else %}Evaluate{% endif %} Student Performance {% if student.performance_review %}(Avg: {{ "%.1f"|format(student.performance_review.average_score) }}/5){% endif %}
+                    </summary>
+                    <div style="margin-top: 0.75rem; padding: 1rem; background-color: white; border: 1px solid #ddd; border-radius: 4px;">
+                        <form method="POST" action="/sessions/{{ session.id }}/evaluate-student/{{ student.id }}" onsubmit="{% if student.performance_review %}return confirm('⚠️ ATTENTION!\n\nAre you sure you want to update this evaluation?\n\nPlease provide the reason for the update in the field below!');{% else %}return confirm('✅ Are you sure you want to finalize this evaluation?');{% endif %}">
+                            <p style="margin: 0 0 1rem 0; color: #7f8c8d; font-size: 0.9rem;">Rate student performance on a scale of 1-5 (1=Poor, 5=Excellent){% if student.performance_review %} <strong style="color: #27ae60;">(Already evaluated - you can update it)</strong>{% endif %}</p>
+
+                            <div style="display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">⏰ Punctuality</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="punctuality-1-{{ student.id }}" name="punctuality" value="1" {% if student.performance_review and student.performance_review.punctuality == 1 %}checked{% endif %} required>
+                                        <label for="punctuality-1-{{ student.id }}">★</label>
+                                        <input type="radio" id="punctuality-2-{{ student.id }}" name="punctuality" value="2" {% if student.performance_review and student.performance_review.punctuality == 2 %}checked{% endif %}>
+                                        <label for="punctuality-2-{{ student.id }}">★</label>
+                                        <input type="radio" id="punctuality-3-{{ student.id }}" name="punctuality" value="3" {% if student.performance_review and student.performance_review.punctuality == 3 %}checked{% endif %}>
+                                        <label for="punctuality-3-{{ student.id }}">★</label>
+                                        <input type="radio" id="punctuality-4-{{ student.id }}" name="punctuality" value="4" {% if student.performance_review and student.performance_review.punctuality == 4 %}checked{% endif %}>
+                                        <label for="punctuality-4-{{ student.id }}">★</label>
+                                        <input type="radio" id="punctuality-5-{{ student.id }}" name="punctuality" value="5" {% if student.performance_review and student.performance_review.punctuality == 5 %}checked{% endif %}>
+                                        <label for="punctuality-5-{{ student.id }}">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">💡 Engagement</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="engagement-1-{{ student.id }}" name="engagement" value="1" {% if student.performance_review and student.performance_review.engagement == 1 %}checked{% endif %} required>
+                                        <label for="engagement-1-{{ student.id }}">★</label>
+                                        <input type="radio" id="engagement-2-{{ student.id }}" name="engagement" value="2" {% if student.performance_review and student.performance_review.engagement == 2 %}checked{% endif %}>
+                                        <label for="engagement-2-{{ student.id }}">★</label>
+                                        <input type="radio" id="engagement-3-{{ student.id }}" name="engagement" value="3" {% if student.performance_review and student.performance_review.engagement == 3 %}checked{% endif %}>
+                                        <label for="engagement-3-{{ student.id }}">★</label>
+                                        <input type="radio" id="engagement-4-{{ student.id }}" name="engagement" value="4" {% if student.performance_review and student.performance_review.engagement == 4 %}checked{% endif %}>
+                                        <label for="engagement-4-{{ student.id }}">★</label>
+                                        <input type="radio" id="engagement-5-{{ student.id }}" name="engagement" value="5" {% if student.performance_review and student.performance_review.engagement == 5 %}checked{% endif %}>
+                                        <label for="engagement-5-{{ student.id }}">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">🎯 Focus</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="focus-1-{{ student.id }}" name="focus" value="1" {% if student.performance_review and student.performance_review.focus == 1 %}checked{% endif %} required>
+                                        <label for="focus-1-{{ student.id }}">★</label>
+                                        <input type="radio" id="focus-2-{{ student.id }}" name="focus" value="2" {% if student.performance_review and student.performance_review.focus == 2 %}checked{% endif %}>
+                                        <label for="focus-2-{{ student.id }}">★</label>
+                                        <input type="radio" id="focus-3-{{ student.id }}" name="focus" value="3" {% if student.performance_review and student.performance_review.focus == 3 %}checked{% endif %}>
+                                        <label for="focus-3-{{ student.id }}">★</label>
+                                        <input type="radio" id="focus-4-{{ student.id }}" name="focus" value="4" {% if student.performance_review and student.performance_review.focus == 4 %}checked{% endif %}>
+                                        <label for="focus-4-{{ student.id }}">★</label>
+                                        <input type="radio" id="focus-5-{{ student.id }}" name="focus" value="5" {% if student.performance_review and student.performance_review.focus == 5 %}checked{% endif %}>
+                                        <label for="focus-5-{{ student.id }}">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">🤝 Collaboration</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="collaboration-1-{{ student.id }}" name="collaboration" value="1" {% if student.performance_review and student.performance_review.collaboration == 1 %}checked{% endif %} required>
+                                        <label for="collaboration-1-{{ student.id }}">★</label>
+                                        <input type="radio" id="collaboration-2-{{ student.id }}" name="collaboration" value="2" {% if student.performance_review and student.performance_review.collaboration == 2 %}checked{% endif %}>
+                                        <label for="collaboration-2-{{ student.id }}">★</label>
+                                        <input type="radio" id="collaboration-3-{{ student.id }}" name="collaboration" value="3" {% if student.performance_review and student.performance_review.collaboration == 3 %}checked{% endif %}>
+                                        <label for="collaboration-3-{{ student.id }}">★</label>
+                                        <input type="radio" id="collaboration-4-{{ student.id }}" name="collaboration" value="4" {% if student.performance_review and student.performance_review.collaboration == 4 %}checked{% endif %}>
+                                        <label for="collaboration-4-{{ student.id }}">★</label>
+                                        <input type="radio" id="collaboration-5-{{ student.id }}" name="collaboration" value="5" {% if student.performance_review and student.performance_review.collaboration == 5 %}checked{% endif %}>
+                                        <label for="collaboration-5-{{ student.id }}">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">😊 Attitude</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="attitude-1-{{ student.id }}" name="attitude" value="1" {% if student.performance_review and student.performance_review.attitude == 1 %}checked{% endif %} required>
+                                        <label for="attitude-1-{{ student.id }}">★</label>
+                                        <input type="radio" id="attitude-2-{{ student.id }}" name="attitude" value="2" {% if student.performance_review and student.performance_review.attitude == 2 %}checked{% endif %}>
+                                        <label for="attitude-2-{{ student.id }}">★</label>
+                                        <input type="radio" id="attitude-3-{{ student.id }}" name="attitude" value="3" {% if student.performance_review and student.performance_review.attitude == 3 %}checked{% endif %}>
+                                        <label for="attitude-3-{{ student.id }}">★</label>
+                                        <input type="radio" id="attitude-4-{{ student.id }}" name="attitude" value="4" {% if student.performance_review and student.performance_review.attitude == 4 %}checked{% endif %}>
+                                        <label for="attitude-4-{{ student.id }}">★</label>
+                                        <input type="radio" id="attitude-5-{{ student.id }}" name="attitude" value="5" {% if student.performance_review and student.performance_review.attitude == 5 %}checked{% endif %}>
+                                        <label for="attitude-5-{{ student.id }}">★</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if student.performance_review %}
+                            <div style="padding: 1rem; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 6px; margin-bottom: 1rem;">
+                                <label style="display: block; font-weight: bold; margin-bottom: 0.5rem; color: #856404;">📝 Reason for Update (REQUIRED)</label>
+                                <textarea name="update_reason" rows="2" class="form-control" required placeholder="Please explain why you are updating this evaluation..." style="width: 100%; padding: 0.5rem; border: 1px solid #ffc107; border-radius: 4px;"></textarea>
+                            </div>
+                            {% endif %}
+
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">💬 Comments (optional)</label>
+                                <textarea name="comments" rows="3" class="form-control" placeholder="Additional feedback for the student..." style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">{% if student.performance_review %}{{ student.performance_review.comments }}{% endif %}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn" style="width: 100%; background-color: #9b59b6; color: white; border: none;">
+                                {% if student.performance_review %}Update Evaluation{% else %}Submit Evaluation{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Student Evaluation Form (Student → Instructor, ON-SITE & HYBRID sessions ONLY) -->
+    <!-- VIRTUAL sessions do NOT have instructor evaluation (students evaluate the quiz/content instead) -->
+    {% if not is_instructor and session.session_type.value in ['on_site', 'hybrid'] and my_attendance and my_attendance.status.value in ['present', 'late'] %}
+    <div class="card mt-3">
+        <h3>⭐ Evaluate Instructor & Session {% if my_instructor_review %}(Avg: {{ "%.1f"|format(my_instructor_review.average_score) }}/5){% endif %}</h3>
+        <div style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 6px;">
+            {% if my_instructor_review %}
+                <!-- ALREADY SUBMITTED - READ ONLY -->
+                <div style="padding: 1rem; background-color: #d4edda; border: 2px solid #27ae60; border-radius: 6px; margin-bottom: 1rem;">
+                    <strong style="color: #155724;">✅ Evaluation Already Submitted</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: #155724;">Your evaluation has been successfully submitted and is now final. Thank you for your feedback!</p>
+                </div>
+                <p style="margin: 0 0 1rem 0; color: #7f8c8d;"><strong>Your submitted ratings (view only):</strong></p>
+            {% else %}
+                <p style="margin: 0 0 1rem 0; color: #7f8c8d;">Rate the instructor and session quality on a scale of 1-5 (1=Poor, 5=Excellent)</p>
+                <div style="padding: 1rem; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 6px; margin-bottom: 1rem;">
+                    <strong style="color: #856404;">⚠️ Important:</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: #856404;">This evaluation is <strong>FINAL</strong> and cannot be changed after submission. Please review carefully before submitting!</p>
+                </div>
+            {% endif %}
+
+            <form method="POST" action="/sessions/{{ session.id }}/evaluate-instructor" onsubmit="{% if not my_instructor_review %}return confirm('⚠️ ATTENTION!\n\nThis is a FINAL evaluation that CANNOT be changed later!\n\nAre you sure you want to submit?');{% else %}return false;{% endif %}">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1rem;">
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">🎓 Instructor Clarity</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="instructor_clarity-1" name="instructor_clarity" value="1" {% if my_instructor_review and my_instructor_review.instructor_clarity == 1 %}checked{% endif %} {% if my_instructor_review %}disabled{% else %}required{% endif %}>
+                                        <label for="instructor_clarity-1">★</label>
+                                        <input type="radio" id="instructor_clarity-2" name="instructor_clarity" value="2" {% if my_instructor_review and my_instructor_review.instructor_clarity == 2 %}checked{% endif %} {% if my_instructor_review %}disabled{% endif %}>
+                                        <label for="instructor_clarity-2">★</label>
+                                        <input type="radio" id="instructor_clarity-3" name="instructor_clarity" value="3" {% if my_instructor_review and my_instructor_review.instructor_clarity == 3 %}checked{% endif %} {% if my_instructor_review %}disabled{% endif %}>
+                                        <label for="instructor_clarity-3">★</label>
+                                        <input type="radio" id="instructor_clarity-4" name="instructor_clarity" value="4" {% if my_instructor_review and my_instructor_review.instructor_clarity == 4 %}checked{% endif %} {% if my_instructor_review %}disabled{% endif %}>
+                                        <label for="instructor_clarity-4">★</label>
+                                        <input type="radio" id="instructor_clarity-5" name="instructor_clarity" value="5" {% if my_instructor_review and my_instructor_review.instructor_clarity == 5 %}checked{% endif %} {% if my_instructor_review %}disabled{% endif %}>
+                                        <label for="instructor_clarity-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">🤝 Support & Approachability</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="support_approachability-1" name="support_approachability" value="1" {% if my_instructor_review and my_instructor_review.support_approachability == 1 %}checked{% endif %} required>
+                                        <label for="support_approachability-1">★</label>
+                                        <input type="radio" id="support_approachability-2" name="support_approachability" value="2" {% if my_instructor_review and my_instructor_review.support_approachability == 2 %}checked{% endif %}>
+                                        <label for="support_approachability-2">★</label>
+                                        <input type="radio" id="support_approachability-3" name="support_approachability" value="3" {% if my_instructor_review and my_instructor_review.support_approachability == 3 %}checked{% endif %}>
+                                        <label for="support_approachability-3">★</label>
+                                        <input type="radio" id="support_approachability-4" name="support_approachability" value="4" {% if my_instructor_review and my_instructor_review.support_approachability == 4 %}checked{% endif %}>
+                                        <label for="support_approachability-4">★</label>
+                                        <input type="radio" id="support_approachability-5" name="support_approachability" value="5" {% if my_instructor_review and my_instructor_review.support_approachability == 5 %}checked{% endif %}>
+                                        <label for="support_approachability-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">📋 Session Structure</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="session_structure-1" name="session_structure" value="1" {% if my_instructor_review and my_instructor_review.session_structure == 1 %}checked{% endif %} required>
+                                        <label for="session_structure-1">★</label>
+                                        <input type="radio" id="session_structure-2" name="session_structure" value="2" {% if my_instructor_review and my_instructor_review.session_structure == 2 %}checked{% endif %}>
+                                        <label for="session_structure-2">★</label>
+                                        <input type="radio" id="session_structure-3" name="session_structure" value="3" {% if my_instructor_review and my_instructor_review.session_structure == 3 %}checked{% endif %}>
+                                        <label for="session_structure-3">★</label>
+                                        <input type="radio" id="session_structure-4" name="session_structure" value="4" {% if my_instructor_review and my_instructor_review.session_structure == 4 %}checked{% endif %}>
+                                        <label for="session_structure-4">★</label>
+                                        <input type="radio" id="session_structure-5" name="session_structure" value="5" {% if my_instructor_review and my_instructor_review.session_structure == 5 %}checked{% endif %}>
+                                        <label for="session_structure-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">🎯 Relevance</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="relevance-1" name="relevance" value="1" {% if my_instructor_review and my_instructor_review.relevance == 1 %}checked{% endif %} required>
+                                        <label for="relevance-1">★</label>
+                                        <input type="radio" id="relevance-2" name="relevance" value="2" {% if my_instructor_review and my_instructor_review.relevance == 2 %}checked{% endif %}>
+                                        <label for="relevance-2">★</label>
+                                        <input type="radio" id="relevance-3" name="relevance" value="3" {% if my_instructor_review and my_instructor_review.relevance == 3 %}checked{% endif %}>
+                                        <label for="relevance-3">★</label>
+                                        <input type="radio" id="relevance-4" name="relevance" value="4" {% if my_instructor_review and my_instructor_review.relevance == 4 %}checked{% endif %}>
+                                        <label for="relevance-4">★</label>
+                                        <input type="radio" id="relevance-5" name="relevance" value="5" {% if my_instructor_review and my_instructor_review.relevance == 5 %}checked{% endif %}>
+                                        <label for="relevance-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">🏢 Environment</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="environment-1" name="environment" value="1" {% if my_instructor_review and my_instructor_review.environment == 1 %}checked{% endif %} required>
+                                        <label for="environment-1">★</label>
+                                        <input type="radio" id="environment-2" name="environment" value="2" {% if my_instructor_review and my_instructor_review.environment == 2 %}checked{% endif %}>
+                                        <label for="environment-2">★</label>
+                                        <input type="radio" id="environment-3" name="environment" value="3" {% if my_instructor_review and my_instructor_review.environment == 3 %}checked{% endif %}>
+                                        <label for="environment-3">★</label>
+                                        <input type="radio" id="environment-4" name="environment" value="4" {% if my_instructor_review and my_instructor_review.environment == 4 %}checked{% endif %}>
+                                        <label for="environment-4">★</label>
+                                        <input type="radio" id="environment-5" name="environment" value="5" {% if my_instructor_review and my_instructor_review.environment == 5 %}checked{% endif %}>
+                                        <label for="environment-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">💡 Engagement Feeling</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="engagement_feeling-1" name="engagement_feeling" value="1" {% if my_instructor_review and my_instructor_review.engagement_feeling == 1 %}checked{% endif %} required>
+                                        <label for="engagement_feeling-1">★</label>
+                                        <input type="radio" id="engagement_feeling-2" name="engagement_feeling" value="2" {% if my_instructor_review and my_instructor_review.engagement_feeling == 2 %}checked{% endif %}>
+                                        <label for="engagement_feeling-2">★</label>
+                                        <input type="radio" id="engagement_feeling-3" name="engagement_feeling" value="3" {% if my_instructor_review and my_instructor_review.engagement_feeling == 3 %}checked{% endif %}>
+                                        <label for="engagement_feeling-3">★</label>
+                                        <input type="radio" id="engagement_feeling-4" name="engagement_feeling" value="4" {% if my_instructor_review and my_instructor_review.engagement_feeling == 4 %}checked{% endif %}>
+                                        <label for="engagement_feeling-4">★</label>
+                                        <input type="radio" id="engagement_feeling-5" name="engagement_feeling" value="5" {% if my_instructor_review and my_instructor_review.engagement_feeling == 5 %}checked{% endif %}>
+                                        <label for="engagement_feeling-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">📝 Feedback Quality</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="feedback_quality-1" name="feedback_quality" value="1" {% if my_instructor_review and my_instructor_review.feedback_quality == 1 %}checked{% endif %} required>
+                                        <label for="feedback_quality-1">★</label>
+                                        <input type="radio" id="feedback_quality-2" name="feedback_quality" value="2" {% if my_instructor_review and my_instructor_review.feedback_quality == 2 %}checked{% endif %}>
+                                        <label for="feedback_quality-2">★</label>
+                                        <input type="radio" id="feedback_quality-3" name="feedback_quality" value="3" {% if my_instructor_review and my_instructor_review.feedback_quality == 3 %}checked{% endif %}>
+                                        <label for="feedback_quality-3">★</label>
+                                        <input type="radio" id="feedback_quality-4" name="feedback_quality" value="4" {% if my_instructor_review and my_instructor_review.feedback_quality == 4 %}checked{% endif %}>
+                                        <label for="feedback_quality-4">★</label>
+                                        <input type="radio" id="feedback_quality-5" name="feedback_quality" value="5" {% if my_instructor_review and my_instructor_review.feedback_quality == 5 %}checked{% endif %}>
+                                        <label for="feedback_quality-5">★</label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: bold; margin-bottom: 0.5rem;">😊 Overall Satisfaction</label>
+                                    <div class="star-rating">
+                                        <input type="radio" id="satisfaction-1" name="satisfaction" value="1" {% if my_instructor_review and my_instructor_review.satisfaction == 1 %}checked{% endif %} required>
+                                        <label for="satisfaction-1">★</label>
+                                        <input type="radio" id="satisfaction-2" name="satisfaction" value="2" {% if my_instructor_review and my_instructor_review.satisfaction == 2 %}checked{% endif %}>
+                                        <label for="satisfaction-2">★</label>
+                                        <input type="radio" id="satisfaction-3" name="satisfaction" value="3" {% if my_instructor_review and my_instructor_review.satisfaction == 3 %}checked{% endif %}>
+                                        <label for="satisfaction-3">★</label>
+                                        <input type="radio" id="satisfaction-4" name="satisfaction" value="4" {% if my_instructor_review and my_instructor_review.satisfaction == 4 %}checked{% endif %}>
+                                        <label for="satisfaction-4">★</label>
+                                        <input type="radio" id="satisfaction-5" name="satisfaction" value="5" {% if my_instructor_review and my_instructor_review.satisfaction == 5 %}checked{% endif %}>
+                                        <label for="satisfaction-5">★</label>
+                                    </div>
+                                </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">💬 Comments (optional)</label>
+                    <textarea name="comments" rows="4" class="form-control" {% if my_instructor_review %}disabled readonly{% endif %} placeholder="Share your thoughts about the session..." style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">{% if my_instructor_review %}{{ my_instructor_review.comments }}{% endif %}</textarea>
+                </div>
+
+                {% if not my_instructor_review %}
+                <button type="submit" class="btn" style="width: 100%; background-color: #9b59b6; color: white; border: none;">
+                    Submit Evaluation
+                </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,318 @@
+name: Test Baseline Check
+
+on:
+  pull_request:
+    branches: [ main, develop, feature/* ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  unit-tests:
+    name: Unit Tests (Baseline: 0 failed, 0 errors)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-mock
+
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+      run: |
+        # TestDeleteTournament is excluded here because it is state-pollution-sensitive
+        # (pre-existing issue, not a regression). It is run in full isolation in the
+        # cascade-isolation-guard job below. See docs/TECHNICAL_DEBT.md for details.
+        pytest tests/unit/ -q --tb=line -v \
+          --deselect tests/unit/tournament/test_core.py::TestDeleteTournament
+
+    - name: Parse test results
+      id: test-results
+      run: |
+        # Extract test counts from pytest output (same deselect as the run step)
+        RESULTS=$(pytest tests/unit/ -q --tb=no \
+          --deselect tests/unit/tournament/test_core.py::TestDeleteTournament \
+          2>&1 | tail -1)
+        echo "results=$RESULTS" >> $GITHUB_OUTPUT
+
+        # Check for failures or errors
+        if echo "$RESULTS" | grep -qE "[0-9]+ failed"; then
+          echo "❌ Tests FAILED - merge blocked"
+          exit 1
+        fi
+        if echo "$RESULTS" | grep -qE "[0-9]+ error"; then
+          echo "❌ Tests have ERRORS - merge blocked"
+          exit 1
+        fi
+
+        echo "✅ All tests passed - baseline maintained"
+
+    - name: Baseline validation
+      if: failure()
+      run: |
+        echo "::error::Test baseline violated. Required: 0 failed, 0 errors"
+        echo "Current test suite must maintain 100% pass rate."
+        echo "See test-infra-stable-baseline tag for reference."
+        exit 1
+
+  cascade-isolation-guard:
+    # Runs TestDeleteTournament in a clean, isolated process.
+    # This class is excluded from the full unit-tests job to avoid test-ordering
+    # state pollution (pre-existing issue — see docs/TECHNICAL_DEBT.md).
+    # If this job fails, it means a real logic regression, not state pollution.
+    name: Cascade Delete Tests (Isolated)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-mock
+
+    - name: Run cascade delete tests in isolation
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+      run: |
+        pytest tests/unit/tournament/test_core.py::TestDeleteTournament -v --tb=short
+
+  api-module-integrity:
+    # Verifies that all tournament endpoint modules import cleanly and the
+    # route registry is intact after every refactoring split.
+    # No database required — pure Python import + router introspection.
+    # Add new modules here whenever a split is done.
+    name: API Module Integrity (import + route count)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Verify tournament endpoint modules import cleanly
+      env:
+        # Fake URL — create_engine() validates format only, no connection at import time
+        DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_check
+      run: |
+        python -c "
+        import sys
+
+        # ── lifecycle split (2026-02-18) ──────────────────────────────────────
+        from app.api.api_v1.endpoints.tournaments.lifecycle import router, record_status_change
+        print('✅ lifecycle: router + record_status_change')
+
+        from app.api.api_v1.endpoints.tournaments.lifecycle_instructor import router as r_instructor
+        print('✅ lifecycle_instructor: router')
+
+        from app.api.api_v1.endpoints.tournaments.lifecycle_updates import router as r_updates
+        print('✅ lifecycle_updates: router')
+
+        # ── generator split (2026-02-18) ──────────────────────────────────────
+        from app.api.api_v1.endpoints.tournaments.ops_scenario import router as r_ops
+        from app.api.api_v1.endpoints.tournaments.ops_scenario import _simulate_tournament_results
+        print('✅ ops_scenario: router + _simulate_tournament_results')
+
+        from app.api.api_v1.endpoints.tournaments.generator import router as r_gen
+        print('✅ generator: router')
+
+        # ── record_status_change external-import compat ───────────────────────
+        # rewards.py and rewards_v2.py import this; must stay importable from lifecycle
+        from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change as rsc
+        assert callable(rsc), 'record_status_change must be callable'
+        print('✅ record_status_change importable from lifecycle (rewards compat)')
+
+        # ── route count guard ──────────────────────────────────────────────────
+        from app.api.api_v1.endpoints.tournaments import router as main_router
+        routes = [r.path for r in main_router.routes]
+        route_count = len(routes)
+        EXPECTED_MIN = 71  # Bump this whenever new routes are added
+        assert route_count >= EXPECTED_MIN, (
+            f'Route count {route_count} < expected minimum {EXPECTED_MIN}. '
+            'A router include_router() call may be missing in __init__.py.'
+        )
+        print(f'✅ Route count: {route_count} (minimum: {EXPECTED_MIN})')
+
+        # ── lifecycle split route presence ─────────────────────────────────────
+        required_routes = [
+            '/{tournament_id}/assign-instructor',
+            '/{tournament_id}/instructor/accept',
+            '/{tournament_id}/instructor/decline',
+        ]
+        for path in required_routes:
+            assert path in routes, f'Missing route: {path}'
+        print(f'✅ All {len(required_routes)} lifecycle_instructor routes present')
+
+        # ── ops route presence ─────────────────────────────────────────────────
+        assert '/ops/run-scenario' in routes, 'Missing route: /ops/run-scenario'
+        print('✅ /ops/run-scenario route present')
+
+        print()
+        print('✅ API module integrity: ALL CHECKS PASSED')
+        "
+
+    - name: Integrity check failure annotation
+      if: failure()
+      run: |
+        echo "::error::API module integrity check failed."
+        echo "A recent refactoring split likely broke an import or forgot to register a router."
+        echo "Run locally: python -c \"from app.api.api_v1.endpoints.tournaments import router\""
+        exit 1
+
+  smoke-tests:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-playwright
+        playwright install chromium
+
+    - name: Run E2E smoke tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        BASE_URL: http://localhost:8501
+        API_URL: http://localhost:8000
+      run: |
+        # Start services in background
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+
+        # Wait for services to be ready
+        sleep 10
+
+        # Run smoke tests
+        pytest tests_e2e/ -m smoke --tb=short -v
+
+    - name: Smoke test validation
+      if: failure()
+      run: |
+        echo "::error::E2E smoke tests failed - merge blocked"
+        echo "Critical user flows are broken."
+        exit 1
+
+  baseline-report:
+    name: Generate Baseline Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, cascade-isolation-guard, smoke-tests, api-module-integrity]
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Baseline Status
+      run: |
+        echo "## Test Baseline Status" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        UNIT="${{ needs.unit-tests.result }}"
+        CASCADE="${{ needs.cascade-isolation-guard.result }}"
+        SMOKE="${{ needs.smoke-tests.result }}"
+        INTEGRITY="${{ needs.api-module-integrity.result }}"
+
+        if [ "$UNIT" == "success" ] && [ "$CASCADE" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ]; then
+          echo "✅ **PASS** - Baseline maintained" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit tests (full suite, deselected cascade class): 0 failed, 0 errors" >> $GITHUB_STEP_SUMMARY
+          echo "- Cascade delete tests (isolated): passing — _run in isolation due to known state pollution, see [TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md)_" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E smoke tests: All passing" >> $GITHUB_STEP_SUMMARY
+          echo "- API module integrity: All imports clean, route count ≥ 71" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Safe to merge ✅" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **FAIL** - Baseline violated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit tests | $UNIT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cascade isolation guard | $CASCADE |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E smoke tests | $SMOKE |" >> $GITHUB_STEP_SUMMARY
+          echo "| API module integrity | $INTEGRITY |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**DO NOT MERGE** - Fix tests first" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Reference: \`test-infra-stable-baseline\` tag" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi

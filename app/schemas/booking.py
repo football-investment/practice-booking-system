@@ -2,8 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from ..models.booking import BookingStatus
-from .user import User
-from .session import Session
+from ..models.session import SessionType
 
 
 class BookingBase(BaseModel):
@@ -28,13 +27,46 @@ class Booking(BookingBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
+    attended_status: Optional[str] = None  # Attendance status field from database
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Simplified schemas to avoid circular dependencies
+class BookingUserSimple(BaseModel):
+    """Simplified user schema for booking responses - avoids circular imports"""
+    id: int
+    name: str
+    nickname: Optional[str] = None
+    email: str
+    role: str
+    specialization: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BookingSessionSimple(BaseModel):
+    """Simplified session schema for booking responses - avoids circular imports"""
+    id: int
+    title: str
+    description: Optional[str] = None
+    date_start: datetime
+    date_end: datetime
+    session_type: SessionType
+    capacity: int
+    location: Optional[str] = None
+    meeting_link: Optional[str] = None
+    sport_type: Optional[str] = None
+    level: Optional[str] = None
+    instructor_name: Optional[str] = None
+    semester_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class BookingWithRelations(Booking):
-    user: User
-    session: Session
+    user: BookingUserSimple
+    session: BookingSessionSimple
     attended: Optional[bool] = None  # Whether the user attended this session
 
 

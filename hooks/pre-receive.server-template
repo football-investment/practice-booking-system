@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pre-receive hook — Champion Badge Static Guard  (SERVER SIDE)
+# =============================================================================
+#
+# Deploy this to the BARE repository's hooks/ directory on the central server
+# (Gitea, Forgejo, GitLab CE, plain SSH bare repo, etc.).
+#
+# IMPORTANT: server-side hooks run AFTER `git push` reaches the server.
+#   --no-verify on the client has NO effect here.
+#   This hook CANNOT be skipped by developers.
+#
+# What it checks (static only — no running services required):
+#   1. If performance_card.py is modified: CHAMPION guard must still be present
+#   2. If performance_card.py is modified: no "No ranking data" literal
+#
+# Installation (on the server):
+#   cp hooks/pre-receive.server-template /path/to/bare-repo.git/hooks/pre-receive
+#   chmod +x /path/to/bare-repo.git/hooks/pre-receive
+#
+# For Gitea/Forgejo/GitLab: place in the repository's server-side hooks.
+#   Gitea UI:  Repository → Settings → Git Hooks → pre-receive
+#   Forgejo:   Same as Gitea
+#   GitLab CE: Admin → Repository → Server hooks (requires admin access)
+#   Bare repo: Direct file copy as above
+#
+# Note:
+#   This hook performs only static checks.  The full E2E Playwright test
+#   runs client-side (pre-push hook) because it requires a live FastAPI + DB.
+#   Together they form a layered defence:
+#     Client:  pre-commit (static) + pre-push (E2E)  — skippable with --no-verify
+#     Server:  pre-receive (static)                   — NOT skippable
+# =============================================================================
+
+set -uo pipefail
+
+PERF_CARD="streamlit_app/components/tournaments/performance_card.py"
+REJECTED=0
+
+# pre-receive receives one line per ref being pushed on stdin:
+#   <old-sha> <new-sha> <ref-name>
+while read -r old_sha new_sha ref; do
+
+    # Skip branch/tag deletions (new_sha is all zeros)
+    if [[ "${new_sha}" == "0000000000000000000000000000000000000000" ]]; then
+        continue
+    fi
+
+    # For new branches, old_sha is all zeros — diff against empty tree
+    if [[ "${old_sha}" == "0000000000000000000000000000000000000000" ]]; then
+        old_sha="$(git hash-object -t tree /dev/null)"
+    fi
+
+    # Check if performance_card.py is in this push
+    if ! git diff --name-only "${old_sha}" "${new_sha}" 2>/dev/null \
+           | grep -qF "${PERF_CARD}"; then
+        continue
+    fi
+
+    # Fetch the new version of the file from the incoming commit
+    content=$(git show "${new_sha}:${PERF_CARD}" 2>/dev/null || true)
+
+    # Check 1: CHAMPION guard must be present
+    if ! echo "${content}" | grep -q 'badge_type == "CHAMPION"'; then
+        echo "PUSH REJECTED [${ref}]:"
+        echo "  ${PERF_CARD} is missing the CHAMPION guard."
+        echo "  The guard (if badge_type == \"CHAMPION\":) prevents CHAMPION"
+        echo "  badges from displaying 'No ranking data'."
+        echo "  Restore the guard before pushing."
+        REJECTED=1
+    fi
+
+    # Check 2: regression literal must not be hardcoded
+    if echo "${content}" | grep -q '"No ranking data"'; then
+        echo "PUSH REJECTED [${ref}]:"
+        echo "  ${PERF_CARD} contains hardcoded '\"No ranking data\"'."
+        echo "  This string is the known regression marker."
+        echo "  Remove it before pushing."
+        REJECTED=1
+    fi
+
+done
+
+if [[ ${REJECTED} -eq 1 ]]; then
+    echo ""
+    echo "Business rule: CHAMPION badges must NEVER display 'No ranking data'."
+    echo "See docs/quality-gate-architecture.md for details."
+    exit 1
+fi
+
+exit 0

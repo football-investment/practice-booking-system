@@ -1,0 +1,227 @@
+{
+  "verdict": "WORKING",
+  "test_run_id": "sandbox-2026-02-08-23-23-24-9779",
+  "tournament": {
+    "id": 1533,
+    "name": "SANDBOX-TEST-LEAGUE-2026-02-08",
+    "type": "LEAGUE",
+    "status": "REWARDS_DISTRIBUTED",
+    "player_count": 7,
+    "skills_tested": [
+      "dribbling",
+      "finishing",
+      "sprint_speed"
+    ]
+  },
+  "execution_summary": {
+    "duration_seconds": 1.65,
+    "steps_completed": [
+      "Tournament created (ID: 1533, Status: IN_PROGRESS)",
+      "Participants enrolled (7 players)",
+      "Rankings created (7 participants)",
+      "Tournament transitioned to COMPLETED",
+      "Rewards distributed (7 participants)"
+    ]
+  },
+  "skill_progression": {
+    "dribbling": {
+      "before": {
+        "average": 63.8,
+        "min": 43.3,
+        "max": 91.7
+      },
+      "after": {
+        "average": 67.0,
+        "min": 41.4,
+        "max": 92.9
+      },
+      "change": "+3.2 avg"
+    },
+    "finishing": {
+      "before": {
+        "average": 66.6,
+        "min": 41.4,
+        "max": 92.9
+      },
+      "after": {
+        "average": 67.5,
+        "min": 41.2,
+        "max": 93.8
+      },
+      "change": "+0.9 avg"
+    },
+    "sprint_speed": {
+      "before": {
+        "average": 66.6,
+        "min": 41.4,
+        "max": 92.9
+      },
+      "after": {
+        "average": 67.5,
+        "min": 41.2,
+        "max": 93.8
+      },
+      "change": "+0.9 avg"
+    }
+  },
+  "top_performers": [
+    {
+      "user_id": 15,
+      "username": "cole.palmer",
+      "rank": 1,
+      "points": "104.00",
+      "skills_changed": {
+        "dribbling": {
+          "before": 91.7,
+          "after": 92.9,
+          "change": "+1.2"
+        },
+        "finishing": {
+          "before": 85.5,
+          "after": 93.8,
+          "change": "+8.3"
+        },
+        "sprint_speed": {
+          "before": 85.5,
+          "after": 93.8,
+          "change": "+8.3"
+        }
+      },
+      "total_skill_gain": 17.8
+    },
+    {
+      "user_id": 5,
+      "username": "p3t1k3",
+      "rank": 2,
+      "points": "92.00",
+      "skills_changed": {
+        "dribbling": {
+          "before": 63.1,
+          "after": 84.3,
+          "change": "+21.2"
+        },
+        "finishing": {
+          "before": 56.1,
+          "after": 85.0,
+          "change": "+28.9"
+        },
+        "sprint_speed": {
+          "before": 56.1,
+          "after": 85.0,
+          "change": "+28.9"
+        }
+      },
+      "total_skill_gain": 79.0
+    },
+    {
+      "user_id": 14,
+      "username": "lamine.jamal",
+      "rank": 3,
+      "points": "80.00",
+      "skills_changed": {
+        "dribbling": {
+          "before": 56.0,
+          "after": 75.7,
+          "change": "+19.7"
+        },
+        "finishing": {
+          "before": 92.9,
+          "after": 76.2,
+          "change": "-16.7"
+        },
+        "sprint_speed": {
+          "before": 92.9,
+          "after": 76.2,
+          "change": "-16.7"
+        }
+      },
+      "total_skill_gain": -13.7
+    }
+  ],
+  "bottom_performers": [
+    {
+      "user_id": 6,
+      "username": "v4lv3rd3jr",
+      "rank": 7,
+      "points": "17.00",
+      "skills_changed": {
+        "dribbling": {
+          "before": 48.8,
+          "after": 41.4,
+          "change": "-7.4"
+        },
+        "finishing": {
+          "before": 41.4,
+          "after": 41.2,
+          "change": "-0.2"
+        },
+        "sprint_speed": {
+          "before": 41.4,
+          "after": 41.2,
+          "change": "-0.2"
+        }
+      },
+      "total_skill_gain": -7.8
+    },
+    {
+      "user_id": 13,
+      "username": "kylian.mbappe",
+      "rank": 6,
+      "points": "29.00",
+      "skills_changed": {
+        "dribbling": {
+          "before": 66.2,
+          "after": 50.0,
+          "change": "-16.2"
+        },
+        "finishing": {
+          "before": 48.8,
+          "after": 50.0,
+          "change": "+1.2"
+        },
+        "sprint_speed": {
+          "before": 48.8,
+          "after": 50.0,
+          "change": "+1.2"
+        }
+      },
+      "total_skill_gain": -13.8
+    }
+  ],
+  "insights": [
+    {
+      "category": "STATUS_TRANSITION",
+      "severity": "SUCCESS",
+      "message": "Status transition: DRAFT \u2192 COMPLETED \u2192 REWARDS_DISTRIBUTED"
+    },
+    {
+      "category": "VERDICT",
+      "severity": "SUCCESS",
+      "message": "All 7 participants received rewards successfully"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average dribbling skill changed by +3.2 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average finishing skill changed by +0.9 points"
+    },
+    {
+      "category": "SKILL_PROGRESSION",
+      "severity": "INFO",
+      "message": "Average sprint_speed skill changed by +0.9 points"
+    },
+    {
+      "category": "IDEMPOTENCY",
+      "severity": "SUCCESS",
+      "message": "No duplicate TournamentParticipation records created"
+    }
+  ],
+  "export_data": {
+    "pdf_ready": true,
+    "export_url": "/api/v1/sandbox/export-pdf/sandbox-2026-02-08-23-23-24-9779"
+  }
+}

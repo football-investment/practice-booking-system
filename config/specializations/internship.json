@@ -1,0 +1,120 @@
+{
+  "id": "INTERNSHIP",
+  "name": "LFA Internship",
+  "description": "Gyakornoki program - startup és vállalkozás fókusz, projekt alapú előrehaladás",
+  "min_age": 16,
+  "color_theme": "#9370DB",
+  "icon": "💼",
+  "project_based": true,
+  "levels": [
+    {
+      "level": 1,
+      "name": "Startup Explorer",
+      "license_color": "#E6E6FA",
+      "description": "Kezdő gyakornok - startup világ megismerése",
+      "xp_required": 0,
+      "xp_max": 4999,
+      "required_sessions": 10,
+      "required_projects": 1,
+      "requirements": {
+        "theory_hours": 40,
+        "practice_hours": 60,
+        "min_age": 16,
+        "skills": [
+          "Alapvető üzleti ismeretek",
+          "Projektmenedzsment alapok",
+          "Csapatmunka",
+          "Kommunikáció"
+        ],
+        "mandatory_courses": [
+          "Startup ökoszisztéma",
+          "Agile módszertan",
+          "Pitch készítés"
+        ],
+        "project_types": [
+          "Kutatási projekt",
+          "Kisebb fejlesztési feladat",
+          "Marketing kampány"
+        ]
+      }
+    },
+    {
+      "level": 2,
+      "name": "Startup Contributor",
+      "license_color": "#BA55D3",
+      "description": "Közép gyakornok - aktív közreműködés projektekben",
+      "xp_required": 5000,
+      "xp_max": 14999,
+      "required_sessions": 30,
+      "required_projects": 3,
+      "requirements": {
+        "theory_hours": 60,
+        "practice_hours": 100,
+        "min_age": 16,
+        "skills": [
+          "Projektvezetés",
+          "Innovatív gondolkodás",
+          "Problémamegoldás",
+          "Stakeholder menedzsment"
+        ],
+        "mandatory_courses": [
+          "Business model canvas",
+          "Lean startup",
+          "Financial literacy",
+          "Digital marketing"
+        ],
+        "project_types": [
+          "MVP fejlesztés",
+          "Üzleti terv készítés",
+          "Pilot projekt vezetés"
+        ]
+      }
+    },
+    {
+      "level": 3,
+      "name": "Startup Leader",
+      "license_color": "#8B008B",
+      "description": "Senior gyakornok - projekt és csapatvezetés, saját vállalkozás indítás",
+      "xp_required": 15000,
+      "xp_max": 999999,
+      "required_sessions": 50,
+      "required_projects": 5,
+      "requirements": {
+        "theory_hours": 80,
+        "practice_hours": 150,
+        "min_age": 16,
+        "skills": [
+          "Startup alapítás",
+          "Befektetői pitch",
+          "Csapatépítés",
+          "Stratégiai tervezés",
+          "Scaling (növekedés menedzsment)"
+        ],
+        "mandatory_courses": [
+          "Fundraising",
+          "Legal basics",
+          "Scaling strategies",
+          "Leadership",
+          "Exit strategies"
+        ],
+        "project_types": [
+          "Saját startup indítás",
+          "Seed funding megszerzés",
+          "Csapatvezetés",
+          "Go-to-market stratégia"
+        ],
+        "capstone_project": {
+          "required": true,
+          "description": "Saját startup projekt indítása vagy jelentős közreműködés scaling projektben",
+          "min_duration_months": 6,
+          "success_criteria": [
+            "Működő prototípus/MVP",
+            "User traction (legalább 100 aktív felhasználó vagy 10 fizető ügyfél)",
+            "Dokumentált tanulási folyamat",
+            "Pitch prezentáció befektetők előtt"
+          ]
+        }
+      }
+    }
+  ]
+}

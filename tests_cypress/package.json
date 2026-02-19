@@ -1,0 +1,29 @@
+{
+  "name": "lfa-cypress-e2e",
+  "version": "1.0.0",
+  "description": "Cypress end-to-end tests for LFA Education Center (Streamlit frontend)",
+  "private": true,
+  "scripts": {
+    "cy:open": "ELECTRON_RUN_AS_NODE= cypress open",
+    "cy:run": "ELECTRON_RUN_AS_NODE= cypress run",
+    "cy:run:auth": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/auth/**'",
+    "cy:run:admin": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/admin/**'",
+    "cy:run:instructor": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/instructor/**'",
+    "cy:run:player": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/player/**'",
+    "cy:run:student": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/student/**'",
+    "cy:run:system": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/system/**'",
+    "cy:run:errors": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/error_states/**'",
+    "cy:run:smoke": "ELECTRON_RUN_AS_NODE= cypress run --env grepTags=@smoke",
+    "cy:run:headed": "ELECTRON_RUN_AS_NODE= cypress run --headed --no-exit",
+    "cy:run:ci": "cypress run --headless --browser chrome"
+  },
+  "devDependencies": {
+    "@cypress/grep": "^4.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "cypress": "^13.17.0"
+  }
+}

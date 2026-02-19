@@ -1,0 +1,128 @@
+<!-- ========================================== -->
+<!-- UNIFIED HEADER - Used across all pages   -->
+<!-- Design reference: /about-specializations -->
+<!-- ========================================== -->
+
+<style>
+    /* UNIFIED HEADER STYLES - DO NOT MODIFY WITHOUT UPDATING ALL PAGES */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: #f5f7fa;
+        min-height: 100vh;
+    }
+
+    .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .user-info h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .user-info p {
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .credit-badge {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .btn {
+        padding: 0.8rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-primary {
+        background: white;
+        color: #667eea;
+    }
+
+    .btn-secondary {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 2px solid white;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    @media (max-width: 768px) {
+        .header-content {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>Welcome, {{ user.name }}! 👋</h1>
+            <p>{{ user.email }}{% if user.date_of_birth and user_age %} · Age: {{ user_age }} years{% endif %}</p>
+        </div>
+        <div class="header-actions">
+            {% if user.role.value == 'STUDENT' %}
+            <div class="credit-badge">
+                💰 {{ credit_balance if credit_balance is defined else user.credit_balance }} credits
+            </div>
+            <a href="/credits" class="btn btn-primary">💳 Purchase Credits</a>
+            {% endif %}
+            <a href="/dashboard" class="btn btn-secondary">🏠 Dashboard</a>
+            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+        </div>
+    </div>
+</div>

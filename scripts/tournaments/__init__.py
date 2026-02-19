@@ -1,0 +1,3 @@
+"""
+Tournament scripts module
+"""

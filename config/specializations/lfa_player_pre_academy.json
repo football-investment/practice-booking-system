@@ -1,0 +1,90 @@
+{
+  "id": "LFA_PLAYER_PRE_ACADEMY",
+  "name": "LFA Player PRE Academy Season",
+  "description": "Teljes éves Academy Season PRE korosztály számára (5-13 év). Július 1 - Június 30 fix időszak, magas elkötelezettség.",
+  "min_age": 5,
+  "max_age": 13,
+  "season_type": "academy_annual",
+  "duration": "full_year",
+  "start_date": "July 1",
+  "end_date": "June 30",
+  "cost_credits": 5000,
+  "requires_location_type": "CENTER",
+  "age_groups": [
+    {
+      "name": "PRE Academy",
+      "min_age": 5,
+      "max_age": 13,
+      "levels": [1, 2, 3, 4, 5, 6, 7, 8],
+      "description": "Teljes éves strukturált fejlődési program PRE korosztály számára"
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "Bronze Beginner",
+      "description": "Alapozó szint - labdakezelés alapjai",
+      "xp_required": 0
+    },
+    {
+      "level": 2,
+      "name": "Bronze Advanced",
+      "description": "Fejlett alapozás - koordináció fejlesztés",
+      "xp_required": 200
+    },
+    {
+      "level": 3,
+      "name": "Silver Beginner",
+      "description": "Ezüst kezdő - technikai alapok",
+      "xp_required": 500
+    },
+    {
+      "level": 4,
+      "name": "Silver Advanced",
+      "description": "Ezüst haladó - játékértelem fejlesztés",
+      "xp_required": 900
+    },
+    {
+      "level": 5,
+      "name": "Gold Beginner",
+      "description": "Arany kezdő - taktikai alapok",
+      "xp_required": 1400
+    },
+    {
+      "level": 6,
+      "name": "Gold Advanced",
+      "description": "Arany haladó - csapatjáték elsajátítása",
+      "xp_required": 2000
+    },
+    {
+      "level": 7,
+      "name": "Elite Beginner",
+      "description": "Elit kezdő - versenyzői mentalitás",
+      "xp_required": 2700
+    },
+    {
+      "level": 8,
+      "name": "Elite Master",
+      "description": "Elit mester - átfogó játéktudás PRE szinten",
+      "xp_required": 3500
+    }
+  ],
+  "features": [
+    "Teljes éves elkötelezettség (July 1 - June 30)",
+    "Strukturált 12 hónapos fejlődési program",
+    "Heti 2-3 edzés fix időpontban",
+    "Csak CENTER helyszíneken elérhető",
+    "Age category lock július 1-jén (egész évre fix)",
+    "Magas intenzitású fejlesztés",
+    "Versenylehetőségek egész évben",
+    "Folyamatos teljesítmény értékelés"
+  ],
+  "enrollment_rules": {
+    "age_lock_date": "July 1",
+    "age_lock_description": "A játékos korosztálya július 1-jén rögzítésre kerül és az egész szezonra érvényes marad",
+    "parallel_enrollment_allowed": true,
+    "can_combine_with": ["TOURNAMENT", "MINI_SEASON"],
+    "location_requirement": "CENTER only",
+    "min_commitment": "full_year"
+  }
+}

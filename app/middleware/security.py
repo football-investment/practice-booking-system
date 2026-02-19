@@ -1,10 +1,9 @@
 import time
-import json
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Callable, Optional
 from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 
-from fastapi import Request, Response, HTTPException, status
+from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -36,16 +35,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.window_seconds = window_seconds
         self.per_user_calls = per_user_calls
         self.cleanup_interval = cleanup_interval
-        
         # Storage for rate limiting data
         self.ip_requests: Dict[str, deque] = defaultdict(deque)
         self.user_requests: Dict[int, deque] = defaultdict(deque)
         self.blocked_ips: Dict[str, datetime] = {}
         self.last_cleanup = time.time()
-        
         # Endpoint-specific limits - import settings
         from ..config import settings
-        
         self.endpoint_limits = {
             "/api/v1/auth/login": (settings.LOGIN_RATE_LIMIT_CALLS, settings.LOGIN_RATE_LIMIT_WINDOW_SECONDS),
             "/api/v1/users/": (10, 60),     # 10 user creations per minute
@@ -264,8 +260,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.csp_policy = csp_policy or (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "img-src 'self' data:; "
             "connect-src 'self' http://localhost:8000 http://192.168.1.129:8000; "
             "font-src 'self'"

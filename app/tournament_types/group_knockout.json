@@ -1,0 +1,85 @@
+{
+  "code": "group_knockout",
+  "display_name": "Group Stage + Knockout",
+  "description": "Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.",
+  "min_players": 8,
+  "max_players": 64,
+  "requires_power_of_two": false,
+  "session_duration_minutes": 90,
+  "break_between_sessions_minutes": 15,
+  "matches_calculation": "group_matches + knockout_matches",
+  "rounds_calculation": "group_rounds + knockout_rounds",
+  "session_naming_pattern": "{phase} - {round_name} - Match {match_number}",
+  "phases": [
+    {
+      "name": "Group Stage",
+      "format": "round_robin_within_groups",
+      "groups_count": "dynamic",
+      "players_per_group": 4,
+      "top_qualifiers_per_group": 2
+    },
+    {
+      "name": "Knockout Stage",
+      "format": "single_elimination",
+      "seeding": "group_winners_vs_runners_up"
+    }
+  ],
+  "group_configuration": {
+    "8_players": {
+      "groups": 2,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "12_players": {
+      "groups": 3,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "16_players": {
+      "groups": 4,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "24_players": {
+      "groups": 6,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "32_players": {
+      "groups": 8,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "48_players": {
+      "groups": 12,
+      "players_per_group": 4,
+      "qualifiers": 2
+    },
+    "64_players": {
+      "groups": 16,
+      "players_per_group": 4,
+      "qualifiers": 2
+    }
+  },
+  "placement_rules": {
+    "group_stage": {
+      "primary": "wins",
+      "tiebreakers": [
+        "goal_difference",
+        "goals_scored",
+        "head_to_head"
+      ]
+    },
+    "knockout_stage": {
+      "1": "Winner of final",
+      "2": "Loser of final",
+      "3-4": "Losers of semi-finals"
+    }
+  },
+  "config_notes": [
+    "Group stage ensures everyone plays multiple matches",
+    "Knockout stage provides exciting conclusion",
+    "Most popular format for medium-large tournaments",
+    "Balances fairness with entertainment value"
+  ]
+}

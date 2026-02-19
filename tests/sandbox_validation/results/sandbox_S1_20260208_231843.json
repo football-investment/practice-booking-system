@@ -1,0 +1,43 @@
+{
+  "verdict": "NOT_WORKING",
+  "test_run_id": "sandbox-2026-02-08-23-18-42-2386",
+  "tournament": {
+    "id": 1516,
+    "name": "SANDBOX-TEST-FAILED",
+    "type": "LEAGUE",
+    "status": "IN_PROGRESS",
+    "player_count": 8,
+    "skills_tested": [
+      "passing",
+      "dribbling",
+      "shot_power",
+      "tackle"
+    ]
+  },
+  "execution_summary": {
+    "duration_seconds": 0.3,
+    "steps_completed": [
+      "Tournament created (ID: 1516, Status: IN_PROGRESS)",
+      "Participants enrolled (8 players)"
+    ]
+  },
+  "skill_progression": {},
+  "top_performers": [],
+  "bottom_performers": [],
+  "insights": [
+    {
+      "category": "ERROR",
+      "severity": "ERROR",
+      "message": "Test execution failed at stage: ENROLLMENT"
+    },
+    {
+      "category": "ERROR",
+      "severity": "ERROR",
+      "message": "Error: 'goal_difference' is an invalid keyword argument for TournamentRanking"
+    }
+  ],
+  "export_data": {
+    "pdf_ready": false,
+    "export_url": null
+  }
+}

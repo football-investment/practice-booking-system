@@ -1,0 +1,118 @@
+"""
+Achievement Service - User Achievement Data Retrieval
+
+Handles fetching complete gamification data for users including stats, achievements, and progress.
+"""
+
+from sqlalchemy.orm import Session
+from typing import Dict
+
+from ...models.gamification import UserAchievement
+from ...models.semester import Semester
+from ...models.session import Session as SessionType
+from ...models.booking import Booking
+
+from .xp_service import calculate_user_stats
+from .badge_service import check_and_award_semester_achievements
+
+
+def get_user_gamification_data(db: Session, user_id: int) -> Dict:
+    """
+    Get complete gamification data for a user
+
+    Args:
+        db: Database session
+        user_id: User ID
+
+    Returns:
+        Dictionary containing:
+            - stats: User statistics (XP, level, attendance, etc.)
+            - achievements: List of earned achievements
+            - status: Current student status (New/Returning/Veteran/Master)
+            - next_level: Progress toward next level
+            - semesters: List of semesters user participated in
+            - current_semester: Current active semester
+    """
+    # Calculate and update user stats
+    stats = calculate_user_stats(db, user_id)
+
+    # Check and award semester achievements
+    check_and_award_semester_achievements(db, user_id)
+
+    # Get all user achievements
+    achievements = db.query(UserAchievement).filter(
+        UserAchievement.user_id == user_id
+    ).order_by(UserAchievement.earned_at.desc()).all()
+
+    # Get semester information for the user
+    user_semesters = db.query(Semester).join(
+        SessionType, Semester.id == SessionType.semester_id
+    ).join(
+        Booking, SessionType.id == Booking.session_id
+    ).filter(Booking.user_id == user_id).distinct().order_by(Semester.start_date).all()
+
+    # Get current semester (the latest one)
+    current_semester = db.query(Semester).order_by(Semester.start_date.desc()).first()
+
+    # Determine student status
+    status = "\U0001f4da New Student"
+    status_icon = "\U0001f4da"
+    if stats.semesters_participated >= 5:
+        status = "\U0001f451 Master Student"
+        status_icon = "\U0001f451"
+    elif stats.semesters_participated >= 3:
+        status = "\U0001f3c5 Veteran Student"
+        status_icon = "\U0001f3c5"
+    elif stats.semesters_participated >= 2:
+        status = "\U0001f504 Returning Student"
+        status_icon = "\U0001f504"
+
+    return {
+        "stats": {
+            "semesters_participated": stats.semesters_participated,
+            "total_bookings": stats.total_bookings,
+            "total_attended": stats.total_attended,
+            "attendance_rate": stats.attendance_rate,
+            "feedback_given": stats.feedback_given,
+            "total_xp": stats.total_xp,
+            "level": stats.level,
+            "first_semester_date": stats.first_semester_date.isoformat() if stats.first_semester_date else None
+        },
+        "achievements": [
+            {
+                "id": ach.id,
+                "title": ach.title,
+                "description": ach.description,
+                "icon": ach.icon,
+                "badge_type": ach.badge_type,
+                "earned_at": ach.earned_at.isoformat(),
+                "semester_count": ach.semester_count
+            }
+            for ach in achievements
+        ],
+        "status": {
+            "title": status,
+            "icon": status_icon,
+            "is_returning": stats.semesters_participated >= 2
+        },
+        "next_level": {
+            "current_xp": stats.total_xp,
+            "next_level_xp": (stats.level + 1) * 1000,
+            "progress_percentage": ((stats.total_xp % 1000) / 1000) * 100
+        },
+        "semesters": [
+            {
+                "id": semester.id,
+                "name": semester.name,
+                "start_date": semester.start_date.isoformat() if semester.start_date else None,
+                "end_date": semester.end_date.isoformat() if semester.end_date else None
+            }
+            for semester in user_semesters
+        ],
+        "current_semester": {
+            "id": current_semester.id,
+            "name": current_semester.name,
+            "start_date": current_semester.start_date.isoformat() if current_semester.start_date else None,
+            "end_date": current_semester.end_date.isoformat() if current_semester.end_date else None
+        } if current_semester else None
+    }

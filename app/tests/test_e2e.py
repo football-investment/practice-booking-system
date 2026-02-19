@@ -1,4 +1,3 @@
-import pytest
 from fastapi import status
 from datetime import datetime, timedelta
 
@@ -21,7 +20,6 @@ class TestCompleteWorkflow:
         """
         # 1. Admin login (using fixture token)
         headers = {"Authorization": f"Bearer {admin_token}"}
-        
         # 2. Create semester
         semester_data = {
             "code": "2024/1",
@@ -38,7 +36,6 @@ class TestCompleteWorkflow:
         assert semester_response.status_code == status.HTTP_200_OK
         semester = semester_response.json()
         semester_id = semester["id"]
-        
         # 3. Create group
         group_data = {
             "name": "Csoport A",
@@ -77,7 +74,8 @@ class TestCompleteWorkflow:
                 "name": f"Hallgató {i+1}",
                 "email": f"student{i+1}@test.com",
                 "password": "student123",
-                "role": "student"
+                "role": "student",
+                "payment_verified": True  # Required for booking sessions
             }
             student_response = client.post(
                 "/api/v1/users/",
@@ -338,7 +336,8 @@ class TestCompleteWorkflow:
                 "name": f"Edge Student {i+1}",
                 "email": f"edge_student{i+1}@test.com",
                 "password": "student123",
-                "role": "student"
+                "role": "student",
+                "payment_verified": True  # Required for booking sessions
             }
             student = client.post("/api/v1/users/", headers=admin_headers, json=student_data).json()
             students.append(student)

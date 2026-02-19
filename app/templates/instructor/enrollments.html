@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Enrollment Requests - Instructor Panel{% endblock %}
+
+{% block content %}
+<style>
+/* Accordion Card Styles */
+.spec-accordion {
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.spec-accordion:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.spec-header {
+    padding: 1.2rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    font-weight: 600;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.spec-header:hover {
+    filter: brightness(1.1);
+}
+
+.spec-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.spec-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.spec-stats {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.95rem;
+    opacity: 0.95;
+}
+
+.stat-badge {
+    background: rgba(255,255,255,0.25);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.stat-badge.urgent {
+    background: rgba(255,255,255,0.4);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.toggle-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.toggle-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.spec-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    background: white;
+}
+
+.spec-content.expanded {
+    max-height: 5000px;
+    transition: max-height 0.6s ease-in;
+}
+
+.spec-content-inner {
+    padding: 1.5rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #95a5a6;
+    font-style: italic;
+}
+</style>
+
+<div class="welcome-section">
+    <h1>🥋 Enrollment Request Management</h1>
+    <p>Review and approve enrollment requests for your semesters</p>
+</div>
+
+<!-- Specialization Configuration -->
+{% set spec_config = {
+    'INTERNSHIP': {'color': '#e74c3c', 'icon': '💼', 'name': 'Internship'},
+    'GANCUJU_PLAYER': {'color': '#8e44ad', 'icon': '🥋', 'name': 'GānCuju Player'},
+    'LFA_PLAYER_PRE': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player PRE (4-8 years)'},
+    'LFA_PLAYER_YOUTH': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player Youth (8-14 years)'},
+    'LFA_PLAYER_AMATEUR': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player Amateur (14+ years)'},
+    'LFA_PLAYER_PRO': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Player PRO (16+ years)'},
+    'LFA_FOOTBALL_PLAYER': {'color': '#f1c40f', 'icon': '⚽', 'name': 'LFA Football Player (Legacy)'},
+    'LFA_COACH': {'color': '#27ae60', 'icon': '👨\u200d🏫', 'name': 'LFA Coach'}
+} %}
+
+<!-- Your Role Info -->
+{% if instructor_semesters %}
+<div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 1.5rem;">
+    <h2 style="color: white; margin-bottom: 0.5rem;">🥋 Master Instructor Role</h2>
+    <div style="opacity: 0.9;">
+        <p style="margin: 0; font-size: 1rem;">
+            You are the master instructor for <strong>{{ instructor_semesters|length }} active semesters</strong>.
+            Review and approve enrollment requests below, organized by specialization.
+        </p>
+    </div>
+</div>
+{% else %}
+<div class="card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; margin-bottom: 1.5rem;">
+    <h2 style="color: white; margin-bottom: 0.5rem;">⚠️ No Semesters Assigned</h2>
+    <p style="opacity: 0.9; margin: 0;">
+        You are not currently assigned as master instructor for any semesters. Contact an administrator to get assigned.
+    </p>
+</div>
+{% endif %}
+
+<!-- Total Pending Summary -->
+{% set total_pending = namespace(count=0) %}
+{% for spec_type in SpecializationType %}
+    {% set total_pending.count = total_pending.count + specialization_groups[spec_type.value].pending|length %}
+{% endfor %}
+
+{% if total_pending.count > 0 %}
+<div class="card" style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; margin-bottom: 1.5rem; border: 3px solid #f57c00;">
+    <h2 style="color: white; margin-bottom: 0.8rem;">⏳ {{ total_pending.count }} Pending Enrollment Request(s)</h2>
+    <p style="opacity: 0.95; margin: 0; font-size: 1rem;">
+        Students awaiting your approval to enroll in your semesters.
+    </p>
+</div>
+{% endif %}
+
+<!-- ========================================== -->
+<!-- SPECIALIZATION ACCORDION SECTIONS          -->
+<!-- ========================================== -->
+
+{% for spec_type in SpecializationType %}
+{% set spec = spec_config[spec_type.value] %}
+{% set group = specialization_groups[spec_type.value] %}
+{% set has_pending = group.pending|length > 0 %}
+{% set expanded = 'expanded' if has_pending else '' %}
+
+<div class="spec-accordion" style="border: 3px solid {{ spec.color }};">
+    <!-- Header -->
+    <div class="spec-header" style="background: {{ spec.color }};" onclick="toggleAccordion('{{ spec_type.value }}')">
+        <div class="spec-header-left">
+            <span class="spec-title">{{ spec.icon }} {{ spec.name }}</span>
+            <div class="spec-stats">
+                <span class="stat-badge {% if has_pending %}urgent{% endif %}">
+                    ⏳ {{ group.pending|length }} Pending
+                </span>
+                <span class="stat-badge">
+                    ✅ {{ group.active|length }} Active
+                </span>
+            </div>
+        </div>
+        <span class="toggle-icon {{ expanded }}" id="toggle-{{ spec_type.value }}">▼</span>
+    </div>
+
+    <!-- Content -->
+    <div class="spec-content {{ expanded }}" id="content-{{ spec_type.value }}">
+        <div class="spec-content-inner">
+
+            <!-- PENDING REQUESTS -->
+            {% if group.pending %}
+            <h3 style="color: {{ spec.color }}; margin-bottom: 1rem;">⏳ Pending Enrollment Requests</h3>
+            <table style="width: 100%; margin-bottom: 2rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: #f8f9fa;">
+                        <th style="padding: 0.75rem; text-align: left;">Student</th>
+                        <th style="padding: 0.75rem; text-align: left;">Payment Code</th>
+                        <th style="padding: 0.75rem; text-align: left;">Semester</th>
+                        <th style="padding: 0.75rem; text-align: center;">Requested At</th>
+                        <th style="padding: 0.75rem; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in group.pending %}
+                    <tr style="border-bottom: 1px solid #ecf0f1;" id="request-row-{{ enrollment.id }}">
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.user.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.user.email }}</span>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if enrollment.user_license and enrollment.user_license.payment_reference_code %}
+                            <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; color: #2c3e50; display: inline-block; font-family: monospace;">
+                                {{ enrollment.user_license.payment_reference_code }}
+                            </code>
+                            {% else %}
+                            <span style="color: #95a5a6; font-style: italic; font-size: 0.85rem;">No payment code</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.semester.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.semester.code }}</span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">
+                                {{ enrollment.requested_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <button onclick="approveRequest({{ enrollment.id }})" class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.9rem; margin: 0.2rem;">
+                                ✅ Approve
+                            </button>
+                            <button onclick="rejectRequest({{ enrollment.id }})" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.9rem; margin: 0.2rem;">
+                                ❌ Reject
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- ACTIVE ENROLLMENTS -->
+            {% if group.active %}
+            <h3 style="color: {{ spec.color }}; margin-bottom: 1rem;">✅ Active Enrollments (Read-Only)</h3>
+            <table style="width: 100%; margin-bottom: 2rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ecf0f1; background-color: #f8f9fa;">
+                        <th style="padding: 0.75rem; text-align: left;">Student</th>
+                        <th style="padding: 0.75rem; text-align: left;">Semester</th>
+                        <th style="padding: 0.75rem; text-align: center;">Enrolled At</th>
+                        <th style="padding: 0.75rem; text-align: center;">Approved By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in group.active %}
+                    <tr style="border-bottom: 1px solid #ecf0f1;">
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.user.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.user.email }}</span>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ enrollment.semester.name }}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">{{ enrollment.semester.code }}</span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <span style="color: #7f8c8d; font-size: 0.85rem;">
+                                {{ enrollment.enrolled_at.strftime('%Y-%m-%d %H:%M') if enrollment.enrolled_at else '-' }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            {% if enrollment.approved_by_user_id %}
+                                <span style="color: #27ae60; font-size: 0.85rem;">
+                                    👤 User ID: {{ enrollment.approved_by_user_id }}
+                                </span>
+                            {% else %}
+                                <span style="color: #95a5a6; font-size: 0.85rem;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- EMPTY STATE -->
+            {% if not group.pending and not group.active %}
+            <div class="empty-state">
+                <p style="font-size: 1.1rem;">No enrollments for {{ spec.name }} yet</p>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% endfor %}
+
+<script>
+// ========================================
+// ACCORDION TOGGLE
+// ========================================
+function toggleAccordion(specType) {
+    const content = document.getElementById('content-' + specType);
+    const icon = document.getElementById('toggle-' + specType);
+
+    content.classList.toggle('expanded');
+    icon.classList.toggle('expanded');
+}
+
+// ========================================
+// APPROVE/REJECT ENROLLMENT REQUESTS
+// ========================================
+async function approveRequest(enrollmentId) {
+    if (!confirm('✅ Approve this enrollment request?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/approve`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('✅ Enrollment request approved!');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to approve'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function rejectRequest(enrollmentId) {
+    const reason = prompt('❌ Rejection reason (optional):');
+    if (reason === null) {
+        return; // User cancelled
+    }
+
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/reject`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason || 'No reason provided' })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('❌ Enrollment request rejected');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || data.message || 'Failed to reject'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+</script>
+
+{% endblock %}

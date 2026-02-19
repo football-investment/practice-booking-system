@@ -1,6 +1,5 @@
-from typing import List, Optional
+from typing import List
 from functools import wraps
-from fastapi import HTTPException, status
 
 from ..models.user import UserRole
 

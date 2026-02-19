@@ -1,0 +1,38 @@
+{
+  "code": "knockout",
+  "display_name": "Single Elimination (Knockout)",
+  "description": "Traditional knockout tournament - lose once and you're out. Fast and exciting.",
+  "min_players": 4,
+  "max_players": 1024,
+  "requires_power_of_two": true,
+  "session_duration_minutes": 90,
+  "break_between_sessions_minutes": 15,
+  "matches_calculation": "n - 1",
+  "rounds_calculation": "log2(n)",
+  "session_naming_pattern": "{round_name} - Match {match_number}",
+  "round_names": {
+    "64": "Round of 64",
+    "32": "Round of 32",
+    "16": "Round of 16",
+    "8": "Quarter-finals",
+    "4": "Semi-finals",
+    "2": "Final",
+    "1024": "Round of 1024",
+    "512": "Round of 512",
+    "256": "Round of 256",
+    "128": "Round of 128"
+  },
+  "placement_rules": {
+    "1": "Winner of final",
+    "2": "Loser of final",
+    "3": "Winners of 3rd place playoff (optional)",
+    "4": "Loser of 3rd place playoff (optional)"
+  },
+  "config_notes": [
+    "Requires power-of-2 players (4, 8, 16, 32, 64, 128, 256, 512, 1024)",
+    "Total matches = n - 1",
+    "Fastest tournament format",
+    "Highly competitive - no second chances"
+  ],
+  "third_place_playoff": true
+}

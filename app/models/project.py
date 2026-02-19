@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float, Date, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float, Date, UniqueConstraint, Enum
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
 
 from ..database import Base
+from .specialization import SpecializationType
 
 
 class ProjectStatus(enum.Enum):
@@ -54,6 +55,20 @@ class Project(Base):
     deadline = Column(Date, nullable=True)
     status = Column(String(20), default=ProjectStatus.ACTIVE.value)
     difficulty = Column(String(20), default=ProjectDifficulty.INTERMEDIATE.value)
+    
+    # 🎓 NEW: Specialization fields
+    target_specialization = Column(
+        Enum(SpecializationType),
+        nullable=True,
+        comment="Target specialization for this project (null = all specializations)"
+    )
+    
+    mixed_specialization = Column(
+        Boolean,
+        default=False,
+        comment="Whether this project encourages collaboration between Player and Coach specializations"
+    )
+    
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -77,6 +92,27 @@ class Project(Base):
     def has_enrollment_quiz(self):
         """Check if project has an enrollment quiz"""
         return any(pq.quiz_type == "enrollment" and pq.is_active for pq in self.project_quizzes)
+    
+    # 🎓 NEW: Specialization helper properties
+    @property
+    def specialization_info(self) -> str:
+        """Get user-friendly specialization information (HYBRID: loads from JSON)"""
+        if self.mixed_specialization:
+            return "Vegyes (Player + Coach)"
+        elif self.target_specialization:
+            from app.services.specialization_config_loader import SpecializationConfigLoader
+            loader = SpecializationConfigLoader()
+            try:
+                display_info = loader.get_display_info(self.target_specialization)
+                return display_info.get('name', str(self.target_specialization.value))
+            except Exception:
+                return str(self.target_specialization.value)
+        return "Minden szakirány"
+    
+    @property
+    def is_open_enrollment(self) -> bool:
+        """Check if project has open enrollment for all specializations"""
+        return self.mixed_specialization or self.target_specialization is None
 
 
 class ProjectEnrollment(Base):

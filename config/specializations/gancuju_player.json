@@ -1,0 +1,146 @@
+{
+  "id": "GANCUJU_PLAYER",
+  "name": "GānCuju Player",
+  "description": "4000 éves kínai Cuju hagyományra épülő martial arts stílusú futball szakirány",
+  "min_age": 5,
+  "color_theme": "#8B4513",
+  "icon": "🥋",
+  "levels": [
+    {
+      "level": 1,
+      "name": "Bambusz Tanítvány",
+      "name_en": "Bamboo Disciple",
+      "belt_color": "#FFFFFF",
+      "belt_name": "Fehér öv",
+      "description": "Az út kezdete - alapvető mozgásformák elsajátítása",
+      "xp_required": 0,
+      "xp_max": 999,
+      "required_sessions": 0,
+      "required_projects": 0,
+      "requirements": {
+        "theory_hours": 0,
+        "practice_hours": 20,
+        "skills": ["Alapállás", "Egyensúly", "Labdaérzékelés"]
+      }
+    },
+    {
+      "level": 2,
+      "name": "Hajnali Harmat",
+      "name_en": "Morning Dew",
+      "belt_color": "#FFD700",
+      "belt_name": "Sárga öv",
+      "description": "Friss kezdet - a technikák finomítása",
+      "xp_required": 1000,
+      "xp_max": 2499,
+      "required_sessions": 5,
+      "required_projects": 0,
+      "requirements": {
+        "theory_hours": 10,
+        "practice_hours": 40,
+        "skills": ["Alappasszok", "Cselek", "Labdavezetés"]
+      }
+    },
+    {
+      "level": 3,
+      "name": "Rugalmas Nád",
+      "name_en": "Flexible Reed",
+      "belt_color": "#00FF00",
+      "belt_name": "Zöld öv",
+      "description": "Alkalmazkodás - változatos helyzetekre reagálás",
+      "xp_required": 2500,
+      "xp_max": 4999,
+      "required_sessions": 15,
+      "required_projects": 1,
+      "requirements": {
+        "theory_hours": 20,
+        "practice_hours": 60,
+        "skills": ["Csapatjáték", "Pozíciójáték", "Taktikai alapok"]
+      }
+    },
+    {
+      "level": 4,
+      "name": "Égi Folyó",
+      "name_en": "Celestial River",
+      "belt_color": "#0000FF",
+      "belt_name": "Kék öv",
+      "description": "Folyamatos áramlás - megszakítás nélküli játék",
+      "xp_required": 5000,
+      "xp_max": 9999,
+      "required_sessions": 30,
+      "required_projects": 2,
+      "requirements": {
+        "theory_hours": 30,
+        "practice_hours": 80,
+        "skills": ["Játékértelmezés", "Térfoglalás", "Átmenetek"]
+      }
+    },
+    {
+      "level": 5,
+      "name": "Erős Gyökér",
+      "name_en": "Strong Root",
+      "belt_color": "#8B4513",
+      "belt_name": "Barna öv",
+      "description": "Mély alapok - szilárd tudás és tapasztalat",
+      "xp_required": 10000,
+      "xp_max": 19999,
+      "required_sessions": 50,
+      "required_projects": 3,
+      "requirements": {
+        "theory_hours": 40,
+        "practice_hours": 100,
+        "skills": ["Vezetés", "Mentorlás", "Komplex taktikák"]
+      }
+    },
+    {
+      "level": 6,
+      "name": "Téli Hold",
+      "name_en": "Winter Moon",
+      "belt_color": "#C0C0C0",
+      "belt_name": "Szürke öv",
+      "description": "Nyugodt fényesség - kifinomult technika",
+      "xp_required": 20000,
+      "xp_max": 39999,
+      "required_sessions": 75,
+      "required_projects": 5,
+      "requirements": {
+        "theory_hours": 50,
+        "practice_hours": 120,
+        "skills": ["Stratégiai gondolkodás", "Csapatvezetés", "Kreativitás"]
+      }
+    },
+    {
+      "level": 7,
+      "name": "Éjfél Őrzője",
+      "name_en": "Midnight Guardian",
+      "belt_color": "#000000",
+      "belt_name": "Fekete öv",
+      "description": "Az árnyékok mestere - tökéletes kontroll",
+      "xp_required": 40000,
+      "xp_max": 79999,
+      "required_sessions": 100,
+      "required_projects": 7,
+      "requirements": {
+        "theory_hours": 60,
+        "practice_hours": 150,
+        "skills": ["Mesterfokú technika", "Innovatív játék", "Tanítás"]
+      }
+    },
+    {
+      "level": 8,
+      "name": "Sárkány Bölcsesség",
+      "name_en": "Dragon Wisdom",
+      "belt_color": "#FF0000",
+      "belt_name": "Piros öv - Nagymester",
+      "description": "A legmagasabb szint - bölcsesség és mesterség egysége",
+      "xp_required": 80000,
+      "xp_max": 999999,
+      "required_sessions": 150,
+      "required_projects": 10,
+      "requirements": {
+        "theory_hours": 80,
+        "practice_hours": 200,
+        "skills": ["Nagymesteri tudás", "Filozófiai megértés", "Iskola alapítás képessége"]
+      }
+    }
+  ]
+}

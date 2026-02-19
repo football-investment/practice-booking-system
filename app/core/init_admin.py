@@ -1,4 +1,3 @@
-from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models.user import User, UserRole
 from ..core.security import get_password_hash
@@ -23,14 +22,11 @@ def create_initial_admin():
             role=UserRole.ADMIN,
             is_active=True
         )
-        
         db.add(admin_user)
         db.commit()
         db.refresh(admin_user)
-        
         print(f"Initial admin user created: {settings.ADMIN_EMAIL}")
         print(f"Admin password: {settings.ADMIN_PASSWORD}")
-        
     except Exception as e:
         db.rollback()
         print(f"Error creating admin user: {e}")

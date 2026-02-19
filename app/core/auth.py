@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Union
+from typing import Optional
 
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -47,7 +47,6 @@ def verify_token(token: str, token_type: str = "access") -> Optional[str]:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         token_type_claim: str = payload.get("type")
-        
         if username is None or token_type_claim != token_type:
             return None
         return username

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Motivation Assessment - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>📊 Motivation Assessment</h1>
+    <p>Evaluate student motivation for {{ specialization_display }}</p>
+</div>
+
+<div class="card">
+    <h2>Student: {{ student.name }} ({{ student.email }})</h2>
+    <p><strong>Specialization:</strong> {{ specialization_display }}</p>
+
+    {% if existing_scores %}
+    <div style="background-color: #e8f8f5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <h3 style="margin-top: 0;">Previous Assessment</h3>
+        <p><strong>Average Score:</strong> {{ "%.1f"|format(license.average_motivation_score) }} / 5.0</p>
+        <p><strong>Last Assessed:</strong> {{ license.motivation_last_assessed_at.strftime('%Y-%m-%d %H:%M') if license.motivation_last_assessed_at else 'Never' }}</p>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/admin/students/{{ student.id }}/motivation/{{ specialization }}">
+        <h3>Assessment Questions (1-5 Scale)</h3>
+        <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 1.5rem;">
+            1 = Very Low | 2 = Low | 3 = Moderate | 4 = High | 5 = Very High
+        </p>
+
+        <!-- Question 1: Goal Clarity -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                1. Goal Clarity: How clear are the student's goals in this specialization?
+            </label>
+            <div style="display: flex; gap: 1rem;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer;">
+                    <input type="radio" name="goal_clarity" value="{{ score }}" required>
+                    {{ score }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 2: Commitment Level -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                2. Commitment Level: How committed is the student to this specialization?
+            </label>
+            <div style="display: flex; gap: 1rem;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer;">
+                    <input type="radio" name="commitment_level" value="{{ score }}" required>
+                    {{ score }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 3: Engagement -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                3. Engagement: How engaged is the student during sessions and activities?
+            </label>
+            <div style="display: flex; gap: 1rem;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer;">
+                    <input type="radio" name="engagement" value="{{ score }}" required>
+                    {{ score }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 4: Progress Mindset -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                4. Progress Mindset: How well does the student handle challenges and setbacks?
+            </label>
+            <div style="display: flex; gap: 1rem;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer;">
+                    <input type="radio" name="progress_mindset" value="{{ score }}" required>
+                    {{ score }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Question 5: Initiative -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                5. Initiative: How proactive is the student in seeking learning opportunities?
+            </label>
+            <div style="display: flex; gap: 1rem;">
+                {% for score in [1, 2, 3, 4, 5] %}
+                <label style="cursor: pointer;">
+                    <input type="radio" name="initiative" value="{{ score }}" required>
+                    {{ score }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">
+                Additional Notes (Optional):
+            </label>
+            <textarea name="notes" rows="4" style="width: 100%; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px;"></textarea>
+        </div>
+
+        <div style="display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary">Save Assessment</button>
+            <a href="/admin/students/{{ student.id }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

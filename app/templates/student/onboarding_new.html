@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Choose Your Path{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; margin: 2rem auto;">
+    <div class="card" style="text-align: center; padding: 2rem;">
+        <h1 style="color: #3498db; font-size: 2.2rem; margin-bottom: 1rem;">🎓 Welcome to LFA Education Center!</h1>
+        <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 2rem;">
+            Let's get you started on your learning journey
+        </p>
+
+        {% if not user.date_of_birth %}
+        <!-- STEP 1: Collect Date of Birth -->
+        <div style="background: #ecf0f1; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h2 style="color: #2c3e50; margin-bottom: 1rem;">📅 First, tell us your birth date</h2>
+            <p style="color: #7f8c8d; font-size: 0.95rem; margin-bottom: 1.5rem;">
+                This helps us show you the right programs based on your age
+            </p>
+
+            <form method="POST" action="/onboarding/set-birthdate" style="max-width: 400px; margin: 0 auto;">
+                <div style="margin-bottom: 1rem;">
+                    <label for="date_of_birth" style="display: block; text-align: left; font-weight: 600; margin-bottom: 0.5rem; color: #2c3e50;">
+                        Date of Birth:
+                    </label>
+                    <input
+                        type="date"
+                        id="date_of_birth"
+                        name="date_of_birth"
+                        required
+                        max="{{ today }}"
+                        style="width: 100%; padding: 0.75rem; border: 2px solid #bdc3c7; border-radius: 6px; font-size: 1rem;"
+                    >
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1.1rem; margin-top: 1rem;">
+                    Continue →
+                </button>
+            </form>
+        </div>
+
+        {% else %}
+        <!-- STEP 2: Choose Specialization(s) -->
+        <div style="background: #ecf0f1; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+            <h2 style="color: #2c3e50; margin-bottom: 0.5rem;">🎯 Choose Your Specialization</h2>
+            <p style="color: #7f8c8d; font-size: 0.95rem; margin-bottom: 2rem;">
+                You are <strong>{{ user.age }} years old</strong>. Here are the programs available to you:
+            </p>
+
+            <form method="POST" action="/onboarding/select-specialization">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; text-align: left;">
+
+                    {% for spec in available_specs %}
+                    <label class="spec-card" style="background: white; padding: 1.5rem; border-radius: 12px; border: 3px solid {{ spec.color }}; cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column; position: relative; min-height: 220px;"
+                           onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)'"
+                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.05)'">
+
+                        <div style="position: absolute; top: 1rem; right: 1rem;">
+                            <input
+                                type="checkbox"
+                                name="specializations"
+                                value="{{ spec.type }}"
+                                style="width: 24px; height: 24px; cursor: pointer; accent-color: {{ spec.color }};"
+                            >
+                        </div>
+
+                        <div style="text-align: center; margin-bottom: 1rem;">
+                            <span style="font-size: 3.5rem; display: block; margin-bottom: 0.5rem;">{{ spec.icon }}</span>
+                            <strong style="font-size: 1.25rem; color: {{ spec.color }}; display: block;">{{ spec.name }}</strong>
+                        </div>
+
+                        <p style="color: #555; font-size: 0.9rem; line-height: 1.5; flex-grow: 1; text-align: center; margin-bottom: 0.75rem;">
+                            {{ spec.description }}
+                        </p>
+
+                        {% if spec.age_requirement %}
+                        <div style="background: {{ spec.color }}22; padding: 0.5rem; border-radius: 6px; text-align: center; margin-top: auto;">
+                            <p style="color: {{ spec.color }}; font-size: 0.85rem; margin: 0; font-weight: 600;">
+                                📋 {{ spec.age_requirement }}
+                            </p>
+                        </div>
+                        {% endif %}
+                    </label>
+                    {% endfor %}
+
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="padding: 0.85rem 2.5rem; font-size: 1.15rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);">
+                    Continue to Payment Information →
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; border-radius: 4px; margin-top: 2rem; text-align: left;">
+            <strong style="color: #856404;">💡 Good to Know:</strong>
+            <ul style="margin: 0.5rem 0 0 1.5rem; color: #856404; font-size: 0.9rem; line-height: 1.6;">
+                <li>You can select multiple specializations</li>
+                <li>Each specialization requires separate payment</li>
+                <li>After payment verification, you can enroll in semester courses</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
