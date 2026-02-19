@@ -6,6 +6,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 
 from .....database import get_db
@@ -102,6 +103,12 @@ def create_booking(
                    f"Session starts in {hours_until_session:.1f} hours."
         )
 
+    # B02: Lock session row before capacity read — serialises concurrent bookings.
+    # Thread B blocks here until Thread A commits, then sees the updated count.
+    db.query(SessionTypel).filter(
+        SessionTypel.id == booking_data.session_id
+    ).with_for_update().one()
+
     # Check capacity and determine status
     confirmed_count = db.query(func.count(Booking.id)).filter(
         and_(Booking.session_id == booking_data.session_id, Booking.status == BookingStatus.CONFIRMED)
@@ -125,7 +132,17 @@ def create_booking(
     )
 
     db.add(booking)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        orig = str(getattr(e, "orig", e))
+        if "uq_active_booking" in orig:
+            raise HTTPException(
+                status_code=409,
+                detail="You already have an active booking for this session (concurrent duplicate request blocked)",
+            )
+        raise HTTPException(status_code=409, detail=f"Database constraint violation: {orig}")
     db.refresh(booking)
 
     return booking
@@ -267,7 +284,9 @@ def cancel_booking(
     """
     Cancel own booking and auto-promote from waitlist
     """
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    # B05: Lock booking row — prevents concurrent student + admin cancel both
+    # reading status=CONFIRMED and both triggering auto_promote → overbooking.
+    booking = db.query(Booking).filter(Booking.id == booking_id).with_for_update().first()
     if not booking:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -279,6 +298,13 @@ def cancel_booking(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only cancel your own bookings"
+        )
+
+    # B05: Guard against double-cancel — after the lock, re-read status is safe.
+    if booking.status == BookingStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Booking is already cancelled",
         )
 
     # ✅ VALIDATE CANCELLATION DEADLINE: Must cancel at least 12 hours before session

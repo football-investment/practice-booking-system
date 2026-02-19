@@ -20,13 +20,14 @@ def auto_promote_from_waitlist(
     Returns:
         Tuple of (promoted_user, booking_id) if promotion occurred, None otherwise
     """
-    # Find next person on waitlist (lowest position number)
+    # B04: Lock the top-of-waitlist row — prevents two concurrent cancel callbacks
+    # both selecting the same row and both promoting it (double-promotion).
     next_waitlisted = db.query(Booking).filter(
         and_(
             Booking.session_id == session_id,
             Booking.status == BookingStatus.WAITLISTED
         )
-    ).order_by(Booking.waitlist_position.asc()).first()
+    ).with_for_update().order_by(Booking.waitlist_position.asc()).first()
 
     if not next_waitlisted:
         return None
