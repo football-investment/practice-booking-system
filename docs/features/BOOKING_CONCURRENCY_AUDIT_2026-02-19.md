@@ -1,7 +1,7 @@
 # Booking Pipeline — Concurrency Audit (Phase A: Read-Only Race Map)
 
 **Date:** 2026-02-19
-**Status: PHASE A COMPLETE — races identified, no fixes applied yet**
+**Status: FULLY IMPLEMENTED — all RACE-B01..B07 fixes applied and tested**
 **Methodology:** same as enrollment concurrency audit (ENROLLMENT_CONCURRENCY_AUDIT_2026-02-18.md)
 
 ---
@@ -207,7 +207,8 @@ relationship) — which one wins is non-deterministic. Feedback eligibility chec
 | RACE-B06 | Admin confirm without capacity check | admin.py:83–92 | MEDIUM | None |
 | RACE-B07 | Duplicate attendance record | admin.py:174–187 | MEDIUM | None |
 
-**Total:** 4 HIGH + 3 MEDIUM. No existing DB-level protection on any race.
+**Audit-time:** 4 HIGH + 3 MEDIUM. No existing DB-level protection on any race.
+**Post-hardening:** All 7 races ✅ Closed (see Section 10).
 
 ---
 
@@ -289,7 +290,7 @@ booking = db.query(Booking).filter(Booking.id == booking_id).with_for_update().f
 |---|---|---|
 | Races found | 4 | 7 |
 | DB protection at audit start | None | None |
-| After hardening | 3-layer (FOR UPDATE + atomic UPDATE + unique index + CHECK) | TBD |
+| After hardening | 3-layer (FOR UPDATE + atomic UPDATE + unique index + CHECK) | 3-layer (FOR UPDATE + IntegrityError handler + 3 unique indexes) |
 | Financial impact | Credit deduction/refund | Slot capacity violation |
 | Operational impact | Enrollment count | Physical session conflict |
 
@@ -310,3 +311,45 @@ no admin-confirm capacity guard at all.
 | `tests/unit/booking/test_booking_concurrency_p0.py` | 7 P0 tests (new file) |
 | `tests/database/test_booking_db_constraints.py` | DB integration tests (new file) |
 | `scripts/validate_booking_pipeline.py` | INV-B01…INV-B05 weekly monitor (new file) |
+
+---
+
+## 9. Full Implementation Reference
+
+| File | Change applied |
+|---|---|
+| `app/api/api_v1/endpoints/bookings/student.py` | B02 FOR UPDATE on session; B01 IntegrityError → 409; B05 FOR UPDATE on booking + CANCELLED guard |
+| `app/api/api_v1/endpoints/bookings/admin.py` | B05 FOR UPDATE on booking; B06 capacity check; B07 FOR UPDATE + IntegrityError → 409 |
+| `app/api/api_v1/endpoints/bookings/helpers.py` | B04 FOR UPDATE on next_waitlisted |
+| `alembic/versions/2026_02_19_1000-bk01_booking_concurrency_guards.py` | C-01 uq_active_booking, C-02 uq_waitlist_position, C-03 uq_booking_attendance |
+| `tests/unit/booking/test_booking_concurrency_p0.py` | 16 passed, 1 xfailed P0 tests |
+| `scripts/validate_booking_pipeline.py` | INV-B01…INV-B05 weekly monitor — all GREEN on first run |
+| `docs/features/BOOKING_PIPELINE_STABLE_2026-02-19.md` | Hardened Core declaration |
+
+---
+
+## 10. Formal Closure
+
+**Audit closed:** 2026-02-19
+**Closed by:** Sprint — booking pipeline concurrency hardening (Phase B + C + D)
+
+All seven TOCTOU race conditions identified in the Phase A read-only audit are
+resolved. The booking pipeline is now protected by three independent layers:
+
+1. **Application-layer guards:**
+   - `SELECT FOR UPDATE` on session row (B02/B03) + next_waitlisted (B04) + booking row (B05/B07)
+   - Capacity check in admin confirm (B06)
+   - `IntegrityError` → HTTP 409 handler (B01/B07)
+   - CANCELLED status idempotency guard (B05)
+
+2. **DB-level constraints:**
+   - `uq_active_booking` partial unique index (C-01)
+   - `uq_waitlist_position` partial unique index (C-02)
+   - `uq_booking_attendance` unique constraint (C-03)
+
+3. **Monitoring:**
+   - `scripts/validate_booking_pipeline.py` — weekly verification of INV-B01…B05
+   - First run: ✅ ALL CHECKS PASSED (2026-02-19 07:29:41 UTC)
+
+**Next audit target:** Reward/XP distribution pipeline
+(`app/services/tournament/tournament_reward_orchestrator.py`)
