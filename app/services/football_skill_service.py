@@ -113,13 +113,27 @@ class FootballSkillService:
         average = sum(a.percentage for a in assessments) / len(assessments)
         average = round(average, 1)
 
-        # Update cached value in user_licenses.football_skills JSON
-        license = self.db.query(UserLicense).filter(UserLicense.id == user_license_id).first()
+        # Update cached value in user_licenses.football_skills JSON.
+        # S02: FOR UPDATE serialises this write with concurrent tournament finalizations
+        # that also hold FOR UPDATE on the same UserLicense row (Step 1.5 in orchestrator).
+        # Lock order: both paths target the same physical row; whichever arrives first
+        # holds the lock and the other blocks — no deadlock possible.
+        license = self.db.query(UserLicense).filter(
+            UserLicense.id == user_license_id
+        ).with_for_update().first()
         if license:
             if not license.football_skills:
                 license.football_skills = {}
 
-            license.football_skills[skill_name] = average
+            existing = license.football_skills.get(skill_name)
+            if isinstance(existing, dict):
+                # S03: dict-format entry (V2 / tournament path) — preserve structure.
+                # Only update the 'baseline' sub-key; leave current_level / deltas intact.
+                existing["baseline"] = average
+                license.football_skills[skill_name] = existing
+            else:
+                # Scalar-format entry (V1 / assessment-only user) — write as float.
+                license.football_skills[skill_name] = average
 
             # Mark as modified (for JSON field)
             flag_modified(license, 'football_skills')

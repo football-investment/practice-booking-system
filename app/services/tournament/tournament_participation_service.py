@@ -263,9 +263,14 @@ def record_tournament_participation(
     db.flush()
 
     # ── Phase 2: compute isolated per-tournament EMA delta and write back ────────
-    from app.services.skill_progression_service import compute_single_tournament_skill_delta
-    rating_delta = compute_single_tournament_skill_delta(db, user_id, tournament_id) or None
-    participation.skill_rating_delta = rating_delta
+    # S05: write-once guard — if skill_rating_delta is already set (e.g., on a retry
+    # after a transient failure), do not recompute.  Recomputing on retry is unsafe
+    # because new tournaments may have committed since the first run, causing the delta
+    # to change even though the underlying placement did not change.
+    if participation.skill_rating_delta is None:
+        from app.services.skill_progression_service import compute_single_tournament_skill_delta
+        rating_delta = compute_single_tournament_skill_delta(db, user_id, tournament_id) or None
+        participation.skill_rating_delta = rating_delta
 
     # Create XP transaction for bonus XP (if any)
     if bonus_xp > 0:

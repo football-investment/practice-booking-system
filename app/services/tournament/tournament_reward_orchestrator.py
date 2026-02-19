@@ -28,6 +28,37 @@ from app.schemas.reward_config import TournamentRewardConfig
 # Import both service modules
 from app.services.tournament import tournament_participation_service as participation_service
 from app.services.tournament import tournament_badge_service as badge_service
+
+
+# ─── S03: football_skills format normalisation ───────────────────────────────
+
+def _normalise_skill_entry(entry) -> dict:
+    """
+    Ensure a football_skills entry is in the V2 dict format before deep-merge.
+
+    The assessment path (FootballSkillService.recalculate_skill_average) may
+    write bare float values for V1 / assessment-only users.  The orchestrator's
+    deep-merge loop requires dict format to update sub-keys.
+
+    Rules:
+    - dict  → returned as-is (may be mutated by caller, but structure is preserved)
+    - float / int / any scalar → promoted to dict with baseline=current_level=float(entry)
+
+    This function is module-level so it can be unit-tested independently.
+    """
+    if isinstance(entry, dict):
+        return entry
+    try:
+        val = float(entry)
+    except (TypeError, ValueError):
+        val = 50.0  # DEFAULT_BASELINE fallback
+    return {
+        "baseline":        val,
+        "current_level":   val,
+        "tournament_delta": 0.0,
+        "total_delta":     0.0,
+        "tournament_count": 0,
+    }
 from app.services import skill_progression_service
 
 logger = logging.getLogger(__name__)
@@ -312,12 +343,20 @@ def distribute_rewards_for_user(
 
                 if computed:
                     updated_skills = dict(active_license.football_skills)
+
+                    # S03: promote any float-format entries to dict before the merge loop.
+                    # Prevents silent omission of skills written by the assessment path
+                    # (FootballSkillService) or by V1 onboarding (bare float format).
+                    for sk in list(updated_skills.keys()):
+                        updated_skills[sk] = _normalise_skill_entry(updated_skills[sk])
+
                     changed = 0
                     for skill_key, sdata in computed.items():
                         if skill_key not in updated_skills:
                             continue
                         entry = updated_skills[skill_key]
                         if not isinstance(entry, dict):
+                            # Should not happen after normalisation — defensive guard
                             continue
                         # Only update delta-related fields; preserve baseline & assessment fields
                         entry["current_level"]    = sdata["current_level"]

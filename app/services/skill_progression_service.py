@@ -428,11 +428,16 @@ def calculate_tournament_skill_contribution(
     # Get baseline skills from UserLicense
     baseline_skills = get_baseline_skills(db, user_id)
 
-    # Get all tournament participations for this user (ordered by date)
+    # Get all tournament participations for this user (ordered by date).
+    # S01: (achieved_at, id) stable sort — prevents non-deterministic EMA replay
+    # when concurrent inserts share the same server_default NOW() timestamp.
     participations = (
         db.query(TournamentParticipation)
         .filter(TournamentParticipation.user_id == user_id)
-        .order_by(TournamentParticipation.achieved_at.asc())
+        .order_by(
+            TournamentParticipation.achieved_at.asc(),
+            TournamentParticipation.id.asc(),
+        )
         .all()
     )
 
@@ -549,11 +554,17 @@ def compute_single_tournament_skill_delta(
         if all_baseline_vals else DEFAULT_BASELINE
     )
 
-    # All participations in chronological order (includes target tournament)
+    # All participations in chronological order (includes target tournament).
+    # S01: secondary sort by .id ensures deterministic ordering when two participations
+    # share the same achieved_at timestamp (e.g., concurrent tournament inserts within
+    # the same PostgreSQL clock tick — server_default=NOW() can collide).
     participations = (
         db.query(TournamentParticipation)
         .filter(TournamentParticipation.user_id == user_id)
-        .order_by(TournamentParticipation.achieved_at.asc())
+        .order_by(
+            TournamentParticipation.achieved_at.asc(),
+            TournamentParticipation.id.asc(),
+        )
         .all()
     )
 
@@ -756,10 +767,14 @@ def get_skill_timeline(
     player_baseline_avg = (sum(all_baseline_vals) / len(all_baseline_vals)) if all_baseline_vals else DEFAULT_BASELINE
 
     # --- participations in chronological order ---------------------------
+    # S01: (achieved_at, id) stable sort for deterministic timeline replay
     participations = (
         db.query(TournamentParticipation)
         .filter(TournamentParticipation.user_id == user_id)
-        .order_by(TournamentParticipation.achieved_at.asc())
+        .order_by(
+            TournamentParticipation.achieved_at.asc(),
+            TournamentParticipation.id.asc(),
+        )
         .all()
     )
 
@@ -876,10 +891,14 @@ def get_skill_audit(db: Session, user_id: int) -> List[Dict]:
     all_baseline_vals = list(baseline_skills.values())
     player_baseline_avg = (sum(all_baseline_vals) / len(all_baseline_vals)) if all_baseline_vals else DEFAULT_BASELINE
 
+    # S01: (achieved_at, id) stable sort for deterministic audit replay
     participations = (
         db.query(TournamentParticipation)
         .filter(TournamentParticipation.user_id == user_id)
-        .order_by(TournamentParticipation.achieved_at.asc())
+        .order_by(
+            TournamentParticipation.achieved_at.asc(),
+            TournamentParticipation.id.asc(),
+        )
         .all()
     )
 
