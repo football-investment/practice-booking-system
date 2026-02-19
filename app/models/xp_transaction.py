@@ -25,6 +25,9 @@ class XPTransaction(Base):
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     balance_after: Mapped[int] = mapped_column(Integer, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # R06: Idempotency key prevents duplicate XP grants on concurrent reward distribution.
+    # Nullable for legacy rows; unique partial index enforced by migration rw01concurr00.
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=False, index=True)
     semester_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 

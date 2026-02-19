@@ -7,7 +7,8 @@ Separate from visual badge awards.
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
+from sqlalchemy.exc import IntegrityError
 import logging
 
 from app.models.tournament_achievement import (
@@ -272,24 +273,38 @@ def record_tournament_participation(
         tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
         tournament_name = tournament.name if tournament else f"Tournament #{tournament_id}"
 
-        # Get user's current XP balance
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            current_balance = user.xp_balance or 0
-            new_balance = current_balance + bonus_xp
+        # R07: Atomic XP balance increment — prevents lost-update race when two concurrent
+        # distributions for different tournaments both read the same stale xp_balance.
+        new_balance = db.execute(
+            text(
+                "UPDATE users SET xp_balance = xp_balance + :delta "
+                "WHERE id = :uid RETURNING xp_balance"
+            ),
+            {"delta": bonus_xp, "uid": user_id},
+        ).scalar() or 0
 
-            xp_transaction = XPTransaction(
-                user_id=user_id,
-                transaction_type="TOURNAMENT_SKILL_BONUS",
-                amount=bonus_xp,
-                balance_after=new_balance,
-                description=f"Skill point bonus from {tournament_name}",
-                semester_id=tournament_id
+        # R06: Idempotency key prevents duplicate XP grants on concurrent distribution retry.
+        xp_idempotency_key = f"reward_xp_{tournament_id}_{user_id}"
+        xp_transaction = XPTransaction(
+            user_id=user_id,
+            transaction_type="TOURNAMENT_SKILL_BONUS",
+            amount=bonus_xp,
+            balance_after=new_balance,
+            description=f"Skill point bonus from {tournament_name}",
+            idempotency_key=xp_idempotency_key,
+            semester_id=tournament_id,
+        )
+        sp_xp = db.begin_nested()
+        db.add(xp_transaction)
+        try:
+            sp_xp.commit()
+        except IntegrityError:
+            sp_xp.rollback()
+            logger.debug(
+                "record_tournament_participation: XP transaction idempotency key collision "
+                "for user=%d tournament=%d — skipping duplicate insert.",
+                user_id, tournament_id,
             )
-            db.add(xp_transaction)
-
-            # Update user's XP balance
-            user.xp_balance = new_balance
 
     # Create credit transaction and update credit balance (if credits awarded)
     if credits > 0:
@@ -299,38 +314,48 @@ def record_tournament_participation(
         tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
         tournament_name = tournament.name if tournament else f"Tournament #{tournament_id}"
 
-        # Get user's current credit balance
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            current_credit_balance = user.credit_balance or 0
-            new_credit_balance = current_credit_balance + credits
+        # Determine rank display
+        if placement == 1:
+            rank_display = "#1"
+        elif placement == 2:
+            rank_display = "#2"
+        elif placement == 3:
+            rank_display = "#3"
+        else:
+            rank_display = f"#{placement}" if placement else "participation"
 
-            # Determine rank display
-            if placement == 1:
-                rank_display = "#1"
-            elif placement == 2:
-                rank_display = "#2"
-            elif placement == 3:
-                rank_display = "#3"
-            else:
-                rank_display = f"#{placement}" if placement else "participation"
+        # R07: Atomic credit balance increment — prevents lost-update race.
+        new_credit_balance = db.execute(
+            text(
+                "UPDATE users SET credit_balance = credit_balance + :delta "
+                "WHERE id = :uid RETURNING credit_balance"
+            ),
+            {"delta": credits, "uid": user_id},
+        ).scalar() or 0
 
-            # Generate idempotency key for credit transaction
-            idempotency_key = f"tournament_reward_{tournament_id}_{user_id}_{placement}"
+        # Generate idempotency key for credit transaction (R06)
+        idempotency_key = f"tournament_reward_{tournament_id}_{user_id}_{placement}"
 
-            credit_transaction = CreditTransaction(
-                user_id=user_id,
-                transaction_type="TOURNAMENT_REWARD",
-                amount=credits,
-                balance_after=new_credit_balance,
-                description=f"Tournament '{tournament_name}' - Rank {rank_display} reward",
-                idempotency_key=idempotency_key,
-                semester_id=tournament_id
+        credit_transaction = CreditTransaction(
+            user_id=user_id,
+            transaction_type="TOURNAMENT_REWARD",
+            amount=credits,
+            balance_after=new_credit_balance,
+            description=f"Tournament '{tournament_name}' - Rank {rank_display} reward",
+            idempotency_key=idempotency_key,
+            semester_id=tournament_id,
+        )
+        sp_cr = db.begin_nested()
+        db.add(credit_transaction)
+        try:
+            sp_cr.commit()
+        except IntegrityError:
+            sp_cr.rollback()
+            logger.debug(
+                "record_tournament_participation: credit transaction idempotency key collision "
+                "for user=%d tournament=%d — skipping duplicate insert.",
+                user_id, tournament_id,
             )
-            db.add(credit_transaction)
-
-            # Update user's credit balance
-            user.credit_balance = new_credit_balance
 
     return participation
 

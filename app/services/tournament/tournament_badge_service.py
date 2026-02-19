@@ -12,6 +12,7 @@ Badge System:
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
+from sqlalchemy.exc import IntegrityError
 import logging
 
 from app.models.tournament_achievement import (
@@ -186,7 +187,7 @@ def award_badge(
         TournamentBadge.user_id == user_id,
         TournamentBadge.semester_id == tournament_id,
         TournamentBadge.badge_type == badge_type
-    ).first()
+    ).with_for_update().first()
 
     if existing_badge:
         return existing_badge  # Don't award duplicate badges
@@ -204,6 +205,24 @@ def award_badge(
         badge_metadata=metadata
     )
     db.add(badge)
+
+    # R05: Use SAVEPOINT so that if uq_user_tournament_badge fires (concurrent insert),
+    # we roll back only this badge, not the entire reward distribution transaction.
+    sp = db.begin_nested()
+    try:
+        sp.commit()
+    except IntegrityError:
+        sp.rollback()
+        logger.debug(
+            "award_badge: IntegrityError on %s for user=%d tournament=%d "
+            "— concurrent insert detected, returning existing badge.",
+            badge_type, user_id, tournament_id,
+        )
+        return db.query(TournamentBadge).filter(
+            TournamentBadge.user_id == user_id,
+            TournamentBadge.semester_id == tournament_id,
+            TournamentBadge.badge_type == badge_type,
+        ).first()
 
     return badge
 

@@ -6,6 +6,7 @@ Provides unified interface for reward distribution.
 """
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import logging
 
@@ -222,11 +223,14 @@ def distribute_rewards_for_user(
 
     # ========================================================================
     # 🔒 IDEMPOTENCY GUARD: Check if already distributed
+    # R02: FOR UPDATE serialises concurrent distribute_rewards_for_user() calls
+    # for the same (user_id, tournament_id) pair.  Thread B blocks here until
+    # Thread A commits, then sees the committed row and returns early.
     # ========================================================================
     existing_participation = db.query(TournamentParticipation).filter(
         TournamentParticipation.user_id == user_id,
         TournamentParticipation.semester_id == tournament_id
-    ).first()
+    ).with_for_update().first()
 
     if existing_participation and not force_redistribution:
         # Already distributed - return existing summary
@@ -259,6 +263,19 @@ def distribute_rewards_for_user(
         db, user_id, tournament_id, placement, skill_points, base_xp, credits, distributed_by
     )
 
+    # ── Monitoring: log dominant/minor delta ratio (sampled: podium placements only) ──
+    _skill_delta = participation_record.skill_rating_delta if participation_record else None
+    if _skill_delta and isinstance(_skill_delta, dict) and len(_skill_delta) >= 2 and placement in (1, 2, 3):
+        _sorted_deltas = sorted(_skill_delta.values(), reverse=True)
+        _dom, _min = _sorted_deltas[0], _sorted_deltas[-1]
+        _ratio = round(_dom / _min, 3) if _min and _min != 0 else None
+        logger.debug(
+            "skill_delta_ratio  user=%d  tournament=%d  placement=%d  "
+            "dom=%.1f  min=%.1f  ratio=%s  deltas=%s",
+            user_id, tournament_id, placement,
+            _dom, _min, _ratio, _skill_delta,
+        )
+
     # ========================================================================
     # STEP 1.5: APPLY SKILL DELTAS TO PLAYER PROFILE (Dynamic Progression)
     # ========================================================================
@@ -279,11 +296,14 @@ def distribute_rewards_for_user(
             from sqlalchemy.orm.attributes import flag_modified
             from datetime import timezone
 
+            # R04: Lock UserLicense row before reading football_skills JSONB.
+            # Prevents two concurrent distributions from both reading stale skills,
+            # merging independently, and last-writer-wins overwriting the other.
             active_license = db.query(UserLicense).filter(
                 UserLicense.user_id == user_id,
                 UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
                 UserLicense.is_active == True
-            ).first()
+            ).with_for_update().first()
 
             if active_license and active_license.football_skills and participation_record:
                 # Compute the full skill profile from all participations (idempotent)
@@ -419,7 +439,18 @@ def distribute_rewards_for_user(
     )
 
     # Commit all changes
-    db.commit()
+    # R02: If a racing thread committed first (uq_user_semester_participation fires),
+    # roll back and return the already-committed summary rather than raising HTTP 500.
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.warning(
+            "distribute_rewards_for_user: IntegrityError at commit for user=%d tournament=%d "
+            "— concurrent distribution already committed. Returning existing summary.",
+            user_id, tournament_id,
+        )
+        return get_user_reward_summary(db, user_id, tournament_id)
 
     return result
 

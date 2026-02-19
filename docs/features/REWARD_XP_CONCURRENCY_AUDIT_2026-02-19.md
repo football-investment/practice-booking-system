@@ -1,7 +1,7 @@
 # Reward/XP Pipeline — Concurrency Audit (Phase A: Read-Only Race Map)
 
 **Date:** 2026-02-19
-**Status: PHASE A COMPLETE — fixes pending (Phase B/C/D)**
+**Status: FULLY IMPLEMENTED — all RACE-R01..R07 fixes applied and tested**
 **Methodology:** same as enrollment (ENROLLMENT_CONCURRENCY_AUDIT_2026-02-18.md) and booking (BOOKING_CONCURRENCY_AUDIT_2026-02-19.md) audits
 
 ---
@@ -478,3 +478,47 @@ db.execute(
 Skill progression service (`app/services/skill_progression_service.py`) —
 EMA delta computation reads all TournamentParticipation rows per user; write-back races
 with the orchestrator's skill write-back (RACE-R04 cascade).
+
+---
+
+## 11. Full Implementation Reference
+
+| File | Change applied |
+|---|---|
+| `app/services/tournament/results/finalization/tournament_finalizer.py` | R01/R03: FOR UPDATE on tournament row + `_FINALIZED_STATUSES` idempotency gate |
+| `app/services/tournament/tournament_reward_orchestrator.py` | R02: FOR UPDATE on `TournamentParticipation`; IntegrityError → graceful summary; R04: FOR UPDATE on `UserLicense` |
+| `app/services/tournament/tournament_badge_service.py` | R05: SAVEPOINT + IntegrityError → return existing badge |
+| `app/services/tournament/tournament_participation_service.py` | R06: `idempotency_key` on `XPTransaction` + SAVEPOINT; R07: atomic `UPDATE ... SET xp_balance = xp_balance + N RETURNING` |
+| `app/models/xp_transaction.py` | R06: `idempotency_key` column (nullable=True) added |
+| `alembic/versions/2026_02_19_1200-rw01_reward_concurrency_guards.py` | `uq_user_tournament_badge`, `uq_xp_transaction_idempotency`, `xp_transactions.idempotency_key` column |
+| `tests/unit/reward/test_reward_concurrency_p0.py` | **15 passed** P0 tests (new file) |
+| `scripts/validate_reward_pipeline.py` | INV-R01…R06 weekly monitor — all GREEN on first run |
+| `docs/features/REWARD_XP_PIPELINE_STABLE_2026-02-19.md` | Hardened Core declaration |
+
+---
+
+## 12. Formal Closure
+
+**Audit closed:** 2026-02-19
+**Closed by:** Sprint — reward/XP pipeline concurrency hardening (Phase B + C + D)
+
+All seven TOCTOU race conditions identified in the Phase A read-only audit are
+resolved. The reward/XP pipeline is now protected by three independent layers:
+
+1. **Application-layer guards:**
+   - `SELECT FOR UPDATE` on `Semester` row (R01/R03) + status idempotency gate
+   - `SELECT FOR UPDATE` on `TournamentParticipation` (R02) + IntegrityError → graceful return
+   - `SELECT FOR UPDATE` on `UserLicense` before JSONB merge (R04)
+   - SAVEPOINT in `award_badge()` (R05) — `IntegrityError` → rollback savepoint → re-query existing
+   - `idempotency_key` on `XPTransaction` + SAVEPOINT (R06)
+   - Atomic SQL `UPDATE ... SET xp_balance = xp_balance + N` (R07)
+
+2. **DB-level constraints:**
+   - `uq_user_tournament_badge` unique index (C-R01)
+   - `uq_xp_transaction_idempotency` unique partial index (C-R02)
+   - `uq_user_semester_participation` pre-existing (now backed by FOR UPDATE)
+   - `credit_transactions.idempotency_key` pre-existing UNIQUE
+
+3. **Monitoring:**
+   - `scripts/validate_reward_pipeline.py` — weekly INV-R01…R06 verification
+   - First run: ✅ ALL CHECKS PASSED (2026-02-19 07:55:43 UTC)

@@ -304,6 +304,10 @@ class TestRewardPathwayConsistency:
         })
 
         # Mock DB: all_sessions query, final/3rd match queries, enrollment query
+        # R01 fix: finalize() now re-fetches tournament with FOR UPDATE at start.
+        # The locked tournament must have id=99, tournament_status="IN_PROGRESS" (not finalized).
+        locked_tournament = SimpleNamespace(id=99, tournament_status="IN_PROGRESS")
+
         def _query_side(model):
             q = MagicMock()
             inner = MagicMock()
@@ -311,6 +315,8 @@ class TestRewardPathwayConsistency:
             inner.all.return_value = [mock_session]
             inner.first.return_value = None  # no final/3rd match found (simplify)
             inner.count.return_value = 0
+            # Support .with_for_update().one() for the R01 tournament row lock
+            inner.with_for_update.return_value.one.return_value = locked_tournament
             q.filter.return_value = inner
             return q
         mock_db.query.side_effect = _query_side

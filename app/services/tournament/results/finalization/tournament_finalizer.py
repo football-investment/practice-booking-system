@@ -17,6 +17,9 @@ from app.models.tournament_enums import TournamentPhase
 
 logger = logging.getLogger(__name__)
 
+# R01/R03: statuses that mean finalization already completed — idempotency gate
+_FINALIZED_STATUSES = frozenset({"COMPLETED", "REWARDS_DISTRIBUTED"})
+
 
 class TournamentFinalizer:
     """
@@ -68,11 +71,28 @@ class TournamentFinalizer:
         Returns:
             Tuple of (all_completed, incomplete_matches)
         """
-        incomplete_matches = [
-            {"session_id": s.id, "title": s.title}
-            for s in sessions
-            if s.game_results is None
-        ]
+        from app.models.tournament_ranking import TournamentRanking
+
+        incomplete_matches = []
+        for s in sessions:
+            if s.game_results is not None:
+                # Standard path: game_results set (H2H or session-finalized IR)
+                continue
+            if s.match_format == "INDIVIDUAL_RANKING":
+                # IR sessions submitted via rounds endpoint never set game_results
+                # directly. Accept them as complete if:
+                #   (a) rounds_data shows all rounds submitted, OR
+                #   (b) TournamentRanking rows already exist (OPS auto-simulation path)
+                rd = s.rounds_data or {}
+                rounds_complete = (
+                    int(rd.get("completed_rounds", 0)) >= int(rd.get("total_rounds", 1)) > 0
+                )
+                has_rankings = self.db.query(TournamentRanking).filter(
+                    TournamentRanking.tournament_id == s.semester_id
+                ).count() > 0
+                if rounds_complete or has_rankings:
+                    continue
+            incomplete_matches.append({"session_id": s.id, "title": s.title})
 
         return len(incomplete_matches) == 0, incomplete_matches
 
@@ -241,6 +261,26 @@ class TournamentFinalizer:
                 "incomplete_matches": [...]
             }
         """
+        # R01/R03: Lock tournament row before any mutation — serialises concurrent
+        # finalize() calls (auto-path + manual admin trigger).  Re-read after lock
+        # so we see any status committed by a racing thread.
+        tournament = self.db.query(Semester).filter(
+            Semester.id == tournament.id
+        ).with_for_update().one()
+
+        # Idempotency guard: if already finalized, return without re-distributing.
+        if tournament.tournament_status in _FINALIZED_STATUSES:
+            logger.info(
+                "finalize() called on already-finalized tournament %d (status=%s) — "
+                "returning idempotent result.",
+                tournament.id, tournament.tournament_status,
+            )
+            return {
+                "success": True,
+                "message": "Tournament already finalized (idempotent — no duplicate distribution)",
+                "tournament_status": tournament.tournament_status,
+            }
+
         # Get all tournament sessions
         all_sessions = self.get_all_sessions(tournament.id)
 
