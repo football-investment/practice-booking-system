@@ -1,0 +1,110 @@
+name: Cypress E2E Tests
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        spec:
+          - cypress/e2e/auth/login.cy.js
+          - cypress/e2e/auth/registration.cy.js
+          - cypress/e2e/error_states/http_409_conflict.cy.js
+          - cypress/e2e/error_states/unauthorized.cy.js
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: lfa_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_test
+        run: |
+          alembic upgrade head
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+          curl -f http://localhost:8000/docs || exit 1
+
+      - name: Start Streamlit frontend
+        run: |
+          streamlit run streamlit_app/🏠_Home.py --server.port 8501 --server.headless true &
+          sleep 10
+          curl -f http://localhost:8501 || exit 1
+
+      - name: Install Cypress dependencies
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: tests_cypress
+          spec: ${{ matrix.spec }}
+          browser: chrome
+          config: baseUrl=http://localhost:8501
+        env:
+          CYPRESS_adminEmail: admin@lfa.com
+          CYPRESS_adminPassword: admin123
+          CYPRESS_instructorEmail: instructor@lfa.com
+          CYPRESS_instructorPassword: instructor123
+          CYPRESS_playerEmail: player@lfa.com
+          CYPRESS_playerPassword: player123
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots-${{ matrix.spec }}
+          path: tests_cypress/cypress/screenshots
+          retention-days: 7
+
+      - name: Upload videos on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-videos-${{ matrix.spec }}
+          path: tests_cypress/cypress/videos
+          retention-days: 7

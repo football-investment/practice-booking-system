@@ -76,7 +76,15 @@ Cypress.Commands.add('login', (email, password) => {
   // Login button
   cy.contains('[data-testid="stButton"] button', '🔐 Login').click();
 
-  cy.waitForStreamlit();
+  // FIX: Wait for redirect to dashboard (URL changes from / to /Admin_Dashboard etc)
+  // Streamlit st.switch_page() triggers navigation - must wait for it to complete
+  cy.url({ timeout: 10000 }).should('not.equal', Cypress.config().baseUrl + '/');
+
+  // Wait for new page to fully render
+  cy.waitForStreamlit({ timeout: 10000 });
+
+  // Ensure sidebar is visible on dashboard page
+  cy.get('[data-testid="stSidebar"]', { timeout: 5000 }).should('be.visible');
 });
 
 /**
@@ -104,9 +112,8 @@ Cypress.Commands.add('loginAsPlayer', () => {
  * Click the Logout button wherever it appears in the sidebar.
  */
 Cypress.Commands.add('logout', () => {
-  cy.get('[data-testid="stSidebar"]')
-    .contains('[data-testid="stButton"] button', '🚪 Logout')
-    .click();
+  // Click Logout button — search whole page because sidebar may be CSS-collapsed
+  cy.contains('[data-testid="stButton"] button', '🚪 Logout').click();
   cy.waitForStreamlit();
   // After logout, the login form should reappear
   cy.contains('🔐 Login').should('be.visible');
@@ -134,7 +141,7 @@ Cypress.Commands.add('navigateTo', (pagePath) => {
 Cypress.Commands.add('clickSidebarButton', (buttonText) => {
   cy.get('[data-testid="stSidebar"]')
     .contains('[data-testid="stButton"] button', buttonText)
-    .click();
+    .click({ force: true });  // force bypasses CSS-collapsed sidebar (transform off-screen)
   cy.waitForStreamlit();
 });
 
@@ -234,14 +241,19 @@ Cypress.Commands.add('assertOnPage', (fragment) => {
 });
 
 /**
- * Assert that the Streamlit sidebar is visible (user is authenticated).
+ * Assert the user is authenticated.
+ *
+ * Streamlit's sidebar can be collapsed (off-screen) in headless Electron even
+ * at 1440×900 — so we never assert sidebar *visibility*.  Instead we assert
+ * that the Logout button exists somewhere in the DOM (it is only rendered in
+ * authenticated state), which works regardless of sidebar collapsed/expanded.
  */
 Cypress.Commands.add('assertAuthenticated', () => {
-  cy.get('[data-testid="stSidebar"]').should('be.visible');
-  // The 🚪 Logout button is only rendered when logged in
-  cy.get('[data-testid="stSidebar"]')
-    .contains('[data-testid="stButton"] button', '🚪 Logout')
-    .should('exist');
+  // The sidebar element must be present (authenticated pages always mount it)
+  cy.get('[data-testid="stSidebar"]').should('exist');
+  // Logout button exists only when logged in — search whole page, not inside
+  // sidebar, to avoid failing when sidebar is CSS-collapsed (translateX).
+  cy.contains('[data-testid="stButton"] button', '🚪 Logout').should('exist');
 });
 
 /**
