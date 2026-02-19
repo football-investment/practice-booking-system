@@ -40,8 +40,8 @@ class APIClient:
             "Accept": "application/json"
         }
 
-        # Auth token
-        token = st.session_state.get("auth_token")
+        # Auth token — check both key names used across the codebase
+        token = st.session_state.get("auth_token") or st.session_state.get("token")
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
@@ -64,7 +64,13 @@ class APIClient:
         # Error handling
         try:
             error_data = response.json()
-            message = error_data.get("detail", "Unknown error")
+            # Support both FastAPI {"detail": ...} and custom {"error": {"message": ...}} formats
+            if "detail" in error_data:
+                message = error_data["detail"]
+            elif "error" in error_data and isinstance(error_data["error"], dict):
+                message = error_data["error"].get("message", str(error_data["error"]))
+            else:
+                message = str(error_data) if error_data else f"HTTP {response.status_code}"
 
             if isinstance(message, list):
                 errors = [f"{err.get('loc', ['?'])[-1]}: {err.get('msg', 'Invalid')}"

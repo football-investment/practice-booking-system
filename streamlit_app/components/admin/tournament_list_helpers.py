@@ -57,10 +57,11 @@ def get_tournament_sessions_from_db(tournament_id: int) -> List[Dict]:
             SELECT
                 id, title, tournament_phase, tournament_round,
                 group_identifier, match_format, scoring_type,
-                participant_user_ids, scheduled_start_time, duration_minutes
+                participant_user_ids, date_start, date_end,
+                session_status, structure_config
             FROM sessions
             WHERE semester_id = %s
-            ORDER BY scheduled_start_time, id
+            ORDER BY date_start, id
         """
         cursor.execute(query, (tournament_id,))
         rows = cursor.fetchall()
@@ -76,8 +77,10 @@ def get_tournament_sessions_from_db(tournament_id: int) -> List[Dict]:
                 'match_format': row[5],
                 'scoring_type': row[6],
                 'participant_user_ids': row[7],
-                'scheduled_start_time': row[8],
-                'duration_minutes': row[9]
+                'date_start': str(row[8]) if row[8] else None,
+                'date_end':   str(row[9]) if row[9] else None,
+                'session_status': row[10],
+                'structure_config': row[11] or {},
             })
 
         cursor.close()
@@ -86,6 +89,15 @@ def get_tournament_sessions_from_db(tournament_id: int) -> List[Dict]:
 
     except Exception as e:
         Error.message(f"Error fetching sessions: {str(e)}")
+        return []
+
+
+def get_campus_schedules_for_tournament(tournament_id: int) -> List[Dict]:
+    """Fetch per-campus schedule configs for a tournament via API."""
+    try:
+        data = api_client.get(f"/api/v1/tournaments/{tournament_id}/campus-schedules")
+        return data if isinstance(data, list) else []
+    except (APIError, Exception):
         return []
 
 
@@ -114,12 +126,10 @@ def get_campus_info(campus_id: int) -> Dict[str, str]:
 
 
 def get_all_tournaments() -> List[Dict]:
-    """Fetch all tournaments"""
+    """Fetch all tournaments via admin/list (includes OPS and MANUAL, all statuses)."""
     try:
-        response = api_client.get("/api/v1/semesters/")
-        if isinstance(response, dict):
-            return response.get('semesters', [])
-        return response if response else []
+        response = api_client.get("/api/v1/tournaments/admin/list")
+        return response if isinstance(response, list) else []
     except APIError as e:
         Error.message(f"Failed to fetch tournaments: {e.message}")
         return []

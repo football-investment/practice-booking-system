@@ -3,7 +3,7 @@
   "display_name": "League (Round Robin)",
   "description": "Every player plays against every other player once. Best for smaller groups with balanced competition.",
   "min_players": 2,
-  "max_players": 32,
+  "max_players": 1024,
   "requires_power_of_two": false,
   "session_duration_minutes": 90,
   "break_between_sessions_minutes": 15,
@@ -23,6 +23,6 @@
     "Total matches = n*(n-1)/2 where n = player count",
     "Can run multiple matches in parallel if fields available",
     "Fair format - everyone gets equal opportunities",
-    "Practical upper limit: 32 players (C(32,2)=496 sessions)"
+    "Supports up to 1024 players via multi-campus parallel scheduling"
   ]
 }

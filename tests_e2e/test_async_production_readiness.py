@@ -324,7 +324,7 @@ def _simulate_results(api_url: str, token: str, tid: int) -> tuple[bool, str]:
             sys.path.insert(0, project_root)
 
         from app.database import SessionLocal
-        from app.api.api_v1.endpoints.tournaments.generator import _simulate_tournament_results
+        from app.api.api_v1.endpoints.tournaments.ops_scenario import _simulate_tournament_results
         import logging
 
         logger = logging.getLogger(__name__)

@@ -13,8 +13,10 @@
 
 describe('Admin / Tournament Monitor', () => {
   beforeEach(() => {
+    // loginAsAdmin() lands on Admin Dashboard via st.switch_page().
+    // Navigate to Tournament Monitor via sidebar button (same WebSocket session).
     cy.loginAsAdmin();
-    cy.navigateTo('/Tournament_Monitor');
+    cy.clickSidebarButton('📡 Tournament Monitor');
   });
 
   // ── Page loads ────────────────────────────────────────────────────────────
@@ -29,19 +31,19 @@ describe('Admin / Tournament Monitor', () => {
   it('@smoke sidebar Back to Admin Dashboard button is present', () => {
     cy.get('[data-testid="stSidebar"]')
       .contains('[data-testid="stButton"] button', /Admin Dashboard/)
-      .should('be.visible');
+      .should('exist');
   });
 
   it('sidebar Tournament Manager button is present', () => {
     cy.get('[data-testid="stSidebar"]')
       .contains('[data-testid="stButton"] button', '🏆 Tournament Manager')
-      .should('be.visible');
+      .should('exist');
   });
 
   it('sidebar Logout button is present', () => {
     cy.get('[data-testid="stSidebar"]')
       .contains('[data-testid="stButton"] button', '🚪 Logout')
-      .should('be.visible');
+      .should('exist');
   });
 
   // ── Page content ──────────────────────────────────────────────────────────

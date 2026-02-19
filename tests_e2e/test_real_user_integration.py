@@ -143,7 +143,7 @@ def _simulate_results_db(tid: int) -> None:
     """Simulate tournament results directly via DB (same as async tests)."""
     import logging as _logging
     from app.database import SessionLocal
-    from app.api.api_v1.endpoints.tournaments.generator import _simulate_tournament_results
+    from app.api.api_v1.endpoints.tournaments.ops_scenario import _simulate_tournament_results
 
     db = SessionLocal()
     _logger = _logging.getLogger("test_real_user_integration")

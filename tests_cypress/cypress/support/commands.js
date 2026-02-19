@@ -157,6 +157,55 @@ Cypress.Commands.add('clickAdminTab', (tabLabel) => {
 });
 
 
+// ── Dashboard-specific wait helpers ──────────────────────────────────────────
+
+/**
+ * Wait for Instructor Dashboard tabs component to render after data loading.
+ *
+ * Instructor Dashboard uses native st.tabs() which renders AFTER load_dashboard_data()
+ * completes (1-3 seconds of API calls). This helper waits for both spinner disappearance
+ * and tabs component appearance.
+ *
+ * Use after navigating to Instructor Dashboard.
+ */
+Cypress.Commands.add('waitForTabs', (options = {}) => {
+  const timeout = options.timeout || 15000;
+
+  // 1. Wait for data loading spinner to disappear
+  cy.get('body').then($body => {
+    if ($body.find('[data-testid="stSpinner"]').length > 0) {
+      cy.get('[data-testid="stSpinner"]', { timeout }).should('not.exist');
+    }
+  });
+
+  // 2. Wait for tabs component to exist
+  cy.get('[data-testid="stTabs"]', { timeout }).should('exist');
+
+  // 3. Brief stabilization pause
+  cy.wait(500);
+});
+
+/**
+ * Wait for Admin Dashboard custom tab buttons to render.
+ *
+ * Admin Dashboard uses custom button-based tabs (not st.tabs). Tab buttons render
+ * after auth check + header rendering (300-800ms). This helper waits for at least
+ * one tab button to appear.
+ *
+ * Use after navigating to Admin Dashboard.
+ */
+Cypress.Commands.add('waitForAdminTabs', (options = {}) => {
+  const timeout = options.timeout || 10000;
+
+  // Wait for at least one tab button to exist (Overview is always first)
+  cy.contains('[data-testid="stButton"] button', '📊 Overview', { timeout })
+    .should('exist');
+
+  // Brief stabilization pause
+  cy.wait(500);
+});
+
+
 // ── Streamlit widget helpers ─────────────────────────────────────────────────
 
 /**

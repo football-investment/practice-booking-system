@@ -16,6 +16,7 @@ describe('Instructor / Dashboard', () => {
   beforeEach(() => {
     cy.loginAsInstructor();
     cy.navigateTo('/Instructor_Dashboard');
+    cy.waitForTabs();  // Wait for tabs to render after data loading
   });
 
   // ── Page structure ────────────────────────────────────────────────────────

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="53.606" timestamp="2026-02-15T20:10:31.388463+01:00" hostname="MacBookAir.home"><testcase classname="test_tournament_monitor_e2e.TestMonitoringPanel" name="test_monitor_page_loads_for_admin" time="4.526" /><testcase classname="test_tournament_monitor_e2e.TestMonitoringPanel" name="test_monitor_sidebar_has_wizard" time="3.801" /><testcase classname="test_tournament_monitor_e2e.TestMonitoringPanel" name="test_monitor_sidebar_has_monitoring_controls" time="3.849" /><testcase classname="test_tournament_monitor_e2e.TestMonitoringPanel" name="test_auto_refresh_slider_present_and_in_range" time="3.778" /><testcase classname="test_tournament_monitor_e2e.TestMonitoringPanel" name="test_refresh_now_button_present" time="3.769" /><testcase classname="test_tournament_monitor_e2e.TestMonitoringPanel" name="test_auto_refresh_checkbox_present" time="33.723"><failure message="AssertionError: Locator expected to be visible&#10;Actual value: None&#10;Error: element(s) not found &#10;Call log:&#10;  - Expect &quot;to_be_visible&quot; with timeout 30000ms&#10;  - waiting for locator(&quot;section[data-testid='stSidebar']&quot;).get_by_text(&quot;Enable auto-refresh&quot;)">test_tournament_monitor_e2e.py:809: in test_auto_refresh_checkbox_present
+    ).to_be_visible(timeout=_LOAD_TIMEOUT)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Locator expected to be visible
+E   Actual value: None
+E   Error: element(s) not found 
+E   Call log:
+E     - Expect "to_be_visible" with timeout 30000ms
+E     - waiting for locator("section[data-testid='stSidebar']").get_by_text("Enable auto-refresh")</failure></testcase></testsuite></testsuites>

@@ -151,25 +151,43 @@ def calculate_tournament_rankings(
             rankings = strategy.calculate_rankings(sessions, db)
 
         else:
-            # INDIVIDUAL tournament - use existing logic
-            # Get scoring type from tournament configuration
-            scoring_type = tournament.scoring_type
-            if not scoring_type:
+            # INDIVIDUAL tournament — use RankingAggregator (direction-aware, same as submission.py)
+            from app.services.tournament.results.calculators.ranking_aggregator import RankingAggregator
+
+            ranking_direction = "ASC"
+            if tournament.tournament_config_obj:
+                ranking_direction = tournament.tournament_config_obj.ranking_direction or "ASC"
+
+            # Build combined round_results from all IR sessions
+            combined_round_results: dict = {}
+            for _s in sessions:
+                _rd = _s.rounds_data or {}
+                _rr = _rd.get("round_results", {})
+                if isinstance(_rr, dict):
+                    for _rk, _pv in _rr.items():
+                        if isinstance(_pv, dict):
+                            if _rk not in combined_round_results:
+                                combined_round_results[_rk] = {}
+                            combined_round_results[_rk].update(_pv)
+
+            if not combined_round_results:
                 raise HTTPException(
                     status_code=400,
-                    detail="INDIVIDUAL tournament missing scoring_type"
+                    detail="No round results found in sessions. Submit all results first."
                 )
 
-            # Create ranking strategy
-            strategy = RankingStrategyFactory.create(scoring_type=scoring_type)
+            _user_finals = RankingAggregator.aggregate_user_values(combined_round_results, ranking_direction)
+            _perf_rankings = RankingAggregator.calculate_performance_rankings(_user_finals, ranking_direction)
 
-            # Calculate rankings (existing INDIVIDUAL logic)
-            # Note: This may need adaptation based on existing implementation
-            # For now, we'll use a simplified approach
-            raise HTTPException(
-                status_code=501,
-                detail="INDIVIDUAL ranking calculation via this endpoint not yet implemented. Use existing finalization flow."
-            )
+            # Normalize: map final_value → points for the insert loop below
+            rankings = [
+                {
+                    "user_id": r["user_id"],
+                    "rank": r["rank"],
+                    "points": r["final_value"],
+                }
+                for r in _perf_rankings
+            ]
 
     except ValueError as e:
         raise HTTPException(
@@ -289,15 +307,47 @@ def get_tournament_rankings(
                     "skill_rating_delta": p.skill_rating_delta or {},
                 }
 
+    # For INDIVIDUAL_RANKING tournaments, points = measured_value (set by ResultProcessor)
+    is_ir_tournament = tournament.format == "INDIVIDUAL_RANKING"
+
+    # Build per-user round results map for ROUNDS_BASED sessions
+    # Structure: {user_id: {"1": "18.2", "2": "17.1", "total_rounds": 3}}
+    user_round_results: dict = {}
+    if is_ir_tournament:
+        ir_sessions = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.is_tournament_game == True,
+            SessionModel.match_format == "INDIVIDUAL_RANKING",
+        ).all()
+        for ir_sess in ir_sessions:
+            rd = ir_sess.rounds_data or {}
+            rr = rd.get("round_results")
+            # Only process if round_results is a proper dict (not old list format)
+            if not isinstance(rr, dict):
+                continue
+            total_rounds = int(rd.get("total_rounds", len(rr)))
+            for round_key, player_values in rr.items():
+                if not isinstance(player_values, dict):
+                    continue
+                for uid_str, val in player_values.items():
+                    try:
+                        uid = int(uid_str)
+                    except (ValueError, TypeError):
+                        continue
+                    if uid not in user_round_results:
+                        user_round_results[uid] = {"total_rounds": total_rounds}
+                    user_round_results[uid][round_key] = val
+
     # Format response
     rankings_data = []
     for r, nickname, name in rows:
         display_name = nickname or name
+        points_val = float(r.points) if r.points is not None else 0
         entry = {
             "user_id": r.user_id,
             "name": display_name,
             "rank": r.rank,
-            "points": float(r.points) if r.points is not None else 0,
+            "points": points_val,
             "wins": r.wins,
             "losses": r.losses,
             "draws": r.draws,
@@ -306,6 +356,13 @@ def get_tournament_rankings(
             "goal_difference": (r.goals_for or 0) - (r.goals_against or 0),
             "group_identifier": user_group_map.get(r.user_id),
         }
+        # For IR tournaments expose the stored value under measured_value so the
+        # leaderboard component can display it (points = measured_value for IR)
+        if is_ir_tournament:
+            entry["measured_value"] = points_val
+            # Attach per-round breakdown if available (ROUNDS_BASED sessions)
+            if r.user_id in user_round_results:
+                entry["round_results"] = user_round_results[r.user_id]
         if reward_map:
             # Always include reward fields when tournament is REWARDS_DISTRIBUTED,
             # defaulting to empty/zero for users without a participation record

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="38.686" timestamp="2026-02-15T19:42:39.547011+01:00" hostname="MacBookAir.home"><testcase classname="test_tournament_monitor_e2e.TestWizardFlow" name="test_wizard_step1_renders_correct_content" time="38.528"><failure message="AssertionError: Locator expected to be visible&#10;Actual value: None&#10;Error: element(s) not found &#10;Call log:&#10;  - Expect &quot;to_be_visible&quot; with timeout 30000ms&#10;  - waiting for locator(&quot;section[data-testid='stSidebar']&quot;).get_by_text(&quot;Step 1 of 6&quot;)">test_tournament_monitor_e2e.py:218: in test_wizard_step1_renders_correct_content
+    expect(sidebar.get_by_text("Step 1 of 6", exact=False)).to_be_visible(
+E   AssertionError: Locator expected to be visible
+E   Actual value: None
+E   Error: element(s) not found 
+E   Call log:
+E     - Expect "to_be_visible" with timeout 30000ms
+E     - waiting for locator("section[data-testid='stSidebar']").get_by_text("Step 1 of 6")</failure></testcase></testsuite></testsuites>

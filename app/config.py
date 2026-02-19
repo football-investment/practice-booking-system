@@ -163,6 +163,13 @@ class Settings(BaseSettings):
                     "COOKIE_SECURE must be True in production (HTTPS required)"
                 )
 
+            # DEBUG must be False in production — prevents stack traces leaking to clients
+            if self.DEBUG:
+                raise ValueError(
+                    "DEBUG must be False in production. "
+                    "Set DEBUG=false in your environment or .env file."
+                )
+
 
 settings = Settings()
 

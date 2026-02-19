@@ -14,11 +14,8 @@ from pathlib import Path
 parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from api_helpers_semesters import (
-    get_all_semesters,
-    update_semester,
-    delete_semester
-)
+from api_helpers_semesters import update_semester, delete_semester
+from api_client import APIClient
 from components.period_labels import (
     get_period_label,
     get_count_text
@@ -46,13 +43,13 @@ def render_semester_management(token: str):
             st.rerun()
 
     # Fetch all semesters
-    success, error, data = get_all_semesters(token)
+    success, error, data = APIClient.from_config(token).semesters.get_list()
 
     if not success:
         st.error(f"❌ Failed to fetch semesters: {error}")
         return
 
-    semesters = data.get("semesters", [])
+    semesters = data.get("semesters", []) if data else []
 
     if not semesters:
         st.info("📭 No periods found. Generate some in the **🚀 Generate** tab!")

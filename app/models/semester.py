@@ -175,6 +175,11 @@ class Semester(Base):
         if self.tournament_config_obj:
             if self.tournament_config_obj.tournament_type_id and self.tournament_config_obj.tournament_type:
                 return self.tournament_config_obj.tournament_type.format
+            # If scoring_type is set and is not HEAD_TO_HEAD → INDIVIDUAL_RANKING
+            # (H2H always stores scoring_type="HEAD_TO_HEAD"; IR uses TIME_BASED, SCORE_BASED, etc.)
+            if (self.tournament_config_obj.scoring_type
+                    and self.tournament_config_obj.scoring_type != "HEAD_TO_HEAD"):
+                return "INDIVIDUAL_RANKING"
 
         # Priority 2: game_preset's format_config (via P3 game config relationship)
         if self.game_config_obj and self.game_config_obj.game_preset_id and self.game_config_obj.game_preset:

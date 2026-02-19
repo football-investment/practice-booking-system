@@ -529,9 +529,9 @@ class TestGroupKnockoutMatrix:
 @pytest.mark.tournament_monitor
 class TestSafetyConfirmationUI:
     """
-    Tests for the 128-player safety confirmation mechanism in Step 6.
+    Tests for the 128-player safety confirmation mechanism in Step 8.
 
-    When player_count >= 128, Step 6 shows a text input requiring the user
+    When player_count >= 128, Step 8 shows a text input requiring the user
     to type exactly "LAUNCH" before the LAUNCH TOURNAMENT button is enabled.
     """
 
@@ -543,16 +543,16 @@ class TestSafetyConfirmationUI:
         player_count_value: int = 128,
     ) -> None:
         """
-        Navigate to Step 6 with a large player count selected in Step 4.
+        Navigate to Step 8 (Review) with a large player count selected in Step 5.
 
         Uses large_field_monitor scenario (allows up to 1024 players).
         Forces player_count via Streamlit session state URL injection is not
         possible for slider — instead we navigate step by step and verify
-        that the Step 6 safety UI appears when >=128 is pre-set.
+        that the Step 8 safety UI appears when >=128 is pre-set.
 
         Note: This test cannot literally drag the slider to 128 (Playwright
         slider interaction is fragile across OS). Instead we verify the
-        safety mechanism by reaching Step 6 with the scenario's default
+        safety mechanism by reaching Step 8 with the scenario's default
         player count (128 for scale_test).
         """
         token = _get_admin_token(api_url)
@@ -571,35 +571,43 @@ class TestSafetyConfirmationUI:
         _click_next(page)
 
         # Step 2: HEAD_TO_HEAD
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
         # Step 3: Knockout
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        # Step 4: Use default player count for scale_test (128)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+
+        # Step 5: Use default player count for scale_test (128)
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         # Verify the large scale warning appears (player_count >= 128)
         expect(sb.get_by_text("LARGE SCALE OPERATION", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
         )
         _click_next(page)
 
-        # Step 5: Accelerated Simulation
-        expect(sb.get_by_text("Step 5 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 6: Accelerated Simulation
+        expect(sb.get_by_text("Step 6 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         sb.get_by_text("Accelerated Simulation", exact=False).first.click()
         time.sleep(0.5)
         _click_next(page)
 
-        # Now at Step 6 with player_count >= 128
-        expect(sb.get_by_text("Step 6 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 7: Configure Rewards (new optional step — just pass through)
+        expect(sb.get_by_text("Step 7 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+
+        # Now at Step 8 with player_count >= 128
+        expect(sb.get_by_text("Step 8 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
     def test_step4_large_scale_warning_visible(
         self, page: Page, base_url: str, api_url: str
     ):
         """
-        Step 4 with scale_test (default 128 players): must show
+        Step 5 with scale_test (default 128 players): must show
         'LARGE SCALE OPERATION' safety warning.
         """
         _go_to_monitor_authenticated(page, base_url, api_url)
@@ -610,13 +618,18 @@ class TestSafetyConfirmationUI:
         time.sleep(0.3)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+
+        # Step 5: Player count — scale_test default is 128 players
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         # scale_test default is 128 players — safety warning must appear
         expect(sb.get_by_text("LARGE SCALE OPERATION", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
@@ -629,7 +642,7 @@ class TestSafetyConfirmationUI:
         self, page: Page, base_url: str, api_url: str
     ):
         """
-        Step 6 with >=128 players: Safety Confirmation text input must appear.
+        Step 8 with >=128 players: Safety Confirmation text input must appear.
         LAUNCH TOURNAMENT button must be DISABLED until "LAUNCH" is typed.
         """
         self._navigate_to_step6_large(page, base_url, api_url)
@@ -722,28 +735,37 @@ class TestSafetyConfirmationUI:
         self, page: Page, base_url: str, api_url: str
     ):
         """
-        Step 6 with smoke_test (4 players, below threshold):
+        Step 8 with smoke_test (4 players, below threshold):
         Safety confirmation field must NOT appear.
         LAUNCH TOURNAMENT button must be ENABLED immediately.
         """
         _go_to_monitor_authenticated(page, base_url, api_url)
         sb = _sidebar(page)
 
-        # Navigate to Step 6 with Smoke Test (4 players)
+        # Navigate to Step 8 with Smoke Test (4 players)
         sb.get_by_text("Smoke Test", exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 5 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 5: Player count
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 6: Accelerated Simulation
+        expect(sb.get_by_text("Step 6 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         sb.get_by_text("Accelerated Simulation", exact=False).first.click()
         time.sleep(0.5)
         _click_next(page)
-        expect(sb.get_by_text("Step 6 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 7: Configure Rewards (new optional step — just pass through)
+        expect(sb.get_by_text("Step 7 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 8: Review
+        expect(sb.get_by_text("Step 8 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Safety field must NOT be visible
         expect(
@@ -772,7 +794,7 @@ class TestSliderStatePersistence:
     ):
         """
         smoke_test default_player_count = 4.
-        When first arriving at Step 4 via smoke_test, slider should show 4.
+        When first arriving at Step 5 (Player Count) via smoke_test, slider should show 4.
         """
         _go_to_monitor_authenticated(page, base_url, api_url)
         sb = _sidebar(page)
@@ -780,11 +802,15 @@ class TestSliderStatePersistence:
         sb.get_by_text("Smoke Test", exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 5: Player count
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         slider = sb.get_by_role("slider", name="Number of players to enroll")
         expect(slider).to_be_visible()
@@ -811,11 +837,15 @@ class TestSliderStatePersistence:
         sb.get_by_text("Large Field Monitor", exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 5: Player count
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         slider = sb.get_by_role("slider", name="Number of players to enroll")
         expect(slider).to_be_visible()
@@ -831,7 +861,7 @@ class TestSliderStatePersistence:
         self, page: Page, base_url: str, api_url: str
     ):
         """
-        Regression: Going Step 4 → Back (Step 3) → Forward (Step 4) again
+        Regression: Going Step 5 (Player Count) → Back (Step 4) → Forward (Step 5) again
         must show the SAME slider value, not reset to scenario default.
 
         This tests that wizard_player_count_saved is populated from the
@@ -840,15 +870,19 @@ class TestSliderStatePersistence:
         _go_to_monitor_authenticated(page, base_url, api_url)
         sb = _sidebar(page)
 
-        # Navigate to Step 4
+        # Navigate to Step 5 (Player count)
         sb.get_by_text("Smoke Test", exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 5: Player count
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Record current slider value
         slider = sb.get_by_role("slider", name="Number of players to enroll")
@@ -856,13 +890,13 @@ class TestSliderStatePersistence:
         assert val_before_str is not None
         val_before = int(val_before_str)
 
-        # Go Back to Step 3
+        # Go Back to Step 4 (Game Preset)
         _click_back(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
-        # Go Forward to Step 4 again
+        # Go Forward to Step 5 (Player count) again
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Slider must show the SAME value as before (saved in wizard_player_count_saved)
         slider_after = sb.get_by_role("slider", name="Number of players to enroll")
@@ -893,10 +927,19 @@ class TestPostLaunchObservability:
     so we can assert non-empty results after launch.
     """
 
+    # OPS smoke_test auto-simulates the full tournament synchronously.
+    # For small counts (4p) this completes in <5s, landing in REWARDS_DISTRIBUTED.
+    # Valid launched statuses — anything that is NOT DRAFT or CANCELLED.
+    _VALID_LAUNCHED = {"IN_PROGRESS", "COMPLETED", "REWARDS_DISTRIBUTED"}
+
     def test_post_launch_tournament_status_in_progress(self, api_url: str):
         """
-        After OPS smoke_test launch: tournament_status must be IN_PROGRESS.
-        Regression: previously tournaments were created in DRAFT state.
+        After OPS smoke_test launch: tournament must NOT be in DRAFT state.
+        Regression: previously tournaments were created in DRAFT state and never advanced.
+
+        Note: for small player counts (4p) the full simulation runs synchronously,
+        so the status may be REWARDS_DISTRIBUTED rather than IN_PROGRESS. Both are
+        valid — what we guard against is the DRAFT regression.
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
@@ -915,8 +958,10 @@ class TestPostLaunchObservability:
             headers={"Authorization": f"Bearer {token}"},
             timeout=10,
         ).json()
-        assert detail.get("tournament_status") == "IN_PROGRESS", (
-            f"Expected IN_PROGRESS after OPS launch, got: {detail.get('tournament_status')}"
+        status = detail.get("tournament_status")
+        assert status in self._VALID_LAUNCHED, (
+            f"Expected one of {self._VALID_LAUNCHED} after OPS launch, got: {status}. "
+            f"Regression: tournament stuck in DRAFT or CANCELLED."
         )
 
     def test_post_launch_session_count_nonzero(self, api_url: str):

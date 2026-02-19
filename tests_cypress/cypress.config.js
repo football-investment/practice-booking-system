@@ -44,15 +44,15 @@ module.exports = defineConfig({
 
       // Test user credentials (admin)
       adminEmail:       process.env.CYPRESS_ADMIN_EMAIL    || 'admin@lfa.com',
-      adminPassword:    process.env.CYPRESS_ADMIN_PASSWORD || 'password123',
+      adminPassword:    process.env.CYPRESS_ADMIN_PASSWORD || 'admin123',
 
       // Test user credentials (instructor)
-      instructorEmail:  process.env.CYPRESS_INSTRUCTOR_EMAIL    || 'instructor@lfa.com',
-      instructorPassword: process.env.CYPRESS_INSTRUCTOR_PASSWORD || 'password123',
+      instructorEmail:  process.env.CYPRESS_INSTRUCTOR_EMAIL    || 'grandmaster@lfa.com',
+      instructorPassword: process.env.CYPRESS_INSTRUCTOR_PASSWORD || 'TestInstructor2026',
 
       // Test user credentials (player / student)
-      playerEmail:      process.env.CYPRESS_PLAYER_EMAIL    || 'junior.intern@lfa.com',
-      playerPassword:   process.env.CYPRESS_PLAYER_PASSWORD || 'password123',
+      playerEmail:      process.env.CYPRESS_PLAYER_EMAIL    || 'rdias@manchestercity.com',
+      playerPassword:   process.env.CYPRESS_PLAYER_PASSWORD || 'TestPlayer2026',
 
       // Flag to skip tests that require a live backend
       skipApiTests:     process.env.CYPRESS_SKIP_API_TESTS === 'true',

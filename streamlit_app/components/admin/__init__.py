@@ -11,6 +11,8 @@ from .locations_tab import render_locations_tab
 from .financial_tab import render_financial_tab
 from .semesters_tab import render_semesters_tab
 from .tournaments_tab import render_tournaments_tab
+from .system_events_tab import render_system_events_tab
+from .game_presets_tab import render_game_presets_tab
 
 __all__ = [
     'render_dashboard_header',
@@ -21,4 +23,6 @@ __all__ = [
     'render_financial_tab',
     'render_semesters_tab',
     'render_tournaments_tab',
+    'render_system_events_tab',
+    'render_game_presets_tab',
 ]

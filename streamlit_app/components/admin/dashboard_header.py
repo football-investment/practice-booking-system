@@ -80,6 +80,9 @@ def render_dashboard_header():
         if st.button("🏆 Tournament Manager", use_container_width=True, type="primary"):
             st.switch_page("pages/Tournament_Manager.py")
 
+        if st.button("📡 Tournament Monitor", use_container_width=True, type="secondary"):
+            st.switch_page("pages/Tournament_Monitor.py")
+
         st.markdown("---")
 
         # REFRESH BUTTON - Keep session alive without re-login
@@ -96,7 +99,7 @@ def render_dashboard_header():
         st.session_state.active_tab = 'overview'
 
     # Tab selection (MOVED BEFORE columns for full width)
-    tab_col1, tab_col2, tab_col3, tab_col4, tab_col5, tab_col6, tab_col7 = st.columns(7)
+    tab_col1, tab_col2, tab_col3, tab_col4, tab_col5, tab_col6, tab_col7, tab_col8, tab_col9 = st.columns(9)
 
     with tab_col1:
         if st.button("📊 Overview", use_container_width=True, type="primary" if st.session_state.active_tab == 'overview' else "secondary"):
@@ -131,6 +134,16 @@ def render_dashboard_header():
     with tab_col7:
         if st.button("🏆 Tournaments", use_container_width=True, type="primary" if st.session_state.active_tab == 'tournaments' else "secondary"):
             st.session_state.active_tab = 'tournaments'
+            st.rerun()
+
+    with tab_col8:
+        if st.button("🔔 Events", use_container_width=True, type="primary" if st.session_state.active_tab == 'system_events' else "secondary"):
+            st.session_state.active_tab = 'system_events'
+            st.rerun()
+
+    with tab_col9:
+        if st.button("🎮 Presets", use_container_width=True, type="primary" if st.session_state.active_tab == 'game_presets' else "secondary"):
+            st.session_state.active_tab = 'game_presets'
             st.rerun()
 
     st.divider()

@@ -51,6 +51,11 @@ _LOAD_TIMEOUT = 30_000
 _STREAMLIT_SETTLE = 2
 _SAFETY_THRESHOLD = 128
 
+# OPS auto-simulates small tournaments synchronously — status may advance past
+# IN_PROGRESS to REWARDS_DISTRIBUTED within seconds.  Any of these statuses
+# proves the tournament was launched (not stuck in DRAFT or CANCELLED).
+_VALID_LAUNCHED = {"IN_PROGRESS", "COMPLETED", "REWARDS_DISTRIBUTED"}
+
 # group_knockout valid player counts (from get_group_knockout_config in tournament_monitor.py)
 _GK_VALID_CONFIGS = {
     8:  {"groups": 2, "players_per_group": 4, "qualifiers": 2},
@@ -95,7 +100,7 @@ def _gk_actual_sessions(player_count: int) -> int:
     KnockoutGenerator), so the KO session count cannot be derived from
     _knockout_expected_sessions(qualifiers). Values measured from live API:
 
-      8p:  group=12, ko= 3, total= 15
+      8p:  group=12, ko= 4, total= 16   (includes 3rd-place playoff in KO phase)
       12p: group=18, ko= 6, total= 24
       16p: group=24, ko= 8, total= 32
       24p: group=36, ko=12, total= 48
@@ -104,7 +109,7 @@ def _gk_actual_sessions(player_count: int) -> int:
       64p: group=96, ko=48, total=144
     """
     _MEASURED_TOTALS = {
-        8:  15,
+        8:  16,
         12: 24,
         16: 32,
         24: 48,
@@ -125,7 +130,7 @@ def _gk_actual_group_sessions(player_count: int) -> int:
 
 def _gk_actual_ko_sessions(player_count: int) -> int:
     """KO session count — empirically measured from live backend."""
-    _MEASURED_KO = {8: 3, 12: 6, 16: 8, 24: 12, 32: 24, 48: 40, 64: 48}
+    _MEASURED_KO = {8: 4, 12: 6, 16: 8, 24: 12, 32: 24, 48: 40, 64: 48}
     return _MEASURED_KO.get(player_count, -1)
 
 
@@ -204,6 +209,26 @@ def _get_sessions(api_url: str, token: str, tid: int) -> list:
     )
     assert resp.status_code == 200, f"Sessions fetch failed for tid={tid}: {resp.text}"
     return resp.json()
+
+
+def _wait_for_sessions(
+    api_url: str, token: str, tid: int,
+    min_count: int = 1,
+    retries: int = 20,
+    interval: float = 2.0,
+) -> list:
+    """Poll sessions endpoint until min_count sessions appear (async generation)."""
+    for attempt in range(retries):
+        sessions = _get_sessions(api_url, token, tid)
+        if len(sessions) >= min_count:
+            return sessions
+        time.sleep(interval)
+    sessions = _get_sessions(api_url, token, tid)
+    assert len(sessions) >= min_count, (
+        f"tid={tid}: expected >= {min_count} sessions after {retries * interval}s, "
+        f"got {len(sessions)}"
+    )
+    return sessions
 
 
 def _get_summary(api_url: str, token: str, tid: int) -> dict:
@@ -308,7 +333,9 @@ class TestKnockoutFullBVA:
         )
 
         summary = _get_summary(api_url, token, tid)
-        assert summary.get("tournament_status") == "IN_PROGRESS"
+        assert summary.get("tournament_status") in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary.get('tournament_status')}"
+        )
 
     @pytest.mark.parametrize("player_count", [4, 8, 16, 32, 64])
     def test_knockout_power_of_two_round_structure(
@@ -423,8 +450,9 @@ class TestKnockoutFullBVA:
             timeout=300,
         )
         tid = data["tournament_id"]
-        sessions = _get_sessions(api_url, token, tid)
         expected = player_count  # N sessions for power-of-two knockout
+        # Large-scale generation is async — poll until sessions appear.
+        sessions = _wait_for_sessions(api_url, token, tid, min_count=expected, retries=30)
         assert len(sessions) == expected, (
             f"knockout {player_count}p: expected {expected} sessions, got {len(sessions)}"
         )
@@ -441,7 +469,8 @@ class TestKnockoutFullBVA:
             timeout=600,
         )
         tid = data["tournament_id"]
-        sessions = _get_sessions(api_url, token, tid)
+        # Large-scale generation is async — poll until all 1024 sessions appear.
+        sessions = _wait_for_sessions(api_url, token, tid, min_count=1024, retries=60)
         assert len(sessions) == 1024, (
             f"knockout 1024p: expected 1024 sessions (1023 bracket + 1 playoff), "
             f"got {len(sessions)}"
@@ -507,7 +536,9 @@ class TestLeagueExtendedBVA:
         )
 
         summary = _get_summary(api_url, token, tid)
-        assert summary.get("tournament_status") == "IN_PROGRESS"
+        assert summary.get("tournament_status") in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary.get('tournament_status')}"
+        )
 
     @pytest.mark.slow
     def test_league_32p_session_count(self, api_url: str):
@@ -522,8 +553,9 @@ class TestLeagueExtendedBVA:
             timeout=300,
         )
         tid = data["tournament_id"]
-        sessions = _get_sessions(api_url, token, tid)
         expected = _league_expected_sessions(32)  # 496
+        # Large session count — generation is async, poll until complete.
+        sessions = _wait_for_sessions(api_url, token, tid, min_count=expected, retries=60)
         assert len(sessions) == expected, (
             f"league 32p: expected {expected} sessions (32*31/2=496), got {len(sessions)}"
         )
@@ -618,7 +650,7 @@ class TestGroupKnockoutFullFormula:
         The group_knockout_generator uses its own bracket logic (not KnockoutGenerator),
         so KO session counts are measured values, not derived from _knockout_expected_sessions().
 
-        Measured:  8p→3,  12p→6,  16p→8,  24p→12,  32p→24,  48p→40,  64p→48
+        Measured:  8p→4,  12p→6,  16p→8,  24p→12,  32p→24,  48p→40,  64p→48
         """
         expected_ko = _gk_actual_ko_sessions(player_count)
 
@@ -647,7 +679,7 @@ class TestGroupKnockoutFullFormula:
         Also verifies IN_PROGRESS status.
 
         Empirical totals:
-          8p=15, 12p=24, 16p=32, 24p=48, 32p=72, 48p=112, 64p=144
+          8p=16, 12p=24, 16p=32, 24p=48, 32p=72, 48p=112, 64p=144
         """
         expected_total = _gk_actual_sessions(player_count)
         assert expected_total != -1, f"player_count={player_count} not in empirical measurements"
@@ -666,8 +698,8 @@ class TestGroupKnockoutFullFormula:
         )
 
         summary = _get_summary(api_url, token, tid)
-        assert summary.get("tournament_status") == "IN_PROGRESS", (
-            f"group_knockout {player_count}p: expected IN_PROGRESS, "
+        assert summary.get("tournament_status") in _VALID_LAUNCHED, (
+            f"group_knockout {player_count}p: expected one of {_VALID_LAUNCHED}, "
             f"got {summary.get('tournament_status')}"
         )
 
@@ -679,7 +711,7 @@ class TestGroupKnockoutFullFormula:
         Actual backend: uses own bracket logic with potential play-in rounds and 3rd place match.
 
         For 16p:  UI estimates 24 + 7  = 31, actual = 32 (off by 1)
-        For 8p:   UI estimates 12 + 3  = 15, actual = 15 (happens to match!)
+        For 8p:   UI estimates 12 + 3  = 15, actual = 16 (off by 1; 3rd-place playoff counted)
         For 64p:  UI estimates 96 + 31 = 127, actual = 144 (off by 17)
         """
         discrepancies = {}
@@ -783,7 +815,9 @@ class TestIndividualRankingExtendedBVA:
         )
         tid = data["tournament_id"]
         summary = _get_summary(api_url, token, tid)
-        assert summary.get("tournament_status") == "IN_PROGRESS"
+        assert summary.get("tournament_status") in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary.get('tournament_status')}"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -975,19 +1009,23 @@ class TestWizardParametrizedUI:
         _click_next(page)
 
         # Step 2: Select format
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         sb.get_by_text(format_text, exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
 
         # Step 3: Select type
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         sb.get_by_text(type_text, exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
 
-        # Arrive at Step 4
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+
+        # Arrive at Step 5 (Player count)
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
     def test_wizard_step3_knockout_available_in_smoke(
         self, page: Page, base_url: str, api_url: str
@@ -1003,10 +1041,10 @@ class TestWizardParametrizedUI:
         time.sleep(0.3)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         # Knockout must be visible for smoke_test
         expect(sb.get_by_text("Knockout", exact=False).first).to_be_visible(timeout=_LOAD_TIMEOUT)
         # League must also be visible
@@ -1026,10 +1064,10 @@ class TestWizardParametrizedUI:
         time.sleep(0.3)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         # Group+Knockout must be visible for large_field_monitor
         expect(sb.get_by_text("Group", exact=False).first).to_be_visible(timeout=_LOAD_TIMEOUT)
 
@@ -1094,14 +1132,18 @@ class TestWizardParametrizedUI:
         time.sleep(0.3)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
 
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
-        # scale_test default is 128 — safety warning must appear
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+
+        # Step 5: Player count — scale_test default is 128 — safety warning must appear
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         expect(sb.get_by_text("LARGE SCALE OPERATION", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
         )
@@ -1110,7 +1152,7 @@ class TestWizardParametrizedUI:
         self, page: Page, base_url: str, api_url: str
     ):
         """
-        large_field_monitor: Step 4 → Back (Step 3) → Forward (Step 4) preserves slider.
+        large_field_monitor: Step 5 (Player Count) → Back (Step 4) → Forward (Step 5) preserves slider.
         This is the Back→Forward state persistence test for large_field_monitor scenario.
         (smoke_test version already in test_tournament_monitor_coverage.py)
         """
@@ -1124,10 +1166,10 @@ class TestWizardParametrizedUI:
         val_before = int(slider.get_attribute("aria-valuenow"))
 
         _click_back(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         slider_after = sb.get_by_role("slider", name="Number of players to enroll")
         val_after = int(slider_after.get_attribute("aria-valuenow"))
@@ -1150,17 +1192,26 @@ class TestWizardParametrizedUI:
         sb.get_by_text("Smoke Test", exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 5 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 5: Player count
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 6: Accelerated Simulation
+        expect(sb.get_by_text("Step 6 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         sb.get_by_text("Accelerated Simulation", exact=False).first.click()
         time.sleep(0.5)
         _click_next(page)
-        expect(sb.get_by_text("Step 6 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 7: Configure Rewards (new optional step — just pass through)
+        expect(sb.get_by_text("Step 7 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 8: Review
+        expect(sb.get_by_text("Step 8 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Safety field must NOT appear
         expect(
@@ -1183,17 +1234,26 @@ class TestWizardParametrizedUI:
         sb.get_by_text("Scale Test", exact=False).first.click()
         time.sleep(0.3)
         _click_next(page)
-        expect(sb.get_by_text("Step 2 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 3 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 4 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 4: Game Preset (new optional step — just pass through)
+        expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
-        expect(sb.get_by_text("Step 5 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 5: Player count
+        expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 6: Accelerated Simulation
+        expect(sb.get_by_text("Step 6 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         sb.get_by_text("Accelerated Simulation", exact=False).first.click()
         time.sleep(0.5)
         _click_next(page)
-        expect(sb.get_by_text("Step 6 of 6", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        # Step 7: Configure Rewards (new optional step — just pass through)
+        expect(sb.get_by_text("Step 7 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _click_next(page)
+        # Step 8: Review
+        expect(sb.get_by_text("Step 8 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Safety field MUST be present
         expect(sb.get_by_placeholder("Type LAUNCH to enable the button")).to_be_visible(
@@ -1265,7 +1325,9 @@ class TestTypeBoundaryMatrix:
             f"knockout {player_count}p: expected {expected}, got {len(sessions)}"
         )
         summary = _get_summary(api_url, token, tid)
-        assert summary["tournament_status"] == "IN_PROGRESS"
+        assert summary["tournament_status"] in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary['tournament_status']}"
+        )
 
     @pytest.mark.parametrize("player_count", _KNOCKOUT_NON_POW2)
     def test_knockout_non_pow2_boundary_rejected(self, api_url: str, player_count: int):
@@ -1303,7 +1365,9 @@ class TestTypeBoundaryMatrix:
             f"league {player_count}p: expected {expected}, got {len(sessions)}"
         )
         summary = _get_summary(api_url, token, tid)
-        assert summary["tournament_status"] == "IN_PROGRESS"
+        assert summary["tournament_status"] in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary['tournament_status']}"
+        )
 
     @pytest.mark.parametrize("player_count", _LEAGUE_LARGE)
     def test_league_large_boundaries(self, api_url: str, player_count: int):
@@ -1352,7 +1416,7 @@ class TestTypeBoundaryMatrix:
 
     # group_knockout: only valid for {8,12,16,24,32,48,64} — tested per-count in TestGroupKnockoutFullFormula
     @pytest.mark.parametrize("player_count,expected_total", [
-        (8,  15),
+        (8,  16),  # updated: 12 group + 4 ko (includes 3rd-place playoff)
         (16, 32),
         (32, 72),
     ])
@@ -1374,7 +1438,9 @@ class TestTypeBoundaryMatrix:
             f"got {len(sessions)}"
         )
         summary = _get_summary(api_url, token, tid)
-        assert summary["tournament_status"] == "IN_PROGRESS"
+        assert summary["tournament_status"] in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary['tournament_status']}"
+        )
 
     @pytest.mark.slow
     def test_knockout_at_safety_threshold_128(self, api_url: str):
@@ -1392,4 +1458,6 @@ class TestTypeBoundaryMatrix:
             f"knockout 128p: expected {expected} sessions, got {len(sessions)}"
         )
         summary = _get_summary(api_url, token, tid)
-        assert summary["tournament_status"] == "IN_PROGRESS"
+        assert summary["tournament_status"] in _VALID_LAUNCHED, (
+            f"Expected a launched status {_VALID_LAUNCHED}, got: {summary['tournament_status']}"
+        )

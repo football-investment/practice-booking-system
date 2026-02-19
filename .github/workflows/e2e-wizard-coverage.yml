@@ -1,0 +1,478 @@
+name: E2E Wizard Coverage
+
+on:
+  pull_request:
+    branches: [ main, develop, feature/* ]
+    paths:
+      - 'streamlit_app/**'
+      - 'app/**'
+      - 'tests_e2e/test_tournament_monitor*.py'
+      - 'tests_e2e/test_full_boundary_matrix.py'
+      - 'tests_e2e/test_knockout_matrix.py'
+      - 'tests_e2e/test_p1_coverage.py'
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      include_slow:
+        description: 'Include @slow tests (256p, 512p, 1024p, league-32p)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  # ── Job 1: Wizard UI Flow (Playwright, headless) ───────────────────────────
+  wizard-flow:
+    name: Wizard Flow (19 tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      BASE_URL: http://localhost:8501
+      API_URL: http://localhost:8000
+      PYTEST_HEADLESS: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-playwright pytest-mock
+          playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: python scripts/migrations/comprehensive_test_seed.py || true
+
+      - name: Start backend + Streamlit
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          # Wait for both services to be ready
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+
+      - name: Wizard Flow tests
+        run: |
+          cd tests_e2e
+          pytest test_tournament_monitor_e2e.py::TestWizardFlow \
+            --junitxml=results/ci_wizard_flow.xml \
+            -v --tb=short
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-wizard-flow
+          path: tests_e2e/results/ci_wizard_flow.xml
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-wizard-flow
+          path: tests_e2e/screenshots/
+
+  # ── Job 2: Coverage UI + Monitoring (Playwright, headless) ─────────────────
+  coverage-ui:
+    name: Coverage UI + Monitoring (22 tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      BASE_URL: http://localhost:8501
+      API_URL: http://localhost:8000
+      PYTEST_HEADLESS: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-playwright pytest-mock
+          playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: python scripts/migrations/comprehensive_test_seed.py || true
+
+      - name: Start backend + Streamlit
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+
+      - name: Safety Confirmation + Slider tests
+        run: |
+          cd tests_e2e
+          pytest \
+            test_tournament_monitor_coverage.py::TestSafetyConfirmationUI \
+            test_tournament_monitor_coverage.py::TestSliderStatePersistence \
+            test_tournament_monitor_e2e.py::TestMonitoringPanel \
+            test_tournament_monitor_e2e.py::TestRegressions \
+            --junitxml=results/ci_coverage_ui.xml \
+            -v --tb=short
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-coverage-ui
+          path: tests_e2e/results/ci_coverage_ui.xml
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-coverage-ui
+          path: tests_e2e/screenshots/
+
+  # ── Job 3: Boundary Wizard UI (Playwright, parametrized) ───────────────────
+  boundary-wizard-ui:
+    name: Boundary Wizard UI (8 tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      BASE_URL: http://localhost:8501
+      API_URL: http://localhost:8000
+      PYTEST_HEADLESS: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-playwright pytest-mock
+          playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: python scripts/migrations/comprehensive_test_seed.py || true
+
+      - name: Start backend + Streamlit
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+
+      - name: Boundary Wizard Parametrized UI tests
+        run: |
+          cd tests_e2e
+          pytest test_full_boundary_matrix.py::TestWizardParametrizedUI \
+            --junitxml=results/ci_boundary_wizard.xml \
+            -v --tb=short
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-boundary-wizard
+          path: tests_e2e/results/ci_boundary_wizard.xml
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-boundary-wizard
+          path: tests_e2e/screenshots/
+
+  # ── Job 4: API Boundary Tests (pure HTTP, no browser) ─────────────────────
+  api-boundary:
+    name: API Boundary Tests (127 tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      API_URL: http://localhost:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-playwright pytest-mock
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: python scripts/migrations/comprehensive_test_seed.py || true
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+
+      - name: API Boundary tests (non-slow)
+        run: |
+          cd tests_e2e
+          pytest \
+            test_tournament_monitor_coverage.py::TestPlayerCountBoundaryAPI \
+            test_tournament_monitor_coverage.py::TestGroupKnockoutMatrix \
+            test_tournament_monitor_coverage.py::TestPostLaunchObservability \
+            test_full_boundary_matrix.py::TestKnockoutFullBVA \
+            test_full_boundary_matrix.py::TestLeagueExtendedBVA \
+            test_full_boundary_matrix.py::TestGroupKnockoutFullFormula \
+            test_full_boundary_matrix.py::TestIndividualRankingExtendedBVA \
+            test_full_boundary_matrix.py::TestGenerationValidatorBranchCoverage \
+            test_full_boundary_matrix.py::TestTypeBoundaryMatrix \
+            test_knockout_matrix.py \
+            -m "not slow" \
+            --junitxml=results/ci_api_boundary.xml \
+            -v --tb=short
+
+      - name: API Boundary tests (slow) — only on main or manual trigger
+        if: github.ref == 'refs/heads/main' || github.event.inputs.include_slow == 'true'
+        run: |
+          cd tests_e2e
+          pytest \
+            test_full_boundary_matrix.py::TestKnockoutFullBVA \
+            test_full_boundary_matrix.py::TestLeagueExtendedBVA \
+            test_full_boundary_matrix.py::TestIndividualRankingExtendedBVA \
+            test_full_boundary_matrix.py::TestTypeBoundaryMatrix \
+            -m slow \
+            --junitxml=results/ci_api_boundary_slow.xml \
+            -v --tb=short
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-api-boundary
+          path: tests_e2e/results/ci_api_boundary*.xml
+
+  # ── Job 5: P1 Critical Coverage (API + Playwright) ────────────────────────
+  p1-critical-coverage:
+    name: P1 Critical Coverage (23 tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      BASE_URL: http://localhost:8501
+      API_URL: http://localhost:8000
+      PYTEST_HEADLESS: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-playwright pytest-mock
+          playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: python scripts/migrations/comprehensive_test_seed.py || true
+
+      - name: Start backend + Streamlit
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+
+      - name: P1 Critical Coverage tests
+        run: |
+          cd tests_e2e
+          pytest test_p1_coverage.py \
+            --junitxml=results/ci_p1_coverage.xml \
+            -v --tb=short
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-p1-coverage
+          path: tests_e2e/results/ci_p1_coverage.xml
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-p1-coverage
+          path: tests_e2e/screenshots/
+
+  # ── Summary job ────────────────────────────────────────────────────────────
+  coverage-summary:
+    name: E2E Coverage Summary
+    runs-on: ubuntu-latest
+    needs: [wizard-flow, coverage-ui, boundary-wizard-ui, api-boundary, p1-critical-coverage]
+    if: always()
+
+    steps:
+      - name: Coverage gate
+        run: |
+          echo "## E2E Wizard Coverage Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Tests | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Wizard Flow | 19 | ${{ needs.wizard-flow.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage UI + Monitoring | 22 | ${{ needs.coverage-ui.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Boundary Wizard UI | 8 | ${{ needs.boundary-wizard-ui.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| API Boundary (non-slow) | 127 | ${{ needs.api-boundary.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| P1 Critical Coverage | 23 | ${{ needs.p1-critical-coverage.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          WIZARD="${{ needs.wizard-flow.result }}"
+          COVERAGE="${{ needs.coverage-ui.result }}"
+          BOUNDARY="${{ needs.boundary-wizard-ui.result }}"
+          API="${{ needs.api-boundary.result }}"
+          P1="${{ needs.p1-critical-coverage.result }}"
+
+          if [ "$WIZARD" = "success" ] && [ "$COVERAGE" = "success" ] && \
+             [ "$BOUNDARY" = "success" ] && [ "$API" = "success" ] && \
+             [ "$P1" = "success" ]; then
+            echo "### ✅ All E2E coverage gates passed — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Coverage validated (199 tests):**" >> $GITHUB_STEP_SUMMARY
+            echo "- All 8 wizard steps (Steps 1-8)" >> $GITHUB_STEP_SUMMARY
+            echo "- HEAD_TO_HEAD + INDIVIDUAL_RANKING decision branches" >> $GITHUB_STEP_SUMMARY
+            echo "- Knockout / League / Group-Knockout / Individual Ranking types" >> $GITHUB_STEP_SUMMARY
+            echo "- Boundary values: 2,3,4,7,8,15,16,31,32,63,64,127,128" >> $GITHUB_STEP_SUMMARY
+            echo "- Safety confirmation gate (128+ players, both formats)" >> $GITHUB_STEP_SUMMARY
+            echo "- Post-launch observability: status, sessions, rankings, enrolled count" >> $GITHUB_STEP_SUMMARY
+            echo "- P1 critical: manual/auto_immediate/accelerated simulation modes" >> $GITHUB_STEP_SUMMARY
+            echo "- P1 critical: API error → wizard state retention (no silent reset)" >> $GITHUB_STEP_SUMMARY
+            echo "- P1 critical: INDIVIDUAL_RANKING 128+ safety gate enforcement" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ E2E coverage gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Failing job(s):" >> $GITHUB_STEP_SUMMARY
+            [ "$WIZARD" != "success" ]   && echo "- Wizard Flow: $WIZARD" >> $GITHUB_STEP_SUMMARY
+            [ "$COVERAGE" != "success" ] && echo "- Coverage UI: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+            [ "$BOUNDARY" != "success" ] && echo "- Boundary Wizard UI: $BOUNDARY" >> $GITHUB_STEP_SUMMARY
+            [ "$API" != "success" ]      && echo "- API Boundary: $API" >> $GITHUB_STEP_SUMMARY
+            [ "$P1" != "success" ]       && echo "- P1 Critical Coverage: $P1" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

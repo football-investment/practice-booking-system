@@ -421,12 +421,75 @@ def submit_round_results(
     db.commit()
     db.refresh(session)
 
+    all_done = rounds_data['completed_rounds'] >= int(total_rounds)
+    rankings_calculated = False
+
+    # ── Auto-calculate rankings when all rounds are complete ──────────────────
+    if all_done:
+        try:
+            from app.models.tournament_ranking import TournamentRanking
+            from app.services.tournament.results.calculators.ranking_aggregator import RankingAggregator
+
+            # Extract combined round_results from all IR sessions
+            all_sessions_for_ranking = db.query(SessionModel).filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.is_tournament_game == True,
+            ).all()
+
+            combined_round_results: Dict[str, Any] = {}
+            for _s in all_sessions_for_ranking:
+                _rd = _s.rounds_data or {}
+                _rr = _rd.get("round_results", {})
+                if isinstance(_rr, dict):
+                    for _rk, _pv in _rr.items():
+                        if isinstance(_pv, dict):
+                            combined_round_results[_rk] = _pv
+
+            if combined_round_results:
+                # Get ranking_direction (ASC = lowest wins, DESC = highest wins)
+                ranking_direction = "ASC"
+                if tournament.tournament_config_obj:
+                    ranking_direction = tournament.tournament_config_obj.ranking_direction or "ASC"
+
+                user_final_values = RankingAggregator.aggregate_user_values(
+                    combined_round_results, ranking_direction
+                )
+                performance_rankings = RankingAggregator.calculate_performance_rankings(
+                    user_final_values, ranking_direction
+                )
+
+                # Overwrite existing rankings (idempotent)
+                db.query(TournamentRanking).filter(
+                    TournamentRanking.tournament_id == tournament_id
+                ).delete()
+
+                for entry in performance_rankings:
+                    db.add(TournamentRanking(
+                        tournament_id=tournament_id,
+                        user_id=entry["user_id"],
+                        participant_type="INDIVIDUAL",
+                        rank=entry["rank"],
+                        points=entry["final_value"],
+                    ))
+
+                db.commit()
+                rankings_calculated = True
+        except Exception as _e:
+            # Ranking calculation is best-effort; don't fail the round submission
+            import logging
+            logging.getLogger(__name__).warning(
+                "Auto-ranking after round %d failed for tournament %d: %s",
+                round_number, tournament_id, _e
+            )
+
     return {
         "success": True,
         "message": f"Round {round_number} results saved successfully",
         "session_id": session_id,
         "round_number": round_number,
         "rounds_data": session.rounds_data,
+        "all_rounds_complete": all_done,
+        "rankings_calculated": rankings_calculated,
         "notes": request.notes
     }
 

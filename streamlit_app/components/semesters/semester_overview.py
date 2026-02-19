@@ -13,10 +13,8 @@ from typing import List, Dict
 parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from api_helpers_semesters import (
-    get_all_locations,
-    get_all_semesters
-)
+from api_helpers_semesters import get_all_locations
+from api_client import APIClient
 
 
 def get_period_label(specialization_type: str = None, plural: bool = True, capitalize: bool = True) -> str:
@@ -221,13 +219,13 @@ def render_semester_overview(token: str):
         return
 
     # Fetch all semesters
-    success_sem, error_sem, data = get_all_semesters(token)
+    success_sem, error_sem, data = APIClient.from_config(token).semesters.get_list()
 
     if not success_sem:
         st.error(f"❌ Failed to fetch semesters: {error_sem}")
         return
 
-    semesters = data.get("semesters", [])
+    semesters = data.get("semesters", []) if data else []
 
     # Group semesters by location_city
     semesters_by_location = defaultdict(list)

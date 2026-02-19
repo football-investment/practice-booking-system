@@ -21,7 +21,7 @@ def render_session_card(session: Dict[str, Any]) -> None:
     result_submitted = session.get("result_submitted", False) or session.get("game_results") is not None
     icon = "✅" if result_submitted else "⏳"
     names = session.get("participant_names") or []
-    match_fmt = session.get("match_format", "") or session.get("tournament_phase", "")
+    match_fmt = session.get("match_format", "")
     is_individual = match_fmt in ("INDIVIDUAL_RANKING",)
 
     group_id = session.get("group_identifier")
@@ -35,7 +35,7 @@ def render_session_card(session: Dict[str, Any]) -> None:
     else:
         phase = session.get("tournament_phase", "")
         if phase in ("KNOCKOUT", "FINALS", "BRONZE"):
-            title = "TBD vs TBD"
+            title = "TBD vs TBD"  # TICKET-UI-03: Replace with "BYE" when participant_count==1
         else:
             title = f"Session {session.get('id', '?')}"
 
@@ -160,6 +160,9 @@ def render_session_cell(s: Dict[str, Any]) -> None:
     elif names:
         matchup = " vs ".join(n.split()[-1] if n else "?" for n in names)
     elif not result_submitted and s.get("tournament_phase") in ("KNOCKOUT", "FINALS", "BRONZE"):
+        # TICKET-UI-03: Distinguish bye from pending matchup:
+        #   len(participant_user_ids) == 1 → matchup = "BYE" (auto-advance)
+        #   len(participant_user_ids) == 0 → matchup = "TBD vs TBD" (not yet seeded)
         matchup = "TBD vs TBD"
     else:
         matchup = f"S{s.get('id', '?')}"
@@ -466,7 +469,7 @@ def render_phase_container(
 
     # Phase completion status
     if phase_complete:
-        status_badge = "✅ LEZÁRVA"
+        status_badge = "✅ COMPLETE"
         badge_color = "#22c55e"
     else:
         status_badge = f"⏳ {done}/{total} ({pct}%)"
@@ -561,4 +564,251 @@ def render_campus_grid(sessions: List[Dict[str, Any]], campus_configs: List[Dict
             campus_configs=campus_configs,
             rankings=rankings,
             phase_complete=phase_complete,
+        )
+
+
+# ─── Campus / Field RBAC Grid ─────────────────────────────────────────────────
+#
+# Structural requirement: regardless of tournament size or type, campuses and
+# fields are always shown as separate cards.
+#
+# Admin  → all campuses visible, all fields visible.
+# Instructor → only their assigned campus + field (campus_filter / field_filter).
+#
+# Field distribution across campuses (when campus_configs present):
+#   campus_configs is an ordered list; parallel_fields defines how many fields
+#   each campus hosts.  Field numbers are allocated cumulatively.
+#   e.g. [{campus_name:"Alpha", parallel_fields:3}, {campus_name:"Beta", parallel_fields:2}]
+#   → fields 1-3 → Alpha, fields 4-5 → Beta
+#   Without campus_configs → single "Main Campus" with all field_numbers.
+# ──────────────────────────────────────────────────────────────────────────────
+
+_CAMPUS_CARD_CSS = (
+    "background:linear-gradient(135deg,#1e3a5f,#2563eb);"
+    "color:#fff;padding:10px 16px;border-radius:8px 8px 0 0;"
+    "font-weight:600;font-size:1rem;margin-bottom:2px;"
+)
+
+
+def build_campus_field_map(
+    sessions: List[Dict[str, Any]],
+    campus_configs: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """Build a campus → field → sessions mapping.
+
+    Returns:
+        {campus_name: {"info": campus_config_dict, "fields": {field_num: [sessions]}}}
+
+    Field numbers are drawn from ``structure_config.field_number`` on each
+    session.  Campuses are derived from *campus_configs* (cumulative
+    parallel_fields) or from a single implicit "Main Campus" when configs are
+    absent.  Sessions without a field_number are placed under pseudo-field 0
+    in the first campus.
+    """
+    # Unique field numbers present in sessions
+    field_nums_present = sorted({
+        (s.get("structure_config") or {}).get("field_number")
+        for s in sessions
+        if (s.get("structure_config") or {}).get("field_number") is not None
+    })
+
+    # Build field_number → campus_name lookup
+    field_to_campus: Dict[int, str] = {}
+    campus_info_lookup: Dict[str, Dict] = {}
+
+    if campus_configs:
+        offset = 0
+        for cfg in campus_configs:
+            cname = (
+                cfg.get("campus_name")
+                or cfg.get("name")
+                or cfg.get("venue_label")
+                or f"Campus {cfg.get('campus_id', '?')}"
+            )
+            pf = max(1, int(cfg.get("parallel_fields") or 1))
+            for fn in range(offset + 1, offset + pf + 1):
+                field_to_campus[fn] = cname
+            campus_info_lookup[cname] = cfg
+            offset += pf
+
+    if not field_to_campus and field_nums_present:
+        # No explicit campus configs — single implicit campus
+        cname = "Main Campus"
+        for fn in field_nums_present:
+            field_to_campus[fn] = cname
+        campus_info_lookup[cname] = {
+            "campus_name": cname,
+            "parallel_fields": len(field_nums_present),
+        }
+
+    # Distribute sessions into campus → field buckets
+    campus_map: Dict[str, Dict[str, Any]] = {}
+    for s in sessions:
+        fn = (s.get("structure_config") or {}).get("field_number")
+        if fn is None:
+            # No field_number → first campus, pseudo-field 0
+            cname = next(iter(campus_info_lookup)) if campus_info_lookup else "Main Campus"
+            fn = 0
+        else:
+            cname = field_to_campus.get(fn, f"Campus (F{fn})")
+
+        if cname not in campus_map:
+            campus_map[cname] = {
+                "info": campus_info_lookup.get(cname, {"campus_name": cname}),
+                "fields": defaultdict(list),
+            }
+        campus_map[cname]["fields"][fn].append(s)
+
+    return campus_map
+
+
+def _render_field_card(
+    field_num: int,
+    field_sessions: List[Dict[str, Any]],
+) -> None:
+    """Render one field as a collapsible card with progress + match preview."""
+    if not field_sessions:
+        return
+
+    done = sum(1 for s in field_sessions if s.get("result_submitted"))
+    total = len(field_sessions)
+    pct = done / total if total else 0
+    status_icon = "✅" if done == total else "⏳"
+    pending = [s for s in field_sessions if not s.get("result_submitted")]
+
+    fn_label = f"Field {field_num}" if field_num else "All Sessions"
+    exp_label = f"{status_icon} **{fn_label}** — {done}/{total}"
+
+    # Auto-expand only if small and incomplete
+    auto_expand = (done < total and total <= 8)
+
+    with st.expander(exp_label, expanded=auto_expand):
+        st.progress(pct, text=f"{done}/{total} matches submitted")
+
+        if pending:
+            nxt = min(pending, key=lambda s: (s.get("tournament_round") or 9999))
+            rnd = nxt.get("tournament_round", "?")
+            names = nxt.get("participant_names") or []
+            matchup = (
+                " vs ".join((n.split()[-1] if n else "?") for n in names[:2])
+                if names else "TBD"
+            )
+            phase = nxt.get("tournament_phase") or "LEAGUE"
+            st.caption(f"▶ **Round {rnd}** ({phase}): {matchup}")
+
+        # Show last 3 completed + next 3 pending (compact preview)
+        recent = [s for s in field_sessions if s.get("result_submitted")][-3:]
+        upcoming = pending[:3]
+        for s in recent + upcoming:
+            render_session_cell(s)
+
+        leftover = total - len(recent) - min(len(pending), 3)
+        if leftover > 0:
+            st.caption(f"_{leftover} more match(es) not shown_")
+
+
+def _render_campus_block(
+    campus_name: str,
+    campus_data: Dict[str, Any],
+    *,
+    field_filter: Optional[int] = None,
+) -> None:
+    """Render one campus block (header + field cards).
+
+    When *field_filter* is set only that field number is shown (instructor RBAC).
+    """
+    fields_dict: Dict[int, List] = dict(campus_data["fields"])
+
+    if field_filter is not None:
+        fields_dict = {k: v for k, v in fields_dict.items() if k == field_filter}
+
+    if not fields_dict:
+        return
+
+    campus_sessions = [s for slist in fields_dict.values() for s in slist]
+    campus_done = sum(1 for s in campus_sessions if s.get("result_submitted"))
+    campus_total = len(campus_sessions)
+    campus_pct = int(campus_done / campus_total * 100) if campus_total else 0
+    n_fields = len(fields_dict)
+
+    # Campus header card
+    st.markdown(
+        f"<div style='{_CAMPUS_CARD_CSS}'>"
+        f"🏟️ {campus_name}"
+        f"<span style='font-weight:400;font-size:.85em;margin-left:16px;opacity:.9'>"
+        f"{n_fields} field(s)&nbsp;&nbsp;·&nbsp;&nbsp;"
+        f"{campus_done}/{campus_total} matches ({campus_pct}%)"
+        f"</span></div>",
+        unsafe_allow_html=True,
+    )
+
+    with st.container():
+        for field_num in sorted(fields_dict.keys()):
+            _render_field_card(field_num, fields_dict[field_num])
+
+    st.markdown("")  # spacing after campus block
+
+
+def render_campus_field_grid(
+    sessions: List[Dict[str, Any]],
+    campus_configs: List[Dict[str, Any]],
+    rankings: List[Dict[str, Any]] = None,
+    *,
+    viewer_role: str = "admin",
+    campus_filter: Optional[str] = None,
+    field_filter: Optional[int] = None,
+) -> None:
+    """Render sessions grouped by Campus → Field (structural RBAC view).
+
+    Admin  (viewer_role="admin"):
+        All campuses visible, all fields visible.
+
+    Instructor (viewer_role="instructor"):
+        Only the campus matching *campus_filter* and the field matching
+        *field_filter* are shown.  When both are None the full view is
+        shown as a fallback (e.g. before the instructor has made a selection).
+
+    Falls back to the phase-based ``render_campus_grid()`` when sessions carry
+    no ``structure_config.field_number`` (e.g. INDIVIDUAL_RANKING tournaments).
+
+    Args:
+        sessions:       All tournament sessions.
+        campus_configs: Per-campus config from GET /tournaments/{id}/campus-schedules.
+        rankings:       Tournament rankings (optional, unused but kept for API parity).
+        viewer_role:    "admin" or "instructor".
+        campus_filter:  Restrict to this campus name (instructor RBAC).
+        field_filter:   Restrict to this field number (instructor RBAC).
+    """
+    if not sessions:
+        st.info("No sessions generated yet.")
+        return
+
+    # Check whether sessions carry field numbers at all
+    has_field_nums = any(
+        (s.get("structure_config") or {}).get("field_number") is not None
+        for s in sessions
+    )
+    if not has_field_nums:
+        # No field structure → fall back to phase-based view
+        render_campus_grid(sessions, campus_configs, rankings or [])
+        return
+
+    campus_map = build_campus_field_map(sessions, campus_configs)
+    if not campus_map:
+        render_campus_grid(sessions, campus_configs, rankings or [])
+        return
+
+    # RBAC: instructor sees only their campus
+    if viewer_role == "instructor" and campus_filter is not None:
+        campus_map = {k: v for k, v in campus_map.items() if k == campus_filter}
+
+    if not campus_map:
+        st.warning("No sessions found for your assigned campus.")
+        return
+
+    for campus_name, campus_data in campus_map.items():
+        _render_campus_block(
+            campus_name,
+            campus_data,
+            field_filter=field_filter if viewer_role == "instructor" else None,
         )

@@ -96,10 +96,11 @@ describe('Auth / Login', () => {
     cy.fixture('users').then((users) => {
       cy.login(users.invalid.email, users.invalid.password);
 
-      // Sidebar must NOT appear
-      cy.get('[data-testid="stSidebar"]')
-        .find('[data-testid="stButton"] button')
-        .contains('🚪 Logout')
+      // Logout button must NOT be present anywhere on the page
+      // Note: use cy.get('body').contains() — not cy.get(sidebar).find() —
+      // to safely assert non-existence without intermediate .find() timing out.
+      cy.get('body')
+        .contains('[data-testid="stButton"] button', '🚪 Logout')
         .should('not.exist');
 
       // An error alert must be visible
@@ -138,10 +139,8 @@ describe('Auth / Login', () => {
       // Login form should be visible again
       cy.assertUnauthenticated();
 
-      // No sidebar with authenticated nav
-      cy.get('[data-testid="stSidebar"]')
-        .contains('🚪 Logout')
-        .should('not.exist');
+      // No Logout button anywhere on the page after logout
+      cy.get('body').contains('🚪 Logout').should('not.exist');
     });
   });
 

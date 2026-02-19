@@ -18,6 +18,7 @@ from components.instructor.tabs.tab7_profile import render_profile_tab
 from components.instructor.data_loader import load_dashboard_data
 from components.instructor.tabs.tab6_inbox import render_inbox_tab
 from components.instructor.tabs.tab4_students import render_students_tab
+from components.instructor.tabs.tab1_today import render_today_tab
 from components.instructor.tournament_applications import (
     render_open_tournaments_tab,
     render_my_applications_tab,
@@ -173,16 +174,13 @@ if data.load_error:
     st.error(f"❌ {data.load_error}")
     st.stop()
 
-# Local name bindings for remaining inline tab bodies (tabs 1, 2, 3).
-# Remove each binding as the corresponding tab is extracted in steps 3.5–3.8.
-all_sessions            = data.all_sessions
+# Local name bindings for remaining inline tab bodies (tabs 2, 3).
+# Remove each binding as the corresponding tab is extracted in steps 3.6–3.8.
 all_semesters           = data.all_semesters
 seasons_by_semester     = data.seasons_by_semester
 tournaments_by_semester = data.tournaments_by_semester
-upcoming_sessions       = data.upcoming_sessions
-todays_sessions         = data.todays_sessions
-today                   = datetime.now().date()      # still needed by inline tab bodies
-next_week               = today + timedelta(days=7)  # same
+today                   = datetime.now().date()      # still needed by inline tab2 body
+next_week               = today + timedelta(days=7)  # passed to render_today_tab
 
 # Main tabs
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -196,132 +194,10 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 ])
 
 # ========================================
-# TAB 1: TODAY & UPCOMING (PRIMARY LANDING VIEW)
+# TAB 1: TODAY & UPCOMING (Phase 3 Step 3.5 — extracted)
 # ========================================
 with tab1:
-    st.markdown("### 📆 Today & Upcoming")
-    st.caption("Time-sensitive sessions - what needs your attention NOW")
-
-    # Quick Stats
-    stats_col1, stats_col2, stats_col3 = st.columns(3)
-
-    with stats_col1:
-        st.metric("📅 Today", len(todays_sessions))
-    with stats_col2:
-        st.metric("📅 This Week", len(upcoming_sessions))
-    with stats_col3:
-        # Count pending actions (tournament requests + master offers)
-        try:
-            pending_offers = get_my_master_offers(token, include_expired=False)
-            pending_offers_count = len([o for o in pending_offers if o.get('status') == 'PENDING'])
-        except:
-            pending_offers_count = 0
-
-        # TODO: Add tournament requests count when available
-        pending_actions = pending_offers_count
-        st.metric("🎯 Pending Actions", pending_actions)
-
-    st.divider()
-
-    # TODAY'S SESSIONS
-    if todays_sessions:
-        st.markdown("### 🚨 TODAY'S SESSIONS")
-
-        for session in todays_sessions:
-            semester_data = session.get('semester', {})
-
-            # Extract session details
-            try:
-                start_dt = datetime.fromisoformat(session['date_start'].replace('Z', '+00:00'))
-                time_str = start_dt.strftime('%H:%M')
-            except:
-                time_str = 'N/A'
-
-            title = session.get('title', 'Session')
-            capacity = session.get('capacity', 0)
-            bookings = session.get('confirmed_bookings', 0)
-            semester_name = semester_data.get('name', 'Unknown')
-
-            # Display in red border container
-            with st.container():
-                st.markdown(
-                    f"<div style='border-left: 5px solid #FF4B4B; padding-left: 10px; margin-bottom: 10px;'>"
-                    f"<strong>{time_str}</strong> - {title}<br>"
-                    f"<small>📍 {semester_name} | 👥 {bookings}/{capacity}</small>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
-    else:
-        st.info("✅ No sessions today")
-
-    st.divider()
-
-    # THIS WEEK (Next 7 Days)
-    st.markdown("### 📅 THIS WEEK (Next 7 Days)")
-
-    if upcoming_sessions:
-        # Group by day
-        sessions_by_day = defaultdict(list)
-        for s in upcoming_sessions:
-            try:
-                session_date = datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date()
-                sessions_by_day[session_date].append(s)
-            except:
-                pass
-
-        # Display each day
-        for day in sorted(sessions_by_day.keys()):
-            day_sessions = sessions_by_day[day]
-            day_name = day.strftime('%A, %B %d')
-            is_today = (day == today)
-
-            with st.expander(f"**{day_name}** ({len(day_sessions)} sessions)" + (" ⚠️ TODAY" if is_today else ""), expanded=is_today):
-                for session in sorted(day_sessions, key=lambda x: x.get('date_start', '')):
-                    semester_data = session.get('semester', {})
-
-                    try:
-                        start_dt = datetime.fromisoformat(session['date_start'].replace('Z', '+00:00'))
-                        time_str = start_dt.strftime('%H:%M')
-                    except:
-                        time_str = 'N/A'
-
-                    col1, col2, col3 = st.columns([2, 2, 1])
-
-                    with col1:
-                        st.markdown(f"**{session.get('title', 'Session')}**")
-                    with col2:
-                        st.caption(f"🕐 {time_str} | 📍 {semester_data.get('name', 'Unknown')}")
-                    with col3:
-                        capacity = session.get('capacity', 0)
-                        bookings = session.get('confirmed_bookings', 0)
-                        st.caption(f"👥 {bookings}/{capacity}")
-    else:
-        st.info("📅 No sessions scheduled for the next 7 days")
-
-        # Show next session if any
-        if all_sessions:
-            future_sessions = []
-            for s in all_sessions:
-                try:
-                    session_date = datetime.fromisoformat(s['date_start'].replace('Z', '+00:00')).date()
-                    if session_date > next_week:
-                        future_sessions.append((session_date, s))
-                except:
-                    pass
-
-            if future_sessions:
-                future_sessions.sort(key=lambda x: x[0])
-                next_session_date, next_session = future_sessions[0]
-                st.caption(f"📅 Next session: {next_session_date.strftime('%A, %B %d')} - {next_session.get('title', 'Session')}")
-
-    # ACTION REQUIRED section
-    if pending_actions > 0:
-        st.divider()
-        st.markdown("### ⚠️ ACTION REQUIRED")
-        st.warning(f"You have **{pending_actions}** pending action(s) in the **📬 Inbox** tab")
-        if st.button("Go to Inbox →", use_container_width=True):
-            st.session_state['active_tab'] = 'Inbox'
-            st.rerun()
+    render_today_tab(data, token, today, next_week)
 
 # ========================================
 # TAB 2: MY JOBS (CV-Style Chronological List)

@@ -38,6 +38,10 @@ class TournamentManagerPermissions:
     can_finalize: bool
     """May trigger finalize-tournament and distribute-rewards API calls."""
 
+    can_see_all_campuses: bool
+    """May view all campuses and all fields (admin only).
+    Instructor: restricted to their assigned campus + field via RBAC selector."""
+
     dashboard_back_page: str
     """st.switch_page() target for the '← Dashboard' sidebar button."""
 
@@ -53,6 +57,7 @@ _ROLE_PERMISSIONS: dict[str, TournamentManagerPermissions] = {
         can_create=True,
         can_enter_results=True,
         can_finalize=True,
+        can_see_all_campuses=True,
         dashboard_back_page="pages/Admin_Dashboard.py",
         display_name="Admin",
     ),
@@ -61,6 +66,7 @@ _ROLE_PERMISSIONS: dict[str, TournamentManagerPermissions] = {
         can_create=False,
         can_enter_results=True,
         can_finalize=False,
+        can_see_all_campuses=False,
         dashboard_back_page="pages/Instructor_Dashboard.py",
         display_name="Instructor",
     ),

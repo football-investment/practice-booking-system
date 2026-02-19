@@ -270,7 +270,7 @@ def _generate_sessions_via_api(token: str, tid: int) -> Tuple[str, str]:
 def _simulate_results_db(tid: int) -> None:
     import logging as _logging
     from app.database import SessionLocal
-    from app.api.api_v1.endpoints.tournaments.generator import _simulate_tournament_results
+    from app.api.api_v1.endpoints.tournaments.ops_scenario import _simulate_tournament_results
 
     db = SessionLocal()
     _log = _logging.getLogger("scale_simulate")

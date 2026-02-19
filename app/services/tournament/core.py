@@ -280,6 +280,23 @@ def create_tournament_sessions(
     return created_sessions
 
 
+def _game_preset_fields(semester) -> Dict[str, Any]:
+    """Extract game preset and skill mapping data for the summary response."""
+    _gp = semester.game_preset  # property — None if no preset linked
+    _preset_id = getattr(semester, "game_preset_id", None)
+    _preset_name = _gp.name if _gp is not None else None
+    _skills = (
+        {sm.skill_name: float(sm.weight) for sm in semester.skill_mappings}
+        if semester.skill_mappings
+        else None
+    )
+    return {
+        "game_preset_id": _preset_id,
+        "game_preset_name": _preset_name,
+        "skills_config": _skills,
+    }
+
+
 def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
     """
     Get summary of tournament
@@ -363,7 +380,9 @@ def get_tournament_summary(db: Session, semester_id: int) -> Dict[str, Any]:
         "total_capacity": total_capacity,
         "total_bookings": total_bookings,
         "fill_percentage": round((total_bookings / total_capacity * 100) if total_capacity > 0 else 0, 1),
-        "rankings_count": rankings_count  # ✅ NEW
+        "rankings_count": rankings_count,
+        # Game preset + skill config (for monitoring card display)
+        **_game_preset_fields(semester),
     }
 
 

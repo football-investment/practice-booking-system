@@ -306,6 +306,14 @@ def create_tournament(
             reactivity = round(fractional / avg_w, 2)
             reactivity = max(0.1, min(5.0, reactivity))   # clamp to schema bounds
 
+            logger.debug(
+                "reactivity_conversion  skill=%s  fractional=%.4f  avg_w=%.4f  "
+                "reactivity=%.2f  clamped=%s  tournament_id=%s  preset=%s",
+                skill_name, fractional, avg_w, reactivity,
+                fractional / avg_w != reactivity,   # True when clamp was applied
+                tournament.id, preset.code,
+            )
+
             db.add(TournamentSkillMapping(
                 semester_id=tournament.id,
                 skill_name=skill_name,

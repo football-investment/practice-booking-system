@@ -67,6 +67,7 @@ from .endpoints.enrollments import conflict_check  # ⚠️ NEW: Add enrollment 
 from .endpoints.periods import lfa_player_generators  # 🚀 NEW: Add modular LFA_PLAYER period generators
 
 from .endpoints.tournaments import generate_sessions  # 🎯 NEW: Add tournament session generation system
+from .endpoints import system_events  # 🔔 NEW: Add system events (Rendszerüzenetek) panel
 from .endpoints.tournaments import admin_enroll  # 🔧 NEW: Add admin batch enrollment for tournaments
 from .endpoints import admin_players  # 🏭 NEW: Admin bulk player provisioning (production-flow testing)
 
@@ -189,6 +190,13 @@ api_router.include_router(
     audit.router,
     prefix="/audit",
     tags=["audit-logs"]
+)
+
+# 🔔 NEW: System events — Rendszerüzenetek panel (admin-only)
+api_router.include_router(
+    system_events.router,
+    prefix="/system-events",
+    tags=["system-events"]
 )
 
 # 🎓 NEW: Add semester enrollment management routes

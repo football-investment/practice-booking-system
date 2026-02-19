@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
@@ -163,6 +164,43 @@ def job_listener(event):
         logger.info(f"Job {event.job_id} executed successfully")
 
 
+def system_events_purge_job() -> None:
+    """
+    Nightly maintenance job: purge old resolved system_events.
+
+    Retention policy:
+      - RESOLVED events older than SYSTEM_EVENT_RETENTION_DAYS (default 90) → deleted
+      - OPEN (unresolved) events → never touched by this job
+      - Runs daily at 02:00 UTC to avoid peak-hour load
+
+    Failure is non-fatal: a WARNING is logged, the scheduler retries next night.
+    """
+    from app.services.system_event_service import SystemEventService
+
+    job_start = datetime.now()
+    logger.info("🧹 system_events purge job started at %s", job_start.isoformat())
+
+    db = SessionLocal()
+    try:
+        svc = SystemEventService(db)
+        deleted = svc.purge_old_events()
+        db.commit()
+        logger.info(
+            "✅ system_events purge complete — deleted=%s duration=%.2fs",
+            deleted,
+            (datetime.now() - job_start).total_seconds(),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.warning(
+            "SYSTEM_EVENT_PURGE_FAILED — error=%s",
+            type(exc).__name__,
+            exc_info=True,
+        )
+    finally:
+        db.close()
+
+
 def start_scheduler():
     """
     Start the background scheduler
@@ -171,6 +209,7 @@ def start_scheduler():
 
     Schedules:
     - Progress-License sync: Every 6 hours
+    - System events purge: Daily at 02:00 UTC
     """
     global scheduler
 
@@ -207,6 +246,17 @@ def start_scheduler():
         misfire_grace_time=60  # 1 minute grace period
     )
 
+    # Nightly: purge old resolved system_events (02:00 UTC)
+    scheduler.add_job(
+        func=system_events_purge_job,
+        trigger=CronTrigger(hour=2, minute=0, timezone="UTC"),
+        id='system_events_purge',
+        name='System Events Retention Purge',
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=3600,  # 1 hour — can run late if server was down
+    )
+
     scheduler.start()
 
     logger.info("✅ Background scheduler started successfully")
@@ -235,10 +285,11 @@ def stop_scheduler():
     logger.info("✅ Background scheduler stopped")
 
 
-# Convenience function for manual job execution (testing)
+# ── Convenience functions for manual job execution / verification ──────────────
+
 def run_sync_job_now():
     """
-    Manually trigger sync job (useful for testing)
+    Manually trigger the Progress-License sync job.
 
     Usage:
         from app.background.scheduler import run_sync_job_now
@@ -246,3 +297,64 @@ def run_sync_job_now():
     """
     logger.info("🔧 Manual sync job trigger")
     sync_all_users_job()
+
+
+def run_purge_now() -> int:
+    """
+    Manually trigger the system_events purge job (bypass 02:00 UTC schedule).
+
+    Use this to:
+      - Verify the purge logic works before relying on the nightly schedule
+      - Force a purge after a data incident
+      - Confirm misfire-grace behaviour in a staging environment
+
+    Usage:
+        from app.background.scheduler import run_purge_now
+        deleted = run_purge_now()
+        print(f"Deleted {deleted} events")
+
+    Returns:
+        Number of deleted rows (0 if nothing matched the retention window).
+    """
+    logger.info("🔧 Manual system_events purge trigger")
+    from app.services.system_event_service import SystemEventService
+
+    db = SessionLocal()
+    try:
+        deleted = SystemEventService(db).purge_old_events()
+        db.commit()
+        logger.info("✅ Manual purge complete — deleted=%s", deleted)
+        return deleted
+    except Exception as exc:
+        db.rollback()
+        logger.warning("SYSTEM_EVENT_PURGE_FAILED (manual) — error=%s", type(exc).__name__, exc_info=True)
+        return 0
+    finally:
+        db.close()
+
+
+def get_scheduler_status() -> dict:
+    """
+    Return current scheduler job status (for health checks and monitoring).
+
+    Usage:
+        from app.background.scheduler import get_scheduler_status
+        print(get_scheduler_status())
+
+    Returns dict with:
+        running:  bool — whether the scheduler is active
+        jobs:     list of {id, name, next_run_utc, misfire_grace_time}
+    """
+    if scheduler is None:
+        return {"running": False, "jobs": []}
+
+    jobs = []
+    for job in scheduler.get_jobs():
+        next_run = job.next_run_time
+        jobs.append({
+            "id": job.id,
+            "name": job.name,
+            "next_run_utc": next_run.isoformat() if next_run else None,
+            "misfire_grace_time": job.misfire_grace_time,
+        })
+    return {"running": True, "jobs": jobs}

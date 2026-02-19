@@ -20,7 +20,8 @@ import sys
 parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from api_helpers_semesters import get_all_locations, get_all_semesters
+from api_helpers_semesters import get_all_locations
+from api_client import APIClient
 
 # Import from the smart_matrix subdirectory/package
 # Use try/except to handle both relative and absolute import contexts
@@ -135,7 +136,7 @@ def render_smart_matrix(token: str, user_role: str = "admin"):
     st.markdown("#### ⚽ LFA_PLAYER Coverage Matrix")
 
     with st.spinner("Loading semesters..."):
-        success, error, semesters_data = get_all_semesters(token)
+        success, error, semesters_data = APIClient.from_config(token).semesters.get_list()
 
     if not success:
         st.error(f"❌ Failed to fetch semesters: {error}")

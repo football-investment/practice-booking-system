@@ -84,6 +84,11 @@ class SemesterEnrollment(Base):
     deactivated_at = Column(DateTime(timezone=True), nullable=True,
                            comment="When enrollment was deactivated (if applicable)")
 
+    # Pre-tournament check-in: player confirms they will participate
+    # NULL = not checked in; timestamp = confirmed attendance
+    tournament_checked_in_at = Column(DateTime(timezone=True), nullable=True,
+                                      comment="Timestamp when player confirmed tournament attendance (pre-tournament check-in)")
+
     # Age category assignment (NEW - Phase 1)
     age_category = Column(String(20), nullable=True,
                          comment="Age category at enrollment (PRE/YOUTH/AMATEUR/PRO)")

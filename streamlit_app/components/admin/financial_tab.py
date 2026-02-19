@@ -22,9 +22,9 @@ def _render_financial_kpi(token):
     """Render the top-level financial KPI summary bar."""
     ok, data = get_financial_summary(token)
 
-    st.markdown("#### 📊 Pénzügyi összesítő")
+    st.markdown("#### 📊 Financial Snapshot")
     if not ok or not data:
-        st.warning("Nem sikerült betölteni a pénzügyi adatokat.")
+        st.warning("Could not load financial data.")
         return
 
     rev  = data.get("revenue",  {})
@@ -35,46 +35,46 @@ def _render_financial_kpi(token):
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric(
-            label="💶 Összbevétel",
+            label="💶 Total Revenue",
             value=f"€{rev.get('total_eur', 0):,.2f}",
-            help="Összes jóváhagyott invoice EUR összege",
+            help="Total EUR from all approved invoices",
         )
     with c2:
         st.metric(
-            label="⏳ Függőben lévő befizetés",
+            label="⏳ Pending",
             value=f"€{rev.get('pending_eur', 0):,.2f}",
-            help="Jóváhagyásra váró invoicok EUR összege",
+            help="EUR from invoices awaiting approval",
         )
     with c3:
         st.metric(
-            label="🪙 Kiadott kreditek",
+            label="🪙 Issued Credits",
             value=f"{rev.get('total_credits_sold', 0):,} cr",
-            help="Összes jóváhagyott invoice kredit összege",
+            help="Total credits from all approved invoices",
         )
     with c4:
         st.metric(
-            label="💼 Aktív kreditállomány",
+            label="💼 Active Balance",
             value=f"{cred.get('active_balance', 0):,} cr",
-            help="Aktív userek credit_balance összege",
+            help="Sum of credit_balance across active users",
         )
 
     # ── Row 2: Invoice counts ─────────────────────────────────────
     c5, c6, c7, c8 = st.columns(4)
     with c5:
-        st.metric("🧾 Összes invoice", inv.get("total", 0))
+        st.metric("🧾 Total Invoices", inv.get("total", 0))
     with c6:
         pending = inv.get("pending", 0)
         st.metric(
-            label="⏳ Jóváhagyásra vár",
+            label="⏳ Awaiting Approval",
             value=pending,
             delta=f"−{pending}" if pending else None,
             delta_color="inverse",
         )
     with c7:
-        st.metric("✅ Jóváhagyott", inv.get("verified", 0))
+        st.metric("✅ Verified", inv.get("verified", 0))
     with c8:
         st.metric(
-            label="👥 Kredittel rendelkező userek",
+            label="👥 Users with Credits",
             value=cred.get("users_with_balance", 0),
         )
 

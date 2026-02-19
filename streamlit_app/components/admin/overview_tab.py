@@ -93,26 +93,26 @@ def render_overview_tab(token, user):
             cred = fin.get("credits",  {})
             inv  = fin.get("invoices", {})
 
-            st.markdown("#### 💶 Pénzügyi pillanatkép")
+            st.markdown("#### 💶 Financial Snapshot")
             f1, f2, f3, f4, f5 = st.columns(5)
             with f1:
-                st.metric("Összbevétel", f"€{rev.get('total_eur', 0):,.0f}")
+                st.metric("Total Revenue", f"€{rev.get('total_eur', 0):,.0f}")
             with f2:
                 pending_eur = rev.get("pending_eur", 0)
                 st.metric(
-                    "Függőben",
+                    "Pending",
                     f"€{pending_eur:,.0f}",
                     delta=f"−€{pending_eur:,.0f}" if pending_eur else None,
                     delta_color="inverse",
                 )
             with f3:
-                st.metric("Kiadott kredit", f"{rev.get('total_credits_sold', 0):,} cr")
+                st.metric("Issued Credits", f"{rev.get('total_credits_sold', 0):,} cr")
             with f4:
-                st.metric("Aktív egyenleg", f"{cred.get('active_balance', 0):,} cr")
+                st.metric("Active Balance", f"{cred.get('active_balance', 0):,} cr")
             with f5:
                 pending_inv = inv.get("pending", 0)
                 st.metric(
-                    "Nyitott invoice",
+                    "Open Invoices",
                     pending_inv,
                     delta=f"−{pending_inv}" if pending_inv else None,
                     delta_color="inverse",
@@ -142,7 +142,7 @@ def render_overview_tab(token, user):
 
                 for sem in all_semesters:
                     if sem.get('is_active'):
-                        spec_type = sem.get('specialization_type', 'Unknown')
+                        spec_type = sem.get('specialization_type') or 'Unknown'
                         spec_semesters[spec_type].append(sem)
 
                 if spec_semesters:

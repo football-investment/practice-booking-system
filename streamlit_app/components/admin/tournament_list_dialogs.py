@@ -5,10 +5,12 @@ Dialog screens for tournament management.
 Uses component library for consistent UX.
 """
 
+import requests
 import streamlit as st
-from typing import Dict
+from typing import Dict, List, Optional
 from streamlit_components.layouts import Card, SingleColumnForm
 from streamlit_components.feedback import Loading, Success, Error
+from streamlit_components.core.api_client import api_client, APIError
 from components.admin.tournament_list_helpers import (
     update_tournament,
     generate_tournament_sessions,
@@ -16,6 +18,7 @@ from components.admin.tournament_list_helpers import (
     delete_generated_sessions,
     save_tournament_reward_config
 )
+from config import API_BASE_URL, SESSION_TOKEN_KEY, SESSION_ROLE_KEY
 
 
 def show_edit_tournament_dialog():
@@ -31,16 +34,112 @@ def show_edit_tournament_dialog():
     card.close_container()
 
 
+def _fetch_active_campuses() -> List[Dict]:
+    """Fetch active campuses from the API using the current session token."""
+    token = st.session_state.get(SESSION_TOKEN_KEY, "")
+    if not token:
+        return []
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/admin/campuses/",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+        if response.status_code == 200:
+            return [c for c in response.json() if c.get("is_active", True)]
+    except Exception:
+        pass
+    return []
+
+
 def show_generate_sessions_dialog():
-    """Generate sessions dialog"""
+    """
+    Generate sessions dialog — role-aware campus selection.
+
+    ADMIN      → multiselect pre-populated with ALL active campuses (auto multi-venue).
+                 Admin can deselect campuses if needed.
+    INSTRUCTOR → single-select only (backend enforces 403 for >1 campus).
+    """
+    tournament_id = st.session_state.get("generate_sessions_tournament_id")
+    role = st.session_state.get(SESSION_ROLE_KEY, "").upper()
+    is_admin = role == "ADMIN"
+
     st.markdown("### Generate Sessions")
 
     card = Card(title="Session Generation", card_id="generate_sessions")
     with card.container():
-        if st.button("Generate", key="btn_generate_sessions"):
-            with Loading.spinner("Generating sessions..."):
-                # Generation logic
-                st.success("Sessions generated")
+        # ── Campus selection ──────────────────────────────────────────────
+        campuses = _fetch_active_campuses()
+        campus_options = {f"{c.get('name', '')} (ID {c['id']})": c["id"] for c in campuses}
+        campus_label_list = list(campus_options.keys())
+
+        selected_campus_ids: Optional[List[int]] = None
+
+        if campuses:
+            if is_admin:
+                # Auto-select ALL active campuses by default.
+                # Sessions are distributed across campuses automatically (round-robin per group).
+                # Admin can deselect campuses to restrict to fewer venues.
+                if len(campuses) > 1:
+                    st.info(
+                        f"**{len(campuses)} active campus(es) detected** — "
+                        "all are pre-selected for multi-venue parallel scheduling. "
+                        "Deselect campuses to restrict to fewer venues.",
+                        icon="🏟️",
+                    )
+                selected_labels = st.multiselect(
+                    "Campus(es) — multi-venue",
+                    options=campus_label_list,
+                    default=campus_label_list,  # ← auto-select ALL active campuses
+                    help="All active campuses are pre-selected. Sessions (matches) are "
+                         "distributed automatically across campuses via round-robin assignment. "
+                         "Deselect campuses to limit venue usage.",
+                    key="gen_sessions_campus_multiselect",
+                )
+                if selected_labels:
+                    selected_campus_ids = [campus_options[lbl] for lbl in selected_labels]
+            else:
+                # Instructor: single-select only
+                if len(campuses) > 1:
+                    st.info(
+                        f"**{len(campuses)} campuses available** — "
+                        "instructors can only generate sessions for one campus at a time.",
+                        icon="ℹ️",
+                    )
+                campus_label_list_with_none = ["— No campus override —"] + campus_label_list
+                selected_label = st.selectbox(
+                    "Campus",
+                    options=campus_label_list_with_none,
+                    index=0,
+                    help="Select your campus for session generation.",
+                    key="gen_sessions_campus_selectbox",
+                )
+                if selected_label != "— No campus override —":
+                    selected_campus_ids = [campus_options[selected_label]]
+        else:
+            st.caption("No active campuses found — sessions will use the tournament's default campus.")
+
+        # ── Generate button ───────────────────────────────────────────────
+        if st.button("🎲 Generate Sessions", key="btn_generate_sessions", type="primary"):
+            if tournament_id is None:
+                st.error("No tournament selected.")
+            else:
+                data: Dict = {
+                    "parallel_fields": 1,
+                    "session_duration_minutes": 90,
+                    "break_minutes": 15,
+                    "number_of_rounds": 1,
+                }
+                if selected_campus_ids:
+                    data["campus_ids"] = selected_campus_ids
+
+                with Loading.spinner("Generating sessions..."):
+                    result = generate_tournament_sessions(tournament_id, data)
+                if result:
+                    # Close the dialog and refresh
+                    st.session_state[f"show_generate_dialog_{tournament_id}"] = False
+                    st.rerun()
+
     card.close_container()
 
 
@@ -55,26 +154,65 @@ def show_preview_sessions_dialog():
 
 
 def show_delete_tournament_dialog():
-    """Delete tournament dialog"""
-    st.markdown("### Delete Tournament")
+    """Delete tournament dialog — DELETE /api/v1/tournaments/{id}"""
+    tournament_id = st.session_state.get("delete_tournament_id")
+    tournament_name = st.session_state.get("delete_tournament_name", "this tournament")
 
+    st.markdown("### Delete Tournament")
     card = Card(title="Confirm Deletion", card_id="delete_tournament")
     with card.container():
-        st.warning("This action cannot be undone")
-
-        if st.button("Delete", type="primary", key="btn_confirm_delete"):
-            Success.message("Tournament deleted")
+        st.error(
+            f"**Permanently delete '{tournament_name}'?**\n\n"
+            "This will remove the tournament, all sessions, bookings, and enrollment records. "
+            "**This cannot be undone.**"
+        )
+        confirm_text = st.text_input(
+            "Type the tournament name to confirm:",
+            key="input_delete_confirm",
+            placeholder=tournament_name,
+        )
+        delete_enabled = confirm_text.strip() == tournament_name.strip()
+        if st.button("🗑️ Delete Permanently", type="primary", key="btn_confirm_delete", disabled=not delete_enabled):
+            if tournament_id is None:
+                Error.message("No tournament selected.")
+            else:
+                try:
+                    with Loading.spinner("Deleting tournament..."):
+                        api_client.delete(f"/api/v1/tournaments/{tournament_id}")
+                    Success.message(f"Tournament '{tournament_name}' deleted.")
+                    st.rerun()
+                except APIError as e:
+                    Error.message(f"Failed to delete: {e.message}")
     card.close_container()
 
 
 def show_cancel_tournament_dialog():
-    """Cancel tournament dialog"""
-    st.markdown("### Cancel Tournament")
+    """Cancel tournament dialog — PATCH status → CANCELLED"""
+    tournament_id = st.session_state.get("cancel_tournament_id")
+    tournament_name = st.session_state.get("cancel_tournament_name", "this tournament")
+    current_status = st.session_state.get("cancel_tournament_status", "?")
 
+    st.markdown("### Cancel Tournament")
     card = Card(title="Confirm Cancellation", card_id="cancel_tournament")
     with card.container():
-        if st.button("Cancel Tournament", key="btn_confirm_cancel"):
-            Success.message("Tournament cancelled")
+        st.warning(
+            f"**{tournament_name}** (currently: `{current_status}`) will be marked as **CANCELLED**.\n\n"
+            "This action cannot be undone. Players will no longer be able to participate."
+        )
+        if st.button("✅ Confirm Cancel", key="btn_confirm_cancel", type="primary"):
+            if tournament_id is None:
+                Error.message("No tournament selected.")
+            else:
+                try:
+                    with Loading.spinner("Cancelling tournament..."):
+                        api_client.patch(
+                            f"/api/v1/tournaments/{tournament_id}/status",
+                            data={"new_status": "CANCELLED", "reason": "Admin cancelled via dashboard"}
+                        )
+                    Success.message(f"Tournament '{tournament_name}' cancelled successfully.")
+                    st.rerun()
+                except APIError as e:
+                    Error.message(f"Failed to cancel (HTTP {e.status_code}): {e.message}")
     card.close_container()
 
 
@@ -130,17 +268,27 @@ def show_delete_game_dialog():
 
 
 def show_reset_sessions_dialog():
-    """Reset tournament sessions dialog"""
+    """Reset tournament sessions dialog — deletes all auto-generated sessions."""
+    tournament_id = st.session_state.get("reset_sessions_tournament_id")
+
     st.markdown("### Reset Tournament Sessions")
 
     card = Card(title="Confirm Session Reset", card_id="reset_sessions")
     with card.container():
-        st.warning("This will delete all generated sessions and reset tournament structure.")
+        st.warning(
+            "This will **delete all auto-generated sessions** and reset the generation flag. "
+            "Manual sessions are NOT affected. "
+            "After reset you can regenerate with different campus/field settings."
+        )
 
-        if st.button("Reset Sessions", type="primary", key="btn_reset_sessions"):
-            with Loading.spinner("Resetting sessions..."):
-                # Reset logic handled by helper
-                Success.message("Sessions reset successfully!")
+        if st.button("🗑️ Delete sessions & reset", type="primary", key="btn_reset_sessions_confirm"):
+            if tournament_id is None:
+                Error.message("No tournament selected.")
+            else:
+                with Loading.spinner("Deleting sessions..."):
+                    ok = delete_generated_sessions(tournament_id)
+                if ok:
+                    st.rerun()
     card.close_container()
 
 
