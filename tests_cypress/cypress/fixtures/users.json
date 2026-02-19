@@ -1,0 +1,35 @@
+{
+  "admin": {
+    "email":    "admin@lfa.com",
+    "password": "password123",
+    "role":     "admin",
+    "name":     "Admin User"
+  },
+  "instructor": {
+    "email":    "instructor@lfa.com",
+    "password": "password123",
+    "role":     "instructor",
+    "name":     "Test Instructor"
+  },
+  "player": {
+    "email":    "junior.intern@lfa.com",
+    "password": "password123",
+    "role":     "student",
+    "name":     "Junior Intern"
+  },
+  "invalid": {
+    "email":    "nonexistent@lfa.com",
+    "password": "wrongpassword",
+    "role":     null
+  },
+  "registration": {
+    "firstName":   "Test",
+    "lastName":    "User",
+    "nickname":    "tester",
+    "email":       "cypress.test@lfa.com",
+    "password":    "CypressTest123!",
+    "phone":       "+36701234567",
+    "nationality": "Hungarian",
+    "gender":      "Male"
+  }
+}

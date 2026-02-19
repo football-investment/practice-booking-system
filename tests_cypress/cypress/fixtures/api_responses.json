@@ -1,0 +1,51 @@
+{
+  "errors": {
+    "http_409_enrollment": {
+      "statusCode": 409,
+      "body": {
+        "detail": "Enrollment conflict: user is already enrolled in this tournament."
+      }
+    },
+    "http_409_booking": {
+      "statusCode": 409,
+      "body": {
+        "detail": "Session is already fully booked or you already have a booking for this slot."
+      }
+    },
+    "http_401_unauthorized": {
+      "statusCode": 401,
+      "body": {
+        "detail": "Incorrect email or password."
+      }
+    },
+    "http_403_forbidden": {
+      "statusCode": 403,
+      "body": {
+        "detail": "You do not have permission to perform this action."
+      }
+    },
+    "http_422_validation": {
+      "statusCode": 422,
+      "body": {
+        "detail": [
+          {
+            "loc": ["body", "email"],
+            "msg": "value is not a valid email address",
+            "type": "value_error.email"
+          }
+        ]
+      }
+    }
+  },
+  "tournament": {
+    "list": [
+      {
+        "id": 1,
+        "name": "Cypress Test Tournament",
+        "tournament_status": "ENROLLMENT_OPEN",
+        "tournament_format": "GROUP_KNOCKOUT",
+        "campus_id": 1
+      }
+    ]
+  }
+}
