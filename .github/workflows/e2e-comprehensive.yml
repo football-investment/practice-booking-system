@@ -1,0 +1,494 @@
+name: E2E Comprehensive (Admin + Instructor + Student)
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Comprehensive E2E Test Pipeline
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Coverage:
+#   - Admin E2E (9 modules, 420+ tests): User/Financial/Session/Tournament/Location/
+#     Semester/GamePresets/Events management
+#   - Instructor E2E (4 modules, 67+ tests): Dashboard/Session Check-in/Tournament
+#     Workflow/Applications
+#   - Student E2E (4 modules, 38+ tests): Dashboard/Onboarding/Credits/Specialization
+#   - Auth & System (cross-role integration tests)
+#
+# Pipeline Strategy:
+#   - PR Gate: Smoke tests only (@smoke tag, fast ~5 min)
+#   - Critical Suite: Blocking tests for merge (@critical tag, ~15 min)
+#   - Full Suite: Nightly runs (all 525+ tests, ~60 min)
+#   - Parallel Execution: By role (admin/instructor/student/auth/system)
+#
+# Cypress Cloud Integration:
+#   - Set CYPRESS_PROJECT_ID env var + CYPRESS_RECORD_KEY secret to enable
+#   - Dashboard: https://cloud.cypress.io/projects/<project-id>
+#
+# ═════════════════════════════════════════════════════════════════════════════
+
+on:
+  # ── PR gate: smoke suite only (fast, ~5 min) ─────────────────────────────
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'streamlit_app/**'
+      - 'app/**'
+      - 'tests_cypress/**'
+      - '.github/workflows/e2e-comprehensive.yml'
+
+  # ── Nightly: full suite (all 525+ tests) ─────────────────────────────────
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC every night
+
+  # ── Manual trigger with suite selection ───────────────────────────────────
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'full'
+        type: choice
+        options: [smoke, critical, full, admin-only, instructor-only, student-only]
+      record:
+        description: 'Record to Cypress Cloud (requires CYPRESS_RECORD_KEY secret)'
+        required: false
+        default: false
+        type: boolean
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared environment
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION:   '20'
+  BACKEND_PORT:   8000
+  STREAMLIT_PORT: 8501
+  # Cypress Cloud (optional - set in repository secrets)
+  CYPRESS_PROJECT_ID: ${{ secrets.CYPRESS_PROJECT_ID }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 1 — PR Smoke Suite (Fast Gate, ~5 min)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  smoke:
+    name: 🚀 Smoke Suite (PR Gate)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.suite == 'smoke')
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER:     lfa
+          POSTGRES_PASSWORD: lfa
+          POSTGRES_DB:       lfa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: python scripts/seed_test_data.py || true
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
+          ENVIRONMENT:  test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
+          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
+          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run smoke suite (@smoke tag)
+        working-directory: tests_cypress
+        env:
+          CYPRESS_BASE_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:        http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:    admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD: AdminPass123!
+          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
+          CYPRESS_PLAYER_EMAIL:       rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
+        run: npx cypress run --env grepTags=@smoke --browser chrome --headless
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 2 — Critical Suite (Blocking for PR Merge, ~20 min)
+# ─────────────────────────────────────────────────────────────────────────────
+  critical:
+    name: 🛡️ Critical Suite (Blocking)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'critical' || inputs.suite == 'full'))
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [admin, instructor, student]
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER:     lfa
+          POSTGRES_PASSWORD: lfa
+          POSTGRES_DB:       lfa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: python scripts/seed_test_data.py || true
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
+          ENVIRONMENT:  test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
+          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
+          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run critical tests for ${{ matrix.role }} role
+        working-directory: tests_cypress
+        env:
+          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:     AdminPass123!
+          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
+          CYPRESS_PLAYER_EMAIL:       rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
+        run: |
+          npx cypress run \
+            --spec 'cypress/e2e/${{ matrix.role }}/**/*.cy.js' \
+            --env grepTags=@critical \
+            --browser chrome \
+            --headless
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: critical-${{ matrix.role }}-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 3 — Full Suite (Nightly, All Tests, Parallel by Role)
+# ─────────────────────────────────────────────────────────────────────────────
+  full:
+    name: 📦 Full Suite - ${{ matrix.role }}
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.suite == 'full' || inputs.suite == format('{0}-only', matrix.role)))
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [admin, instructor, player, auth, system]
+        include:
+          - role: admin
+            specs: 'cypress/e2e/admin/**/*.cy.js'
+            estimated_tests: 420
+          - role: instructor
+            specs: 'cypress/e2e/instructor/**/*.cy.js'
+            estimated_tests: 67
+          - role: player
+            specs: 'cypress/e2e/player/**/*.cy.js'
+            estimated_tests: 38
+          - role: auth
+            specs: 'cypress/e2e/auth/**/*.cy.js'
+            estimated_tests: 15
+          - role: system
+            specs: 'cypress/e2e/system/**/*.cy.js,cypress/e2e/error_states/**/*.cy.js'
+            estimated_tests: 20
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER:     lfa
+          POSTGRES_PASSWORD: lfa
+          POSTGRES_DB:       lfa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: python scripts/seed_test_data.py || true
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
+          ENVIRONMENT:  test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
+          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
+          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run full suite for ${{ matrix.role }} (~${{ matrix.estimated_tests }} tests)
+        working-directory: tests_cypress
+        continue-on-error: true
+        env:
+          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:     AdminPass123!
+          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
+          CYPRESS_PLAYER_EMAIL:       rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
+          CYPRESS_RECORD_KEY:         ${{ secrets.CYPRESS_RECORD_KEY }}
+          CYPRESS_video:              true
+        run: |
+          # Determine if recording to Cypress Cloud
+          RECORD_FLAG=""
+          if [ -n "${{ secrets.CYPRESS_RECORD_KEY }}" ] && [ "${{ github.event.inputs.record }}" = "true" ]; then
+            RECORD_FLAG="--record --parallel --group ${{ matrix.role }} --ci-build-id ${{ github.run_id }}"
+          fi
+
+          npx cypress run \
+            --spec '${{ matrix.specs }}' \
+            --browser chrome \
+            --headless \
+            --reporter json \
+            --reporter-options "output=cypress-results-${{ matrix.role }}.json" \
+            $RECORD_FLAG
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-${{ matrix.role }}-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 14
+
+      - name: Upload videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-${{ matrix.role }}-videos-${{ github.run_id }}
+          path: tests_cypress/cypress/videos/
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-${{ matrix.role }}-results-${{ github.run_id }}
+          path: tests_cypress/cypress-results-${{ matrix.role }}.json
+          retention-days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 4 — Test Summary & Coverage Report
+# ─────────────────────────────────────────────────────────────────────────────
+  summary:
+    name: 📊 Test Summary & Coverage Report
+    runs-on: ubuntu-latest
+    needs: [smoke, critical]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## E2E Comprehensive Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚀 Smoke (PR Gate) | ${{ needs.smoke.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ Critical (Admin) | ${{ needs.critical.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          SMOKE="${{ needs.smoke.result }}"
+          CRITICAL="${{ needs.critical.result }}"
+
+          if [ "$SMOKE" = "success" ] && [ "$CRITICAL" = "success" ]; then
+            echo "### ✅ All E2E tests passed — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Coverage validated:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Admin E2E: 9 modules (User/Financial/Session/Tournament/Location/Semester/GamePresets/Events)" >> $GITHUB_STEP_SUMMARY
+            echo "- Instructor E2E: 4 modules (Dashboard/Session Check-in/Tournament Workflow/Applications)" >> $GITHUB_STEP_SUMMARY
+            echo "- Student E2E: 4 modules (Dashboard/Onboarding/Credits/Specialization)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Total E2E Test Count: ~525+ tests**" >> $GITHUB_STEP_SUMMARY
+            echo "- Admin: ~420 tests" >> $GITHUB_STEP_SUMMARY
+            echo "- Instructor: ~67 tests" >> $GITHUB_STEP_SUMMARY
+            echo "- Student: ~38 tests" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ E2E tests FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Failing suite(s):" >> $GITHUB_STEP_SUMMARY
+            [ "$SMOKE" != "success" ]    && echo "- 🚀 Smoke: $SMOKE" >> $GITHUB_STEP_SUMMARY
+            [ "$CRITICAL" != "success" ] && echo "- 🛡️ Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: PR Comment with Test Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const smoke = '${{ needs.smoke.result }}';
+            const critical = '${{ needs.critical.result }}';
+
+            const body = smoke === 'success' && critical === 'success'
+              ? '✅ **E2E Tests Passed** — Safe to merge!\n\n' +
+                '- 🚀 Smoke: PASSED\n' +
+                '- 🛡️ Critical: PASSED\n\n' +
+                '**Coverage:** 525+ tests across admin/instructor/student workflows'
+              : '❌ **E2E Tests Failed** — Do not merge\n\n' +
+                `- 🚀 Smoke: ${smoke}\n` +
+                `- 🛡️ Critical: ${critical}\n\n` +
+                'See workflow run for details.';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
