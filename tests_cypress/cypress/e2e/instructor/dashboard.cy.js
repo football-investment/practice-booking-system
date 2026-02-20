@@ -15,7 +15,9 @@
 describe('Instructor / Dashboard', () => {
   beforeEach(() => {
     cy.loginAsInstructor();
-    cy.navigateTo('/Instructor_Dashboard');
+    // Session-safe: Instructor lands on Instructor_Dashboard after login
+    // No navigation needed - avoid cy.visit() which breaks session
+    cy.url().should('include', '/Instructor_Dashboard');
     cy.waitForTabs();  // Wait for tabs to render after data loading
   });
 
@@ -32,14 +34,15 @@ describe('Instructor / Dashboard', () => {
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
 
+  // Regex-based matching for UI label flexibility (emojis are decoration)
   const TABS = [
-    '📅 Today',
-    '🏆 Open Tournaments',
-    '📋 My Applications',
-    '👥 Students',
-    'My Tournaments',
-    '📬 Inbox',
-    '👤 Profile',
+    /Today/,                      // Matches "📆 Today & Upcoming"
+    /My Jobs/,                    // Matches "💼 My Jobs"
+    /Tournament Applications/,    // Matches "🏆 Tournament Applications"
+    /Students/,                   // Matches "👥 My Students"
+    /Check-in/,                   // Matches "✅ Check-in & Groups"
+    /Inbox/,                      // Matches "📬 Inbox"
+    /Profile/,                    // Matches "👤 My Profile"
   ];
 
   it('@smoke all 7 instructor tabs are present', () => {
@@ -69,7 +72,7 @@ describe('Instructor / Dashboard', () => {
   it('@smoke Today tab shows sessions or empty state', () => {
     cy.get('[data-testid="stTabs"]')
       .find('[data-testid="stTab"]')
-      .contains('📅 Today')
+      .contains(/Today/)
       .click();
     cy.waitForStreamlit();
 
@@ -78,12 +81,12 @@ describe('Instructor / Dashboard', () => {
     cy.get('body').should('not.contain.text', 'Traceback');
   });
 
-  // ── Open Tournaments tab ──────────────────────────────────────────────────
+  // ── Tournament Applications tab ──────────────────────────────────────────────────
 
-  it('Open Tournaments tab lists tournaments or shows empty state', () => {
+  it('Tournament Applications tab lists tournaments or shows empty state', () => {
     cy.get('[data-testid="stTabs"]')
       .find('[data-testid="stTab"]')
-      .contains('🏆 Open Tournaments')
+      .contains(/Tournament Applications/)
       .click();
     cy.waitForStreamlit();
 
@@ -118,7 +121,7 @@ describe('Instructor / Dashboard', () => {
   it('Profile tab renders instructor profile information', () => {
     cy.get('[data-testid="stTabs"]')
       .find('[data-testid="stTab"]')
-      .contains('👤 Profile')
+      .contains(/Profile/)
       .click();
     cy.waitForStreamlit();
 
@@ -126,12 +129,12 @@ describe('Instructor / Dashboard', () => {
     cy.get('body').should('not.contain.text', 'Traceback');
   });
 
-  // ── My Applications tab ───────────────────────────────────────────────────
+  // ── Tournament Applications tab ───────────────────────────────────────────────────
 
-  it('My Applications tab shows apply/withdraw controls or empty state', () => {
+  it('Tournament Applications tab shows apply/withdraw controls or empty state', () => {
     cy.get('[data-testid="stTabs"]')
       .find('[data-testid="stTab"]')
-      .contains('📋 My Applications')
+      .contains(/Applications/)
       .click();
     cy.waitForStreamlit();
 
