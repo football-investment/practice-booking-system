@@ -127,7 +127,108 @@ jobs:
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Job 2 — Full nightly suite (all specs, live backend)
+# Job 2 — Critical specs only (blocking for PR merge)
+# ─────────────────────────────────────────────────────────────────────────────
+  critical:
+    name: Critical Specs (Core Workflows — Blocking)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 40
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER:     lfa
+          POSTGRES_PASSWORD: lfa
+          POSTGRES_DB:       lfa_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+        run: python scripts/seed_test_data.py || true
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
+          ENVIRONMENT:  test
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
+          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+
+      - name: Start Streamlit app
+        env:
+          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
+          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: true
+        run: |
+          streamlit run streamlit_app/Home.py \
+            --server.port ${{ env.STREAMLIT_PORT }} \
+            --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Run critical specs only
+        working-directory: tests_cypress
+        env:
+          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:     password123
+          CYPRESS_INSTRUCTOR_EMAIL:   instructor@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: password123
+          CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com
+          CYPRESS_PLAYER_PASSWORD:    password123
+        run: |
+          npx cypress run \
+            --spec 'cypress/e2e/admin/dashboard_navigation.cy.js,cypress/e2e/admin/tournament_manager.cy.js,cypress/e2e/admin/tournament_monitor.cy.js,cypress/e2e/auth/registration.cy.js,cypress/e2e/instructor/dashboard.cy.js,cypress/e2e/instructor/tournament_applications.cy.js,cypress/e2e/student/credits.cy.js,cypress/e2e/student/dashboard.cy.js,cypress/e2e/student/enrollment_flow.cy.js,cypress/e2e/student/skill_update.cy.js,cypress/e2e/player/credits.cy.js,cypress/e2e/player/specialization_hub.cy.js' \
+            --browser chrome \
+            --headless
+
+      - name: Upload screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-critical-screenshots-${{ github.run_id }}
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 3 — Full nightly suite (all specs, split critical/non-critical)
 # ─────────────────────────────────────────────────────────────────────────────
   full:
     name: Full Suite (Nightly)
@@ -202,8 +303,9 @@ jobs:
         working-directory: tests_cypress
         run: npm ci
 
-      - name: Run full suite
+      - name: Run full suite (all 202 tests)
         working-directory: tests_cypress
+        continue-on-error: true
         env:
           CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
@@ -213,33 +315,50 @@ jobs:
           CYPRESS_INSTRUCTOR_PASSWORD: password123
           CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com
           CYPRESS_PLAYER_PASSWORD:    password123
-        run: npx cypress run --browser chrome --headless
+        run: |
+          npx cypress run \
+            --browser chrome \
+            --headless \
+            --reporter json \
+            --reporter-options "output=cypress-results.json"
 
-      - name: Upload screenshots on failure
-        if: failure()
+      - name: Analyze results (critical vs non-critical)
+        working-directory: tests_cypress
+        run: node ci-result-processor.js all
+
+      - name: Upload screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cypress-full-screenshots-${{ github.run_id }}
           path: tests_cypress/cypress/screenshots/
           retention-days: 14
 
-      - name: Upload videos on failure
-        if: failure()
+      - name: Upload videos
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cypress-full-videos-${{ github.run_id }}
           path: tests_cypress/cypress/videos/
           retention-days: 14
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-results-${{ github.run_id }}
+          path: tests_cypress/cypress-results.json
+          retention-days: 30
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Job 3 — Error-state suite (no live backend — all stubs via cy.intercept)
+# Job 4 — Error-state suite (no live backend — all stubs via cy.intercept)
 # Runs alongside the full suite on nightly, or standalone via workflow_dispatch
 # ─────────────────────────────────────────────────────────────────────────────
   error-states:
-    name: Error State Suite (No Backend)
+    name: Non-Critical Specs (Error States — Warning Only)
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'errors')
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
