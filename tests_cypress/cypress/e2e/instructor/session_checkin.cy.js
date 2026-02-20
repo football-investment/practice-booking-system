@@ -67,12 +67,12 @@ describe('Instructor / Session Check-in Flow', () => {
     cy.get('body').then(($body) => {
       const bodyText = $body.text();
 
-      // Check for session-related information
-      const hasDate = bodyText.match(/\d{4}-\d{2}-\d{2}/) ||
-                      bodyText.match(/Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/);
-      const hasTime = bodyText.match(/\d{1,2}:\d{2}/) ||
-                      bodyText.match(/AM|PM/);
-      const hasStatus = bodyText.match(/upcoming|active|completed|scheduled/i);
+      // Check for session-related information (convert match results to boolean)
+      const hasDate = !!(bodyText.match(/\d{4}-\d{2}-\d{2}/) ||
+                         bodyText.match(/Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/));
+      const hasTime = !!(bodyText.match(/\d{1,2}:\d{2}/) ||
+                         bodyText.match(/AM|PM/));
+      const hasStatus = !!bodyText.match(/upcoming|active|completed|scheduled/i);
 
       // Session card exists if any session info is present
       if ($body.find('[data-testid="stButton"]').length > 0) {

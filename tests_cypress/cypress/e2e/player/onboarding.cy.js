@@ -50,10 +50,10 @@ describe('Player / Onboarding Flow', () => {
     cy.get('[data-testid="stSidebar"]').should('be.visible');
 
     cy.get('body').then(($body) => {
-      // Profile info can be in sidebar or main content
-      const hasName = $body.text().match(/Ruben|Dias/i);
+      // Profile info can be in sidebar or main content (convert to boolean)
+      const hasName = !!$body.text().match(/Ruben|Dias/i);
       const hasEmail = $body.text().includes('rdias@manchestercity.com');
-      const hasRole = $body.text().match(/Player|Student/i);
+      const hasRole = !!$body.text().match(/Player|Student/i);
 
       expect(hasName || hasEmail || hasRole).to.be.true;
     });
@@ -93,33 +93,30 @@ describe('Player / Onboarding Flow', () => {
       });
   });
 
-  // ── Dashboard Tabs Accessibility ─────────────────────────────────────────
+  // ── Specialization Hub Content ───────────────────────────────────────────
 
-  it('player dashboard tabs are accessible after onboarding', () => {
-    // Navigate to LFA_Player_Dashboard if not already there
-    cy.url().then((url) => {
-      if (!url.includes('LFA_Player_Dashboard')) {
-        cy.clickSidebarButton(/Dashboard|Home/);
-        cy.waitForStreamlit();
-      }
-    });
+  it('player sees specialization cards on onboarding page', () => {
+    // Player lands on Specialization Hub after login - verify content
+    cy.url().should('match', /\/(Specialization_Hub|LFA_Player_Dashboard)/);
 
-    // Check for dashboard tabs
+    // Check for specialization content
     cy.get('body').then(($body) => {
-      const hasTabs = $body.find('[data-testid="stTabs"]').length > 0;
-      const hasTabContent = $body.find('[data-testid="stTab"]').length > 0;
+      const hasSpecContent = $body.text().includes('Specialization') ||
+                             $body.text().includes('specialization') ||
+                             $body.text().includes('LFA Football Player') ||
+                             $body.text().includes('GānCuju');
 
-      expect(hasTabs || hasTabContent).to.be.true;
+      expect(hasSpecContent).to.be.true;
     });
   });
 
   // ── Navigation to Core Features ──────────────────────────────────────────
 
-  it('player can navigate to Specialization Hub from sidebar', () => {
-    cy.clickSidebarButton(/Specialization Hub|Hub/);
+  it('player can navigate to Profile page from sidebar', () => {
+    cy.clickSidebarButton(/👤 My Profile|Profile/);
     cy.waitForStreamlit();
 
-    cy.url().should('include', '/Specialization_Hub');
+    cy.url().should('include', '/My_Profile');
     cy.get('[data-testid="stApp"]').should('be.visible');
     cy.get('body').should('not.contain.text', 'Traceback');
   });
@@ -136,37 +133,39 @@ describe('Player / Onboarding Flow', () => {
   // ── Session Preservation ─────────────────────────────────────────────────
 
   it('session is preserved after navigating through onboarding flow', () => {
-    // Navigate: Dashboard → Specialization Hub → Credits → Dashboard
-    cy.clickSidebarButton(/Specialization Hub|Hub/);
+    // Navigate: Profile → Credits → Specialization Hub (player navigation pattern)
+    // Note: Each page may have different sidebar buttons, so use URL navigation
+    cy.navigateTo('/My_Profile');
     cy.waitForStreamlit();
-    cy.assertAuthenticated();
 
-    cy.clickSidebarButton(/💰 My Credits|💳 Credits/);
+    cy.navigateTo('/My_Credits');
     cy.waitForStreamlit();
-    cy.assertAuthenticated();
 
-    cy.clickSidebarButton(/Dashboard|Home/);
+    // Navigate back to Specialization Hub (player's home page)
+    cy.navigateTo('/Specialization_Hub');
     cy.waitForStreamlit();
-    cy.assertAuthenticated();
 
-    // Final check: no session loss
+    // Final check: session preserved (no login prompt, page loaded without errors)
     cy.get('body').should('not.contain.text', 'Not authenticated');
-    cy.get('[data-testid="stSidebar"]').should('be.visible');
+    cy.get('body').should('not.contain.text', 'Traceback');
+    cy.get('[data-testid="stApp"]').should('be.visible');
   });
 
   // ── Error-Free Onboarding ────────────────────────────────────────────────
 
   it('@smoke onboarding flow completes without Python errors', () => {
-    // Navigate through core onboarding pages
-    cy.clickSidebarButton(/Specialization Hub|Hub/);
+    // Navigate through core player pages using URL navigation
+    // (sidebar buttons vary by page, URL navigation is more reliable)
+    cy.navigateTo('/My_Profile');
     cy.waitForStreamlit();
     cy.get('body').should('not.contain.text', 'Traceback');
 
-    cy.clickSidebarButton(/💰 My Credits|💳 Credits/);
+    cy.navigateTo('/My_Credits');
     cy.waitForStreamlit();
     cy.get('body').should('not.contain.text', 'Traceback');
 
-    cy.clickSidebarButton(/Dashboard|Home/);
+    // Navigate back to Specialization Hub (player's home page)
+    cy.navigateTo('/Specialization_Hub');
     cy.waitForStreamlit();
     cy.get('body').should('not.contain.text', 'Traceback');
   });

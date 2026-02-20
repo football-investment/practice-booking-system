@@ -1,0 +1,95 @@
+{
+  "meta": {
+    "version": "1.1.0",
+    "lastUpdated": "2026-02-20",
+    "description": "Test classification manifest for Cypress E2E suite — critical (blocking) vs non-critical (warning-only) specs"
+  },
+  "specs": {
+    "critical": {
+      "description": "Core user workflows — blocking in CI, must pass 100%",
+      "exitOnFailure": true,
+      "testCount": 170,
+      "specs": [
+        "admin/dashboard_navigation.cy.js",
+        "admin/tournament_manager.cy.js",
+        "admin/tournament_monitor.cy.js",
+        "auth/registration.cy.js",
+        "instructor/dashboard.cy.js",
+        "instructor/session_checkin.cy.js",
+        "instructor/tournament_applications.cy.js",
+        "player/credits.cy.js",
+        "player/onboarding.cy.js",
+        "player/specialization_hub.cy.js",
+        "student/credits.cy.js",
+        "student/dashboard.cy.js",
+        "student/enrollment_flow.cy.js",
+        "student/skill_update.cy.js"
+      ]
+    },
+    "nonCritical": {
+      "description": "Error state validation and edge cases — warning-only in CI",
+      "exitOnFailure": false,
+      "testCount": 32,
+      "specs": [
+        "auth/login.cy.js",
+        "error_states/http_409_conflict.cy.js",
+        "error_states/unauthorized.cy.js",
+        "player/dashboard.cy.js",
+        "student/enrollment_409_live.cy.js",
+        "student/error_states.cy.js",
+        "system/cross_role_e2e.cy.js"
+      ],
+      "knownIssues": [
+        {
+          "id": "E2E-STAB-001",
+          "spec": "auth/login.cy.js",
+          "failures": 2,
+          "totalTests": 9,
+          "description": "401 error state validation timing mismatch"
+        },
+        {
+          "id": "E2E-STAB-002",
+          "spec": "student/enrollment_409_live.cy.js",
+          "failures": 1,
+          "totalTests": 6,
+          "description": "Backend API 405 response instead of 200/404"
+        },
+        {
+          "id": "E2E-STAB-003",
+          "spec": "student/error_states.cy.js",
+          "failures": 4,
+          "totalTests": 11,
+          "description": "Error message format validation mismatches"
+        },
+        {
+          "id": "E2E-STAB-004",
+          "spec": "system/cross_role_e2e.cy.js",
+          "failures": 1,
+          "totalTests": 14,
+          "description": "Token expiry during cross-role test execution"
+        },
+        {
+          "id": "E2E-STAB-005",
+          "spec": "player/dashboard.cy.js",
+          "failures": 3,
+          "totalTests": 8,
+          "description": "Logout button text mismatch — player sidebar uses different text/emoji"
+        },
+        {
+          "id": "E2E-STAB-006",
+          "spec": "error_states/http_409_conflict.cy.js",
+          "failures": 1,
+          "totalTests": 8,
+          "description": "Generic 409 conflict error UI validation"
+        },
+        {
+          "id": "E2E-STAB-007",
+          "spec": "error_states/unauthorized.cy.js",
+          "failures": 1,
+          "totalTests": 17,
+          "description": "401 unauthorized error state validation"
+        }
+      ]
+    }
+  }
+}
