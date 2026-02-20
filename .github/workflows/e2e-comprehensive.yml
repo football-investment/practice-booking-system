@@ -387,9 +387,13 @@ jobs:
           CYPRESS_video:              true
         run: |
           # Determine if recording to Cypress Cloud
+          # Automatic recording if CYPRESS_RECORD_KEY secret is set
           RECORD_FLAG=""
-          if [ -n "${{ secrets.CYPRESS_RECORD_KEY }}" ] && [ "${{ github.event.inputs.record }}" = "true" ]; then
+          if [ -n "${{ secrets.CYPRESS_RECORD_KEY }}" ]; then
             RECORD_FLAG="--record --parallel --group ${{ matrix.role }} --ci-build-id ${{ github.run_id }}"
+            echo "✅ Cypress Cloud recording enabled (secret detected)"
+          else
+            echo "ℹ️  Cypress Cloud recording disabled (no CYPRESS_RECORD_KEY secret)"
           fi
 
           npx cypress run \

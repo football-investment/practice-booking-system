@@ -1,6 +1,11 @@
 const { defineConfig } = require('cypress');
 
 module.exports = defineConfig({
+  // ── Cypress Cloud Integration ──────────────────────────────────────────
+  // Uncomment and set your Project ID after creating a Cypress Cloud project
+  // See: docs/CYPRESS_CLOUD_SETUP.md for full setup instructions
+  // projectId: 'your-project-id-here',  // ← Replace with actual Project ID from Cypress Cloud
+
   e2e: {
     // ── Target application ──────────────────────────────────────────────────
     // Streamlit default port. Override with CYPRESS_BASE_URL env var.
