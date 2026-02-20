@@ -289,6 +289,53 @@ pytest -m tournament           # Tournament tests
 
 ---
 
+## 🔒 CI/CD & Quality Gates
+
+### ⚠️ GitHub Actions Status
+
+**Current Status**: GitHub Actions is unavailable at account level (infrastructure limitation).
+
+**Impact**:
+- No automated CI/CD pipeline on pull requests
+- No automated test runs on main branch pushes
+- Manual quality enforcement required
+
+### ✅ Alternative Quality Enforcement
+
+**Critical E2E Suite Validation** (170 tests):
+
+```bash
+# Run before pushing to main/develop
+./scripts/validate_critical_e2e.sh
+```
+
+**Requirements**:
+- Backend running on http://localhost:8000
+- Streamlit running on http://localhost:8501
+- All 170 critical tests must pass (100% pass rate required)
+
+**Critical Suite Contents**:
+- 14 critical spec files (blocking failures)
+- 170 tests covering core workflows:
+  - Admin dashboard navigation & tournament management
+  - Authentication & registration
+  - Instructor workflows (dashboard, session check-in, tournament applications)
+  - Player workflows (credits, onboarding, specialization)
+  - Student workflows (credits, dashboard, enrollment, skill updates)
+
+**Test Manifest**: [tests_cypress/test-manifest.json](tests_cypress/test-manifest.json)
+
+### 🔄 Planned: External CI Integration
+
+**Target**: Migrate to external CI provider when available:
+- Option A: GitLab CI / CircleCI / Bitbucket Pipelines
+- Option B: Self-hosted GitHub Actions runner (different account)
+- Option C: GitHub Actions re-enablement (pending GitHub Support)
+
+**Until then**: Manual validation via `validate_critical_e2e.sh` is mandatory for main/develop branch changes.
+
+---
+
 ## 🔐 Teszt Accountok
 
 **Instructor**:
