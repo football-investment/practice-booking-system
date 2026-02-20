@@ -24,6 +24,9 @@ describe('Player / LFA Player Dashboard', () => {
   });
 
   it('@smoke player is authenticated (sidebar visible)', () => {
+    // Wait for overlay to clear and ensure sidebar is visible
+    cy.waitForNoOverlay();
+    cy.get('[data-testid="stSidebar"]').scrollIntoView();
     cy.assertAuthenticated();
   });
 
@@ -47,12 +50,20 @@ describe('Player / LFA Player Dashboard', () => {
   // ── Sidebar navigation ────────────────────────────────────────────────────
 
   it('sidebar Logout button is present', () => {
+    // Wait for overlay to clear and ensure sidebar is visible
+    cy.waitForNoOverlay();
+    cy.get('[data-testid="stSidebar"]').scrollIntoView();
+
     cy.get('[data-testid="stSidebar"]')
       .contains('[data-testid="stButton"] button', '🚪 Logout')
       .should('be.visible');
   });
 
   it('logout from player dashboard returns to login form', () => {
+    // Wait for overlay to clear and ensure sidebar is visible before logout
+    cy.waitForNoOverlay();
+    cy.get('[data-testid="stSidebar"]').scrollIntoView();
+
     cy.logout();
     cy.assertUnauthenticated();
   });
