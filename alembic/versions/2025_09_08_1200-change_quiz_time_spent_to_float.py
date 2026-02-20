@@ -4,6 +4,10 @@ Revision ID: change_quiz_time_spent_to_float
 Revises: 52d803f6d8dc
 Create Date: 2025-09-08 12:00:00.000000
 
+IMPORTANT: This migration is now a NO-OP because the root migration (w3mg03uvao74)
+creates all base tables and columns. This migration was positioned before the
+"initial_table_creation" migration but tried to modify tables/columns that are
+now created in the root migration.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -17,16 +21,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Change time_spent_minutes column from Integer to Float in quiz_attempts table
-    op.alter_column('quiz_attempts', 'time_spent_minutes',
-                   existing_type=sa.Integer(),
-                   type_=sa.Float(),
-                   existing_nullable=True)
+    # NO-OP: Tables/columns already exist in root migration (w3mg03uvao74)
+    pass
 
 
 def downgrade() -> None:
-    # Revert time_spent_minutes column back to Integer
-    op.alter_column('quiz_attempts', 'time_spent_minutes',
-                   existing_type=sa.Float(),
-                   type_=sa.Integer(),
-                   existing_nullable=True)
+    # NO-OP: Owned by root migration
+    pass
