@@ -81,3 +81,27 @@ certs/
 *.env.production
 .env.production.local.env
 *.env
+
+# ============================================================================
+# Temporary Documentation & Analysis Files
+# ============================================================================
+# E2E validation reports (timestamped, not version-controlled)
+CYPRESS_*_REPORT_*.md
+CYPRESS_*_VALIDATION_*.md
+CYPRESS_*_RESULTS_*.md
+CYPRESS_FIX_PRIORITY_PLAN.md
+CYPRESS_MEASURED_RESULTS_*.md
+
+# CI/CD analysis & troubleshooting (temporary investigation docs)
+DOCKER_VS_GITHUB_ACTIONS_ANALYSIS.md
+GITHUB_ACTIONS_TROUBLESHOOTING.md
+VALIDATION_STATUS.md
+
+# Temporary test runners & seed scripts (one-off validation tools)
+run_cypress_docker.sh
+scripts/seed_champion_test_user*.sql
+
+# General temporary analysis files (investigation artifacts)
+*_ANALYSIS_TEMP.md
+*_INVESTIGATION_*.md
+*_TROUBLESHOOTING_*.md
