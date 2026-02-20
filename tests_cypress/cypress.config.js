@@ -2,9 +2,9 @@ const { defineConfig } = require('cypress');
 
 module.exports = defineConfig({
   // ── Cypress Cloud Integration ──────────────────────────────────────────
-  // Uncomment and set your Project ID after creating a Cypress Cloud project
+  // Cypress Cloud Project ID (practice-booking-system-e2e)
   // See: docs/CYPRESS_CLOUD_SETUP.md for full setup instructions
-  // projectId: 'your-project-id-here',  // ← Replace with actual Project ID from Cypress Cloud
+  projectId: 'k5j9m2',
 
   e2e: {
     // ── Target application ──────────────────────────────────────────────────
