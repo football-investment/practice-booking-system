@@ -105,6 +105,7 @@ jobs:
       - name: Run Alembic migrations
         env:
           DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -208,6 +209,7 @@ jobs:
       - name: Run Alembic migrations
         env:
           DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -332,6 +334,7 @@ jobs:
       - name: Run Alembic migrations
         env:
           DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY:   ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
