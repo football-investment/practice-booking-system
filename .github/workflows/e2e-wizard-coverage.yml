@@ -65,6 +65,8 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
+        env:
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -143,6 +145,8 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
+        env:
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -224,6 +228,8 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
+        env:
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -298,6 +304,8 @@ jobs:
           pip install pytest pytest-playwright pytest-mock
 
       - name: Run DB migrations
+        env:
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -390,6 +398,8 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
+        env:
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
