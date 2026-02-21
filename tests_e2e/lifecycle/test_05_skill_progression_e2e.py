@@ -622,7 +622,7 @@ def test_T05B_ema_prev_value_state_continuity():
 @pytest.mark.phase_5
 @pytest.mark.nondestructive
 @pytest.mark.skill_progression
-def test_T05C_group_knockout_full_lifecycle_skill_assertions():
+def test_T05C_group_knockout_full_lifecycle_skill_assertions(test_players_12):
     """
     Full group_knockout lifecycle:
         8 players → 2 groups of 4 → semifinals (group winners) → final.
@@ -643,7 +643,7 @@ def test_T05C_group_knockout_full_lifecycle_skill_assertions():
         - At least one player has positive skill delta
         - unfair_entries == 0 for the winner's audit (EMA path rows only)
     """
-    players = _load_star_players()
+    players = test_players_12  # Fixture-based players (12 total, use first 8)
     p       = players[:8]       # group_knockout requires min 8
     pids    = [x["db_id"] for x in p]
     skills  = ["finishing", "passing", "dribbling"]
@@ -772,7 +772,7 @@ def test_T05C_group_knockout_full_lifecycle_skill_assertions():
 @pytest.mark.phase_5
 @pytest.mark.nondestructive
 @pytest.mark.skill_progression
-def test_T05D_clamp_floor_and_ceiling():
+def test_T05D_clamp_floor_and_ceiling(test_players_12):
     """
     Asserts that skill values remain in [40.0, 99.0] after N consecutive
     extreme-placement tournaments.
@@ -786,7 +786,7 @@ def test_T05D_clamp_floor_and_ceiling():
     Each tournament is a fresh 4-player league; only the skill-profile endpoint
     is needed for the assertions (no audit needed).
     """
-    players  = _load_star_players()
+    players  = test_players_12  # Fixture-based players
     p        = players[:4]
     pids     = [x["db_id"] for x in p]
     skills   = ["finishing"]
@@ -858,7 +858,7 @@ def test_T05D_clamp_floor_and_ceiling():
 @pytest.mark.phase_5
 @pytest.mark.nondestructive
 @pytest.mark.skill_progression
-def test_T05E_knockout_only_bracket_full_lifecycle():
+def test_T05E_knockout_only_bracket_full_lifecycle(test_players_12):
     """
     Full lifecycle for the `knockout` tournament type (pure bracket, no group stage):
         4 players → 2 semifinals → 1 final = 3 matches.
@@ -878,7 +878,7 @@ def test_T05E_knockout_only_bracket_full_lifecycle():
         - Rank-1 player has positive finishing delta (dominant skill)
         - unfair_entries == 0 for winner's audit (EMA path rows)
     """
-    players = _load_star_players()
+    players = test_players_12  # Fixture-based players
     p       = players[:4]
     pids    = [x["db_id"] for x in p]
     skills  = ["finishing", "passing", "dribbling"]
