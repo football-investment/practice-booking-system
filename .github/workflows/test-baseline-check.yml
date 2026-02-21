@@ -8,7 +8,7 @@ on:
 
 jobs:
   unit-tests:
-    name: Unit Tests (Baseline: 0 failed, 0 errors)
+    name: "Unit Tests (Baseline: 0 failed, 0 errors)"
     runs-on: ubuntu-latest
 
     services:
@@ -89,7 +89,7 @@ jobs:
     # This class is excluded from the full unit-tests job to avoid test-ordering
     # state pollution (pre-existing issue — see docs/TECHNICAL_DEBT.md).
     # If this job fails, it means a real logic regression, not state pollution.
-    name: Cascade Delete Tests (Isolated)
+    name: "Cascade Delete Tests (Isolated)"
     runs-on: ubuntu-latest
 
     services:
@@ -134,7 +134,7 @@ jobs:
     # route registry is intact after every refactoring split.
     # No database required — pure Python import + router introspection.
     # Add new modules here whenever a split is done.
-    name: API Module Integrity (import + route count)
+    name: "API Module Integrity (import + route count)"
     runs-on: ubuntu-latest
 
     steps:
