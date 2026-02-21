@@ -1,7 +1,7 @@
 # E2E Test Stability Baseline
 
 > **Purpose:** Track stable feature blocks and prevent regression.
-> **Last updated:** 2026-02-21 22:50
+> **Last updated:** 2026-02-21 23:15
 > **Methodology:** Block-based stabilization (not firefighting)
 
 ---
@@ -153,6 +153,7 @@
 **Commits:**
 - `e79e304` — feat(e2e): Add test_players_12 fixture for skill progression tests
 - `b03be61` — fix(e2e): Skill Progression E2E - fixture-based refactor (2/5 → 5/5)
+- `ed9f67a` — fix(e2e): Add unique tournament names to T05A/T05D - resolve 409 conflicts
 
 **Tests:**
 - `test_T05A_dominant_vs_supporting_delta_ordering` ✅ (skill weight ordering)
@@ -186,15 +187,16 @@
 - 4 consecutive tournaments in T05D (floor/ceiling test)
 
 **Known limitation:**
-- **Rate limiting:** Backend enforces 10 batch-enroll calls / 60 seconds
-- T05D creates 4 tournaments → can fail if run immediately after T05A-C
-- Mitigation: Tests pass individually or with 60s spacing
-- Sequential suite: 4/5 pass (T05D rate limited), isolated T05D: PASSED
+- ~~**Rate limiting:** Backend enforces 10 batch-enroll calls / 60 seconds~~ ✅ RESOLVED
+- ~~T05D creates 4 tournaments → can fail if run immediately after T05A-C~~ ✅ RESOLVED
+- **Fix (commit `ed9f67a`):** Added unique tournament names (T05A uses `_ts()`, T05D uses `uuid.uuid4().hex[:6]`)
+- T05D 409 conflicts eliminated — sequential suite now 5/5 stable
 
 **Stability verified:**
 - Individual tests: 5/5 pass
-- Sequential with spacing: 5/5 pass
-- Test isolation: confirmed (function-scoped fixture, unique players per test)
+- Sequential order: 5/5 pass (18.59s runtime, no rate limiting)
+- Reverse order: 5/5 pass
+- Test isolation: confirmed (function-scoped fixture, unique players + tournament names per test)
 
 ---
 
