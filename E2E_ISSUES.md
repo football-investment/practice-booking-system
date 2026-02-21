@@ -583,3 +583,155 @@ pytest tests_e2e/test_knockout_matrix.py::test_seeding_api_only -vv --tb=long
 **Last Updated:** 2026-02-21
 **Maintained By:** Engineering Team
 **Status:** E2E layer unstable — stabilization in progress
+
+---
+
+## 🎯 Tournament Monitor Block Analysis (2026-02-21 23:30)
+
+**Baseline Discovery:** 96 tests identified across 2 files
+
+### Test Files
+
+| File | Tests | Type | Status |
+|---|---|---|---|
+| `test_tournament_monitor_e2e.py` | 40 | UI (Playwright) | ❌ **Outdated** (architecture change) |
+| `test_tournament_monitor_coverage.py` | 56 | API (boundary tests) | ❌ **Blocked** (missing required param) |
+
+---
+
+### Issue 1: OPS Wizard Architecture Change
+
+**Impact:** 40 UI tests (`test_tournament_monitor_e2e.py`)
+
+**Root Cause:**
+- OPS Wizard moved from `/Tournament_Monitor` to `/Tournament_Manager` page
+- Tests still point to old URL where wizard no longer exists
+
+**Evidence:**
+```python
+# streamlit_app/pages/Tournament_Monitor.py (line 2)
+"""Tournament Monitor — Live Admin View (Read + Result Entry, no OPS Wizard)"""
+
+# Difference from Tournament Manager:
+#   - Tournament Manager : OPS Wizard (create) + monitoring + result entry
+#   - Tournament Monitor : monitoring + result entry (NO OPS Wizard)
+```
+
+**Screenshot Evidence:**
+- test_wizard_step1_renders_correct_content_FAILED.png shows:
+  - ✅ Auth working ("Welcome, System Administrator!")
+  - ✅ Page loads correctly
+  - ❌ Wizard missing ("Live monitoring... — no OPS Wizard")
+  - ❌ Expected: "Step 1 of 8" sidebar content
+  - ✅ Actual: Monitoring panel with "No active tournaments"
+
+**Fix Options:**
+1. **Update tests:** Change URL from `/Tournament_Monitor` to `/Tournament_Manager`
+2. **Deprecate tests:** Archive if Tournament_Manager tests exist elsewhere
+3. **Split tests:** Monitoring tests stay, wizard tests move to Tournament_Manager suite
+
+**Related Stable Tests:**
+- `test_tournament_manager_sidebar_nav.py` (5/5 stable) — sidebar navigation only
+- Need to verify if Tournament_Manager wizard tests exist
+
+---
+
+### Issue 2: Missing `campus_ids` Required Parameter
+
+**Impact:** 56 API tests (`test_tournament_monitor_coverage.py`)
+
+**Root Cause:**
+- Backend schema changed: `campus_ids` is now **required** for OPS scenarios
+- Tests not updated to include this parameter
+
+**Error:**
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "details": {
+      "validation_errors": [{
+        "field": "body.campus_ids",
+        "message": "Field required",
+        "type": "missing"
+      }]
+    }
+  }
+}
+```
+
+**Backend Schema** (`app/api/api_v1/endpoints/tournaments/ops_scenario.py:116-124`):
+```python
+campus_ids: List[int] = Field(
+    ...,  # Required!
+    min_length=1,
+    description=(
+        "Explicit campus IDs for session distribution (required, min 1). "
+        "Sessions are assigned round-robin across the provided campus IDs. "
+        "Auto-discovery is disabled — campuses must be specified explicitly."
+    ),
+)
+```
+
+**Related Plan:**
+- `.claude/plans/valiant-noodling-peach.md` — "Explicit Campus Infrastructure"
+- Plan shows backend implementation completed
+- E2E tests NOT updated to match
+
+**Fix Strategy:**
+1. Create fixture to provide default campus_ids (e.g., `[1]` or query active campuses)
+2. Update all OPS scenario API calls to include `campus_ids` parameter
+3. Systematic find/replace across test_tournament_monitor_coverage.py
+
+**Example Fix:**
+```python
+# Before:
+data = _trigger_ops_tournament(
+    api_url, token,
+    scenario="smoke_test",
+    player_count=4,
+    tournament_format="KNOCKOUT",
+)
+
+# After:
+data = _trigger_ops_tournament(
+    api_url, token,
+    scenario="smoke_test",
+    player_count=4,
+    tournament_format="KNOCKOUT",
+    campus_ids=[1],  # Add default campus
+)
+```
+
+---
+
+### Recommended Action
+
+**Priority:** 🔴 **BLOCK** (96 tests non-functional)
+
+**Decision Required:**
+1. Should Tournament Monitor E2E tests be **updated** or **deprecated**?
+2. Should we create Tournament_Manager wizard tests from scratch?
+
+**Systematic Fix:**
+- ✅ Create campus_ids fixture (reusable)
+- ✅ Update all 56 API tests with campus_ids parameter
+- ⚠️ Decide fate of 40 UI tests (update URL or deprecate)
+
+**Effort Estimate:**
+- API tests fix: ~30 minutes (systematic find/replace + fixture)
+- UI tests decision + implementation: ~2-4 hours (depends on deprecate vs update)
+
+---
+
+### Status
+
+- [x] Baseline run completed
+- [x] Root causes identified
+- [x] Architecture change documented
+- [x] Required parameter change documented
+- [ ] Decision: Update vs deprecate UI tests
+- [ ] Systematic fix implementation
+- [ ] Verify stability (sequential + reverse)
+- [ ] Update E2E_STABILITY_BASELINE.md
+
