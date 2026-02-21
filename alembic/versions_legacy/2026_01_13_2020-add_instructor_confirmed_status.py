@@ -41,7 +41,7 @@ def upgrade():
             AND (
                 (tournament_status = 'SEEKING_INSTRUCTOR' AND master_instructor_id IS NULL)
                 OR
-                (tournament_status IN ('PENDING_INSTRUCTOR_ACCEPTANCE', 'INSTRUCTOR_CONFIRMED', 'READY_FOR_ENROLLMENT', 'OPEN_FOR_ENROLLMENT', 'IN_PROGRESS', 'CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
+                (tournament_status IN ('PENDING_INSTRUCTOR_ACCEPTANCE', 'READY_FOR_ENROLLMENT', 'ENROLLMENT_OPEN', 'IN_PROGRESS', 'ENROLLMENT_CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
             )
         )
         OR
@@ -50,7 +50,7 @@ def upgrade():
             AND (
                 (tournament_status IN ('SEEKING_INSTRUCTOR', 'PENDING_INSTRUCTOR_ACCEPTANCE') AND (master_instructor_id IS NULL OR master_instructor_id IS NOT NULL))
                 OR
-                (tournament_status IN ('INSTRUCTOR_CONFIRMED', 'READY_FOR_ENROLLMENT', 'OPEN_FOR_ENROLLMENT', 'IN_PROGRESS', 'CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
+                (tournament_status IN ('READY_FOR_ENROLLMENT', 'ENROLLMENT_OPEN', 'IN_PROGRESS', 'ENROLLMENT_CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
             )
         )
         """
@@ -73,7 +73,7 @@ def downgrade():
             AND (
                 (tournament_status = 'SEEKING_INSTRUCTOR' AND master_instructor_id IS NULL)
                 OR
-                (tournament_status IN ('PENDING_INSTRUCTOR_ACCEPTANCE', 'READY_FOR_ENROLLMENT', 'OPEN_FOR_ENROLLMENT', 'IN_PROGRESS', 'CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
+                (tournament_status IN ('PENDING_INSTRUCTOR_ACCEPTANCE', 'READY_FOR_ENROLLMENT', 'ENROLLMENT_OPEN', 'IN_PROGRESS', 'ENROLLMENT_CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
             )
         )
         OR
@@ -82,7 +82,7 @@ def downgrade():
             AND (
                 (tournament_status IN ('SEEKING_INSTRUCTOR', 'PENDING_INSTRUCTOR_ACCEPTANCE') AND (master_instructor_id IS NULL OR master_instructor_id IS NOT NULL))
                 OR
-                (tournament_status IN ('READY_FOR_ENROLLMENT', 'OPEN_FOR_ENROLLMENT', 'IN_PROGRESS', 'CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
+                (tournament_status IN ('READY_FOR_ENROLLMENT', 'ENROLLMENT_OPEN', 'IN_PROGRESS', 'ENROLLMENT_CLOSED', 'COMPLETED') AND master_instructor_id IS NOT NULL)
             )
         )
         """

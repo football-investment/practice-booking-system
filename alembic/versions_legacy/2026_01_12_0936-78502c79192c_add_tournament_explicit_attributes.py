@@ -115,7 +115,7 @@ def upgrade() -> None:
         (assignment_type = 'OPEN_ASSIGNMENT' AND master_instructor_id IS NOT NULL) OR
         (assignment_type = 'APPLICATION_BASED' AND (
             master_instructor_id IS NULL OR
-            tournament_status IN ('PENDING_INSTRUCTOR_ACCEPTANCE', 'READY_FOR_ENROLLMENT', 'OPEN_FOR_ENROLLMENT', 'CLOSED', 'COMPLETED')
+            tournament_status IN ('PENDING_INSTRUCTOR_ACCEPTANCE', 'READY_FOR_ENROLLMENT', 'ENROLLMENT_OPEN', 'ENROLLMENT_CLOSED', 'COMPLETED')
         ))
         """
     )

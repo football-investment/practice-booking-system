@@ -12,6 +12,7 @@ chain that can be run on fresh databases without errors.
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -23,6 +24,11 @@ depends_on = None
 
 def upgrade() -> None:
     # ### Base tables creation ###
+
+    # Create specializationtype enum (original pre-rename values: PLAYER, COACH)
+    # Note: INTERNSHIP added later by migration aae67fe19f8d
+    # Note: Renamed to GANCUJU_PLAYER, LFA_FOOTBALL_PLAYER, LFA_COACH by migration rename_specializations
+    op.execute("CREATE TYPE specializationtype AS ENUM ('PLAYER', 'COACH')")
 
     # Core system tables
     op.create_table('quizzes',
@@ -62,6 +68,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('role', sa.Enum('ADMIN', 'INSTRUCTOR', 'STUDENT', name='userrole'), nullable=False),
+    sa.Column('specialization', postgresql.ENUM('PLAYER', 'COACH', name='specializationtype', create_type=False), nullable=True, comment="User's chosen specialization track (Player/Coach)"),
     sa.Column('is_active', sa.Boolean(), nullable=True),
     sa.Column('onboarding_completed', sa.Boolean(), nullable=True),
     sa.Column('phone', sa.String(), nullable=True),
@@ -122,6 +129,7 @@ def upgrade() -> None:
     sa.Column('deadline', sa.Date(), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('difficulty', sa.String(length=20), nullable=True),
+    sa.Column('target_specialization', postgresql.ENUM('PLAYER', 'COACH', name='specializationtype', create_type=False), nullable=True, comment='Target specialization for this project. NULL = accessible to all specializations'),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['instructor_id'], ['users.id'], ),
@@ -288,6 +296,10 @@ def upgrade() -> None:
     sa.Column('semester_id', sa.Integer(), nullable=False),
     sa.Column('group_id', sa.Integer(), nullable=True),  # IMPORTANT: nullable from the start!
     sa.Column('instructor_id', sa.Integer(), nullable=True),
+    sa.Column('target_specialization', postgresql.ENUM('PLAYER', 'COACH', name='specializationtype', create_type=False), nullable=True, comment='Target specialization for this session. NULL = accessible to all specializations'),
+    sa.Column('mixed_specialization', sa.Boolean(), nullable=True, server_default=sa.text('false'), comment='Whether this session welcomes both Player and Coach specializations together'),
+    sa.Column('quiz_unlocked', sa.Boolean(), nullable=True, server_default=sa.text('false'), comment='Whether the quiz is unlocked for students (HYBRID sessions)'),
+    sa.Column('base_xp', sa.Integer(), nullable=True, server_default=sa.text('50'), comment='Base XP awarded for completing this session (HYBRID=100, ON-SITE=75, VIRTUAL=50)'),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
@@ -298,6 +310,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_sessions_id'), 'sessions', ['id'], unique=False)
 
     # Tables depending on sessions
+    op.create_table('session_quizzes',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('session_id', sa.Integer(), nullable=False),
+    sa.Column('quiz_id', sa.Integer(), nullable=False),
+    sa.Column('is_required', sa.Boolean(), nullable=True, server_default=sa.text('true')),
+    sa.Column('max_attempts', sa.Integer(), nullable=True, comment='NULL = unlimited (for HYBRID), 1-2 for VIRTUAL'),
+    sa.Column('created_at', postgresql.TIMESTAMP(), nullable=True, server_default=sa.text('now()')),
+    sa.ForeignKeyConstraint(['quiz_id'], ['quizzes.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('session_id', 'quiz_id', name='session_quizzes_session_id_quiz_id_key')
+    )
+    op.create_index('idx_session_quizzes_session', 'session_quizzes', ['session_id'], unique=False)
+    op.create_index('idx_session_quizzes_quiz', 'session_quizzes', ['quiz_id'], unique=False)
+
     op.create_table('bookings',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -413,6 +440,7 @@ def upgrade() -> None:
     sa.Column('check_out_time', sa.DateTime(), nullable=True),
     sa.Column('notes', sa.String(), nullable=True),
     sa.Column('marked_by', sa.Integer(), nullable=True),
+    sa.Column('xp_earned', sa.Integer(), nullable=True, comment='XP earned for this attendance'),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['booking_id'], ['bookings.id'], ),
@@ -461,6 +489,9 @@ def downgrade() -> None:
     op.drop_table('feedback')
     op.drop_index(op.f('ix_bookings_id'), table_name='bookings')
     op.drop_table('bookings')
+    op.drop_index('idx_session_quizzes_quiz', table_name='session_quizzes')
+    op.drop_index('idx_session_quizzes_session', table_name='session_quizzes')
+    op.drop_table('session_quizzes')
     op.drop_index(op.f('ix_sessions_id'), table_name='sessions')
     op.drop_table('sessions')
     op.drop_index(op.f('ix_quiz_answer_options_id'), table_name='quiz_answer_options')
@@ -494,4 +525,7 @@ def downgrade() -> None:
     op.drop_table('semesters')
     op.drop_index(op.f('ix_quizzes_id'), table_name='quizzes')
     op.drop_table('quizzes')
+
+    # Drop specializationtype enum (created in upgrade)
+    op.execute("DROP TYPE IF EXISTS specializationtype")
     # ### end Alembic commands ###
