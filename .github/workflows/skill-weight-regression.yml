@@ -57,6 +57,7 @@ jobs:
       - name: Run Alembic migrations on test DB
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: |
           alembic upgrade head
 
@@ -148,6 +149,7 @@ jobs:
       - name: Run Alembic migrations on test DB
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: |
           alembic upgrade head
 
