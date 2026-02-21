@@ -27,7 +27,7 @@ on:
 # Shared environment
 # ─────────────────────────────────────────────────────────────────────────────
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
   NODE_VERSION:   '20'
   BACKEND_PORT:   8000
   STREAMLIT_PORT: 8501
