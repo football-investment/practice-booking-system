@@ -394,7 +394,7 @@ def test_T05A_dominant_vs_supporting_delta_ordering():
 
     tid = _full_lifecycle_4player_league(
         h,
-        name="T05A — Dominant Delta Ordering",
+        name=f"T05A — Dominant Delta Ordering ({_ts()})",
         skills=["finishing", "passing", "dribbling"],
         player_ids=pids,
         match_results=matches,
@@ -786,6 +786,8 @@ def test_T05D_clamp_floor_and_ceiling(test_players_12):
     Each tournament is a fresh 4-player league; only the skill-profile endpoint
     is needed for the assertions (no audit needed).
     """
+    import uuid
+
     players  = test_players_12  # Fixture-based players
     p        = players[:4]
     pids     = [x["db_id"] for x in p]
@@ -797,13 +799,16 @@ def test_T05D_clamp_floor_and_ceiling(test_players_12):
     admin_tok = _admin_login()
     h = _auth(admin_tok)
 
+    # Generate unique ID to prevent 409 conflicts in sequential runs
+    test_id = uuid.uuid4().hex[:6]
+
     ceiling_levels = []
     floor_levels   = []
 
     for i in range(4):
         _full_lifecycle_4player_league(
             h,
-            name=f"T05D — Clamp Test Run {i+1}/4",
+            name=f"T05D — Clamp Test Run {i+1}/4 ({test_id})",
             skills=skills,
             player_ids=pids,
             match_results=matches,
