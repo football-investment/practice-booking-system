@@ -73,6 +73,35 @@
 
 ---
 
+### 3. Tournament Manager Sidebar Nav (5/5 stable)
+
+**Commit:** `8225c63` — fix(e2e): Remove legacy Tournament Monitor sidebar button
+
+**Tests:**
+- `test_a1_admin_sidebar_has_tournament_manager_button` ✅
+- `test_a2_admin_sidebar_tournament_manager_navigates` ✅
+- `test_i1_instructor_sidebar_has_tournament_manager_button` ✅
+- `test_i2_instructor_sidebar_tournament_manager_navigates` ✅
+- `test_l1_admin_sidebar_no_legacy_monitor_button` ✅
+
+**Key fix:**
+- Removed broken `st.switch_page("pages/Tournament_Monitor.py")` from admin sidebar
+- Legacy button pointed to archived/deprecated page
+- Clean UI code (no dead imports, no unreachable references)
+
+**Complexity:**
+- Low (navigation smoke tests)
+- UI presence checks only
+- No data mutation
+- No backend interaction
+
+**Stability verified:**
+- Sequential order: 5/5 pass (28.49s)
+- Reverse order: 5/5 pass (26.40s)
+- Test isolation: confirmed (no state dependencies)
+
+---
+
 ## 🔬 E2E Test Principles (Established)
 
 1. **Fixture = Authority**
@@ -108,7 +137,8 @@
 |---|---|---|---|
 | **Game Preset Admin** | 7 smoke | ✅ 7/7 stable | `2396aba` |
 | **Instructor Dashboard** | 10 smoke | ✅ 10/10 stable | `23976ec` |
-| **TOTAL** | **17** | **17/17 (100%)** | — |
+| **Tournament Manager Sidebar** | 5 smoke | ✅ 5/5 stable | `8225c63` |
+| **TOTAL** | **22** | **22/22 (100%)** | — |
 
 ---
 
