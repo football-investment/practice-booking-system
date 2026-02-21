@@ -34,7 +34,8 @@ class Session(Base):
     semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)  # FIXED: Made nullable to allow sessions without groups
     instructor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    
+    campus_id = Column(Integer, ForeignKey("campuses.id"), nullable=True, comment="Campus/venue for multi-campus tournaments")
+
     # 🎓 NEW: Specialization fields
     target_specialization = Column(
         Enum(SpecializationType),

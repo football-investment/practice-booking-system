@@ -19,10 +19,10 @@ ADD COLUMN IF NOT EXISTS tournament_checked_in_at TIMESTAMP WITH TIME ZONE NULL;
 ### 2. tournament_participations.skill_rating_delta
 ```sql
 ALTER TABLE tournament_participations
-ADD COLUMN IF NOT EXISTS skill_rating_delta FLOAT DEFAULT 0.0;
+ADD COLUMN IF NOT EXISTS skill_rating_delta JSONB NULL;
 ```
-**Purpose:** Skill rating change after tournament completion
-**Model Reference:** `app/models/tournament_participation.py` (model file location TBD)
+**Purpose:** Skill rating change after tournament completion (per-skill delta dict)
+**Model Reference:** `app/models/tournament_achievement.py:58` (TournamentParticipation class)
 
 ### 3. xp_transactions.idempotency_key
 ```sql
@@ -31,6 +31,22 @@ ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100) UNIQUE NULL;
 ```
 **Purpose:** Prevent duplicate XP transactions (idempotency guarantee)
 **Model Reference:** `app/models/xp_transaction.py` (model file location TBD)
+
+### 4. tournament_configurations.campus_schedule_overrides
+```sql
+ALTER TABLE tournament_configurations
+ADD COLUMN IF NOT EXISTS campus_schedule_overrides JSONB NULL;
+```
+**Purpose:** Per-campus schedule overrides for multi-venue tournaments
+**Model Reference:** `app/models/tournament_configuration.py:158`
+
+### 5. sessions.campus_id
+```sql
+ALTER TABLE sessions
+ADD COLUMN IF NOT EXISTS campus_id INTEGER NULL REFERENCES campuses(id);
+```
+**Purpose:** Campus/venue assignment for multi-campus tournaments (round-robin distribution)
+**Model Reference:** `app/models/session.py` (field needs to be added to model)
 
 ---
 

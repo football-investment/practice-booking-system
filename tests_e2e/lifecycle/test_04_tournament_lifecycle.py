@@ -269,24 +269,23 @@ def _batch_enroll(headers: dict, tournament_id: int, player_ids: list[int]) -> N
 
 
 def _generate_sessions(headers: dict, tournament_id: int, campus_ids: list[int] = None) -> list:
-    """Generate sessions and return the session list."""
+    """Set tournament to IN_PROGRESS (auto-generates sessions) and return the session list."""
     # Default to campus_id=1 if not provided (assumes seed data has id=1 campus)
     if campus_ids is None:
         campus_ids = [1]
 
-    resp = requests.post(
-        f"{API_URL}/api/v1/tournaments/{tournament_id}/generate-sessions",
-        json={"parallel_fields": 1, "session_duration_minutes": 90,
-              "break_minutes": 15, "number_of_rounds": 1, "campus_ids": campus_ids},
-        headers=headers, timeout=20
-    )
-    assert resp.status_code == 200, f"Generate sessions failed: {resp.status_code}\n{resp.text}"
-    # Fetch the session list
+    # Set status to ENROLLMENT_OPEN first (prerequisite for IN_PROGRESS)
+    _set_tournament_status(headers, tournament_id, "ENROLLMENT_OPEN")
+
+    # Set status to IN_PROGRESS (this auto-generates sessions)
+    _set_tournament_status(headers, tournament_id, "IN_PROGRESS")
+
+    # Fetch the auto-generated session list
     list_resp = requests.get(
         f"{API_URL}/api/v1/tournaments/{tournament_id}/sessions",
         headers=headers, timeout=15
     )
-    assert list_resp.status_code == 200
+    assert list_resp.status_code == 200, f"Fetch sessions failed: {list_resp.status_code}\n{list_resp.text}"
     return list_resp.json()
 
 
@@ -567,31 +566,31 @@ def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager, tournament_n
     print(f"   ✅ Enrolled {enroll_data['enrolled_count']}/4 players")
 
     # ------------------------------------------------------------------
-    # STEP 3: Generate sessions
+    # STEP 2.5: Set tournament status to IN_PROGRESS (auto-generates sessions)
     # ------------------------------------------------------------------
-    print(f"\n[STEP 3] Generating tournament sessions...")
-    gen_resp = requests.post(
-        f"{API_URL}/api/v1/tournaments/{tournament_id}/generate-sessions",
-        json={
-            "parallel_fields": 1,
-            "session_duration_minutes": 90,
-            "break_minutes": 15,
-            "number_of_rounds": 1,
-            "campus_ids": [1]  # Default campus (assumes seed data has id=1)
-        },
+    print(f"\n[STEP 2.5] Setting tournament status to IN_PROGRESS...")
+    _set_tournament_status(headers, tournament_id, "IN_PROGRESS")
+    print(f"   ✅ Tournament status updated to IN_PROGRESS (sessions auto-generated)")
+
+    # ------------------------------------------------------------------
+    # STEP 3: Verify sessions were auto-generated
+    # ------------------------------------------------------------------
+    print(f"\n[STEP 3] Verifying tournament sessions were auto-generated...")
+    sessions_resp = requests.get(
+        f"{API_URL}/api/v1/tournaments/{tournament_id}/sessions",
         headers=headers,
-        timeout=20
+        timeout=15
     )
-    assert gen_resp.status_code == 200, (
-        f"Generate sessions failed: {gen_resp.status_code}\n{gen_resp.text}"
+    assert sessions_resp.status_code == 200, (
+        f"Fetch sessions failed: {sessions_resp.status_code}\n{sessions_resp.text}"
     )
-    gen_data = gen_resp.json()
-    sessions_count = gen_data["sessions_generated_count"]
+    sessions_data = sessions_resp.json()
+    sessions_count = len(sessions_data)
     # League with 4 players = 4*(4-1)/2 = 6 matches
     assert sessions_count == 6, (
         f"Expected 6 sessions for 4-player league, got {sessions_count}"
     )
-    print(f"   ✅ Generated {sessions_count} sessions")
+    print(f"   ✅ Verified {sessions_count} sessions auto-generated")
 
     # ------------------------------------------------------------------
     # STEP 4: Fetch sessions list and submit match results
