@@ -12,15 +12,14 @@ This script is a CI stabilization hack, not a proper solution.
 """
 import sys
 import os
-from datetime import datetime, date
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy.orm import Session
-from app.database import SessionLocal, engine
+from app.database import SessionLocal
 from app.models.user import User, UserRole
-from app.models.user_license import UserLicense, LicenseType
-from app.models.user_progress import Specialization
+from app.models.license import UserLicense
 from app.core.security import get_password_hash
 
 
@@ -53,24 +52,18 @@ def seed_minimal_fixtures(db: Session):
     if existing_license:
         print("✅ user_license_id=1 already exists, skipping license creation")
     else:
-        # Create specialization if needed
-        spec = db.query(Specialization).filter(Specialization.id == "LFA_PLAYER_YOUTH").first()
-        if not spec:
-            spec = Specialization(id="LFA_PLAYER_YOUTH", is_active=True)
-            db.add(spec)
-            db.flush()
-
         # Create user_license with ID=1 (expected by test_credit_service)
         test_license = UserLicense(
             id=1,  # Explicit ID
             user_id=1,
-            specialization_id="LFA_PLAYER_YOUTH",
-            license_type=LicenseType.ACTIVE,
-            start_date=date.today(),
+            specialization_type="PLAYER",  # COACH, PLAYER, or INTERNSHIP
+            current_level=1,
+            max_achieved_level=1,
+            started_at=datetime.now(),
             is_active=True
         )
         db.add(test_license)
-        print("✅ Created user_license_id=1 (LFA_PLAYER_YOUTH)")
+        print("✅ Created user_license_id=1 (PLAYER)")
 
     db.commit()
     print("✅ CI minimal fixtures seeded successfully!")
