@@ -1,7 +1,7 @@
 # E2E Test Stability Baseline
 
 > **Purpose:** Track stable feature blocks and prevent regression.
-> **Last updated:** 2026-02-21
+> **Last updated:** 2026-02-21 22:35
 > **Methodology:** Block-based stabilization (not firefighting)
 
 ---
@@ -102,6 +102,52 @@
 
 ---
 
+### 4. Tournament Lifecycle (4/4 stable)
+
+**Commits:**
+- `b1a0f88` — fix(e2e): Add missing DB schema fields + fix tournament lifecycle tests
+- `aef5840` — fix(e2e): Enable skill writeback + fixture-based auth for test_04c/04d
+
+**Tests:**
+- `test_04_tournament_lifecycle` ✅ (core lifecycle: create → enroll → sessions → results → rankings → rewards → badges)
+- `test_04b_snapshot_determinism` ✅ (snapshot persistence)
+- `test_04c_skill_writeback_after_rewards` ✅ (skill writeback: `skills_last_updated_at`)
+- `test_04d_preset_skill_mapping_autosync` ✅ (preset skill mapping)
+
+**Key fixes:**
+
+**DB Schema (5 missing columns):**
+- `semester_enrollments.tournament_checked_in_at` (TIMESTAMP)
+- `tournament_participations.skill_rating_delta` (JSONB) — was incorrectly FLOAT
+- `xp_transactions.idempotency_key` (VARCHAR UNIQUE)
+- `tournament_configurations.campus_schedule_overrides` (JSONB)
+- `sessions.campus_id` (INTEGER FK) — added to Session model
+
+**Test improvements:**
+- Per-test unique tournament names (`tournament_names` fixture)
+- Fixture-based player creation (`test_players` fixture) with baseline skills
+- Status transitions: `ENROLLMENT_OPEN → IN_PROGRESS` auto-generates sessions
+- DB-based player auth (no TEST_USERS_JSON dependency)
+- Skill writeback validation: `skills_last_updated_at` now updates after rewards
+
+**Backend validation:**
+- Session generation auto-triggered on `IN_PROGRESS` status transition
+- Skill writeback requires initialized `football_skills` dict (baseline values)
+- Reward orchestrator successfully updates tournament deltas and timestamps
+
+**Complexity:**
+- High (full tournament lifecycle with data mutation)
+- 10 lifecycle steps: create → enroll → sessions → results → rankings → rewards → badges
+- Backend integration: session generation, reward distribution, skill progression
+- Database persistence: tournament_participations, xp_transactions, user_licenses
+
+**Stability verified:**
+- Sequential order: 4/4 pass
+- Reverse order: 4/4 pass (04d → 04c → 04b → 04)
+- Test isolation: confirmed (fixture-based data, function-scoped cleanup)
+
+---
+
 ## 🔬 E2E Test Principles (Established)
 
 1. **Fixture = Authority**
@@ -138,7 +184,8 @@
 | **Game Preset Admin** | 7 smoke | ✅ 7/7 stable | `2396aba` |
 | **Instructor Dashboard** | 10 smoke | ✅ 10/10 stable | `23976ec` |
 | **Tournament Manager Sidebar** | 5 smoke | ✅ 5/5 stable | `8225c63` |
-| **TOTAL** | **22** | **22/22 (100%)** | — |
+| **Tournament Lifecycle** | 4 integration | ✅ 4/4 stable | `b1a0f88`, `aef5840` |
+| **TOTAL** | **26** | **26/26 (100%)** | — |
 
 ---
 
