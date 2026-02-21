@@ -223,22 +223,26 @@ class TestFootballSkillServiceAwardSkillPoints:
         postgres_db.delete(reward1)
         postgres_db.commit()
 
-    def test_award_skill_points_different_users_same_source(self, postgres_db: Session):
+    def test_award_skill_points_different_users_same_source(self, postgres_db: Session, user_factory):
         """Test that different users can receive rewards from same source"""
         service = FootballSkillService(postgres_db)
 
-        # User 2 gets reward
+        # Create two test users dynamically
+        user1 = user_factory(name="User 1")
+        user2 = user_factory(name="User 2")
+
+        # User 1 gets reward
         (reward1, created1) = service.award_skill_points(
-            user_id=1,
+            user_id=user1.id,
             source_type="TEST_MULTI_USER",
             source_id=988,
             skill_name="passing",
             points_awarded=10
         )
 
-        # User 3 gets reward (different user, same source+skill)
+        # User 2 gets reward (different user, same source+skill)
         (reward2, created2) = service.award_skill_points(
-            user_id=4,  # Different user
+            user_id=user2.id,  # Different user
             source_type="TEST_MULTI_USER",
             source_id=988,  # Same source
             skill_name="passing",  # Same skill

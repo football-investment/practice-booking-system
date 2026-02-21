@@ -170,10 +170,13 @@ class TestSystemEventRead:
         assert total == 5
         assert len(rows) == 2  # limit honoured
 
-    def test_get_events_offset_pagination(self, postgres_db: Session):
+    def test_get_events_offset_pagination(self, postgres_db: Session, user_factory):
         """P-07b: offset skips correct number of rows"""
-        for i in range(5):
-            _make_event(postgres_db, user_id=i + 1)
+        # Create 5 test users dynamically for the events
+        users = [user_factory(name=f"User {i+1}") for i in range(5)]
+
+        for i, user in enumerate(users):
+            _make_event(postgres_db, user_id=user.id)
         svc = SystemEventService(postgres_db)
         _, total = svc.get_events()
         page1, _ = svc.get_events(limit=3, offset=0)

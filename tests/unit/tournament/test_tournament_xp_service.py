@@ -406,9 +406,12 @@ class TestDistributeRewards:
         assert mock_award_xp.call_count == 0
 
     @patch('app.services.tournament.tournament_xp_service.award_xp')
-    def test_distribute_rewards_team_ranking(self, mock_award_xp, test_db: Session):
+    def test_distribute_rewards_team_ranking(self, mock_award_xp, test_db: Session, team_factory):
         """Distribute rewards with team ranking (no user_id)"""
         tournament = create_test_tournament(test_db)
+
+        # Create test team dynamically
+        team = team_factory(name="Test Team Alpha")
 
         # Create rewards
         rewards_config = {
@@ -424,7 +427,7 @@ class TestDistributeRewards:
         ranking = TournamentRanking(
             tournament_id=tournament.id,
             user_id=None,  # Team ranking
-            team_id=1,
+            team_id=team.id,
             participant_type="TEAM",
             rank=1,
             points=Decimal("100")

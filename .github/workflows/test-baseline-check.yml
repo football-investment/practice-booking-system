@@ -49,12 +49,6 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: alembic upgrade head
 
-    - name: Seed minimal test fixtures
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
-        SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_ci_unit_test_fixtures.py
-
     - name: Run unit tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
@@ -143,12 +137,6 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: alembic upgrade head
-
-    - name: Seed minimal test fixtures
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
-        SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_ci_unit_test_fixtures.py
 
     - name: Run cascade delete tests in isolation
       env:

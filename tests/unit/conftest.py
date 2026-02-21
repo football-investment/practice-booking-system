@@ -243,3 +243,172 @@ def tournament_semester_with_instructor(test_db: Session, tournament_date):
     test_db.commit()
     test_db.refresh(semester)
     return semester
+
+
+# ============================================================================
+# Factory Fixtures (for tests that need dynamic data creation)
+# ============================================================================
+
+@pytest.fixture
+def user_factory(test_db: Session):
+    """
+    Factory for creating test users with unique emails.
+
+    Usage:
+        user1 = user_factory(name="John", role=UserRole.STUDENT)
+        user2 = user_factory(name="Jane", role=UserRole.INSTRUCTOR)
+    """
+    from app.models.user import User, UserRole
+    from datetime import datetime
+    import uuid
+
+    def _create_user(
+        name: str = "Test User",
+        email: str = None,
+        role: UserRole = UserRole.STUDENT,
+        is_active: bool = True,
+        date_of_birth: datetime = None,
+        parental_consent: bool = True
+    ):
+        if email is None:
+            email = f"user+{uuid.uuid4().hex[:8]}@test.com"
+        if date_of_birth is None:
+            date_of_birth = datetime(2000, 1, 1)
+
+        user = User(
+            name=name,
+            email=email,
+            password_hash="test_hash",
+            role=role,
+            is_active=is_active,
+            date_of_birth=date_of_birth,
+            parental_consent=parental_consent
+        )
+        test_db.add(user)
+        test_db.flush()
+        test_db.refresh(user)
+        return user
+
+    return _create_user
+
+
+@pytest.fixture
+def location_factory(test_db: Session):
+    """
+    Factory for creating test locations (cities).
+
+    Usage:
+        location1 = location_factory(city="Budapest")
+        location2 = location_factory(city="Vienna", location_code="VIE")
+    """
+    from app.models.location import Location
+    import uuid
+
+    def _create_location(
+        name: str = None,
+        city: str = None,
+        country: str = "Hungary",
+        location_code: str = None,
+        is_active: bool = True
+    ):
+        if city is None:
+            city = f"Test City {uuid.uuid4().hex[:6]}"
+        if name is None:
+            name = city  # Use city as name
+        if location_code is None:
+            location_code = uuid.uuid4().hex[:3].upper()
+
+        location = Location(
+            name=name,
+            city=city,
+            country=country,
+            location_code=location_code,
+            is_active=is_active
+        )
+        test_db.add(location)
+        test_db.flush()
+        test_db.refresh(location)
+        return location
+
+    return _create_location
+
+
+@pytest.fixture
+def campus_factory(test_db: Session, location_factory):
+    """
+    Factory for creating test campuses.
+
+    Usage:
+        campus1 = campus_factory(name="Main Campus")
+        campus2 = campus_factory(name="East Campus", venue="Stadium")
+    """
+    from app.models.campus import Campus
+    import uuid
+
+    def _create_campus(
+        name: str = None,
+        venue: str = "Test Venue",
+        address: str = "123 Test St",
+        is_active: bool = True,
+        location_id: int = None
+    ):
+        if name is None:
+            name = f"Test Campus {uuid.uuid4().hex[:6]}"
+
+        # Create location if not provided
+        if location_id is None:
+            location = location_factory()
+            location_id = location.id
+
+        campus = Campus(
+            name=name,
+            location_id=location_id,
+            venue=venue,
+            address=address,
+            is_active=is_active
+        )
+        test_db.add(campus)
+        test_db.flush()
+        test_db.refresh(campus)
+        return campus
+
+    return _create_campus
+
+
+@pytest.fixture
+def team_factory(test_db: Session):
+    """
+    Factory for creating test teams.
+
+    Usage:
+        team1 = team_factory(name="Team Alpha")
+        team2 = team_factory(name="Team Beta", code="BETA")
+    """
+    from app.models.team import Team
+    import uuid
+
+    def _create_team(
+        name: str = None,
+        code: str = None,
+        captain_user_id: int = None,
+        specialization_type: str = None,
+        is_active: bool = True
+    ):
+        if name is None:
+            name = f"Test Team {uuid.uuid4().hex[:6]}"
+        if code is None:
+            code = f"T{uuid.uuid4().hex[:4].upper()}"
+
+        team = Team(
+            name=name,
+            code=code,
+            captain_user_id=captain_user_id,
+            specialization_type=specialization_type,
+            is_active=is_active
+        )
+        test_db.add(team)
+        test_db.flush()
+        test_db.refresh(team)
+        return team
+
+    return _create_team

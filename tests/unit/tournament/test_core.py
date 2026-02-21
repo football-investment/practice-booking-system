@@ -69,17 +69,20 @@ class TestCreateTournamentSemester:
         assert semester.code.startswith("TOURN-20251227")
         assert len(semester.code) >= len("TOURN-20251227")
 
-    def test_create_with_campus_id(self, test_db: Session, tournament_date: date):
+    def test_create_with_campus_id(self, test_db: Session, tournament_date: date, campus_factory):
         """Create tournament with campus location."""
+        # Create test campus dynamically
+        campus = campus_factory(name="Tournament Campus")
+
         semester = create_tournament_semester(
             db=test_db,
             tournament_date=tournament_date,
             name="Campus Tournament",
             specialization_type=SpecializationType.LFA_PLAYER_AMATEUR,
-            campus_id=5
+            campus_id=campus.id
         )
 
-        assert semester.campus_id == 5
+        assert semester.campus_id == campus.id
         assert semester.location_id is None  # Campus takes precedence
 
     @pytest.mark.skip(reason="Requires Location fixture with foreign key - blocked by missing Location entity setup")
