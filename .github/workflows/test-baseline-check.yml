@@ -237,6 +237,55 @@ jobs:
         echo "Run locally: python -c \"from app.api.api_v1.endpoints.tournaments import router\""
         exit 1
 
+  hardcoded-id-guard:
+    # Prevents hardcoded foreign key IDs from being reintroduced into unit tests.
+    # This ensures tests remain isolated and don't rely on seed data.
+    # See TESTING_GUIDELINES.md for details.
+    name: "Hardcoded FK ID Guard (lint)"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Check for critical hardcoded FK patterns
+      run: |
+        echo "Checking for critical hardcoded FK patterns (user_id=1, user_license_id=1)..."
+        VIOLATIONS=0
+
+        # Check for user_id=1 (most common problem pattern we removed)
+        # Exclude: concurrency tests, mock tests, API client tests (legitimate uses)
+        if grep -rn "user_id=1[^0-9]" tests/unit/services/ --include="*.py" 2>/dev/null | grep -v "__pycache__"; then
+          echo "❌ ERROR: user_id=1 found in service tests"
+          VIOLATIONS=1
+        fi
+
+        if grep -rn "user_id=1[^0-9]" tests/unit/tournament/ --include="*.py" 2>/dev/null | \
+           grep -v "concurrency" | grep -v "checkin" | grep -v "__pycache__"; then
+          echo "❌ ERROR: user_id=1 found in tournament tests"
+          VIOLATIONS=1
+        fi
+
+        # Check for user_license_id=1 (another critical pattern we removed)
+        if grep -rn "user_license_id=1[^0-9]" tests/unit/ --include="*.py" 2>/dev/null | \
+           grep -v "concurrency" | grep -v "__pycache__"; then
+          echo "❌ ERROR: user_license_id=1 found in tests"
+          VIOLATIONS=1
+        fi
+
+        if [ $VIOLATIONS -eq 1 ]; then
+          echo ""
+          echo "Tests must use factory fixtures instead of hardcoded IDs"
+          echo "See TESTING_GUIDELINES.md for migration guide"
+          exit 1
+        fi
+
+        echo "✅ No critical hardcoded FK patterns (user_id=1, user_license_id=1) found"
+
+    - name: Guard check summary
+      run: |
+        echo "✅ All hardcoded FK ID checks passed"
+        echo "Unit tests remain isolated with no seed dependencies"
+
   smoke-tests:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
@@ -302,7 +351,7 @@ jobs:
   baseline-report:
     name: Generate Baseline Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, cascade-isolation-guard, smoke-tests, api-module-integrity]
+    needs: [unit-tests, cascade-isolation-guard, smoke-tests, api-module-integrity, hardcoded-id-guard]
     if: always()
 
     steps:
@@ -317,13 +366,15 @@ jobs:
         CASCADE="${{ needs.cascade-isolation-guard.result }}"
         SMOKE="${{ needs.smoke-tests.result }}"
         INTEGRITY="${{ needs.api-module-integrity.result }}"
+        ID_GUARD="${{ needs.hardcoded-id-guard.result }}"
 
-        if [ "$UNIT" == "success" ] && [ "$CASCADE" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ]; then
+        if [ "$UNIT" == "success" ] && [ "$CASCADE" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ]; then
           echo "✅ **PASS** - Baseline maintained" >> $GITHUB_STEP_SUMMARY
           echo "- Unit tests (full suite, deselected cascade class): 0 failed, 0 errors" >> $GITHUB_STEP_SUMMARY
           echo "- Cascade delete tests (isolated): passing — _run in isolation due to known state pollution, see [TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md)_" >> $GITHUB_STEP_SUMMARY
           echo "- E2E smoke tests: All passing" >> $GITHUB_STEP_SUMMARY
           echo "- API module integrity: All imports clean, route count ≥ 71" >> $GITHUB_STEP_SUMMARY
+          echo "- Hardcoded FK ID guard: No hardcoded IDs found (test isolation maintained)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Safe to merge ✅" >> $GITHUB_STEP_SUMMARY
         else
@@ -335,6 +386,7 @@ jobs:
           echo "| Cascade isolation guard | $CASCADE |" >> $GITHUB_STEP_SUMMARY
           echo "| E2E smoke tests | $SMOKE |" >> $GITHUB_STEP_SUMMARY
           echo "| API module integrity | $INTEGRITY |" >> $GITHUB_STEP_SUMMARY
+          echo "| Hardcoded FK ID guard | $ID_GUARD |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**DO NOT MERGE** - Fix tests first" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

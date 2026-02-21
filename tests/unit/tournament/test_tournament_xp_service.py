@@ -281,7 +281,6 @@ class TestDistributeRewards:
     """Test distribute_rewards() function"""
 
     @patch('app.services.tournament.tournament_xp_service.award_xp')
-    @pytest.mark.xfail(reason="Data pollution issue: CreditTransactions not isolated between tests (pre-existing)")
     def test_distribute_rewards_with_existing_config(self, mock_award_xp, test_db: Session):
         """Happy path: Distribute rewards with existing configuration"""
         tournament = create_test_tournament(test_db)
@@ -633,7 +632,6 @@ class TestAwardManualReward:
         assert transaction.transaction_type == TransactionType.MANUAL_ADJUSTMENT.value
         assert transaction.description == "Great sportsmanship"
 
-    @pytest.mark.xfail(reason="Data pollution issue: CreditTransactions not isolated between tests (pre-existing)")
     @patch('app.services.tournament.tournament_xp_service.award_xp')
     def test_award_manual_reward_xp_only(self, mock_award_xp, test_db: Session):
         """Award only XP, no credits"""
@@ -757,7 +755,6 @@ class TestAwardManualReward:
         test_db.refresh(user)
         assert user.credit_balance == 75  # 100 - 25
 
-    @pytest.mark.xfail(reason="Data pollution issue: CreditTransactions not isolated between tests (pre-existing)")
     @patch('app.services.tournament.tournament_xp_service.award_xp')
     def test_award_manual_reward_both_zero(self, mock_award_xp, test_db: Session):
         """Edge case: Both XP and credits are zero"""

@@ -111,10 +111,11 @@ def _require_celery() -> None:
             pytest.skip(
                 "Celery/Redis not responding — "
                 "large_field_monitor requires a running worker. "
-                "Start: celery -A app.celery_app worker -Q tournaments --loglevel=info"
+                "Start: celery -A app.celery_app worker -Q tournaments --loglevel=info",
+                allow_module_level=True
             )
     except Exception as exc:
-        pytest.skip(f"Celery/Redis unavailable: {exc}")
+        pytest.skip(f"Celery/Redis unavailable: {exc}", allow_module_level=True)
 
 
 _require_celery()
