@@ -80,9 +80,6 @@ def render_dashboard_header():
         if st.button("🏆 Tournament Manager", use_container_width=True, type="primary"):
             st.switch_page("pages/Tournament_Manager.py")
 
-        if st.button("📡 Tournament Monitor", use_container_width=True, type="secondary"):
-            st.switch_page("pages/Tournament_Monitor.py")
-
         st.markdown("---")
 
         # REFRESH BUTTON - Keep session alive without re-login
