@@ -421,12 +421,39 @@ def test_players():
             created_player_ids.append(player.id)
 
             # Create LFA_FOOTBALL_PLAYER license for this player
+            # Initialize with baseline skills for writeback test compatibility
+            baseline_skills = {
+                "finishing": {
+                    "baseline": 50.0,
+                    "current_level": 50.0,
+                    "tournament_delta": 0.0,
+                    "total_delta": 0.0,
+                    "tournament_count": 0,
+                    "last_updated": datetime.utcnow().isoformat()
+                },
+                "dribbling": {
+                    "baseline": 50.0,
+                    "current_level": 50.0,
+                    "tournament_delta": 0.0,
+                    "total_delta": 0.0,
+                    "tournament_count": 0,
+                    "last_updated": datetime.utcnow().isoformat()
+                },
+                "passing": {
+                    "baseline": 50.0,
+                    "current_level": 50.0,
+                    "tournament_delta": 0.0,
+                    "total_delta": 0.0,
+                    "tournament_count": 0,
+                    "last_updated": datetime.utcnow().isoformat()
+                }
+            }
             license = UserLicense(
                 user_id=player.id,
                 specialization_type="LFA_FOOTBALL_PLAYER",
                 is_active=True,
                 started_at=datetime.utcnow(),
-                football_skills={}  # Empty JSONB for skills
+                football_skills=baseline_skills
             )
             db.add(license)
             db.flush()
@@ -1086,15 +1113,21 @@ def test_04c_skill_writeback_after_rewards(tournament_names: dict, test_players:
     #   - get_skill_profile() reads TournamentParticipation (immutable after reward dist.)
     #   - record_tournament_participation() uses UPDATE for existing records (not INSERT)
     # Verify by calling get_skill_profile() directly via the progression API.
-    with open(TEST_USERS_JSON) as _f:
-        _test_data = json.load(_f)
-    rank1_user = next(u for u in _test_data["star_users"] if u["db_id"] == rank1_id)
+
+    # Get rank1 player email from DB (fixture-created players)
+    rank1_email_rows = _db_query(
+        "SELECT email FROM users WHERE id = %s", (rank1_id,)
+    )
+    assert rank1_email_rows, f"Player {rank1_id} not found in DB"
+    rank1_email = rank1_email_rows[0][0]
+
+    # Login as rank1 player (password: "testpass123" from fixture)
     rank1_token_resp = requests.post(
         f"{API_URL}/api/v1/auth/login",
-        json={"email": rank1_user["email"], "password": rank1_user["password"]},
+        json={"email": rank1_email, "password": "testpass123"},
         timeout=10
     )
-    assert rank1_token_resp.status_code == 200
+    assert rank1_token_resp.status_code == 200, f"Login failed for {rank1_email}"
     rank1_token = rank1_token_resp.json()["access_token"]
     rank1_headers = _auth(rank1_token)
 
@@ -1390,17 +1423,22 @@ def test_04d_preset_skill_mapping_autosync(tournament_names: dict, test_players:
     # ------------------------------------------------------------------
     # ASSERTION B: Dominant skill has larger |delta| than minor skill
     # ------------------------------------------------------------------
-    rank1_id = player_ids[0]  # Mbappé — wins all, gets largest positive delta
+    rank1_id = player_ids[0]  # Player 0 — wins all, gets largest positive delta
 
-    with open(TEST_USERS_JSON) as _f:
-        _test_data = _json.load(_f)
-    rank1_user = next(u for u in _test_data["star_users"] if u["db_id"] == rank1_id)
+    # Get rank1 player email from DB (fixture-created players)
+    rank1_email_rows = _db_query(
+        "SELECT email FROM users WHERE id = %s", (rank1_id,)
+    )
+    assert rank1_email_rows, f"Player {rank1_id} not found in DB"
+    rank1_email = rank1_email_rows[0][0]
+
+    # Login as rank1 player (password: "testpass123" from fixture)
     rank1_token_resp = requests.post(
         f"{API_URL}/api/v1/auth/login",
-        json={"email": rank1_user["email"], "password": rank1_user["password"]},
+        json={"email": rank1_email, "password": "testpass123"},
         timeout=10
     )
-    assert rank1_token_resp.status_code == 200
+    assert rank1_token_resp.status_code == 200, f"Login failed for {rank1_email}"
     rank1_token = rank1_token_resp.json()["access_token"]
     rank1_auth = _auth(rank1_token)
 
