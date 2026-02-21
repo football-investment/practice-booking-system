@@ -161,6 +161,7 @@ def admin_batch_enroll_players(
                 semester_id=tournament_id,
                 user_license_id=license.id,
                 age_category="PRO",  # Default for testing
+                age_category_overridden=False,  # Not overridden (admin default)
                 request_status=EnrollmentStatus.APPROVED,
                 approved_at=datetime.utcnow(),
                 approved_by=current_user.id,  # Admin user
