@@ -39,12 +39,17 @@ import requests
 import psycopg2
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from tests_e2e.utils.snapshot_manager import SnapshotManager
+from app.database import SessionLocal
+from app.models.user import User
+from app.models.license import UserLicense
+from app.core.security import get_password_hash
 
 
 # ============================================================================
@@ -209,10 +214,16 @@ def _ensure_tournament_types():
 # REUSABLE LIFECYCLE HELPERS (used by test_04 and test_04c)
 # ============================================================================
 
-def _create_tournament(headers: dict) -> tuple[int, str]:
+def _create_tournament(headers: dict, tournament_name: str = None) -> tuple[int, str]:
     """Create a league tournament and return (tournament_id, tournament_code)."""
+    # Generate unique name if not provided
+    if tournament_name is None:
+        import uuid
+        uniq = uuid.uuid4().hex[:6]
+        tournament_name = f"E2E Phase 4 — League Cup {uniq}"
+
     create_payload = {
-        "name": TOURNAMENT_NAME,
+        "name": tournament_name,
         "tournament_type": TOURNAMENT_TYPE,
         "age_group": "PRO",
         "max_players": TOURNAMENT_MAX_PLAYERS,
@@ -225,7 +236,26 @@ def _create_tournament(headers: dict) -> tuple[int, str]:
         json=create_payload, headers=headers, timeout=15
     )
     assert resp.status_code == 201, f"Tournament create failed: {resp.status_code}\n{resp.text}"
-    return resp.json()["tournament_id"], resp.json()["tournament_code"]
+    tournament_id = resp.json()["tournament_id"]
+    tournament_code = resp.json()["tournament_code"]
+
+    # Set status to ENROLLMENT_OPEN (required for enrollment to succeed)
+    _set_tournament_status(headers, tournament_id, "ENROLLMENT_OPEN")
+
+    return tournament_id, tournament_code
+
+
+def _set_tournament_status(headers: dict, tournament_id: int, new_status: str) -> None:
+    """Set tournament status via PATCH (admin override - bypasses state machine)."""
+    resp = requests.patch(
+        f"{API_URL}/api/v1/tournaments/{tournament_id}",
+        json={"tournament_status": new_status},
+        headers=headers,
+        timeout=15
+    )
+    assert resp.status_code == 200, (
+        f"Status update to {new_status} failed: {resp.status_code}\n{resp.text}"
+    )
 
 
 def _batch_enroll(headers: dict, tournament_id: int, player_ids: list[int]) -> None:
@@ -238,12 +268,16 @@ def _batch_enroll(headers: dict, tournament_id: int, player_ids: list[int]) -> N
     assert resp.json()["enrolled_count"] == len(player_ids)
 
 
-def _generate_sessions(headers: dict, tournament_id: int) -> list:
+def _generate_sessions(headers: dict, tournament_id: int, campus_ids: list[int] = None) -> list:
     """Generate sessions and return the session list."""
+    # Default to campus_id=1 if not provided (assumes seed data has id=1 campus)
+    if campus_ids is None:
+        campus_ids = [1]
+
     resp = requests.post(
         f"{API_URL}/api/v1/tournaments/{tournament_id}/generate-sessions",
         json={"parallel_fields": 1, "session_duration_minutes": 90,
-              "break_minutes": 15, "number_of_rounds": 1},
+              "break_minutes": 15, "number_of_rounds": 1, "campus_ids": campus_ids},
         headers=headers, timeout=20
     )
     assert resp.status_code == 200, f"Generate sessions failed: {resp.status_code}\n{resp.text}"
@@ -339,6 +373,107 @@ def _distribute_rewards(headers: dict, tournament_id: int, force: bool = False) 
 
 
 # ============================================================================
+# FIXTURES
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def tournament_names():
+    """Generate unique tournament names for this test (prevents 409 conflicts)."""
+    import uuid
+    uniq = uuid.uuid4().hex[:6]
+    return {
+        "name": f"E2E Phase 4 — League Cup {uniq}",
+        "code": f"TOURN-E2E-{uniq}",
+    }
+
+
+@pytest.fixture(scope="function")
+def test_players():
+    """
+    Create 4 test players with LFA_FOOTBALL_PLAYER licenses (Fixture = Authority).
+    Function-scoped to ensure test isolation. Cleanup after test completes.
+    """
+    import uuid
+    db = SessionLocal()
+    created_player_ids = []
+    created_license_ids = []
+
+    try:
+        # Create 4 players with unique emails
+        for i in range(4):
+            uniq = uuid.uuid4().hex[:6]
+            email = f"player{i}_{uniq}@e2etest.com"
+
+            # Create player user
+            player = User(
+                email=email,
+                password_hash=get_password_hash("testpass123"),
+                name=f"E2E Player {i}",
+                nickname=f"Player{i}E2E",
+                role="STUDENT",
+                is_active=True,
+                onboarding_completed=True,
+                date_of_birth=datetime(2000, 1, 1),
+                phone=f"+3620123456{i}"
+            )
+            db.add(player)
+            db.flush()  # Get ID
+
+            created_player_ids.append(player.id)
+
+            # Create LFA_FOOTBALL_PLAYER license for this player
+            license = UserLicense(
+                user_id=player.id,
+                specialization_type="LFA_FOOTBALL_PLAYER",
+                is_active=True,
+                started_at=datetime.utcnow(),
+                football_skills={}  # Empty JSONB for skills
+            )
+            db.add(license)
+            db.flush()
+
+            created_license_ids.append(license.id)
+
+        db.commit()
+        print(f"\n   🏗️  Created {len(created_player_ids)} test players: {created_player_ids}")
+
+    except Exception as exc:
+        db.rollback()
+        print(f"   ❌ Error creating test players: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        db.close()
+
+    # Yield player IDs to test
+    yield created_player_ids
+
+    # Cleanup: Delete players and licenses after test
+    db = SessionLocal()
+    try:
+        # Delete licenses first (foreign key constraint)
+        for lic_id in created_license_ids:
+            lic = db.query(UserLicense).filter(UserLicense.id == lic_id).first()
+            if lic:
+                db.delete(lic)
+
+        # Delete players
+        for player_id in created_player_ids:
+            player = db.query(User).filter(User.id == player_id).first()
+            if player:
+                db.delete(player)
+
+        db.commit()
+        print(f"\n   🧹 Cleaned up {len(created_player_ids)} test players")
+    except Exception as exc:
+        db.rollback()
+        print(f"   ⚠️  Cleanup warning: {exc}")
+    finally:
+        db.close()
+
+
+# ============================================================================
 # PHASE 4 TEST
 # ============================================================================
 
@@ -346,7 +481,7 @@ def _distribute_rewards(headers: dict, tournament_id: int, force: bool = False) 
 @pytest.mark.phase_4
 @pytest.mark.golden_path
 @pytest.mark.nondestructive
-def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager):
+def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager, tournament_names: dict, test_players: list):
     """
     Phase 4: Full tournament lifecycle — create → matches → rankings → badges.
 
@@ -363,11 +498,12 @@ def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager):
     print("=" * 72)
 
     # ------------------------------------------------------------------
-    # STEP 0: Verify prerequisites
+    # STEP 0: Use fixture-created players (Fixture = Authority)
     # ------------------------------------------------------------------
-    print("\n[STEP 0] Loading player IDs & admin token...")
-    player_ids = _load_star_player_ids()
+    print("\n[STEP 0] Using fixture-created test players...")
+    player_ids = test_players
     assert len(player_ids) == 4, f"Need exactly 4 players, got {len(player_ids)}"
+    print(f"   ✅ Fixture provided {len(player_ids)} players: {player_ids}")
 
     token = _admin_login()
     headers = _auth(token)
@@ -376,32 +512,13 @@ def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager):
     print("[STEP 0] Ensuring tournament_types are seeded...")
     _ensure_tournament_types()
 
-    # Quick DB sanity: all 4 players must exist with LFA_FOOTBALL_PLAYER license
-    print("[STEP 0] Verifying player prerequisites in DB...")
-    for pid in player_ids:
-        rows = _db_query(
-            "SELECT id, email FROM users WHERE id = %s AND role = 'STUDENT'",
-            (pid,)
-        )
-        assert rows, f"Player {pid} not found in users table as STUDENT"
-
-        lic_rows = _db_query(
-            "SELECT id FROM user_licenses WHERE user_id = %s AND specialization_type = 'LFA_FOOTBALL_PLAYER'",
-            (pid,)
-        )
-        assert lic_rows, (
-            f"Player {pid} has no LFA_FOOTBALL_PLAYER license. "
-            f"Run seed_star_players.py (Phase 0b) first."
-        )
-
-    print(f"   ✅ All 4 players verified: {player_ids}")
-
     # ------------------------------------------------------------------
     # STEP 1: Create tournament
     # ------------------------------------------------------------------
-    print(f"\n[STEP 1] Creating tournament: {TOURNAMENT_NAME!r}")
+    tournament_name = tournament_names["name"]
+    print(f"\n[STEP 1] Creating tournament: {tournament_name!r}")
     create_payload = {
-        "name": TOURNAMENT_NAME,
+        "name": tournament_name,
         "tournament_type": TOURNAMENT_TYPE,
         "age_group": "PRO",
         "max_players": TOURNAMENT_MAX_PLAYERS,
@@ -421,6 +538,13 @@ def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager):
     print(f"   ✅ Tournament created: id={tournament_id}, code={tournament_code}")
 
     # ------------------------------------------------------------------
+    # STEP 1.5: Set tournament status to ENROLLMENT_OPEN
+    # ------------------------------------------------------------------
+    print(f"\n[STEP 1.5] Setting tournament status to ENROLLMENT_OPEN...")
+    _set_tournament_status(headers, tournament_id, "ENROLLMENT_OPEN")
+    print(f"   ✅ Tournament status updated to ENROLLMENT_OPEN")
+
+    # ------------------------------------------------------------------
     # STEP 2: Batch enroll all 4 players
     # ------------------------------------------------------------------
     print(f"\n[STEP 2] Batch enrolling players {player_ids}...")
@@ -434,9 +558,11 @@ def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager):
         f"Batch enroll failed: {enroll_resp.status_code}\n{enroll_resp.text}"
     )
     enroll_data = enroll_resp.json()
+    # Debug: print full enrollment response
+    print(f"   📋 Enrollment response: {enroll_data}")
     assert enroll_data["enrolled_count"] == 4, (
         f"Expected 4 enrolled, got {enroll_data['enrolled_count']}. "
-        f"Failed: {enroll_data.get('failed_players')}"
+        f"Failed: {enroll_data.get('failed_players')}\nFull response: {enroll_data}"
     )
     print(f"   ✅ Enrolled {enroll_data['enrolled_count']}/4 players")
 
@@ -450,7 +576,8 @@ def test_04_tournament_lifecycle(snapshot_manager: SnapshotManager):
             "parallel_fields": 1,
             "session_duration_minutes": 90,
             "break_minutes": 15,
-            "number_of_rounds": 1
+            "number_of_rounds": 1,
+            "campus_ids": [1]  # Default campus (assumes seed data has id=1)
         },
         headers=headers,
         timeout=20
@@ -807,7 +934,7 @@ def test_04b_snapshot_determinism(snapshot_manager: SnapshotManager):
 @pytest.mark.lifecycle
 @pytest.mark.phase_4
 @pytest.mark.nondestructive
-def test_04c_skill_writeback_after_rewards():
+def test_04c_skill_writeback_after_rewards(tournament_names: dict, test_players: list):
     """
     Verify that distributing tournament rewards persists skill deltas to
     user_licenses.football_skills JSONB.
@@ -834,9 +961,10 @@ def test_04c_skill_writeback_after_rewards():
     """
     MAPPED_SKILLS = ["finishing", "dribbling", "passing"]
 
-    player_ids = _load_star_player_ids()  # [Mbappé, Haaland, Messi, Vinicius]
-    rank1_id = player_ids[0]   # Mbappé — wins all matches
-    rank4_id = player_ids[3]   # Vinicius — loses all matches
+    # Use fixture-created players (Fixture = Authority)
+    player_ids = test_players
+    rank1_id = player_ids[0]   # Player 0 — wins all matches
+    rank4_id = player_ids[3]   # Player 3 — loses all matches
 
     token = _admin_login()
     headers = _auth(token)
@@ -891,7 +1019,7 @@ def test_04c_skill_writeback_after_rewards():
     # ------------------------------------------------------------------
     # RUN FULL TOURNAMENT LIFECYCLE
     # ------------------------------------------------------------------
-    tournament_id, tournament_code = _create_tournament(headers)
+    tournament_id, tournament_code = _create_tournament(headers, tournament_names["name"])
     print(f"[04c] Tournament created: id={tournament_id}")
 
     _batch_enroll(headers, tournament_id, player_ids)
@@ -993,14 +1121,20 @@ def test_04c_skill_writeback_after_rewards():
 # test_04d: Preset-based skill mapping auto-sync
 # ============================================================================
 
-def _create_tournament_with_preset(headers: dict, preset_id: int) -> tuple[int, str]:
+def _create_tournament_with_preset(headers: dict, preset_id: int, tournament_name: str = None) -> tuple[int, str]:
     """
     Create a league tournament using game_preset_id instead of skills_to_test.
     The preset's skills_tested + converted weights are auto-synced to
     tournament_skill_mappings by the backend.
     """
+    # Generate unique name if not provided
+    if tournament_name is None:
+        import uuid
+        uniq = uuid.uuid4().hex[:6]
+        tournament_name = f"E2E Phase 4d — Preset Skill Sync {uniq}"
+
     create_payload = {
-        "name": "E2E Phase 4d — Preset Skill Sync",
+        "name": tournament_name,
         "tournament_type": TOURNAMENT_TYPE,
         "age_group": "PRO",
         "max_players": TOURNAMENT_MAX_PLAYERS,
@@ -1016,7 +1150,13 @@ def _create_tournament_with_preset(headers: dict, preset_id: int) -> tuple[int, 
     assert resp.status_code == 201, (
         f"Preset-based tournament create failed: {resp.status_code}\n{resp.text}"
     )
-    return resp.json()["tournament_id"], resp.json()["tournament_code"]
+    tournament_id = resp.json()["tournament_id"]
+    tournament_code = resp.json()["tournament_code"]
+
+    # Set status to ENROLLMENT_OPEN (required for enrollment to succeed)
+    _set_tournament_status(headers, tournament_id, "ENROLLMENT_OPEN")
+
+    return tournament_id, tournament_code
 
 
 def _get_preset_skill_config(preset_id: int) -> dict:
@@ -1062,7 +1202,7 @@ def _get_game_configuration(tournament_id: int) -> Optional[dict]:
 @pytest.mark.lifecycle
 @pytest.mark.phase_4
 @pytest.mark.nondestructive
-def test_04d_preset_skill_mapping_autosync():
+def test_04d_preset_skill_mapping_autosync(tournament_names: dict, test_players: list):
     """
     Verify that creating a tournament with game_preset_id automatically syncs
     the preset's skills_tested + converted weights to tournament_skill_mappings.
@@ -1097,7 +1237,8 @@ def test_04d_preset_skill_mapping_autosync():
 
     PRESET_ID = 1   # GANFOOTVOLLEY
 
-    player_ids = _load_star_player_ids()
+    # Use fixture-created players (Fixture = Authority)
+    player_ids = test_players
     assert len(player_ids) == 4
 
     token = _admin_login()
@@ -1170,7 +1311,7 @@ def test_04d_preset_skill_mapping_autosync():
     # STEP 2: Create tournament with preset_id
     # ------------------------------------------------------------------
     print(f"\n[04d] Creating tournament with game_preset_id={PRESET_ID}...")
-    tournament_id, tournament_code = _create_tournament_with_preset(headers, PRESET_ID)
+    tournament_id, tournament_code = _create_tournament_with_preset(headers, PRESET_ID, tournament_names["name"])
     print(f"[04d] Tournament created: id={tournament_id}, code={tournament_code}")
 
     # ------------------------------------------------------------------
