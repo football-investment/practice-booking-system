@@ -15,12 +15,15 @@ from app.models.skill_reward import SkillReward
 class TestFootballSkillServiceAwardSkillPoints:
     """Unit tests for FootballSkillService.award_skill_points()"""
 
-    def test_award_skill_points_success(self, postgres_db: Session):
+    def test_award_skill_points_success(self, postgres_db: Session, user_factory):
         """Test awarding skill points to a user"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Skill Test User")
+
         (reward, created) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_TOURNAMENT",
             source_id=999,
             skill_name="passing",
@@ -36,13 +39,16 @@ class TestFootballSkillServiceAwardSkillPoints:
         postgres_db.delete(reward)
         postgres_db.commit()
 
-    def test_award_skill_points_duplicate_protection(self, postgres_db: Session):
+    def test_award_skill_points_duplicate_protection(self, postgres_db: Session, user_factory):
         """Test that duplicate (user, source, skill) returns existing reward"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Duplicate Protection Test User")
+
         # First call - should create
         (reward1, created1) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_TOURNAMENT",
             source_id=998,
             skill_name="finishing",
@@ -54,7 +60,7 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         # Second call with same (user, source, skill) - should return existing
         (reward2, created2) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_TOURNAMENT",  # Same source
             source_id=998,  # Same ID
             skill_name="finishing",  # Same skill
@@ -67,7 +73,7 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         # Verify only ONE reward in database
         count = postgres_db.query(SkillReward).filter(
-            SkillReward.user_id == 1,
+            SkillReward.user_id == user.id,
             SkillReward.source_type == "TEST_TOURNAMENT",
             SkillReward.source_id == 998,
             SkillReward.skill_name == "finishing"
@@ -78,13 +84,16 @@ class TestFootballSkillServiceAwardSkillPoints:
         postgres_db.delete(reward1)
         postgres_db.commit()
 
-    def test_award_skill_points_different_skills_same_source(self, postgres_db: Session):
+    def test_award_skill_points_different_skills_same_source(self, postgres_db: Session, user_factory):
         """Test that same user can receive different skill rewards from same source"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Different Skills Test User")
+
         # Award Passing
         (reward1, created1) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_TOURNAMENT",
             source_id=997,
             skill_name="passing",
@@ -93,7 +102,7 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         # Award Shooting (different skill, same source)
         (reward2, created2) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_TOURNAMENT",
             source_id=997,  # Same source
             skill_name="finishing",  # Different skill
@@ -109,13 +118,16 @@ class TestFootballSkillServiceAwardSkillPoints:
         postgres_db.delete(reward2)
         postgres_db.commit()
 
-    def test_award_skill_points_validation_invalid_skill(self, postgres_db: Session):
+    def test_award_skill_points_validation_invalid_skill(self, postgres_db: Session, user_factory):
         """Test that invalid skill names are rejected"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Invalid Skill Test User")
+
         with pytest.raises(ValueError) as exc_info:
             service.award_skill_points(
-                user_id=1,
+                user_id=user.id,
                 source_type="TEST_TOURNAMENT",
                 source_id=996,
                 skill_name="InvalidSkill",  # Not in VALID_SKILLS
@@ -125,13 +137,16 @@ class TestFootballSkillServiceAwardSkillPoints:
         assert "Invalid skill name" in str(exc_info.value)
         assert "InvalidSkill" in str(exc_info.value)
 
-    def test_award_skill_points_allows_negative_points(self, postgres_db: Session):
+    def test_award_skill_points_allows_negative_points(self, postgres_db: Session, user_factory):
         """Test that negative points are allowed (for skill decrease)"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Negative Points Test User")
+
         # Negative points should work (skill decrease for bottom players)
         (reward, created) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_TOURNAMENT",
             source_id=995,
             skill_name="passing",
@@ -145,13 +160,16 @@ class TestFootballSkillServiceAwardSkillPoints:
         postgres_db.delete(reward)
         postgres_db.commit()
 
-    def test_award_skill_points_validation_zero_points(self, postgres_db: Session):
+    def test_award_skill_points_validation_zero_points(self, postgres_db: Session, user_factory):
         """Test that zero points are rejected"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Zero Points Test User")
+
         with pytest.raises(ValueError) as exc_info:
             service.award_skill_points(
-                user_id=1,
+                user_id=user.id,
                 source_type="TEST_TOURNAMENT",
                 source_id=994,
                 skill_name="passing",
@@ -160,9 +178,12 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         assert "Points awarded cannot be zero" in str(exc_info.value)
 
-    def test_award_skill_points_all_valid_skills(self, postgres_db: Session):
+    def test_award_skill_points_all_valid_skills(self, postgres_db: Session, user_factory):
         """Test awarding points for all valid skills"""
         service = FootballSkillService(postgres_db)
+
+        # Create test user dynamically
+        user = user_factory(name="All Valid Skills Test User")
 
         # Get all valid skills
         valid_skills = service.VALID_SKILLS
@@ -172,7 +193,7 @@ class TestFootballSkillServiceAwardSkillPoints:
         # Try awarding first 3 skills (don't test all to avoid cluttering DB)
         for i, skill_name in enumerate(valid_skills[:3]):
             (reward, created) = service.award_skill_points(
-                user_id=1,
+                user_id=user.id,
                 source_type="TEST_ALL_SKILLS",
                 source_id=990 + i,
                 skill_name=skill_name,
@@ -187,15 +208,18 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         postgres_db.commit()
 
-    def test_race_condition_handling(self, postgres_db: Session):
+    def test_race_condition_handling(self, postgres_db: Session, user_factory):
         """
         Test that race condition (concurrent creates) is handled gracefully.
         """
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Race Condition Skill Test User")
+
         # First request creates reward
         (reward1, created1) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_RACE_SKILL",
             source_id=989,
             skill_name="dribbling",
@@ -209,7 +233,7 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         # Second request (simulating race condition) - should get existing
         (reward2, created2) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TEST_RACE_SKILL",
             source_id=989,
             skill_name="dribbling",
@@ -258,13 +282,16 @@ class TestFootballSkillServiceAwardSkillPoints:
         postgres_db.delete(reward2)
         postgres_db.commit()
 
-    def test_award_skill_points_different_sources_same_user_skill(self, postgres_db: Session):
+    def test_award_skill_points_different_sources_same_user_skill(self, postgres_db: Session, user_factory):
         """Test that same user+skill can receive rewards from different sources"""
         service = FootballSkillService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Different Sources Test User")
+
         # Tournament 1
         (reward1, created1) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TOURNAMENT",
             source_id=100,
             skill_name="finishing",
@@ -273,7 +300,7 @@ class TestFootballSkillServiceAwardSkillPoints:
 
         # Tournament 2 (different source)
         (reward2, created2) = service.award_skill_points(
-            user_id=1,
+            user_id=user.id,
             source_type="TOURNAMENT",
             source_id=101,  # Different source_id
             skill_name="finishing",

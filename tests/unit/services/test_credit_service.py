@@ -16,14 +16,17 @@ from app.models.credit_transaction import CreditTransaction
 class TestCreditService:
     """Unit tests for CreditService"""
 
-    def test_create_transaction_success(self, postgres_db: Session):
+    def test_create_transaction_success(self, postgres_db: Session, user_factory):
         """Test creating a new credit transaction"""
         service = CreditService(postgres_db)
+
+        # Create test user dynamically
+        user = user_factory(name="Credit Test User")
 
         idempotency_key = "test_create_transaction_123"
 
         (transaction, created) = service.create_transaction(
-            user_id=1,
+            user_id=user.id,
             user_license_id=None,
             transaction_type="TEST_REWARD",
             amount=100,
@@ -42,15 +45,18 @@ class TestCreditService:
         postgres_db.delete(transaction)
         postgres_db.commit()
 
-    def test_create_transaction_idempotent_return(self, postgres_db: Session):
+    def test_create_transaction_idempotent_return(self, postgres_db: Session, user_factory):
         """Test that duplicate idempotency_key returns existing transaction"""
         service = CreditService(postgres_db)
+
+        # Create test user dynamically
+        user = user_factory(name="Idempotency Test User")
 
         idempotency_key = "test_idempotent_456"
 
         # First call - should create
         (transaction1, created1) = service.create_transaction(
-            user_id=1,
+            user_id=user.id,
             user_license_id=None,
             transaction_type="TEST_REWARD",
             amount=100,
@@ -65,7 +71,7 @@ class TestCreditService:
 
         # Second call - should return existing
         (transaction2, created2) = service.create_transaction(
-            user_id=1,
+            user_id=user.id,
             user_license_id=None,
             transaction_type="TEST_REWARD",
             amount=100,
@@ -89,13 +95,16 @@ class TestCreditService:
         postgres_db.delete(transaction1)
         postgres_db.commit()
 
-    def test_create_transaction_validation_both_user_ids(self, postgres_db: Session):
+    def test_create_transaction_validation_both_user_ids(self, postgres_db: Session, user_factory):
         """Test that providing both user_id and user_license_id raises error"""
         service = CreditService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Validation Test User")
+
         with pytest.raises(ValueError) as exc_info:
             service.create_transaction(
-                user_id=1,
+                user_id=user.id,
                 user_license_id=3,  # Both provided - invalid!
                 transaction_type="TEST_REWARD",
                 amount=100,
@@ -145,15 +154,32 @@ class TestCreditService:
 
         assert key == "tournament_123_5_reward", "Key should be lowercase"
 
-    def test_create_transaction_with_user_license_id(self, postgres_db: Session):
+    def test_create_transaction_with_user_license_id(self, postgres_db: Session, user_factory):
         """Test creating transaction with user_license_id instead of user_id"""
+        from app.models.license import UserLicense
+        from datetime import datetime, timezone
+
         service = CreditService(postgres_db)
+
+        # Create test user dynamically
+        user = user_factory(name="License Test User")
+
+        # Create user license for that user
+        user_license = UserLicense(
+            user_id=user.id,
+            specialization_type="PLAYER",
+            current_level=1,
+            max_achieved_level=1,
+            started_at=datetime.now(timezone.utc)
+        )
+        postgres_db.add(user_license)
+        postgres_db.flush()
 
         idempotency_key = "test_user_license_789"
 
         (transaction, created) = service.create_transaction(
             user_id=None,
-            user_license_id=1,  # Use user_license_id
+            user_license_id=user_license.id,
             transaction_type="TEST_REWARD",
             amount=50,
             balance_after=50,
@@ -163,13 +189,14 @@ class TestCreditService:
 
         assert created is True
         assert transaction.user_id is None
-        assert transaction.user_license_id == 1
+        assert transaction.user_license_id == user_license.id
 
         # Cleanup
         postgres_db.delete(transaction)
+        postgres_db.delete(user_license)
         postgres_db.commit()
 
-    def test_race_condition_handling(self, postgres_db: Session):
+    def test_race_condition_handling(self, postgres_db: Session, user_factory):
         """
         Test that race condition (concurrent creates) is handled gracefully.
 
@@ -177,11 +204,14 @@ class TestCreditService:
         """
         service = CreditService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="Race Condition Test User")
+
         idempotency_key = "test_race_condition_999"
 
         # First request creates transaction
         (transaction1, created1) = service.create_transaction(
-            user_id=1,
+            user_id=user.id,
             user_license_id=None,
             transaction_type="TEST_REWARD",
             amount=100,
@@ -198,7 +228,7 @@ class TestCreditService:
 
         # Second request (simulating race condition) - should get existing
         (transaction2, created2) = service.create_transaction(
-            user_id=1,
+            user_id=user.id,
             user_license_id=None,
             transaction_type="TEST_REWARD",
             amount=100,

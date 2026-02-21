@@ -61,33 +61,37 @@ def _make_event(
 class TestSystemEventPurge:
     """purge_old_events() retention policy."""
 
-    def test_purge_removes_old_resolved_events(self, postgres_db: Session):
+    def test_purge_removes_old_resolved_events(self, postgres_db: Session, user_factory):
         """P-01: resolved event older than retention → deleted"""
-        _make_event(postgres_db, resolved=True, age_days=91)
+        user = user_factory(name="Purge Test User 1")
+        _make_event(postgres_db, resolved=True, age_days=91, user_id=user.id)
         svc = SystemEventService(postgres_db)
         deleted = svc.purge_old_events(retention_days=90)
         assert deleted == 1
 
-    def test_purge_keeps_recent_resolved_events(self, postgres_db: Session):
+    def test_purge_keeps_recent_resolved_events(self, postgres_db: Session, user_factory):
         """P-02: resolved event within retention window → kept"""
-        _make_event(postgres_db, resolved=True, age_days=30)
+        user = user_factory(name="Purge Test User 2")
+        _make_event(postgres_db, resolved=True, age_days=30, user_id=user.id)
         svc = SystemEventService(postgres_db)
         deleted = svc.purge_old_events(retention_days=90)
         assert deleted == 0
 
-    def test_purge_never_deletes_open_events(self, postgres_db: Session):
+    def test_purge_never_deletes_open_events(self, postgres_db: Session, user_factory):
         """P-03: unresolved event, even 200 days old → kept"""
-        _make_event(postgres_db, resolved=False, age_days=200)
+        user = user_factory(name="Purge Test User 3")
+        _make_event(postgres_db, resolved=False, age_days=200, user_id=user.id)
         svc = SystemEventService(postgres_db)
         deleted = svc.purge_old_events(retention_days=90)
         assert deleted == 0
 
-    def test_purge_returns_correct_count(self, postgres_db: Session):
+    def test_purge_returns_correct_count(self, postgres_db: Session, user_factory):
         """P-04: purge count matches number of matching rows"""
-        _make_event(postgres_db, resolved=True, age_days=100)
-        _make_event(postgres_db, resolved=True, age_days=95)
-        _make_event(postgres_db, resolved=True, age_days=89)   # within window → kept
-        _make_event(postgres_db, resolved=False, age_days=200) # open → kept
+        user = user_factory(name="Purge Test User 4")
+        _make_event(postgres_db, resolved=True, age_days=100, user_id=user.id)
+        _make_event(postgres_db, resolved=True, age_days=95, user_id=user.id)
+        _make_event(postgres_db, resolved=True, age_days=89, user_id=user.id)   # within window → kept
+        _make_event(postgres_db, resolved=False, age_days=200, user_id=user.id) # open → kept
         svc = SystemEventService(postgres_db)
         deleted = svc.purge_old_events(retention_days=90)
         assert deleted == 2
@@ -106,50 +110,54 @@ class TestSystemEventPurge:
 class TestSystemEventRateLimit:
     """emit() idempotency within 10-minute window."""
 
-    def test_rate_limit_deduplicates_within_window(self, postgres_db: Session):
+    def test_rate_limit_deduplicates_within_window(self, postgres_db: Session, user_factory):
         """P-05: second emit for same (user_id, event_type) within 10 min → None"""
+        user = user_factory(name="Rate Limit Test User 1")
         svc = SystemEventService(postgres_db)
         first = svc.emit(
             SystemEventLevel.SECURITY,
             SystemEventType.MULTI_CAMPUS_BLOCKED,
-            user_id=1,  # user_id=1 is a seeded fixture user
+            user_id=user.id,
         )
         assert first is not None  # first emit succeeds
 
         second = svc.emit(
             SystemEventLevel.SECURITY,
             SystemEventType.MULTI_CAMPUS_BLOCKED,
-            user_id=1,
+            user_id=user.id,
         )
         assert second is None  # deduplicated
 
-    def test_different_event_type_not_rate_limited(self, postgres_db: Session):
+    def test_different_event_type_not_rate_limited(self, postgres_db: Session, user_factory):
         """P-05b: different event_type for same user → not deduplicated"""
+        user = user_factory(name="Rate Limit Test User 2")
         svc = SystemEventService(postgres_db)
         svc.emit(
             SystemEventLevel.SECURITY,
             SystemEventType.MULTI_CAMPUS_BLOCKED,
-            user_id=1,
+            user_id=user.id,
         )
         second = svc.emit(
             SystemEventLevel.SECURITY,
             SystemEventType.MULTI_CAMPUS_OVERRIDE_BLOCKED,
-            user_id=1,
+            user_id=user.id,
         )
         assert second is not None  # different type → allowed
 
-    def test_different_user_not_rate_limited(self, postgres_db: Session):
+    def test_different_user_not_rate_limited(self, postgres_db: Session, user_factory):
         """P-05c: same event_type, different user_id → not deduplicated"""
+        user1 = user_factory(name="Rate Limit Test User 3a")
+        user2 = user_factory(name="Rate Limit Test User 3b")
         svc = SystemEventService(postgres_db)
         svc.emit(
             SystemEventLevel.SECURITY,
             SystemEventType.MULTI_CAMPUS_BLOCKED,
-            user_id=1,  # fixture user
+            user_id=user1.id,
         )
         other_user = svc.emit(
             SystemEventLevel.SECURITY,
             SystemEventType.MULTI_CAMPUS_BLOCKED,
-            user_id=None,  # anonymous — different rate bucket from user_id=1
+            user_id=user2.id,  # different user
         )
         assert other_user is not None
 
@@ -161,10 +169,11 @@ class TestSystemEventRateLimit:
 class TestSystemEventRead:
     """get_events() filtering and pagination."""
 
-    def test_get_events_returns_total_count(self, postgres_db: Session):
+    def test_get_events_returns_total_count(self, postgres_db: Session, user_factory):
         """P-07: total reflects full filtered set regardless of limit"""
+        user = user_factory(name="Get Events Test User 1")
         for _ in range(5):
-            _make_event(postgres_db)
+            _make_event(postgres_db, user_id=user.id)
         svc = SystemEventService(postgres_db)
         rows, total = svc.get_events(limit=2)
         assert total == 5
@@ -184,19 +193,21 @@ class TestSystemEventRead:
         all_ids = {e.id for e in page1} | {e.id for e in page2}
         assert len(all_ids) == 5  # no duplicates across pages
 
-    def test_filter_by_resolved_false(self, postgres_db: Session):
+    def test_filter_by_resolved_false(self, postgres_db: Session, user_factory):
         """P-08: resolved=False returns only open events"""
-        _make_event(postgres_db, resolved=False)
-        _make_event(postgres_db, resolved=True)
+        user = user_factory(name="Filter Resolved Test User")
+        _make_event(postgres_db, resolved=False, user_id=user.id)
+        _make_event(postgres_db, resolved=True, user_id=user.id)
         svc = SystemEventService(postgres_db)
         rows, total = svc.get_events(resolved=False)
         assert total == 1
         assert all(not r.resolved for r in rows)
 
-    def test_filter_by_level_security(self, postgres_db: Session):
+    def test_filter_by_level_security(self, postgres_db: Session, user_factory):
         """P-09: level=SECURITY returns only SECURITY events"""
-        _make_event(postgres_db, level=SystemEventLevel.SECURITY)
-        _make_event(postgres_db, level=SystemEventLevel.WARNING)
+        user = user_factory(name="Filter Level Test User")
+        _make_event(postgres_db, level=SystemEventLevel.SECURITY, user_id=user.id)
+        _make_event(postgres_db, level=SystemEventLevel.WARNING, user_id=user.id)
         svc = SystemEventService(postgres_db)
         rows, total = svc.get_events(level="SECURITY")
         assert total == 1
@@ -210,17 +221,19 @@ class TestSystemEventRead:
 class TestSystemEventResolve:
     """mark_resolved() / mark_unresolved()."""
 
-    def test_mark_resolved_flips_flag(self, postgres_db: Session):
+    def test_mark_resolved_flips_flag(self, postgres_db: Session, user_factory):
         """P-10: mark_resolved sets resolved=True"""
-        evt = _make_event(postgres_db, resolved=False)
+        user = user_factory(name="Mark Resolved Test User")
+        evt = _make_event(postgres_db, resolved=False, user_id=user.id)
         svc = SystemEventService(postgres_db)
         updated = svc.mark_resolved(evt.id)
         assert updated is not None
         assert updated.resolved is True
 
-    def test_mark_unresolved_flips_flag(self, postgres_db: Session):
+    def test_mark_unresolved_flips_flag(self, postgres_db: Session, user_factory):
         """P-10b: mark_unresolved sets resolved=False"""
-        evt = _make_event(postgres_db, resolved=True)
+        user = user_factory(name="Mark Unresolved Test User")
+        evt = _make_event(postgres_db, resolved=True, user_id=user.id)
         svc = SystemEventService(postgres_db)
         updated = svc.mark_unresolved(evt.id)
         assert updated is not None

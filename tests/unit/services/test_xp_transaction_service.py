@@ -15,12 +15,15 @@ from app.models.xp_transaction import XPTransaction
 class TestXPTransactionService:
     """Unit tests for XPTransactionService"""
 
-    def test_award_xp_success(self, postgres_db: Session):
+    def test_award_xp_success(self, postgres_db: Session, user_factory):
         """Test awarding XP to a user"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Test User")
+
         (transaction, created) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_REWARD",
             amount=50,
             balance_after=50,
@@ -31,20 +34,23 @@ class TestXPTransactionService:
         assert created is True, "Transaction should be marked as created"
         assert transaction.id is not None, "Transaction should have an ID"
         assert transaction.amount == 50
-        assert transaction.user_id == 1
+        assert transaction.user_id == user.id
         assert transaction.semester_id == None
 
         # Cleanup
         postgres_db.delete(transaction)
         postgres_db.commit()
 
-    def test_award_xp_duplicate_protection(self, postgres_db: Session):
+    def test_award_xp_duplicate_protection(self, postgres_db: Session, user_factory):
         """Test that duplicate (user, semester, type) returns existing transaction"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Duplicate Protection Test User")
+
         # First call - should create
         (transaction1, created1) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_TOURNAMENT_REWARD",
             amount=50,
             balance_after=50,
@@ -57,7 +63,7 @@ class TestXPTransactionService:
 
         # Second call with same (user, semester, type) - should return existing
         (transaction2, created2) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_TOURNAMENT_REWARD",  # Same type
             amount=100,  # Different amount (doesn't matter)
             balance_after=150,  # Different balance (doesn't matter)
@@ -71,7 +77,7 @@ class TestXPTransactionService:
 
         # Verify only ONE transaction in database
         count = postgres_db.query(XPTransaction).filter(
-            XPTransaction.user_id == 1,
+            XPTransaction.user_id == user.id,
             XPTransaction.semester_id == None,
             XPTransaction.transaction_type == "TEST_TOURNAMENT_REWARD"
         ).count()
@@ -81,13 +87,16 @@ class TestXPTransactionService:
         postgres_db.delete(transaction1)
         postgres_db.commit()
 
-    def test_award_xp_validation_negative_amount(self, postgres_db: Session):
+    def test_award_xp_validation_negative_amount(self, postgres_db: Session, user_factory):
         """Test that negative XP amounts are rejected"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Negative Amount Test User")
+
         with pytest.raises(ValueError) as exc_info:
             service.award_xp(
-                user_id=1,
+                user_id=user.id,
                 transaction_type="TEST_REWARD",
                 amount=-50,  # Negative!
                 balance_after=0,
@@ -96,13 +105,16 @@ class TestXPTransactionService:
 
         assert "XP amount must be positive" in str(exc_info.value)
 
-    def test_award_xp_validation_negative_balance(self, postgres_db: Session):
+    def test_award_xp_validation_negative_balance(self, postgres_db: Session, user_factory):
         """Test that negative balance is rejected"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Negative Balance Test User")
+
         with pytest.raises(ValueError) as exc_info:
             service.award_xp(
-                user_id=1,
+                user_id=user.id,
                 transaction_type="TEST_REWARD",
                 amount=50,
                 balance_after=-10,  # Negative!
@@ -111,12 +123,15 @@ class TestXPTransactionService:
 
         assert "Balance cannot be negative" in str(exc_info.value)
 
-    def test_award_xp_without_semester(self, postgres_db: Session):
+    def test_award_xp_without_semester(self, postgres_db: Session, user_factory):
         """Test awarding XP without semester_id (should still work)"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Without Semester Test User")
+
         (transaction, created) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_GENERAL_REWARD",
             amount=25,
             balance_after=25,
@@ -140,13 +155,16 @@ class TestXPTransactionService:
 
         assert balance == 0, "User with no transactions should have 0 balance"
 
-    def test_get_user_balance_with_transactions(self, postgres_db: Session):
+    def test_get_user_balance_with_transactions(self, postgres_db: Session, user_factory):
         """Test getting balance for user with transactions"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Balance Test User")
+
         # Create transaction
         (transaction, _) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_BALANCE_CHECK",
             amount=75,
             balance_after=175,
@@ -155,7 +173,7 @@ class TestXPTransactionService:
         )
 
         # Get balance
-        balance = service.get_user_balance(user_id=1)
+        balance = service.get_user_balance(user_id=user.id)
 
         # Balance should be the latest balance_after value
         assert balance >= 175, f"Expected balance >= 175, got {balance}"
@@ -164,13 +182,16 @@ class TestXPTransactionService:
         postgres_db.delete(transaction)
         postgres_db.commit()
 
-    def test_get_transaction_history(self, postgres_db: Session):
+    def test_get_transaction_history(self, postgres_db: Session, user_factory):
         """Test retrieving transaction history"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP History Test User")
+
         # Create multiple transactions
         (tx1, _) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_HISTORY_1",
             amount=10,
             balance_after=10,
@@ -179,7 +200,7 @@ class TestXPTransactionService:
         )
 
         (tx2, _) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_HISTORY_2",
             amount=20,
             balance_after=30,
@@ -188,7 +209,7 @@ class TestXPTransactionService:
         )
 
         # Get history
-        history = service.get_transaction_history(user_id=1)
+        history = service.get_transaction_history(user_id=user.id)
 
         # Should include both transactions (and possibly others from seed data)
         assert len(history) >= 2, f"Expected at least 2 transactions, found {len(history)}"
@@ -203,22 +224,39 @@ class TestXPTransactionService:
         postgres_db.delete(tx2)
         postgres_db.commit()
 
-    def test_get_transaction_history_with_limit(self, postgres_db: Session):
+    def test_get_transaction_history_with_limit(self, postgres_db: Session, user_factory):
         """Test retrieving transaction history with limit"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Limit Test User")
+
+        # Create some transactions for the user
+        for i in range(7):
+            service.award_xp(
+                user_id=user.id,
+                transaction_type=f"TEST_LIMIT_{i}",
+                amount=10 * (i + 1),
+                balance_after=10 * (i + 1),
+                description=f"Transaction {i+1}",
+                semester_id=None
+            )
+
         # Get limited history
-        history = service.get_transaction_history(user_id=1, limit=5)
+        history = service.get_transaction_history(user_id=user.id, limit=5)
 
         assert len(history) <= 5, f"Expected max 5 transactions, found {len(history)}"
 
-    def test_get_transaction_history_filter_by_semester(self, postgres_db: Session):
+    def test_get_transaction_history_filter_by_semester(self, postgres_db: Session, user_factory):
         """Test retrieving transaction history filtered by semester"""
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Semester Filter Test User")
+
         # Create transaction for specific semester
         (tx1, _) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_SEMESTER_FILTER",
             amount=15,
             balance_after=15,
@@ -227,7 +265,7 @@ class TestXPTransactionService:
         )
 
         # Get history for semester 1
-        history = service.get_transaction_history(user_id=1, semester_id=None)
+        history = service.get_transaction_history(user_id=user.id, semester_id=None)
 
         # Should include our transaction
         tx_ids = [tx.id for tx in history]
@@ -242,15 +280,18 @@ class TestXPTransactionService:
         postgres_db.delete(tx1)
         postgres_db.commit()
 
-    def test_race_condition_handling(self, postgres_db: Session):
+    def test_race_condition_handling(self, postgres_db: Session, user_factory):
         """
         Test that race condition (concurrent creates) is handled gracefully.
         """
         service = XPTransactionService(postgres_db)
 
+        # Create test user dynamically
+        user = user_factory(name="XP Race Condition Test User")
+
         # First request creates transaction
         (transaction1, created1) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_RACE_XP",
             amount=30,
             balance_after=30,
@@ -265,7 +306,7 @@ class TestXPTransactionService:
 
         # Second request (simulating race condition) - should get existing
         (transaction2, created2) = service.award_xp(
-            user_id=1,
+            user_id=user.id,
             transaction_type="TEST_RACE_XP",
             amount=40,
             balance_after=70,
