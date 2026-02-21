@@ -59,6 +59,7 @@ class TestRaceS01StableSort:
             compute_single_tournament_skill_delta,
         )
 
+        TEST_USER_ID = 999  # Mock user ID for concurrency test
         db = MagicMock()
         # UserLicense query (get_baseline_skills path)
         db.query.return_value.filter.return_value.first.return_value = MagicMock(
@@ -67,7 +68,7 @@ class TestRaceS01StableSort:
         # TournamentParticipation query: returns empty list so no loop executes
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
-        compute_single_tournament_skill_delta(db, user_id=1, tournament_id=99)
+        compute_single_tournament_skill_delta(db, user_id=TEST_USER_ID, tournament_id=99)
 
         order_by_call = db.query.return_value.filter.return_value.order_by.call_args
         assert order_by_call is not None, "order_by() was never called"
@@ -98,13 +99,14 @@ class TestRaceS01StableSort:
             calculate_tournament_skill_contribution,
         )
 
+        TEST_USER_ID = 999  # Mock user ID for concurrency test
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = MagicMock(
             football_skills=None
         )
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
-        calculate_tournament_skill_contribution(db, user_id=1, skill_keys=["passing"])
+        calculate_tournament_skill_contribution(db, user_id=TEST_USER_ID, skill_keys=["passing"])
 
         order_by_call = db.query.return_value.filter.return_value.order_by.call_args
         assert order_by_call is not None, "order_by() was never called"

@@ -13,20 +13,24 @@ from types import SimpleNamespace
 from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
 
+# Test constants for mock IDs
+TEST_USER_ID = 999
+TEST_TOURNAMENT_ID = 42
+
 # ---------------------------------------------------------------------------
 # Shared factory helpers
 # ---------------------------------------------------------------------------
 
 def _tournament(status="IN_PROGRESS"):
     return SimpleNamespace(
-        id=42,
+        id=TEST_TOURNAMENT_ID,
         name="Test Tournament",
         tournament_status=status,
         reward_config=None,
     )
 
 
-def _participation(user_id=1, tournament_id=42, placement=None):
+def _participation(user_id=TEST_USER_ID, tournament_id=TEST_TOURNAMENT_ID, placement=None):
     return SimpleNamespace(
         id=99,
         user_id=user_id,
@@ -40,7 +44,7 @@ def _participation(user_id=1, tournament_id=42, placement=None):
     )
 
 
-def _badge(user_id=1, tournament_id=42, badge_type="CHAMPION"):
+def _badge(user_id=TEST_USER_ID, tournament_id=TEST_TOURNAMENT_ID, badge_type="CHAMPION"):
     return SimpleNamespace(
         id=7,
         user_id=user_id,
@@ -55,7 +59,7 @@ def _badge(user_id=1, tournament_id=42, badge_type="CHAMPION"):
     )
 
 
-def _user(user_id=1):
+def _user(user_id=TEST_USER_ID):
     return SimpleNamespace(
         id=user_id,
         xp_balance=1000,
@@ -63,7 +67,7 @@ def _user(user_id=1):
     )
 
 
-def _ranking(user_id=1, rank=1):
+def _ranking(user_id=TEST_USER_ID, rank=1):
     return SimpleNamespace(user_id=user_id, rank=rank)
 
 
@@ -293,7 +297,7 @@ class TestRaceR02IdempotencyGuardTOCTOU:
 
         with patch(
             "app.services.tournament.tournament_reward_orchestrator.get_user_reward_summary",
-            return_value=MagicMock(user_id=1),
+            return_value=MagicMock(user_id=TEST_USER_ID),
         ) as mock_summary:
             result = distribute_rewards_for_user(
                 db, 1, 42, None, 10, RewardPolicy(), force_redistribution=False
@@ -569,7 +573,7 @@ class TestRaceR07BalanceReadModifyWrite:
                   return_value=None),
         ):
             ps.record_tournament_participation(
-                db, user_id=1, tournament_id=42,
+                db, user_id=TEST_USER_ID, tournament_id=TEST_TOURNAMENT_ID,
                 placement=None, skill_points={}, base_xp=50, credits=0
             )
 
@@ -597,7 +601,7 @@ class TestRaceR07BalanceReadModifyWrite:
                   return_value=None),
         ):
             ps.record_tournament_participation(
-                db, user_id=1, tournament_id=42,
+                db, user_id=TEST_USER_ID, tournament_id=TEST_TOURNAMENT_ID,
                 placement=1, skill_points={}, base_xp=0, credits=100  # credits > 0
             )
 

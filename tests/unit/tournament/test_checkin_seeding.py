@@ -314,7 +314,8 @@ class TestDowngradeSafety:
         """
         # Simulate: existing row pre-migration has no check-in field
         # After migration: the field exists but is NULL
-        enrollment = _enrollment(user_id=1, checked_in=False)
+        TEST_USER_ID = 999  # Mock user ID for test scenario
+        enrollment = _enrollment(user_id=TEST_USER_ID, checked_in=False)
         assert enrollment.tournament_checked_in_at is None
         # Existing queries filtering only on is_active + APPROVED are unaffected
 

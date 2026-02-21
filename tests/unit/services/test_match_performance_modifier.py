@@ -14,6 +14,10 @@ import pytest
 from app.services.skill_progression_service import _compute_match_performance_modifier
 
 
+# Test constants for mock IDs
+TEST_USER_ID = 999
+TEST_TOURNAMENT_ID = 42
+
 # ── Test Helpers ─────────────────────────────────────────────────────────────
 
 
@@ -62,15 +66,15 @@ def _sess(user_id, result, score_self=0, score_opp=0, tournament_id=1, other_use
 def test_no_matches_returns_zero():
     """If no matches in tournament, modifier = 0.0."""
     db = _make_db_mock([])
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
     assert modifier == 0.0
 
 
 def test_all_wins_positive_modifier():
     """3 wins → positive modifier (win_rate_signal > 0)."""
-    sessions = [_sess(1, "WIN"), _sess(1, "WIN"), _sess(1, "WIN")]
+    sessions = [_sess(TEST_USER_ID, "WIN"), _sess(TEST_USER_ID, "WIN"), _sess(TEST_USER_ID, "WIN")]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected calculation:
     # win_rate = 3/3 = 1.0
@@ -86,9 +90,9 @@ def test_all_wins_positive_modifier():
 
 def test_all_losses_negative_modifier():
     """3 losses → negative modifier (win_rate_signal < 0)."""
-    sessions = [_sess(1, "LOSS"), _sess(1, "LOSS"), _sess(1, "LOSS")]
+    sessions = [_sess(TEST_USER_ID, "LOSS"), _sess(TEST_USER_ID, "LOSS"), _sess(TEST_USER_ID, "LOSS")]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected calculation:
     # win_rate = 0/3 = 0.0
@@ -104,9 +108,9 @@ def test_all_losses_negative_modifier():
 
 def test_50pct_wins_near_zero():
     """2 wins + 2 losses → modifier ≈ 0 (neutral performance)."""
-    sessions = [_sess(1, "WIN"), _sess(1, "WIN"), _sess(1, "LOSS"), _sess(1, "LOSS")]
+    sessions = [_sess(TEST_USER_ID, "WIN"), _sess(TEST_USER_ID, "WIN"), _sess(TEST_USER_ID, "LOSS"), _sess(TEST_USER_ID, "LOSS")]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # win_rate = 2/4 = 0.5
@@ -120,9 +124,9 @@ def test_50pct_wins_near_zero():
 def test_modifier_clamped_at_bounds():
     """Extreme case: 10 straight wins with massive score differential.
     Modifier should be clamped to [-1.0, +1.0]."""
-    sessions = [_sess(1, "WIN", score_self=10, score_opp=0) for _ in range(10)]
+    sessions = [_sess(TEST_USER_ID, "WIN", score_self=10, score_opp=0) for _ in range(10)]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # win_rate_signal = 1.0
@@ -138,9 +142,9 @@ def test_modifier_clamped_at_bounds():
 def test_confidence_dampens_1_match():
     """1 win → low confidence dampens the signal.
     Confidence ≈ 1 - exp(-1/5) ≈ 0.181."""
-    sessions = [_sess(1, "WIN")]
+    sessions = [_sess(TEST_USER_ID, "WIN")]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # win_rate_signal = (1.0 - 0.5) × 2 = 1.0
@@ -157,16 +161,16 @@ def test_confidence_dampens_1_match():
 def test_score_signal_with_goals():
     """2 wins with 10:0 aggregate → score_signal boosts modifier."""
     sessions = [
-        _sess(1, "WIN", score_self=5, score_opp=0),
-        _sess(1, "WIN", score_self=5, score_opp=0),
+        _sess(TEST_USER_ID, "WIN", score_self=5, score_opp=0),
+        _sess(TEST_USER_ID, "WIN", score_self=5, score_opp=0),
     ]
     db = _make_db_mock(sessions)
-    modifier_with_goals = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier_with_goals = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Compare to 2 wins with no score data
-    sessions_no_score = [_sess(1, "WIN"), _sess(1, "WIN")]
+    sessions_no_score = [_sess(TEST_USER_ID, "WIN"), _sess(TEST_USER_ID, "WIN")]
     db_no_score = _make_db_mock(sessions_no_score)
-    modifier_no_score = _compute_match_performance_modifier(db_no_score, tournament_id=1, user_id=1)
+    modifier_no_score = _compute_match_performance_modifier(db_no_score, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # With goals: score_signal = (10-0)/(10+0) = 1.0 → raw_signal = 0.7 + 0.3 = 1.0
@@ -177,9 +181,9 @@ def test_score_signal_with_goals():
 
 def test_draws_treated_as_neutral():
     """4 draws → win_rate = 0.5 → modifier ≈ 0."""
-    sessions = [_sess(1, "DRAW") for _ in range(4)]
+    sessions = [_sess(TEST_USER_ID, "DRAW") for _ in range(4)]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # wins = 0, losses = 0, draws = 4
@@ -207,7 +211,7 @@ def test_malformed_game_results_skipped():
         game_results=json.dumps({"participants": None}),
     )
     db = _make_db_mock([bad_sess])
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
     assert modifier == 0.0
 
 
@@ -215,20 +219,20 @@ def test_user_not_in_session_skipped():
     """If user_id not in participant_user_ids, session is skipped."""
     sessions = [_sess(user_id=2, result="WIN")]  # Different user
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
     assert modifier == 0.0
 
 
 def test_mixed_results_with_scores():
     """Complex case: 3W 1L with varied scores."""
     sessions = [
-        _sess(1, "WIN", score_self=3, score_opp=1),
-        _sess(1, "WIN", score_self=2, score_opp=0),
-        _sess(1, "WIN", score_self=1, score_opp=1),
-        _sess(1, "LOSS", score_self=0, score_opp=2),
+        _sess(TEST_USER_ID, "WIN", score_self=3, score_opp=1),
+        _sess(TEST_USER_ID, "WIN", score_self=2, score_opp=0),
+        _sess(TEST_USER_ID, "WIN", score_self=1, score_opp=1),
+        _sess(TEST_USER_ID, "LOSS", score_self=0, score_opp=2),
     ]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # wins = 3, losses = 1, total = 4
@@ -246,9 +250,9 @@ def test_mixed_results_with_scores():
 
 def test_negative_score_signal():
     """1 win but poor goal differential → mixed signal."""
-    sessions = [_sess(1, "WIN", score_self=1, score_opp=5)]  # Lucky win despite 1:5 score
+    sessions = [_sess(TEST_USER_ID, "WIN", score_self=1, score_opp=5)]  # Lucky win despite 1:5 score
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # win_rate_signal = (1.0 - 0.5) × 2 = 1.0 (positive)
@@ -266,9 +270,9 @@ def test_negative_score_signal():
 
 def test_high_confidence_with_many_matches():
     """10+ matches → confidence approaches 1.0."""
-    sessions = [_sess(1, "WIN" if i % 2 == 0 else "LOSS") for i in range(12)]
+    sessions = [_sess(TEST_USER_ID, "WIN" if i % 2 == 0 else "LOSS") for i in range(12)]
     db = _make_db_mock(sessions)
-    modifier = _compute_match_performance_modifier(db, tournament_id=1, user_id=1)
+    modifier = _compute_match_performance_modifier(db, tournament_id=TEST_TOURNAMENT_ID, user_id=TEST_USER_ID)
 
     # Expected:
     # wins = 6, losses = 6, total = 12

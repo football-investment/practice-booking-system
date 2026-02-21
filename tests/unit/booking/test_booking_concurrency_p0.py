@@ -42,9 +42,14 @@ from app.models.user import UserRole
 from app.schemas.booking import BookingCreate, BookingCancel
 
 
+# Test constants for mock IDs
+TEST_USER_ID = 999
+TEST_SESSION_ID = 1
+TEST_BOOKING_ID = 1
+
 # ─── Shared domain factories ──────────────────────────────────────────────────
 
-def _session(session_id=1, capacity=10, hours_ahead=48):
+def _session(session_id=TEST_SESSION_ID, capacity=10, hours_ahead=48):
     """Lightweight session stand-in (naive datetimes to match endpoint logic)."""
     s = SimpleNamespace(
         id=session_id,
@@ -62,7 +67,7 @@ def _session(session_id=1, capacity=10, hours_ahead=48):
     return s
 
 
-def _booking(booking_id=1, user_id=1, session_id=1, status=BookingStatus.CONFIRMED, waitlist_pos=None):
+def _booking(booking_id=TEST_BOOKING_ID, user_id=TEST_USER_ID, session_id=TEST_SESSION_ID, status=BookingStatus.CONFIRMED, waitlist_pos=None):
     """Lightweight booking stand-in."""
     from unittest.mock import MagicMock as _MM
     sess = _session(session_id=session_id)
@@ -81,7 +86,7 @@ def _booking(booking_id=1, user_id=1, session_id=1, status=BookingStatus.CONFIRM
     )
 
 
-def _user(user_id=1, role=UserRole.STUDENT, credit_balance=1000):
+def _user(user_id=TEST_USER_ID, role=UserRole.STUDENT, credit_balance=1000):
     """Lightweight user stand-in."""
     return SimpleNamespace(
         id=user_id,
@@ -355,7 +360,7 @@ class TestRaceB02CapacityOverbooking:
 
         # Thread A — sees confirmed_count=0 → CONFIRMED
         mock_db_a, _, _ = _make_mock_db(session_obj=session_obj, confirmed_count=0)
-        user_a = _user(user_id=1)
+        user_a = _user()  # Uses TEST_USER_ID default
 
         with patch(
             "app.api.api_v1.endpoints.bookings.student.validate_can_book_session",
@@ -577,7 +582,7 @@ class TestRaceB05DoubleCancel:
 
         GREEN after: add .with_for_update() to booking fetch in cancel_booking.
         """
-        booking_obj = _booking(status=BookingStatus.CONFIRMED, user_id=1)
+        booking_obj = _booking(status=BookingStatus.CONFIRMED)  # Uses TEST_USER_ID default
         mock_db, _, booking_chain = _make_mock_db()
         booking_chain.first.return_value = booking_obj
 
@@ -585,7 +590,7 @@ class TestRaceB05DoubleCancel:
             "app.api.api_v1.endpoints.bookings.student.auto_promote_from_waitlist",
             return_value=None,
         ):
-            cancel_booking(booking_id=1, db=mock_db, current_user=_user(user_id=1))
+            cancel_booking(booking_id=TEST_BOOKING_ID, db=mock_db, current_user=_user())
 
         assert booking_chain.with_for_update.called, (
             "RACE-B05: booking must be locked with SELECT FOR UPDATE before "
@@ -601,7 +606,7 @@ class TestRaceB05DoubleCancel:
 
         GREEN after: add .with_for_update() to booking fetch in admin_cancel_booking.
         """
-        booking_obj = _booking(status=BookingStatus.CONFIRMED, user_id=1)
+        booking_obj = _booking(status=BookingStatus.CONFIRMED)  # Uses TEST_USER_ID default
         cancel_data = MagicMock(spec=BookingCancel)
         cancel_data.reason = "test"
 
@@ -634,7 +639,7 @@ class TestRaceB05DoubleCancel:
         Currently: second cancel silently re-cancels (no status check).
         """
         # Simulate the post-lock state: booking was already cancelled by Thread A
-        already_cancelled = _booking(status=BookingStatus.CANCELLED, user_id=1)
+        already_cancelled = _booking(status=BookingStatus.CANCELLED)  # Uses TEST_USER_ID default
         mock_db, _, booking_chain = _make_mock_db()
         booking_chain.first.return_value = already_cancelled
 
@@ -644,9 +649,9 @@ class TestRaceB05DoubleCancel:
         ):
             with pytest.raises(HTTPException) as exc_info:
                 cancel_booking(
-                    booking_id=1,
+                    booking_id=TEST_BOOKING_ID,
                     db=mock_db,
-                    current_user=_user(user_id=1),
+                    current_user=_user(),  # Uses TEST_USER_ID default
                 )
 
         assert exc_info.value.status_code in (400, 409), (
