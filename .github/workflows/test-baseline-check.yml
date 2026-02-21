@@ -43,6 +43,12 @@ jobs:
         pip install pytest pytest-mock
         pip check
 
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
     - name: Run unit tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
@@ -125,6 +131,12 @@ jobs:
         pip install -r requirements-test.txt
         pip install pytest pytest-mock
         pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
 
     - name: Run cascade delete tests in isolation
       env:
