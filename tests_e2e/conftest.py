@@ -227,6 +227,142 @@ def test_user_credentials():
     }
 
 
+@pytest.fixture(scope="session", autouse=True)
+def e2e_test_users():
+    """
+    E2E test users fixture — creates required test users directly in database.
+
+    Eliminates seed data dependency by creating test users on-demand via SQLAlchemy.
+    Users are created once per test session (autouse=True ensures availability).
+
+    Returns dict with user credentials:
+        - junior_intern: Student user (junior.intern@lfa.com)
+        - admin: Admin user (admin@lfa.com)
+        - instructor: Instructor user (grandmaster@lfa.com)
+
+    Usage in tests:
+        Tests can use hardcoded credentials directly since this fixture
+        ensures the users exist:
+            - junior.intern@lfa.com / password123
+            - admin@lfa.com / admin123
+            - grandmaster@lfa.com / GrandMaster2026!
+
+    See E2E_ISSUES.md Phase 1 for context.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from datetime import datetime, timezone
+
+    # Import models and utilities
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from app.models.user import User
+    from app.core.security import get_password_hash
+    from app.config import settings
+
+    print("\n🏗️  E2E Test Users Setup...")
+
+    # Get database URL
+    db_url = settings.DATABASE_URL
+    engine = create_engine(db_url)
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    created_users = {}
+
+    # User definitions (email, password, role)
+    users_to_create = [
+        {
+            "key": "junior_intern",
+            "email": "junior.intern@lfa.com",
+            "password": "password123",
+            "role": "STUDENT",
+            "name": "Junior Intern",
+            "nickname": "JuniorE2E"
+        },
+        {
+            "key": "admin",
+            "email": "admin@lfa.com",
+            "password": "admin123",
+            "role": "ADMIN",
+            "name": "Admin User",
+            "nickname": "AdminE2E"
+        },
+        {
+            "key": "instructor",
+            "email": "grandmaster@lfa.com",
+            "password": "GrandMaster2026!",
+            "role": "INSTRUCTOR",
+            "name": "Grand Master",
+            "nickname": "GrandMasterE2E"
+        },
+    ]
+
+    try:
+        for user_spec in users_to_create:
+            # Check if user already exists
+            existing = db.query(User).filter(User.email == user_spec["email"]).first()
+
+            if existing:
+                # User exists - UPDATE to ensure deterministic state (fixture = authority)
+                existing.password_hash = get_password_hash(user_spec["password"])
+                existing.role = user_spec["role"]
+                existing.is_active = True
+                existing.onboarding_completed = True
+                db.flush()
+
+                created_users[user_spec["key"]] = {
+                    "id": existing.id,
+                    "email": user_spec["email"],
+                    "password": user_spec["password"],
+                    "role": user_spec["role"]
+                }
+                print(f"   ♻️  {user_spec['key']}: {user_spec['email']} (updated, id={existing.id})")
+            else:
+                # Create new user
+                new_user = User(
+                    email=user_spec["email"],
+                    password_hash=get_password_hash(user_spec["password"]),
+                    name=user_spec["name"],
+                    nickname=user_spec["nickname"],
+                    role=user_spec["role"],
+                    is_active=True,
+                    onboarding_completed=True,  # Skip onboarding for E2E tests
+                    date_of_birth=datetime(2000, 1, 1),  # Dummy DOB
+                    phone="+36201234567"  # Dummy phone
+                )
+                db.add(new_user)
+                db.flush()  # Get ID without committing
+
+                created_users[user_spec["key"]] = {
+                    "id": new_user.id,
+                    "email": user_spec["email"],
+                    "password": user_spec["password"],
+                    "role": user_spec["role"]
+                }
+                print(f"   ✅ {user_spec['key']}: {user_spec['email']} (created, id={new_user.id})")
+
+        # Commit all changes
+        db.commit()
+        print(f"   📊 E2E test users ready: {len(created_users)} users available")
+
+    except Exception as exc:
+        db.rollback()
+        print(f"   ❌ Error setting up E2E test users: {exc}")
+        import traceback
+        traceback.print_exc()
+        # Return empty dict on failure - tests will use seed data if available
+        created_users = {}
+    finally:
+        db.close()
+
+    yield created_users
+
+    # No cleanup - E2E test users persist for reuse across test runs
+
+
 # ============================================================================
 # Screenshot Helpers
 # ============================================================================
