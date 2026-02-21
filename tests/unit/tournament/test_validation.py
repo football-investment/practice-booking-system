@@ -261,11 +261,25 @@ class TestCheckDuplicateEnrollment:
         tournament_semester_with_instructor
     ):
         """User already enrolled - enrollment is invalid."""
+        from app.models.license import UserLicense
+        from datetime import datetime, timezone
+
+        # Create user license for student
+        user_license = UserLicense(
+            user_id=student_user.id,
+            specialization_type="PLAYER",
+            current_level=1,
+            max_achieved_level=1,
+            started_at=datetime.now(timezone.utc)
+        )
+        test_db.add(user_license)
+        test_db.flush()
+
         # Create existing enrollment
         existing = SemesterEnrollment(
             user_id=student_user.id,
             semester_id=tournament_semester_with_instructor.id,
-            user_license_id=1,  # Mock license
+            user_license_id=user_license.id,
             payment_verified=True,
             is_active=True
         )
