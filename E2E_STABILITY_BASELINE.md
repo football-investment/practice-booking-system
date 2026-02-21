@@ -186,17 +186,18 @@
 - Skill audit endpoint validation (fairness_ok, ema_path, delta calculations)
 - 4 consecutive tournaments in T05D (floor/ceiling test)
 
-**Known limitation:**
-- ~~**Rate limiting:** Backend enforces 10 batch-enroll calls / 60 seconds~~ ✅ RESOLVED
-- ~~T05D creates 4 tournaments → can fail if run immediately after T05A-C~~ ✅ RESOLVED
-- **Fix (commit `ed9f67a`):** Added unique tournament names (T05A uses `_ts()`, T05D uses `uuid.uuid4().hex[:6]`)
-- T05D 409 conflicts eliminated — sequential suite now 5/5 stable
+**Known operational constraint:**
+- **Backend rate limiting:** 10 batch-enroll calls / 60 seconds (backend safety limit)
+- T05D creates 4 tournaments → can hit rate limit when run immediately after T05A-C
+- **Mitigation:** Run T05D individually, or with 60s cooldown after other T05 tests
+- **Fix (commit `ed9f67a`):** Added unique tournament names → 409 conflicts eliminated ✅
 
 **Stability verified:**
 - Individual tests: 5/5 pass
-- Sequential order: 5/5 pass (18.59s runtime, no rate limiting)
-- Reverse order: 5/5 pass
+- Isolated T05D: PASS
+- Sequential with rate limit: 4/5 pass (T05D 429 after ~8 batch-enroll calls in 60s window)
 - Test isolation: confirmed (function-scoped fixture, unique players + tournament names per test)
+- **Conclusion:** All tests functionally stable; T05D operational constraint documented
 
 ---
 
