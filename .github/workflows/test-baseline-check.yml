@@ -44,6 +44,7 @@ jobs:
     - name: Run unit tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         # TestDeleteTournament is excluded here because it is state-pollution-sensitive
         # (pre-existing issue, not a regression). It is run in full isolation in the
@@ -53,6 +54,9 @@ jobs:
 
     - name: Parse test results
       id: test-results
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         # Extract test counts from pytest output (same deselect as the run step)
         RESULTS=$(pytest tests/unit/ -q --tb=no \
@@ -121,6 +125,7 @@ jobs:
     - name: Run cascade delete tests in isolation
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         pytest tests/unit/tournament/test_core.py::TestDeleteTournament -v --tb=short
 
@@ -150,6 +155,7 @@ jobs:
       env:
         # Fake URL — create_engine() validates format only, no connection at import time
         DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_check
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         python -c "
         import sys
@@ -254,6 +260,7 @@ jobs:
     - name: Run E2E smoke tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
         BASE_URL: http://localhost:8501
         API_URL: http://localhost:8000
       run: |

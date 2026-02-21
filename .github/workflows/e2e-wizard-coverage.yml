@@ -44,6 +44,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      SECRET_KEY: ci-test-secret-key-not-for-production
       BASE_URL: http://localhost:8501
       API_URL: http://localhost:8000
       PYTEST_HEADLESS: "true"
@@ -65,8 +66,6 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
-        env:
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -124,6 +123,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      SECRET_KEY: ci-test-secret-key-not-for-production
       BASE_URL: http://localhost:8501
       API_URL: http://localhost:8000
       PYTEST_HEADLESS: "true"
@@ -145,8 +145,6 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
-        env:
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -207,6 +205,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      SECRET_KEY: ci-test-secret-key-not-for-production
       BASE_URL: http://localhost:8501
       API_URL: http://localhost:8000
       PYTEST_HEADLESS: "true"
@@ -228,8 +227,6 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
-        env:
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -286,6 +283,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      SECRET_KEY: ci-test-secret-key-not-for-production
       API_URL: http://localhost:8000
 
     steps:
@@ -304,8 +302,6 @@ jobs:
           pip install pytest pytest-playwright pytest-mock
 
       - name: Run DB migrations
-        env:
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
@@ -377,6 +373,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+      SECRET_KEY: ci-test-secret-key-not-for-production
       BASE_URL: http://localhost:8501
       API_URL: http://localhost:8000
       PYTEST_HEADLESS: "true"
@@ -398,8 +395,6 @@ jobs:
           playwright install chromium
 
       - name: Run DB migrations
-        env:
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data

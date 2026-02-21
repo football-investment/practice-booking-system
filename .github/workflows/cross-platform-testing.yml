@@ -56,6 +56,7 @@ jobs:
       - name: 🚀 Start Backend Server
         run: |
           export DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking"
+          export SECRET_KEY="ci-test-secret-key-not-for-production"
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 10
           curl http://localhost:8000/health
@@ -173,7 +174,7 @@ jobs:
       - name: 🚀 Start Test Environment
         run: |
           # Start backend with test database
-          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" SECRET_KEY="ci-test-secret-key-not-for-production" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           
           # Serve frontend build
           cd frontend
@@ -274,7 +275,7 @@ jobs:
       - name: 🚀 Start Test Environment
         run: |
           # Start backend with test database
-          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" SECRET_KEY="ci-test-secret-key-not-for-production" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           
           # Serve frontend build
           cd frontend
@@ -362,7 +363,7 @@ jobs:
       - name: 🚀 Start Test Environment
         run: |
           # Start both backend and frontend
-          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          DATABASE_URL="postgresql://testuser:testpass@localhost:5432/test_practice_booking" SECRET_KEY="ci-test-secret-key-not-for-production" TESTING=true uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           cd frontend && npx serve -s build -l 3000 &
           sleep 15
 
