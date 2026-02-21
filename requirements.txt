@@ -22,3 +22,5 @@ phonenumbers==9.0.24
 # Task queue (large tournament session generation)
 celery[redis]==5.3.6
 redis==5.0.1
+# Background task scheduler
+apscheduler==3.10.4
