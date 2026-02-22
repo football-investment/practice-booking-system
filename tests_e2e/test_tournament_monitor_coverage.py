@@ -315,14 +315,17 @@ class TestPlayerCountBoundaryAPI:
         confirmed=False should be ACCEPTED (no safety gate triggered).
 
         NOTE: Requires Scale Suite (128+ player fixture) - not run in Fast Suite.
-        Tournament type: group_knockout (supports 127+ players, unlike knockout max=64).
+        Tournament format: INDIVIDUAL_RANKING (supports 127+ players).
+        Backend limits: knockout max=64, group_knockout max=32, league max=16.
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
             "scenario": "large_field_monitor",
-            "player_count": 127,  # odd, non-power-of-two
-            "tournament_format": "HEAD_TO_HEAD",
-            "tournament_type_code": "group_knockout",  # Supports 127+ players (knockout max=64)
+            "player_count": 127,  # Large capacity test
+            "tournament_format": "INDIVIDUAL_RANKING",  # Supports large player counts
+            "scoring_type": "SCORE_BASED",
+            "ranking_direction": "DESC",
+            "number_of_rounds": 3,
             "dry_run": False,
             "confirmed": False,  # no confirmation needed below threshold
         })
@@ -362,14 +365,17 @@ class TestPlayerCountBoundaryAPI:
         This is the exact threshold — both sides must be tested.
 
         NOTE: Requires Scale Suite (128+ player fixture) - not run in Fast Suite.
-        Tournament type: group_knockout (supports 128+ players, unlike knockout max=64).
+        Tournament format: INDIVIDUAL_RANKING (supports 128+ players).
+        Backend limits: knockout max=64, group_knockout max=32, league max=16.
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
             "scenario": "large_field_monitor",
             "player_count": 128,
-            "tournament_format": "HEAD_TO_HEAD",
-            "tournament_type_code": "group_knockout",  # Supports 128+ players (knockout max=64)
+            "tournament_format": "INDIVIDUAL_RANKING",  # Supports large player counts
+            "scoring_type": "SCORE_BASED",
+            "ranking_direction": "DESC",
+            "number_of_rounds": 3,
             "dry_run": False,
             "confirmed": True,
         }, timeout=180)
