@@ -590,7 +590,6 @@ def seed_scale_suite_players(request):
             # Test can select 127 players from pool
             ...
     """
-    import psutil
     import time
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
@@ -613,9 +612,16 @@ def seed_scale_suite_players(request):
 
     print("\n🌱 Scale Suite Players Setup (1024 @lfa-scale.hu users)...")
 
-    # Performance benchmarking
-    process = psutil.Process()
-    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+    # Performance benchmarking (optional - psutil not required)
+    try:
+        import psutil
+        process = psutil.Process()
+        mem_before = process.memory_info().rss / 1024 / 1024  # MB
+        track_memory = True
+    except ImportError:
+        mem_before = 0
+        track_memory = False
+
     start_time = time.time()
 
     # Database setup
@@ -685,12 +691,16 @@ def seed_scale_suite_players(request):
 
         # Performance metrics
         end_time = time.time()
-        mem_after = process.memory_info().rss / 1024 / 1024  # MB
         duration = end_time - start_time
-        mem_delta = mem_after - mem_before
 
         print(f"   ✅ Scale Suite seed complete: {len(created_user_ids)} players created, {total_players - len(created_user_ids)} already existed")
-        print(f"   📊 Performance: {duration:.2f}s, Memory delta: {mem_delta:.2f} MB")
+
+        if track_memory:
+            mem_after = process.memory_info().rss / 1024 / 1024  # MB
+            mem_delta = mem_after - mem_before
+            print(f"   📊 Performance: {duration:.2f}s, Memory delta: {mem_delta:.2f} MB")
+        else:
+            print(f"   📊 Performance: {duration:.2f}s (install psutil for memory metrics)")
 
     except Exception as exc:
         db.rollback()
