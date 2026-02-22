@@ -421,3 +421,30 @@ A new feature is **ONLY** mergeable if:
 7. Move to next block
 
 **No firefighting. Controlled, block-based stabilization.**
+
+---
+
+## 🚨 Known Issues (Cypress Live Tests)
+
+### student/enrollment_409_live.cy.js
+
+**Status:** Flaky due to live backend dependency
+
+**Issue:** Test requires specific backend state:
+- ENROLLMENT_OPEN tournament must exist in test DB
+- Player must have sufficient credits
+- Auth setup can fail if preconditions not met
+
+**Failure mode:** `before all hook` fails during authentication/setup
+
+**Type:** Live-env dependency (NOT a regression)
+
+**Impact on Fast Suite:** None (separate test framework)
+
+**Resolution plan:**
+- Separate live tests from critical CI path
+- Mark with `@live` tag for manual/nightly runs
+- Fast Suite (Playwright) remains deterministic baseline
+
+**Tracked in:** Session 2026-02-22 (Cypress live test isolation needed)
+
