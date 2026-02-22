@@ -242,7 +242,121 @@ def test_multi_role_tournament_integration(api_url, test_admin, ...):
             "Enrollments not cleaned up"
 ```
 
-**3️⃣ Stability Validation Szigorítás:**
+**3️⃣ Fixture Autoritás Erősítés (MANDATORY):**
+
+> **Senior elv: Ha fixture nem teljesen izolált → előbb azt kell stabilizálni**
+
+```python
+# conftest.py
+
+@pytest.fixture(scope="function")  # NOT session, NOT module
+def test_admin():
+    """
+    Self-contained admin user (NOT reused global entity).
+
+    Returns:
+        dict: {"id": int, "email": str, "token": str}
+    """
+    # Mindig új auth token (NOT cached global token)
+    # Ne függjön előző test run állapottól
+    # Clean entity, dedikált teszt userhez
+    admin_email = "test_admin@integration.lfa"
+    admin_password = "secure_test_password"
+
+    # Get or create (idempotent)
+    user = get_or_create_user(email=admin_email, role="admin")
+    token = generate_fresh_auth_token(user)
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"}
+    }
+
+@pytest.fixture(scope="function")
+def test_students():
+    """
+    Self-contained student users (NOT reused global pool).
+
+    Returns:
+        list[dict]: [{"id": int, "email": str, "token": str}, ...]
+    """
+    students = []
+    for i in range(3):
+        student_email = f"test_student_{i}@integration.lfa"
+        user = get_or_create_user(email=student_email, role="student")
+        token = generate_fresh_auth_token(user)
+        students.append({
+            "id": user.id,
+            "email": user.email,
+            "token": token,
+            "headers": {"Authorization": f"Bearer {token}"}
+        })
+    return students
+
+# ❌ TILOS: Reuse globális entity pool
+# ❌ TILOS: Session-scoped auth token (előző test pollutálhatja)
+# ❌ TILOS: Fixture dependency előző test run-ra
+```
+
+**Fixture validation checklist:**
+- [ ] Scope = function (NOT session, NOT module)
+- [ ] Fresh auth token every test
+- [ ] Ne reuse-oljon globális entity-ket
+- [ ] Idempotens (get_or_create, nem csak create)
+
+---
+
+**4️⃣ Cleanup Szigorítás (MANDATORY):**
+
+> **Senior elv: List endpoint cache-elhet → GET by ID a megbízható validation**
+
+```python
+def test_multi_role_tournament_integration(api_url, test_admin, ...):
+    tournament_id = ...  # created during test
+
+    try:
+        # ... test workflow ...
+
+    finally:
+        # Step 1: DELETE tournament
+        delete_response = requests.delete(
+            f"{api_url}/tournaments/{tournament_id}",
+            headers=test_admin["headers"]
+        )
+        assert delete_response.status_code == 204, \
+            f"DELETE failed: {delete_response.status_code} - {delete_response.text}"
+
+        # Step 2: Verify cleanup - GET by ID (NOT list)
+        get_response = requests.get(
+            f"{api_url}/tournaments/{tournament_id}",
+            headers=test_admin["headers"]
+        )
+        assert get_response.status_code == 404, \
+            f"Tournament {tournament_id} still exists (GET by ID → {get_response.status_code})"
+
+        # Step 3: Verify enrollments deleted
+        enrollments_response = requests.get(
+            f"{api_url}/tournaments/{tournament_id}/enrollments",
+            headers=test_admin["headers"]
+        )
+        assert enrollments_response.status_code == 404, \
+            "Enrollments still exist after tournament deletion"
+
+# ❌ TILOS: Csak list endpoint check (cache-elhet)
+# list_response = requests.get(f"{api_url}/tournaments")
+# assert tournament_id not in [t["id"] for t in list_response.json()]  # UNRELIABLE
+```
+
+**Cleanup validation checklist:**
+- [ ] DELETE → Assert status_code == 204
+- [ ] GET by ID → Assert status_code == 404
+- [ ] Ne csak list endpointet nézz (cache probléma)
+
+---
+
+**5️⃣ Stability Validation Szigorítás:**
 ```bash
 # Nem elég 20 consecutive runs
 
@@ -260,49 +374,130 @@ pytest -n auto tests_e2e/integration_critical/test_multi_role_integration.py::te
 # → STOP: Ne patch, szétbontás
 ```
 
-**4️⃣ Observability (MANDATORY):**
+**4️⃣ Observability (EGYSZERŰSÍTVE):**
+
+> **Senior elv: Ne építs mini monitoring frameworköt a teszten belül**
+
 ```python
 import logging
-import time
 
 logger = logging.getLogger(__name__)
 
 def test_multi_role_tournament_integration(api_url, test_admin, ...):
-    step_timings = {}
-
-    # Step 1: Admin creates tournament
-    step_start = time.time()
+    # ELÉG: Step-level logging (egyszerű)
     logger.info("STEP 1: Admin creating tournament...")
     response = requests.post(...)
     tournament_id = response.json()["id"]
-    step_timings["step1_create_tournament"] = time.time() - step_start
-    logger.info(f"✓ STEP 1 completed in {step_timings['step1_create_tournament']:.2f}s")
+    logger.info(f"✓ STEP 1: Tournament {tournament_id} created")
 
-    # Step 2: Students enroll
-    step_start = time.time()
     logger.info("STEP 2: Students enrolling...")
     for i, student in enumerate(test_students[:3], 1):
         requests.post(...)
         logger.info(f"  → Student {i}/3 enrolled")
-    step_timings["step2_enrollments"] = time.time() - step_start
-    logger.info(f"✓ STEP 2 completed in {step_timings['step2_enrollments']:.2f}s")
 
-    # ... (minden lépés hasonlóan)
+    # ... (linear flow, simple logging)
 
-    # Final timing validation
-    total_runtime = sum(step_timings.values())
-    logger.info(f"Total runtime: {total_runtime:.2f}s")
+    # NEM KELL:
+    # - step_timings dict
+    # - Manual runtime calculation
+    # - Complex timing infrastructure
 
-    # HARD CAP enforcement
-    if total_runtime > 25.0:  # 25s warning threshold (30s hard cap)
-        logger.warning(f"⚠️  Runtime approaching 30s limit: {total_runtime:.2f}s")
-        logger.warning("🔧 BREAKDOWN KÖTELEZŐ if exceeds 30s")
+    # Elég:
+    # - Pytest duration report: pytest --durations=5
+    # - Ha 30s fölé megy → pytest warning + BREAKDOWN
 
-    assert total_runtime < 30.0, \
-        f"Runtime exceeded 30s HARD CAP: {total_runtime:.2f}s — BREAKDOWN REQUIRED"
+# Futtatás timing validációval:
+# pytest tests_e2e/integration_critical/ --durations=5 -v
+# Ha test >30s → pytest WARNING + manual breakdown
 ```
 
-**5️⃣ Stop Condition (CRITICAL):**
+**Timing strategy:**
+- ✅ Pytest `--durations=5` flag (beépített, megbízható)
+- ✅ Simple step-level logging (debugging, nem monitoring)
+- ❌ NE építs belső timing aggregációt (túlkomplikálás)
+
+---
+
+**6️⃣ Scope Creep Guard (CRITICAL):**
+
+> **Senior elv: Reference integration test, NEM coverage expansion**
+
+**Ha implementáció közben felmerül:**
+
+```python
+# ❌ TILOS: "Tegyünk bele még egy validációt"
+# Step 5: Verify reward calculation edge cases
+if tournament.reward_multiplier > 1.0:
+    assert rewards["bonus_applied"] == True  # SCOPE CREEP
+    assert rewards["bonus_reason"] == "weekend_tournament"  # SCOPE CREEP
+
+# ❌ TILOS: "Teszteljük 8 játékossal is"
+@pytest.mark.parametrize("player_count", [4, 8, 16])  # SCOPE CREEP
+def test_multi_role_tournament_integration(...):
+
+# ❌ TILOS: "Nézzük meg a reward edge case-et is"
+if tournament.format == "knockout":
+    # Special knockout reward logic testing  # SCOPE CREEP
+
+# ✅ HELYES: 1 happy-path, linear flow
+def test_multi_role_tournament_integration(...):
+    # Step 1: Create
+    # Step 2: Enroll
+    # Step 3: Assign
+    # Step 4: Finalize
+    # Step 5: Verify (basic validation only)
+```
+
+**Scope creep detection:**
+- 🚨 Ha új assertion merül fel → kérdezd: "Ez a core flow része?"
+- 🚨 Ha branch logika jelenik meg → STOP (max 1 happy-path)
+- 🚨 Ha parametrize merül fel → STOP (nem exhaustive teszt)
+- 🚨 Ha edge-case validáció merül fel → Fast Suite-ba kerüljön
+
+**Response to scope creep:**
+```
+Feature developer: "A teszt nézze meg a reward edge case-et is"
+Integration test owner: "Ez egy reference integration test, nem coverage expansion.
+                         Az edge case a Fast Suite-ba kerül (API unit test).
+                         Integration test = happy-path only."
+```
+
+---
+
+**7️⃣ Senior Végső Elv:**
+
+> **Integration teszt akkor jó, ha ritkán kell hozzányúlni**
+
+**Stability metric:**
+```
+Good integration test:
+   - 6 hónap alatt 0-1 módosítás
+   - Csak breaking API change esetén kell touch-olni
+   - Feature development nem érinti
+
+Bad integration test:
+   - Minden feature után módosítani kell
+   - Flake miatt gyakori patch
+   - → Túl komplex lett, BREAKDOWN szükséges
+```
+
+**Maintenance frequency check:**
+```bash
+# Integration teszt commit history
+git log --oneline tests_e2e/integration_critical/test_multi_role_integration.py
+
+# Ideális: 1-2 commit 6 hónap alatt (initial + 1 fix)
+# Problémás: >5 commit 6 hónap alatt (túl komplex, scope creep, flaky)
+```
+
+**Philosophy:**
+- ✅ Integration teszt = **stabil referencia**, nem living test suite
+- ✅ Feature development → Fast Suite bővül, Integration Critical nem
+- ✅ Ha Integration Critical gyakran változik → rossz teszt design
+
+---
+
+**8️⃣ Stop Condition (CRITICAL):**
 ```
 IF test shows ANY of:
    ❌ Runtime > 30s
@@ -361,16 +556,17 @@ Example breakdown:
 **Per-Test Requirements (MANDATORY):**
 - ✅ **0 flake in 20 consecutive local runs** (not 10, but **20**)
 - ✅ **0 flake in parallel runs** (`pytest -n auto`) — validates state isolation
+- ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches, NO scope creep)
 - ✅ **API-driven** (NOT UI-heavy Playwright flows)
-- ✅ **Deterministic fixture isolation** (fixture = authority)
-- ✅ **Idempotent cleanup** (no state leakage) + explicit cleanup assertions
-- ✅ **Unique namespace prefix** (e.g., `INT_TEST_`) + timestamp for isolation
+- ✅ **Fixture isolation** (scope=function, fresh auth token, no global entity reuse)
+- ✅ **Unique namespace prefix** (`INT_TEST_` + timestamp for isolation)
+- ✅ **Cleanup validation** (DELETE → 204, GET by ID → 404, NOT just list endpoint)
 - ✅ **NO sleep()** calls (use explicit waits, API polling)
 - ✅ **NO random data** (deterministic test data only)
-- ✅ **Runtime < 30s HARD CAP** (enforced, not aspirational)
-- ✅ **Step-level timing + structured logging** (observability mandatory)
+- ✅ **Runtime < 30s HARD CAP** (verified via `pytest --durations=5`)
+- ✅ **Simple observability** (step-level logging, NO mini monitoring framework)
 - ✅ **Clear failure messages** (actionable errors)
-- ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches)
+- ✅ **Low maintenance** (6 hónap alatt max 1-2 módosítás, ritkán touch-olva)
 
 **Suite-Level Requirements:**
 - ✅ Total runtime < 2 minutes (3 tests × ~30s)

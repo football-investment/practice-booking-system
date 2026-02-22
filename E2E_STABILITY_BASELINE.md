@@ -415,18 +415,19 @@
 **Definition of Done (DoD) - Senior Kontroll:**
 - ✅ **0 flake in 20 consecutive local runs** (mandatory)
 - ✅ **0 flake in parallel runs** (`pytest -n auto`) — validates state isolation
-- ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches)
+- ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches, NO scope creep)
 - ✅ **API-driven** (NOT UI-heavy Playwright flows)
-- ✅ **Deterministic fixture isolation** (fixture = authority)
-- ✅ **Unique namespace prefix** (`INT_TEST_` + timestamp for isolation)
-- ✅ **Idempotent cleanup** (explicit DELETE API + cleanup assertions)
+- ✅ **Fixture isolation** (scope=function, fresh auth token, no global entity reuse)
+- ✅ **Unique namespace prefix** (`INT_TEST_` + timestamp)
+- ✅ **Cleanup validation** (DELETE → 204, GET by ID → 404, NOT just list endpoint)
 - ✅ **NO sleep()** (use explicit waits, API polling)
 - ✅ **NO random data** (deterministic test data only)
-- ✅ **Runtime < 30s HARD CAP** (enforced, measured)
-- ✅ **Step-level timing + structured logging** (observability mandatory)
+- ✅ **Runtime < 30s HARD CAP** (verified via `pytest --durations=5`)
+- ✅ **Simple observability** (step-level logging, NO mini monitoring framework)
+- ✅ **Low maintenance** (max 1-2 módosítás 6 hónap alatt)
 - ✅ **Zero impact on Fast Suite** (0% runtime growth)
 - 🚨 **Stop condition:** If >30s OR flaky OR cleanup fails → BREAK DOWN (NO patch)
-- 🚨 **Stability policy:** If test flakes → break down into smaller units (NO ad-hoc fixes)
+- 🚨 **Scope creep guard:** Ha új validáció merül fel → Fast Suite-ba, NEM integration test-be
 
 ---
 
