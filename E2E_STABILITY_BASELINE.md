@@ -1,7 +1,7 @@
 # E2E Test Stability Baseline
 
 > **Purpose:** Track stable feature blocks and prevent regression.
-> **Last updated:** 2026-02-21 23:15
+> **Last updated:** 2026-02-22 09:30
 > **Methodology:** Block-based stabilization (not firefighting)
 
 ---
@@ -201,6 +201,111 @@
 
 ---
 
+### 6. Tournament Monitor API Boundary Tests (19/23 baseline, 4 expected limitations)
+
+**Commits:**
+- `21a39fb` — fix(e2e): OPS scenario database_error - parallel_fields & campus_ids fixes
+- `0a774e7` — test(e2e): Fix Tournament Monitor API boundary test expectations
+
+**Infrastructure setup:**
+- `db18f65` — test: add OPS seed infrastructure (64 @lfa-seed.hu users) + campus_ids default fix
+
+**Tests (TestPlayerCountBoundaryAPI):**
+
+**✅ Passing (19/23 = 82.6%):**
+- `test_api_minimum_boundary_knockout[4,8,16]` ✅ (valid power-of-2 boundaries)
+- `test_api_knockout_below_minimum_rejected[2,3]` ✅ (invalid boundary validation)
+- `test_api_below_minimum_rejected` ✅ (player_count=1 validation)
+- `test_api_above_maximum_rejected` ✅ (player_count > max validation)
+- `test_api_power_of_two_knockout_smoke[8,16]` ✅ (smoke range)
+- `test_api_power_of_two_knockout_large[32,64]` ✅ (large range)
+- `test_api_safety_threshold_boundary_128_requires_confirmation` ✅ (confirmation gate)
+- `test_api_league_smoke_range[4,8,16]` ✅ (league valid range)
+- `test_api_individual_ranking_boundary_values[2,4,8,16]` ✅ (all scoring types: SCORE_BASED, TIME_BASED, DISTANCE_BASED, PLACEMENT)
+
+**⚠️ Expected Failures (4/23 - Fast Suite 64 player limitation):**
+- `test_api_safety_threshold_boundary_127` ❌ (needs 127 players, have 64) → **Scale Suite**
+- `test_api_safety_threshold_boundary_128_with_confirmation` ❌ (needs 128, have 64) → **Scale Suite**
+- `test_api_league_smoke_range[2-1]` ❌ (league min_players=4) → **Invalid boundary test needed**
+- `test_api_league_smoke_range[3-3]` ❌ (league min_players=4) → **Invalid boundary test needed**
+
+**Key fixes:**
+
+**1. Backend 500 database_error root cause analysis:**
+- `CampusScheduleConfig.parallel_fields=None` violated CHECK constraint (`>= 1`)
+- `campus_schedule_configs` table missing from database (migration gap)
+- `_ops_post` helper used hardcoded `campus_ids=[1]`, but fixture creates dynamic IDs
+
+**2. Systematic investigation approach:**
+- DB validation: tournament_types ✅, game_presets ✅, campuses ✅
+- Direct Python replication isolated CampusScheduleConfig issue
+- Manual table creation as temporary patch (proper migration needed)
+
+**3. Test expectation alignment:**
+- Knockout min_players=4, requires_power_of_two=True
+- League min_players=4, max_players=16
+- Invalid boundary tests separated from valid tests (domain constraint validation)
+
+**Infrastructure:**
+
+**OPS seed fixture (`seed_ops_players`):**
+- Session-scoped, autouse=True (activates via `@pytest.mark.ops_seed`)
+- Creates 64 @lfa-seed.hu players with LFA_FOOTBALL_PLAYER licenses
+- Baseline skills: finishing, dribbling, passing = 50.0
+- Test campus auto-creation (if none exist)
+- Idempotent (checks existing users, skips creation)
+- Cleanup after session (deletes created users, licenses, campus)
+
+**Campus ID dynamic resolution:**
+- `_ops_post` helper queries first active campus (cached)
+- No hardcoded campus_ids dependency
+- Compatible with fixture-created campuses
+
+**Backend validation:**
+- Tournament types: knockout, league, group_knockout, swiss ✅
+- Game presets: 22 active (GANFOOTVOLLEY + E2E presets) ✅
+- CampusScheduleConfig creation: parallel_fields=1 (not None)
+- Session generation: works for player_count >= tournament_type.min_players
+
+**Complexity:**
+- Medium (API boundary testing, no UI)
+- OPS scenario validation (tournament creation, enrollment, session generation)
+- Fast Suite design (64 players max)
+- Domain constraint enforcement (min_players, power-of-2, max_players)
+
+**Known technical debt:**
+
+**1. Migration gap - campus_schedule_configs table:**
+- **Issue:** Table missing from database despite migration `2026_02_21_0859` (squashed baseline)
+- **Temporary fix:** Manual table creation via SQL (CREATE TABLE IF NOT EXISTS...)
+- **Impact:** E2E tests run on patched DB, not migrated DB
+- **Resolution needed:** Proper migration commit, remove manual patch, verify alembic history
+
+**2. Scale Suite separation needed:**
+- 128+ player tests blocked by 64 seed limitation (Fast Suite design)
+- Requires separate `@pytest.mark.scale_suite` marker
+- Separate fixture with 128-1024 players (deterministic seed pool)
+- Different CI/local execution strategy (optional, long-running)
+
+**3. League invalid boundary tests:**
+- `test_api_league_smoke_range[2,3]` need separate invalid boundary test
+- Same pattern as knockout: `test_api_league_below_minimum_rejected[2,3]`
+- Validate domain constraint enforcement (league min_players=4)
+
+**Stability status:**
+- **Fast Suite (2-64 players):** 19/19 valid tests PASS (100%)
+- **Scale Suite (128+ players):** 0/2 (blocked - separate fixture needed)
+- **Domain validation:** 2/2 knockout invalid boundary tests PASS
+- **Test isolation:** Confirmed (session-scoped fixture, cleanup after session)
+
+**Next steps:**
+1. League invalid boundary test separation (same pattern as knockout)
+2. Scale Suite marker + fixture (128-1024 player pool)
+3. Migration gap resolution (proper alembic migration for campus_schedule_configs)
+4. Full 56 Tournament Monitor API test coverage (UI tests documented separately)
+
+---
+
 ## 🔬 E2E Test Principles (Established)
 
 1. **Fixture = Authority**
@@ -239,7 +344,13 @@
 | **Tournament Manager Sidebar** | 5 smoke | ✅ 5/5 stable | `8225c63` |
 | **Tournament Lifecycle** | 4 integration | ✅ 4/4 stable | `b1a0f88`, `aef5840` |
 | **Skill Progression** | 5 integration | ✅ 5/5 stable | `e79e304`, `b03be61` |
-| **TOTAL** | **31** | **31/31 (100%)** | — |
+| **Tournament Monitor API** | 23 boundary | ✅ 19/23 baseline (82.6%) | `21a39fb`, `0a774e7` |
+| | | ⚠️ 4 expected limitations | (Fast Suite 64 player cap) |
+| **TOTAL** | **54** | **50/54 (92.6%)** | — |
+
+**Note:** 4 failures are expected limitations (Fast Suite design + domain constraints), not bugs.
+- 2 tests require Scale Suite (128+ players)
+- 2 tests need invalid boundary test separation (league min_players=4)
 
 ---
 
