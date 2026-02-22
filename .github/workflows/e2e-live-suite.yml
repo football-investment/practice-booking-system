@@ -1,0 +1,123 @@
+name: E2E Live Suite (Optional)
+
+# NON-BLOCKING: Live environment tests (Cypress @live_env)
+# These tests depend on specific backend state and are NOT required for PR merge
+# Purpose: Capacity validation, live integration testing, edge case coverage
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM daily (UTC)
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      test_spec:
+        description: 'Test spec pattern (e.g., cypress/e2e/student/**/*.cy.js)'
+        required: false
+        default: 'cypress/e2e/**/*.cy.js'
+
+jobs:
+  live-suite:
+    name: Live Suite (Cypress @live_env)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: tests_cypress/package-lock.json
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Cypress
+        working-directory: tests_cypress
+        run: npm ci
+
+      - name: Set up database
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          alembic upgrade head
+          alembic current -v
+
+      - name: Seed test data (ENROLLMENT_OPEN tournaments)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          # Create seed data for live tests
+          python scripts/seed_live_test_data.py || echo "No seed script - tests may skip gracefully"
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+          curl --fail http://localhost:8000/health || exit 1
+
+      - name: Start Streamlit frontend
+        run: |
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          sleep 10
+          curl --fail http://localhost:8501 || exit 1
+
+      - name: Run Live Suite (Cypress @live_env)
+        working-directory: tests_cypress
+        run: |
+          npx cypress run \
+            --spec "${{ github.event.inputs.test_spec || 'cypress/e2e/**/*.cy.js' }}" \
+            --env grepTags=@live_env \
+            --config video=true
+
+      - name: Upload Cypress screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots
+          path: tests_cypress/cypress/screenshots/
+          retention-days: 7
+
+      - name: Upload Cypress videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos
+          path: tests_cypress/cypress/videos/
+          retention-days: 7
+
+      - name: Notify on failure (Slack/Email)
+        if: failure() && github.event_name == 'schedule'
+        run: |
+          echo "Live suite failed - notification would be sent here"
+          # TODO: Add Slack/email notification integration
+
+    # NON-BLOCKING: Failure does NOT block PR merge
+    # Purpose: Informational, capacity validation, live integration testing

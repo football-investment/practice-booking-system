@@ -1,8 +1,16 @@
 # E2E Test Stability Baseline
 
 > **Purpose:** Track stable feature blocks and prevent regression.
-> **Last updated:** 2026-02-22 09:30
+> **Last updated:** 2026-02-22 (Phase: Quality-driven development)
 > **Methodology:** Block-based stabilization (not firefighting)
+> **Baseline tag:** `e2e-fast-suite-stable-v1` (52/52 PASS - production-ready)
+
+**CI Enforcement:**
+- Fast Suite (mandatory): [.github/workflows/e2e-fast-suite.yml](.github/workflows/e2e-fast-suite.yml)
+- Live Suite (nightly): [.github/workflows/e2e-live-suite.yml](.github/workflows/e2e-live-suite.yml)
+- Scale Suite (weekly): [.github/workflows/e2e-scale-suite.yml](.github/workflows/e2e-scale-suite.yml)
+
+**Quality Gate:** See [.github/CI_ENFORCEMENT.md](.github/CI_ENFORCEMENT.md)
 
 ---
 
@@ -383,7 +391,11 @@ A new feature is **ONLY** mergeable if:
 3. ✅ **Baseline updated** — This document reflects current state
 4. ✅ **Fixture = authority** — Tests own their preconditions (no seed data dependency)
 
-**CI Enforcement:** See [.github/CI_ENFORCEMENT.md](.github/CI_ENFORCEMENT.md) for detailed workflow configuration.
+**CI Enforcement:** ✅ Implemented
+- Fast Suite (mandatory): [.github/workflows/e2e-fast-suite.yml](.github/workflows/e2e-fast-suite.yml)
+- Live Suite (nightly): [.github/workflows/e2e-live-suite.yml](.github/workflows/e2e-live-suite.yml)
+- Scale Suite (weekly): [.github/workflows/e2e-scale-suite.yml](.github/workflows/e2e-scale-suite.yml)
+- Documentation: [.github/CI_ENFORCEMENT.md](.github/CI_ENFORCEMENT.md)
 
 ---
 

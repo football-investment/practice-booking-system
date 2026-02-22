@@ -1,0 +1,109 @@
+name: E2E Fast Suite (Mandatory)
+
+# CRITICAL: This workflow is MANDATORY for all PRs and pushes to main/develop
+# Fast Suite = 52 Playwright tests (100% stable, production-ready baseline)
+# Baseline tag: e2e-fast-suite-stable-v1
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  fast-suite:
+    name: Fast Suite (52 tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Set up database
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          # Run migrations
+          alembic upgrade head
+
+          # Verify migration state
+          alembic current -v
+
+      - name: Start FastAPI backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+
+          # Health check
+          curl --fail http://localhost:8000/health || exit 1
+
+      - name: Start Streamlit frontend
+        run: |
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          sleep 10
+
+          # Health check
+          curl --fail http://localhost:8501 || exit 1
+
+      - name: Run Fast Suite
+        run: |
+          pytest tests_e2e/ \
+            -m "not scale_suite" \
+            --tb=short \
+            -ra \
+            --maxfail=1 \
+            -v
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fast-suite-screenshots
+          path: tests_e2e/screenshots/*_FAILED.png
+          retention-days: 7
+
+      - name: Upload failure snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fast-suite-snapshots
+          path: tests_e2e/snapshots/*.dump
+          retention-days: 7
+
+    # CRITICAL: Fast Suite is MANDATORY
+    # No bypass, no skip, no optional flags
+    # Failure = PR blocked
