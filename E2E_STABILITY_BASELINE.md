@@ -3,8 +3,9 @@
 > **Purpose:** Track stable feature blocks and prevent regression.
 > **Last updated:** 2026-02-22 (Phase: Quality-driven development)
 > **Methodology:** Block-based stabilization (not firefighting)
-> **Baseline tag:** `e2e-fast-suite-stable-v1` (52/52 PASS - production-ready)
-> **Latest infrastructure:** `673404b` (E2E fixture improvements - non-blocking)
+> **Baseline tag:** `e2e-fast-suite-stable-v2` (52/52 PASS - enhanced infrastructure)
+> **Previous tag:** `e2e-fast-suite-stable-v1` (original baseline)
+> **Latest commit:** `85a8cda` (Non-blocking debugging tasks documented)
 
 **CI Enforcement:**
 - Fast Suite (mandatory): [.github/workflows/e2e-fast-suite.yml](.github/workflows/e2e-fast-suite.yml)
@@ -420,6 +421,48 @@ A new feature is **ONLY** mergeable if:
 - Live Suite (nightly): [.github/workflows/e2e-live-suite.yml](.github/workflows/e2e-live-suite.yml)
 - Scale Suite (weekly): [.github/workflows/e2e-scale-suite.yml](.github/workflows/e2e-scale-suite.yml)
 - Documentation: [.github/CI_ENFORCEMENT.md](.github/CI_ENFORCEMENT.md)
+
+---
+
+### CI Integrity Protection (v2 Baseline)
+
+> **Reference tag:** `e2e-fast-suite-stable-v2`
+> **Status:** Fast Suite 52/52 PASS (100%) — PROTECTED ✅
+
+**BLOCKING (PR merge gate):**
+- Fast Suite regressions → **BLOCKS merge immediately**
+- API test failures → **BLOCKS merge immediately**
+- Migration issues → **BLOCKS merge immediately**
+
+**NON-BLOCKING (iterative debugging):**
+- Wizard E2E navigation (Low priority) → **DOES NOT block merge**
+- Game Preset Admin UI tests (Medium priority) → **DOES NOT block merge**
+- Screenshot diffs → **DOES NOT block merge**
+
+**Enforcement mechanism:**
+```yaml
+# .github/workflows/e2e-fast-suite.yml
+name: E2E Fast Suite (Mandatory)
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+# Wizard/Game Preset tests are EXCLUDED from this workflow
+# They run separately and do NOT block PR merges
+```
+
+**Philosophy:**
+- Fast Suite = **Critical path protection**
+- Wizard/Game Preset = **Quality improvement work**
+- Separation enables: stable CI + iterative debugging
+
+**Iterative debugging workflow:**
+1. Create separate branch for debugging task
+2. Work independently from main development
+3. No impact on Fast Suite CI gate
+4. Merge when ready (no rush, no blocking)
 
 ---
 
