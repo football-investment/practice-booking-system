@@ -5,7 +5,7 @@
 > **Methodology:** Block-based stabilization (not firefighting)
 > **Baseline tag:** `e2e-fast-suite-stable-v2` (52/52 PASS - enhanced infrastructure)
 > **Previous tag:** `e2e-fast-suite-stable-v1` (original baseline)
-> **Latest commit:** `85a8cda` (Non-blocking debugging tasks documented)
+> **Latest commit:** `b03b1d5` (Integration Critical Suite - multi-role workflows)
 
 **CI Enforcement:**
 - Fast Suite (mandatory): [.github/workflows/e2e-fast-suite.yml](.github/workflows/e2e-fast-suite.yml)
@@ -379,6 +379,7 @@
 | **Tournament Monitor API (Fast Suite)** | 21 boundary | ✅ 21/21 PASS (100%) | `21a39fb`, `565c6cc`, `6f7eb2f` |
 | **Tournament Monitor API (Scale Suite)** | 2 boundary | ✅ Infrastructure ready | `da89e16`, `48e8f03` |
 | **E2E Infrastructure** | — | ✅ Improved (non-blocking) | `673404b` |
+| **Integration Critical Suite** | 3 multi-role | ⏳ Skeleton created (NON-BLOCKING) | `b03b1d5` |
 | **TOTAL (Fast Suite)** | **52** | **52/52 (100%)** ✅ | — |
 | **TOTAL (with Scale Suite)** | **54** | **54/54 (100%)** ✅ | — |
 
@@ -399,6 +400,23 @@
 - ✅ Tournament format: INDIVIDUAL_RANKING (supports 127-1024 players)
 - ✅ Player pool selection: automatic (Fast Suite ≤64, Scale Suite >64)
 - ✅ Cleanup: full rollback after session
+
+**Integration Critical Suite Implementation (Commit b03b1d5):**
+- ✅ Suite created: `tests_e2e/integration_critical/`
+- ✅ Marker: `@pytest.mark.integration_critical`
+- ✅ CI policy: NON-BLOCKING (nightly run, does NOT gate PR merge)
+- ✅ Philosophy: Fast Suite stability > maximum coverage
+- ⏳ Planned tests (Week 1-3):
+  - `test_multi_role_tournament_integration` (Week 1) - Admin → Student → Instructor lifecycle
+  - `test_student_full_enrollment_flow` (Week 2) - Browse → enroll → credit check → confirmation
+  - `test_instructor_full_workflow` (Week 3) - Apply → check-in → results → finalize
+- 📄 Documentation: [tests_e2e/integration_critical/README.md](tests_e2e/integration_critical/README.md)
+
+**Success criteria:**
+- Deterministic (no flake)
+- <30s runtime per test
+- Zero impact on Fast Suite
+- NON-BLOCKING (does not gate PR merge)
 
 ---
 
