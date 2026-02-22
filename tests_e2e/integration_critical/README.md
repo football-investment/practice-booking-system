@@ -176,6 +176,157 @@ def test_multi_role_tournament_integration(api_url, test_admin, test_students, t
 - API assertions only (deterministic JSON responses)
 - Max runtime: 30s HARD CAP
 
+---
+
+### Week 1 Implementation Guide (Scope Control)
+
+> **Senior Irány: Ez egy stabil referencia integrációs gerinc, nem exhaustive teszt**
+
+**1️⃣ Scope Kontroll (MANDATORY):**
+```python
+# ✅ DO: Maximum 1 happy-path flow
+def test_multi_role_tournament_integration(api_url, test_admin, test_students, test_instructor):
+    """
+    Single happy-path integration flow (NO edge cases, NO branches).
+
+    Purpose: Validate core multi-role integration workflow only.
+    NOT an exhaustive test suite.
+    """
+    # Linear flow: create → enroll → assign → finalize → validate
+    # NO if/else branches
+    # NO parametrize
+    # NO edge-case logic
+
+# ❌ DON'T: Multiple scenarios, parametrization
+@pytest.mark.parametrize("player_count", [4, 8, 16])  # TILOS
+def test_multi_role_various_sizes(...):  # TILOS - ez exhaustive coverage
+```
+
+**2️⃣ State Isolation Enforcement (MANDATORY):**
+```python
+import time
+
+def test_multi_role_tournament_integration(api_url, test_admin, ...):
+    # KÖTELEZŐ: Unique namespace prefix
+    timestamp = int(time.time() * 1000)
+    tournament_name = f"INT_TEST_MULTI_ROLE_{timestamp}"
+
+    # Step 1: Create tournament
+    response = requests.post(f"{api_url}/tournaments", json={
+        "name": tournament_name,  # UNIQUE name
+        "tournament_type_id": 1,
+        # ...
+    }, headers=admin_auth)
+    tournament_id = response.json()["id"]
+
+    try:
+        # ... test workflow ...
+
+    finally:
+        # KÖTELEZŐ: Explicit cleanup (NE implicit rollback)
+        # Step 1: Delete tournament
+        requests.delete(f"{api_url}/tournaments/{tournament_id}", headers=admin_auth)
+
+        # Step 2: Verify cleanup (MANDATORY assertion)
+        list_response = requests.get(f"{api_url}/tournaments", headers=admin_auth)
+        tournaments = list_response.json()
+        assert tournament_id not in [t["id"] for t in tournaments], \
+            f"Tournament {tournament_id} still exists after cleanup"
+
+        # Step 3: Verify enrollments deleted
+        enrollments_response = requests.get(
+            f"{api_url}/tournaments/{tournament_id}/enrollments",
+            headers=admin_auth
+        )
+        assert enrollments_response.status_code == 404 or len(enrollments_response.json()) == 0, \
+            "Enrollments not cleaned up"
+```
+
+**3️⃣ Stability Validation Szigorítás:**
+```bash
+# Nem elég 20 consecutive runs
+
+# KÖTELEZŐ: Sequential stability
+for i in {1..20}; do
+    pytest tests_e2e/integration_critical/test_multi_role_integration.py::test_multi_role_tournament_integration -v
+done
+
+# KÖTELEZŐ: Parallel stability (state isolation validation)
+pytest -n auto tests_e2e/integration_critical/test_multi_role_integration.py::test_multi_role_tournament_integration -v
+
+# Ha párhuzamosan flake-el → STATE ISOLATION HIBA
+# → Unique namespace nem elég izolált
+# → Shared mutable state létezik
+# → STOP: Ne patch, szétbontás
+```
+
+**4️⃣ Observability (MANDATORY):**
+```python
+import logging
+import time
+
+logger = logging.getLogger(__name__)
+
+def test_multi_role_tournament_integration(api_url, test_admin, ...):
+    step_timings = {}
+
+    # Step 1: Admin creates tournament
+    step_start = time.time()
+    logger.info("STEP 1: Admin creating tournament...")
+    response = requests.post(...)
+    tournament_id = response.json()["id"]
+    step_timings["step1_create_tournament"] = time.time() - step_start
+    logger.info(f"✓ STEP 1 completed in {step_timings['step1_create_tournament']:.2f}s")
+
+    # Step 2: Students enroll
+    step_start = time.time()
+    logger.info("STEP 2: Students enrolling...")
+    for i, student in enumerate(test_students[:3], 1):
+        requests.post(...)
+        logger.info(f"  → Student {i}/3 enrolled")
+    step_timings["step2_enrollments"] = time.time() - step_start
+    logger.info(f"✓ STEP 2 completed in {step_timings['step2_enrollments']:.2f}s")
+
+    # ... (minden lépés hasonlóan)
+
+    # Final timing validation
+    total_runtime = sum(step_timings.values())
+    logger.info(f"Total runtime: {total_runtime:.2f}s")
+
+    # HARD CAP enforcement
+    if total_runtime > 25.0:  # 25s warning threshold (30s hard cap)
+        logger.warning(f"⚠️  Runtime approaching 30s limit: {total_runtime:.2f}s")
+        logger.warning("🔧 BREAKDOWN KÖTELEZŐ if exceeds 30s")
+
+    assert total_runtime < 30.0, \
+        f"Runtime exceeded 30s HARD CAP: {total_runtime:.2f}s — BREAKDOWN REQUIRED"
+```
+
+**5️⃣ Stop Condition (CRITICAL):**
+```
+IF test shows ANY of:
+   ❌ Runtime > 30s
+   ❌ Flaky (sequential OR parallel)
+   ❌ Cleanup not deterministic
+
+THEN:
+   🚫 DO NOT patch/workaround
+   ✅ BREAK DOWN into smaller integration units
+
+Example breakdown:
+   - test_multi_role_tournament_integration (original)
+   →
+   - test_tournament_creation_and_enrollment (isolated)
+   - test_instructor_assignment_and_sessions (isolated)
+   - test_tournament_finalization_and_rewards (isolated)
+```
+
+**Philosophy:**
+> Integration Critical Suite ≠ második Fast Suite
+> Kontrollált integrációs validáció, NEM teljes E2E duplikáció
+
+---
+
 ### Phase 2: Student Enrollment Flow (Week 2)
 ```python
 # test_student_enrollment_flow.py
@@ -209,13 +360,17 @@ def test_multi_role_tournament_integration(api_url, test_admin, test_students, t
 
 **Per-Test Requirements (MANDATORY):**
 - ✅ **0 flake in 20 consecutive local runs** (not 10, but **20**)
+- ✅ **0 flake in parallel runs** (`pytest -n auto`) — validates state isolation
 - ✅ **API-driven** (NOT UI-heavy Playwright flows)
 - ✅ **Deterministic fixture isolation** (fixture = authority)
-- ✅ **Idempotent cleanup** (no state leakage)
+- ✅ **Idempotent cleanup** (no state leakage) + explicit cleanup assertions
+- ✅ **Unique namespace prefix** (e.g., `INT_TEST_`) + timestamp for isolation
 - ✅ **NO sleep()** calls (use explicit waits, API polling)
 - ✅ **NO random data** (deterministic test data only)
 - ✅ **Runtime < 30s HARD CAP** (enforced, not aspirational)
+- ✅ **Step-level timing + structured logging** (observability mandatory)
 - ✅ **Clear failure messages** (actionable errors)
+- ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches)
 
 **Suite-Level Requirements:**
 - ✅ Total runtime < 2 minutes (3 tests × ~30s)
@@ -293,15 +448,32 @@ Coverage: Multi-role integration flows
 
 Before adding a test to Integration Critical Suite:
 
+**Scope Control:**
 - [ ] Test covers multi-role integration (not single-role)
 - [ ] Test is NOT duplicate of Fast Suite coverage
-- [ ] Test is deterministic (100% pass in 10 runs)
-- [ ] Test runtime < 30s
-- [ ] Test has clear failure messages
-- [ ] Test uses fixture = authority (no manual setup)
-- [ ] Test cleanup is complete (no state leakage)
-- [ ] Test marked with `@pytest.mark.integration_critical`
+- [ ] **Maximum 1 happy-path flow** (NO edge cases, NO branches, NO parametrize)
 - [ ] Test documented in this README
+
+**Stability:**
+- [ ] **0 flake in 20 consecutive runs** (`for i in {1..20}; do pytest ...; done`)
+- [ ] **0 flake in parallel runs** (`pytest -n auto` validates state isolation)
+- [ ] Test runtime < 30s HARD CAP (measured, not estimated)
+
+**Implementation:**
+- [ ] **API-driven** (NOT UI-heavy Playwright navigation)
+- [ ] Test uses fixture = authority (no manual setup)
+- [ ] **Unique namespace prefix** (e.g., `INT_TEST_` + timestamp)
+- [ ] **Explicit cleanup** (DELETE API calls, NOT implicit rollback)
+- [ ] **Cleanup assertions** (verify tournament deleted, enrollments = 0)
+
+**Observability:**
+- [ ] **Step-level timing measurement** (logged per step)
+- [ ] **Structured logging** (info logs at each major step)
+- [ ] Test has clear failure messages (actionable errors)
+
+**CI Integration:**
+- [ ] Test marked with `@pytest.mark.integration_critical`
+- [ ] Test does NOT increase Fast Suite runtime (verified: Fast Suite still 52/52, ~3-5 min)
 
 ---
 

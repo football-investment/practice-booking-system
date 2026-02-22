@@ -414,13 +414,18 @@
 
 **Definition of Done (DoD) - Senior Kontroll:**
 - ✅ **0 flake in 20 consecutive local runs** (mandatory)
+- ✅ **0 flake in parallel runs** (`pytest -n auto`) — validates state isolation
+- ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches)
 - ✅ **API-driven** (NOT UI-heavy Playwright flows)
 - ✅ **Deterministic fixture isolation** (fixture = authority)
-- ✅ **Idempotent cleanup** (no state leakage)
+- ✅ **Unique namespace prefix** (`INT_TEST_` + timestamp for isolation)
+- ✅ **Idempotent cleanup** (explicit DELETE API + cleanup assertions)
 - ✅ **NO sleep()** (use explicit waits, API polling)
 - ✅ **NO random data** (deterministic test data only)
-- ✅ **Runtime < 30s HARD CAP** (enforced)
+- ✅ **Runtime < 30s HARD CAP** (enforced, measured)
+- ✅ **Step-level timing + structured logging** (observability mandatory)
 - ✅ **Zero impact on Fast Suite** (0% runtime growth)
+- 🚨 **Stop condition:** If >30s OR flaky OR cleanup fails → BREAK DOWN (NO patch)
 - 🚨 **Stability policy:** If test flakes → break down into smaller units (NO ad-hoc fixes)
 
 ---
