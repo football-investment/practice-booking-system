@@ -67,7 +67,15 @@ def _get_admin_user(api_url: str, token: str) -> dict:
 
 
 def _ops_post(api_url: str, token: str, payload: dict, timeout: int = 120) -> requests.Response:
-    """Raw POST to /ops/run-scenario — returns Response for assertion flexibility."""
+    """
+    Raw POST to /ops/run-scenario — returns Response for assertion flexibility.
+
+    Automatically adds campus_ids=[1] if not provided (required field since campus infrastructure change).
+    """
+    # Add default campus_ids if not provided (required field for OPS scenarios)
+    if "campus_ids" not in payload:
+        payload["campus_ids"] = [1]
+
     return requests.post(
         f"{api_url}/api/v1/tournaments/ops/run-scenario",
         headers={"Authorization": f"Bearer {token}"},
@@ -105,6 +113,8 @@ def _click_back(page: Page) -> None:
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed  # Requires 64 @lfa-seed.hu players via fixture
+@pytest.mark.ops_seed  # Requires 64 @lfa-seed.hu players via fixture
 class TestPlayerCountBoundaryAPI:
     """
     Parametrized boundary-value tests against the OPS API.
@@ -378,6 +388,7 @@ class TestPlayerCountBoundaryAPI:
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed  # Requires 64 @lfa-seed.hu players via fixture
 class TestGroupKnockoutMatrix:
     """
     group_knockout requires specific player counts (8, 12, 16, 24, 32, 48, 64).
@@ -527,6 +538,7 @@ class TestGroupKnockoutMatrix:
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed  # Requires 64 @lfa-seed.hu players via fixture
 class TestSafetyConfirmationUI:
     """
     Tests for the 128-player safety confirmation mechanism in Step 8.
@@ -780,6 +792,7 @@ class TestSafetyConfirmationUI:
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed  # Requires 64 @lfa-seed.hu players via fixture
 class TestSliderStatePersistence:
     """
     Verify that the player count slider value is preserved when navigating
@@ -914,6 +927,7 @@ class TestSliderStatePersistence:
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed  # Requires 64 @lfa-seed.hu players via fixture
 class TestPostLaunchObservability:
     """
     After a tournament is launched via the wizard, verify that:

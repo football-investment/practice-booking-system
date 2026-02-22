@@ -364,6 +364,199 @@ def e2e_test_users():
 
 
 # ============================================================================
+# OPS Seed Players (64 @lfa-seed.hu users for Tournament Monitor API tests)
+# ============================================================================
+
+@pytest.fixture(scope="session", autouse=True)
+def seed_ops_players(request):
+    """
+    OPS seed players fixture — creates 64 @lfa-seed.hu test players for OPS scenarios.
+
+    **Activation:** Auto-activates when tests marked with @pytest.mark.ops_seed are collected.
+    **Scope:** Session (created once, cleaned up after all tests)
+    **Idempotent:** Checks if users exist, skips creation if already present.
+
+    Creates:
+        - 64 active users with @lfa-seed.hu emails
+        - Deterministic emails: ops.player.001@lfa-seed.hu ... ops.player.064@lfa-seed.hu
+        - LFA_FOOTBALL_PLAYER licenses with baseline skills
+        - Password: "opstest123" (all users)
+
+    Cleanup:
+        - Deletes created users and licenses after session ends
+
+    Usage:
+        @pytest.mark.ops_seed
+        def test_api_knockout_16_players(api_url):
+            # Fixture ensures 64 @lfa-seed.hu users exist
+            # OPS scenario auto-selects from pool
+            ...
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from datetime import datetime, timezone
+
+    # Import models
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from app.models.user import User
+    from app.models.license import UserLicense
+    from app.core.security import get_password_hash
+    from app.config import settings
+
+    # Check if any ops_seed tests are collected
+    if not any(item.get_closest_marker("ops_seed") for item in request.session.items):
+        pytest.skip("No ops_seed tests collected - skipping OPS player seed")
+        return  # Won't execute, but satisfies static analysis
+
+    print("\n🌱 OPS Seed Players Setup (64 @lfa-seed.hu users)...")
+
+    # Database setup
+    db_url = settings.DATABASE_URL
+    engine = create_engine(db_url)
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    created_user_ids = []
+    created_license_ids = []
+    created_campus_id = None
+
+    try:
+        # Ensure at least one active campus exists (required for OPS scenarios with campus_ids)
+        from app.models.campus import Campus
+        from app.models.location import Location
+
+        existing_campus = db.query(Campus).filter(Campus.is_active == True).first()
+
+        if not existing_campus:
+            # Create minimal location + campus for testing
+            location = Location(
+                name="E2E Test Location",
+                city="Budapest",
+                country="Hungary",
+                is_active=True,
+                location_type="PARTNER"  # Valid enum: PARTNER or CENTER
+            )
+            db.add(location)
+            db.flush()
+
+            campus = Campus(
+                name="E2E Test Campus",
+                location_id=location.id,
+                is_active=True,
+                address="Test Address 123"
+            )
+            db.add(campus)
+            db.flush()
+            created_campus_id = campus.id
+            print(f"   ✅ Created test campus (ID={campus.id})")
+        else:
+            print(f"   ✅ Using existing campus (ID={existing_campus.id})")
+
+        db.commit()
+
+        # Create 64 players with deterministic emails
+        for i in range(1, 65):  # ops.player.001 ... ops.player.064
+            email = f"ops.player.{i:03d}@lfa-seed.hu"
+            password = "opstest123"
+
+            # Check if user already exists (idempotent)
+            existing = db.query(User).filter(User.email == email).first()
+
+            if existing:
+                # User exists - skip creation
+                continue
+
+            # Create new player
+            player = User(
+                email=email,
+                password_hash=get_password_hash(password),
+                name=f"OPS Player {i:03d}",
+                nickname=f"OPS{i:03d}",
+                role="STUDENT",
+                is_active=True,
+                onboarding_completed=True,
+                date_of_birth=datetime(2000, 1, 1),
+                phone=f"+3620{i:07d}"
+            )
+            db.add(player)
+            db.flush()
+            created_user_ids.append(player.id)
+
+            # Create LFA_FOOTBALL_PLAYER license with baseline skills
+            baseline_skills = {
+                "finishing": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0},
+                "dribbling": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0},
+                "passing": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0}
+            }
+            license = UserLicense(
+                user_id=player.id,
+                specialization_type="LFA_FOOTBALL_PLAYER",
+                is_active=True,
+                started_at=datetime.now(timezone.utc),
+                football_skills=baseline_skills
+            )
+            db.add(license)
+            db.flush()
+            created_license_ids.append(license.id)
+
+        db.commit()
+        print(f"   ✅ OPS seed complete: {len(created_user_ids)} players created, {64 - len(created_user_ids)} already existed")
+
+    except Exception as exc:
+        db.rollback()
+        print(f"   ❌ Error creating OPS seed players: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        db.close()
+
+    yield  # Tests run here
+
+    # Cleanup: Delete created players and licenses
+    print("\n🧹 Cleaning up OPS seed players...")
+    db = SessionLocal()
+    try:
+        # Delete licenses first (foreign key constraint)
+        for lic_id in created_license_ids:
+            lic = db.query(UserLicense).filter(UserLicense.id == lic_id).first()
+            if lic:
+                db.delete(lic)
+
+        # Delete players
+        for user_id in created_user_ids:
+            player = db.query(User).filter(User.id == user_id).first()
+            if player:
+                db.delete(player)
+
+        # Delete campus if we created it
+        if created_campus_id:
+            campus = db.query(Campus).filter(Campus.id == created_campus_id).first()
+            if campus:
+                location_id = campus.location_id
+                db.delete(campus)
+                # Delete location too
+                location = db.query(Location).filter(Location.id == location_id).first()
+                if location:
+                    db.delete(location)
+
+        db.commit()
+        cleanup_msg = f"{len(created_user_ids)} players"
+        if created_campus_id:
+            cleanup_msg += f", test campus (ID={created_campus_id})"
+        print(f"   ✅ Cleanup complete: {cleanup_msg} deleted")
+
+    except Exception as cleanup_err:
+        db.rollback()
+        print(f"   ⚠️  Cleanup warning: {cleanup_err}")
+    finally:
+        db.close()
+
+
+# ============================================================================
 # Screenshot Helpers
 # ============================================================================
 
