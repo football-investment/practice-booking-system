@@ -369,9 +369,45 @@
 
 ---
 
+## 🎯 Quality Rules (Production Phase)
+
+> **Baseline tag:** `e2e-fast-suite-stable-v1` (2026-02-22)
+> **Status:** Firefighting → Quality-driven development ✅
+
+### New Feature Merge Requirements (MANDATORY)
+
+A new feature is **ONLY** mergeable if:
+
+1. ✅ **Fast Suite 100% PASS** — No regressions allowed
+2. ✅ **No new flaky tests** — Deterministic assertions only
+3. ✅ **Baseline updated** — This document reflects current state
+4. ✅ **Fixture = authority** — Tests own their preconditions (no seed data dependency)
+
+**CI Enforcement:** See [.github/CI_ENFORCEMENT.md](.github/CI_ENFORCEMENT.md) for detailed workflow configuration.
+
+---
+
+## 🔧 Next Quality Upgrade (Future Work)
+
+### Lifecycle Blocks Isolation (Blocks 4-5)
+
+**Current state:**
+- Blocks 4 (Tournament Lifecycle) and 5 (Skill Progression) have fixture dependencies
+- Tests skip when run in isolation ("No ops_seed tests collected")
+- Stable when run as part of comprehensive suite (verified in baseline commits)
+
+**Goal:**
+- Minimize fixture dependencies
+- Achieve complete block independence
+- Enable isolated block execution for faster debugging
+
+**Priority:** Low (architectural improvement, not stability fix)
+
+---
+
 ## 🎯 Next Block Candidates
 
-- Tournament Monitor (check-in, seeding, progression)
+- Tournament Monitor UI (check-in, seeding, progression, wizard flow)
 - Student Dashboard
 - Other admin tabs (users, locations, etc.)
 
