@@ -333,19 +333,17 @@ class TestPlayerCountBoundaryAPI:
     # ── League boundary values ────────────────────────────────────────────────
 
     @pytest.mark.parametrize("player_count,expected_sessions", [
-        (2,  1),   # 2*(2-1)/2 = 1
-        (3,  3),   # 3*(3-1)/2 = 3
-        (4,  6),   # 4*(4-1)/2 = 6
+        (4,  6),   # 4*(4-1)/2 = 6 (min_players=4)
         (8,  28),  # 8*(8-1)/2 = 28
-        (16, 120), # 16*(16-1)/2 = 120
+        (16, 120), # 16*(16-1)/2 = 120 (max_players=16)
     ])
     def test_api_league_smoke_range(
         self, api_url: str, player_count: int, expected_sessions: int
     ):
         """
-        League tournament boundary values. Formula: N×(N-1)/2 sessions.
+        League tournament valid boundary values. Formula: N×(N-1)/2 sessions.
 
-        All counts from 2 upward must generate sessions (min_players=2 in league.json).
+        Valid range: 4-16 players (league min_players=4, max_players=16).
         """
 
         token = _get_admin_token(api_url)
@@ -374,6 +372,25 @@ class TestPlayerCountBoundaryAPI:
         assert len(sessions) == expected_sessions, (
             f"league {player_count}p: expected {expected_sessions} sessions "
             f"(N×(N-1)/2), got {len(sessions)}"
+        )
+
+    @pytest.mark.parametrize("player_count", [2, 3])
+    def test_api_league_below_minimum_rejected(self, api_url: str, player_count: int):
+        """
+        player_count 2,3 below league min_players=4 — API must return 422.
+        Validates that league tournament type constraints are enforced.
+        """
+        token = _get_admin_token(api_url)
+        resp = _ops_post(api_url, token, {
+            "scenario": "smoke_test",
+            "player_count": player_count,
+            "tournament_format": "HEAD_TO_HEAD",
+            "tournament_type_code": "league",
+            "dry_run": False,
+            "confirmed": True,
+        })
+        assert resp.status_code == 422, (
+            f"league player_count={player_count}: expected 422 (below min=4), got {resp.status_code}: {resp.text[:300]}"
         )
 
     # ── Individual Ranking boundaries ────────────────────────────────────────
