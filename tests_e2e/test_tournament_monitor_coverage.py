@@ -148,11 +148,12 @@ class TestPlayerCountBoundaryAPI:
 
     # ── Minimum boundary ─────────────────────────────────────────────────────
 
-    @pytest.mark.parametrize("player_count", [2, 3, 4])
+    @pytest.mark.parametrize("player_count", [4, 8, 16])
     def test_api_minimum_boundary_knockout(self, api_url: str, player_count: int):
         """
-        player_count 2,3,4 (absolute minimum, just-above-min, smoke default).
+        player_count at valid knockout boundaries (4=min, 8, 16).
         All must be accepted by the API and return triggered=True.
+        Note: knockout min_players=4 (power-of-2 requirement).
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
@@ -169,6 +170,25 @@ class TestPlayerCountBoundaryAPI:
         data = resp.json()
         assert data.get("triggered") is True, f"player_count={player_count}: {data}"
         assert data.get("tournament_id") is not None
+
+    @pytest.mark.parametrize("player_count", [2, 3])
+    def test_api_knockout_below_minimum_rejected(self, api_url: str, player_count: int):
+        """
+        player_count 2,3 below knockout min_players=4 — API must return 422.
+        Validates that tournament type constraints are enforced.
+        """
+        token = _get_admin_token(api_url)
+        resp = _ops_post(api_url, token, {
+            "scenario": "smoke_test",
+            "player_count": player_count,
+            "tournament_format": "HEAD_TO_HEAD",
+            "tournament_type_code": "knockout",
+            "dry_run": False,
+            "confirmed": True,
+        })
+        assert resp.status_code == 422, (
+            f"player_count={player_count}: expected 422 (below min), got {resp.status_code}: {resp.text[:300]}"
+        )
 
     def test_api_below_minimum_rejected(self, api_url: str):
         """player_count=1 is below ge=2 — API must return 422."""
