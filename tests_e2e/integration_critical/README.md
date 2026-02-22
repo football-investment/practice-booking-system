@@ -110,23 +110,71 @@ on:
 pytest tests_e2e/ -m integration_critical
 ```
 
+### Marker Policy Validation
+
+**Verification (run before PR merge):**
+```bash
+# Verify integration_critical tests are EXCLUDED from Fast Suite
+pytest tests_e2e/ -m "not scale_suite and not integration_critical" --collect-only -q | grep -c "test_multi_role\|test_student_full\|test_instructor_full"
+# Expected output: 0 (zero integration_critical tests collected)
+
+# Verify integration_critical tests are INCLUDED in their own suite
+pytest tests_e2e/ -m integration_critical --collect-only -q | grep -c "test_multi_role\|test_student_full\|test_instructor_full"
+# Expected output: 3 (all integration_critical tests collected)
+```
+
+**Policy Enforcement:**
+- ✅ Fast Suite NEVER collects `@pytest.mark.integration_critical` tests
+- ✅ PR pipeline runs ONLY Fast Suite (52/52 PASS required)
+- ✅ Integration Critical Suite runs nightly (failures non-blocking)
+
 ---
 
 ## 📋 Implementation Order
 
 ### Phase 1: Multi-Role Integration (Week 1)
+
+**Implementation Principles (API-Driven):**
 ```python
 # test_multi_role_integration.py
-- Admin creates tournament → IN_PROGRESS
-- 3 Students enroll
-- Instructor assigned
-- Sessions auto-generated
-- Instructor check-in + submit results
-- Admin finalizes tournament
-- Students receive XP/rewards
-- Champion badge assigned
-- Assertions: tournament status, enrollments, rewards, badge
+
+# ✅ DO: API-driven workflow
+def test_multi_role_tournament_integration(api_url, test_admin, test_students, test_instructor):
+    # Step 1: Admin creates tournament via API (NOT UI)
+    response = requests.post(f"{api_url}/tournaments", json={...}, headers=admin_auth)
+    tournament_id = response.json()["id"]
+
+    # Step 2: Students enroll via API (NOT UI)
+    for student in test_students[:3]:
+        requests.post(f"{api_url}/tournaments/{tournament_id}/enroll", headers=student_auth)
+
+    # Step 3: Verify enrollments via API assertion
+    enrollments = requests.get(f"{api_url}/tournaments/{tournament_id}/enrollments").json()
+    assert len(enrollments) == 3
+
+    # ... (API-driven steps continue)
+
+# ❌ DON'T: UI-heavy navigation
+# page.goto(f"{base_url}/admin/tournaments")
+# page.locator("button:has-text('Create Tournament')").click()
+# page.fill("input[name='tournament_name']", "...")  # TOO SLOW, FLAKY
 ```
+
+**Workflow Coverage:**
+- Admin creates tournament → IN_PROGRESS (API POST)
+- 3 Students enroll (API POST × 3)
+- Instructor assigned (API PATCH)
+- Sessions auto-generated (API lifecycle transition)
+- Instructor check-in + submit results (API POST)
+- Admin finalizes tournament (API PATCH)
+- Students receive XP/rewards (API GET validation)
+- Champion badge assigned (API GET assertion)
+
+**Hard Constraints:**
+- NO Playwright page.goto() unless absolutely necessary
+- NO UI navigation for setup/teardown
+- API assertions only (deterministic JSON responses)
+- Max runtime: 30s HARD CAP
 
 ### Phase 2: Student Enrollment Flow (Week 2)
 ```python
@@ -155,18 +203,30 @@ pytest tests_e2e/ -m integration_critical
 
 ---
 
-## 🎯 Success Criteria
+## 🎯 Definition of Done (DoD)
 
-**Per-Test Requirements:**
-- ✅ Deterministic (100% pass rate in 10 consecutive runs)
-- ✅ Self-contained (fixture = authority)
-- ✅ Runtime < 30s per test
-- ✅ Clear failure messages (actionable errors)
+> **Senior Kontroll: Szigorú stabilitási kritériumok**
+
+**Per-Test Requirements (MANDATORY):**
+- ✅ **0 flake in 20 consecutive local runs** (not 10, but **20**)
+- ✅ **API-driven** (NOT UI-heavy Playwright flows)
+- ✅ **Deterministic fixture isolation** (fixture = authority)
+- ✅ **Idempotent cleanup** (no state leakage)
+- ✅ **NO sleep()** calls (use explicit waits, API polling)
+- ✅ **NO random data** (deterministic test data only)
+- ✅ **Runtime < 30s HARD CAP** (enforced, not aspirational)
+- ✅ **Clear failure messages** (actionable errors)
 
 **Suite-Level Requirements:**
 - ✅ Total runtime < 2 minutes (3 tests × ~30s)
 - ✅ Independent execution (no test order dependencies)
-- ✅ Full cleanup (no state leakage)
+- ✅ Does NOT increase Fast Suite runtime (0% impact)
+- ✅ No shared mutable state between tests
+
+**Stability Policy (CRITICAL):**
+- 🚨 **If test flakes → DO NOT fix ad-hoc**
+- 🔧 **Instead: Break down into smaller, more stable units**
+- ✅ **Principle: Controlled coverage growth, stability above all**
 
 **Failure Policy:**
 - ❌ Failures do NOT block PR merge

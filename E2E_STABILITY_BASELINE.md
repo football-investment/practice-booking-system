@@ -412,11 +412,16 @@
   - `test_instructor_full_workflow` (Week 3) - Apply → check-in → results → finalize
 - 📄 Documentation: [tests_e2e/integration_critical/README.md](tests_e2e/integration_critical/README.md)
 
-**Success criteria:**
-- Deterministic (no flake)
-- <30s runtime per test
-- Zero impact on Fast Suite
-- NON-BLOCKING (does not gate PR merge)
+**Definition of Done (DoD) - Senior Kontroll:**
+- ✅ **0 flake in 20 consecutive local runs** (mandatory)
+- ✅ **API-driven** (NOT UI-heavy Playwright flows)
+- ✅ **Deterministic fixture isolation** (fixture = authority)
+- ✅ **Idempotent cleanup** (no state leakage)
+- ✅ **NO sleep()** (use explicit waits, API polling)
+- ✅ **NO random data** (deterministic test data only)
+- ✅ **Runtime < 30s HARD CAP** (enforced)
+- ✅ **Zero impact on Fast Suite** (0% runtime growth)
+- 🚨 **Stability policy:** If test flakes → break down into smaller units (NO ad-hoc fixes)
 
 ---
 
