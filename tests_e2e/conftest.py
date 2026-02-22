@@ -408,8 +408,9 @@ def seed_ops_players(request):
 
     # Check if any ops_seed tests are collected
     if not any(item.get_closest_marker("ops_seed") for item in request.session.items):
-        pytest.skip("No ops_seed tests collected - skipping OPS player seed")
-        return  # Won't execute, but satisfies static analysis
+        # No ops_seed tests - skip fixture silently without affecting other tests
+        yield  # Yield nothing but satisfy fixture contract
+        return
 
     print("\n🌱 OPS Seed Players Setup (64 @lfa-seed.hu users)...")
 
@@ -607,8 +608,9 @@ def seed_scale_suite_players(request):
 
     # Check if any scale_suite tests are collected
     if not any(item.get_closest_marker("scale_suite") for item in request.session.items):
-        pytest.skip("No scale_suite tests collected - skipping Scale Suite player seed")
-        return  # Won't execute, but satisfies static analysis
+        # No scale_suite tests - skip fixture silently without affecting other tests
+        yield  # Yield nothing but satisfy fixture contract
+        return
 
     print("\n🌱 Scale Suite Players Setup (1024 @lfa-scale.hu users)...")
 

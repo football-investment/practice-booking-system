@@ -229,6 +229,35 @@ def _navigate_wizard_to_step(
         return
 
     # Step 3 → 4: Tournament Type (H2H) or Scoring (Individual) — both have default selection
+    # CAMPUS SELECTION (required as of campus infrastructure implementation):
+    # Step 3 now includes location → campus cascade selector
+    # Select first location (selectbox has default index 0)
+    sb = _sidebar(page)
+
+    # Wait for location dropdown to appear (labeled "Location *" or "Helyszín (város) *")
+    location_selector = sb.locator("div[data-testid='stSelectbox']").filter(
+        has_text="Location"
+    ).first.or_(
+        sb.locator("div[data-testid='stSelectbox']").filter(has_text="Helyszín").first
+    )
+    location_selector.wait_for(state="visible", timeout=5000)
+    # Location selectbox defaults to first option — no action needed
+
+    # Wait for campus multiselect to appear and select first campus
+    campus_multiselect = sb.locator("div[data-testid='stMultiSelect']").filter(
+        has_text="Venues"
+    ).first.or_(
+        sb.locator("div[data-testid='stMultiSelect']").filter(has_text="Pályák").first
+    )
+    campus_multiselect.wait_for(state="visible", timeout=5000)
+
+    # Click the multiselect to open dropdown, then click first option
+    campus_multiselect.click()
+    time.sleep(0.3)
+    # First campus option in the dropdown list
+    page.locator("li[role='option']").first.click()
+    time.sleep(0.3)
+
     _click_next(page)
     if target_step == 4:
         return
@@ -297,6 +326,7 @@ def _trigger_ops_tournament(
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed
 class TestWizardFlow:
     """Step-by-step wizard navigation tests."""
 
