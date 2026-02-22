@@ -412,22 +412,26 @@
   - `test_instructor_full_workflow` (Week 3) - Apply → check-in → results → finalize
 - 📄 Documentation: [tests_e2e/integration_critical/README.md](tests_e2e/integration_critical/README.md)
 
-**Definition of Done (DoD) - Senior Kontroll:**
+**Definition of Done (DoD) - Senior Kontroll (FINAL):**
 - ✅ **0 flake in 20 consecutive local runs** (mandatory)
-- ✅ **0 flake in parallel runs** (`pytest -n auto`) — validates state isolation
+- ✅ **0 flake in parallel runs** (`pytest -n auto`) — **HARD REQUIREMENT**, NOT just ajánlás
+- ✅ **Parallel validation kötelező PR előtt** — ha CI-ben nem fut párhuzamosan legalább 1× → policy nem teljes
 - ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches, NO scope creep)
 - ✅ **API-driven** (NOT UI-heavy Playwright flows)
-- ✅ **Fixture isolation** (scope=function, fresh auth token, no global entity reuse)
+- ✅ **Fixture: CREATE + CLEANUP pattern** (preferred) — explicit CREATE user → explicit DELETE user
 - ✅ **Unique namespace prefix** (`INT_TEST_` + timestamp)
 - ✅ **Cleanup validation** (DELETE → 204, GET by ID → 404, NOT just list endpoint)
 - ✅ **NO sleep()** (use explicit waits, API polling)
 - ✅ **NO random data** (deterministic test data only)
 - ✅ **Runtime < 30s HARD CAP** (verified via `pytest --durations=5`)
 - ✅ **Simple observability** (step-level logging, NO mini monitoring framework)
+- ✅ **Minimal core validation** — CSAK: tournament state, enrollment count, reward exists (NE reward calculation logic)
 - ✅ **Low maintenance** (max 1-2 módosítás 6 hónap alatt)
 - ✅ **Zero impact on Fast Suite** (0% runtime growth)
 - 🚨 **Stop condition:** If >30s OR flaky OR cleanup fails → BREAK DOWN (NO patch)
 - 🚨 **Scope creep guard:** Ha új validáció merül fel → Fast Suite-ba, NEM integration test-be
+- 🚨 **Maintenance guard:** Ha 3 consecutive feature PR-ban módosul → architecture review kötelező
+- 🎯 **Purpose:** Regresszió jelzés (smoke signal), NEM részletes üzleti logika validáció
 
 ---
 

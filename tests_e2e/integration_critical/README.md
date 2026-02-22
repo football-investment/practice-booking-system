@@ -242,69 +242,98 @@ def test_multi_role_tournament_integration(api_url, test_admin, ...):
             "Enrollments not cleaned up"
 ```
 
-**3️⃣ Fixture Autoritás Erősítés (MANDATORY):**
+**3️⃣ Fixture Szigorítás - CREATE + CLEANUP Pattern (PREFERRED):**
 
-> **Senior elv: Ha fixture nem teljesen izolált → előbb azt kell stabilizálni**
+> **Senior elv: Integration teszt legyen teljesen önálló, ne reuse-oljon tartós entitásokat**
 
 ```python
 # conftest.py
 
-@pytest.fixture(scope="function")  # NOT session, NOT module
-def test_admin():
+@pytest.fixture(scope="function")
+def test_admin(api_url):
     """
-    Self-contained admin user (NOT reused global entity).
+    ✅ PREFERRED: CREATE + CLEANUP pattern (fully isolated).
 
-    Returns:
-        dict: {"id": int, "email": str, "token": str}
+    Integration teszt teljesen önálló:
+    - CREATE user via API
+    - Cleanup: DELETE user via API (ha API támogatja)
+    - NE reuse tartós entitásokat
     """
-    # Mindig új auth token (NOT cached global token)
-    # Ne függjön előző test run állapottól
-    # Clean entity, dedikált teszt userhez
-    admin_email = "test_admin@integration.lfa"
+    import time
+    timestamp = int(time.time() * 1000)
+    admin_email = f"test_admin_{timestamp}@integration.lfa"
     admin_password = "secure_test_password"
 
-    # Get or create (idempotent)
-    user = get_or_create_user(email=admin_email, role="admin")
-    token = generate_fresh_auth_token(user)
+    # CREATE user via API
+    create_response = requests.post(f"{api_url}/users", json={
+        "email": admin_email,
+        "password": admin_password,
+        "role": "admin",
+        "is_active": True
+    })
+    assert create_response.status_code == 201
+    user = create_response.json()
 
-    return {
-        "id": user.id,
-        "email": user.email,
+    # Fresh auth token
+    token_response = requests.post(f"{api_url}/auth/token", json={
+        "username": admin_email,
+        "password": admin_password
+    })
+    token = token_response.json()["access_token"]
+
+    user_data = {
+        "id": user["id"],
+        "email": user["email"],
         "token": token,
         "headers": {"Authorization": f"Bearer {token}"}
     }
 
+    yield user_data  # Test runs here
+
+    # CLEANUP: DELETE user (ha API támogatja)
+    try:
+        delete_response = requests.delete(
+            f"{api_url}/users/{user['id']}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert delete_response.status_code in [204, 404]
+    except Exception as e:
+        # Log cleanup failure, de ne fail-elje a tesztet
+        import logging
+        logging.warning(f"User cleanup failed: {e}")
+
+# ⚠️ FALLBACK: get_or_create (csak ha CREATE + CLEANUP túl drága)
 @pytest.fixture(scope="function")
-def test_students():
+def test_admin_fallback():
     """
-    Self-contained student users (NOT reused global pool).
+    Fallback: get_or_create (idempotent).
 
-    Returns:
-        list[dict]: [{"id": int, "email": str, "token": str}, ...]
+    Használd csak ha:
+    - User CREATE API nincs elérhető test környezetben
+    - User DELETE túl drága (cascade delete sok entity)
+    - Explicit CREATE + CLEANUP nem praktikus
+
+    Dokumentáld az indoklást:
+    "get_or_create használata: User CASCADE DELETE nem támogatott API-ban,
+     explicit CREATE + CLEANUP helyett persistent test user-t reuse-olunk."
     """
-    students = []
-    for i in range(3):
-        student_email = f"test_student_{i}@integration.lfa"
-        user = get_or_create_user(email=student_email, role="student")
-        token = generate_fresh_auth_token(user)
-        students.append({
-            "id": user.id,
-            "email": user.email,
-            "token": token,
-            "headers": {"Authorization": f"Bearer {token}"}
-        })
-    return students
+    admin_email = "test_admin@integration.lfa"
+    user = get_or_create_user(email=admin_email, role="admin")
+    token = generate_fresh_auth_token(user)
+    return {"id": user.id, "email": user.email, "token": token, "headers": {...}}
 
-# ❌ TILOS: Reuse globális entity pool
-# ❌ TILOS: Session-scoped auth token (előző test pollutálhatja)
-# ❌ TILOS: Fixture dependency előző test run-ra
+# ❌ TILOS: Session-scoped fixture (nem izolált)
+# ❌ TILOS: Reuse globális entity pool (shared state)
+# ❌ TILOS: Nincs cleanup (state leakage)
 ```
 
 **Fixture validation checklist:**
+- [x] **PREFERRED: CREATE + CLEANUP pattern** (fully isolated)
 - [ ] Scope = function (NOT session, NOT module)
 - [ ] Fresh auth token every test
-- [ ] Ne reuse-oljon globális entity-ket
-- [ ] Idempotens (get_or_create, nem csak create)
+- [ ] Explicit cleanup (DELETE via API)
+- [ ] Fallback: get_or_create ONLY if CREATE + CLEANUP too expensive
+- [ ] Ha get_or_create → dokumentáld az indoklást README-ben
 
 ---
 
@@ -497,7 +526,103 @@ git log --oneline tests_e2e/integration_critical/test_multi_role_integration.py
 
 ---
 
-**8️⃣ Stop Condition (CRITICAL):**
+**8️⃣ Minimal Core Validation (MANDATORY):**
+
+> **Senior elv: Integration teszt célja = regresszió jelzés, NEM részletes üzleti logika validáció**
+
+**Multi-role teszt végén CSAK ezt validáld:**
+
+```python
+def test_multi_role_tournament_integration(api_url, test_admin, ...):
+    # ... (create → enroll → assign → finalize workflow) ...
+
+    # VALIDATION: Minimal core signal only
+    # ✅ ELÉG: Core integration signal
+    tournament_response = requests.get(
+        f"{api_url}/tournaments/{tournament_id}",
+        headers=test_admin["headers"]
+    )
+    tournament = tournament_response.json()
+    assert tournament["status"] == "COMPLETED", \
+        f"Tournament not finalized: {tournament['status']}"
+
+    enrollments_response = requests.get(
+        f"{api_url}/tournaments/{tournament_id}/enrollments",
+        headers=test_admin["headers"]
+    )
+    enrollments = enrollments_response.json()
+    assert len(enrollments) == 3, \
+        f"Expected 3 enrollments, got {len(enrollments)}"
+
+    rewards_response = requests.get(
+        f"{api_url}/tournaments/{tournament_id}/rewards",
+        headers=test_admin["headers"]
+    )
+    rewards = rewards_response.json()
+    assert len(rewards) > 0, "No rewards created"
+
+    # ❌ NE validáld:
+    # - Reward calculation logic (assert rewards[0]["xp"] == 150)
+    # - UI derived fields (assert rewards[0]["display_name"] == "...")
+    # - Secondary side effects (badge count, leaderboard position)
+    # - Edge case reward multipliers
+    # - Detailed reward structure
+
+    # Core signal: Tournament completed, enrollments exist, rewards exist
+    # Részletes üzleti logika → Fast Suite (API unit tests)
+```
+
+**Validation scope checklist:**
+- [x] Tournament state = COMPLETED ✅
+- [x] 3 enrollments létezett ✅
+- [x] Reward record létrejött ✅
+- [ ] ❌ Reward számítás logika (Fast Suite)
+- [ ] ❌ UI derived mezők (Fast Suite)
+- [ ] ❌ Secondary side effects (Fast Suite)
+
+**Rationale:**
+- Integration teszt = **smoke signal** (workflow átment végig)
+- Fast Suite = **részletes validáció** (reward calculation, business logic)
+- Ha mindent validálsz → teszt túl törékeny, minden feature PR érinti
+
+---
+
+**9️⃣ Maintenance Guard Formalizálás (POLICY):**
+
+> **Senior elv: 3 consecutive PR modification → architecture review kötelező**
+
+**Policy:**
+```
+IF integration teszt 3 egymást követő feature PR-ban módosul:
+   → KÖTELEZŐ architecture review
+   → Scope creep detectálva
+   → Teszt valószínűleg túl komplex lett
+
+THEN:
+   1. Architecture review meeting (E2E team + senior)
+   2. Analízis: Mi változott 3× egymás után?
+   3. Döntés:
+      - BREAKDOWN kisebb integration units-ra
+      - VAGY: Scope reduction (kevesebb validáció)
+      - VAGY: Fast Suite-ba mozgatás (túl részletes)
+```
+
+**Tracking:**
+```bash
+# Check recent modifications
+git log --oneline --since="3 months ago" tests_e2e/integration_critical/test_multi_role_integration.py
+
+# Ha >3 commit feature PR-ekben → architecture review trigger
+```
+
+**Preventive measure:**
+- Ez megállítja a lassú scope creep-et
+- Kényszerít explicit döntésre: teszt marad vagy breakdown
+- 1 év múlva a suite stabil lesz
+
+---
+
+**🔟 Stop Condition (CRITICAL):**
 ```
 IF test shows ANY of:
    ❌ Runtime > 30s
@@ -555,16 +680,18 @@ Example breakdown:
 
 **Per-Test Requirements (MANDATORY):**
 - ✅ **0 flake in 20 consecutive local runs** (not 10, but **20**)
-- ✅ **0 flake in parallel runs** (`pytest -n auto`) — validates state isolation
+- ✅ **0 flake in parallel runs** (`pytest -n auto`) — **HARD REQUIREMENT**, NOT just ajánlás
+- ✅ **Parallel validation kötelező PR előtt** — ha CI-ben nem fut párhuzamosan legalább 1× → policy nem teljes
 - ✅ **Scope: 1 happy-path only** (NO edge cases, NO parametrize, NO branches, NO scope creep)
 - ✅ **API-driven** (NOT UI-heavy Playwright flows)
-- ✅ **Fixture isolation** (scope=function, fresh auth token, no global entity reuse)
+- ✅ **Fixture: CREATE + CLEANUP pattern** (preferred) — explicit CREATE user → explicit DELETE user
 - ✅ **Unique namespace prefix** (`INT_TEST_` + timestamp for isolation)
 - ✅ **Cleanup validation** (DELETE → 204, GET by ID → 404, NOT just list endpoint)
 - ✅ **NO sleep()** calls (use explicit waits, API polling)
 - ✅ **NO random data** (deterministic test data only)
 - ✅ **Runtime < 30s HARD CAP** (verified via `pytest --durations=5`)
 - ✅ **Simple observability** (step-level logging, NO mini monitoring framework)
+- ✅ **Minimal core validation** — CSAK: tournament state, enrollment count, reward exists (NE reward calculation logic)
 - ✅ **Clear failure messages** (actionable errors)
 - ✅ **Low maintenance** (6 hónap alatt max 1-2 módosítás, ritkán touch-olva)
 
@@ -578,6 +705,15 @@ Example breakdown:
 - 🚨 **If test flakes → DO NOT fix ad-hoc**
 - 🔧 **Instead: Break down into smaller, more stable units**
 - ✅ **Principle: Controlled coverage growth, stability above all**
+
+**Maintenance Guard (POLICY):**
+- 🚨 **Ha 3 consecutive feature PR-ban módosul → kötelező architecture review**
+- 🔧 **Scope creep detection** → teszt valószínűleg túl komplex lett
+- ✅ **Preventive measure** → 1 év múlva a suite stabil lesz
+
+**Purpose (CRITICAL):**
+- ✅ **Integration teszt célja: regresszió jelzés** (smoke signal)
+- ❌ **NEM célja: részletes üzleti logika validáció** (az a Fast Suite)
 
 **Failure Policy:**
 - ❌ Failures do NOT block PR merge
