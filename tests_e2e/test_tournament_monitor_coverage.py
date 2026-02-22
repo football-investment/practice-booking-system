@@ -267,10 +267,13 @@ class TestPlayerCountBoundaryAPI:
 
     # ── Safety threshold boundary ────────────────────────────────────────────
 
+    @pytest.mark.scale_suite
     def test_api_safety_threshold_boundary_127(self, api_url: str):
         """
         player_count=127: just below safety threshold (128).
         confirmed=False should be ACCEPTED (no safety gate triggered).
+
+        NOTE: Requires Scale Suite (128+ player fixture) - not run in Fast Suite.
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
@@ -309,11 +312,14 @@ class TestPlayerCountBoundaryAPI:
             f"Error message should mention confirmation requirement: {body}"
         )
 
+    @pytest.mark.scale_suite
     @pytest.mark.slow
     def test_api_safety_threshold_boundary_128_with_confirmation(self, api_url: str):
         """
         player_count=128 with confirmed=True: must succeed.
         This is the exact threshold — both sides must be tested.
+
+        NOTE: Requires Scale Suite (128+ player fixture) - not run in Fast Suite.
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
