@@ -74,6 +74,7 @@ def _ops_post(api_url: str, token: str, payload: dict, timeout: int = 120) -> re
     Raw POST to /ops/run-scenario — returns Response for assertion flexibility.
 
     Automatically adds campus_ids if not provided (queries first active campus from DB).
+    Automatically selects player_ids from appropriate pool (Fast Suite or Scale Suite).
     """
     global _CAMPUS_ID_CACHE
 
@@ -97,6 +98,46 @@ def _ops_post(api_url: str, token: str, payload: dict, timeout: int = 120) -> re
                 db.close()
 
         payload["campus_ids"] = [_CAMPUS_ID_CACHE]
+
+    # Add player_ids if not provided and player_count specified
+    if "player_ids" not in payload and "player_count" in payload:
+        player_count = payload["player_count"]
+
+        # Select from appropriate pool
+        if player_count <= 64:
+            # Fast Suite pool: ops.player.XXX@lfa-seed.hu (1-64)
+            email_pattern = "ops.player.%@lfa-seed.hu"
+        else:
+            # Scale Suite pool: scale.player.XXXX@lfa-scale.hu (1-1024)
+            email_pattern = "scale.player.%@lfa-scale.hu"
+
+        # Query players from DB
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from app.models.user import User
+        from app.config import settings
+
+        engine = create_engine(settings.DATABASE_URL)
+        SessionLocal = sessionmaker(bind=engine)
+        db = SessionLocal()
+
+        try:
+            players = db.query(User).filter(
+                User.email.like(email_pattern),
+                User.is_active == True
+            ).limit(player_count).all()
+
+            if len(players) < player_count:
+                raise ValueError(
+                    f"Insufficient players: need {player_count}, found {len(players)} "
+                    f"matching {email_pattern}. "
+                    f"Fast Suite (≤64): requires @pytest.mark.ops_seed. "
+                    f"Scale Suite (>64): requires @pytest.mark.scale_suite."
+                )
+
+            payload["player_ids"] = [p.id for p in players]
+        finally:
+            db.close()
 
     return requests.post(
         f"{api_url}/api/v1/tournaments/ops/run-scenario",

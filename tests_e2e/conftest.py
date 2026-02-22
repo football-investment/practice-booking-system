@@ -557,6 +557,179 @@ def seed_ops_players(request):
 
 
 # ============================================================================
+# Scale Suite Players (128-1024 @lfa-scale.hu users for capacity validation)
+# ============================================================================
+
+@pytest.fixture(scope="session", autouse=True)
+def seed_scale_suite_players(request):
+    """
+    Scale Suite players fixture — creates 128-1024 @lfa-scale.hu test players for capacity validation.
+
+    **Activation:** Auto-activates when tests marked with @pytest.mark.scale_suite are collected.
+    **Scope:** Session (created once, cleaned up after all tests)
+    **Idempotent:** Checks if users exist, skips creation if already present.
+
+    Creates:
+        - 1024 active users with @lfa-scale.hu emails (deterministic pool)
+        - Emails: scale.player.0001@lfa-scale.hu ... scale.player.1024@lfa-scale.hu
+        - LFA_FOOTBALL_PLAYER licenses with baseline skills
+        - Password: "scaletest123" (all users)
+
+    Cleanup:
+        - Deletes created users and licenses after session ends
+
+    Performance Benchmarks:
+        - Measures player creation time
+        - Tracks memory usage (heap size)
+        - Logs fixture setup duration
+
+    Usage:
+        @pytest.mark.scale_suite
+        def test_api_safety_threshold_boundary_127(api_url):
+            # Fixture ensures 1024 @lfa-scale.hu users exist
+            # Test can select 127 players from pool
+            ...
+    """
+    import psutil
+    import time
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from datetime import datetime, timezone
+
+    # Import models
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from app.models.user import User
+    from app.models.license import UserLicense
+    from app.core.security import get_password_hash
+    from app.config import settings
+
+    # Check if any scale_suite tests are collected
+    if not any(item.get_closest_marker("scale_suite") for item in request.session.items):
+        pytest.skip("No scale_suite tests collected - skipping Scale Suite player seed")
+        return  # Won't execute, but satisfies static analysis
+
+    print("\n🌱 Scale Suite Players Setup (1024 @lfa-scale.hu users)...")
+
+    # Performance benchmarking
+    process = psutil.Process()
+    mem_before = process.memory_info().rss / 1024 / 1024  # MB
+    start_time = time.time()
+
+    # Database setup
+    db_url = settings.DATABASE_URL
+    engine = create_engine(db_url)
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    created_user_ids = []
+    created_license_ids = []
+
+    try:
+        # Create 1024 players with deterministic emails
+        batch_size = 100
+        total_players = 1024
+
+        for batch_start in range(1, total_players + 1, batch_size):
+            batch_end = min(batch_start + batch_size, total_players + 1)
+
+            for i in range(batch_start, batch_end):
+                email = f"scale.player.{i:04d}@lfa-scale.hu"
+                password = "scaletest123"
+
+                # Check if user already exists (idempotent)
+                existing = db.query(User).filter(User.email == email).first()
+
+                if existing:
+                    # User exists - skip creation
+                    continue
+
+                # Create new player
+                player = User(
+                    email=email,
+                    password_hash=get_password_hash(password),
+                    name=f"Scale Player {i:04d}",
+                    nickname=f"SCALE{i:04d}",
+                    role="STUDENT",
+                    is_active=True,
+                    onboarding_completed=True,
+                    date_of_birth=datetime(2000, 1, 1),
+                    phone=f"+3630{i:08d}"
+                )
+                db.add(player)
+                db.flush()
+                created_user_ids.append(player.id)
+
+                # Create LFA_FOOTBALL_PLAYER license with baseline skills
+                baseline_skills = {
+                    "finishing": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0},
+                    "dribbling": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0},
+                    "passing": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0}
+                }
+                license = UserLicense(
+                    user_id=player.id,
+                    specialization_type="LFA_FOOTBALL_PLAYER",
+                    is_active=True,
+                    started_at=datetime.now(timezone.utc),
+                    football_skills=baseline_skills
+                )
+                db.add(license)
+                db.flush()
+                created_license_ids.append(license.id)
+
+            # Commit batch
+            db.commit()
+            print(f"   ✅ Batch {batch_start}-{batch_end-1} committed")
+
+        # Performance metrics
+        end_time = time.time()
+        mem_after = process.memory_info().rss / 1024 / 1024  # MB
+        duration = end_time - start_time
+        mem_delta = mem_after - mem_before
+
+        print(f"   ✅ Scale Suite seed complete: {len(created_user_ids)} players created, {total_players - len(created_user_ids)} already existed")
+        print(f"   📊 Performance: {duration:.2f}s, Memory delta: {mem_delta:.2f} MB")
+
+    except Exception as exc:
+        db.rollback()
+        print(f"   ❌ Error creating Scale Suite seed players: {exc}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        db.close()
+
+    yield  # Tests run here
+
+    # Cleanup: Delete created players and licenses
+    print("\n🧹 Cleaning up Scale Suite seed players...")
+    db = SessionLocal()
+    try:
+        # Delete licenses first (foreign key constraint)
+        batch_size = 100
+        for i in range(0, len(created_license_ids), batch_size):
+            batch = created_license_ids[i:i+batch_size]
+            db.query(UserLicense).filter(UserLicense.id.in_(batch)).delete(synchronize_session=False)
+            db.commit()
+
+        # Delete players
+        for i in range(0, len(created_user_ids), batch_size):
+            batch = created_user_ids[i:i+batch_size]
+            db.query(User).filter(User.id.in_(batch)).delete(synchronize_session=False)
+            db.commit()
+
+        print(f"   ✅ Cleanup complete: {len(created_user_ids)} players deleted")
+
+    except Exception as cleanup_err:
+        db.rollback()
+        print(f"   ⚠️  Cleanup warning: {cleanup_err}")
+    finally:
+        db.close()
+
+
+# ============================================================================
 # Screenshot Helpers
 # ============================================================================
 
