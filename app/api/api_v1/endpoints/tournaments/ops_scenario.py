@@ -1407,7 +1407,7 @@ def run_ops_scenario(
                 db.add(_CSC(
                     tournament_id=tid,
                     campus_id=_cid,
-                    parallel_fields=None,   # NULL → resolved from global parallel_fields
+                    parallel_fields=1,   # Default to 1 field per campus (nullable=True but CHECK constraint requires >= 1)
                     is_active=True,
                 ))
         db.flush()

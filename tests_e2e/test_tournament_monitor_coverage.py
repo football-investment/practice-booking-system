@@ -66,15 +66,37 @@ def _get_admin_user(api_url: str, token: str) -> dict:
     return resp.json()
 
 
+# Cache for active campus ID (populated on first call)
+_CAMPUS_ID_CACHE = None
+
 def _ops_post(api_url: str, token: str, payload: dict, timeout: int = 120) -> requests.Response:
     """
     Raw POST to /ops/run-scenario — returns Response for assertion flexibility.
 
-    Automatically adds campus_ids=[1] if not provided (required field since campus infrastructure change).
+    Automatically adds campus_ids if not provided (queries first active campus from DB).
     """
+    global _CAMPUS_ID_CACHE
+
     # Add default campus_ids if not provided (required field for OPS scenarios)
     if "campus_ids" not in payload:
-        payload["campus_ids"] = [1]
+        # Query first active campus (cached to avoid repeated DB hits)
+        if _CAMPUS_ID_CACHE is None:
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
+            from app.models.campus import Campus
+            from app.config import settings
+
+            engine = create_engine(settings.DATABASE_URL)
+            SessionLocal = sessionmaker(bind=engine)
+            db = SessionLocal()
+
+            try:
+                campus = db.query(Campus).filter(Campus.is_active == True).first()
+                _CAMPUS_ID_CACHE = campus.id if campus else 1  # Fallback to 1 if no campus
+            finally:
+                db.close()
+
+        payload["campus_ids"] = [_CAMPUS_ID_CACHE]
 
     return requests.post(
         f"{api_url}/api/v1/tournaments/ops/run-scenario",
