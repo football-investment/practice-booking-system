@@ -111,3 +111,25 @@ scripts/seed_champion_test_user*.sql
 *_ANALYSIS_TEMP.md
 *_INVESTIGATION_*.md
 *_TROUBLESHOOTING_*.md
+
+# Test Artifacts & Screenshots
+tests_cypress/node_modules/
+tests_cypress/cypress/videos/
+tests_cypress/cypress/screenshots/
+tests_cypress/cypress/results/
+tests_e2e/screenshots/
+tests_e2e/videos/
+tests/playwright/screenshots/
+tests/e2e/screenshots/
+tests/e2e_frontend/screenshots/
+*.pyc
+__pycache__/
+.pytest_cache/
+
+# Moved Assets (cleaned up to docs/)
+docs/debug_screenshots/*.png
+docs/debug_screenshots/*.jpg
+docs/debug_screenshots/*.svg
+
+# Moved SQL Scripts (cleaned up to scripts/)
+scripts/sql/cleanup/*.sql
