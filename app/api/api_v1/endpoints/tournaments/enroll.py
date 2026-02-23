@@ -25,6 +25,8 @@ from app.services.age_category_service import (
 )
 from app.services.enrollment_conflict_service import EnrollmentConflictService
 from app.services.tournament.validation import validate_tournament_enrollment_age, check_duplicate_enrollment
+from app.services.audit_service import AuditService
+from app.models.audit_log import AuditAction
 import logging
 import traceback
 
@@ -83,6 +85,23 @@ def enroll_in_tournament(
     # Only ENROLLMENT_OPEN and IN_PROGRESS allow enrollment
     # ENROLLMENT_CLOSED does NOT allow new enrollments (enrollment period ended)
     if tournament.tournament_status not in ["ENROLLMENT_OPEN", "IN_PROGRESS"]:
+        # Audit enrollment failure for observability
+        audit_service = AuditService(db)
+        audit_service.log(
+            action=AuditAction.USER_UPDATED,  # Reuse existing action (no ENROLLMENT_FAILED yet)
+            user_id=current_user.id,
+            details={
+                "event": "enrollment_failed",
+                "tournament_id": tournament_id,
+                "tournament_name": tournament.name,
+                "tournament_status": tournament.tournament_status,
+                "failure_reason": "tournament_not_accepting_enrollments",
+                "allowed_statuses": ["ENROLLMENT_OPEN", "IN_PROGRESS"],
+                "student_balance": current_user.credit_balance,
+                "enrollment_cost": tournament.enrollment_cost
+            }
+        )
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Tournament not accepting enrollments (tournament_status: {tournament.tournament_status}). Only ENROLLMENT_OPEN and IN_PROGRESS tournaments accept enrollments."
