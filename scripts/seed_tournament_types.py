@@ -69,6 +69,7 @@ def seed_tournament_types():
                     code=config['code'],
                     display_name=config['display_name'],
                     description=config['description'],
+                    format=config.get('format', 'INDIVIDUAL_RANKING'),  # Default to INDIVIDUAL_RANKING if not specified
                     min_players=config['min_players'],
                     max_players=config.get('max_players'),
                     requires_power_of_two=config['requires_power_of_two'],

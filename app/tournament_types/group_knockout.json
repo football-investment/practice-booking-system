@@ -2,6 +2,7 @@
   "code": "group_knockout",
   "display_name": "Group Stage + Knockout",
   "description": "Hybrid format - group stage followed by knockout playoffs. Best balance of fairness and excitement.",
+  "format": "HEAD_TO_HEAD",
   "min_players": 8,
   "max_players": 64,
   "requires_power_of_two": false,

@@ -2,6 +2,7 @@
   "code": "knockout",
   "display_name": "Single Elimination (Knockout)",
   "description": "Traditional knockout tournament - lose once and you're out. Fast and exciting.",
+  "format": "HEAD_TO_HEAD",
   "min_players": 4,
   "max_players": 1024,
   "requires_power_of_two": true,

@@ -2,6 +2,7 @@
   "code": "swiss",
   "display_name": "Swiss System",
   "description": "Players with similar scores play each other. Fair and flexible format for any player count.",
+  "format": "HEAD_TO_HEAD",
   "min_players": 4,
   "max_players": 64,
   "requires_power_of_two": false,

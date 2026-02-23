@@ -2,6 +2,7 @@
   "code": "league",
   "display_name": "League (Round Robin)",
   "description": "Every player plays against every other player once. Best for smaller groups with balanced competition.",
+  "format": "HEAD_TO_HEAD",
   "min_players": 2,
   "max_players": 1024,
   "requires_power_of_two": false,
