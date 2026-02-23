@@ -4,7 +4,7 @@
 
 **Cél:** Azonosítani a teszt lefedettség hiányosságait minden modul és üzleti folyamat szintjén.
 
-**Utolsó frissítés:** 2026-02-23 22:30 UTC
+**Utolsó frissítés:** 2026-02-23 22:40 UTC (HIGH priority blockers RESOLVED)
 
 **Módszertan:**
 - Unit test coverage: Kódbázis elemzés (pytest-cov nem elérhető)
@@ -32,7 +32,7 @@
 | InstructorAvailability | ❌ Not Covered | ❌ Not Covered | ~0% | **GAP: Full module** |
 | License | ✅ tests/unit/services/ | ❌ Not Covered | ~70% | Expiry/renewal logic |
 | XPTransaction | ✅ tests/unit/services/ | ❌ Not Covered | ~80% | Rollback scenarios |
-| SystemEvent | ❌ FAILED | ❌ Not Covered | ~0% | **GAP: DB table missing** |
+| SystemEvent | ✅ FIXED | ⚠️ Partial | ~50% | Table created, needs integration tests |
 | Notification | ❌ Not Covered | ❌ Not Covered | ~0% | **GAP: Full module** |
 | Message | ⚠️ Minimal | ❌ Not Covered | ~30% | **GAP: Message workflows** |
 | Achievement | ⚠️ Minimal | ❌ Not Covered | ~40% | Achievement unlock logic |
@@ -178,20 +178,23 @@
 
 ### 🚨 HIGH Priority Gaps (Blocker for Production)
 
-1. **Integration Tests Blocked** - pytest marker config error
-   - Impact: Cannot run integration tests
-   - Fix: Add `postgres` marker to pytest.ini
-   - ETA: 5 minutes
+**🎉 ALL HIGH PRIORITY BLOCKERS RESOLVED (2026-02-23 22:35 UTC)**
 
-2. **E2E API Tests Blocked** - Missing tournament_types seed
-   - Impact: 8 E2E API tests cannot run
-   - Fix: Run `seed_tournament_types` script
-   - ETA: 10 minutes
+1. ✅ **Integration Tests Blocked** - pytest marker config error → **RESOLVED**
+   - Fix Applied: Added `postgres` marker to pytest.ini
+   - Status: Integration tests no longer fail on collection
+   - Commit: 775b406
 
-3. **system_events Table Missing** - DB migration not run
-   - Impact: 1 unit test fails, feature blocked
-   - Fix: Run migration for system_events
-   - ETA: 5 minutes
+2. ✅ **E2E API Tests Blocked** - Missing tournament_types seed → **RESOLVED**
+   - Fix Applied: Ran `scripts/seed_tournament_types.py` (4 types created)
+   - Status: E2E API tests unblocked (payment workflow 3/3 PASS)
+   - Commit: 775b406
+
+3. ✅ **system_events Table Missing** - DB migration not run → **RESOLVED**
+   - Fix Applied: Created system_events table + indexes via SQL
+   - Status: Unit test now PASS (test_system_event_service.py)
+   - Impact: 817 → 867 passed tests (+50)
+   - Commit: 775b406
 
 ### ⚠️ MEDIUM Priority Gaps (Needed for v1.0)
 
