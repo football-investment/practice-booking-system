@@ -176,7 +176,19 @@ def enroll_in_tournament(
             detail=error_message
         )
 
-    # 7. Check not already enrolled using shared validation
+    # 7. Acquire row-level lock on the tournament row FIRST to prevent race conditions
+    # B-03: This lock serializes concurrent enrollment requests. Two threads both
+    # reaching this point will execute serially — the second waits until the first
+    # commits or rolls back. This MUST come before duplicate enrollment check to
+    # prevent TOCTOU race conditions.
+    # Lock is held until db.commit() at step 16.
+    db.query(Semester).filter(
+        Semester.id == tournament_id
+    ).with_for_update().one()
+
+    # 8. Check not already enrolled using shared validation
+    # CRITICAL: This check MUST come AFTER lock acquisition to prevent race conditions
+    # where two threads both pass the duplicate check before either commits.
     is_unique, duplicate_message = check_duplicate_enrollment(
         db,
         current_user.id,
@@ -189,16 +201,7 @@ def enroll_in_tournament(
             detail=duplicate_message
         )
 
-    # 8. Check tournament capacity (max_players)
-    # B-03: Acquire row-level lock on the tournament row to serialize concurrent
-    # enrollment requests. Two threads both reaching this point will now execute
-    # serially — the second waits until the first commits or rolls back, at which
-    # point it reads the updated enrollment count and may correctly see "full".
-    # Lock is held until db.commit() at step 12.
-    db.query(Semester).filter(
-        Semester.id == tournament_id
-    ).with_for_update().one()
-
+    # 9. Check tournament capacity (max_players)
     current_enrollment_count = db.query(SemesterEnrollment).filter(
         SemesterEnrollment.semester_id == tournament_id,
         SemesterEnrollment.is_active == True,
@@ -213,7 +216,7 @@ def enroll_in_tournament(
             detail=f"Tournament is full: {current_enrollment_count}/{max_players} players enrolled"
         )
 
-    # 8.5. Check credit balance (use user-level credit_balance, not license-level)
+    # 10. Check credit balance (use user-level credit_balance, not license-level)
     enrollment_cost = tournament.enrollment_cost if tournament.enrollment_cost is not None else 500
     if current_user.credit_balance < enrollment_cost:
         raise HTTPException(
@@ -221,7 +224,7 @@ def enroll_in_tournament(
             detail=f"Insufficient credits: Need {enrollment_cost}, you have {current_user.credit_balance}"
         )
 
-    # 9. Check conflicts (WARNING only - non-blocking)
+    # 11. Check conflicts (WARNING only - non-blocking)
     conflict_result = EnrollmentConflictService.check_session_time_conflict(
         user_id=current_user.id,
         semester_id=tournament_id,
@@ -244,7 +247,7 @@ def enroll_in_tournament(
     if conflict_result and conflict_result.get("warnings"):
         warnings_list = conflict_result.get("warnings", [])
 
-    # 10. Create enrollment record (AUTO-APPROVED ✅)
+    # 12. Create enrollment record (AUTO-APPROVED ✅)
     enrollment = SemesterEnrollment(
         user_id=current_user.id,
         semester_id=tournament_id,
@@ -261,9 +264,9 @@ def enroll_in_tournament(
 
     db.add(enrollment)
 
-    # 11. B-02: Atomic credit deduction — prevents RACE-03 concurrent double-spend.
+    # 13. B-02: Atomic credit deduction — prevents RACE-03 concurrent double-spend.
     # Uses SQL UPDATE ... WHERE credit_balance >= cost so that if another request
-    # has already drained the balance between our check (step 8.5) and this UPDATE,
+    # has already drained the balance between our check (step 10) and this UPDATE,
     # rowcount will be 0 and we abort cleanly without persisting a negative balance.
     _deduct = db.execute(
         sql_update(User)
@@ -282,7 +285,7 @@ def enroll_in_tournament(
         )
     db.refresh(current_user)  # Sync ORM state with DB after atomic UPDATE
 
-    # 11.5. Create credit transaction record for audit trail
+    # 14. Create credit transaction record for audit trail
     # Generate unique idempotency key for transaction deduplication
     import hashlib
     idempotency_data = f"{current_user.id}:{tournament_id}:{license.id}:{datetime.utcnow().isoformat()}"
@@ -305,7 +308,7 @@ def enroll_in_tournament(
     credit_transaction.enrollment_id = enrollment.id
     db.add(credit_transaction)
 
-    # 11.7. Auto-create bookings for ALL tournament sessions (tournament enrollment = auto-booking)
+    # 15. Auto-create bookings for ALL tournament sessions (tournament enrollment = auto-booking)
     # Get ALL the tournament's sessions
     tournament_sessions = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id
@@ -328,7 +331,7 @@ def enroll_in_tournament(
     else:
         logger.warning(f"⚠️ No sessions found for tournament {tournament_id} - bookings not created")
 
-    # 12. Commit transaction
+    # 16. Commit transaction
     logger = logging.getLogger(__name__)
 
     try:
