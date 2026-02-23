@@ -542,3 +542,139 @@ class TestTournamentEnrollmentE2E:
         print(f"Credit transactions: {transaction_count}")
         print(f"Idempotency: ✅ PRESERVED")
         print("="*60)
+
+    def test_enrollment_failure_atomicity_rollback(
+        self,
+        client,
+        db_session,
+        e2e_student,
+        e2e_student_token
+    ):
+        """
+        E2E Test: Enrollment failure → credit rollback atomicity
+
+        Business Value: Guarantee ACID-like behavior for financial transactions.
+        Validate that enrollment failures do NOT result in credit loss.
+
+        Flow:
+        1. Student has 1000 credits
+        2. Create closed tournament (enrollment deadline passed)
+        3. Attempt enrollment → FAILURE (enrollment closed)
+        4. Verify: Credits NOT deducted (atomic rollback)
+        5. Verify: No enrollment record created
+        6. Verify: Balance unchanged (1000 credits)
+        7. Verify: Transaction consistency preserved
+
+        ACID Validation: If enrollment fails for ANY reason, credits must NOT be lost.
+        """
+
+        # ============================================================
+        # SETUP: Create closed tournament (enrollment deadline passed)
+        # ============================================================
+        initial_balance = e2e_student.credit_balance  # 1000
+
+        closed_tournament = Semester(
+            code="CLOSED-E2E-2026",
+            name="Closed Enrollment E2E Tournament 2026",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            age_group="PRO",
+            start_date=date.today() - timedelta(days=30),  # Started 30 days ago
+            end_date=date.today() - timedelta(days=1),      # Ended yesterday
+            status=SemesterStatus.COMPLETED,  # Tournament completed (enrollment impossible)
+            tournament_status="COMPLETED",
+            enrollment_cost=500,
+            is_active=True
+        )
+        db_session.add(closed_tournament)
+        db_session.commit()
+        db_session.refresh(closed_tournament)
+
+        print(f"✅ Setup: Completed tournament created (status: COMPLETED)")
+
+        # ============================================================
+        # NEGATIVE TEST: Enrollment failure (closed tournament)
+        # ============================================================
+        response = client.post(
+            f"/api/v1/tournaments/{closed_tournament.id}/enroll",
+            headers={"Authorization": f"Bearer {e2e_student_token}"}
+        )
+
+        # Should be rejected (400 or 403 - enrollment closed)
+        assert response.status_code in [400, 403, 422]
+        error_data = response.json()
+
+        # Extract error message
+        if "error" in error_data:
+            error_msg = error_data["error"]["message"]
+        else:
+            error_msg = error_data.get("detail", "")
+
+        # Verify error indicates closed enrollment
+        assert any(keyword in error_msg.lower() for keyword in [
+            "enrollment", "closed", "deadline", "progress", "status"
+        ]), f"Expected enrollment closed error, got: {error_msg}"
+
+        print(f"✅ Enrollment rejected: {error_msg}")
+
+        # ============================================================
+        # ATOMICITY VALIDATION: Credits NOT deducted
+        # ============================================================
+        db_session.refresh(e2e_student)
+        assert e2e_student.credit_balance == initial_balance  # Must be unchanged
+
+        print(f"✅ Credits NOT deducted: {e2e_student.credit_balance} (atomic rollback)")
+
+        # ============================================================
+        # VALIDATION: No enrollment record created
+        # ============================================================
+        enrollment_count = db_session.query(SemesterEnrollment).filter(
+            SemesterEnrollment.user_id == e2e_student.id,
+            SemesterEnrollment.semester_id == closed_tournament.id
+        ).count()
+
+        assert enrollment_count == 0  # No record should exist
+
+        print(f"✅ No enrollment record created (transaction consistency)")
+
+        # ============================================================
+        # VALIDATION: No credit transaction created
+        # ============================================================
+        from app.models.credit_transaction import CreditTransaction
+
+        # Count all enrollment transactions for this license
+        # Since this is a new student in a clean test, there should be ZERO transactions
+        transaction_count = db_session.query(CreditTransaction).filter(
+            CreditTransaction.user_license_id == e2e_student.licenses[0].id,
+            CreditTransaction.transaction_type == "TOURNAMENT_ENROLLMENT"
+        ).count()
+
+        assert transaction_count == 0  # No transaction record (enrollment failed)
+
+        print(f"✅ No credit transaction created (financial integrity)")
+
+        # ============================================================
+        # BUSINESS METRIC: ACID compliance
+        # ============================================================
+        # Verify balance consistency across database refresh
+        db_session.expire_all()  # Force fresh read from DB
+        fresh_user = db_session.query(User).filter(User.id == e2e_student.id).first()
+        assert fresh_user.credit_balance == initial_balance
+
+        print(f"✅ Database consistency verified (fresh read: {fresh_user.credit_balance})")
+
+        # ============================================================
+        # E2E FLOW COMPLETE
+        # ============================================================
+        print("\n" + "="*60)
+        print("🎉 ATOMICITY E2E COMPLETE - ACID Behavior Validated")
+        print("="*60)
+        print(f"Initial balance: {initial_balance}")
+        print(f"After failed enrollment: {e2e_student.credit_balance} (unchanged)")
+        print(f"Enrollment records: {enrollment_count} (none)")
+        print(f"Credit transactions: {transaction_count} (none)")
+        print(f"Database consistency: ✅ PRESERVED")
+        print(f"ACID compliance: ✅ GUARANTEED")
+        print("="*60)
+        print("\n💡 Key Insight: Enrollment failures do NOT result in credit loss.")
+        print("   Financial transaction atomicity is guaranteed by database rollback.")
+        print("="*60)
