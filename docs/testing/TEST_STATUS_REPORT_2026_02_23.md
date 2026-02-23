@@ -4,7 +4,7 @@
 
 **Cél:** Szisztematikus teszt futtatás és dokumentálás típusonként és flow-onként.
 
-**Utolsó frissítés:** 2026-02-23 22:10 UTC (FRESH RUN)
+**Utolsó frissítés:** 2026-02-23 22:35 UTC (BLOCKERS FIXED)
 
 ### 📊 Gyors Áttekintés (Mai Futtatás - FRESH)
 
@@ -31,6 +31,16 @@
 
 **📊 Coverage Gap Analysis:**
 - ✨ **NEW:** [TEST_COVERAGE_GAP_REPORT.md](./TEST_COVERAGE_GAP_REPORT.md) - Teljes lefedettség gap elemzés
+
+### 🔧 HIGH Priority Blockers Fixed (2026-02-23 22:35 UTC)
+
+| Blocker | Status | Fix Applied | Impact |
+|---------|--------|-------------|--------|
+| pytest marker config error | ✅ FIXED | Added 'postgres' marker to pytest.ini | Integration tests unblocked |
+| Missing tournament_types seed | ✅ FIXED | Ran scripts/seed_tournament_types.py (4 types) | E2E API tests unblocked |
+| system_events table missing | ✅ FIXED | Created table + indexes via SQL | Unit test failure resolved |
+
+**Next:** Re-run full test suites to verify fixes
 
 ---
 
