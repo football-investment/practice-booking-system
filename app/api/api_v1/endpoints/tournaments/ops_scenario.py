@@ -1189,51 +1189,58 @@ def run_ops_scenario(
             )
     else:
         # ── Auto mode: query @lfa-seed.hu pool ────────────────────────────
-        _ops_logger.info(
-            "[ops] Querying %d @lfa-seed.hu players for scenario=%s admin=%s run_id=%s",
-            request.player_count, request.scenario, current_user.email, _run_id,
-        )
-        seed_rows = (
-            db.query(_User.id, _User.name, _User.email)
-            .join(UserLicense, UserLicense.user_id == _User.id)
-            .filter(
-                _User.email.like("%@lfa-seed.hu"),
-                _User.is_active == True,
-                UserLicense.is_active == True,
+        if request.player_count == 0:
+            # No players needed - skip seed pool validation
+            seeded_ids = []
+            _ops_logger.info(
+                "[ops] player_count=0 - skipping seed pool query (run_id=%s)", _run_id
             )
-            .order_by(_User.id)
-            .all()
-        )
-        seed_user_ids = [row.id for row in seed_rows]
-
-        if not seed_user_ids:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=(
-                    f"No active @lfa-seed.hu users found with licenses. "
-                    f"Run 'python scripts/seed_star_players.py' to create seed users first."
-                ),
+        else:
+            _ops_logger.info(
+                "[ops] Querying %d @lfa-seed.hu players for scenario=%s admin=%s run_id=%s",
+                request.player_count, request.scenario, current_user.email, _run_id,
             )
-
-        if request.player_count > len(seed_user_ids):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Cannot enroll {request.player_count} players: only {len(seed_user_ids)} "
-                    f"@lfa-seed.hu seed users available. Increase seed user count or reduce player_count."
-                ),
+            seed_rows = (
+                db.query(_User.id, _User.name, _User.email)
+                .join(UserLicense, UserLicense.user_id == _User.id)
+                .filter(
+                    _User.email.like("%@lfa-seed.hu"),
+                    _User.is_active == True,
+                    UserLicense.is_active == True,
+                )
+                .order_by(_User.id)
+                .all()
             )
+            seed_user_ids = [row.id for row in seed_rows]
 
-        # ✅ DETERMINISTIC: Take first N players from ordered pool
-        seeded_ids = seed_user_ids[:request.player_count]
-        _ops_logger.info(
-            "[ops] Using %d existing seed players (pool size: %d, run_id=%s)",
-            len(seeded_ids), len(seed_user_ids), _run_id
-        )
-        _ops_logger.debug(
-            "[ops] Sample seed users: %s",
-            [(r.id, r.name, r.email) for r in seed_rows[:5]]
-        )
+            if not seed_user_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=(
+                        f"No active @lfa-seed.hu users found with licenses. "
+                        f"Run 'python scripts/seed_star_players.py' to create seed users first."
+                    ),
+                )
+
+            if request.player_count > len(seed_user_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Cannot enroll {request.player_count} players: only {len(seed_user_ids)} "
+                        f"@lfa-seed.hu seed users available. Increase seed user count or reduce player_count."
+                    ),
+                )
+
+            # ✅ DETERMINISTIC: Take first N players from ordered pool
+            seeded_ids = seed_user_ids[:request.player_count]
+            _ops_logger.info(
+                "[ops] Using %d existing seed players (pool size: %d, run_id=%s)",
+                len(seeded_ids), len(seed_user_ids), _run_id
+            )
+            _ops_logger.debug(
+                "[ops] Sample seed users: %s",
+                [(r.id, r.name, r.email) for r in seed_rows[:5]]
+            )
 
     # ── Step 2: Create tournament ─────────────────────────────────────────────
     from app.models.semester import Semester as _Semester, SemesterStatus as _SemStatus
