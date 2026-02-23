@@ -233,7 +233,10 @@ def get_booking(
     Students can only view their own bookings.
     Admins and instructors can view any booking.
     """
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    booking = db.query(Booking).options(
+        joinedload(Booking.user),
+        joinedload(Booking.session)
+    ).filter(Booking.id == booking_id).first()
 
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -241,10 +244,6 @@ def get_booking(
     # Authorization: Students can only view their own bookings
     if current_user.role == UserRole.STUDENT and booking.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this booking")
-
-    # Load relationships
-    booking.user
-    booking.session
 
     # Check attendance
     attendance = db.query(Attendance).filter(
