@@ -541,6 +541,25 @@ def unenroll_from_tournament(
         logger.info(f"   - Final balance: {current_user.credit_balance}")
         logger.info(f"   - Bookings removed: {bookings_removed}")
 
+        # Audit refund event for observability
+        audit_service = AuditService(db)
+        audit_service.log(
+            action=AuditAction.USER_UPDATED,  # Reuse existing action
+            user_id=current_user.id,
+            details={
+                "event": "enrollment_refunded",
+                "original_enrollment_id": enrollment.id,
+                "tournament_id": tournament_id,
+                "tournament_name": tournament.name,
+                "refunded_amount": refund_amount,
+                "penalty_amount": penalty_amount,
+                "balance_before": current_user.credit_balance - refund_amount,
+                "balance_after": current_user.credit_balance,
+                "bookings_removed": bookings_removed,
+                "refund_policy": "50_percent"
+            }
+        )
+
     except Exception as e:
         logger.error(f"❌ UNENROLL FAILED: {str(e)}")
         logger.error(traceback.format_exc())
