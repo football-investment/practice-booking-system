@@ -3,6 +3,7 @@ Tournament endpoints
 """
 from fastapi import APIRouter
 from .create import router as create_router  # ✅ Clean tournament creation endpoint
+from .detail import router as detail_router  # ✅ Tournament detail query (GET /{id})
 from .generator import router as generator_router
 from .available import router as available_router
 from .enroll import router as enroll_router
@@ -26,6 +27,7 @@ from .lifecycle_updates import router as lifecycle_updates_router        # ✅ A
 # Combine all tournament routers
 router = APIRouter()
 router.include_router(create_router)  # ✅ Clean tournament creation (production entry point)
+router.include_router(detail_router)  # ✅ Tournament detail query (GET /{id})
 router.include_router(lifecycle_router)  # New lifecycle endpoints (create, status, history)
 router.include_router(generator_router)
 router.include_router(available_router)

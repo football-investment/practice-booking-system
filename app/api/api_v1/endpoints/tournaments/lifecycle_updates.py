@@ -49,6 +49,8 @@ class TournamentUpdateRequest(BaseModel):
     measurement_unit: Optional[str] = Field(None, description="Measurement unit (seconds, meters, points, etc.)")
     ranking_direction: Optional[str] = Field(None, description="Ranking direction (ASC = lowest wins, DESC = highest wins)")
     number_of_rounds: Optional[int] = Field(None, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (⚠️ WARNING: Triggers session regeneration if changed)")
+    # ✅ NEW: Campus assignment (required before ENROLLMENT_OPEN status)
+    campus_id: Optional[int] = Field(None, description="Campus ID where tournament will be held")
 
 
 # ============================================================================
@@ -194,6 +196,19 @@ def update_tournament(
             )
         updates["participant_type"] = {"old": tournament.participant_type, "new": request.participant_type}
         tournament.participant_type = request.participant_type
+
+    # ✅ NEW: Update campus_id (required for ENROLLMENT_OPEN status)
+    if request.campus_id is not None:
+        # Validate campus exists
+        from app.models.campus import Campus
+        campus = db.query(Campus).filter(Campus.id == request.campus_id).first()
+        if not campus:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Campus {request.campus_id} not found"
+            )
+        updates["campus_id"] = {"old": tournament.campus_id, "new": request.campus_id}
+        tournament.campus_id = request.campus_id
 
     # ⚠️ NEW: Update tournament_type_id (AUTO-REGENERATES sessions)
     if request.tournament_type_id is not None:

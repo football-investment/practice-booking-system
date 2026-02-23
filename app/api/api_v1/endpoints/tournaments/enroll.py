@@ -26,6 +26,7 @@ from app.services.age_category_service import (
 from app.services.enrollment_conflict_service import EnrollmentConflictService
 from app.services.tournament.validation import validate_tournament_enrollment_age, check_duplicate_enrollment
 import logging
+import traceback
 
 router = APIRouter()
 
@@ -263,6 +264,11 @@ def enroll_in_tournament(
     db.refresh(current_user)  # Sync ORM state with DB after atomic UPDATE
 
     # 11.5. Create credit transaction record for audit trail
+    # Generate unique idempotency key for transaction deduplication
+    import hashlib
+    idempotency_data = f"{current_user.id}:{tournament_id}:{license.id}:{datetime.utcnow().isoformat()}"
+    idempotency_key = hashlib.sha256(idempotency_data.encode()).hexdigest()[:64]
+
     credit_transaction = CreditTransaction(
         user_license_id=license.id,
         transaction_type="TOURNAMENT_ENROLLMENT",
@@ -270,7 +276,8 @@ def enroll_in_tournament(
         balance_after=current_user.credit_balance,
         description=f"Tournament enrollment: {tournament.name} ({tournament.code})",
         semester_id=tournament_id,
-        enrollment_id=None  # Will be updated after enrollment is committed
+        enrollment_id=None,  # Will be updated after enrollment is committed
+        idempotency_key=idempotency_key  # ✅ FIX: Set required idempotency_key
     )
     db.add(credit_transaction)
     db.flush()  # Get enrollment.id before commit
@@ -476,6 +483,9 @@ def unenroll_from_tournament(
     db.refresh(current_user)  # Sync ORM state before reading balance_after
 
     # 8. Create credit transaction record for refund
+    # Generate idempotency key for transaction deduplication
+    idempotency_key = f"unenroll_{current_user.id}_{tournament_id}_{enrollment.id}_{datetime.utcnow().timestamp()}"
+
     refund_transaction = CreditTransaction(
         user_license_id=enrollment.user_license_id,
         transaction_type="TOURNAMENT_UNENROLL_REFUND",
@@ -483,7 +493,8 @@ def unenroll_from_tournament(
         balance_after=current_user.credit_balance,
         description=f"Tournament unenrollment refund (50%): {tournament.name} ({tournament.code})",
         semester_id=tournament_id,
-        enrollment_id=enrollment.id
+        enrollment_id=enrollment.id,
+        idempotency_key=idempotency_key
     )
     db.add(refund_transaction)
 

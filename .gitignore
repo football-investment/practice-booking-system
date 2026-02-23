@@ -43,6 +43,12 @@ dist/
 *.tgz
 *.tar.gz
 
+# Performance Testing Artifacts
+tests/performance/baseline_results*.csv
+tests/performance/baseline_report*.html
+tests/performance/*.csv
+tests/performance/*.html
+
 # IDE Files
 .vscode/
 .idea/

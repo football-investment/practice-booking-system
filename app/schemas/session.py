@@ -22,6 +22,7 @@ class SessionBase(BaseModel):
     semester_id: int
     group_id: Optional[int] = None  # FIXED: Made optional to allow null values
     instructor_id: Optional[int] = None
+    campus_id: Optional[int] = None  # 🏟️ Multi-campus support (for tournament session distribution)
     credit_cost: int = 1  # Number of credits required to book this session
     is_tournament_game: bool = False  # 🏆 Tournament game flag
     game_type: Optional[str] = None  # Tournament game type (e.g., "Group Stage", "Semifinal", "Final")
@@ -66,6 +67,7 @@ class SessionUpdate(BaseModel):
     semester_id: Optional[int] = None
     group_id: Optional[int] = None
     instructor_id: Optional[int] = None
+    campus_id: Optional[int] = None  # 🏟️ Multi-campus support (for tournament session distribution)
     credit_cost: Optional[int] = None  # Number of credits required to book this session
     is_tournament_game: Optional[bool] = None  # 🏆 Tournament game flag
     game_type: Optional[str] = None  # Tournament game type (e.g., "Group Stage", "Semifinal", "Final")

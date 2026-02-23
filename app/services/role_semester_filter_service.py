@@ -224,6 +224,6 @@ class RoleSemesterFilterService:
 
         # Optional: semester_id filter still works
         if semester_id:
-            query = query.filter_by(semester_id=semester_id)
+            query = query.filter(SessionTypel.semester_id == semester_id)
 
         return query

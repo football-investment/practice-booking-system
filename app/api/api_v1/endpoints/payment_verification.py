@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from ....database import get_db
-from ....dependencies import get_current_admin_user_web
+from ....dependencies import get_current_admin_user_web, get_current_admin_user
 from ....models.user import User, UserRole
 from ....models.specialization import SpecializationType
 from ....models.license import UserLicense
@@ -65,7 +65,7 @@ async def verify_student_payment(
     student_id: int,
     payment_request: PaymentVerificationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)  # Changed to support both web cookies and API Bearer tokens
 ) -> Any:
     """
     Verify payment for a specific student and set their specialization (Admin only)
@@ -222,11 +222,12 @@ async def add_student_specialization(
     student_id: int,
     spec_request: SpecializationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)  # Changed to support both web cookies and API Bearer tokens
 ) -> Any:
     """
     Add a single specialization to a student (Admin only)
     Creates a UserLicense entry for the specified specialization.
+    Supports both web cookies and API Bearer tokens.
     """
     # Get student
     student = db.query(User).filter(

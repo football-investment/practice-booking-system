@@ -137,6 +137,7 @@ class SessionResponseBuilder:
             "semester_id": session.semester_id,
             "group_id": session.group_id,
             "instructor_id": session.instructor_id,
+            "campus_id": session.campus_id,  # 🏟️ Multi-campus support
             # NULL handling: created_at
             "created_at": session.created_at or session.date_start,
             "updated_at": session.updated_at,

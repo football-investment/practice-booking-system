@@ -36,9 +36,13 @@ class OpsScenarioRequest(BaseModel):
     )
     player_count: int = Field(
         default=1024,
-        ge=2,
+        ge=0,
         le=1024,
-        description="Number of players to seed + enroll (2–1024).",
+        description="Number of players to seed + enroll (0–1024). Use 0 for testing enrollment workflows.",
+    )
+    max_players: Optional[int] = Field(
+        None,
+        description="Maximum players allowed in tournament. Defaults to player_count if not specified.",
     )
     tournament_type_code: Optional[str] = Field(
         "knockout",
@@ -59,6 +63,21 @@ class OpsScenarioRequest(BaseModel):
     tournament_name: Optional[str] = Field(
         None,
         description="Tournament name. Auto-generated as 'Ops-<scenario>-<timestamp>' if omitted.",
+    )
+    age_group: Optional[str] = Field(
+        "PRO",
+        description="Age group for tournament: 'PRE', 'YOUTH', 'AMATEUR', 'PRO'. Default: 'PRO'.",
+    )
+    enrollment_cost: Optional[int] = Field(
+        0,
+        description="Tournament enrollment cost in credits. Default: 0 (free).",
+    )
+    initial_tournament_status: Optional[str] = Field(
+        "IN_PROGRESS",
+        description=(
+            "Initial tournament status. Default: 'IN_PROGRESS' (ready for enrollment). "
+            "Use 'SEEKING_INSTRUCTOR' for testing instructor assignment workflows."
+        ),
     )
     dry_run: bool = Field(
         False,
@@ -120,6 +139,14 @@ class OpsScenarioRequest(BaseModel):
             "Explicit campus IDs for session distribution (required, min 1). "
             "Sessions are assigned round-robin across the provided campus IDs. "
             "Auto-discovery is disabled — campuses must be specified explicitly."
+        ),
+    )
+    auto_generate_sessions: bool = Field(
+        True,
+        description=(
+            "Controls session generation behavior. "
+            "True: Auto-generate sessions (default). "
+            "False: Skip session generation (manual mode for instructor assignment tests)."
         ),
     )
 
@@ -1239,9 +1266,10 @@ def run_ops_scenario(
         end_date=(_dt.now() + _td(days=30)).date(),
         is_active=True,
         status=_SemStatus.ONGOING,        # lifecycle enum
-        tournament_status="IN_PROGRESS",  # tournament-specific string field
+        tournament_status=request.initial_tournament_status,  # Use parameter (default: IN_PROGRESS)
         master_instructor_id=grandmaster.id if grandmaster else None,
-        enrollment_cost=0,
+        enrollment_cost=request.enrollment_cost,  # Enrollment cost from request (default: 0)
+        age_group=request.age_group,              # Age group from request (default: PRO)
     )
     db.add(tournament)
     db.flush()
@@ -1253,7 +1281,7 @@ def run_ops_scenario(
             tournament_type_id=tt.id,
             participant_type="INDIVIDUAL",
             is_multi_day=False,
-            max_players=_effective_count,
+            max_players=request.max_players or _effective_count,  # Use override if provided
             parallel_fields=1,
             scoring_type="HEAD_TO_HEAD",
             number_of_rounds=request.number_of_rounds or 1,
@@ -1266,7 +1294,7 @@ def run_ops_scenario(
             tournament_type_id=None,
             participant_type="INDIVIDUAL",
             is_multi_day=False,
-            max_players=_effective_count,
+            max_players=request.max_players or _effective_count,  # Use override if provided
             parallel_fields=1,
             scoring_type=_scoring,
             ranking_direction=request.ranking_direction,
@@ -1368,7 +1396,7 @@ def run_ops_scenario(
     db.commit()
     _ops_logger.info("[ops] %d/%d players enrolled", enrolled_count, len(seeded_ids))
 
-    # ── Step 4: Trigger session generation ───────────────────────────────────
+    # ── Step 4: Trigger session generation (CONDITIONAL) ─────────────────────
     from app.api.api_v1.endpoints.tournaments.generate_sessions import (
         _is_celery_available,
         _run_generation_in_background,
@@ -1427,158 +1455,169 @@ def run_ops_scenario(
 
     task_id: Optional[str] = None
 
-    if request.player_count >= BACKGROUND_GENERATION_THRESHOLD:
-        if _is_celery_available():
-            from app.tasks.tournament_tasks import generate_sessions_task
-            celery_result = generate_sessions_task.apply_async(
-                args=[tid, parallel_fields, session_duration, break_duration,
-                      number_of_rounds, campus_overrides_raw, campus_ids],
-                queue="tournaments",
-                headers={"dispatched_at": _time.perf_counter()},
-            )
-            task_id = celery_result.id
-            _ops_logger.info("[ops] Celery task dispatched task_id=%s", task_id)
+    # Check if auto_generate_sessions is enabled (default True)
+    if request.auto_generate_sessions:
+        # Proceed with session generation (existing logic)
+        if request.player_count >= BACKGROUND_GENERATION_THRESHOLD:
+            if _is_celery_available():
+                from app.tasks.tournament_tasks import generate_sessions_task
+                celery_result = generate_sessions_task.apply_async(
+                    args=[tid, parallel_fields, session_duration, break_duration,
+                          number_of_rounds, campus_overrides_raw, campus_ids],
+                    queue="tournaments",
+                    headers={"dispatched_at": _time.perf_counter()},
+                )
+                task_id = celery_result.id
+                _ops_logger.info("[ops] Celery task dispatched task_id=%s", task_id)
+            else:
+                task_id = str(_uuid.uuid4())
+                with _registry_lock:
+                    _task_registry[task_id] = {
+                        "status": "pending",
+                        "tournament_id": tid,
+                        "player_count": request.player_count,
+                        "message": None,
+                        "sessions_count": 0,
+                    }
+                _threading.Thread(
+                    target=_run_generation_in_background,
+                    args=(task_id, tid, parallel_fields, session_duration,
+                          break_duration, number_of_rounds, campus_overrides_raw, campus_ids),
+                    daemon=True,
+                ).start()
+                _ops_logger.info("[ops] Thread task dispatched task_id=%s", task_id)
         else:
-            task_id = str(_uuid.uuid4())
-            with _registry_lock:
-                _task_registry[task_id] = {
-                    "status": "pending",
-                    "tournament_id": tid,
-                    "player_count": request.player_count,
-                    "message": None,
-                    "sessions_count": 0,
-                }
-            _threading.Thread(
-                target=_run_generation_in_background,
-                args=(task_id, tid, parallel_fields, session_duration,
-                      break_duration, number_of_rounds, campus_overrides_raw, campus_ids),
-                daemon=True,
-            ).start()
-            _ops_logger.info("[ops] Thread task dispatched task_id=%s", task_id)
-    else:
-        # Sync generation for small counts
-        from app.services.tournament.session_generation.session_generator import (
-            TournamentSessionGenerator,
-        )
-        from app.models.semester_enrollment import SemesterEnrollment as _SE2, EnrollmentStatus as _ES2
+            # Sync generation for small counts
+            from app.services.tournament.session_generation.session_generator import (
+                TournamentSessionGenerator,
+            )
+            from app.models.semester_enrollment import SemesterEnrollment as _SE2, EnrollmentStatus as _ES2
 
-        enrolled_user_ids = [
-            r[0] for r in db.query(_SE2.user_id).filter(
-                _SE2.semester_id == tid,
-                _SE2.is_active == True,
-                _SE2.request_status == _ES2.APPROVED,
-            ).all()
-        ]
-        generator = TournamentSessionGenerator(db)
-        _gen_ok, _gen_msg, _ = generator.generate_sessions(
-            tournament_id=tid,
-            parallel_fields=parallel_fields,
-            session_duration_minutes=session_duration,
-            break_minutes=break_duration,
-            number_of_rounds=number_of_rounds,
-            campus_ids=campus_ids,
-        )
-        task_id = "sync-done"
-        if not _gen_ok:
-            _ops_logger.error(
-                "[ops] Sync generation FAILED for %d players: %s",
+            enrolled_user_ids = [
+                r[0] for r in db.query(_SE2.user_id).filter(
+                    _SE2.semester_id == tid,
+                    _SE2.is_active == True,
+                    _SE2.request_status == _ES2.APPROVED,
+                ).all()
+            ]
+            generator = TournamentSessionGenerator(db)
+            _gen_ok, _gen_msg, _ = generator.generate_sessions(
+                tournament_id=tid,
+                parallel_fields=parallel_fields,
+                session_duration_minutes=session_duration,
+                break_minutes=break_duration,
+                number_of_rounds=number_of_rounds,
+                campus_ids=campus_ids,
+            )
+            task_id = "sync-done"
+            if not _gen_ok:
+                _ops_logger.error(
+                    "[ops] Sync generation FAILED for %d players: %s",
+                    request.player_count, _gen_msg,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"Session generation failed: {_gen_msg}. "
+                        f"Tournament id={tid} was created but has 0 sessions. "
+                        f"Adjust player_count or tournament_type_code and retry."
+                    ),
+                )
+            _ops_logger.info(
+                "[ops] Sync generation done for %d players: %s",
                 request.player_count, _gen_msg,
             )
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"Session generation failed: {_gen_msg}. "
-                    f"Tournament id={tid} was created but has 0 sessions. "
-                    f"Adjust player_count or tournament_type_code and retry."
-                ),
-            )
-        _ops_logger.info(
-            "[ops] Sync generation done for %d players: %s",
-            request.player_count, _gen_msg,
-        )
 
-        # ── Step 4.1: Auto-simulate results (skipped for manual/observe modes) ──
-        sim_ok = request.simulation_mode in ("auto_immediate", "accelerated")
-        sim_msg = "skipped (manual mode)"
-        if sim_ok:
-            sim_ok, sim_msg = _simulate_tournament_results(
-                db=db,
-                tournament_id=tid,
-                logger=_ops_logger,
-            )
-        if sim_ok:
-            _ops_logger.info("[ops] Auto-result simulation: %s", sim_msg)
+            # ── Step 4.1: Auto-simulate results (skipped for manual/observe modes) ──
+            sim_ok = request.simulation_mode in ("auto_immediate", "accelerated")
+            sim_msg = "skipped (manual mode)"
+            if sim_ok:
+                sim_ok, sim_msg = _simulate_tournament_results(
+                    db=db,
+                    tournament_id=tid,
+                    logger=_ops_logger,
+                )
+            if sim_ok:
+                _ops_logger.info("[ops] Auto-result simulation: %s", sim_msg)
 
-            # ── Step 4.2: Calculate rankings to populate leaderboard ─────────────
-            try:
-                from app.services.tournament.ranking.strategies.factory import RankingStrategyFactory
-                from app.models.tournament_ranking import TournamentRanking
+                # ── Step 4.2: Calculate rankings to populate leaderboard ─────────────
+                try:
+                    from app.services.tournament.ranking.strategies.factory import RankingStrategyFactory
+                    from app.models.tournament_ranking import TournamentRanking
 
-                # Get tournament format and type
-                tournament = db.query(_Semester).filter(_Semester.id == tid).first()
-                tournament_format = tournament.format if tournament.format else "HEAD_TO_HEAD"
-                tournament_type_code = None
-                if tournament.tournament_config_obj and tournament.tournament_config_obj.tournament_type:
-                    tournament_type_code = tournament.tournament_config_obj.tournament_type.code
+                    # Get tournament format and type
+                    tournament = db.query(_Semester).filter(_Semester.id == tid).first()
+                    tournament_format = tournament.format if tournament.format else "HEAD_TO_HEAD"
+                    tournament_type_code = None
+                    if tournament.tournament_config_obj and tournament.tournament_config_obj.tournament_type:
+                        tournament_type_code = tournament.tournament_config_obj.tournament_type.code
 
-                # Get all sessions for ranking calculation
-                sessions = _get_tournament_sessions(db, tid)
+                    # Get all sessions for ranking calculation
+                    sessions = _get_tournament_sessions(db, tid)
 
-                if tournament_format == "INDIVIDUAL_RANKING":
-                    rankings = _calculate_ir_rankings(tournament, sessions, _ops_logger)
-                    strategy = True  # Sentinel so the insert block runs
-                elif tournament_type_code:
-                    # HEAD_TO_HEAD: use tournament type-based strategy
-                    strategy = RankingStrategyFactory.create(
-                        tournament_format=tournament_format,
-                        tournament_type_code=tournament_type_code,
-                    )
-                else:
-                    _ops_logger.warning("[ops] Cannot calculate rankings: unknown format/type")
-                    strategy = None
-
-                if strategy is not None:
-                    if tournament_format != "INDIVIDUAL_RANKING":
-                        # H2H strategies expect (sessions, db) and return List[Dict]
-                        rankings = strategy.calculate_rankings(sessions, db)
-
-                    # Delete existing rankings (idempotency)
-                    db.query(TournamentRanking).filter(
-                        TournamentRanking.tournament_id == tid
-                    ).delete()
-
-                    # Insert new rankings
-                    for ranking_data in rankings:
-                        ranking_record = TournamentRanking(
-                            tournament_id=tid,
-                            user_id=ranking_data["user_id"],
-                            participant_type="INDIVIDUAL",
-                            rank=ranking_data["rank"],
-                            # IR strategies return "final_value"; H2H returns "points"
-                            points=ranking_data.get("points") or ranking_data.get("final_value", 0),
-                            wins=ranking_data.get("wins", 0),
-                            losses=ranking_data.get("losses", 0),
-                            draws=ranking_data.get("ties", 0),
-                            goals_for=ranking_data.get("goals_scored", 0),
-                            goals_against=ranking_data.get("goals_conceded", 0),
+                    if tournament_format == "INDIVIDUAL_RANKING":
+                        rankings = _calculate_ir_rankings(tournament, sessions, _ops_logger)
+                        strategy = True  # Sentinel so the insert block runs
+                    elif tournament_type_code:
+                        # HEAD_TO_HEAD: use tournament type-based strategy
+                        strategy = RankingStrategyFactory.create(
+                            tournament_format=tournament_format,
+                            tournament_type_code=tournament_type_code,
                         )
-                        db.add(ranking_record)
+                    else:
+                        _ops_logger.warning("[ops] Cannot calculate rankings: unknown format/type")
+                        strategy = None
 
-                    db.commit()
-                    _ops_logger.info("[ops] Rankings calculated: %d players ranked", len(rankings))
+                    if strategy is not None:
+                        if tournament_format != "INDIVIDUAL_RANKING":
+                            # H2H strategies expect (sessions, db) and return List[Dict]
+                            rankings = strategy.calculate_rankings(sessions, db)
 
-            except Exception as rank_exc:
-                import traceback
-                _ops_logger.warning("[ops] Ranking calculation failed (non-fatal): %s", rank_exc)
-                _ops_logger.warning("[ops] Ranking calculation traceback:\n%s", traceback.format_exc())
-                db.rollback()
+                        # Delete existing rankings (idempotency)
+                        db.query(TournamentRanking).filter(
+                            TournamentRanking.tournament_id == tid
+                        ).delete()
 
-            # ── Step 4.3: Finalize tournament + auto-distribute rewards ───────────
-            # Runs TournamentFinalizer to set COMPLETED → REWARDS_DISTRIBUTED lifecycle
-            _finalize_tournament_with_rewards(tid, db, _ops_logger)
+                        # Insert new rankings
+                        for ranking_data in rankings:
+                            ranking_record = TournamentRanking(
+                                tournament_id=tid,
+                                user_id=ranking_data["user_id"],
+                                participant_type="INDIVIDUAL",
+                                rank=ranking_data["rank"],
+                                # IR strategies return "final_value"; H2H returns "points"
+                                points=ranking_data.get("points") or ranking_data.get("final_value", 0),
+                                wins=ranking_data.get("wins", 0),
+                                losses=ranking_data.get("losses", 0),
+                                draws=ranking_data.get("ties", 0),
+                                goals_for=ranking_data.get("goals_scored", 0),
+                                goals_against=ranking_data.get("goals_conceded", 0),
+                            )
+                            db.add(ranking_record)
 
-        else:
-            _ops_logger.warning("[ops] Auto-result simulation skipped or failed (non-fatal): %s", sim_msg)
+                        db.commit()
+                        _ops_logger.info("[ops] Rankings calculated: %d players ranked", len(rankings))
+
+                except Exception as rank_exc:
+                    import traceback
+                    _ops_logger.warning("[ops] Ranking calculation failed (non-fatal): %s", rank_exc)
+                    _ops_logger.warning("[ops] Ranking calculation traceback:\n%s", traceback.format_exc())
+                    db.rollback()
+
+                # ── Step 4.3: Finalize tournament + auto-distribute rewards ───────────
+                # Runs TournamentFinalizer to set COMPLETED → REWARDS_DISTRIBUTED lifecycle
+                _finalize_tournament_with_rewards(tid, db, _ops_logger)
+
+            else:
+                _ops_logger.warning("[ops] Auto-result simulation skipped or failed (non-fatal): %s", sim_msg)
+    else:
+        # Manual mode: Skip session generation
+        task_id = "manual-mode-skipped"
+        _ops_logger.info(
+            "[ops] Session generation SKIPPED (manual mode) - "
+            "tournament %d created with 0 sessions",
+            tid
+        )
 
     # ── Step 5: Audit log ─────────────────────────────────────────────────────
     audit_log_id: Optional[int] = None

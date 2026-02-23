@@ -19,19 +19,116 @@ async def request_invoice(
     request_data: dict,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)  # Changed to support both web cookies and API Bearer tokens
 ) -> Any:
     """
-    Request invoice for credit purchase - creates InvoiceRequest with unique payment reference (Web cookie auth)
+    Request invoice for credit purchase - creates InvoiceRequest with unique payment reference (Supports both web cookies and API tokens)
+
+    Request body:
+    {
+        "package_type": "PACKAGE_500",  # One of: PACKAGE_250, PACKAGE_500, PACKAGE_1000, PACKAGE_2000
+        "specialization_type": "LFA_FOOTBALL_PLAYER"  # Optional
+    }
+
+    Returns:
+    {
+        "id": int,
+        "payment_reference": str,  # e.g., "LFA-20260222-174530-00123-A3F2"
+        "amount_eur": float,
+        "credit_amount": int,
+        "status": "pending"
+    }
     """
+    from .....models.invoice_request import InvoiceRequest, InvoiceRequestStatus
+    from datetime import datetime, timezone
+    import hashlib
+
+    # Define package mappings
+    PACKAGE_MAPPINGS = {
+        "PACKAGE_250": {"amount_eur": 250.0, "credit_amount": 250},
+        "PACKAGE_500": {"amount_eur": 500.0, "credit_amount": 500},
+        "PACKAGE_1000": {"amount_eur": 1000.0, "credit_amount": 1000},
+        "PACKAGE_2000": {"amount_eur": 2000.0, "credit_amount": 2000},
+    }
+
+    # Validate request data
+    package_type = request_data.get("package_type")
+    if not package_type or package_type not in PACKAGE_MAPPINGS:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid package_type. Must be one of: {', '.join(PACKAGE_MAPPINGS.keys())}"
+        )
+
+    # Check for existing active invoice (prevent duplicates)
+    existing_invoice = db.query(InvoiceRequest).filter(
+        InvoiceRequest.user_id == current_user.id,
+        InvoiceRequest.status == InvoiceRequestStatus.PENDING.value
+    ).first()
+
+    if existing_invoice:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"You already have a pending invoice request (ID: {existing_invoice.id}, ref: {existing_invoice.payment_reference})"
+        )
+
+    # Get package details
+    package_info = PACKAGE_MAPPINGS[package_type]
+    amount_eur = package_info["amount_eur"]
+    credit_amount = package_info["credit_amount"]
+
+    # Get specialization (optional)
+    specialization = request_data.get("specialization_type")
+
+    # Create invoice request (payment_reference will be generated after commit to get ID)
+    invoice = InvoiceRequest(
+        user_id=current_user.id,
+        amount_eur=amount_eur,
+        credit_amount=credit_amount,
+        specialization=specialization,
+        status=InvoiceRequestStatus.PENDING.value,
+        payment_reference="TEMP"  # Temporary, will be updated after commit
+    )
+
+    db.add(invoice)
+    db.flush()  # Flush to get the ID without committing
+
+    # Generate unique payment reference: LFA-YYYYMMDD-HHMMSS-ID-HASH
+    now = datetime.now(timezone.utc)
+    date_part = now.strftime("%Y%m%d")
+    time_part = now.strftime("%H%M%S")
+    id_part = f"{invoice.id:05d}"  # 5-digit zero-padded ID
+
+    # Generate 4-char hash from timestamp + id + user_id
+    hash_input = f"{now.timestamp()}{invoice.id}{current_user.id}".encode()
+    hash_part = hashlib.md5(hash_input).hexdigest()[:4].upper()
+
+    payment_reference = f"LFA-{date_part}-{time_part}-{id_part}-{hash_part}"
+
+    # Update payment reference
+    invoice.payment_reference = payment_reference
+
+    db.commit()
+    db.refresh(invoice)
+
+    return {
+        "id": invoice.id,
+        "payment_reference": invoice.payment_reference,
+        "amount_eur": invoice.amount_eur,
+        "credit_amount": invoice.credit_amount,
+        "status": invoice.status,
+        "message": f"Invoice request created. Please transfer {amount_eur} EUR to our bank account with reference: {payment_reference}"
+    }
+
 @router.get("/credit-balance")
 async def get_credit_balance(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)  # Changed to support both web cookies and API Bearer tokens
 ) -> Any:
     """
-    Get current user's credit balance and invoice counts (for polling/auto-refresh)
+    Get current user's credit balance and invoice counts (for polling/auto-refresh, supports both web cookies and API tokens)
     """
     from .....models.invoice_request import InvoiceRequest
 
