@@ -28,7 +28,7 @@
       "goals": "play_higher_level",
       "credits": 5000,
       "xp": 5000,
-      "db_id": 3,
+      "db_id": 1438,
       "skills": {
         "ball_control": 95,
         "dribbling": 92,
@@ -80,7 +80,7 @@
       "goals": "play_higher_level",
       "credits": 5000,
       "xp": 4500,
-      "db_id": 4,
+      "db_id": 1439,
       "skills": {
         "ball_control": 85,
         "dribbling": 80,
@@ -132,7 +132,7 @@
       "goals": "improve_skills",
       "credits": 9999,
       "xp": 9999,
-      "db_id": 5,
+      "db_id": 1440,
       "skills": {
         "ball_control": 96,
         "dribbling": 96,
@@ -184,7 +184,7 @@
       "goals": "become_professional",
       "credits": 5000,
       "xp": 5000,
-      "db_id": 6,
+      "db_id": 1441,
       "skills": {
         "ball_control": 91,
         "dribbling": 96,
@@ -236,7 +236,7 @@
       "goals": "play_higher_level",
       "credits": 5000,
       "xp": 4800,
-      "db_id": 7,
+      "db_id": 1442,
       "skills": {
         "ball_control": 87,
         "dribbling": 84,
@@ -288,7 +288,7 @@
       "goals": "play_higher_level",
       "credits": 6000,
       "xp": 6000,
-      "db_id": 8,
+      "db_id": 1443,
       "skills": {
         "ball_control": 90,
         "dribbling": 91,
@@ -340,7 +340,7 @@
       "goals": "become_professional",
       "credits": 4500,
       "xp": 4500,
-      "db_id": 9,
+      "db_id": 1444,
       "skills": {
         "ball_control": 91,
         "dribbling": 90,
@@ -392,7 +392,7 @@
       "goals": "improve_skills",
       "credits": 5000,
       "xp": 5000,
-      "db_id": 10,
+      "db_id": 1445,
       "skills": {
         "ball_control": 85,
         "dribbling": 78,
@@ -444,7 +444,7 @@
       "goals": "improve_skills",
       "credits": 4000,
       "xp": 4000,
-      "db_id": 11,
+      "db_id": 2,
       "skills": {
         "ball_control": 76,
         "dribbling": 63,
@@ -496,7 +496,7 @@
       "goals": "become_professional",
       "credits": 4500,
       "xp": 4000,
-      "db_id": 12,
+      "db_id": 1446,
       "skills": {
         "ball_control": 88,
         "dribbling": 86,
@@ -548,7 +548,7 @@
       "goals": "become_professional",
       "credits": 4000,
       "xp": 3500,
-      "db_id": 13,
+      "db_id": 1447,
       "skills": {
         "ball_control": 90,
         "dribbling": 91,
@@ -600,7 +600,7 @@
       "goals": "play_higher_level",
       "credits": 4500,
       "xp": 4000,
-      "db_id": 14,
+      "db_id": 1448,
       "skills": {
         "ball_control": 82,
         "dribbling": 80,
