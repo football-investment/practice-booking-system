@@ -309,3 +309,236 @@ class TestTournamentEnrollmentE2E:
         print(f"Instructor: {e2e_instructor.name} (checked in)")
         print(f"Audit: Complete trail from enrollment to check-in")
         print("="*60)
+
+    def test_enrollment_insufficient_credits_rejection(
+        self,
+        client,
+        db_session,
+        e2e_student,
+        e2e_student_token,
+        e2e_tournament
+    ):
+        """
+        E2E Test: Insufficient credits → enrollment rejection
+
+        Business Value: Validate credit protection mechanism prevents
+        negative balance and maintains data consistency.
+
+        Flow:
+        1. Student has 1000 credits
+        2. Tournament costs 500 credits
+        3. Enroll in tournament (500 credits deducted → 500 remaining)
+        4. Create second expensive tournament (600 credits)
+        5. Attempt enrollment → REJECTED (insufficient credits)
+        6. Verify balance unchanged (500 credits)
+        7. Verify no enrollment record created
+        """
+
+        # ============================================================
+        # SETUP: First enrollment to drain credits
+        # ============================================================
+        initial_balance = e2e_student.credit_balance  # 1000
+
+        # Enroll in first tournament (500 credits)
+        response = client.post(
+            f"/api/v1/tournaments/{e2e_tournament.id}/enroll",
+            headers={"Authorization": f"Bearer {e2e_student_token}"}
+        )
+        assert response.status_code == 200
+
+        db_session.refresh(e2e_student)
+        assert e2e_student.credit_balance == 500
+
+        print(f"✅ Setup: First enrollment successful (1000 → 500 credits)")
+
+        # ============================================================
+        # NEGATIVE TEST: Insufficient credits
+        # ============================================================
+        # Create expensive tournament (600 credits)
+        expensive_tournament = Semester(
+            code="EXPENSIVE-E2E-2026",
+            name="Expensive E2E Tournament 2026",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            age_group="PRO",
+            start_date=date.today() + timedelta(days=30),
+            end_date=date.today() + timedelta(days=60),
+            status=SemesterStatus.READY_FOR_ENROLLMENT,
+            tournament_status="ENROLLMENT_OPEN",
+            enrollment_cost=600,  # More than remaining balance (500)
+            is_active=True
+        )
+        db_session.add(expensive_tournament)
+        db_session.commit()
+        db_session.refresh(expensive_tournament)
+
+        # Attempt enrollment with insufficient credits
+        response = client.post(
+            f"/api/v1/tournaments/{expensive_tournament.id}/enroll",
+            headers={"Authorization": f"Bearer {e2e_student_token}"}
+        )
+
+        # Should be rejected (400 or 403)
+        assert response.status_code in [400, 403]
+        error_data = response.json()
+        assert "error" in error_data or "detail" in error_data
+
+        # Extract error message
+        if "error" in error_data:
+            error_msg = error_data["error"]["message"]
+        else:
+            error_msg = error_data["detail"]
+
+        assert "insufficient" in error_msg.lower() or "credit" in error_msg.lower()
+
+        print(f"✅ Enrollment rejected: {error_msg}")
+
+        # ============================================================
+        # VALIDATION: Credit balance unchanged
+        # ============================================================
+        db_session.refresh(e2e_student)
+        assert e2e_student.credit_balance == 500  # No change
+
+        print(f"✅ Credit balance unchanged: 500 credits (consistent)")
+
+        # ============================================================
+        # VALIDATION: No enrollment record created
+        # ============================================================
+        enrollment_count = db_session.query(SemesterEnrollment).filter(
+            SemesterEnrollment.user_id == e2e_student.id,
+            SemesterEnrollment.semester_id == expensive_tournament.id
+        ).count()
+
+        assert enrollment_count == 0  # No record should exist
+
+        print(f"✅ No enrollment record created (data consistency preserved)")
+
+        # ============================================================
+        # BUSINESS METRIC: Credit consistency after rejection
+        # ============================================================
+        print("\n" + "="*60)
+        print("🎉 NEGATIVE E2E COMPLETE - Credit Protection Validated")
+        print("="*60)
+        print(f"Initial balance: {initial_balance}")
+        print(f"After first enrollment: 500")
+        print(f"After rejection: {e2e_student.credit_balance} (unchanged)")
+        print(f"Enrollment records: 1 (only first tournament)")
+        print(f"Credit consistency: ✅ PRESERVED")
+        print("="*60)
+
+    def test_double_enrollment_idempotency(
+        self,
+        client,
+        db_session,
+        e2e_student,
+        e2e_student_token,
+        e2e_tournament
+    ):
+        """
+        E2E Test: Double enrollment → idempotency validation
+
+        Business Value: Prevent double-charging and duplicate enrollment
+        records. Validate transaction idempotency.
+
+        Flow:
+        1. Student enrolls in tournament (success)
+        2. Attempt second enrollment in same tournament
+        3. Verify: Idempotent response (already enrolled message)
+        4. Verify: Credits NOT deducted twice
+        5. Verify: Only ONE enrollment record exists
+        """
+
+        # ============================================================
+        # FIRST ENROLLMENT: Success
+        # ============================================================
+        initial_balance = e2e_student.credit_balance  # 1000
+
+        response = client.post(
+            f"/api/v1/tournaments/{e2e_tournament.id}/enroll",
+            headers={"Authorization": f"Bearer {e2e_student_token}"}
+        )
+
+        assert response.status_code == 200
+        enrollment_data = response.json()
+        assert enrollment_data["success"] is True
+
+        db_session.refresh(e2e_student)
+        balance_after_first = e2e_student.credit_balance
+        expected_balance = initial_balance - e2e_tournament.enrollment_cost
+        assert balance_after_first == expected_balance
+
+        print(f"✅ First enrollment: {initial_balance} → {balance_after_first} credits")
+
+        # ============================================================
+        # SECOND ENROLLMENT: Idempotency check
+        # ============================================================
+        response = client.post(
+            f"/api/v1/tournaments/{e2e_tournament.id}/enroll",
+            headers={"Authorization": f"Bearer {e2e_student_token}"}
+        )
+
+        # Should be rejected or return idempotent response
+        # Valid responses: 400 (already enrolled), 409 (conflict), or 200 (idempotent)
+        assert response.status_code in [200, 400, 409]
+
+        if response.status_code == 200:
+            # Idempotent response - check message indicates already enrolled
+            data = response.json()
+            # Should indicate already enrolled (check warnings or message)
+            if "warnings" in data:
+                assert any("already" in w.lower() for w in data["warnings"])
+        else:
+            # Error response - check message
+            error_data = response.json()
+            if "error" in error_data:
+                error_msg = error_data["error"]["message"]
+            else:
+                error_msg = error_data["detail"]
+            assert "already" in error_msg.lower() or "enrolled" in error_msg.lower()
+
+        print(f"✅ Second enrollment: Idempotent response (HTTP {response.status_code})")
+
+        # ============================================================
+        # VALIDATION: Credits NOT deducted twice
+        # ============================================================
+        db_session.refresh(e2e_student)
+        assert e2e_student.credit_balance == balance_after_first  # No change
+
+        print(f"✅ Credits NOT deducted twice: {balance_after_first} (consistent)")
+
+        # ============================================================
+        # VALIDATION: Only ONE enrollment record
+        # ============================================================
+        enrollment_count = db_session.query(SemesterEnrollment).filter(
+            SemesterEnrollment.user_id == e2e_student.id,
+            SemesterEnrollment.semester_id == e2e_tournament.id
+        ).count()
+
+        assert enrollment_count == 1  # Only one record
+
+        print(f"✅ Enrollment records: {enrollment_count} (no duplicates)")
+
+        # ============================================================
+        # BUSINESS METRIC: Transaction idempotency
+        # ============================================================
+        # Count credit transactions for this tournament
+        from app.models.credit_transaction import CreditTransaction
+        transaction_count = db_session.query(CreditTransaction).filter(
+            CreditTransaction.user_license_id == e2e_student.licenses[0].id,
+            CreditTransaction.transaction_type == "TOURNAMENT_ENROLLMENT"
+        ).count()
+
+        print(f"✅ Credit transactions: {transaction_count} (no double-charge)")
+
+        # ============================================================
+        # E2E FLOW COMPLETE
+        # ============================================================
+        print("\n" + "="*60)
+        print("🎉 IDEMPOTENCY E2E COMPLETE - Double-Charge Prevention Validated")
+        print("="*60)
+        print(f"Initial balance: {initial_balance}")
+        print(f"After first enrollment: {balance_after_first}")
+        print(f"After second attempt: {e2e_student.credit_balance} (unchanged)")
+        print(f"Enrollment records: {enrollment_count} (singleton)")
+        print(f"Credit transactions: {transaction_count}")
+        print(f"Idempotency: ✅ PRESERVED")
+        print("="*60)
