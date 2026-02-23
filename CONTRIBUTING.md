@@ -93,6 +93,39 @@ Last Updated: 2026-02-23 (Tournament Workflow v1 delivery)
 - **Run:** Separate pipeline stage (CI slow lane)
 - **Purpose:** Complex dependency validation (staging/production)
 
+### E2E Tests (Business Regression Shield)
+- **Location:** `app/tests/test_*_e2e.py` or marked with `@pytest.mark.e2e`
+- **Marker:** `@pytest.mark.e2e`
+- **Run:** Separate pipeline stage (see CI Policy below)
+- **Purpose:** Business value chain validation, regression shield for revenue-critical flows
+- **Scope:** Complete user journeys (enrollment → credit deduction → session visibility → audit)
+- **Coverage:** Happy path + negative variants (insufficient credits, idempotency, etc.)
+
+**CI Policy for E2E Tests:**
+
+```yaml
+# Pull Request Pipeline (Smoke E2E only)
+- Run: @pytest.mark.e2e and @pytest.mark.smoke
+- Duration: <5s
+- Purpose: Fast feedback, blocks broken business flows
+
+# Main Branch Pipeline (Full E2E suite)
+- Run: @pytest.mark.e2e
+- Duration: <30s
+- Purpose: Full regression validation after merge
+
+# Nightly Pipeline (Full E2E + stress tests)
+- Run: @pytest.mark.e2e --count=10
+- Duration: <5min
+- Purpose: Flaky test detection, concurrency validation
+```
+
+**E2E Expansion Policy:**
+- ❌ Do NOT add new E2E tests without explicit business justification
+- ✅ Add negative variants to existing E2E flows (e.g., insufficient credits, idempotency)
+- ✅ Focus: E2E as regression shield, not feature expansion
+- ✅ Business metrics measured: enrollment success rate, credit consistency, transaction idempotency
+
 ### Running Tests by Category
 
 ```bash
@@ -102,8 +135,17 @@ pytest app/tests/ -v
 # Integration tests only
 pytest app/tests/ -v -m integration
 
-# Exclude integration tests
-pytest app/tests/ -v -m "not integration"
+# E2E tests only
+pytest app/tests/ -v -m e2e
+
+# Smoke E2E tests (for PR pipeline)
+pytest app/tests/ -v -m "e2e and smoke"
+
+# Exclude integration and E2E tests (fast unit tests only)
+pytest app/tests/ -v -m "not integration and not e2e"
+
+# Full E2E suite with 10× validation (nightly)
+pytest app/tests/ -v -m e2e --count=10
 ```
 
 ---
