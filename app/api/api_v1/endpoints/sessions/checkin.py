@@ -13,6 +13,8 @@ from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User, UserRole
 from app.models.session import Session as SessionModel
+from app.models.audit_log import AuditAction
+from app.services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -90,10 +92,26 @@ def check_in_to_session(
         )
 
     # 5. Update session status to in_progress
+    old_status = session.session_status
     session.session_status = 'in_progress'
     session.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(session)
+
+    # 6. Audit log
+    audit_service = AuditService(db)
+    audit_service.log(
+        action=AuditAction.SESSION_UPDATED,
+        user_id=current_user.id,
+        details={
+            "session_id": session_id,
+            "action_type": "check_in",
+            "old_status": old_status,
+            "new_status": "in_progress",
+            "instructor_id": current_user.id,
+            "instructor_name": current_user.name
+        }
+    )
 
     return SessionCheckInResponse(
         success=True,
