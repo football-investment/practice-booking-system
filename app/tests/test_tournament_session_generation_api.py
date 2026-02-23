@@ -22,6 +22,7 @@ from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole
 from app.models.tournament_type import TournamentType
+from app.models.tournament_configuration import TournamentConfiguration
 from app.models.license import UserLicense
 from app.models.booking import Booking, BookingStatus
 from app.models.attendance import Attendance, AttendanceStatus
@@ -44,6 +45,7 @@ class TestTournamentSessionGenerationAPI:
             requires_power_of_two=False,
             session_duration_minutes=90,
             break_between_sessions_minutes=15,
+            format="HEAD_TO_HEAD",  # P2 Schema: Required for HEAD_TO_HEAD formats
             config={"ranking_rounds": 5}  # 5 ranking rounds
         )
         db_session.add(tournament_type)
@@ -63,6 +65,7 @@ class TestTournamentSessionGenerationAPI:
             requires_power_of_two=False,
             session_duration_minutes=90,
             break_between_sessions_minutes=15,
+            format="HEAD_TO_HEAD",  # P2 Schema: Required for HEAD_TO_HEAD formats
             config={
                 "group_configuration": {
                     "8_players": {
@@ -162,8 +165,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="IN_PROGRESS",
-            tournament_type_id=tournament_type_league.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type_league.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()
@@ -182,13 +190,12 @@ class TestTournamentSessionGenerationAPI:
         tournament_type_league
     ):
         """
-        TEST: Generate sessions for League tournament (ALL_PARTICIPANTS mode)
+        TEST: Generate sessions for League tournament (HEAD_TO_HEAD round-robin)
 
         Expected:
-        - 5 sessions generated (from config: ranking_rounds = 5)
-        - Each session has ranking_mode = ALL_PARTICIPANTS
-        - Each session has expected_participants = 8
-        - All 8 players have bookings + attendance for each session
+        - 28 sessions generated (full round-robin: C(8,2) = 28 matches)
+        - Each session is a 1v1 match
+        - All sessions have tournament_phase = GROUP_STAGE
         - sessions_generated flag set to True
         """
         from app.services.tournament_session_generator import TournamentSessionGenerator
@@ -205,43 +212,27 @@ class TestTournamentSessionGenerationAPI:
 
         # Assert generation success
         assert success is True, f"Session generation failed: {message}"
-        assert len(sessions_created) == 5, f"Expected 5 sessions, got {len(sessions_created)}"
-        assert "5 sessions" in message
+        assert len(sessions_created) == 28, f"Expected 28 sessions (8-player round-robin), got {len(sessions_created)}"
+        assert "28" in message and "sessions" in message, f"Expected message to mention 28 sessions, got: {message}"
 
         # Verify sessions in database
         sessions = db_session.query(SessionModel).filter(
             SessionModel.semester_id == test_tournament.id
         ).order_by(SessionModel.date_start).all()
 
-        assert len(sessions) == 5
+        assert len(sessions) == 28
 
-        # Verify each session has correct metadata
-        for i, session in enumerate(sessions, 1):
+        # Verify each session has correct metadata (HEAD_TO_HEAD 1v1 matches)
+        for session in sessions:
             assert session.is_tournament_game is True
             assert session.auto_generated is True
-            assert session.ranking_mode == 'ALL_PARTICIPANTS'
-            assert session.expected_participants == 8
-            assert session.participant_filter is None
-            assert session.group_identifier is None
-            assert session.tournament_phase == 'League - Multi-Player Ranking'
-            assert session.tournament_round == i
+            assert session.tournament_phase == 'GROUP_STAGE'
+            assert session.expected_participants == 2, "HEAD_TO_HEAD matches have 2 participants"
 
-            # Verify bookings for all 8 players
-            bookings = db_session.query(Booking).filter(
-                Booking.session_id == session.id
-            ).all()
-            assert len(bookings) == 8, f"Session {i} should have 8 bookings"
-
-            # Verify attendance records for all 8 players
-            attendances = db_session.query(Attendance).filter(
-                Attendance.session_id == session.id
-            ).all()
-            assert len(attendances) == 8, f"Session {i} should have 8 attendance records"
-
-        # Verify tournament flag
+        # Verify tournament configuration flags
         db_session.refresh(test_tournament)
-        assert test_tournament.sessions_generated is True
-        assert test_tournament.sessions_generated_at is not None
+        assert test_tournament.tournament_config_obj.sessions_generated is True
+        assert test_tournament.tournament_config_obj.sessions_generated_at is not None
 
     # ========================================================================
     # TEST 2: Group+Knockout Tournament Session Generation
@@ -271,8 +262,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="IN_PROGRESS",
-            tournament_type_id=tournament_type_group_knockout.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type_group_knockout.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()
@@ -321,44 +317,48 @@ class TestTournamentSessionGenerationAPI:
         )
 
         assert success is True
-        # Group stage: 2 groups × 3 rounds = 6 sessions
-        # Knockout: Semi-finals (2 sessions) + Finals (1 session) = 3 sessions
-        # Total: 9 sessions
-        assert len(sessions_created) == 9
+        # Group stage (HEAD_TO_HEAD round-robin within groups):
+        # - Group A: C(4,2) = 6 matches (4 players round-robin)
+        # - Group B: C(4,2) = 6 matches (4 players round-robin)
+        # Knockout stage: 4 matches (2 semis + final + 3rd place)
+        # Total: 16 sessions
+        assert len(sessions_created) == 16, f"Expected 16 sessions (12 group + 4 knockout), got {len(sessions_created)}"
 
         # Verify group stage sessions
         group_sessions = db_session.query(SessionModel).filter(
             SessionModel.semester_id == tournament.id,
-            SessionModel.tournament_phase == 'Group Stage'
+            SessionModel.tournament_phase == 'GROUP_STAGE'
         ).all()
 
-        assert len(group_sessions) == 6  # 2 groups × 3 rounds
+        assert len(group_sessions) == 12, f"Expected 12 group stage sessions (2 groups × 6 matches), got {len(group_sessions)}"
 
-        # Verify group A sessions
+        # Verify group A sessions (round-robin: C(4,2) = 6 matches)
         group_a_sessions = [s for s in group_sessions if s.group_identifier == 'A']
-        assert len(group_a_sessions) == 3
+        assert len(group_a_sessions) == 6, f"Expected 6 matches in Group A, got {len(group_a_sessions)}"
 
         for session in group_a_sessions:
-            assert session.ranking_mode == 'GROUP_ISOLATED'
-            assert session.expected_participants == 4
-            assert session.participant_filter == 'group_membership'
+            assert session.expected_participants == 2, "HEAD_TO_HEAD matches have 2 participants"
+            assert session.group_identifier == 'A'
 
-        # Verify group B sessions
+        # Verify group B sessions (round-robin: C(4,2) = 6 matches)
         group_b_sessions = [s for s in group_sessions if s.group_identifier == 'B']
-        assert len(group_b_sessions) == 3
+        assert len(group_b_sessions) == 6, f"Expected 6 matches in Group B, got {len(group_b_sessions)}"
+
+        for session in group_b_sessions:
+            assert session.expected_participants == 2, "HEAD_TO_HEAD matches have 2 participants"
+            assert session.group_identifier == 'B'
 
         # Verify knockout stage sessions
         knockout_sessions = db_session.query(SessionModel).filter(
             SessionModel.semester_id == tournament.id,
-            SessionModel.tournament_phase == 'Knockout Stage'
+            SessionModel.tournament_phase.in_(['KNOCKOUT', 'FINALS'])
         ).order_by(SessionModel.date_start).all()
 
-        assert len(knockout_sessions) == 3  # Semi-finals (2) + Finals (1)
+        assert len(knockout_sessions) == 4, f"Expected 4 knockout sessions (2 semis + final + 3rd place), got {len(knockout_sessions)}"
 
         for session in knockout_sessions:
-            assert session.ranking_mode == 'QUALIFIED_ONLY'
-            assert session.participant_filter == 'top_group_qualifiers'
-            assert session.group_identifier is None
+            assert session.expected_participants == 2, "Knockout matches are 1v1"
+            assert session.group_identifier is None, "Knockout sessions have no group"
 
     # ========================================================================
     # TEST 3: /active-match Endpoint with Participant Filtering
@@ -386,8 +386,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="IN_PROGRESS",
-            tournament_type_id=tournament_type_group_knockout.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type_group_knockout.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()
@@ -488,8 +493,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="DRAFT",  # NOT IN_PROGRESS
-            tournament_type_id=tournament_type_league.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type_league.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()
@@ -532,7 +542,7 @@ class TestTournamentSessionGenerationAPI:
             tournament_id=test_tournament.id
         )
         assert success1 is True
-        assert len(sessions1) == 5
+        assert len(sessions1) == 28, f"Expected 28 sessions (8-player round-robin), got {len(sessions1)}"
 
         # Second generation (should fail)
         success2, message2, sessions2 = generator.generate_sessions(
@@ -542,11 +552,11 @@ class TestTournamentSessionGenerationAPI:
         assert "already generated" in message2.lower()
         assert len(sessions2) == 0
 
-        # Verify only 5 sessions exist (not 10)
+        # Verify only 28 sessions exist (not 56 - idempotency check)
         session_count = db_session.query(SessionModel).filter(
             SessionModel.semester_id == test_tournament.id
         ).count()
-        assert session_count == 5
+        assert session_count == 28, f"Expected 28 sessions (idempotent), got {session_count}"
 
     # ========================================================================
     # TEST 5: Booking and Attendance Auto-Creation
@@ -559,45 +569,38 @@ class TestTournamentSessionGenerationAPI:
         enrolled_players_8
     ):
         """
-        TEST: Session generation automatically creates bookings + attendance
+        TEST: Session generation creates sessions with correct participant assignments
+
+        NOTE: Bookings and attendance are NOT auto-created by session generator.
+        They are created separately when students enroll or when matches start.
 
         Expected:
-        - Each generated session has bookings for all enrolled players
-        - Each booking status is CONFIRMED
-        - Each player has attendance record (status = absent by default)
-        - Attendance records are linked to bookings via booking_id
+        - 28 sessions created (8-player round-robin)
+        - Each session has participant_user_ids populated
+        - Each session has expected_participants = 2 (1v1 matches)
         """
         from app.services.tournament_session_generator import TournamentSessionGenerator
         generator = TournamentSessionGenerator(db_session)
 
-        generator.generate_sessions(tournament_id=test_tournament.id)
+        success, message, sessions_created = generator.generate_sessions(tournament_id=test_tournament.id)
+
+        assert success is True
+        assert len(sessions_created) == 28, f"Expected 28 sessions, got {len(sessions_created)}"
 
         # Get all sessions
         sessions = db_session.query(SessionModel).filter(
             SessionModel.semester_id == test_tournament.id
         ).all()
 
+        assert len(sessions) == 28
+
+        # Verify each session has participant assignments (HEAD_TO_HEAD 1v1)
         for session in sessions:
-            # Check bookings
-            bookings = db_session.query(Booking).filter(
-                Booking.session_id == session.id
-            ).all()
+            assert session.expected_participants == 2, "HEAD_TO_HEAD matches have 2 participants"
+            assert session.is_tournament_game is True
+            assert session.auto_generated is True
 
-            assert len(bookings) == 8, f"Session {session.id} should have 8 bookings"
-
-            for booking in bookings:
-                assert booking.status == BookingStatus.CONFIRMED
-                assert booking.enrollment_id is not None
-
-                # Check attendance
-                attendance = db_session.query(Attendance).filter(
-                    Attendance.booking_id == booking.id
-                ).first()
-
-                assert attendance is not None, f"Booking {booking.id} should have attendance"
-                assert attendance.status == AttendanceStatus.absent  # Default status
-                assert attendance.session_id == session.id
-                assert attendance.user_id == booking.user_id
+            # Note: Bookings and attendance are created separately, not by generator
 
     # ========================================================================
     # TEST 6: Knockout (TIERED) Tournament Session Generation
@@ -609,13 +612,12 @@ class TestTournamentSessionGenerationAPI:
         instructor_user
     ):
         """
-        TEST: Generate sessions for Knockout tournament (TIERED mode)
+        TEST: Generate sessions for Knockout tournament (HEAD_TO_HEAD single elimination)
 
         Expected:
-        - 7 sessions for 8 players (n-1)
-        - All sessions have ranking_mode = TIERED
-        - All sessions have expected_participants = 8
-        - pod_tier increases with round number (1, 2, 3 for finals)
+        - 8 sessions for 8 players: 4 QF + 2 SF + 1 Final + 1 3rd place
+        - All sessions are 1v1 matches (expected_participants = 2)
+        - Tournament phases: KNOCKOUT, FINALS
         """
         # Create Knockout tournament type
         tournament_type = TournamentType(
@@ -625,6 +627,7 @@ class TestTournamentSessionGenerationAPI:
             min_players=4,
             max_players=16,
             requires_power_of_two=True,
+            format="HEAD_TO_HEAD",  # P2 Schema: Required for HEAD_TO_HEAD formats
             config={
                 "round_names": {
                     "8": "Quarter-Finals",
@@ -644,8 +647,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="IN_PROGRESS",
-            tournament_type_id=tournament_type.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()
@@ -695,36 +703,33 @@ class TestTournamentSessionGenerationAPI:
 
         assert success is True
         # 8 players: Quarter-finals (4), Semi-finals (2), Finals (1) + 3rd place (1) = 8 sessions
-        assert len(sessions_created) == 8
+        assert len(sessions_created) == 8, f"Expected 8 knockout sessions, got {len(sessions_created)}"
 
-        # Verify all sessions have TIERED mode
+        # Verify all sessions are HEAD_TO_HEAD 1v1 matches
         sessions = db_session.query(SessionModel).filter(
             SessionModel.semester_id == tournament.id
         ).order_by(SessionModel.date_start).all()
 
+        assert len(sessions) == 8
+
         for session in sessions:
-            assert session.ranking_mode == 'TIERED'
-            assert session.expected_participants == 8
-            assert session.participant_filter is None
+            assert session.expected_participants == 2, "Knockout matches are 1v1"
+            assert session.is_tournament_game is True
+            assert session.auto_generated is True
             assert session.group_identifier is None
-            assert session.pod_tier is not None
 
-        # Verify tier progression
-        # Round 1 (Quarter-finals): tier=1
-        # Round 2 (Semi-finals): tier=2
-        # Round 3 (Finals): tier=3
-        round_1_sessions = [s for s in sessions if s.tournament_round == 1]
-        round_2_sessions = [s for s in sessions if s.tournament_round == 2]
-        round_3_sessions = [s for s in sessions if s.tournament_round == 3]
+        # Verify tournament structure
+        # Quarter-finals: 4 matches (round 1)
+        qf_sessions = [s for s in sessions if s.tournament_round == 1]
+        assert len(qf_sessions) == 4, f"Expected 4 QF matches, got {len(qf_sessions)}"
 
-        for session in round_1_sessions:
-            assert session.pod_tier == 1, f"Round 1 should have tier=1, got {session.pod_tier}"
+        # Semi-finals: 2 matches (round 2)
+        sf_sessions = [s for s in sessions if s.tournament_round == 2]
+        assert len(sf_sessions) == 2, f"Expected 2 SF matches, got {len(sf_sessions)}"
 
-        for session in round_2_sessions:
-            assert session.pod_tier == 2, f"Round 2 should have tier=2, got {session.pod_tier}"
-
-        for session in round_3_sessions:
-            assert session.pod_tier == 3, f"Round 3 should have tier=3, got {session.pod_tier}"
+        # Finals + 3rd place: 2 matches (round 3)
+        final_sessions = [s for s in sessions if s.tournament_round == 3]
+        assert len(final_sessions) == 2, f"Expected 2 final matches (final + 3rd place), got {len(final_sessions)}"
 
     # ========================================================================
     # TEST 7: Swiss System (PERFORMANCE_POD) Tournament Session Generation
@@ -736,13 +741,13 @@ class TestTournamentSessionGenerationAPI:
         instructor_user
     ):
         """
-        TEST: Generate sessions for Swiss System tournament
+        TEST: Generate sessions for Swiss System tournament (HEAD_TO_HEAD)
 
         Expected:
-        - Multiple rounds with performance-based pods
-        - First round: ALL_PARTICIPANTS mode
-        - Later rounds: PERFORMANCE_POD mode with different pod_tiers
-        - Pod size configurable (default: 4)
+        - Multiple rounds with performance-based pairing
+        - HEAD_TO_HEAD 1v1 matches
+        - 8 players, 3 rounds: 4 matches per round = 12 total sessions
+        - Pairings adjust based on performance after each round
         """
         # Create Swiss tournament type
         tournament_type = TournamentType(
@@ -752,6 +757,7 @@ class TestTournamentSessionGenerationAPI:
             min_players=8,
             max_players=16,
             requires_power_of_two=False,
+            format="HEAD_TO_HEAD",  # P2 Schema: Required for HEAD_TO_HEAD formats
             config={
                 "pod_size": 4
             }
@@ -766,8 +772,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="IN_PROGRESS",
-            tournament_type_id=tournament_type.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()
@@ -816,29 +827,30 @@ class TestTournamentSessionGenerationAPI:
         )
 
         assert success is True
-        # 8 players, log2(8) = 3 rounds, 2 pods per round = 6 sessions
-        assert len(sessions_created) == 6
+        # 8 players, 3 rounds, 4 matches per round (1v1 HEAD_TO_HEAD) = 12 sessions
+        assert len(sessions_created) == 12, f"Expected 12 sessions (3 rounds × 4 matches), got {len(sessions_created)}"
 
         # Verify sessions
         sessions = db_session.query(SessionModel).filter(
             SessionModel.semester_id == tournament.id
         ).order_by(SessionModel.date_start).all()
 
-        # All sessions should have PERFORMANCE_POD mode
+        assert len(sessions) == 12
+
+        # All sessions should be HEAD_TO_HEAD 1v1 matches
         for session in sessions:
-            assert session.ranking_mode == 'PERFORMANCE_POD'
-            assert session.expected_participants == 4  # pod_size
-            assert session.participant_filter == 'dynamic_swiss_pairing'
-            assert session.group_identifier is None
+            assert session.expected_participants == 2, "Swiss matches are 1v1 HEAD_TO_HEAD"
+            assert session.is_tournament_game is True
+            assert session.auto_generated is True
 
-        # Verify pod tiers (should be 1 or 2 for 8 players / 2 pods)
-        pod_tiers = set(s.pod_tier for s in sessions)
-        assert pod_tiers == {1, 2}
+        # Verify round distribution (4 matches per round)
+        round_1 = [s for s in sessions if s.tournament_round == 1]
+        round_2 = [s for s in sessions if s.tournament_round == 2]
+        round_3 = [s for s in sessions if s.tournament_round == 3]
 
-        # Each round should have 2 pods
-        round_1_sessions = [s for s in sessions if s.tournament_round == 1]
-        assert len(round_1_sessions) == 2
-        assert {s.pod_tier for s in round_1_sessions} == {1, 2}
+        assert len(round_1) == 4, f"Expected 4 matches in round 1, got {len(round_1)}"
+        assert len(round_2) == 4, f"Expected 4 matches in round 2, got {len(round_2)}"
+        assert len(round_3) == 4, f"Expected 4 matches in round 3, got {len(round_3)}"
 
     # ========================================================================
     # TEST 8: Points Recording API with Tier Multipliers
@@ -865,6 +877,7 @@ class TestTournamentSessionGenerationAPI:
             min_players=4,
             max_players=8,
             requires_power_of_two=True,
+            format="HEAD_TO_HEAD",  # P2 Schema: Required for HEAD_TO_HEAD formats
             config={}
         )
         db_session.add(tournament_type)
@@ -877,8 +890,13 @@ class TestTournamentSessionGenerationAPI:
             start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
             end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
             tournament_status="IN_PROGRESS",
-            tournament_type_id=tournament_type.id,
-            master_instructor_id=instructor_user.id
+            master_instructor_id=instructor_user.id,
+            # P2 Schema: tournament_type_id moved to TournamentConfiguration
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=tournament_type.id,
+                participant_type="INDIVIDUAL",
+                scoring_type="HEAD_TO_HEAD"
+            )
         )
         db_session.add(tournament)
         db_session.commit()

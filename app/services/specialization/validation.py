@@ -93,25 +93,36 @@ def handle_legacy_specialization(spec_id: str) -> str:
 
 def validate_specialization_exists(db: Session, specialization_id: str) -> bool:
     """
-    Check if specialization exists and is active (HYBRID: DB only).
+    Check if specialization exists and is active (config-based validation).
 
     This is a lightweight check for API endpoints before loading full JSON config.
 
     Args:
-        db: Database session
+        db: Database session (kept for compatibility, not used)
         specialization_id: Specialization ID to check (handles legacy IDs)
 
     Returns:
-        bool: True if specialization exists in DB and is active
+        bool: True if specialization exists in enum/config and is active
     """
     specialization_id = handle_legacy_specialization(specialization_id)
 
-    spec = db.query(Specialization).filter_by(
-        id=specialization_id,
-        is_active=True
-    ).first()
+    # Check if specialization exists in enum
+    try:
+        # Check if it's a valid enum value
+        valid_specs = [spec.value for spec in SpecializationType]
+        if specialization_id not in valid_specs:
+            return False
 
-    return spec is not None
+        # Try to load config to verify it's active
+        config_loader = get_config_loader()
+        try:
+            config = config_loader.load_config(specialization_id)
+            return config.get("is_active", True)  # Default to True if not specified
+        except Exception:
+            # If config doesn't exist but it's in enum, consider it valid
+            return True
+    except Exception:
+        return False
 
 
 def get_all_specializations(db: Session) -> List[Dict[str, Any]]:

@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
+from .....models.audit_log import AuditAction
 from .....services.license_service import LicenseService
+from .....services.audit_service import AuditService
 
 router = APIRouter()
 

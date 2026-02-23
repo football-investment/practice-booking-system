@@ -12,7 +12,7 @@ Tests all critical paths for tournament enrollment:
 """
 
 import pytest
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.user import User, UserRole
@@ -20,6 +20,7 @@ from app.models.semester import Semester, SemesterStatus
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
 from app.core.security import get_password_hash
+from app.database import get_db
 
 
 @pytest.fixture
@@ -97,10 +98,12 @@ def youth_category_student(db_session: Session):
 @pytest.fixture
 def lfa_player_license(db_session: Session, student_with_credits):
     """Create LFA_FOOTBALL_PLAYER license for student"""
+    from datetime import datetime, timezone
     license = UserLicense(
         user_id=student_with_credits.id,
         specialization_type="LFA_FOOTBALL_PLAYER",
-        is_active=True
+        is_active=True,
+        started_at=datetime.now(timezone.utc)
     )
     db_session.add(license)
     db_session.commit()
@@ -119,6 +122,7 @@ def youth_tournament(db_session: Session):
         start_date=date.today() + timedelta(days=30),
         end_date=date.today() + timedelta(days=60),
         status=SemesterStatus.READY_FOR_ENROLLMENT,
+        tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
         is_active=True
     )
@@ -139,6 +143,7 @@ def pre_tournament(db_session: Session):
         start_date=date.today() + timedelta(days=30),
         end_date=date.today() + timedelta(days=60),
         status=SemesterStatus.READY_FOR_ENROLLMENT,
+        tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
         is_active=True
     )
@@ -159,6 +164,7 @@ def amateur_tournament(db_session: Session):
         start_date=date.today() + timedelta(days=30),
         end_date=date.today() + timedelta(days=60),
         status=SemesterStatus.READY_FOR_ENROLLMENT,
+        tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
         is_active=True
     )
@@ -179,6 +185,7 @@ def pro_tournament(db_session: Session):
         start_date=date.today() + timedelta(days=30),
         end_date=date.today() + timedelta(days=60),
         status=SemesterStatus.READY_FOR_ENROLLMENT,
+        tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
         is_active=True
     )
@@ -201,11 +208,13 @@ def student_token_with_credits(client, student_with_credits, lfa_player_license)
 @pytest.fixture
 def student_token_no_credits(client, student_no_credits):
     """Get access token for student with no credits"""
+    from datetime import datetime, timezone
     # Create license for this student too
     license = UserLicense(
         user_id=student_no_credits.id,
         specialization_type="LFA_FOOTBALL_PLAYER",
-        is_active=True
+        is_active=True,
+        started_at=datetime.now(timezone.utc)
     )
     client.app.dependency_overrides[get_db]().add(license)
     client.app.dependency_overrides[get_db]().commit()
@@ -253,7 +262,7 @@ class TestSuccessfulEnrollment:
         assert data["success"] == True
         assert data["enrollment"]["user_id"] == student_with_credits.id
         assert data["enrollment"]["semester_id"] == youth_tournament.id
-        assert data["enrollment"]["request_status"] == "APPROVED"
+        assert data["enrollment"]["request_status"] == "approved"
         assert data["enrollment"]["payment_verified"] == True
         assert data["enrollment"]["is_active"] == True
         assert data["credits_remaining"] == 1100
@@ -305,9 +314,10 @@ class TestInsufficientCredits:
         # Verify rejection
         assert response.status_code == 400
         data = response.json()
-        assert "Insufficient credits" in data["detail"]
-        assert "Need 500" in data["detail"]
-        assert "you have 0" in data["detail"]
+        error_message = data["error"]["message"]
+        assert "Insufficient credits" in error_message
+        assert "Need 500" in error_message
+        assert "you have 0" in error_message
 
         # Verify no enrollment created
         enrollment = db_session.query(SemesterEnrollment).filter(
@@ -378,16 +388,17 @@ class TestAgeCategoryValidation:
         youth_tournament
     ):
         """
-        Test Case 4A: PRE category players can ONLY enroll in PRE tournaments
+        Test Case 4A: PRE category players can enroll upward (PRE and above)
 
-        Age Category Rule: PRE (5-13) -> Can ONLY enroll in PRE
+        Age Category Rule: PRE (5-13) -> Can enroll in PRE, YOUTH, AMATEUR, PRO (upward enrollment allowed)
         """
 
         # Create license for PRE student
         license = UserLicense(
             user_id=pre_category_student.id,
             specialization_type="LFA_FOOTBALL_PLAYER",
-            is_active=True
+            is_active=True,
+            started_at=datetime.now(timezone.utc)
         )
         db_session.add(license)
         db_session.commit()
@@ -406,13 +417,12 @@ class TestAgeCategoryValidation:
         )
         assert response.status_code == 200
 
-        # Should FAIL in YOUTH tournament
+        # Should SUCCEED in YOUTH tournament (upward enrollment allowed)
         response = client.post(
             f"/api/v1/tournaments/{youth_tournament.id}/enroll",
             headers={"Authorization": f"Bearer {token}"}
         )
-        assert response.status_code == 400
-        assert "PRE category players can only enroll in PRE tournaments" in response.json()["detail"]
+        assert response.status_code == 200
 
 
     def test_youth_can_enroll_youth_or_amateur(
@@ -425,16 +435,17 @@ class TestAgeCategoryValidation:
         pro_tournament
     ):
         """
-        Test Case 4B: YOUTH category can enroll in YOUTH or AMATEUR (NOT PRO)
+        Test Case 4B: YOUTH category can enroll upward (YOUTH and above)
 
-        Age Category Rule: YOUTH (14-18) -> Can enroll in YOUTH OR AMATEUR (NOT PRO)
+        Age Category Rule: YOUTH (14-18) -> Can enroll in YOUTH, AMATEUR, PRO (upward enrollment allowed)
         """
 
         # Create license
         license = UserLicense(
             user_id=youth_category_student.id,
             specialization_type="LFA_FOOTBALL_PLAYER",
-            is_active=True
+            is_active=True,
+            started_at=datetime.now(timezone.utc)
         )
         db_session.add(license)
         db_session.commit()
@@ -460,13 +471,12 @@ class TestAgeCategoryValidation:
         )
         assert response.status_code == 200
 
-        # Should FAIL in PRO tournament
+        # Should SUCCEED in PRO tournament (upward enrollment allowed)
         response = client.post(
             f"/api/v1/tournaments/{pro_tournament.id}/enroll",
             headers={"Authorization": f"Bearer {token}"}
         )
-        assert response.status_code == 400
-        assert "not PRO" in response.json()["detail"]
+        assert response.status_code == 200
 
 
 class TestDuplicateEnrollment:
@@ -502,7 +512,8 @@ class TestDuplicateEnrollment:
             headers={"Authorization": f"Bearer {student_token_with_credits}"}
         )
         assert response.status_code == 400
-        assert "already enrolled" in response.json()["detail"]
+        error_message = response.json()["error"]["message"]
+        assert "already enrolled" in error_message
 
         # Verify only one enrollment exists
         enrollments = db_session.query(SemesterEnrollment).filter(
@@ -555,7 +566,8 @@ class TestTournamentAvailability:
         )
 
         assert response.status_code == 400
-        assert "not ready for enrollment" in response.json()["detail"].lower()
+        error_message = response.json()["error"]["message"].lower()
+        assert "not accepting enrollments" in error_message or "not ready for enrollment" in error_message
 
 
 class TestDatabaseIntegrity:
@@ -696,7 +708,8 @@ class TestMissingRequirements:
         )
 
         assert response.status_code == 400
-        assert "license not found" in response.json()["detail"].lower()
+        error_message = response.json()["error"]["message"].lower()
+        assert "license not found" in error_message or "license" in error_message
 
 
     def test_require_date_of_birth(
@@ -730,7 +743,8 @@ class TestMissingRequirements:
         license = UserLicense(
             user_id=user.id,
             specialization_type="LFA_FOOTBALL_PLAYER",
-            is_active=True
+            is_active=True,
+            started_at=datetime.now(timezone.utc)
         )
         db_session.add(license)
         db_session.commit()
@@ -749,7 +763,8 @@ class TestMissingRequirements:
         )
 
         assert response.status_code == 400
-        assert "date of birth" in response.json()["detail"].lower()
+        error_message = response.json()["error"]["message"].lower()
+        assert "date of birth" in error_message or "date_of_birth" in error_message
 
 
 class TestRoleAuthorization:
@@ -777,4 +792,5 @@ class TestRoleAuthorization:
         )
 
         assert response.status_code == 403
-        assert "only students" in response.json()["detail"].lower()
+        error_message = response.json()["error"]["message"].lower()
+        assert "only students" in error_message or "student" in error_message

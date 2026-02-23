@@ -43,20 +43,17 @@ def validate_can_book_session(
     Raises:
         HTTPException: If validation fails with appropriate error code
     """
-    # Get session specialization type
-    if not session.specialization_type:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session has no specialization type defined"
-        )
+    # If session is accessible to all specializations, allow booking
+    if session.is_accessible_to_all:
+        return True, "Session is accessible to all specializations"
 
-    # Get appropriate spec service
+    # Get appropriate spec service for target specialization
     try:
-        spec_service = get_spec_service(session.specialization_type)
+        spec_service = get_spec_service(session.target_specialization.value)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unknown specialization type: {session.specialization_type}"
+            detail=f"Unknown specialization type: {session.target_specialization.value}"
         )
 
     # Use spec service to validate booking

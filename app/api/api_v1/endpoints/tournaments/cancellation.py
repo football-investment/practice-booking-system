@@ -30,6 +30,7 @@ from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
 from app.models.credit_transaction import CreditTransaction, TransactionType
 from app.dependencies import get_current_user
+from app.services.credit_service import CreditService
 
 router = APIRouter()
 
@@ -111,19 +112,21 @@ def process_refund(
     # Update license credit balance
     user_license.credit_balance = (user_license.credit_balance or 0) + refund_amount
 
-    # Create refund transaction
-    transaction = CreditTransaction(
+    # Create refund transaction using CreditService
+    credit_service = CreditService(db)
+    idempotency_key = f"refund-tournament-{tournament.id}-enrollment-{enrollment.id}"
+
+    transaction, created = credit_service.create_transaction(
         user_id=None,  # License-level credit
         user_license_id=user_license.id,
         transaction_type=TransactionType.REFUND.value,
         amount=refund_amount,
         balance_after=user_license.credit_balance,
         description=f"Tournament cancellation refund: {tournament.name} (ID: {tournament.id}). Reason: {reason}",
+        idempotency_key=idempotency_key,
         semester_id=tournament.id,
         enrollment_id=enrollment.id
     )
-
-    db.add(transaction)
 
     # Get user details for response
     user = enrollment.user

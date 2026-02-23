@@ -2,12 +2,14 @@
 🏮 GānCuju™️©️ License Service
 Handles license progression, advancement, and marketing content delivery
 """
+import logging
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
-from ..models.license import LicenseMetadata, UserLicense, LicenseProgression, LicenseSystemHelper
+from ..models.license import LicenseMetadata, UserLicense, LicenseProgression, LicenseSystemHelper, LicenseType
 from ..models.user import User
+from .progress_license_sync_service import ProgressLicenseSyncService
 
 
 class LicenseService:
@@ -144,15 +146,19 @@ class LicenseService:
         self.db.refresh(license)
 
         # 🔄 P1: AUTO-SYNC License → Progress after advancement
+        # Use separate session for sync to avoid contaminating main transaction
         sync_result = None
         level_changed = (old_level != target_level)
         if level_changed:
+            from app.database import SessionLocal
+            sync_db = SessionLocal()
             try:
-                sync_service = ProgressLicenseSyncService(self.db)
+                sync_service = ProgressLicenseSyncService(sync_db)
                 sync_result = sync_service.sync_license_to_progress(
                     user_id=user_id,
                     specialization=specialization
                 )
+                sync_db.commit()
                 if not sync_result.get('success'):
                     # Log warning but don't fail the advancement
                     logger = logging.getLogger(__name__)
@@ -161,8 +167,12 @@ class LicenseService:
                     )
             except Exception as e:
                 # Log error but don't fail the license advancement
+                # Sync uses separate session, so failure doesn't affect main operation
+                sync_db.rollback()
                 logger = logging.getLogger(__name__)
                 logger.error(f"Auto-sync exception for user {user_id}: {str(e)}")
+            finally:
+                sync_db.close()
 
         return {
             "success": True,

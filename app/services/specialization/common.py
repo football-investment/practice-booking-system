@@ -7,7 +7,11 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import logging
 
+from app.models.user import User
+from app.models.license import UserLicense
+from app.models.user_progress import SpecializationProgress
 from app.services.specialization_config_loader import get_config_loader
+from app.services.specialization_validation import SpecializationValidator
 from .validation import specialization_id_to_enum, validate_specialization_exists
 
 logger = logging.getLogger(__name__)

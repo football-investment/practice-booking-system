@@ -121,6 +121,28 @@ def student_user(db_session):
 
 
 @pytest.fixture
+def student_users(db_session):
+    """Create test student users (4 students for cancellation tests)"""
+    users = []
+    for i in range(1, 5):
+        user = User(
+            name=f"Student User {i}",
+            email=f"student{i}@test.com",
+            password_hash=get_password_hash(f"student{i}23"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            onboarding_completed=True
+        )
+        db_session.add(user)
+        users.append(user)
+
+    db_session.commit()
+    for user in users:
+        db_session.refresh(user)
+    return users
+
+
+@pytest.fixture
 def admin_token(client, admin_user):
     """Get access token for admin user"""
     response = client.post(

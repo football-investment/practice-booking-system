@@ -14,11 +14,14 @@ def test_individual_ranking_rejects_tournament_type(client: TestClient, admin_to
     INDIVIDUAL_RANKING tournament CANNOT have tournament_type_id
     API should return 422 validation error
     """
+    from datetime import datetime, timedelta, timezone
+    future_date = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+
     response = client.post(
         "/api/v1/tournaments/generate",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "date": "2026-02-01",
+            "date": future_date,
             "name": "Speed Test",
             "specialization_type": "LFA_FOOTBALL_PLAYER",
             "assignment_type": "APPLICATION_BASED",
@@ -39,11 +42,14 @@ def test_individual_ranking_accepts_null_type(client: TestClient, admin_token: s
     """
     INDIVIDUAL_RANKING tournament with tournament_type_id=NULL should succeed
     """
+    from datetime import datetime, timedelta, timezone
+    future_date = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+
     response = client.post(
         "/api/v1/tournaments/generate",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "date": "2026-02-01",
+            "date": future_date,
             "name": "Speed Test",
             "specialization_type": "LFA_FOOTBALL_PLAYER",
             "assignment_type": "APPLICATION_BASED",
@@ -65,11 +71,14 @@ def test_head_to_head_requires_tournament_type(client: TestClient, admin_token: 
     HEAD_TO_HEAD tournament MUST have tournament_type_id
     API should return 422 validation error if NULL
     """
+    from datetime import datetime, timedelta, timezone
+    future_date = (datetime.now(timezone.utc) + timedelta(days=14)).strftime("%Y-%m-%d")
+
     response = client.post(
         "/api/v1/tournaments/generate",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "date": "2026-02-02",
+            "date": future_date,
             "name": "1v1 Championship",
             "specialization_type": "LFA_FOOTBALL_PLAYER",
             "assignment_type": "APPLICATION_BASED",
@@ -91,6 +100,9 @@ def test_head_to_head_accepts_tournament_type(client: TestClient, admin_token: s
     HEAD_TO_HEAD tournament with tournament_type_id should succeed
     (Skipped if tournament_type_id=4 doesn't exist in test DB)
     """
+    from datetime import datetime, timedelta, timezone
+    future_date = (datetime.now(timezone.utc) + timedelta(days=14)).strftime("%Y-%m-%d")
+
     # First, check if tournament type exists
     from app.models.tournament_type import TournamentType
     tournament_type = db_session.query(TournamentType).filter(TournamentType.id == 4).first()
@@ -102,7 +114,7 @@ def test_head_to_head_accepts_tournament_type(client: TestClient, admin_token: s
         "/api/v1/tournaments/generate",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "date": "2026-02-02",
+            "date": future_date,
             "name": "1v1 Championship",
             "specialization_type": "LFA_FOOTBALL_PLAYER",
             "assignment_type": "APPLICATION_BASED",

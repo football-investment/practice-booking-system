@@ -3,6 +3,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
+from ....core import time_provider
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_or_instructor_user
 from ....models.user import User
@@ -79,8 +80,8 @@ def create_feedback(
         )
 
     # 🔒 RULE #4: Validate 24-hour feedback window
-    from datetime import datetime, timedelta, timezone
-    current_time = datetime.now(timezone.utc).replace(tzinfo=None)
+    from datetime import timedelta
+    current_time = time_provider.now().replace(tzinfo=None)
     session_end_naive = session.date_end.replace(tzinfo=None) if session.date_end.tzinfo else session.date_end
 
     # Feedback window: session end → session end + 24h
