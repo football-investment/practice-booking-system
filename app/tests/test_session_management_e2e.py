@@ -168,32 +168,36 @@ def session_campus(db_session: DBSession):
 
 @pytest.fixture
 def session_tournament_types(db_session: DBSession):
-    """Create tournament types for session tests"""
-    tournament_types = []
+    """Query existing tournament types (CI-compatible: uses seeded data)"""
+    # In CI: tournament types already seeded by seed_tournament_types.py
+    # Query existing instead of creating new to avoid UniqueViolation
+    knockout = db_session.query(TournamentType).filter(
+        TournamentType.code == "knockout"
+    ).first()
 
-    knockout = TournamentType(
-        code="knockout",
-        display_name="Single Elimination (Knockout)",
-        description="Single elimination tournament",
-        min_players=4,
-        max_players=64,
-        requires_power_of_two=True,
-        session_duration_minutes=90,
-        break_between_sessions_minutes=15,
-        format="HEAD_TO_HEAD",
-        config={
-            "format": "knockout",
-            "seeding": "random",
-            "phases": ["Quarterfinals", "Semifinals", "Finals"]
-        }
-    )
-    db_session.add(knockout)
-    tournament_types.append(knockout)
+    # Fallback for local testing: create if not exists
+    if not knockout:
+        knockout = TournamentType(
+            code="knockout",
+            display_name="Single Elimination (Knockout)",
+            description="Single elimination tournament",
+            min_players=4,
+            max_players=64,
+            requires_power_of_two=True,
+            session_duration_minutes=90,
+            break_between_sessions_minutes=15,
+            format="HEAD_TO_HEAD",
+            config={
+                "format": "knockout",
+                "seeding": "random",
+                "phases": ["Quarterfinals", "Semifinals", "Finals"]
+            }
+        )
+        db_session.add(knockout)
+        db_session.commit()
+        db_session.refresh(knockout)
 
-    db_session.commit()
-    for tt in tournament_types:
-        db_session.refresh(tt)
-    return tournament_types
+    return [knockout]
 
 
 @pytest.fixture
