@@ -17,7 +17,11 @@ from ..config import settings
 # Create test database - Use PostgreSQL for compatibility with production
 # PostgreSQL supports all schema features (CHECK constraints, array types, etc.)
 # Use a separate test database to avoid conflicts with development data
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/test_tournament_enrollment"
+# Respect DATABASE_URL from environment (for CI), fallback to local test DB
+SQLALCHEMY_DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/test_tournament_enrollment"
+)
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     poolclass=StaticPool,
@@ -36,13 +40,13 @@ def override_get_db():
 @pytest.fixture(scope="session")
 def db_engine():
     """Create test database engine"""
-    # Drop all tables first to ensure clean state
-    Base.metadata.drop_all(bind=engine, checkfirst=True)
-    # Create all tables fresh
-    Base.metadata.create_all(bind=engine)
+    # In CI: migrations + seeding already ran - don't drop tables!
+    # In local: assume migrations have been run (alembic upgrade head)
+    # Only create tables if they don't exist (for local dev convenience)
+    if not os.environ.get("CI"):  # Only in local dev
+        Base.metadata.create_all(bind=engine, checkfirst=True)
     yield engine
-    # Clean up after tests
-    Base.metadata.drop_all(bind=engine)
+    # Don't drop tables in CI - preserve for debugging
 
 
 @pytest.fixture(scope="function")
