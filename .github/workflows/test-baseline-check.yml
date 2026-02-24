@@ -324,10 +324,17 @@ jobs:
         playwright install chromium
         pip check
 
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
     - name: Run E2E smoke tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
         BASE_URL: http://localhost:8501
         API_URL: http://localhost:8000
       run: |
@@ -395,6 +402,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
@@ -476,6 +484,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
@@ -559,6 +568,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
@@ -641,6 +651,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
@@ -723,6 +734,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
@@ -805,6 +817,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
@@ -887,6 +900,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         sleep 5
