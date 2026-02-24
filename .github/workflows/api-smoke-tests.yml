@@ -115,8 +115,11 @@ jobs:
       - name: Evaluate results
         if: always()
         run: |
-          if [[ "${{ steps.sequential_tests.outcome }}" == "success" ]] || \
-             [[ "${{ steps.parallel_tests.outcome }}" == "success" ]]; then
+          echo "DEBUG: sequential_tests.conclusion = '${{ steps.sequential_tests.conclusion }}'"
+          echo "DEBUG: parallel_tests.conclusion = '${{ steps.parallel_tests.conclusion }}'"
+
+          if [[ "${{ steps.sequential_tests.conclusion }}" == "success" ]] || \
+             [[ "${{ steps.parallel_tests.conclusion }}" == "success" ]]; then
             echo "✅ Smoke tests PASSED (at least one mode successful)"
             exit 0
           else
