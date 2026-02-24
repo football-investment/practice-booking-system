@@ -76,24 +76,24 @@ jobs:
           alembic upgrade head || echo "Migration skipped (may not be needed)"
 
       - name: Run smoke tests (sequential - stability validation)
+        id: sequential_tests
+        continue-on-error: true
         run: |
           pytest tests/integration/api_smoke/ \
             -v \
             --tb=short \
             --timeout=10 \
             --durations=20
-        continue-on-error: true
-        id: sequential_tests
 
       - name: Run smoke tests (parallel - performance validation)
+        id: parallel_tests
+        continue-on-error: true
         run: |
           pytest tests/integration/api_smoke/ \
             -n auto \
             -v \
             --tb=line \
             --timeout=10
-        continue-on-error: true
-        id: parallel_tests
 
       - name: Generate coverage report
         if: always()
