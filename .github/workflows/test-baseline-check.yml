@@ -405,8 +405,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Payment Workflow Tests (Sequential - 0 flake requirement)
       env:
@@ -487,8 +497,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Student + Instructor Lifecycle Tests (Sequential - 0 flake requirement)
       env:
@@ -571,8 +591,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Student Lifecycle Tests (Sequential - 20x validation)
       env:
@@ -654,8 +684,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Instructor Lifecycle Tests (Sequential - 20x validation)
       env:
@@ -737,8 +777,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Refund Workflow Tests (Sequential - 20x validation)
       env:
@@ -820,8 +870,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Multi-Campus Tests (Sequential - 20x validation)
       env:
@@ -903,8 +963,18 @@ jobs:
         TESTING: "true"
       run: |
         uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        sleep 5
-        curl --fail http://localhost:8000/health || exit 1
+        # Wait for FastAPI to finish startup (lifespan, scheduler init)
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
 
     - name: Run Session Management Tests (Sequential - 20x validation)
       env:
