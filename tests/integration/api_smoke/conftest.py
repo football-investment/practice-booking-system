@@ -207,3 +207,20 @@ def test_instructor_id(test_db: Session) -> int:
     instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
     assert instructor, "Smoke test instructor not found - ensure instructor_token fixture is called first"
     return instructor.id
+
+
+@pytest.fixture(scope="module")
+def payload_factory():
+    """
+    Phase 1: Payload factory for generating schema-compliant request payloads.
+
+    Eliminates 422 validation errors by generating minimally valid payloads
+    based on OpenAPI schema definitions.
+    """
+    from tests.integration.api_smoke.payload_factory import PayloadFactory
+
+    # Get OpenAPI schema
+    openapi_schema = app.openapi()
+
+    # Create and return factory instance
+    return PayloadFactory(openapi_schema)
