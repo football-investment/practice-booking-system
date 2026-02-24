@@ -38,10 +38,13 @@ from app.core.security import get_password_hash
 
 @pytest.fixture
 def session_admin(db_session: DBSession):
-    """Create admin user for session management tests"""
+    """Create admin user for session management tests (parallel-safe with UUID)"""
+    import uuid
+    unique_suffix = str(uuid.uuid4())[:8]
+
     user = User(
         name="Session Admin",
-        email="session.admin@test.com",
+        email=f"session.admin.{unique_suffix}@test.com",
         password_hash=get_password_hash("admin123"),
         role=UserRole.ADMIN,
         is_active=True,
@@ -58,17 +61,20 @@ def session_admin_token(client, session_admin):
     """Get access token for session admin"""
     response = client.post(
         "/api/v1/auth/login",
-        json={"email": "session.admin@test.com", "password": "admin123"}
+        json={"email": session_admin.email, "password": "admin123"}
     )
     return response.json()["access_token"]
 
 
 @pytest.fixture
 def session_instructor(db_session: DBSession):
-    """Create instructor for session management tests"""
+    """Create instructor for session management tests (parallel-safe with UUID)"""
+    import uuid
+    unique_suffix = str(uuid.uuid4())[:8]
+
     user = User(
         name="Session Instructor",
-        email="session.instructor@test.com",
+        email=f"session.instructor.{unique_suffix}@test.com",
         password_hash=get_password_hash("instructor123"),
         role=UserRole.INSTRUCTOR,
         is_active=True,
@@ -97,17 +103,20 @@ def session_instructor_token(client, session_instructor):
     """Get access token for session instructor"""
     response = client.post(
         "/api/v1/auth/login",
-        json={"email": "session.instructor@test.com", "password": "instructor123"}
+        json={"email": session_instructor.email, "password": "instructor123"}
     )
     return response.json()["access_token"]
 
 
 @pytest.fixture
 def session_student(db_session: DBSession):
-    """Create student with LFA_FOOTBALL_PLAYER license for session tests"""
+    """Create student with LFA_FOOTBALL_PLAYER license for session tests (parallel-safe with UUID)"""
+    import uuid
+    unique_suffix = str(uuid.uuid4())[:8]
+
     user = User(
         name="Session Student",
-        email="session.student@test.com",
+        email=f"session.student.{unique_suffix}@test.com",
         password_hash=get_password_hash("student123"),
         role=UserRole.STUDENT,
         is_active=True,
@@ -136,28 +145,31 @@ def session_student_token(client, session_student):
     """Get access token for session student"""
     response = client.post(
         "/api/v1/auth/login",
-        json={"email": "session.student@test.com", "password": "student123"}
+        json={"email": session_student.email, "password": "student123"}
     )
     return response.json()["access_token"]
 
 
 @pytest.fixture
 def session_campus(db_session: DBSession):
-    """Create campus for session management tests"""
+    """Create campus for session management tests (parallel-safe with UUID)"""
+    import uuid
+    unique_suffix = str(uuid.uuid4())[:8]
+
     location = Location(
-        name="Session Test Location",
-        city="Test City Session",
+        name=f"Session Test Location {unique_suffix}",
+        city=f"Test City Session {unique_suffix}",
         country="Test Country",
-        postal_code="12345",
+        postal_code=f"12345-{unique_suffix[:5]}",
         is_active=True
     )
     db_session.add(location)
     db_session.flush()
 
     campus = Campus(
-        name="Session Test Campus",
+        name=f"Session Test Campus {unique_suffix}",
         location_id=location.id,
-        address="123 Session Street",
+        address=f"123 Session Street {unique_suffix}",
         is_active=True
     )
     db_session.add(campus)
