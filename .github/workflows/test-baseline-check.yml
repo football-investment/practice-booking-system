@@ -336,11 +336,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Run E2E smoke tests
       env:
@@ -416,11 +416,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
@@ -520,11 +520,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
@@ -626,11 +626,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
@@ -731,11 +731,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
@@ -836,11 +836,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
@@ -941,11 +941,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
@@ -1046,11 +1046,11 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: python scripts/seed_tournament_types.py
 
-    - name: Seed star players
+    - name: Seed LFA test users (@lfa-seed.hu)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: python scripts/seed_star_players.py
+      run: python scripts/seed_lfa_test_users.py
 
     - name: Start FastAPI backend
       env:
