@@ -18,6 +18,10 @@ on:
   push:
     branches: [ main, develop ]
 
+concurrency:
+  group: ci-skill-weight-${{ github.ref }}
+  cancel-in-progress: true
+
 # ─── Jobs ───────────────────────────────────────────────────────────────────
 jobs:
   skill-weight-regression:

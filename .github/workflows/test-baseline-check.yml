@@ -6,6 +6,12 @@ on:
   push:
     branches: [ main, develop ]
 
+# Concurrency control: Only 1 baseline pipeline per branch
+# Prevents duplicate runs, ensures deterministic CI state
+concurrency:
+  group: ci-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unit-tests:
     name: "Unit Tests (Baseline: 0 failed, 0 errors)"

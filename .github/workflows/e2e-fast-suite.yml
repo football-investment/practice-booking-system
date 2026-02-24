@@ -10,6 +10,10 @@ on:
   push:
     branches: [main, develop]
 
+concurrency:
+  group: ci-e2e-fast-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   fast-suite:
     name: Fast Suite (52 tests)

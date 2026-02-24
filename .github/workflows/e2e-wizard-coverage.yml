@@ -20,6 +20,10 @@ on:
         default: 'false'
         type: boolean
 
+concurrency:
+  group: ci-wizard-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── Job 1: Wizard UI Flow (Playwright, headless) ───────────────────────────
   wizard-flow:

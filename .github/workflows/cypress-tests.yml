@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:  # Manual trigger
 
+concurrency:
+  group: ci-cypress-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   cypress-run:
     runs-on: ubuntu-latest
