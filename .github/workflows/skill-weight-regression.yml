@@ -2,19 +2,13 @@ name: Skill Weight Pipeline — Regression Gate
 
 # ─── Trigger ────────────────────────────────────────────────────────────────
 # Required check: blocks PR merge to main/develop if any of the 28+ tests fail.
-# Also runs on push to main so the baseline is verified after every merge.
+# Runs on EVERY PR to ensure deterministic required status check.
+# Previous path-based filter removed to support branch protection rules.
 on:
   pull_request:
     branches: [ main, develop, feature/* ]
-    paths:
-      # Run when pipeline code or tests change
-      - 'app/services/skill_progression_service.py'
-      - 'app/services/tournament/tournament_participation_service.py'
-      - 'app/services/tournament/tournament_reward_orchestrator.py'
-      - 'app/api/api_v1/endpoints/tournaments/create.py'
-      - 'tests/unit/tournament/test_skill_weight_pipeline.py'
-      # Always run when workflow itself changes
-      - '.github/workflows/skill-weight-regression.yml'
+    # REMOVED: paths filter (was blocking PRs that don't touch skill weight files)
+    # Reason: Required checks must run on ALL PRs for GitHub branch protection
   push:
     branches: [ main, develop ]
 
