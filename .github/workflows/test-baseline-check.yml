@@ -357,8 +357,14 @@ jobs:
         # Wait for services to be ready
         sleep 10
 
-        # Run smoke tests
-        PYTHONPATH=. pytest tests_e2e/ -m smoke --tb=short -v
+        # Run smoke tests (skip Playwright/Streamlit UI tests in CI - headless incompatible)
+        PYTHONPATH=. pytest tests_e2e/ -m smoke --tb=short -v \
+          --ignore=tests_e2e/test_champion_badge_regression.py \
+          --ignore=tests_e2e/test_instructor_dashboard_tab_smoke.py \
+          --ignore=tests_e2e/test_tournament_manager_sidebar_nav.py \
+          --ignore=tests_e2e/test_knockout_matrix.py \
+          --ignore=tests_e2e/test_game_presets_admin.py \
+          --ignore=tests_e2e/test_reward_leaderboard_matrix.py
 
     - name: Smoke test validation
       if: failure()
