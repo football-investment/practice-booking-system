@@ -35,8 +35,33 @@ class PayloadFactory:
         return {}
 
     def get_endpoint_schema(self, method: str, path: str) -> Optional[Dict]:
-        """Get request body schema for a specific endpoint."""
+        """
+        Get request body schema for a specific endpoint.
+
+        Handles both literal paths and placeholder paths.
+        """
+        import re
+
+        # First, try exact match
         endpoint_data = self.paths.get(path, {}).get(method.lower(), {})
+
+        # If not found, try normalized path (replace any {literal} with {param})
+        if not endpoint_data:
+            # Normalize the path: replace {test_...[...]} or any {...} with standard placeholders
+            # Strategy: For each path in OpenAPI, check if it matches the pattern
+            for openapi_path in self.paths.keys():
+                # Create regex pattern from OpenAPI path
+                # Replace {param} with a regex that matches any {...}
+                pattern = re.escape(openapi_path).replace(r'\{', r'\\{').replace(r'\}', r'\\}')
+                pattern = pattern.replace(r'\\{[^}]+\\}', r'{[^}]+}')
+
+                if re.match(f"^{pattern}$", path):
+                    endpoint_data = self.paths.get(openapi_path, {}).get(method.lower(), {})
+                    break
+
+        if not endpoint_data:
+            return None
+
         request_body = endpoint_data.get("requestBody", {})
         content = request_body.get("content", {}).get("application/json", {})
         schema = content.get("schema", {})
@@ -248,17 +273,42 @@ class PayloadFactory:
 
         Args:
             method: HTTP method (POST, PUT, PATCH)
-            path: API path
+            path: API path (may contain literals like {test_tournament[tournament_id]})
             context: Context with fixture values
 
         Returns:
-            Valid payload dictionary
+            Valid payload dictionary with domain rules applied
         """
-        schema = self.get_endpoint_schema(method, path)
+        import re
+        from .payload_rules import PayloadRules
+
+        # Normalize path: replace any {...} with {tournament_id}, {session_id}, etc.
+        # based on the context of what comes before
+        normalized_path = path
+
+        # Replace literal parameters with standard placeholders
+        normalized_path = re.sub(r'\{test_tournament\[[\'"]?tournament_id[\'"]?\]\}', '{tournament_id}', normalized_path)
+        normalized_path = re.sub(r'\{test_tournament\[[\'"]?semester_id[\'"]?\]\}', '{tournament_id}', normalized_path)
+        normalized_path = re.sub(r'\{test_campus_id\}', '{campus_id}', normalized_path)
+        normalized_path = re.sub(r'\{test_student_id\}', '{student_id}', normalized_path)
+        normalized_path = re.sub(r'\{test_instructor_id\}', '{instructor_id}', normalized_path)
+        normalized_path = re.sub(r'\{session_id\}', '{session_id}', normalized_path)  # Already correct
+        normalized_path = re.sub(r'\{application_id\}', '{application_id}', normalized_path)
+        normalized_path = re.sub(r'\{request_id\}', '{request_id}', normalized_path)
+        normalized_path = re.sub(r'\{mapping_id\}', '{mapping_id}', normalized_path)
+        normalized_path = re.sub(r'\{round_number\}', '{round_number}', normalized_path)
+
+        schema = self.get_endpoint_schema(method, normalized_path)
         if not schema:
             return {}
 
-        return self.generate_payload(schema, context)
+        # Generate base payload from schema
+        base_payload = self.generate_payload(schema, context)
+
+        # Apply domain-specific rules (using normalized path)
+        enhanced_payload = PayloadRules.apply_rules(method, normalized_path, base_payload, context or {})
+
+        return enhanced_payload
 
 
 # Convenience functions for tournament endpoints
