@@ -58,13 +58,18 @@ jobs:
 
       - name: Set up environment variables
         run: |
-          cp .env.example .env || true
-          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db" >> .env
-          echo "SECRET_KEY=test-secret-key-for-ci" >> .env
-          echo "ENVIRONMENT=test" >> .env
-          echo "CORS_ALLOWED_ORIGINS=[\"http://localhost:3000\",\"http://localhost:8501\"]" >> .env
-          echo "ADMIN_EMAIL=admin@test.com" >> .env
-          echo "ADMIN_PASSWORD=admin123" >> .env
+          # Create minimal .env with only required Settings fields (avoid .env.example extra fields)
+          cat > .env <<EOF
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db
+          SECRET_KEY=test-secret-key-for-ci-smoke-tests
+          ENVIRONMENT=test
+          DEBUG=false
+          ADMIN_EMAIL=admin@test.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=Test Admin
+          CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8501
+          ENABLE_RATE_LIMITING=false
+          EOF
 
       - name: Run database migrations
         run: |
