@@ -510,13 +510,13 @@ def get_tournament_status_history(
             tsh.new_status,
             tsh.changed_by,
             u.name as changed_by_name,
-            tsh.changed_at,
+            tsh.created_at,
             tsh.reason,
-            tsh.metadata
+            tsh.extra_metadata
         FROM tournament_status_history tsh
         JOIN users u ON tsh.changed_by = u.id
         WHERE tsh.tournament_id = :tournament_id
-        ORDER BY tsh.changed_at DESC
+        ORDER BY tsh.created_at DESC
         """),
         {"tournament_id": tournament_id}
     ).fetchall()
@@ -528,9 +528,9 @@ def get_tournament_status_history(
             new_status=row.new_status,
             changed_by=row.changed_by,
             changed_by_name=row.changed_by_name,
-            changed_at=row.changed_at.isoformat(),
+            changed_at=row.created_at.isoformat(),
             reason=row.reason,
-            metadata=row.metadata
+            metadata=row.extra_metadata
         )
         for row in history_rows
     ]

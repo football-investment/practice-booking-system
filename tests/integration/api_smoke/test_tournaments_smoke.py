@@ -1999,16 +1999,21 @@ class TestTournamentsSmoke:
 
     # ── POST /ops/run-scenario ────────────────────────────
 
-    def test_run_ops_scenario_happy_path(self, api_client: TestClient, admin_token: str, payload_factory):
+    def test_run_ops_scenario_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_campus_id: int):
         """
         Happy path: POST /ops/run-scenario
         Source: app/api/api_v1/endpoints/tournaments/ops_scenario.py:run_ops_scenario
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/ops/run-scenario')
+        # P2.2: Use enrolled students from fixture to bypass @lfa-seed.hu requirement
+        context = {
+            "enrolled_student_ids": test_tournament["enrolled_student_ids"],
+            "campus_id": test_campus_id
+        }
+
+        # Phase 1: Generate schema-compliant payload with context
+        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/ops/run-scenario', context)
         response = api_client.post("/api/v1/tournaments/ops/run-scenario", json=payload, headers=headers)
         
 

@@ -145,20 +145,43 @@ def test_campus_id(test_db: Session) -> int:
 
 
 @pytest.fixture(scope="module")
-def test_tournament(test_db: Session, test_campus_id: int) -> Dict:
+def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -> Dict:
     """
-    Create a test tournament directly in database (no OPS scenario).
+    P2.1: Minimál Lifecycle Graph - State-driven test architecture.
+
+    Creates a complete tournament with minimal viable state:
+    - Tournament entity (Semester)
+    - Campus schedule config
+    - Reward config
+    - 2 Students with PLAYER licenses
+    - 2 Enrollments (APPROVED, is_active=True)
+    - 1 Session (tournament_round=1)
+
+    Note: MatchStructure/MatchResult not included (tables don't exist in DB).
 
     Returns:
         {
             "tournament_id": int,
-            "semester_id": int,  # Same as tournament_id (Semester = Tournament)
+            "semester_id": int,
             "code": str,
-            "name": str
+            "name": str,
+            "session_ids": List[int],
+            "enrolled_student_ids": List[int],
+            "has_reward_config": bool,
+            "has_campus_schedule": bool,
+            "has_sessions": bool,
+            "has_enrollments": bool
         }
     """
-    # Create tournament directly in database
+    from app.models.campus_schedule_config import CampusScheduleConfig
+    from app.models.tournament_reward_config import TournamentRewardConfig
+    from app.models.license import UserLicense
+    from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+    from app.models.session import Session as SessionModel
+
     timestamp = int(datetime.now(timezone.utc).timestamp())
+
+    # Create tournament (game_preset_id moved to GameConfiguration in P3)
     tournament = Semester(
         code=f"SMOKE_TEST_{timestamp}",
         name=f"Smoke Test Tournament {timestamp}",
@@ -170,16 +193,120 @@ def test_tournament(test_db: Session, test_campus_id: int) -> Dict:
         campus_id=test_campus_id,
         is_active=True
     )
-
     test_db.add(tournament)
     test_db.commit()
     test_db.refresh(tournament)
 
+    # Add campus schedule config (minimal valid configuration)
+    campus_schedule = CampusScheduleConfig(
+        tournament_id=tournament.id,
+        campus_id=test_campus_id,
+        match_duration_minutes=90,
+        break_duration_minutes=15,
+        parallel_fields=1,
+        is_active=True
+    )
+    test_db.add(campus_schedule)
+
+    # Add reward config (minimal valid configuration)
+    reward_config = TournamentRewardConfig(
+        semester_id=tournament.id,
+        reward_policy_name="smoke_test_policy"
+    )
+    test_db.add(reward_config)
+
+    test_db.commit()
+
+    # ── 4. Create 2 Students with PLAYER Licenses ──────────────────────
+    # Get student 1 (created by student_token fixture)
+    student1 = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+
+    # Create student 2
+    student2_email = f"smoke.student2.{timestamp}@generated.test"
+    student2 = test_db.query(User).filter(User.email == student2_email).first()
+    if not student2:
+        student2 = User(
+            name="Smoke Test Student 2",
+            email=student2_email,
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=1000
+        )
+        test_db.add(student2)
+        test_db.commit()
+        test_db.refresh(student2)
+
+    # Create UserLicense + Enrollment for both students
+    enrolled_student_ids = []
+    for student in [student1, student2]:
+        # Check if PLAYER license exists
+        user_license = test_db.query(UserLicense).filter(
+            UserLicense.user_id == student.id,
+            UserLicense.specialization_type == "PLAYER"
+        ).first()
+
+        if not user_license:
+            user_license = UserLicense(
+                user_id=student.id,
+                specialization_type="PLAYER",
+                current_level=1,
+                max_achieved_level=1,
+                started_at=datetime.now(timezone.utc),
+                is_active=True
+            )
+            test_db.add(user_license)
+            test_db.commit()
+            test_db.refresh(user_license)
+
+        # ── 5. Create Enrollment (APPROVED, is_active=True) ────────────
+        enrollment = SemesterEnrollment(
+            user_id=student.id,
+            semester_id=tournament.id,
+            user_license_id=user_license.id,
+            request_status=EnrollmentStatus.APPROVED,
+            is_active=True,
+            requested_at=datetime.now(timezone.utc),
+            approved_at=datetime.now(timezone.utc),
+            enrolled_at=datetime.now(timezone.utc),
+            age_category="PRO"
+        )
+        test_db.add(enrollment)
+        enrolled_student_ids.append(student.id)
+
+    test_db.commit()
+
+    # ── 6. Create 1 Session ─────────────────────────────────────────────
+    session_start = datetime.now(timezone.utc) + timedelta(days=1)
+    session_end = session_start + timedelta(hours=2)
+
+    session = SessionModel(
+        title=f"Smoke Test Session - Round 1",
+        description="Minimal lifecycle graph session",
+        date_start=session_start,
+        date_end=session_end,
+        semester_id=tournament.id,
+        campus_id=test_campus_id,
+        tournament_round=1,
+        tournament_match_number=1,
+        session_status="scheduled",
+        capacity=16
+    )
+    test_db.add(session)
+    test_db.commit()
+    test_db.refresh(session)
+
     return {
         "tournament_id": tournament.id,
-        "semester_id": tournament.id,  # Same ID (Semester = Tournament)
+        "semester_id": tournament.id,
         "code": tournament.code,
-        "name": tournament.name
+        "name": tournament.name,
+        "session_ids": [session.id],
+        "enrolled_student_ids": enrolled_student_ids,
+        "has_reward_config": True,
+        "has_campus_schedule": True,
+        "has_sessions": True,
+        "has_enrollments": True
     }
 
 
@@ -197,15 +324,17 @@ def test_student_id(test_db: Session) -> int:
 
 
 @pytest.fixture(scope="module")
-def test_instructor_id(test_db: Session) -> int:
+def test_instructor_id(test_db: Session, instructor_token: str) -> int:
     """
     Get smoke test instructor user ID for instructor endpoints.
+
+    Explicit dependency: instructor_token fixture creates the instructor user.
 
     Returns:
         User ID (int)
     """
     instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
-    assert instructor, "Smoke test instructor not found - ensure instructor_token fixture is called first"
+    assert instructor, "Smoke test instructor not found after instructor_token fixture"
     return instructor.id
 
 
