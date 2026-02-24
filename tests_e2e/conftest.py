@@ -41,9 +41,17 @@ Usage Examples:
 
 import os
 import pytest
-from playwright.sync_api import sync_playwright
 from pathlib import Path
 import sys
+
+# Conditional import: playwright only needed for browser-based E2E tests
+# Integration critical tests (test_skill_assessment_lifecycle, etc.) don't use it
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    sync_playwright = None  # Placeholder for type hints
 
 # Add utils to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -137,7 +145,12 @@ def playwright_instance():
 
     Creates a new Playwright instance for each test.
     Automatically cleans up after test completes.
+
+    Note: Skipped if playwright is not installed (integration_critical tests don't need it).
     """
+    if not PLAYWRIGHT_AVAILABLE:
+        pytest.skip("Playwright not available - skipping browser-based test")
+
     with sync_playwright() as p:
         yield p
 
@@ -155,7 +168,12 @@ def browser(playwright_instance, browser_config):
             # browser.close() handled automatically
 
     Scope: function (new browser per test)
+
+    Note: Skipped if playwright is not installed (integration_critical tests don't need it).
     """
+    if not PLAYWRIGHT_AVAILABLE:
+        pytest.skip("Playwright not available - skipping browser-based test")
+
     browser_type = getattr(playwright_instance, browser_config["browser_type"])
     browser = browser_type.launch(
         headless=browser_config["headless"],
@@ -180,7 +198,12 @@ def page(browser):
             # page.close() handled automatically
 
     Scope: function (new page per test)
+
+    Note: Skipped if playwright is not installed (integration_critical tests don't need it).
     """
+    if not PLAYWRIGHT_AVAILABLE:
+        pytest.skip("Playwright not available - skipping browser-based test")
+
     page = browser.new_page()
 
     yield page
