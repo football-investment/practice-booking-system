@@ -48,8 +48,9 @@ def admin_token(test_db: Session):
         test_db.refresh(admin)
 
     # Generate token
-    from app.api.deps import create_access_token
-    token = create_access_token(subject=admin.id)
+    from app.core.auth import create_access_token
+    from datetime import timedelta
+    token = create_access_token(data={"sub": admin.email}, expires_delta=timedelta(hours=1))
     return token
 
 
@@ -70,8 +71,9 @@ def student_token(test_db: Session):
         test_db.commit()
         test_db.refresh(student)
 
-    from app.api.deps import create_access_token
-    token = create_access_token(subject=student.id)
+    from app.core.auth import create_access_token
+    from datetime import timedelta
+    token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
     return token
 
 
@@ -92,6 +94,7 @@ def instructor_token(test_db: Session):
         test_db.commit()
         test_db.refresh(instructor)
 
-    from app.api.deps import create_access_token
-    token = create_access_token(subject=instructor.id)
+    from app.core.auth import create_access_token
+    from datetime import timedelta
+    token = create_access_token(data={"sub": instructor.email}, expires_delta=timedelta(hours=1))
     return token
