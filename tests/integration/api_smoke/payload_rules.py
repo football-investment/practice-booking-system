@@ -37,6 +37,8 @@ class PayloadRules:
         # Route to specific rule handlers using normalized paths
         if "/tournaments/create" in path:
             return PayloadRules._rule_create_tournament(payload, context)
+        elif "/ops/run-scenario" in path:
+            return PayloadRules._rule_ops_scenario(payload, context)
         elif re.search(r'/tournaments/\{ID\}/status', normalized_path):
             return PayloadRules._rule_transition_status(payload, context)
         elif re.search(r'/tournaments/\{ID\}/admin/batch-enroll', normalized_path):
@@ -162,7 +164,7 @@ class PayloadRules:
     @staticmethod
     def _rule_submit_rankings(payload: Dict, context: Dict) -> Dict:
         """
-        Rule: rankings array is required.
+        Rule: rankings array is required with user_id (not player_id).
 
         Strategy: Create minimal valid ranking
         """
@@ -170,7 +172,7 @@ class PayloadRules:
             student_id = context.get("student_id", 1)
             payload["rankings"] = [
                 {
-                    "player_id": student_id,
+                    "user_id": student_id,  # Correct field: user_id, not player_id
                     "rank": 1,
                     "score": 100
                 }
@@ -211,3 +213,13 @@ class PayloadRules:
         """
         # These endpoints typically don't need payload
         return payload or {}
+
+    @staticmethod
+    def _rule_ops_scenario(payload: Dict, context: Dict) -> Dict:
+        """
+        Rule: OPS scenario requires confirmed=True for large operations.
+
+        Strategy: Always set confirmed=True to bypass safety check
+        """
+        payload["confirmed"] = True
+        return payload
