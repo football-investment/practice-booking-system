@@ -1,21 +1,36 @@
 """
-⚽ Football Skill Assessment Service - V2
+⚽ Football Skill Assessment Service - V3
 Handles assessment creation and average calculation for LFA Player skills
+
+PHASE 2: State Machine Integration
+- Create assessment with auto-archive + idempotency
+- Validate assessment (ASSESSED → VALIDATED)
+- Archive assessment (ASSESSED/VALIDATED → ARCHIVED)
+- Invalid transition rejection
+- Row-level locking for concurrency protection
 """
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from typing import Dict, Optional, List, Tuple
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 
 from ..models.football_skill_assessment import FootballSkillAssessment
 from ..models.license import UserLicense
-from ..models.user import User
+from ..models.user import User, UserRole
 from ..models.skill_reward import SkillReward
 from ..skills_config import get_all_skill_keys
 from app.utils.lock_logger import lock_timer
+from .skill_state_machine import (
+    SkillAssessmentState,
+    validate_state_transition,
+    determine_validation_requirement,
+    get_skill_category,
+    create_state_transition_audit,
+    log_state_transition
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +55,16 @@ class FootballSkillService:
         points_total: int,
         assessed_by: int,
         notes: Optional[str] = None
-    ) -> FootballSkillAssessment:
+    ) -> Tuple[FootballSkillAssessment, bool]:
         """
-        Create a new skill assessment and update cached average
+        Create a new skill assessment with state machine integration.
+
+        PHASE 2 FEATURES:
+        - Auto-archive old assessments (ASSESSED/VALIDATED → ARCHIVED)
+        - Determine validation requirement (business rule)
+        - Idempotency: Returns existing if active assessment exists
+        - Row-level locking: Prevents concurrent duplicate creation
+        - State transition audit trail
 
         Args:
             user_license_id: UserLicense ID
@@ -53,8 +75,17 @@ class FootballSkillService:
             notes: Optional notes
 
         Returns:
-            Created assessment
+            (assessment, created) where:
+            - assessment: FootballSkillAssessment object
+            - created: True if new assessment created, False if existing returned (idempotent)
+
+        Raises:
+            ValueError: If business rules violated (invalid skill, invalid points, etc.)
         """
+        # ====================================================================
+        # Step 1: Validation (business rules)
+        # ====================================================================
+
         # Validate skill name
         if skill_name not in self.VALID_SKILLS:
             raise ValueError(f"Invalid skill name: {skill_name}. Must be one of {self.VALID_SKILLS}")
@@ -67,26 +98,340 @@ class FootballSkillService:
         if points_earned > points_total:
             raise ValueError(f"Points earned ({points_earned}) cannot exceed total points ({points_total})")
 
-        # Calculate percentage
-        percentage = FootballSkillAssessment.calculate_percentage(points_earned, points_total)
+        # ====================================================================
+        # Step 2: Row-level locking (concurrency protection)
+        # ====================================================================
+        # Lock UserLicense row to serialize concurrent assessment creation
+        # for same license. Prevents race condition where 2 threads check
+        # for existing assessment simultaneously and both create new one.
+        # ====================================================================
 
-        # Create assessment
-        assessment = FootballSkillAssessment(
-            user_license_id=user_license_id,
-            skill_name=skill_name,
-            points_earned=points_earned,
-            points_total=points_total,
-            percentage=percentage,
-            assessed_by=assessed_by,
-            assessed_at=datetime.now(timezone.utc),
-            notes=notes
+        with lock_timer("skill_assessment", "UserLicense", user_license_id, logger,
+                        caller="FootballSkillService.create_assessment"):
+            license = self.db.query(UserLicense).filter(
+                UserLicense.id == user_license_id
+            ).with_for_update().first()
+
+            if not license:
+                raise ValueError(f"UserLicense {user_license_id} not found")
+
+            # ================================================================
+            # ================================================================
+            # Step 3: Content-based idempotency check
+            # ================================================================
+            # If creating assessment with IDENTICAL data (same scores), return existing.
+            # This prevents duplicate assessments from retries or instructor mistakes.
+            # If data is DIFFERENT (new scores), continue to archive + create new.
+            # ================================================================
+
+            existing_active = self.db.query(FootballSkillAssessment).filter(
+                FootballSkillAssessment.user_license_id == user_license_id,
+                FootballSkillAssessment.skill_name == skill_name,
+                FootballSkillAssessment.status.in_([
+                    SkillAssessmentState.ASSESSED,
+                    SkillAssessmentState.VALIDATED
+                ])
+            ).first()
+
+            if existing_active:
+                # Check if data is identical (same scores)
+                if (existing_active.points_earned == points_earned and
+                    existing_active.points_total == points_total):
+                    logger.info(
+                        f"🔒 IDEMPOTENT: Assessment with identical data already exists "
+                        f"(id={existing_active.id}, status={existing_active.status}, "
+                        f"score={points_earned}/{points_total}, user_license={user_license_id}, skill={skill_name})"
+                    )
+                    return (existing_active, False)
+                else:
+                    logger.info(
+                        f"📝 UPDATE DETECTED: Assessment data changed "
+                        f"(old: {existing_active.points_earned}/{existing_active.points_total}, "
+                        f"new: {points_earned}/{points_total}) - will archive old and create new"
+                    )
+
+            # ================================================================
+            # Step 4: Auto-archive old assessments (Manual Archive Policy)
+            # ================================================================
+            # Policy Decision: Manual archive triggered by new assessment creation
+            # Archive any existing ASSESSED or VALIDATED assessments for this skill.
+            # Only reached if data is DIFFERENT from existing assessment.
+            # ================================================================
+
+            old_assessments = self.db.query(FootballSkillAssessment).filter(
+                FootballSkillAssessment.user_license_id == user_license_id,
+                FootballSkillAssessment.skill_name == skill_name,
+                FootballSkillAssessment.status.in_([
+                    SkillAssessmentState.ASSESSED,
+                    SkillAssessmentState.VALIDATED
+                ])
+            ).all()
+
+            for old in old_assessments:
+                # Validate transition (should always be valid, but check anyway)
+                is_valid, error_msg = validate_state_transition(
+                    old.status, SkillAssessmentState.ARCHIVED
+                )
+                if not is_valid:
+                    raise ValueError(f"Cannot archive old assessment: {error_msg}")
+
+                # Archive old assessment
+                old.previous_status = old.status
+                old.status = SkillAssessmentState.ARCHIVED
+                old.archived_at = datetime.now(timezone.utc)
+                old.archived_by = assessed_by
+                old.archived_reason = "Replaced by new assessment"
+                old.status_changed_at = datetime.now(timezone.utc)
+                old.status_changed_by = assessed_by
+
+                log_state_transition(
+                    old.id, old.previous_status, SkillAssessmentState.ARCHIVED,
+                    assessed_by, "Replaced by new assessment"
+                )
+
+            # ================================================================
+            # Step 5: Determine validation requirement (business rule)
+            # ================================================================
+
+            # Get instructor tenure
+            instructor = self.db.query(User).filter(User.id == assessed_by).first()
+            if not instructor:
+                raise ValueError(f"Instructor {assessed_by} not found")
+
+            instructor_tenure_days = 0
+            if instructor.created_at:
+                # Handle both timezone-aware and timezone-naive datetimes
+                instructor_created = instructor.created_at
+                if instructor_created.tzinfo is None:
+                    # Make timezone-aware if naive (assume UTC)
+                    instructor_created = instructor_created.replace(tzinfo=timezone.utc)
+                tenure_delta = datetime.now(timezone.utc) - instructor_created
+                instructor_tenure_days = tenure_delta.days
+
+            # Determine if validation required
+            skill_category = get_skill_category(skill_name)
+            requires_validation = determine_validation_requirement(
+                license_level=license.current_level,
+                instructor_tenure_days=instructor_tenure_days,
+                skill_category=skill_category
+            )
+
+            # ================================================================
+            # Step 6: Create new assessment with status=ASSESSED
+            # ================================================================
+
+            percentage = FootballSkillAssessment.calculate_percentage(points_earned, points_total)
+
+            assessment = FootballSkillAssessment(
+                user_license_id=user_license_id,
+                skill_name=skill_name,
+                points_earned=points_earned,
+                points_total=points_total,
+                percentage=percentage,
+                assessed_by=assessed_by,
+                assessed_at=datetime.now(timezone.utc),
+                notes=notes,
+                # Lifecycle state machine fields
+                status=SkillAssessmentState.ASSESSED,
+                requires_validation=requires_validation,
+                status_changed_at=datetime.now(timezone.utc),
+                status_changed_by=assessed_by,
+                previous_status=SkillAssessmentState.NOT_ASSESSED
+            )
+
+            self.db.add(assessment)
+
+            try:
+                self.db.flush()  # Get ID without committing
+            except IntegrityError as e:
+                # Concurrent creation detected - UniqueConstraint violation
+                # Another thread created assessment between our archive and create
+                self.db.rollback()
+
+                # Fetch the assessment created by concurrent thread
+                existing = self.db.query(FootballSkillAssessment).filter(
+                    FootballSkillAssessment.user_license_id == user_license_id,
+                    FootballSkillAssessment.skill_name == skill_name,
+                    FootballSkillAssessment.status.in_([
+                        SkillAssessmentState.ASSESSED,
+                        SkillAssessmentState.VALIDATED
+                    ])
+                ).first()
+
+                if existing:
+                    logger.info(
+                        f"🔒 CONCURRENT CREATION DETECTED: Assessment created by another thread "
+                        f"(id={existing.id}, status={existing.status}, user_license={user_license_id}, skill={skill_name})"
+                    )
+                    return (existing, False)
+                else:
+                    # Unexpected IntegrityError - re-raise
+                    logger.error(f"Unexpected IntegrityError during assessment creation: {e}")
+                    raise
+
+            log_state_transition(
+                assessment.id,
+                SkillAssessmentState.NOT_ASSESSED,
+                SkillAssessmentState.ASSESSED,
+                assessed_by,
+                f"Assessment created (requires_validation={requires_validation})"
+            )
+
+            # ================================================================
+            # Step 7: Recalculate cached average (existing logic)
+            # ================================================================
+            self.recalculate_skill_average(user_license_id, skill_name)
+
+            return (assessment, True)
+
+    def validate_assessment(
+        self,
+        assessment_id: int,
+        validated_by: int
+    ) -> FootballSkillAssessment:
+        """
+        Validate assessment with state transition check.
+
+        PHASE 2 FEATURE: State machine integration
+        - Valid transition: ASSESSED → VALIDATED
+        - Idempotent: VALIDATED → VALIDATED (no-op)
+        - Invalid transitions rejected with clear error message
+        - Row-level locking for concurrency protection
+
+        Args:
+            assessment_id: Assessment ID to validate
+            validated_by: Admin/instructor user ID who validates
+
+        Returns:
+            Validated assessment
+
+        Raises:
+            ValueError: If assessment not found or invalid state transition
+        """
+        # ====================================================================
+        # Step 1: Lock assessment row (concurrency protection)
+        # ====================================================================
+        assessment = self.db.query(FootballSkillAssessment).filter(
+            FootballSkillAssessment.id == assessment_id
+        ).with_for_update().first()
+
+        if not assessment:
+            raise ValueError(f"Assessment {assessment_id} not found")
+
+        # ====================================================================
+        # Step 2: Idempotency check (already validated)
+        # ====================================================================
+        if assessment.status == SkillAssessmentState.VALIDATED:
+            logger.info(
+                f"🔒 IDEMPOTENT: Assessment already VALIDATED (id={assessment_id})"
+            )
+            return assessment
+
+        # ====================================================================
+        # Step 3: Validate state transition
+        # ====================================================================
+        is_valid, error_msg = validate_state_transition(
+            assessment.status, SkillAssessmentState.VALIDATED
         )
 
-        self.db.add(assessment)
-        self.db.flush()  # Get ID without committing
+        if not is_valid:
+            raise ValueError(
+                f"Invalid state transition: {assessment.status} → VALIDATED. {error_msg}"
+            )
 
-        # Recalculate and update cached average
-        self.recalculate_skill_average(user_license_id, skill_name)
+        # ====================================================================
+        # Step 4: Perform validation (state transition)
+        # ====================================================================
+        assessment.previous_status = assessment.status
+        assessment.status = SkillAssessmentState.VALIDATED
+        assessment.validated_by = validated_by
+        assessment.validated_at = datetime.now(timezone.utc)
+        assessment.status_changed_at = datetime.now(timezone.utc)
+        assessment.status_changed_by = validated_by
+
+        self.db.flush()
+
+        log_state_transition(
+            assessment_id, assessment.previous_status, SkillAssessmentState.VALIDATED,
+            validated_by, "Admin/instructor validated assessment"
+        )
+
+        return assessment
+
+    def archive_assessment(
+        self,
+        assessment_id: int,
+        archived_by: int,
+        reason: str
+    ) -> FootballSkillAssessment:
+        """
+        Archive assessment with state transition check.
+
+        PHASE 2 FEATURE: State machine integration
+        - Valid transitions: ASSESSED → ARCHIVED, VALIDATED → ARCHIVED
+        - Idempotent: ARCHIVED → ARCHIVED (no-op)
+        - Invalid transitions rejected with clear error message
+        - Row-level locking for concurrency protection
+
+        Args:
+            assessment_id: Assessment ID to archive
+            archived_by: User ID who triggered archive
+            reason: Reason for archiving
+
+        Returns:
+            Archived assessment
+
+        Raises:
+            ValueError: If assessment not found or invalid state transition
+        """
+        # ====================================================================
+        # Step 1: Lock assessment row (concurrency protection)
+        # ====================================================================
+        assessment = self.db.query(FootballSkillAssessment).filter(
+            FootballSkillAssessment.id == assessment_id
+        ).with_for_update().first()
+
+        if not assessment:
+            raise ValueError(f"Assessment {assessment_id} not found")
+
+        # ====================================================================
+        # Step 2: Idempotency check (already archived)
+        # ====================================================================
+        if assessment.status == SkillAssessmentState.ARCHIVED:
+            logger.info(
+                f"🔒 IDEMPOTENT: Assessment already ARCHIVED (id={assessment_id})"
+            )
+            return assessment
+
+        # ====================================================================
+        # Step 3: Validate state transition
+        # ====================================================================
+        is_valid, error_msg = validate_state_transition(
+            assessment.status, SkillAssessmentState.ARCHIVED
+        )
+
+        if not is_valid:
+            raise ValueError(
+                f"Invalid state transition: {assessment.status} → ARCHIVED. {error_msg}"
+            )
+
+        # ====================================================================
+        # Step 4: Perform archive (state transition)
+        # ====================================================================
+        assessment.previous_status = assessment.status
+        assessment.status = SkillAssessmentState.ARCHIVED
+        assessment.archived_by = archived_by
+        assessment.archived_at = datetime.now(timezone.utc)
+        assessment.archived_reason = reason
+        assessment.status_changed_at = datetime.now(timezone.utc)
+        assessment.status_changed_by = archived_by
+
+        self.db.flush()
+
+        log_state_transition(
+            assessment_id, assessment.previous_status, SkillAssessmentState.ARCHIVED,
+            archived_by, reason
+        )
 
         return assessment
 
