@@ -10,6 +10,14 @@ The base_url here tells the pytest-base-url sensitive-URL guard to evaluate
 against localhost:8000 (the API), not localhost:8501 (Streamlit).
 """
 import os
+import sys
+from pathlib import Path
+
+# Add project root to Python path for app imports (CI compatibility)
+# tests_e2e/lifecycle/conftest.py -> tests_e2e/lifecycle -> tests_e2e -> project_root
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 import pytest
 from datetime import datetime
 from app.database import SessionLocal

@@ -339,7 +339,7 @@ jobs:
         sleep 10
 
         # Run smoke tests
-        pytest tests_e2e/ -m smoke --tb=short -v
+        PYTHONPATH=. pytest tests_e2e/ -m smoke --tb=short -v
 
     - name: Smoke test validation
       if: failure()
