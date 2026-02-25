@@ -204,14 +204,14 @@ class TestTournamentsSmoke:
 
     # ── DELETE /{test_tournament['tournament_id']}/skill-mappings/{mapping_id} ────────────────────────────
 
-    def test_delete_tournament_skill_mapping_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
+    def test_delete_tournament_skill_mapping_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict, test_skill_mapping_id: int):
         """
         Happy path: DELETE /{{test_tournament["tournament_id"]}}/skill-mappings/{mapping_id}
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:delete_tournament_skill_mapping
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+        mapping_id = test_skill_mapping_id  # Category 1 Quick Fix
         response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id}", headers=headers)
         
 
@@ -221,11 +221,11 @@ class TestTournamentsSmoke:
             f"{response.text}"
         )
 
-    def test_delete_tournament_skill_mapping_auth_required(self, api_client: TestClient, test_tournament: Dict):
+    def test_delete_tournament_skill_mapping_auth_required(self, api_client: TestClient, test_tournament: Dict, test_skill_mapping_id: int):
         """
         Auth validation: DELETE /{{test_tournament["tournament_id"]}}/skill-mappings/{mapping_id} requires authentication
         """
-        
+        mapping_id = test_skill_mapping_id  # Category 1 Quick Fix
         response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id}")
         
 

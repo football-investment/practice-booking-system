@@ -19,6 +19,7 @@ from app.models.campus import Campus
 from app.models.location import Location
 from app.models.specialization import SpecializationType
 from app.models.license import UserLicense
+from app.models.tournament_achievement import TournamentSkillMapping
 from app.core.security import get_password_hash
 
 
@@ -719,3 +720,34 @@ def payload_factory():
 
     # Create and return factory instance
     return PayloadFactory(openapi_schema)
+
+
+@pytest.fixture(scope="function")
+def test_skill_mapping_id(test_tournament: Dict, test_db: Session) -> int:
+    """
+    Category 1 Quick Fix: Create TournamentSkillMapping for DELETE tests.
+
+    Creates a skill mapping record for the test tournament to enable
+    DELETE /tournaments/{id}/skill-mappings/{mapping_id} endpoint testing.
+
+    ⚠️  Function-scoped to match test_tournament fixture scope.
+
+    Args:
+        test_tournament: Tournament fixture with tournament_id
+        test_db: Database session
+
+    Returns:
+        mapping_id (int): ID of created skill mapping
+    """
+    # Create skill mapping for test tournament
+    mapping = TournamentSkillMapping(
+        semester_id=test_tournament["tournament_id"],  # tournament_id is semester_id
+        skill_name="Test Skill",
+        skill_category="football_skill",
+        weight=1.0
+    )
+    test_db.add(mapping)
+    test_db.commit()
+    test_db.refresh(mapping)
+
+    return mapping.id
