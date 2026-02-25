@@ -357,6 +357,171 @@ def test_session_id(test_tournament: Dict) -> int:
     return test_tournament["session_ids"][0]
 
 
+def ensure_tournament_status(
+    tournament_id: int,
+    target_status: str,
+    admin_token: str,
+    test_db: Session
+) -> Dict[str, any]:
+    """
+    P3.3: Workflow orchestration helper - explicit tournament status transitions.
+
+    Executes necessary workflow transitions to reach target status.
+    Documents state machine progression for smoke test clarity.
+
+    Supported transitions:
+    - DRAFT → ENROLLMENT_OPEN
+    - ENROLLMENT_OPEN → IN_PROGRESS (via session generation)
+    - IN_PROGRESS → COMPLETED (via finalization)
+
+    Args:
+        tournament_id: Tournament to transition
+        target_status: Desired final status
+        admin_token: Admin authentication token
+        test_db: Database session
+
+    Returns:
+        {"success": True, "transitions": ["DRAFT→ENROLLMENT_OPEN"], "final_status": "ENROLLMENT_OPEN"}
+
+    Raises:
+        AssertionError: If transition fails or invalid path
+    """
+    from app.models.semester import Semester
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Fetch current status
+    tournament = test_db.query(Semester).filter(Semester.id == tournament_id).first()
+    assert tournament, f"Tournament {tournament_id} not found"
+
+    current_status = tournament.tournament_status
+    transitions_executed = []
+
+    # Define valid transition paths
+    TRANSITION_PATHS = {
+        "ENROLLMENT_OPEN": {
+            "from": ["DRAFT"],
+            "endpoint": f"/api/v1/tournaments/{tournament_id}/status",
+            "method": "PATCH",
+            "payload": {"new_status": "ENROLLMENT_OPEN"},
+        },
+        "IN_PROGRESS": {
+            "from": ["ENROLLMENT_OPEN", "DRAFT"],
+            "steps": [
+                # First ensure ENROLLMENT_OPEN
+                {
+                    "required_from": ["DRAFT"],
+                    "endpoint": f"/api/v1/tournaments/{tournament_id}/status",
+                    "method": "PATCH",
+                    "payload": {"new_status": "ENROLLMENT_OPEN"},
+                },
+                # Then transition to IN_PROGRESS (via session generation or status change)
+                {
+                    "endpoint": f"/api/v1/tournaments/{tournament_id}/status",
+                    "method": "PATCH",
+                    "payload": {"new_status": "IN_PROGRESS"},
+                },
+            ],
+        },
+        "COMPLETED": {
+            "from": ["IN_PROGRESS"],
+            "endpoint": f"/api/v1/tournaments/{tournament_id}/complete",
+            "method": "POST",
+            "payload": {},
+        },
+        "SEEKING_INSTRUCTOR": {
+            "from": ["DRAFT"],
+            "endpoint": f"/api/v1/tournaments/{tournament_id}/status",
+            "method": "PATCH",
+            "payload": {"new_status": "SEEKING_INSTRUCTOR"},
+        },
+    }
+
+    if current_status == target_status:
+        return {
+            "success": True,
+            "transitions": [],
+            "final_status": current_status,
+            "message": "Already in target status",
+        }
+
+    if target_status not in TRANSITION_PATHS:
+        raise ValueError(f"Unsupported target status: {target_status}")
+
+    transition_config = TRANSITION_PATHS[target_status]
+
+    # Handle multi-step transitions
+    if "steps" in transition_config:
+        for step in transition_config["steps"]:
+            # Check if this step is needed
+            if "required_from" in step:
+                tournament = test_db.query(Semester).filter(Semester.id == tournament_id).first()
+                current_status = tournament.tournament_status
+                if current_status not in step["required_from"]:
+                    continue  # Skip this step
+
+            # Execute step
+            response = client.request(
+                method=step["method"],
+                url=step["endpoint"],
+                json=step.get("payload", {}),
+                headers=headers,
+            )
+
+            assert response.status_code in [200, 201, 204], (
+                f"Transition step failed: {step['method']} {step['endpoint']} "
+                f"→ {response.status_code} {response.text}"
+            )
+
+            # Refresh status
+            test_db.expire(tournament)
+            tournament = test_db.query(Semester).filter(Semester.id == tournament_id).first()
+            new_status = tournament.tournament_status
+            transitions_executed.append(f"{current_status}→{new_status}")
+            current_status = new_status
+
+    else:
+        # Single-step transition
+        assert current_status in transition_config["from"], (
+            f"Invalid transition: {current_status} → {target_status}. "
+            f"Valid from: {transition_config['from']}"
+        )
+
+        response = client.request(
+            method=transition_config["method"],
+            url=transition_config["endpoint"],
+            json=transition_config.get("payload", {}),
+            headers=headers,
+        )
+
+        assert response.status_code in [200, 201, 204], (
+            f"Transition failed: {transition_config['method']} {transition_config['endpoint']} "
+            f"→ {response.status_code} {response.text}"
+        )
+
+        transitions_executed.append(f"{current_status}→{target_status}")
+
+    # Final validation
+    test_db.expire(tournament)
+    tournament = test_db.query(Semester).filter(Semester.id == tournament_id).first()
+    final_status = tournament.tournament_status
+
+    assert final_status == target_status, (
+        f"Transition failed: Expected {target_status}, got {final_status}. "
+        f"Transitions: {transitions_executed}"
+    )
+
+    return {
+        "success": True,
+        "transitions": transitions_executed,
+        "final_status": final_status,
+        "message": f"Successfully transitioned to {target_status}",
+    }
+
+
 @pytest.fixture(scope="module")
 def payload_factory():
     """

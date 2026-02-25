@@ -2633,14 +2633,23 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/enroll ────────────────────────────
 
-    def test_enroll_in_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_enroll_in_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/enroll
         Source: app/api/api_v1/endpoints/tournaments/enroll.py:enroll_in_tournament
         """
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+        # P3.3: Workflow orchestration - ensure ENROLLMENT_OPEN status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="ENROLLMENT_OPEN",
+            admin_token=admin_token,
+            test_db=test_db
+        )
+
         # Phase 1: Generate schema-compliant payload
         payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/enroll', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/enroll", json=payload, headers=headers)
