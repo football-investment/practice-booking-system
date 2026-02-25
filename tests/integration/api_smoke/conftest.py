@@ -18,7 +18,7 @@ from app.models.semester import Semester
 from app.models.campus import Campus
 from app.models.location import Location
 from app.models.specialization import SpecializationType
-from app.models.instructor_specialization import InstructorSpecialization
+from app.models.license import UserLicense
 from app.core.security import get_password_hash
 
 
@@ -107,20 +107,30 @@ def instructor_token(test_db: Session):
         test_db.commit()
         test_db.refresh(instructor)
 
-    # High Priority Fix: ALWAYS ensure InstructorSpecialization exists (even if instructor pre-existed)
-    existing_spec = test_db.query(InstructorSpecialization).filter(
-        InstructorSpecialization.user_id == instructor.id,
-        InstructorSpecialization.specialization == SpecializationType.LFA_COACH.value  # Use .value for STRING column
+    # High Priority Fix: ALWAYS ensure UserLicense exists for LFA_COACH (LicenseValidator requirement)
+    existing_license = test_db.query(UserLicense).filter(
+        UserLicense.user_id == instructor.id,
+        UserLicense.specialization_type == "LFA_COACH"  # Must be "LFA_COACH", not enum
     ).first()
 
-    if not existing_spec:
-        spec = InstructorSpecialization(
+    if not existing_license:
+        license = UserLicense(
             user_id=instructor.id,
-            specialization=SpecializationType.LFA_COACH.value,  # Use .value for STRING column
+            specialization_type="LFA_COACH",  # Validator expects "LFA_COACH" string
+            current_level=7,  # Level 7 (highest) - allows all age groups including PRO
+            max_achieved_level=7,
+            started_at=datetime.now(timezone.utc),
             is_active=True
         )
-        test_db.add(spec)
+        test_db.add(license)
         test_db.commit()
+    else:
+        # Update existing license to Level 7 if it's lower (module-scoped fixture persistence)
+        if existing_license.current_level < 7:
+            existing_license.current_level = 7
+            existing_license.max_achieved_level = 7
+            existing_license.is_active = True
+            test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": instructor.email}, expires_delta=timedelta(hours=1))
