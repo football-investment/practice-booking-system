@@ -299,7 +299,8 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     test_db.commit()
     test_db.refresh(session)
 
-    return {
+    # ── YIELD: Provide fixture data to test ──────────────────────────────
+    fixture_data = {
         "tournament_id": tournament.id,
         "semester_id": tournament.id,
         "code": tournament.code,
@@ -311,6 +312,54 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         "has_sessions": True,
         "has_enrollments": True
     }
+
+    yield fixture_data
+
+    # ── TEARDOWN: Clean up fixture entities (FK deletion order) ──────────
+    """
+    FK deletion order (respects foreign key constraints):
+    1. SessionModel (FK: semester_id → semesters.id)
+    2. SemesterEnrollment (FK: semester_id → semesters.id, user_license_id → user_licenses.id)
+    3. TournamentRewardConfig (FK: semester_id → semesters.id)
+    4. CampusScheduleConfig (FK: tournament_id → semesters.id)
+    5. Semester (parent, no FK dependencies after above deleted)
+
+    Note: UserLicense and Student2 User NOT deleted (user infrastructure is long-lived).
+    """
+    try:
+        # 1. Delete sessions (FK: semester_id → semesters.id)
+        test_db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 2. Delete enrollments (FK: semester_id → semesters.id)
+        test_db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 3. Delete reward config (FK: semester_id → semesters.id)
+        test_db.query(TournamentRewardConfig).filter(
+            TournamentRewardConfig.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 4. Delete campus schedule config (FK: tournament_id → semesters.id)
+        test_db.query(CampusScheduleConfig).filter(
+            CampusScheduleConfig.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 5. Delete tournament (parent entity)
+        test_db.query(Semester).filter(
+            Semester.id == tournament.id
+        ).delete(synchronize_session=False)
+
+        test_db.commit()
+
+    except Exception as e:
+        test_db.rollback()
+        # Log but don't fail teardown (avoid cascade failures)
+        print(f"⚠️  Fixture teardown warning: {e}")
+        # Re-raise to investigate if cleanup fails
+        raise
 
 
 @pytest.fixture(scope="module")
