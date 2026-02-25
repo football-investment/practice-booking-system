@@ -339,6 +339,22 @@ def test_instructor_id(test_db: Session, instructor_token: str) -> int:
 
 
 @pytest.fixture(scope="module")
+def test_session_id(test_tournament: Dict) -> int:
+    """
+    P3.1: Extract session ID from P2 lifecycle graph (surgical fix).
+
+    Returns first session ID from test_tournament fixture.
+    NO new entities created - pure extraction from existing P2 state.
+
+    Returns:
+        Session ID (int)
+    """
+    assert test_tournament["has_sessions"], "Tournament fixture has no sessions"
+    assert len(test_tournament["session_ids"]) > 0, "Tournament fixture session_ids is empty"
+    return test_tournament["session_ids"][0]
+
+
+@pytest.fixture(scope="module")
 def payload_factory():
     """
     Phase 1: Payload factory for generating schema-compliant request payloads.
