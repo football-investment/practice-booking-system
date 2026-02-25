@@ -2981,16 +2981,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/instructor-applications ────────────────────────────
 
-    def test_apply_to_tournament_happy_path(self, api_client: TestClient, instructor_token: str, payload_factory, test_tournament: Dict):
+    def test_apply_to_tournament_happy_path(self, api_client: TestClient, instructor_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/instructor-applications
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:apply_to_tournament
 
         Category 2 Fix: Changed to instructor_token (endpoint requires INSTRUCTOR role)
+        Category 3 Fix: Use lifecycle helper to transition tournament to SEEKING_INSTRUCTOR
         """
+        from tests.integration.api_smoke.lifecycle_helpers import transition_tournament_to_seeking_instructor
+
+        # Category 3: Setup tournament in valid state for instructor applications
+        transition_tournament_to_seeking_instructor(test_tournament['tournament_id'], test_db)
+
         headers = {"Authorization": f"Bearer {instructor_token}"}  # Category 2: INSTRUCTOR role required
 
-        
+
         # Phase 1: Generate schema-compliant payload
         payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/instructor-applications', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications", json=payload, headers=headers)
