@@ -182,12 +182,13 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     timestamp = int(datetime.now(timezone.utc).timestamp())
 
     # Create tournament (game_preset_id moved to GameConfiguration in P3)
+    # P3.2: Default status DRAFT (neutral state, allows status transitions)
     tournament = Semester(
         code=f"SMOKE_TEST_{timestamp}",
         name=f"Smoke Test Tournament {timestamp}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
-        tournament_status="IN_PROGRESS",
+        tournament_status="DRAFT",
         enrollment_cost=0,
         age_group="PRO",
         campus_id=test_campus_id,
