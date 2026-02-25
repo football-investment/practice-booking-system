@@ -2732,14 +2732,16 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/enroll ────────────────────────────
 
-    def test_enroll_in_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
+    def test_enroll_in_tournament_happy_path(self, api_client: TestClient, student_token: str, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/enroll
         Source: app/api/api_v1/endpoints/tournaments/enroll.py:enroll_in_tournament
+
+        Category 2 Fix: Changed to student_token (endpoint requires STUDENT role)
         """
         from tests.integration.api_smoke.conftest import ensure_tournament_status
 
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {student_token}"}  # Category 2: STUDENT role required
 
         # P3.3: Workflow orchestration - ensure ENROLLMENT_OPEN status
         ensure_tournament_status(

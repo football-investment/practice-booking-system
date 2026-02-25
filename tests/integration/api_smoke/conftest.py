@@ -6,6 +6,7 @@ Phase 1 Enhancement: Real test data fixtures for path parameter resolution
 """
 
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
@@ -215,13 +216,14 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
     from app.models.session import Session as SessionModel
 
-    timestamp = int(datetime.now(timezone.utc).timestamp())
+    # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
+    unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
 
     # Create tournament (game_preset_id moved to GameConfiguration in P3)
     # P3.2: Default status DRAFT (neutral state, allows status transitions)
     tournament = Semester(
-        code=f"SMOKE_TEST_{timestamp}",
-        name=f"Smoke Test Tournament {timestamp}",
+        code=f"SMOKE_TEST_{unique_id}",
+        name=f"Smoke Test Tournament {unique_id}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
         tournament_status="DRAFT",
@@ -259,7 +261,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     student1 = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
 
     # Create student 2
-    student2_email = f"smoke.student2.{timestamp}@generated.test"
+    student2_email = f"smoke.student2.{unique_id}@generated.test"
     student2 = test_db.query(User).filter(User.email == student2_email).first()
     if not student2:
         student2 = User(
@@ -440,12 +442,13 @@ def test_tournament_deletable(test_db: Session, test_campus_id: int) -> Dict:
     """
     from datetime import datetime, timezone, timedelta
 
-    timestamp = int(datetime.now(timezone.utc).timestamp())
+    # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
+    unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
 
     # Create minimal tournament (deletable - no FK dependencies)
     tournament = Semester(
-        code=f"DELETABLE_{timestamp}",
-        name=f"Deletable Tournament {timestamp}",
+        code=f"DELETABLE_{unique_id}",
+        name=f"Deletable Tournament {unique_id}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
         tournament_status="DRAFT",
@@ -507,12 +510,13 @@ def test_tournament_minimal(test_db: Session, test_campus_id: int) -> Dict:
     from app.models.tournament_reward_config import TournamentRewardConfig
     from datetime import datetime, timezone, timedelta
 
-    timestamp = int(datetime.now(timezone.utc).timestamp())
+    # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
+    unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
 
     # Create minimal tournament
     tournament = Semester(
-        code=f"MINIMAL_{timestamp}",
-        name=f"Minimal Tournament {timestamp}",
+        code=f"MINIMAL_{unique_id}",
+        name=f"Minimal Tournament {unique_id}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
         tournament_status="DRAFT",
