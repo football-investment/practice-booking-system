@@ -484,12 +484,12 @@ class TestTournamentsSmoke:
 
     # ── GET /instructor/my-applications ────────────────────────────
 
-    def test_get_my_instructor_applications_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_instructor_applications_happy_path(self, api_client: TestClient, instructor_token: str):
         """
         Happy path: GET /instructor/my-applications
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:get_my_instructor_applications
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         response = api_client.get("/api/v1/tournaments/instructor/my-applications", headers=headers)
