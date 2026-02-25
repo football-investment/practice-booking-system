@@ -22,20 +22,21 @@ class TestTournamentsSmoke:
 
     # ── DELETE /{test_tournament['tournament_id']} ────────────────────────────
 
-    def test_delete_tournament_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
+    def test_delete_tournament_happy_path(self, api_client: TestClient, admin_token: str, test_tournament_deletable: Dict):
         """
-        Happy path: DELETE /{{test_tournament["tournament_id"]}}
+        Happy path: DELETE /{{test_tournament_deletable["tournament_id"]}}
         Source: app/api/api_v1/endpoints/tournaments/generator.py:delete_tournament
+        Sprint 2: Use test_tournament_deletable (no FK dependencies)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}", headers=headers)
-        
+
+        response = api_client.delete(f"/api/v1/tournaments/{test_tournament_deletable['tournament_id']}", headers=headers)
+
 
         # Accept 200 OK, 201 Created, or 204 No Content
         assert response.status_code in [200, 201, 204], (
-            f"DELETE /{test_tournament['tournament_id']} failed: {response.status_code} "
+            f"DELETE /{test_tournament_deletable['tournament_id']} failed: {response.status_code} "
             f"{response.text}"
         )
 
@@ -112,20 +113,21 @@ class TestTournamentsSmoke:
 
     # ── DELETE /{test_tournament['tournament_id']}/reward-config ────────────────────────────
 
-    def test_delete_tournament_reward_config_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
+    def test_delete_tournament_reward_config_happy_path(self, api_client: TestClient, admin_token: str, test_tournament_minimal: Dict):
         """
-        Happy path: DELETE /{{test_tournament["tournament_id"]}}/reward-config
+        Happy path: DELETE /{{test_tournament_minimal["tournament_id"]}}/reward-config
         Source: app/api/api_v1/endpoints/tournaments/reward_config.py:delete_tournament_reward_config
+        Sprint 2: Use test_tournament_minimal (has reward_config)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", headers=headers)
-        
+
+        response = api_client.delete(f"/api/v1/tournaments/{test_tournament_minimal['tournament_id']}/reward-config", headers=headers)
+
 
         # Accept 200 OK, 201 Created, or 204 No Content
         assert response.status_code in [200, 201, 204], (
-            f"DELETE /{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
+            f"DELETE /{test_tournament_minimal['tournament_id']}/reward-config failed: {response.status_code} "
             f"{response.text}"
         )
 
@@ -2252,10 +2254,11 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/assign-instructor ────────────────────────────
 
-    def test_assign_instructor_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
+    def test_assign_instructor_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament_minimal: Dict, test_db):
         """
-        Happy path: POST /{{test_tournament["tournament_id"]}}/assign-instructor
+        Happy path: POST /{{test_tournament_minimal["tournament_id"]}}/assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_instructor.py:assign_instructor_to_tournament
+        Sprint 2: Use test_tournament_minimal (no sessions/enrollments needed)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
         from tests.integration.api_smoke.conftest import ensure_tournament_status
@@ -2263,21 +2266,21 @@ class TestTournamentsSmoke:
 
         # Phase B: Workflow orchestration - ensure SEEKING_INSTRUCTOR status
         ensure_tournament_status(
-            tournament_id=test_tournament['tournament_id'],
+            tournament_id=test_tournament_minimal['tournament_id'],
             target_status="SEEKING_INSTRUCTOR",
             admin_token=admin_token,
             test_db=test_db
         )
 
-        
+
         # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/assign-instructor', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor", json=payload, headers=headers)
-        
+        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament_minimal[tournament_id]}/assign-instructor', {'tournament_id': test_tournament_minimal['tournament_id']})
+        response = api_client.post(f"/api/v1/tournaments/{test_tournament_minimal['tournament_id']}/assign-instructor", json=payload, headers=headers)
+
 
         # Accept 200 OK, 201 Created, or 204 No Content
         assert response.status_code in [200, 201, 204], (
-            f"POST /{test_tournament['tournament_id']}/assign-instructor failed: {response.status_code} "
+            f"POST /{test_tournament_minimal['tournament_id']}/assign-instructor failed: {response.status_code} "
             f"{response.text}"
         )
 
@@ -2509,10 +2512,11 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/direct-assign-instructor ────────────────────────────
 
-    def test_direct_assign_instructor_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
+    def test_direct_assign_instructor_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament_minimal: Dict, test_db):
         """
-        Happy path: POST /{{test_tournament["tournament_id"]}}/direct-assign-instructor
+        Happy path: POST /{{test_tournament_minimal["tournament_id"]}}/direct-assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:direct_assign_instructor
+        Sprint 2: Use test_tournament_minimal (no sessions/enrollments needed)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
         from tests.integration.api_smoke.conftest import ensure_tournament_status
@@ -2520,21 +2524,21 @@ class TestTournamentsSmoke:
 
         # Phase B: Workflow orchestration - ensure SEEKING_INSTRUCTOR status
         ensure_tournament_status(
-            tournament_id=test_tournament['tournament_id'],
+            tournament_id=test_tournament_minimal['tournament_id'],
             target_status="SEEKING_INSTRUCTOR",
             admin_token=admin_token,
             test_db=test_db
         )
 
-        
+
         # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/direct-assign-instructor', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor", json=payload, headers=headers)
-        
+        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament_minimal[tournament_id]}/direct-assign-instructor', {'tournament_id': test_tournament_minimal['tournament_id']})
+        response = api_client.post(f"/api/v1/tournaments/{test_tournament_minimal['tournament_id']}/direct-assign-instructor", json=payload, headers=headers)
+
 
         # Accept 200 OK, 201 Created, or 204 No Content
         assert response.status_code in [200, 201, 204], (
-            f"POST /{test_tournament['tournament_id']}/direct-assign-instructor failed: {response.status_code} "
+            f"POST /{test_tournament_minimal['tournament_id']}/direct-assign-instructor failed: {response.status_code} "
             f"{response.text}"
         )
 
