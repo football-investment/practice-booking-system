@@ -171,7 +171,7 @@ def delete_tournament_reward_config(
         Success message
     """
     # Check if user is admin
-    if current_user.role != "ADMIN":
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admins can delete tournament reward configs")
 
     # Get tournament
