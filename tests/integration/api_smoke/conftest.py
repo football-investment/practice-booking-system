@@ -665,22 +665,32 @@ def ensure_tournament_status(
         }
 
     # Direct DB update (bypasses API validation)
+    # Map legacy/test status strings to valid SemesterStatus enum values
+    STATUS_MAPPING = {
+        "ENROLLMENT_OPEN": "READY_FOR_ENROLLMENT",  # Legacy status string
+        "IN_PROGRESS": "ONGOING",  # Legacy status string
+    }
+    normalized_status = STATUS_MAPPING.get(target_status, target_status)
+
     # Update BOTH fields to maintain consistency
-    tournament.status = SemesterStatus(target_status)  # ENUM field (primary)
-    tournament.tournament_status = target_status  # STRING field (legacy)
+    tournament.status = SemesterStatus(normalized_status)  # ENUM field (primary)
+    tournament.tournament_status = normalized_status  # STRING field (legacy)
     test_db.commit()
     test_db.refresh(tournament)
 
-    # Verify update
-    assert tournament.status.value == target_status, (
-        f"DB status update failed: Expected {target_status}, got {tournament.status.value}"
+    # Verify update (compare to normalized value, not legacy input)
+    assert tournament.status.value == normalized_status, (
+        f"DB status update failed: Expected {normalized_status}, got {tournament.status.value}"
     )
+
+    # Show mapping info if legacy status was mapped
+    mapping_note = f" (mapped from {target_status})" if target_status != normalized_status else ""
 
     return {
         "success": True,
-        "transitions": [f"{old_status}→{target_status} (DB direct)"],
+        "transitions": [f"{old_status}→{normalized_status} (DB direct){mapping_note}"],
         "final_status": tournament.status.value,
-        "message": f"TEST-ONLY: Status set to {target_status} (bypassed state machine)",
+        "message": f"TEST-ONLY: Status set to {normalized_status} (bypassed state machine){mapping_note}",
     }
 
 
