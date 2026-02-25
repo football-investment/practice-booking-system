@@ -3154,12 +3154,12 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/instructor-assignment/accept ────────────────────────────
 
-    def test_accept_instructor_assignment_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_accept_instructor_assignment_happy_path(self, api_client: TestClient, instructor_token: str, payload_factory, test_tournament: Dict):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/instructor-assignment/accept
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:accept_instructor_assignment
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # Phase 1: Generate schema-compliant payload
