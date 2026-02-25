@@ -247,14 +247,23 @@ class TestTournamentsSmoke:
 
     # ── DELETE /{test_tournament['tournament_id']}/unenroll ────────────────────────────
 
-    def test_unenroll_from_tournament_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
+    def test_unenroll_from_tournament_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict, test_db):
         """
         Happy path: DELETE /{{test_tournament["tournament_id"]}}/unenroll
         Source: app/api/api_v1/endpoints/tournaments/enroll.py:unenroll_from_tournament
         """
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+        # Phase 1: Ensure ENROLLMENT_OPEN status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="ENROLLMENT_OPEN",
+            admin_token=admin_token,
+            test_db=test_db
+        )
+
         response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/unenroll", headers=headers)
         
 
@@ -2177,15 +2186,24 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/admin/batch-enroll ────────────────────────────
 
-    def test_admin_batch_enroll_players_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_admin_batch_enroll_players_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/admin/batch-enroll
         Source: app/api/api_v1/endpoints/tournaments/admin_enroll.py:admin_batch_enroll_players
         """
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Phase 1: Generate schema-compliant payload
+        # Phase 1: Ensure ENROLLMENT_OPEN status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="ENROLLMENT_OPEN",
+            admin_token=admin_token,
+            test_db=test_db
+        )
+
+        # Phase 2: Generate schema-compliant payload
         payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/admin/batch-enroll', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll", json=payload, headers=headers)
         
