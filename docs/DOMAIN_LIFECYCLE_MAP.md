@@ -106,8 +106,10 @@ CANCELLED (terminal, reachable from most states)
 
 #### SEEKING_INSTRUCTOR
 - **Purpose**: Actively recruiting instructor
-- **Can instructor apply?**: ✅ Yes
+- **Can instructor apply?**: ✅ Yes (creates InstructorAssignmentRequest)
+- **Can instructor accept?**: ✅ Yes (POST /tournaments/{id}/instructor-assignment/accept)
 - **Can admin assign instructor?**: ✅ Yes (direct assignment)
+- **Acceptance effect**: Tournament → INSTRUCTOR_CONFIRMED, master_instructor_id assigned
 - **Can generate sessions?**: ❌ Wait for instructor confirmation
 - **Can students enroll?**: ❌ No sessions yet
 

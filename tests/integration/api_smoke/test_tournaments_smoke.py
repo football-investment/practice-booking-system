@@ -3175,14 +3175,29 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/instructor-assignment/accept ────────────────────────────
 
-    def test_accept_instructor_assignment_happy_path(self, api_client: TestClient, instructor_token: str, payload_factory, test_tournament: Dict):
+    def test_accept_instructor_assignment_happy_path(self, api_client: TestClient, instructor_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/instructor-assignment/accept
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:accept_instructor_assignment
+
+        Category 3 Fix: Use lifecycle helpers to setup valid tournament state
         """
+        from tests.integration.api_smoke.lifecycle_helpers import (
+            transition_tournament_to_seeking_instructor,
+            create_instructor_application
+        )
+        from app.models.user import User
+
+        # Category 3: Setup tournament in SEEKING_INSTRUCTOR state
+        transition_tournament_to_seeking_instructor(test_tournament['tournament_id'], test_db)
+
+        # Category 3: Create instructor application (best practice, though endpoint may not require it)
+        instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+        create_instructor_application(test_tournament['tournament_id'], instructor.id, test_db)
+
         headers = {"Authorization": f"Bearer {instructor_token}"}
 
-        
+
         # Phase 1: Generate schema-compliant payload
         payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/instructor-assignment/accept', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept", json=payload, headers=headers)
