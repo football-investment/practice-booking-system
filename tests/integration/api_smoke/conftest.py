@@ -283,6 +283,18 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     session_start = datetime.now(timezone.utc) + timedelta(days=1)
     session_end = session_start + timedelta(hours=2)
 
+    # Phase D.1: Build rounds_data with round_results for calculate-rankings API
+    # INDIVIDUAL_RANKING tournaments use rounds_data.round_results (not game_results)
+    # Format: {"round_number": {"user_id": "measured_value"}} - ALL STRINGS!
+    rounds_data = {
+        "round_results": {
+            "1": {  # Round number as string ("1", not "round_1")
+                str(enrolled_student_ids[0]): "100",  # Student 1: 100 points (STRING!)
+                str(enrolled_student_ids[1]): "85"    # Student 2: 85 points (STRING!)
+            }
+        }
+    }
+
     session = SessionModel(
         title=f"Smoke Test Session - Round 1",
         description="Minimal lifecycle graph session",
@@ -294,6 +306,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         tournament_match_number=1,
         session_status="scheduled",
         is_tournament_game=True,  # Phase C: Mark as tournament game (required by calculate-rankings API)
+        rounds_data=rounds_data,  # Phase D.1: Add round results for INDIVIDUAL_RANKING tournaments
         capacity=16
     )
     test_db.add(session)
