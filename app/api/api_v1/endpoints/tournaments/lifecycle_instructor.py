@@ -67,7 +67,7 @@ def assign_instructor_to_tournament(
     Business rules:
     - Only admins can assign instructors
     - Tournament must be in SEEKING_INSTRUCTOR status
-    - Instructor must have GRANDMASTER role
+    - Instructor must have INSTRUCTOR role (Priority 1 Fix: corrected from GRANDMASTER)
     - Auto-transition to PENDING_INSTRUCTOR_ACCEPTANCE
     """
 
@@ -102,10 +102,11 @@ def assign_instructor_to_tournament(
         )
 
     # Validate instructor role
-    if instructor.role != UserRole.GRANDMASTER:
+    # Priority 1 Fix: UserRole.INSTRUCTOR (not GRANDMASTER - which doesn't exist in enum)
+    if instructor.role != UserRole.INSTRUCTOR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User {instructor.email} is not an instructor (GRANDMASTER role required)"
+            detail=f"User {instructor.email} is not an instructor (INSTRUCTOR role required)"
         )
 
     # Assign instructor

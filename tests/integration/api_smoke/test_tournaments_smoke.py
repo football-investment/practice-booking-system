@@ -2254,11 +2254,12 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/assign-instructor ────────────────────────────
 
-    def test_assign_instructor_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament_minimal: Dict, test_db):
+    def test_assign_instructor_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament_minimal: Dict, test_instructor_id: int, test_db):
         """
         Happy path: POST /{{test_tournament_minimal["tournament_id"]}}/assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_instructor.py:assign_instructor_to_tournament
         Sprint 2: Use test_tournament_minimal (no sessions/enrollments needed)
+        Priority 1 Fix: Added test_instructor_id fixture + payload context
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
         from tests.integration.api_smoke.conftest import ensure_tournament_status
@@ -2273,8 +2274,16 @@ class TestTournamentsSmoke:
         )
 
 
-        # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament_minimal[tournament_id]}/assign-instructor', {'tournament_id': test_tournament_minimal['tournament_id']})
+        # Phase 1: Generate schema-compliant payload (WITH instructor_id context)
+        # Priority 1 Fix #2: Use standard {tournament_id} placeholder (not {test_tournament_minimal[...]})
+        payload = payload_factory.create_payload(
+            'POST',
+            '/api/v1/tournaments/{tournament_id}/assign-instructor',
+            {
+                'tournament_id': test_tournament_minimal['tournament_id'],
+                'instructor_id': test_instructor_id  # Priority 1 Fix: Add instructor_id to context
+            }
+        )
         response = api_client.post(f"/api/v1/tournaments/{test_tournament_minimal['tournament_id']}/assign-instructor", json=payload, headers=headers)
 
 
@@ -2512,11 +2521,12 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/direct-assign-instructor ────────────────────────────
 
-    def test_direct_assign_instructor_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament_minimal: Dict, test_db):
+    def test_direct_assign_instructor_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament_minimal: Dict, test_instructor_id: int, test_db):
         """
         Happy path: POST /{{test_tournament_minimal["tournament_id"]}}/direct-assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:direct_assign_instructor
         Sprint 2: Use test_tournament_minimal (no sessions/enrollments needed)
+        Priority 1 Fix: Added test_instructor_id fixture + payload context
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
         from tests.integration.api_smoke.conftest import ensure_tournament_status
@@ -2531,8 +2541,16 @@ class TestTournamentsSmoke:
         )
 
 
-        # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament_minimal[tournament_id]}/direct-assign-instructor', {'tournament_id': test_tournament_minimal['tournament_id']})
+        # Phase 1: Generate schema-compliant payload (WITH instructor_id context)
+        # Priority 1 Fix #2: Use standard {tournament_id} placeholder (not {test_tournament_minimal[...]})
+        payload = payload_factory.create_payload(
+            'POST',
+            '/api/v1/tournaments/{tournament_id}/direct-assign-instructor',
+            {
+                'tournament_id': test_tournament_minimal['tournament_id'],
+                'instructor_id': test_instructor_id  # Priority 1 Fix: Add instructor_id to context
+            }
+        )
         response = api_client.post(f"/api/v1/tournaments/{test_tournament_minimal['tournament_id']}/direct-assign-instructor", json=payload, headers=headers)
 
 
