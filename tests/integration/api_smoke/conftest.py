@@ -144,10 +144,10 @@ def test_campus_id(test_db: Session) -> int:
     return campus.id
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -> Dict:
     """
-    P2.1: Minimál Lifecycle Graph - State-driven test architecture.
+    P3.2: Minimál Lifecycle Graph - State-driven test architecture with FUNCTION SCOPE.
 
     Creates a complete tournament with minimal viable state:
     - Tournament entity (Semester)
@@ -158,6 +158,8 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     - 1 Session (tournament_round=1)
 
     Note: MatchStructure/MatchResult not included (tables don't exist in DB).
+
+    ISOLATION: Function-scoped to prevent test contamination (each test gets fresh state).
 
     Returns:
         {
@@ -339,13 +341,13 @@ def test_instructor_id(test_db: Session, instructor_token: str) -> int:
     return instructor.id
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def test_session_id(test_tournament: Dict) -> int:
     """
-    P3.1: Extract session ID from P2 lifecycle graph (surgical fix).
+    P3.2: Extract session ID from lifecycle graph (function-scoped for isolation).
 
     Returns first session ID from test_tournament fixture.
-    NO new entities created - pure extraction from existing P2 state.
+    NO new entities created - pure extraction from existing state.
 
     Returns:
         Session ID (int)
