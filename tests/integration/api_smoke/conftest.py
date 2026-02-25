@@ -17,6 +17,8 @@ from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.campus import Campus
 from app.models.location import Location
+from app.models.specialization import SpecializationType
+from app.models.instructor_specialization import InstructorSpecialization
 from app.core.security import get_password_hash
 
 
@@ -84,7 +86,12 @@ def student_token(test_db: Session):
 
 @pytest.fixture(scope="module")
 def instructor_token(test_db: Session):
-    """Instructor user authentication token"""
+    """
+    Instructor user authentication token with LFA_COACH license.
+
+    High Priority Fix: Added LFA_COACH license to enable test_direct_assign_instructor_happy_path.
+    The /direct-assign-instructor endpoint validates LFA_COACH license via LicenseValidator.
+    """
     instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
 
     if not instructor:
@@ -93,11 +100,27 @@ def instructor_token(test_db: Session):
             email="smoke.instructor@generated.test",
             password_hash=get_password_hash("instructor123"),
             role=UserRole.INSTRUCTOR,
+            specialization=SpecializationType.LFA_COACH,  # High Priority Fix: Add LFA_COACH
             is_active=True
         )
         test_db.add(instructor)
         test_db.commit()
         test_db.refresh(instructor)
+
+    # High Priority Fix: ALWAYS ensure InstructorSpecialization exists (even if instructor pre-existed)
+    existing_spec = test_db.query(InstructorSpecialization).filter(
+        InstructorSpecialization.user_id == instructor.id,
+        InstructorSpecialization.specialization == SpecializationType.LFA_COACH.value  # Use .value for STRING column
+    ).first()
+
+    if not existing_spec:
+        spec = InstructorSpecialization(
+            user_id=instructor.id,
+            specialization=SpecializationType.LFA_COACH.value,  # Use .value for STRING column
+            is_active=True
+        )
+        test_db.add(spec)
+        test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": instructor.email}, expires_delta=timedelta(hours=1))
