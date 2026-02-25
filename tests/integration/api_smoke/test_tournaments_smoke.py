@@ -1026,14 +1026,29 @@ class TestTournamentsSmoke:
 
     # ── GET /{test_tournament['tournament_id']}/my-application ────────────────────────────
 
-    def test_get_my_tournament_application_happy_path(self, api_client: TestClient, instructor_token: str, test_tournament: Dict):
+    def test_get_my_tournament_application_happy_path(self, api_client: TestClient, instructor_token: str, test_tournament: Dict, test_db):
         """
         Happy path: GET /{{test_tournament["tournament_id"]}}/my-application
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:get_my_tournament_application
+
+        Category 3 Fix: Use lifecycle helpers to create application before querying
         """
+        from tests.integration.api_smoke.lifecycle_helpers import (
+            transition_tournament_to_seeking_instructor,
+            create_instructor_application
+        )
+        from app.models.user import User
+
+        # Category 3: Setup tournament in valid state
+        transition_tournament_to_seeking_instructor(test_tournament['tournament_id'], test_db)
+
+        # Category 3: Create application for current instructor
+        instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+        create_instructor_application(test_tournament['tournament_id'], instructor.id, test_db)
+
         headers = {"Authorization": f"Bearer {instructor_token}"}
 
-        
+
         response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/my-application", headers=headers)
         
 
