@@ -381,6 +381,169 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         raise
 
 
+# ── Sprint 2: Minimal Fixture Variants ───────────────────────────────────────
+
+@pytest.fixture(scope="function")
+def test_tournament_deletable(test_db: Session, test_campus_id: int) -> Dict:
+    """
+    Sprint 2 (Fixture Isolation): Deletable tournament - NO FK dependencies.
+
+    Use for DELETE tests that expect clean deletion without FK conflicts.
+
+    Creates only:
+    - Tournament entity (Semester) with minimal fields
+    - NO sessions
+    - NO enrollments
+    - NO reward config
+    - NO campus schedule config
+
+    Returns:
+        {
+            "tournament_id": int,
+            "code": str,
+            "name": str
+        }
+    """
+    from datetime import datetime, timezone, timedelta
+
+    timestamp = int(datetime.now(timezone.utc).timestamp())
+
+    # Create minimal tournament (deletable - no FK dependencies)
+    tournament = Semester(
+        code=f"DELETABLE_{timestamp}",
+        name=f"Deletable Tournament {timestamp}",
+        start_date=datetime.now(timezone.utc).date(),
+        end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
+        tournament_status="DRAFT",
+        enrollment_cost=0,
+        age_group="PRO",
+        campus_id=test_campus_id,
+        is_active=True
+    )
+    test_db.add(tournament)
+    test_db.commit()
+    test_db.refresh(tournament)
+
+    fixture_data = {
+        "tournament_id": tournament.id,
+        "code": tournament.code,
+        "name": tournament.name
+    }
+
+    yield fixture_data
+
+    # Teardown: Simple delete (no FK dependencies)
+    try:
+        test_db.query(Semester).filter(Semester.id == tournament.id).delete()
+        test_db.commit()
+    except Exception as e:
+        test_db.rollback()
+        # OK to fail - test may have deleted it
+        print(f"⚠️  Deletable tournament cleanup: {e}")
+
+
+@pytest.fixture(scope="function")
+def test_tournament_minimal(test_db: Session, test_campus_id: int) -> Dict:
+    """
+    Sprint 2 (Fixture Isolation): Minimal tournament - NO sessions, NO enrollments.
+
+    Use for instructor assignment tests that don't need full lifecycle graph.
+
+    Creates only:
+    - Tournament entity (Semester)
+    - Campus schedule config (required for some endpoints)
+    - Reward config (required for some endpoints)
+    - NO sessions
+    - NO enrollments
+    - NO students
+
+    Returns:
+        {
+            "tournament_id": int,
+            "semester_id": int,
+            "code": str,
+            "name": str,
+            "has_reward_config": True,
+            "has_campus_schedule": True,
+            "has_sessions": False,
+            "has_enrollments": False
+        }
+    """
+    from app.models.campus_schedule_config import CampusScheduleConfig
+    from app.models.tournament_reward_config import TournamentRewardConfig
+    from datetime import datetime, timezone, timedelta
+
+    timestamp = int(datetime.now(timezone.utc).timestamp())
+
+    # Create minimal tournament
+    tournament = Semester(
+        code=f"MINIMAL_{timestamp}",
+        name=f"Minimal Tournament {timestamp}",
+        start_date=datetime.now(timezone.utc).date(),
+        end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
+        tournament_status="DRAFT",
+        enrollment_cost=0,
+        age_group="PRO",
+        campus_id=test_campus_id,
+        is_active=True
+    )
+    test_db.add(tournament)
+    test_db.commit()
+    test_db.refresh(tournament)
+
+    # Add campus schedule config (minimal)
+    campus_schedule = CampusScheduleConfig(
+        tournament_id=tournament.id,
+        campus_id=test_campus_id,
+        match_duration_minutes=90,
+        break_duration_minutes=15,
+        parallel_fields=1,
+        is_active=True
+    )
+    test_db.add(campus_schedule)
+
+    # Add reward config (minimal)
+    reward_config = TournamentRewardConfig(
+        semester_id=tournament.id,
+        reward_policy_name="minimal_policy"
+    )
+    test_db.add(reward_config)
+
+    test_db.commit()
+
+    fixture_data = {
+        "tournament_id": tournament.id,
+        "semester_id": tournament.id,
+        "code": tournament.code,
+        "name": tournament.name,
+        "has_reward_config": True,
+        "has_campus_schedule": True,
+        "has_sessions": False,
+        "has_enrollments": False
+    }
+
+    yield fixture_data
+
+    # Teardown: FK-aware deletion
+    try:
+        # 1. Delete configs
+        test_db.query(TournamentRewardConfig).filter(
+            TournamentRewardConfig.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        test_db.query(CampusScheduleConfig).filter(
+            CampusScheduleConfig.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 2. Delete tournament
+        test_db.query(Semester).filter(Semester.id == tournament.id).delete()
+
+        test_db.commit()
+    except Exception as e:
+        test_db.rollback()
+        print(f"⚠️  Minimal tournament cleanup warning: {e}")
+
+
 @pytest.fixture(scope="module")
 def test_student_id(test_db: Session) -> int:
     """
