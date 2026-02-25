@@ -145,7 +145,7 @@ def test_campus_id(test_db: Session) -> int:
 
 
 @pytest.fixture(scope="function")
-def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -> Dict:
+def test_tournament(test_db: Session, test_campus_id: int, student_token: str, instructor_token: str) -> Dict:
     """
     P3.2: Minimál Lifecycle Graph - State-driven test architecture with FUNCTION SCOPE.
 
@@ -279,7 +279,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
 
     test_db.commit()
 
-    # ── 6. Create 1 Session ─────────────────────────────────────────────
+    # ── 6. Create 1 Tournament Session ──────────────────────────────────
     session_start = datetime.now(timezone.utc) + timedelta(days=1)
     session_end = session_start + timedelta(hours=2)
 
@@ -293,6 +293,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         tournament_round=1,
         tournament_match_number=1,
         session_status="scheduled",
+        is_tournament_game=True,  # Phase C: Mark as tournament game (required by calculate-rankings API)
         capacity=16
     )
     test_db.add(session)
@@ -300,6 +301,10 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     test_db.refresh(session)
 
     # ── YIELD: Provide fixture data to test ──────────────────────────────
+    # Phase C: Get instructor ID for instructor-related tests
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor_id = instructor.id if instructor else None
+
     fixture_data = {
         "tournament_id": tournament.id,
         "semester_id": tournament.id,
@@ -307,6 +312,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         "name": tournament.name,
         "session_ids": [session.id],
         "enrolled_student_ids": enrolled_student_ids,
+        "instructor_id": instructor_id,  # Phase C: Add instructor_id for payload context
         "has_reward_config": True,
         "has_campus_schedule": True,
         "has_sessions": True,
@@ -443,13 +449,13 @@ def ensure_tournament_status(
     Raises:
         AssertionError: If status update fails
     """
-    from app.models.semester import Semester
+    from app.models.semester import Semester, SemesterStatus
 
     # TEST-ONLY: Bypass state machine for smoke endpoint validation
     tournament = test_db.query(Semester).filter(Semester.id == tournament_id).first()
     assert tournament, f"Tournament {tournament_id} not found in DB"
 
-    old_status = tournament.tournament_status
+    old_status = tournament.status.value if tournament.status else tournament.tournament_status
 
     if old_status == target_status:
         return {
@@ -460,19 +466,21 @@ def ensure_tournament_status(
         }
 
     # Direct DB update (bypasses API validation)
-    tournament.tournament_status = target_status
+    # Update BOTH fields to maintain consistency
+    tournament.status = SemesterStatus(target_status)  # ENUM field (primary)
+    tournament.tournament_status = target_status  # STRING field (legacy)
     test_db.commit()
     test_db.refresh(tournament)
 
     # Verify update
-    assert tournament.tournament_status == target_status, (
-        f"DB status update failed: Expected {target_status}, got {tournament.tournament_status}"
+    assert tournament.status.value == target_status, (
+        f"DB status update failed: Expected {target_status}, got {tournament.status.value}"
     )
 
     return {
         "success": True,
         "transitions": [f"{old_status}→{target_status} (DB direct)"],
-        "final_status": target_status,
+        "final_status": tournament.status.value,
         "message": f"TEST-ONLY: Status set to {target_status} (bypassed state machine)",
     }
 

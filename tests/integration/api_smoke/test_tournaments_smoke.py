@@ -2252,12 +2252,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/assign-instructor ────────────────────────────
 
-    def test_assign_instructor_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_assign_instructor_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_instructor.py:assign_instructor_to_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
+
+        # Phase B: Workflow orchestration - ensure SEEKING_INSTRUCTOR status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="SEEKING_INSTRUCTOR",
+            admin_token=admin_token,
+            test_db=test_db
+        )
 
         
         # Phase 1: Generate schema-compliant payload
@@ -2309,12 +2319,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/calculate-rankings ────────────────────────────
 
-    def test_calculate_tournament_rankings_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_calculate_tournament_rankings_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/calculate-rankings
         Source: app/api/api_v1/endpoints/tournaments/calculate_rankings.py:calculate_tournament_rankings
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
+
+        # Phase B: Workflow orchestration - ensure COMPLETED status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="COMPLETED",
+            admin_token=admin_token,
+            test_db=test_db
+        )
 
         
         # Phase 1: Generate schema-compliant payload
@@ -2423,14 +2443,23 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/complete ────────────────────────────
 
-    def test_complete_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_complete_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/complete
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:complete_tournament
         """
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+        # Phase B: Workflow orchestration - ensure IN_PROGRESS status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="IN_PROGRESS",
+            admin_token=admin_token,
+            test_db=test_db
+        )
+
         # Phase 1: Generate schema-compliant payload
         payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/complete', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/complete", json=payload, headers=headers)
@@ -2480,12 +2509,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/direct-assign-instructor ────────────────────────────
 
-    def test_direct_assign_instructor_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_direct_assign_instructor_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/direct-assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:direct_assign_instructor
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
+
+        # Phase B: Workflow orchestration - ensure SEEKING_INSTRUCTOR status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="SEEKING_INSTRUCTOR",
+            admin_token=admin_token,
+            test_db=test_db
+        )
 
         
         # Phase 1: Generate schema-compliant payload
@@ -2537,12 +2576,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/distribute-rewards ────────────────────────────
 
-    def test_distribute_tournament_rewards_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_distribute_tournament_rewards_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/distribute-rewards
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:distribute_tournament_rewards
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
+
+        # Phase B: Workflow orchestration - ensure COMPLETED status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="COMPLETED",
+            admin_token=admin_token,
+            test_db=test_db
+        )
 
         
         # Phase 1: Generate schema-compliant payload
@@ -2594,12 +2643,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/distribute-rewards-v2 ────────────────────────────
 
-    def test_distribute_tournament_rewards_v2_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_distribute_tournament_rewards_v2_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/distribute-rewards-v2
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:distribute_tournament_rewards_v2
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
+
+        # Phase B: Workflow orchestration - ensure COMPLETED status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="COMPLETED",
+            admin_token=admin_token,
+            test_db=test_db
+        )
 
         
         # Phase 1: Generate schema-compliant payload
@@ -2831,12 +2890,22 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/generate-sessions ────────────────────────────
 
-    def test_generate_tournament_sessions_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_generate_tournament_sessions_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/generate-sessions
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:generate_tournament_sessions
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
+
+
+        # Phase B: Workflow orchestration - ensure IN_PROGRESS status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="IN_PROGRESS",
+            admin_token=admin_token,
+            test_db=test_db
+        )
 
         
         # Phase 1: Generate schema-compliant payload
@@ -3344,16 +3413,27 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/send-instructor-request ────────────────────────────
 
-    def test_send_instructor_request_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_send_instructor_request_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict, test_db):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/send-instructor-request
         Source: app/api/api_v1/endpoints/tournaments/generator.py:send_instructor_request
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
+        from tests.integration.api_smoke.conftest import ensure_tournament_status
 
-        
+
+        # Phase B: Workflow orchestration - ensure SEEKING_INSTRUCTOR status
+        ensure_tournament_status(
+            tournament_id=test_tournament['tournament_id'],
+            target_status="SEEKING_INSTRUCTOR",
+            admin_token=admin_token,
+            test_db=test_db
+        )
+
+
         # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/send-instructor-request', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
+        # Phase C: Add instructor_id to payload context
+        payload = payload_factory.create_payload('POST', '/api/v1/tournaments/{test_tournament[tournament_id]}/send-instructor-request', {'tournament_id': test_tournament['tournament_id'], 'instructor_id': test_tournament['instructor_id']})
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request", json=payload, headers=headers)
         
 
