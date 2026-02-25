@@ -177,13 +177,16 @@ def delete_tournament_reward_config(
     # Get tournament
     tournament = TournamentRepository(db).get_or_404(tournament_id)
 
-    # Reset reward_config
-    tournament.reward_config = None
-    tournament.reward_policy_name = "default"
-
-    db.commit()
-
-    return {"message": "Reward configuration deleted successfully"}
+    # Delete reward_config_obj (cascade handles cleanup)
+    # NOTE: reward_config and reward_policy_name are read-only @property,
+    # backed by reward_config_obj relationship (P1 refactoring)
+    if tournament.reward_config_obj:
+        db.delete(tournament.reward_config_obj)
+        db.commit()
+        return {"message": "Reward configuration deleted successfully"}
+    else:
+        # No reward config to delete (already using default)
+        return {"message": "Tournament already using default reward configuration"}
 
 
 @router.get("/{tournament_id}/reward-config/preview", response_model=Dict[str, Any])
