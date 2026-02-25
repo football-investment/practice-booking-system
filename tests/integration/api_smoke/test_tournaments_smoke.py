@@ -2981,12 +2981,14 @@ class TestTournamentsSmoke:
 
     # ── POST /{test_tournament['tournament_id']}/instructor-applications ────────────────────────────
 
-    def test_apply_to_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory, test_tournament: Dict):
+    def test_apply_to_tournament_happy_path(self, api_client: TestClient, instructor_token: str, payload_factory, test_tournament: Dict):
         """
         Happy path: POST /{{test_tournament["tournament_id"]}}/instructor-applications
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:apply_to_tournament
+
+        Category 2 Fix: Changed to instructor_token (endpoint requires INSTRUCTOR role)
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}  # Category 2: INSTRUCTOR role required
 
         
         # Phase 1: Generate schema-compliant payload
