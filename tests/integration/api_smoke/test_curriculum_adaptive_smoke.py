@@ -28,7 +28,7 @@ class TestCurriculumadaptiveSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/curriculum-adaptive/performance-history", headers=headers)
+        response = api_client.get('/api/v1/curriculum-adaptive/performance-history', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestCurriculumadaptiveSmoke:
         Auth validation: GET /api/v1/performance-history requires authentication
         """
         
-        response = api_client.get("/api/v1/curriculum-adaptive/performance-history")
+        response = api_client.get('/api/v1/curriculum-adaptive/performance-history')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestCurriculumadaptiveSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/curriculum-adaptive/profile", headers=headers)
+        response = api_client.get('/api/v1/curriculum-adaptive/profile', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestCurriculumadaptiveSmoke:
         Auth validation: GET /api/v1/profile requires authentication
         """
         
-        response = api_client.get("/api/v1/curriculum-adaptive/profile")
+        response = api_client.get('/api/v1/curriculum-adaptive/profile')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestCurriculumadaptiveSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/curriculum-adaptive/recommendations", headers=headers)
+        response = api_client.get('/api/v1/curriculum-adaptive/recommendations', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestCurriculumadaptiveSmoke:
         Auth validation: GET /api/v1/recommendations requires authentication
         """
         
-        response = api_client.get("/api/v1/curriculum-adaptive/recommendations")
+        response = api_client.get('/api/v1/curriculum-adaptive/recommendations')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -198,7 +198,7 @@ class TestCurriculumadaptiveSmoke:
         
         # TODO: Add realistic payload for /api/v1/profile/update
         payload = {}
-        response = api_client.post("/api/v1/curriculum-adaptive/profile/update", json=payload, headers=headers)
+        response = api_client.post('/api/v1/curriculum-adaptive/profile/update', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -215,7 +215,7 @@ class TestCurriculumadaptiveSmoke:
         Auth validation: POST /api/v1/profile/update requires authentication
         """
         
-        response = api_client.post("/api/v1/curriculum-adaptive/profile/update", json={})
+        response = api_client.post('/api/v1/curriculum-adaptive/profile/update', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -238,7 +238,7 @@ class TestCurriculumadaptiveSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/curriculum-adaptive/profile/update",
+            '/api/v1/curriculum-adaptive/profile/update',
             json=invalid_payload,
             headers=headers
         )
@@ -267,7 +267,7 @@ class TestCurriculumadaptiveSmoke:
         
         # TODO: Add realistic payload for /api/v1/recommendations/{recommendation_id}/dismiss
         payload = {}
-        response = api_client.post(f"/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -285,7 +285,7 @@ class TestCurriculumadaptiveSmoke:
         Auth validation: POST /api/v1/recommendations/{recommendation_id}/dismiss requires authentication
         """
         
-        response = api_client.post(f"/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss", json={})
+        response = api_client.post(f'/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -309,7 +309,7 @@ class TestCurriculumadaptiveSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss",
+            f'/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss',
             json=invalid_payload,
             headers=headers
         )
@@ -337,7 +337,7 @@ class TestCurriculumadaptiveSmoke:
         
         # TODO: Add realistic payload for /api/v1/snapshot
         payload = {}
-        response = api_client.post("/api/v1/curriculum-adaptive/snapshot", json=payload, headers=headers)
+        response = api_client.post('/api/v1/curriculum-adaptive/snapshot', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -354,7 +354,7 @@ class TestCurriculumadaptiveSmoke:
         Auth validation: POST /api/v1/snapshot requires authentication
         """
         
-        response = api_client.post("/api/v1/curriculum-adaptive/snapshot", json={})
+        response = api_client.post('/api/v1/curriculum-adaptive/snapshot', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -377,7 +377,7 @@ class TestCurriculumadaptiveSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/curriculum-adaptive/snapshot",
+            '/api/v1/curriculum-adaptive/snapshot',
             json=invalid_payload,
             headers=headers
         )

@@ -216,8 +216,8 @@ def build_url_with_fixtures(path: str, domain: str = "") -> tuple[str, List[str]
     base_url = f"/api/v1{router_prefix}"
 
     if not params:
-        # No path parameters - simple URL
-        return (f"{base_url}{path}", [], f'"{base_url}{path}"')
+        # No path parameters - simple URL (use single quotes for consistency)
+        return (f"{base_url}{path}", [], f"'{base_url}{path}'")
 
     # Extract fixtures and build f-string
     fixtures = []
@@ -234,7 +234,8 @@ def build_url_with_fixtures(path: str, domain: str = "") -> tuple[str, List[str]
         # Replace {param} with {fixture_ref} in f-string
         fstring_parts = fstring_parts.replace(f"{{{param}}}", f"{{{fixture_ref}}}")
 
-    return (fstring_parts, fixtures, f'f"{fstring_parts}"')
+    # Use single quotes for f-string to avoid conflict with double quotes in dict keys
+    return (fstring_parts, fixtures, f"f'{fstring_parts}'")
 
 
 def get_fixture_params(endpoint: Endpoint) -> tuple[List[str], str]:

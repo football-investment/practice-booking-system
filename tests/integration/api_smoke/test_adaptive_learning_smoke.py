@@ -28,7 +28,7 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/adaptive-learning/analytics", headers=headers)
+        response = api_client.get('/api/v1/adaptive-learning/analytics', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: GET /api/v1/analytics requires authentication
         """
         
-        response = api_client.get("/api/v1/adaptive-learning/analytics")
+        response = api_client.get('/api/v1/adaptive-learning/analytics')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/adaptive-learning/categories", headers=headers)
+        response = api_client.get('/api/v1/adaptive-learning/categories', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: GET /api/v1/categories requires authentication
         """
         
-        response = api_client.get("/api/v1/adaptive-learning/categories")
+        response = api_client.get('/api/v1/adaptive-learning/categories')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/adaptive-learning/leaderboard", headers=headers)
+        response = api_client.get('/api/v1/adaptive-learning/leaderboard', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: GET /api/v1/leaderboard requires authentication
         """
         
-        response = api_client.get("/api/v1/adaptive-learning/leaderboard")
+        response = api_client.get('/api/v1/adaptive-learning/leaderboard')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -199,7 +199,7 @@ class TestAdaptivelearningSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/answer
         payload = {}
-        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/answer", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/adaptive-learning/sessions/{test_session_id}/answer', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -217,7 +217,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/answer requires authentication
         """
         
-        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/answer", json={})
+        response = api_client.post(f'/api/v1/adaptive-learning/sessions/{test_session_id}/answer', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -241,7 +241,7 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/adaptive-learning/sessions/{test_session_id}/answer",
+            f'/api/v1/adaptive-learning/sessions/{test_session_id}/answer',
             json=invalid_payload,
             headers=headers
         )
@@ -270,7 +270,7 @@ class TestAdaptivelearningSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/end
         payload = {}
-        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/end", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/adaptive-learning/sessions/{test_session_id}/end', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -288,7 +288,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/end requires authentication
         """
         
-        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/end", json={})
+        response = api_client.post(f'/api/v1/adaptive-learning/sessions/{test_session_id}/end', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -312,7 +312,7 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/adaptive-learning/sessions/{test_session_id}/end",
+            f'/api/v1/adaptive-learning/sessions/{test_session_id}/end',
             json=invalid_payload,
             headers=headers
         )
@@ -341,7 +341,7 @@ class TestAdaptivelearningSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/next-question
         payload = {}
-        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/next-question", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/adaptive-learning/sessions/{test_session_id}/next-question', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -359,7 +359,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/next-question requires authentication
         """
         
-        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/next-question", json={})
+        response = api_client.post(f'/api/v1/adaptive-learning/sessions/{test_session_id}/next-question', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -383,7 +383,7 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/adaptive-learning/sessions/{test_session_id}/next-question",
+            f'/api/v1/adaptive-learning/sessions/{test_session_id}/next-question',
             json=invalid_payload,
             headers=headers
         )
@@ -411,7 +411,7 @@ class TestAdaptivelearningSmoke:
         
         # TODO: Add realistic payload for /api/v1/start-session
         payload = {}
-        response = api_client.post("/api/v1/adaptive-learning/start-session", json=payload, headers=headers)
+        response = api_client.post('/api/v1/adaptive-learning/start-session', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -428,7 +428,7 @@ class TestAdaptivelearningSmoke:
         Auth validation: POST /api/v1/start-session requires authentication
         """
         
-        response = api_client.post("/api/v1/adaptive-learning/start-session", json={})
+        response = api_client.post('/api/v1/adaptive-learning/start-session', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -451,7 +451,7 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/adaptive-learning/start-session",
+            '/api/v1/adaptive-learning/start-session',
             json=invalid_payload,
             headers=headers
         )

@@ -28,7 +28,7 @@ class TestDebugSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/debug/environment", headers=headers)
+        response = api_client.get('/api/v1/debug/environment', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestDebugSmoke:
         Auth validation: GET /api/v1/environment requires authentication
         """
         
-        response = api_client.get("/api/v1/debug/environment")
+        response = api_client.get('/api/v1/debug/environment')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestDebugSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/debug/health", headers=headers)
+        response = api_client.get('/api/v1/debug/health', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestDebugSmoke:
         Auth validation: GET /api/v1/health requires authentication
         """
         
-        response = api_client.get("/api/v1/debug/health")
+        response = api_client.get('/api/v1/debug/health')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -142,7 +142,7 @@ class TestDebugSmoke:
         
         # TODO: Add realistic payload for /api/v1/log-error
         payload = {}
-        response = api_client.post("/api/v1/debug/log-error", json=payload, headers=headers)
+        response = api_client.post('/api/v1/debug/log-error', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestDebugSmoke:
         Auth validation: POST /api/v1/log-error requires authentication
         """
         
-        response = api_client.post("/api/v1/debug/log-error", json={})
+        response = api_client.post('/api/v1/debug/log-error', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -182,7 +182,7 @@ class TestDebugSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/debug/log-error",
+            '/api/v1/debug/log-error',
             json=invalid_payload,
             headers=headers
         )

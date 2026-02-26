@@ -29,7 +29,7 @@ class TestSessiongroupsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/session-groups/{test_session_id}", headers=headers)
+        response = api_client.delete(f'/api/v1/session-groups/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestSessiongroupsSmoke:
         Auth validation: DELETE /api/v1/{session_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/session-groups/{test_session_id}")
+        response = api_client.delete(f'/api/v1/session-groups/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -88,7 +88,7 @@ class TestSessiongroupsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/session-groups/{test_session_id}", headers=headers)
+        response = api_client.get(f'/api/v1/session-groups/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -106,7 +106,7 @@ class TestSessiongroupsSmoke:
         Auth validation: GET /api/v1/{session_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/session-groups/{test_session_id}")
+        response = api_client.get(f'/api/v1/session-groups/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -148,7 +148,7 @@ class TestSessiongroupsSmoke:
         
         # TODO: Add realistic payload for /api/v1/auto-assign
         payload = {}
-        response = api_client.post("/api/v1/session-groups/auto-assign", json=payload, headers=headers)
+        response = api_client.post('/api/v1/session-groups/auto-assign', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -165,7 +165,7 @@ class TestSessiongroupsSmoke:
         Auth validation: POST /api/v1/auto-assign requires authentication
         """
         
-        response = api_client.post("/api/v1/session-groups/auto-assign", json={})
+        response = api_client.post('/api/v1/session-groups/auto-assign', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -188,7 +188,7 @@ class TestSessiongroupsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/session-groups/auto-assign",
+            '/api/v1/session-groups/auto-assign',
             json=invalid_payload,
             headers=headers
         )
@@ -216,7 +216,7 @@ class TestSessiongroupsSmoke:
         
         # TODO: Add realistic payload for /api/v1/move-student
         payload = {}
-        response = api_client.post("/api/v1/session-groups/move-student", json=payload, headers=headers)
+        response = api_client.post('/api/v1/session-groups/move-student', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -233,7 +233,7 @@ class TestSessiongroupsSmoke:
         Auth validation: POST /api/v1/move-student requires authentication
         """
         
-        response = api_client.post("/api/v1/session-groups/move-student", json={})
+        response = api_client.post('/api/v1/session-groups/move-student', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -256,7 +256,7 @@ class TestSessiongroupsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/session-groups/move-student",
+            '/api/v1/session-groups/move-student',
             json=invalid_payload,
             headers=headers
         )

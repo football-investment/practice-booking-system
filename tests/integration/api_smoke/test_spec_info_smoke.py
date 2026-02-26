@@ -28,7 +28,7 @@ class TestSpecinfoSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/spec-info/age-eligibility", headers=headers)
+        response = api_client.get('/api/v1/spec-info/age-eligibility', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestSpecinfoSmoke:
         Auth validation: GET /api/v1/age-eligibility requires authentication
         """
         
-        response = api_client.get("/api/v1/spec-info/age-eligibility")
+        response = api_client.get('/api/v1/spec-info/age-eligibility')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -85,7 +85,7 @@ class TestSpecinfoSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/spec-info/can-book/{test_session_id}", headers=headers)
+        response = api_client.get(f'/api/v1/spec-info/can-book/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestSpecinfoSmoke:
         Auth validation: GET /api/v1/can-book/{session_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/spec-info/can-book/{test_session_id}")
+        response = api_client.get(f'/api/v1/spec-info/can-book/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestSpecinfoSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/spec-info/enrollment-requirements", headers=headers)
+        response = api_client.get('/api/v1/spec-info/enrollment-requirements', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestSpecinfoSmoke:
         Auth validation: GET /api/v1/enrollment-requirements requires authentication
         """
         
-        response = api_client.get("/api/v1/spec-info/enrollment-requirements")
+        response = api_client.get('/api/v1/spec-info/enrollment-requirements')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -200,7 +200,7 @@ class TestSpecinfoSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/spec-info/progression/{test_tournament["license_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/spec-info/progression/{test_tournament["license_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestSpecinfoSmoke:
         Auth validation: GET /api/v1/progression/{license_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/spec-info/progression/{test_tournament["license_id"]}")
+        response = api_client.get(f'/api/v1/spec-info/progression/{test_tournament["license_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -258,7 +258,7 @@ class TestSpecinfoSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/spec-info/specialization-types", headers=headers)
+        response = api_client.get('/api/v1/spec-info/specialization-types', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -275,7 +275,7 @@ class TestSpecinfoSmoke:
         Auth validation: GET /api/v1/specialization-types requires authentication
         """
         
-        response = api_client.get("/api/v1/spec-info/specialization-types")
+        response = api_client.get('/api/v1/spec-info/specialization-types')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

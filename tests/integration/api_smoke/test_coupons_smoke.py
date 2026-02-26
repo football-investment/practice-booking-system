@@ -29,7 +29,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestCouponsSmoke:
         Auth validation: DELETE /api/v1/admin/coupons/{coupon_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}")
+        response = api_client.delete(f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/coupons/admin/coupons", headers=headers)
+        response = api_client.get('/api/v1/coupons/admin/coupons', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestCouponsSmoke:
         Auth validation: GET /api/v1/admin/coupons requires authentication
         """
         
-        response = api_client.get("/api/v1/coupons/admin/coupons")
+        response = api_client.get('/api/v1/coupons/admin/coupons')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/coupons/coupons/active", headers=headers)
+        response = api_client.get('/api/v1/coupons/coupons/active', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestCouponsSmoke:
         Auth validation: GET /api/v1/coupons/active requires authentication
         """
         
-        response = api_client.get("/api/v1/coupons/coupons/active")
+        response = api_client.get('/api/v1/coupons/coupons/active')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -201,7 +201,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/admin/coupons
         payload = {}
-        response = api_client.post("/api/v1/coupons/admin/coupons", json=payload, headers=headers)
+        response = api_client.post('/api/v1/coupons/admin/coupons', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/admin/coupons requires authentication
         """
         
-        response = api_client.post("/api/v1/coupons/admin/coupons", json={})
+        response = api_client.post('/api/v1/coupons/admin/coupons', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -241,7 +241,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/coupons/admin/coupons",
+            '/api/v1/coupons/admin/coupons',
             json=invalid_payload,
             headers=headers
         )
@@ -269,7 +269,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/admin/coupons/web
         payload = {}
-        response = api_client.post("/api/v1/coupons/admin/coupons/web", json=payload, headers=headers)
+        response = api_client.post('/api/v1/coupons/admin/coupons/web', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -286,7 +286,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/admin/coupons/web requires authentication
         """
         
-        response = api_client.post("/api/v1/coupons/admin/coupons/web", json={})
+        response = api_client.post('/api/v1/coupons/admin/coupons/web', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -309,7 +309,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/coupons/admin/coupons/web",
+            '/api/v1/coupons/admin/coupons/web',
             json=invalid_payload,
             headers=headers
         )
@@ -338,7 +338,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/admin/coupons/{coupon_id}/toggle
         payload = {}
-        response = api_client.post(f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}/toggle", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}/toggle', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -356,7 +356,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/admin/coupons/{coupon_id}/toggle requires authentication
         """
         
-        response = api_client.post(f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}/toggle", json={})
+        response = api_client.post(f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}/toggle', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -380,7 +380,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}/toggle",
+            f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}/toggle',
             json=invalid_payload,
             headers=headers
         )
@@ -408,7 +408,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/coupons/apply
         payload = {}
-        response = api_client.post("/api/v1/coupons/coupons/apply", json=payload, headers=headers)
+        response = api_client.post('/api/v1/coupons/coupons/apply', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -425,7 +425,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/coupons/apply requires authentication
         """
         
-        response = api_client.post("/api/v1/coupons/coupons/apply", json={})
+        response = api_client.post('/api/v1/coupons/coupons/apply', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -448,7 +448,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/coupons/coupons/apply",
+            '/api/v1/coupons/coupons/apply',
             json=invalid_payload,
             headers=headers
         )
@@ -477,7 +477,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/coupons/validate/{code}
         payload = {}
-        response = api_client.post(f"/api/v1/coupons/coupons/validate/{test_tournament["code"]}", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/coupons/coupons/validate/{test_tournament["code"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -495,7 +495,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/coupons/validate/{code} requires authentication
         """
         
-        response = api_client.post(f"/api/v1/coupons/coupons/validate/{test_tournament["code"]}", json={})
+        response = api_client.post(f'/api/v1/coupons/coupons/validate/{test_tournament["code"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -519,7 +519,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/coupons/coupons/validate/{test_tournament["code"]}",
+            f'/api/v1/coupons/coupons/validate/{test_tournament["code"]}',
             json=invalid_payload,
             headers=headers
         )
@@ -547,7 +547,7 @@ class TestCouponsSmoke:
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -565,7 +565,7 @@ class TestCouponsSmoke:
         Auth validation: PUT /api/v1/admin/coupons/{coupon_id} requires authentication
         """
         
-        response = api_client.put(f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}", json={})
+        response = api_client.put(f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -589,7 +589,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}",
+            f'/api/v1/coupons/admin/coupons/{test_tournament["coupon_id"]}',
             json=invalid_payload,
             headers=headers
         )

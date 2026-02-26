@@ -29,7 +29,7 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/messages/conversation/{test_student_id}", headers=headers)
+        response = api_client.delete(f'/api/v1/messages/conversation/{test_student_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestMessagesSmoke:
         Auth validation: DELETE /api/v1/conversation/{user_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/messages/conversation/{test_student_id}")
+        response = api_client.delete(f'/api/v1/messages/conversation/{test_student_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -88,7 +88,7 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/messages/{test_tournament["message_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/messages/{test_tournament["message_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -106,7 +106,7 @@ class TestMessagesSmoke:
         Auth validation: DELETE /api/v1/{message_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/messages/{test_tournament["message_id"]}")
+        response = api_client.delete(f'/api/v1/messages/{test_tournament["message_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -146,7 +146,7 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/messages/inbox", headers=headers)
+        response = api_client.get('/api/v1/messages/inbox', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -163,7 +163,7 @@ class TestMessagesSmoke:
         Auth validation: GET /api/v1/inbox requires authentication
         """
         
-        response = api_client.get("/api/v1/messages/inbox")
+        response = api_client.get('/api/v1/messages/inbox')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -202,7 +202,7 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/messages/sent", headers=headers)
+        response = api_client.get('/api/v1/messages/sent', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -219,7 +219,7 @@ class TestMessagesSmoke:
         Auth validation: GET /api/v1/sent requires authentication
         """
         
-        response = api_client.get("/api/v1/messages/sent")
+        response = api_client.get('/api/v1/messages/sent')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -258,7 +258,7 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/messages/users/available", headers=headers)
+        response = api_client.get('/api/v1/messages/users/available', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -275,7 +275,7 @@ class TestMessagesSmoke:
         Auth validation: GET /api/v1/users/available requires authentication
         """
         
-        response = api_client.get("/api/v1/messages/users/available")
+        response = api_client.get('/api/v1/messages/users/available')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -315,7 +315,7 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/messages/{test_tournament["message_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/messages/{test_tournament["message_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -333,7 +333,7 @@ class TestMessagesSmoke:
         Auth validation: GET /api/v1/{message_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/messages/{test_tournament["message_id"]}")
+        response = api_client.get(f'/api/v1/messages/{test_tournament["message_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -375,7 +375,7 @@ class TestMessagesSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/messages/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/messages/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -392,7 +392,7 @@ class TestMessagesSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/messages/", json={})
+        response = api_client.post('/api/v1/messages/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -415,7 +415,7 @@ class TestMessagesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/messages/",
+            '/api/v1/messages/',
             json=invalid_payload,
             headers=headers
         )
@@ -443,7 +443,7 @@ class TestMessagesSmoke:
         
         # TODO: Add realistic payload for /api/v1/by-nickname
         payload = {}
-        response = api_client.post("/api/v1/messages/by-nickname", json=payload, headers=headers)
+        response = api_client.post('/api/v1/messages/by-nickname', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -460,7 +460,7 @@ class TestMessagesSmoke:
         Auth validation: POST /api/v1/by-nickname requires authentication
         """
         
-        response = api_client.post("/api/v1/messages/by-nickname", json={})
+        response = api_client.post('/api/v1/messages/by-nickname', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -483,7 +483,7 @@ class TestMessagesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/messages/by-nickname",
+            '/api/v1/messages/by-nickname',
             json=invalid_payload,
             headers=headers
         )
@@ -511,7 +511,7 @@ class TestMessagesSmoke:
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/messages/{test_tournament["message_id"]}", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/messages/{test_tournament["message_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -529,7 +529,7 @@ class TestMessagesSmoke:
         Auth validation: PUT /api/v1/{message_id} requires authentication
         """
         
-        response = api_client.put(f"/api/v1/messages/{test_tournament["message_id"]}", json={})
+        response = api_client.put(f'/api/v1/messages/{test_tournament["message_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -553,7 +553,7 @@ class TestMessagesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/messages/{test_tournament["message_id"]}",
+            f'/api/v1/messages/{test_tournament["message_id"]}',
             json=invalid_payload,
             headers=headers
         )

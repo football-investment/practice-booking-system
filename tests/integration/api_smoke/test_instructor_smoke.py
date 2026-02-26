@@ -29,7 +29,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/take", headers=headers)
+        response = api_client.get(f'/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/take', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestInstructorSmoke:
         Auth validation: GET /api/v1/quizzes/{quiz_id}/take requires authentication
         """
         
-        response = api_client.get(f"/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/take")
+        response = api_client.get(f'/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/take')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -89,7 +89,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/instructor/specialization/toggle
         payload = {}
-        response = api_client.post("/api/v1/instructor/instructor/specialization/toggle", json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor/instructor/specialization/toggle', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -106,7 +106,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/instructor/specialization/toggle requires authentication
         """
         
-        response = api_client.post("/api/v1/instructor/instructor/specialization/toggle", json={})
+        response = api_client.post('/api/v1/instructor/instructor/specialization/toggle', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -129,7 +129,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/instructor/instructor/specialization/toggle",
+            '/api/v1/instructor/instructor/specialization/toggle',
             json=invalid_payload,
             headers=headers
         )
@@ -158,7 +158,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/quizzes/{quiz_id}/submit
         payload = {}
-        response = api_client.post(f"/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/submit", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/submit', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -176,7 +176,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/quizzes/{quiz_id}/submit requires authentication
         """
         
-        response = api_client.post(f"/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/submit", json={})
+        response = api_client.post(f'/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/submit', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -200,7 +200,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/submit",
+            f'/api/v1/instructor/quizzes/{test_tournament["quiz_id"]}/submit',
             json=invalid_payload,
             headers=headers
         )
@@ -229,7 +229,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/evaluate-instructor
         payload = {}
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/evaluate-instructor", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/evaluate-instructor', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -247,7 +247,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/evaluate-instructor requires authentication
         """
         
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/evaluate-instructor", json={})
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/evaluate-instructor', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -271,7 +271,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/instructor/sessions/{test_session_id}/evaluate-instructor",
+            f'/api/v1/instructor/sessions/{test_session_id}/evaluate-instructor',
             json=invalid_payload,
             headers=headers
         )
@@ -301,7 +301,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/evaluate-student/{student_id}
         payload = {}
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/evaluate-student/{test_student_id}", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/evaluate-student/{test_student_id}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -320,7 +320,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/evaluate-student/{student_id} requires authentication
         """
         
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/evaluate-student/{test_student_id}", json={})
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/evaluate-student/{test_student_id}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -345,7 +345,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/instructor/sessions/{test_session_id}/evaluate-student/{test_student_id}",
+            f'/api/v1/instructor/sessions/{test_session_id}/evaluate-student/{test_student_id}',
             json=invalid_payload,
             headers=headers
         )
@@ -374,7 +374,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/start
         payload = {}
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/start", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/start', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -392,7 +392,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/start requires authentication
         """
         
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/start", json={})
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/start', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -416,7 +416,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/instructor/sessions/{test_session_id}/start",
+            f'/api/v1/instructor/sessions/{test_session_id}/start',
             json=invalid_payload,
             headers=headers
         )
@@ -445,7 +445,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/stop
         payload = {}
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/stop", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/stop', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -463,7 +463,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/stop requires authentication
         """
         
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/stop", json={})
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/stop', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -487,7 +487,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/instructor/sessions/{test_session_id}/stop",
+            f'/api/v1/instructor/sessions/{test_session_id}/stop',
             json=invalid_payload,
             headers=headers
         )
@@ -516,7 +516,7 @@ class TestInstructorSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/unlock-quiz
         payload = {}
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/unlock-quiz", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/unlock-quiz', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -534,7 +534,7 @@ class TestInstructorSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/unlock-quiz requires authentication
         """
         
-        response = api_client.post(f"/api/v1/instructor/sessions/{test_session_id}/unlock-quiz", json={})
+        response = api_client.post(f'/api/v1/instructor/sessions/{test_session_id}/unlock-quiz', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -558,7 +558,7 @@ class TestInstructorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/instructor/sessions/{test_session_id}/unlock-quiz",
+            f'/api/v1/instructor/sessions/{test_session_id}/unlock-quiz',
             json=invalid_payload,
             headers=headers
         )

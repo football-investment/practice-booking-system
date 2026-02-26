@@ -28,7 +28,7 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/lfa-player/credits/balance", headers=headers)
+        response = api_client.get('/api/v1/lfa-player/credits/balance', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestLfaplayerSmoke:
         Auth validation: GET /api/v1/credits/balance requires authentication
         """
         
-        response = api_client.get("/api/v1/lfa-player/credits/balance")
+        response = api_client.get('/api/v1/lfa-player/credits/balance')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/lfa-player/credits/transactions", headers=headers)
+        response = api_client.get('/api/v1/lfa-player/credits/transactions', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestLfaplayerSmoke:
         Auth validation: GET /api/v1/credits/transactions requires authentication
         """
         
-        response = api_client.get("/api/v1/lfa-player/credits/transactions")
+        response = api_client.get('/api/v1/lfa-player/credits/transactions')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/lfa-player/licenses", headers=headers)
+        response = api_client.get('/api/v1/lfa-player/licenses', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestLfaplayerSmoke:
         Auth validation: GET /api/v1/licenses requires authentication
         """
         
-        response = api_client.get("/api/v1/lfa-player/licenses")
+        response = api_client.get('/api/v1/lfa-player/licenses')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/lfa-player/licenses/me", headers=headers)
+        response = api_client.get('/api/v1/lfa-player/licenses/me', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestLfaplayerSmoke:
         Auth validation: GET /api/v1/licenses/me requires authentication
         """
         
-        response = api_client.get("/api/v1/lfa-player/licenses/me")
+        response = api_client.get('/api/v1/lfa-player/licenses/me')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -254,7 +254,7 @@ class TestLfaplayerSmoke:
         
         # TODO: Add realistic payload for /api/v1/credits/purchase
         payload = {}
-        response = api_client.post("/api/v1/lfa-player/credits/purchase", json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/credits/purchase', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -271,7 +271,7 @@ class TestLfaplayerSmoke:
         Auth validation: POST /api/v1/credits/purchase requires authentication
         """
         
-        response = api_client.post("/api/v1/lfa-player/credits/purchase", json={})
+        response = api_client.post('/api/v1/lfa-player/credits/purchase', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -294,7 +294,7 @@ class TestLfaplayerSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/lfa-player/credits/purchase",
+            '/api/v1/lfa-player/credits/purchase',
             json=invalid_payload,
             headers=headers
         )
@@ -322,7 +322,7 @@ class TestLfaplayerSmoke:
         
         # TODO: Add realistic payload for /api/v1/credits/spend
         payload = {}
-        response = api_client.post("/api/v1/lfa-player/credits/spend", json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/credits/spend', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -339,7 +339,7 @@ class TestLfaplayerSmoke:
         Auth validation: POST /api/v1/credits/spend requires authentication
         """
         
-        response = api_client.post("/api/v1/lfa-player/credits/spend", json={})
+        response = api_client.post('/api/v1/lfa-player/credits/spend', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -362,7 +362,7 @@ class TestLfaplayerSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/lfa-player/credits/spend",
+            '/api/v1/lfa-player/credits/spend',
             json=invalid_payload,
             headers=headers
         )
@@ -390,7 +390,7 @@ class TestLfaplayerSmoke:
         
         # TODO: Add realistic payload for /api/v1/licenses
         payload = {}
-        response = api_client.post("/api/v1/lfa-player/licenses", json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/licenses', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -407,7 +407,7 @@ class TestLfaplayerSmoke:
         Auth validation: POST /api/v1/licenses requires authentication
         """
         
-        response = api_client.post("/api/v1/lfa-player/licenses", json={})
+        response = api_client.post('/api/v1/lfa-player/licenses', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -430,7 +430,7 @@ class TestLfaplayerSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/lfa-player/licenses",
+            '/api/v1/lfa-player/licenses',
             json=invalid_payload,
             headers=headers
         )
@@ -458,7 +458,7 @@ class TestLfaplayerSmoke:
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/lfa-player/licenses/{test_tournament["license_id"]}/skills", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/lfa-player/licenses/{test_tournament["license_id"]}/skills', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -476,7 +476,7 @@ class TestLfaplayerSmoke:
         Auth validation: PUT /api/v1/licenses/{license_id}/skills requires authentication
         """
         
-        response = api_client.put(f"/api/v1/lfa-player/licenses/{test_tournament["license_id"]}/skills", json={})
+        response = api_client.put(f'/api/v1/lfa-player/licenses/{test_tournament["license_id"]}/skills', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -500,7 +500,7 @@ class TestLfaplayerSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/lfa-player/licenses/{test_tournament["license_id"]}/skills",
+            f'/api/v1/lfa-player/licenses/{test_tournament["license_id"]}/skills',
             json=invalid_payload,
             headers=headers
         )

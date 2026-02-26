@@ -28,7 +28,7 @@ class TestPaymentverificationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/payment-verification/students", headers=headers)
+        response = api_client.get('/api/v1/payment-verification/students', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestPaymentverificationSmoke:
         Auth validation: GET /api/v1/students requires authentication
         """
         
-        response = api_client.get("/api/v1/payment-verification/students")
+        response = api_client.get('/api/v1/payment-verification/students')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -85,7 +85,7 @@ class TestPaymentverificationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/payment-verification/students/{test_student_id}/status", headers=headers)
+        response = api_client.get(f'/api/v1/payment-verification/students/{test_student_id}/status', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestPaymentverificationSmoke:
         Auth validation: GET /api/v1/students/{student_id}/status requires authentication
         """
         
-        response = api_client.get(f"/api/v1/payment-verification/students/{test_student_id}/status")
+        response = api_client.get(f'/api/v1/payment-verification/students/{test_student_id}/status')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -146,7 +146,7 @@ class TestPaymentverificationSmoke:
         
         # TODO: Add realistic payload for /api/v1/students/{student_id}/add-specialization
         payload = {}
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/add-specialization", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/add-specialization', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -164,7 +164,7 @@ class TestPaymentverificationSmoke:
         Auth validation: POST /api/v1/students/{student_id}/add-specialization requires authentication
         """
         
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/add-specialization", json={})
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/add-specialization', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -188,7 +188,7 @@ class TestPaymentverificationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/payment-verification/students/{test_student_id}/add-specialization",
+            f'/api/v1/payment-verification/students/{test_student_id}/add-specialization',
             json=invalid_payload,
             headers=headers
         )
@@ -217,7 +217,7 @@ class TestPaymentverificationSmoke:
         
         # TODO: Add realistic payload for /api/v1/students/{student_id}/remove-specialization
         payload = {}
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/remove-specialization", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/remove-specialization', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -235,7 +235,7 @@ class TestPaymentverificationSmoke:
         Auth validation: POST /api/v1/students/{student_id}/remove-specialization requires authentication
         """
         
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/remove-specialization", json={})
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/remove-specialization', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -259,7 +259,7 @@ class TestPaymentverificationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/payment-verification/students/{test_student_id}/remove-specialization",
+            f'/api/v1/payment-verification/students/{test_student_id}/remove-specialization',
             json=invalid_payload,
             headers=headers
         )
@@ -288,7 +288,7 @@ class TestPaymentverificationSmoke:
         
         # TODO: Add realistic payload for /api/v1/students/{student_id}/unverify
         payload = {}
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/unverify", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/unverify', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -306,7 +306,7 @@ class TestPaymentverificationSmoke:
         Auth validation: POST /api/v1/students/{student_id}/unverify requires authentication
         """
         
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/unverify", json={})
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/unverify', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -330,7 +330,7 @@ class TestPaymentverificationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/payment-verification/students/{test_student_id}/unverify",
+            f'/api/v1/payment-verification/students/{test_student_id}/unverify',
             json=invalid_payload,
             headers=headers
         )
@@ -359,7 +359,7 @@ class TestPaymentverificationSmoke:
         
         # TODO: Add realistic payload for /api/v1/students/{student_id}/verify
         payload = {}
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/verify", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/verify', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -377,7 +377,7 @@ class TestPaymentverificationSmoke:
         Auth validation: POST /api/v1/students/{student_id}/verify requires authentication
         """
         
-        response = api_client.post(f"/api/v1/payment-verification/students/{test_student_id}/verify", json={})
+        response = api_client.post(f'/api/v1/payment-verification/students/{test_student_id}/verify', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -401,7 +401,7 @@ class TestPaymentverificationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/payment-verification/students/{test_student_id}/verify",
+            f'/api/v1/payment-verification/students/{test_student_id}/verify',
             json=invalid_payload,
             headers=headers
         )

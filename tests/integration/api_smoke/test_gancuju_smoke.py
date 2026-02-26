@@ -28,7 +28,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/gancuju/licenses", headers=headers)
+        response = api_client.get('/api/v1/gancuju/licenses', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestGancujuSmoke:
         Auth validation: GET /api/v1/licenses requires authentication
         """
         
-        response = api_client.get("/api/v1/gancuju/licenses")
+        response = api_client.get('/api/v1/gancuju/licenses')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/gancuju/licenses/me", headers=headers)
+        response = api_client.get('/api/v1/gancuju/licenses/me', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestGancujuSmoke:
         Auth validation: GET /api/v1/licenses/me requires authentication
         """
         
-        response = api_client.get("/api/v1/gancuju/licenses/me")
+        response = api_client.get('/api/v1/gancuju/licenses/me')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -141,7 +141,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/stats", headers=headers)
+        response = api_client.get(f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/stats', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestGancujuSmoke:
         Auth validation: GET /api/v1/licenses/{license_id}/stats requires authentication
         """
         
-        response = api_client.get(f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/stats")
+        response = api_client.get(f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/stats')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -201,7 +201,7 @@ class TestGancujuSmoke:
         
         # TODO: Add realistic payload for /api/v1/competitions
         payload = {}
-        response = api_client.post("/api/v1/gancuju/competitions", json=payload, headers=headers)
+        response = api_client.post('/api/v1/gancuju/competitions', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestGancujuSmoke:
         Auth validation: POST /api/v1/competitions requires authentication
         """
         
-        response = api_client.post("/api/v1/gancuju/competitions", json={})
+        response = api_client.post('/api/v1/gancuju/competitions', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -241,7 +241,7 @@ class TestGancujuSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/gancuju/competitions",
+            '/api/v1/gancuju/competitions',
             json=invalid_payload,
             headers=headers
         )
@@ -269,7 +269,7 @@ class TestGancujuSmoke:
         
         # TODO: Add realistic payload for /api/v1/licenses
         payload = {}
-        response = api_client.post("/api/v1/gancuju/licenses", json=payload, headers=headers)
+        response = api_client.post('/api/v1/gancuju/licenses', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -286,7 +286,7 @@ class TestGancujuSmoke:
         Auth validation: POST /api/v1/licenses requires authentication
         """
         
-        response = api_client.post("/api/v1/gancuju/licenses", json={})
+        response = api_client.post('/api/v1/gancuju/licenses', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -309,7 +309,7 @@ class TestGancujuSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/gancuju/licenses",
+            '/api/v1/gancuju/licenses',
             json=invalid_payload,
             headers=headers
         )
@@ -338,7 +338,7 @@ class TestGancujuSmoke:
         
         # TODO: Add realistic payload for /api/v1/licenses/{license_id}/demote
         payload = {}
-        response = api_client.post(f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/demote", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/demote', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -356,7 +356,7 @@ class TestGancujuSmoke:
         Auth validation: POST /api/v1/licenses/{license_id}/demote requires authentication
         """
         
-        response = api_client.post(f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/demote", json={})
+        response = api_client.post(f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/demote', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -380,7 +380,7 @@ class TestGancujuSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/demote",
+            f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/demote',
             json=invalid_payload,
             headers=headers
         )
@@ -409,7 +409,7 @@ class TestGancujuSmoke:
         
         # TODO: Add realistic payload for /api/v1/licenses/{license_id}/promote
         payload = {}
-        response = api_client.post(f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/promote", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/promote', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -427,7 +427,7 @@ class TestGancujuSmoke:
         Auth validation: POST /api/v1/licenses/{license_id}/promote requires authentication
         """
         
-        response = api_client.post(f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/promote", json={})
+        response = api_client.post(f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/promote', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -451,7 +451,7 @@ class TestGancujuSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/gancuju/licenses/{test_tournament["license_id"]}/promote",
+            f'/api/v1/gancuju/licenses/{test_tournament["license_id"]}/promote',
             json=invalid_payload,
             headers=headers
         )
@@ -479,7 +479,7 @@ class TestGancujuSmoke:
         
         # TODO: Add realistic payload for /api/v1/teaching-hours
         payload = {}
-        response = api_client.post("/api/v1/gancuju/teaching-hours", json=payload, headers=headers)
+        response = api_client.post('/api/v1/gancuju/teaching-hours', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -496,7 +496,7 @@ class TestGancujuSmoke:
         Auth validation: POST /api/v1/teaching-hours requires authentication
         """
         
-        response = api_client.post("/api/v1/gancuju/teaching-hours", json={})
+        response = api_client.post('/api/v1/gancuju/teaching-hours', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -519,7 +519,7 @@ class TestGancujuSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/gancuju/teaching-hours",
+            '/api/v1/gancuju/teaching-hours',
             json=invalid_payload,
             headers=headers
         )

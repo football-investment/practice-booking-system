@@ -28,7 +28,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/internship/credits/balance", headers=headers)
+        response = api_client.get('/api/v1/internship/credits/balance', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestInternshipSmoke:
         Auth validation: GET /api/v1/credits/balance requires authentication
         """
         
-        response = api_client.get("/api/v1/internship/credits/balance")
+        response = api_client.get('/api/v1/internship/credits/balance')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/internship/licenses", headers=headers)
+        response = api_client.get('/api/v1/internship/licenses', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestInternshipSmoke:
         Auth validation: GET /api/v1/licenses requires authentication
         """
         
-        response = api_client.get("/api/v1/internship/licenses")
+        response = api_client.get('/api/v1/internship/licenses')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/internship/licenses/me", headers=headers)
+        response = api_client.get('/api/v1/internship/licenses/me', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestInternshipSmoke:
         Auth validation: GET /api/v1/licenses/me requires authentication
         """
         
-        response = api_client.get("/api/v1/internship/licenses/me")
+        response = api_client.get('/api/v1/internship/licenses/me')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -197,7 +197,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/internship/licenses/{test_tournament["license_id"]}/expiry", headers=headers)
+        response = api_client.get(f'/api/v1/internship/licenses/{test_tournament["license_id"]}/expiry', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -215,7 +215,7 @@ class TestInternshipSmoke:
         Auth validation: GET /api/v1/licenses/{license_id}/expiry requires authentication
         """
         
-        response = api_client.get(f"/api/v1/internship/licenses/{test_tournament["license_id"]}/expiry")
+        response = api_client.get(f'/api/v1/internship/licenses/{test_tournament["license_id"]}/expiry')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -257,7 +257,7 @@ class TestInternshipSmoke:
         
         # TODO: Add realistic payload for /api/v1/credits/purchase
         payload = {}
-        response = api_client.post("/api/v1/internship/credits/purchase", json=payload, headers=headers)
+        response = api_client.post('/api/v1/internship/credits/purchase', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -274,7 +274,7 @@ class TestInternshipSmoke:
         Auth validation: POST /api/v1/credits/purchase requires authentication
         """
         
-        response = api_client.post("/api/v1/internship/credits/purchase", json={})
+        response = api_client.post('/api/v1/internship/credits/purchase', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -297,7 +297,7 @@ class TestInternshipSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/internship/credits/purchase",
+            '/api/v1/internship/credits/purchase',
             json=invalid_payload,
             headers=headers
         )
@@ -325,7 +325,7 @@ class TestInternshipSmoke:
         
         # TODO: Add realistic payload for /api/v1/credits/spend
         payload = {}
-        response = api_client.post("/api/v1/internship/credits/spend", json=payload, headers=headers)
+        response = api_client.post('/api/v1/internship/credits/spend', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -342,7 +342,7 @@ class TestInternshipSmoke:
         Auth validation: POST /api/v1/credits/spend requires authentication
         """
         
-        response = api_client.post("/api/v1/internship/credits/spend", json={})
+        response = api_client.post('/api/v1/internship/credits/spend', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -365,7 +365,7 @@ class TestInternshipSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/internship/credits/spend",
+            '/api/v1/internship/credits/spend',
             json=invalid_payload,
             headers=headers
         )
@@ -393,7 +393,7 @@ class TestInternshipSmoke:
         
         # TODO: Add realistic payload for /api/v1/licenses
         payload = {}
-        response = api_client.post("/api/v1/internship/licenses", json=payload, headers=headers)
+        response = api_client.post('/api/v1/internship/licenses', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -410,7 +410,7 @@ class TestInternshipSmoke:
         Auth validation: POST /api/v1/licenses requires authentication
         """
         
-        response = api_client.post("/api/v1/internship/licenses", json={})
+        response = api_client.post('/api/v1/internship/licenses', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -433,7 +433,7 @@ class TestInternshipSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/internship/licenses",
+            '/api/v1/internship/licenses',
             json=invalid_payload,
             headers=headers
         )
@@ -462,7 +462,7 @@ class TestInternshipSmoke:
         
         # TODO: Add realistic payload for /api/v1/licenses/{license_id}/renew
         payload = {}
-        response = api_client.post(f"/api/v1/internship/licenses/{test_tournament["license_id"]}/renew", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/internship/licenses/{test_tournament["license_id"]}/renew', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -480,7 +480,7 @@ class TestInternshipSmoke:
         Auth validation: POST /api/v1/licenses/{license_id}/renew requires authentication
         """
         
-        response = api_client.post(f"/api/v1/internship/licenses/{test_tournament["license_id"]}/renew", json={})
+        response = api_client.post(f'/api/v1/internship/licenses/{test_tournament["license_id"]}/renew', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -504,7 +504,7 @@ class TestInternshipSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/internship/licenses/{test_tournament["license_id"]}/renew",
+            f'/api/v1/internship/licenses/{test_tournament["license_id"]}/renew',
             json=invalid_payload,
             headers=headers
         )
@@ -532,7 +532,7 @@ class TestInternshipSmoke:
         
         # TODO: Add realistic payload for /api/v1/xp
         payload = {}
-        response = api_client.post("/api/v1/internship/xp", json=payload, headers=headers)
+        response = api_client.post('/api/v1/internship/xp', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -549,7 +549,7 @@ class TestInternshipSmoke:
         Auth validation: POST /api/v1/xp requires authentication
         """
         
-        response = api_client.post("/api/v1/internship/xp", json={})
+        response = api_client.post('/api/v1/internship/xp', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -572,7 +572,7 @@ class TestInternshipSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/internship/xp",
+            '/api/v1/internship/xp',
             json=invalid_payload,
             headers=headers
         )

@@ -28,7 +28,7 @@ class TestMotivationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/motivation/motivation-assessment", headers=headers)
+        response = api_client.get('/api/v1/motivation/motivation-assessment', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestMotivationSmoke:
         Auth validation: GET /api/v1/motivation-assessment requires authentication
         """
         
-        response = api_client.get("/api/v1/motivation/motivation-assessment")
+        response = api_client.get('/api/v1/motivation/motivation-assessment')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -86,7 +86,7 @@ class TestMotivationSmoke:
         
         # TODO: Add realistic payload for /api/v1/motivation-assessment
         payload = {}
-        response = api_client.post("/api/v1/motivation/motivation-assessment", json=payload, headers=headers)
+        response = api_client.post('/api/v1/motivation/motivation-assessment', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestMotivationSmoke:
         Auth validation: POST /api/v1/motivation-assessment requires authentication
         """
         
-        response = api_client.post("/api/v1/motivation/motivation-assessment", json={})
+        response = api_client.post('/api/v1/motivation/motivation-assessment', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -126,7 +126,7 @@ class TestMotivationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/motivation/motivation-assessment",
+            '/api/v1/motivation/motivation-assessment',
             json=invalid_payload,
             headers=headers
         )

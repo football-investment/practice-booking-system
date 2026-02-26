@@ -29,7 +29,7 @@ class TestFeedbackSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/feedback/{test_tournament["feedback_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/feedback/{test_tournament["feedback_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestFeedbackSmoke:
         Auth validation: DELETE /api/v1/{feedback_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/feedback/{test_tournament["feedback_id"]}")
+        response = api_client.delete(f'/api/v1/feedback/{test_tournament["feedback_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestFeedbackSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/feedback/", headers=headers)
+        response = api_client.get('/api/v1/feedback/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestFeedbackSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/feedback/")
+        response = api_client.get('/api/v1/feedback/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestFeedbackSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/feedback/instructor/my", headers=headers)
+        response = api_client.get('/api/v1/feedback/instructor/my', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestFeedbackSmoke:
         Auth validation: GET /api/v1/instructor/my requires authentication
         """
         
-        response = api_client.get("/api/v1/feedback/instructor/my")
+        response = api_client.get('/api/v1/feedback/instructor/my')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -199,7 +199,7 @@ class TestFeedbackSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/feedback/me", headers=headers)
+        response = api_client.get('/api/v1/feedback/me', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -216,7 +216,7 @@ class TestFeedbackSmoke:
         Auth validation: GET /api/v1/me requires authentication
         """
         
-        response = api_client.get("/api/v1/feedback/me")
+        response = api_client.get('/api/v1/feedback/me')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -256,7 +256,7 @@ class TestFeedbackSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/feedback/sessions/{test_session_id}", headers=headers)
+        response = api_client.get(f'/api/v1/feedback/sessions/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -274,7 +274,7 @@ class TestFeedbackSmoke:
         Auth validation: GET /api/v1/sessions/{session_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/feedback/sessions/{test_session_id}")
+        response = api_client.get(f'/api/v1/feedback/sessions/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -315,7 +315,7 @@ class TestFeedbackSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/feedback/sessions/{test_session_id}/summary", headers=headers)
+        response = api_client.get(f'/api/v1/feedback/sessions/{test_session_id}/summary', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -333,7 +333,7 @@ class TestFeedbackSmoke:
         Auth validation: GET /api/v1/sessions/{session_id}/summary requires authentication
         """
         
-        response = api_client.get(f"/api/v1/feedback/sessions/{test_session_id}/summary")
+        response = api_client.get(f'/api/v1/feedback/sessions/{test_session_id}/summary')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -375,7 +375,7 @@ class TestFeedbackSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/feedback/{test_tournament["feedback_id"]}", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/feedback/{test_tournament["feedback_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -393,7 +393,7 @@ class TestFeedbackSmoke:
         Auth validation: PATCH /api/v1/{feedback_id} requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/feedback/{test_tournament["feedback_id"]}", json={})
+        response = api_client.patch(f'/api/v1/feedback/{test_tournament["feedback_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -417,7 +417,7 @@ class TestFeedbackSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/feedback/{test_tournament["feedback_id"]}",
+            f'/api/v1/feedback/{test_tournament["feedback_id"]}',
             json=invalid_payload,
             headers=headers
         )
@@ -445,7 +445,7 @@ class TestFeedbackSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/feedback/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/feedback/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -462,7 +462,7 @@ class TestFeedbackSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/feedback/", json={})
+        response = api_client.post('/api/v1/feedback/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -485,7 +485,7 @@ class TestFeedbackSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/feedback/",
+            '/api/v1/feedback/',
             json=invalid_payload,
             headers=headers
         )

@@ -28,7 +28,7 @@ class TestHealthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/health/latest-report", headers=headers)
+        response = api_client.get('/api/v1/health/latest-report', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestHealthSmoke:
         Auth validation: GET /api/v1/latest-report requires authentication
         """
         
-        response = api_client.get("/api/v1/health/latest-report")
+        response = api_client.get('/api/v1/health/latest-report')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestHealthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/health/metrics", headers=headers)
+        response = api_client.get('/api/v1/health/metrics', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestHealthSmoke:
         Auth validation: GET /api/v1/metrics requires authentication
         """
         
-        response = api_client.get("/api/v1/health/metrics")
+        response = api_client.get('/api/v1/health/metrics')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestHealthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/health/status", headers=headers)
+        response = api_client.get('/api/v1/health/status', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestHealthSmoke:
         Auth validation: GET /api/v1/status requires authentication
         """
         
-        response = api_client.get("/api/v1/health/status")
+        response = api_client.get('/api/v1/health/status')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestHealthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/health/violations", headers=headers)
+        response = api_client.get('/api/v1/health/violations', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestHealthSmoke:
         Auth validation: GET /api/v1/violations requires authentication
         """
         
-        response = api_client.get("/api/v1/health/violations")
+        response = api_client.get('/api/v1/health/violations')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -254,7 +254,7 @@ class TestHealthSmoke:
         
         # TODO: Add realistic payload for /api/v1/check-now
         payload = {}
-        response = api_client.post("/api/v1/health/check-now", json=payload, headers=headers)
+        response = api_client.post('/api/v1/health/check-now', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -271,7 +271,7 @@ class TestHealthSmoke:
         Auth validation: POST /api/v1/check-now requires authentication
         """
         
-        response = api_client.post("/api/v1/health/check-now", json={})
+        response = api_client.post('/api/v1/health/check-now', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -294,7 +294,7 @@ class TestHealthSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/health/check-now",
+            '/api/v1/health/check-now',
             json=invalid_payload,
             headers=headers
         )

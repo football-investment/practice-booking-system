@@ -29,7 +29,7 @@ class TestCampusesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/campuses/campuses/{test_campus_id}", headers=headers)
+        response = api_client.delete(f'/api/v1/campuses/campuses/{test_campus_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestCampusesSmoke:
         Auth validation: DELETE /api/v1/campuses/{campus_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/campuses/campuses/{test_campus_id}")
+        response = api_client.delete(f'/api/v1/campuses/campuses/{test_campus_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestCampusesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/campuses/campuses", headers=headers)
+        response = api_client.get('/api/v1/campuses/campuses', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestCampusesSmoke:
         Auth validation: GET /api/v1/campuses requires authentication
         """
         
-        response = api_client.get("/api/v1/campuses/campuses")
+        response = api_client.get('/api/v1/campuses/campuses')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -144,7 +144,7 @@ class TestCampusesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/campuses/campuses/{test_campus_id}", headers=headers)
+        response = api_client.get(f'/api/v1/campuses/campuses/{test_campus_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -162,7 +162,7 @@ class TestCampusesSmoke:
         Auth validation: GET /api/v1/campuses/{campus_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/campuses/campuses/{test_campus_id}")
+        response = api_client.get(f'/api/v1/campuses/campuses/{test_campus_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -203,7 +203,7 @@ class TestCampusesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses", headers=headers)
+        response = api_client.get(f'/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -221,7 +221,7 @@ class TestCampusesSmoke:
         Auth validation: GET /api/v1/locations/{location_id}/campuses requires authentication
         """
         
-        response = api_client.get(f"/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses")
+        response = api_client.get(f'/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -263,7 +263,7 @@ class TestCampusesSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/campuses/campuses/{test_campus_id}/toggle-status", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/campuses/campuses/{test_campus_id}/toggle-status', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -281,7 +281,7 @@ class TestCampusesSmoke:
         Auth validation: PATCH /api/v1/campuses/{campus_id}/toggle-status requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/campuses/campuses/{test_campus_id}/toggle-status", json={})
+        response = api_client.patch(f'/api/v1/campuses/campuses/{test_campus_id}/toggle-status', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -305,7 +305,7 @@ class TestCampusesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/campuses/campuses/{test_campus_id}/toggle-status",
+            f'/api/v1/campuses/campuses/{test_campus_id}/toggle-status',
             json=invalid_payload,
             headers=headers
         )
@@ -334,7 +334,7 @@ class TestCampusesSmoke:
         
         # TODO: Add realistic payload for /api/v1/locations/{location_id}/campuses
         payload = {}
-        response = api_client.post(f"/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -352,7 +352,7 @@ class TestCampusesSmoke:
         Auth validation: POST /api/v1/locations/{location_id}/campuses requires authentication
         """
         
-        response = api_client.post(f"/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses", json={})
+        response = api_client.post(f'/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -376,7 +376,7 @@ class TestCampusesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses",
+            f'/api/v1/campuses/locations/{test_tournament["location_id"]}/campuses',
             json=invalid_payload,
             headers=headers
         )
@@ -404,7 +404,7 @@ class TestCampusesSmoke:
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/campuses/campuses/{test_campus_id}", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/campuses/campuses/{test_campus_id}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -422,7 +422,7 @@ class TestCampusesSmoke:
         Auth validation: PUT /api/v1/campuses/{campus_id} requires authentication
         """
         
-        response = api_client.put(f"/api/v1/campuses/campuses/{test_campus_id}", json={})
+        response = api_client.put(f'/api/v1/campuses/campuses/{test_campus_id}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -446,7 +446,7 @@ class TestCampusesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/campuses/campuses/{test_campus_id}",
+            f'/api/v1/campuses/campuses/{test_campus_id}',
             json=invalid_payload,
             headers=headers
         )

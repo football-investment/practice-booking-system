@@ -29,7 +29,7 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: DELETE /api/v1/availability/{window_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}")
+        response = api_client.delete(f'/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -88,7 +88,7 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/instructor-assignments/availability/instructor/{test_instructor_id}", headers=headers)
+        response = api_client.get(f'/api/v1/instructor-assignments/availability/instructor/{test_instructor_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -106,7 +106,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: GET /api/v1/availability/instructor/{instructor_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/instructor-assignments/availability/instructor/{test_instructor_id}")
+        response = api_client.get(f'/api/v1/instructor-assignments/availability/instructor/{test_instructor_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -146,7 +146,7 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/instructor-assignments/available-instructors", headers=headers)
+        response = api_client.get('/api/v1/instructor-assignments/available-instructors', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -163,7 +163,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: GET /api/v1/available-instructors requires authentication
         """
         
-        response = api_client.get("/api/v1/instructor-assignments/available-instructors")
+        response = api_client.get('/api/v1/instructor-assignments/available-instructors')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -203,7 +203,7 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/instructor-assignments/requests/instructor/{test_instructor_id}", headers=headers)
+        response = api_client.get(f'/api/v1/instructor-assignments/requests/instructor/{test_instructor_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -221,7 +221,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: GET /api/v1/requests/instructor/{instructor_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/instructor-assignments/requests/instructor/{test_instructor_id}")
+        response = api_client.get(f'/api/v1/instructor-assignments/requests/instructor/{test_instructor_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -262,7 +262,7 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/instructor-assignments/requests/semester/{test_tournament["semester_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/instructor-assignments/requests/semester/{test_tournament["semester_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -280,7 +280,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: GET /api/v1/requests/semester/{semester_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/instructor-assignments/requests/semester/{test_tournament["semester_id"]}")
+        response = api_client.get(f'/api/v1/instructor-assignments/requests/semester/{test_tournament["semester_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -322,7 +322,7 @@ class TestInstructorassignmentsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -340,7 +340,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: PATCH /api/v1/availability/{window_id} requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}", json={})
+        response = api_client.patch(f'/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -364,7 +364,7 @@ class TestInstructorassignmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}",
+            f'/api/v1/instructor-assignments/availability/{test_tournament["window_id"]}',
             json=invalid_payload,
             headers=headers
         )
@@ -392,7 +392,7 @@ class TestInstructorassignmentsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/accept", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/accept', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -410,7 +410,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: PATCH /api/v1/requests/{request_id}/accept requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/accept", json={})
+        response = api_client.patch(f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/accept', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -434,7 +434,7 @@ class TestInstructorassignmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/accept",
+            f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/accept',
             json=invalid_payload,
             headers=headers
         )
@@ -462,7 +462,7 @@ class TestInstructorassignmentsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/cancel", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/cancel', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -480,7 +480,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: PATCH /api/v1/requests/{request_id}/cancel requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/cancel", json={})
+        response = api_client.patch(f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/cancel', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -504,7 +504,7 @@ class TestInstructorassignmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/cancel",
+            f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/cancel',
             json=invalid_payload,
             headers=headers
         )
@@ -532,7 +532,7 @@ class TestInstructorassignmentsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/decline", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/decline', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -550,7 +550,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: PATCH /api/v1/requests/{request_id}/decline requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/decline", json={})
+        response = api_client.patch(f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/decline', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -574,7 +574,7 @@ class TestInstructorassignmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/decline",
+            f'/api/v1/instructor-assignments/requests/{test_tournament["request_id"]}/decline',
             json=invalid_payload,
             headers=headers
         )
@@ -602,7 +602,7 @@ class TestInstructorassignmentsSmoke:
         
         # TODO: Add realistic payload for /api/v1/availability
         payload = {}
-        response = api_client.post("/api/v1/instructor-assignments/availability", json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor-assignments/availability', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -619,7 +619,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: POST /api/v1/availability requires authentication
         """
         
-        response = api_client.post("/api/v1/instructor-assignments/availability", json={})
+        response = api_client.post('/api/v1/instructor-assignments/availability', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -642,7 +642,7 @@ class TestInstructorassignmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/instructor-assignments/availability",
+            '/api/v1/instructor-assignments/availability',
             json=invalid_payload,
             headers=headers
         )
@@ -670,7 +670,7 @@ class TestInstructorassignmentsSmoke:
         
         # TODO: Add realistic payload for /api/v1/requests
         payload = {}
-        response = api_client.post("/api/v1/instructor-assignments/requests", json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor-assignments/requests', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -687,7 +687,7 @@ class TestInstructorassignmentsSmoke:
         Auth validation: POST /api/v1/requests requires authentication
         """
         
-        response = api_client.post("/api/v1/instructor-assignments/requests", json={})
+        response = api_client.post('/api/v1/instructor-assignments/requests', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -710,7 +710,7 @@ class TestInstructorassignmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/instructor-assignments/requests",
+            '/api/v1/instructor-assignments/requests',
             json=invalid_payload,
             headers=headers
         )

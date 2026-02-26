@@ -28,7 +28,7 @@ class TestReportsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/reports/", headers=headers)
+        response = api_client.get('/api/v1/reports/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestReportsSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/reports/")
+        response = api_client.get('/api/v1/reports/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestReportsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/reports/export/sessions", headers=headers)
+        response = api_client.get('/api/v1/reports/export/sessions', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestReportsSmoke:
         Auth validation: GET /api/v1/export/sessions requires authentication
         """
         
-        response = api_client.get("/api/v1/reports/export/sessions")
+        response = api_client.get('/api/v1/reports/export/sessions')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestReportsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/reports/history", headers=headers)
+        response = api_client.get('/api/v1/reports/history', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestReportsSmoke:
         Auth validation: GET /api/v1/history requires authentication
         """
         
-        response = api_client.get("/api/v1/reports/history")
+        response = api_client.get('/api/v1/reports/history')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -197,7 +197,7 @@ class TestReportsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/reports/semester/{test_tournament["semester_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/reports/semester/{test_tournament["semester_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -215,7 +215,7 @@ class TestReportsSmoke:
         Auth validation: GET /api/v1/semester/{semester_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/reports/semester/{test_tournament["semester_id"]}")
+        response = api_client.get(f'/api/v1/reports/semester/{test_tournament["semester_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -255,7 +255,7 @@ class TestReportsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/reports/system-stats", headers=headers)
+        response = api_client.get('/api/v1/reports/system-stats', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -272,7 +272,7 @@ class TestReportsSmoke:
         Auth validation: GET /api/v1/system-stats requires authentication
         """
         
-        response = api_client.get("/api/v1/reports/system-stats")
+        response = api_client.get('/api/v1/reports/system-stats')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -312,7 +312,7 @@ class TestReportsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/reports/user/{test_student_id}", headers=headers)
+        response = api_client.get(f'/api/v1/reports/user/{test_student_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -330,7 +330,7 @@ class TestReportsSmoke:
         Auth validation: GET /api/v1/user/{user_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/reports/user/{test_student_id}")
+        response = api_client.get(f'/api/v1/reports/user/{test_student_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -372,7 +372,7 @@ class TestReportsSmoke:
         
         # TODO: Add realistic payload for /api/v1/custom
         payload = {}
-        response = api_client.post("/api/v1/reports/custom", json=payload, headers=headers)
+        response = api_client.post('/api/v1/reports/custom', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -389,7 +389,7 @@ class TestReportsSmoke:
         Auth validation: POST /api/v1/custom requires authentication
         """
         
-        response = api_client.post("/api/v1/reports/custom", json={})
+        response = api_client.post('/api/v1/reports/custom', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -412,7 +412,7 @@ class TestReportsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/reports/custom",
+            '/api/v1/reports/custom',
             json=invalid_payload,
             headers=headers
         )

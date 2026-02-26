@@ -28,7 +28,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/parallel-specializations/available", headers=headers)
+        response = api_client.get('/api/v1/parallel-specializations/available', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/available requires authentication
         """
         
-        response = api_client.get("/api/v1/parallel-specializations/available")
+        response = api_client.get('/api/v1/parallel-specializations/available')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/parallel-specializations/combinations", headers=headers)
+        response = api_client.get('/api/v1/parallel-specializations/combinations', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/combinations requires authentication
         """
         
-        response = api_client.get("/api/v1/parallel-specializations/combinations")
+        response = api_client.get('/api/v1/parallel-specializations/combinations')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/parallel-specializations/dashboard", headers=headers)
+        response = api_client.get('/api/v1/parallel-specializations/dashboard', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/dashboard requires authentication
         """
         
-        response = api_client.get("/api/v1/parallel-specializations/dashboard")
+        response = api_client.get('/api/v1/parallel-specializations/dashboard')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/parallel-specializations/my-specializations", headers=headers)
+        response = api_client.get('/api/v1/parallel-specializations/my-specializations', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/my-specializations requires authentication
         """
         
-        response = api_client.get("/api/v1/parallel-specializations/my-specializations")
+        response = api_client.get('/api/v1/parallel-specializations/my-specializations')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -252,7 +252,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/parallel-specializations/progression-rules", headers=headers)
+        response = api_client.get('/api/v1/parallel-specializations/progression-rules', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -269,7 +269,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/progression-rules requires authentication
         """
         
-        response = api_client.get("/api/v1/parallel-specializations/progression-rules")
+        response = api_client.get('/api/v1/parallel-specializations/progression-rules')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -309,7 +309,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/parallel-specializations/semester-info/{test_tournament["semester"]}", headers=headers)
+        response = api_client.get(f'/api/v1/parallel-specializations/semester-info/{test_tournament["semester"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -327,7 +327,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/semester-info/{semester} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/parallel-specializations/semester-info/{test_tournament["semester"]}")
+        response = api_client.get(f'/api/v1/parallel-specializations/semester-info/{test_tournament["semester"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -368,7 +368,7 @@ class TestParallelspecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/parallel-specializations/validate/{test_tournament["specialization"]}", headers=headers)
+        response = api_client.get(f'/api/v1/parallel-specializations/validate/{test_tournament["specialization"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -386,7 +386,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: GET /api/v1/validate/{specialization} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/parallel-specializations/validate/{test_tournament["specialization"]}")
+        response = api_client.get(f'/api/v1/parallel-specializations/validate/{test_tournament["specialization"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -428,7 +428,7 @@ class TestParallelspecializationsSmoke:
         
         # TODO: Add realistic payload for /api/v1/start
         payload = {}
-        response = api_client.post("/api/v1/parallel-specializations/start", json=payload, headers=headers)
+        response = api_client.post('/api/v1/parallel-specializations/start', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -445,7 +445,7 @@ class TestParallelspecializationsSmoke:
         Auth validation: POST /api/v1/start requires authentication
         """
         
-        response = api_client.post("/api/v1/parallel-specializations/start", json={})
+        response = api_client.post('/api/v1/parallel-specializations/start', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -468,7 +468,7 @@ class TestParallelspecializationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/parallel-specializations/start",
+            '/api/v1/parallel-specializations/start',
             json=invalid_payload,
             headers=headers
         )

@@ -28,7 +28,7 @@ class TestAuditSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/audit/failed-logins", headers=headers)
+        response = api_client.get('/api/v1/audit/failed-logins', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestAuditSmoke:
         Auth validation: GET /api/v1/failed-logins requires authentication
         """
         
-        response = api_client.get("/api/v1/audit/failed-logins")
+        response = api_client.get('/api/v1/audit/failed-logins')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestAuditSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/audit/logs", headers=headers)
+        response = api_client.get('/api/v1/audit/logs', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestAuditSmoke:
         Auth validation: GET /api/v1/logs requires authentication
         """
         
-        response = api_client.get("/api/v1/audit/logs")
+        response = api_client.get('/api/v1/audit/logs')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestAuditSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/audit/my-logs", headers=headers)
+        response = api_client.get('/api/v1/audit/my-logs', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestAuditSmoke:
         Auth validation: GET /api/v1/my-logs requires authentication
         """
         
-        response = api_client.get("/api/v1/audit/my-logs")
+        response = api_client.get('/api/v1/audit/my-logs')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -197,7 +197,7 @@ class TestAuditSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/audit/resource/{test_tournament["resource_type"]}/{test_tournament["session_ids"][0]}", headers=headers)
+        response = api_client.get(f'/api/v1/audit/resource/{test_tournament["resource_type"]}/{test_tournament["session_ids"][0]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -215,7 +215,7 @@ class TestAuditSmoke:
         Auth validation: GET /api/v1/resource/{resource_type}/{resource_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/audit/resource/{test_tournament["resource_type"]}/{test_tournament["session_ids"][0]}")
+        response = api_client.get(f'/api/v1/audit/resource/{test_tournament["resource_type"]}/{test_tournament["session_ids"][0]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -255,7 +255,7 @@ class TestAuditSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/audit/security-events", headers=headers)
+        response = api_client.get('/api/v1/audit/security-events', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -272,7 +272,7 @@ class TestAuditSmoke:
         Auth validation: GET /api/v1/security-events requires authentication
         """
         
-        response = api_client.get("/api/v1/audit/security-events")
+        response = api_client.get('/api/v1/audit/security-events')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -311,7 +311,7 @@ class TestAuditSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/audit/statistics", headers=headers)
+        response = api_client.get('/api/v1/audit/statistics', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -328,7 +328,7 @@ class TestAuditSmoke:
         Auth validation: GET /api/v1/statistics requires authentication
         """
         
-        response = api_client.get("/api/v1/audit/statistics")
+        response = api_client.get('/api/v1/audit/statistics')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

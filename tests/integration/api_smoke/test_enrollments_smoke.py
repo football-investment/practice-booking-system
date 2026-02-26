@@ -28,7 +28,7 @@ class TestEnrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/enrollments/my-schedule", headers=headers)
+        response = api_client.get('/api/v1/enrollments/my-schedule', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestEnrollmentsSmoke:
         Auth validation: GET /api/v1/my-schedule requires authentication
         """
         
-        response = api_client.get("/api/v1/enrollments/my-schedule")
+        response = api_client.get('/api/v1/enrollments/my-schedule')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -85,7 +85,7 @@ class TestEnrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/enrollments/{test_tournament["semester_id"]}/check-conflicts", headers=headers)
+        response = api_client.get(f'/api/v1/enrollments/{test_tournament["semester_id"]}/check-conflicts', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestEnrollmentsSmoke:
         Auth validation: GET /api/v1/{semester_id}/check-conflicts requires authentication
         """
         
-        response = api_client.get(f"/api/v1/enrollments/{test_tournament["semester_id"]}/check-conflicts")
+        response = api_client.get(f'/api/v1/enrollments/{test_tournament["semester_id"]}/check-conflicts')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -145,7 +145,7 @@ class TestEnrollmentsSmoke:
         
         # TODO: Add realistic payload for /api/v1/validate
         payload = {}
-        response = api_client.post("/api/v1/enrollments/validate", json=payload, headers=headers)
+        response = api_client.post('/api/v1/enrollments/validate', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -162,7 +162,7 @@ class TestEnrollmentsSmoke:
         Auth validation: POST /api/v1/validate requires authentication
         """
         
-        response = api_client.post("/api/v1/enrollments/validate", json={})
+        response = api_client.post('/api/v1/enrollments/validate', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -185,7 +185,7 @@ class TestEnrollmentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/enrollments/validate",
+            '/api/v1/enrollments/validate',
             json=invalid_payload,
             headers=headers
         )

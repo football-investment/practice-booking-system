@@ -29,7 +29,7 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestInvitationcodesSmoke:
         Auth validation: DELETE /api/v1/admin/invitation-codes/{code_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}")
+        response = api_client.delete(f'/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/invitation-codes/admin/invitation-codes", headers=headers)
+        response = api_client.get('/api/v1/invitation-codes/admin/invitation-codes', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestInvitationcodesSmoke:
         Auth validation: GET /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.get("/api/v1/invitation-codes/admin/invitation-codes")
+        response = api_client.get('/api/v1/invitation-codes/admin/invitation-codes')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -145,7 +145,7 @@ class TestInvitationcodesSmoke:
         
         # TODO: Add realistic payload for /api/v1/admin/invitation-codes
         payload = {}
-        response = api_client.post("/api/v1/invitation-codes/admin/invitation-codes", json=payload, headers=headers)
+        response = api_client.post('/api/v1/invitation-codes/admin/invitation-codes', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -162,7 +162,7 @@ class TestInvitationcodesSmoke:
         Auth validation: POST /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.post("/api/v1/invitation-codes/admin/invitation-codes", json={})
+        response = api_client.post('/api/v1/invitation-codes/admin/invitation-codes', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -185,7 +185,7 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/invitation-codes/admin/invitation-codes",
+            '/api/v1/invitation-codes/admin/invitation-codes',
             json=invalid_payload,
             headers=headers
         )
@@ -213,7 +213,7 @@ class TestInvitationcodesSmoke:
         
         # TODO: Add realistic payload for /api/v1/invitation-codes/redeem
         payload = {}
-        response = api_client.post("/api/v1/invitation-codes/invitation-codes/redeem", json=payload, headers=headers)
+        response = api_client.post('/api/v1/invitation-codes/invitation-codes/redeem', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -230,7 +230,7 @@ class TestInvitationcodesSmoke:
         Auth validation: POST /api/v1/invitation-codes/redeem requires authentication
         """
         
-        response = api_client.post("/api/v1/invitation-codes/invitation-codes/redeem", json={})
+        response = api_client.post('/api/v1/invitation-codes/invitation-codes/redeem', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -253,7 +253,7 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/invitation-codes/invitation-codes/redeem",
+            '/api/v1/invitation-codes/invitation-codes/redeem',
             json=invalid_payload,
             headers=headers
         )
@@ -281,7 +281,7 @@ class TestInvitationcodesSmoke:
         
         # TODO: Add realistic payload for /api/v1/invitation-codes/validate
         payload = {}
-        response = api_client.post("/api/v1/invitation-codes/invitation-codes/validate", json=payload, headers=headers)
+        response = api_client.post('/api/v1/invitation-codes/invitation-codes/validate', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -298,7 +298,7 @@ class TestInvitationcodesSmoke:
         Auth validation: POST /api/v1/invitation-codes/validate requires authentication
         """
         
-        response = api_client.post("/api/v1/invitation-codes/invitation-codes/validate", json={})
+        response = api_client.post('/api/v1/invitation-codes/invitation-codes/validate', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -321,7 +321,7 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/invitation-codes/invitation-codes/validate",
+            '/api/v1/invitation-codes/invitation-codes/validate',
             json=invalid_payload,
             headers=headers
         )

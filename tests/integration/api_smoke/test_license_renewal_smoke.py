@@ -28,7 +28,7 @@ class TestLicenserenewalSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/license-renewal/expiring", headers=headers)
+        response = api_client.get('/api/v1/license-renewal/expiring', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestLicenserenewalSmoke:
         Auth validation: GET /api/v1/expiring requires authentication
         """
         
-        response = api_client.get("/api/v1/license-renewal/expiring")
+        response = api_client.get('/api/v1/license-renewal/expiring')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -85,7 +85,7 @@ class TestLicenserenewalSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/license-renewal/status/{test_tournament["license_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/license-renewal/status/{test_tournament["license_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestLicenserenewalSmoke:
         Auth validation: GET /api/v1/status/{license_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/license-renewal/status/{test_tournament["license_id"]}")
+        response = api_client.get(f'/api/v1/license-renewal/status/{test_tournament["license_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -145,7 +145,7 @@ class TestLicenserenewalSmoke:
         
         # TODO: Add realistic payload for /api/v1/check-expirations
         payload = {}
-        response = api_client.post("/api/v1/license-renewal/check-expirations", json=payload, headers=headers)
+        response = api_client.post('/api/v1/license-renewal/check-expirations', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -162,7 +162,7 @@ class TestLicenserenewalSmoke:
         Auth validation: POST /api/v1/check-expirations requires authentication
         """
         
-        response = api_client.post("/api/v1/license-renewal/check-expirations", json={})
+        response = api_client.post('/api/v1/license-renewal/check-expirations', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -185,7 +185,7 @@ class TestLicenserenewalSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/license-renewal/check-expirations",
+            '/api/v1/license-renewal/check-expirations',
             json=invalid_payload,
             headers=headers
         )
@@ -213,7 +213,7 @@ class TestLicenserenewalSmoke:
         
         # TODO: Add realistic payload for /api/v1/renew
         payload = {}
-        response = api_client.post("/api/v1/license-renewal/renew", json=payload, headers=headers)
+        response = api_client.post('/api/v1/license-renewal/renew', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -230,7 +230,7 @@ class TestLicenserenewalSmoke:
         Auth validation: POST /api/v1/renew requires authentication
         """
         
-        response = api_client.post("/api/v1/license-renewal/renew", json={})
+        response = api_client.post('/api/v1/license-renewal/renew', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -253,7 +253,7 @@ class TestLicenserenewalSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/license-renewal/renew",
+            '/api/v1/license-renewal/renew',
             json=invalid_payload,
             headers=headers
         )

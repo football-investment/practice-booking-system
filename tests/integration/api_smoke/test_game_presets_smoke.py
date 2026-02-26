@@ -29,7 +29,7 @@ class TestGamepresetsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/game-presets/{test_tournament["preset_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/game-presets/{test_tournament["preset_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestGamepresetsSmoke:
         Auth validation: DELETE /api/v1/{preset_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/game-presets/{test_tournament["preset_id"]}")
+        response = api_client.delete(f'/api/v1/game-presets/{test_tournament["preset_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestGamepresetsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/game-presets/", headers=headers)
+        response = api_client.get('/api/v1/game-presets/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestGamepresetsSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/game-presets/")
+        response = api_client.get('/api/v1/game-presets/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -144,7 +144,7 @@ class TestGamepresetsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/game-presets/code/{test_tournament["code"]}", headers=headers)
+        response = api_client.get(f'/api/v1/game-presets/code/{test_tournament["code"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -162,7 +162,7 @@ class TestGamepresetsSmoke:
         Auth validation: GET /api/v1/code/{code} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/game-presets/code/{test_tournament["code"]}")
+        response = api_client.get(f'/api/v1/game-presets/code/{test_tournament["code"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -203,7 +203,7 @@ class TestGamepresetsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/game-presets/{test_tournament["preset_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/game-presets/{test_tournament["preset_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -221,7 +221,7 @@ class TestGamepresetsSmoke:
         Auth validation: GET /api/v1/{preset_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/game-presets/{test_tournament["preset_id"]}")
+        response = api_client.get(f'/api/v1/game-presets/{test_tournament["preset_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -263,7 +263,7 @@ class TestGamepresetsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/game-presets/{test_tournament["preset_id"]}", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/game-presets/{test_tournament["preset_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -281,7 +281,7 @@ class TestGamepresetsSmoke:
         Auth validation: PATCH /api/v1/{preset_id} requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/game-presets/{test_tournament["preset_id"]}", json={})
+        response = api_client.patch(f'/api/v1/game-presets/{test_tournament["preset_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -305,7 +305,7 @@ class TestGamepresetsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/game-presets/{test_tournament["preset_id"]}",
+            f'/api/v1/game-presets/{test_tournament["preset_id"]}',
             json=invalid_payload,
             headers=headers
         )
@@ -333,7 +333,7 @@ class TestGamepresetsSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/game-presets/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/game-presets/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -350,7 +350,7 @@ class TestGamepresetsSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/game-presets/", json={})
+        response = api_client.post('/api/v1/game-presets/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -373,7 +373,7 @@ class TestGamepresetsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/game-presets/",
+            '/api/v1/game-presets/',
             json=invalid_payload,
             headers=headers
         )

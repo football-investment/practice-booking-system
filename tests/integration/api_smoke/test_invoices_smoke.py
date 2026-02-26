@@ -28,7 +28,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/invoices/count", headers=headers)
+        response = api_client.get('/api/v1/invoices/count', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestInvoicesSmoke:
         Auth validation: GET /api/v1/count requires authentication
         """
         
-        response = api_client.get("/api/v1/invoices/count")
+        response = api_client.get('/api/v1/invoices/count')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/invoices/list", headers=headers)
+        response = api_client.get('/api/v1/invoices/list', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestInvoicesSmoke:
         Auth validation: GET /api/v1/list requires authentication
         """
         
-        response = api_client.get("/api/v1/invoices/list")
+        response = api_client.get('/api/v1/invoices/list')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/invoices/my-invoices", headers=headers)
+        response = api_client.get('/api/v1/invoices/my-invoices', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestInvoicesSmoke:
         Auth validation: GET /api/v1/my-invoices requires authentication
         """
         
-        response = api_client.get("/api/v1/invoices/my-invoices")
+        response = api_client.get('/api/v1/invoices/my-invoices')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/invoices/summary", headers=headers)
+        response = api_client.get('/api/v1/invoices/summary', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestInvoicesSmoke:
         Auth validation: GET /api/v1/summary requires authentication
         """
         
-        response = api_client.get("/api/v1/invoices/summary")
+        response = api_client.get('/api/v1/invoices/summary')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -254,7 +254,7 @@ class TestInvoicesSmoke:
         
         # TODO: Add realistic payload for /api/v1/request
         payload = {}
-        response = api_client.post("/api/v1/invoices/request", json=payload, headers=headers)
+        response = api_client.post('/api/v1/invoices/request', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -271,7 +271,7 @@ class TestInvoicesSmoke:
         Auth validation: POST /api/v1/request requires authentication
         """
         
-        response = api_client.post("/api/v1/invoices/request", json={})
+        response = api_client.post('/api/v1/invoices/request', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -294,7 +294,7 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/invoices/request",
+            '/api/v1/invoices/request',
             json=invalid_payload,
             headers=headers
         )
@@ -323,7 +323,7 @@ class TestInvoicesSmoke:
         
         # TODO: Add realistic payload for /api/v1/{invoice_id}/cancel
         payload = {}
-        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/cancel", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/invoices/{test_tournament["invoice_id"]}/cancel', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -341,7 +341,7 @@ class TestInvoicesSmoke:
         Auth validation: POST /api/v1/{invoice_id}/cancel requires authentication
         """
         
-        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/cancel", json={})
+        response = api_client.post(f'/api/v1/invoices/{test_tournament["invoice_id"]}/cancel', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -365,7 +365,7 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/invoices/{test_tournament["invoice_id"]}/cancel",
+            f'/api/v1/invoices/{test_tournament["invoice_id"]}/cancel',
             json=invalid_payload,
             headers=headers
         )
@@ -394,7 +394,7 @@ class TestInvoicesSmoke:
         
         # TODO: Add realistic payload for /api/v1/{invoice_id}/unverify
         payload = {}
-        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/unverify", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/invoices/{test_tournament["invoice_id"]}/unverify', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -412,7 +412,7 @@ class TestInvoicesSmoke:
         Auth validation: POST /api/v1/{invoice_id}/unverify requires authentication
         """
         
-        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/unverify", json={})
+        response = api_client.post(f'/api/v1/invoices/{test_tournament["invoice_id"]}/unverify', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -436,7 +436,7 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/invoices/{test_tournament["invoice_id"]}/unverify",
+            f'/api/v1/invoices/{test_tournament["invoice_id"]}/unverify',
             json=invalid_payload,
             headers=headers
         )
@@ -465,7 +465,7 @@ class TestInvoicesSmoke:
         
         # TODO: Add realistic payload for /api/v1/{invoice_id}/verify
         payload = {}
-        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/verify", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/invoices/{test_tournament["invoice_id"]}/verify', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -483,7 +483,7 @@ class TestInvoicesSmoke:
         Auth validation: POST /api/v1/{invoice_id}/verify requires authentication
         """
         
-        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/verify", json={})
+        response = api_client.post(f'/api/v1/invoices/{test_tournament["invoice_id"]}/verify', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -507,7 +507,7 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/invoices/{test_tournament["invoice_id"]}/verify",
+            f'/api/v1/invoices/{test_tournament["invoice_id"]}/verify',
             json=invalid_payload,
             headers=headers
         )

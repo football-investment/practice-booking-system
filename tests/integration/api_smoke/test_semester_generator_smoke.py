@@ -28,7 +28,7 @@ class TestSemestergeneratorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/tournament-generator/available-templates", headers=headers)
+        response = api_client.get('/api/v1/tournament-generator/available-templates', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestSemestergeneratorSmoke:
         Auth validation: GET /api/v1/available-templates requires authentication
         """
         
-        response = api_client.get("/api/v1/tournament-generator/available-templates")
+        response = api_client.get('/api/v1/tournament-generator/available-templates')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -86,7 +86,7 @@ class TestSemestergeneratorSmoke:
         
         # TODO: Add realistic payload for /api/v1/generate
         payload = {}
-        response = api_client.post("/api/v1/tournament-generator/generate", json=payload, headers=headers)
+        response = api_client.post('/api/v1/tournament-generator/generate', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestSemestergeneratorSmoke:
         Auth validation: POST /api/v1/generate requires authentication
         """
         
-        response = api_client.post("/api/v1/tournament-generator/generate", json={})
+        response = api_client.post('/api/v1/tournament-generator/generate', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -126,7 +126,7 @@ class TestSemestergeneratorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/tournament-generator/generate",
+            '/api/v1/tournament-generator/generate',
             json=invalid_payload,
             headers=headers
         )

@@ -30,7 +30,7 @@ class TestSystemeventsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/system-events/{test_tournament["event_id"]}/resolve", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/system-events/{test_tournament["event_id"]}/resolve', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -48,7 +48,7 @@ class TestSystemeventsSmoke:
         Auth validation: PATCH /api/v1/{event_id}/resolve requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/system-events/{test_tournament["event_id"]}/resolve", json={})
+        response = api_client.patch(f'/api/v1/system-events/{test_tournament["event_id"]}/resolve', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -72,7 +72,7 @@ class TestSystemeventsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/system-events/{test_tournament["event_id"]}/resolve",
+            f'/api/v1/system-events/{test_tournament["event_id"]}/resolve',
             json=invalid_payload,
             headers=headers
         )
@@ -100,7 +100,7 @@ class TestSystemeventsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/system-events/{test_tournament["event_id"]}/unresolve", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/system-events/{test_tournament["event_id"]}/unresolve', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -118,7 +118,7 @@ class TestSystemeventsSmoke:
         Auth validation: PATCH /api/v1/{event_id}/unresolve requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/system-events/{test_tournament["event_id"]}/unresolve", json={})
+        response = api_client.patch(f'/api/v1/system-events/{test_tournament["event_id"]}/unresolve', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -142,7 +142,7 @@ class TestSystemeventsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/system-events/{test_tournament["event_id"]}/unresolve",
+            f'/api/v1/system-events/{test_tournament["event_id"]}/unresolve',
             json=invalid_payload,
             headers=headers
         )
@@ -170,7 +170,7 @@ class TestSystemeventsSmoke:
         
         # TODO: Add realistic payload for /api/v1/purge
         payload = {}
-        response = api_client.post("/api/v1/system-events/purge", json=payload, headers=headers)
+        response = api_client.post('/api/v1/system-events/purge', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -187,7 +187,7 @@ class TestSystemeventsSmoke:
         Auth validation: POST /api/v1/purge requires authentication
         """
         
-        response = api_client.post("/api/v1/system-events/purge", json={})
+        response = api_client.post('/api/v1/system-events/purge', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -210,7 +210,7 @@ class TestSystemeventsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/system-events/purge",
+            '/api/v1/system-events/purge',
             json=invalid_payload,
             headers=headers
         )

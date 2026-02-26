@@ -28,7 +28,7 @@ class TestSandboxSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sandbox/instructors", headers=headers)
+        response = api_client.get('/api/v1/sandbox/instructors', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestSandboxSmoke:
         Auth validation: GET /api/v1/instructors requires authentication
         """
         
-        response = api_client.get("/api/v1/sandbox/instructors")
+        response = api_client.get('/api/v1/sandbox/instructors')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestSandboxSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sandbox/users", headers=headers)
+        response = api_client.get('/api/v1/sandbox/users', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestSandboxSmoke:
         Auth validation: GET /api/v1/users requires authentication
         """
         
-        response = api_client.get("/api/v1/sandbox/users")
+        response = api_client.get('/api/v1/sandbox/users')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -141,7 +141,7 @@ class TestSandboxSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/sandbox/users/{test_student_id}/skills", headers=headers)
+        response = api_client.get(f'/api/v1/sandbox/users/{test_student_id}/skills', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestSandboxSmoke:
         Auth validation: GET /api/v1/users/{user_id}/skills requires authentication
         """
         
-        response = api_client.get(f"/api/v1/sandbox/users/{test_student_id}/skills")
+        response = api_client.get(f'/api/v1/sandbox/users/{test_student_id}/skills')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -201,7 +201,7 @@ class TestSandboxSmoke:
         
         # TODO: Add realistic payload for /api/v1/run-test
         payload = {}
-        response = api_client.post("/api/v1/sandbox/run-test", json=payload, headers=headers)
+        response = api_client.post('/api/v1/sandbox/run-test', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestSandboxSmoke:
         Auth validation: POST /api/v1/run-test requires authentication
         """
         
-        response = api_client.post("/api/v1/sandbox/run-test", json={})
+        response = api_client.post('/api/v1/sandbox/run-test', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -241,7 +241,7 @@ class TestSandboxSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/sandbox/run-test",
+            '/api/v1/sandbox/run-test',
             json=invalid_payload,
             headers=headers
         )

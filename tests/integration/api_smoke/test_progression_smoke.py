@@ -28,7 +28,7 @@ class TestProgressionSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/progression/progress", headers=headers)
+        response = api_client.get('/api/v1/progression/progress', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestProgressionSmoke:
         Auth validation: GET /api/v1/progress requires authentication
         """
         
-        response = api_client.get("/api/v1/progression/progress")
+        response = api_client.get('/api/v1/progression/progress')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestProgressionSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/progression/skill-audit", headers=headers)
+        response = api_client.get('/api/v1/progression/skill-audit', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestProgressionSmoke:
         Auth validation: GET /api/v1/skill-audit requires authentication
         """
         
-        response = api_client.get("/api/v1/progression/skill-audit")
+        response = api_client.get('/api/v1/progression/skill-audit')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestProgressionSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/progression/skill-profile", headers=headers)
+        response = api_client.get('/api/v1/progression/skill-profile', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestProgressionSmoke:
         Auth validation: GET /api/v1/skill-profile requires authentication
         """
         
-        response = api_client.get("/api/v1/progression/skill-profile")
+        response = api_client.get('/api/v1/progression/skill-profile')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestProgressionSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/progression/skill-timeline", headers=headers)
+        response = api_client.get('/api/v1/progression/skill-timeline', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestProgressionSmoke:
         Auth validation: GET /api/v1/skill-timeline requires authentication
         """
         
-        response = api_client.get("/api/v1/progression/skill-timeline")
+        response = api_client.get('/api/v1/progression/skill-timeline')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -252,7 +252,7 @@ class TestProgressionSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/progression/systems", headers=headers)
+        response = api_client.get('/api/v1/progression/systems', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -269,7 +269,7 @@ class TestProgressionSmoke:
         Auth validation: GET /api/v1/systems requires authentication
         """
         
-        response = api_client.get("/api/v1/progression/systems")
+        response = api_client.get('/api/v1/progression/systems')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -310,7 +310,7 @@ class TestProgressionSmoke:
         
         # TODO: Add realistic payload for /api/v1/progress/update
         payload = {}
-        response = api_client.post("/api/v1/progression/progress/update", json=payload, headers=headers)
+        response = api_client.post('/api/v1/progression/progress/update', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -327,7 +327,7 @@ class TestProgressionSmoke:
         Auth validation: POST /api/v1/progress/update requires authentication
         """
         
-        response = api_client.post("/api/v1/progression/progress/update", json={})
+        response = api_client.post('/api/v1/progression/progress/update', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -350,7 +350,7 @@ class TestProgressionSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/progression/progress/update",
+            '/api/v1/progression/progress/update',
             json=invalid_payload,
             headers=headers
         )

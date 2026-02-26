@@ -29,7 +29,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/sessions/{test_session_id}", headers=headers)
+        response = api_client.delete(f'/api/v1/sessions/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestSessionsSmoke:
         Auth validation: DELETE /api/v1/{session_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/sessions/{test_session_id}")
+        response = api_client.delete(f'/api/v1/sessions/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/", headers=headers)
+        response = api_client.get('/api/v1/sessions/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/")
+        response = api_client.get('/api/v1/sessions/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/availability", headers=headers)
+        response = api_client.get('/api/v1/sessions/availability', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/availability requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/availability")
+        response = api_client.get('/api/v1/sessions/availability')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -199,7 +199,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/calendar", headers=headers)
+        response = api_client.get('/api/v1/sessions/calendar', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -216,7 +216,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/calendar requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/calendar")
+        response = api_client.get('/api/v1/sessions/calendar')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -255,7 +255,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/calendar", headers=headers)
+        response = api_client.get('/api/v1/sessions/calendar', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -272,7 +272,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/calendar requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/calendar")
+        response = api_client.get('/api/v1/sessions/calendar')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -311,7 +311,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/instructor/my", headers=headers)
+        response = api_client.get('/api/v1/sessions/instructor/my', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -328,7 +328,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/instructor/my requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/instructor/my")
+        response = api_client.get('/api/v1/sessions/instructor/my')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -367,7 +367,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/recommendations", headers=headers)
+        response = api_client.get('/api/v1/sessions/recommendations', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -384,7 +384,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/recommendations requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/recommendations")
+        response = api_client.get('/api/v1/sessions/recommendations')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -423,7 +423,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/sessions/sessions", headers=headers)
+        response = api_client.get('/api/v1/sessions/sessions', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -440,7 +440,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/sessions requires authentication
         """
         
-        response = api_client.get("/api/v1/sessions/sessions")
+        response = api_client.get('/api/v1/sessions/sessions')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -480,7 +480,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/sessions/sessions/{test_session_id}", headers=headers)
+        response = api_client.get(f'/api/v1/sessions/sessions/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -498,7 +498,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/sessions/{session_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/sessions/sessions/{test_session_id}")
+        response = api_client.get(f'/api/v1/sessions/sessions/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -539,7 +539,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/sessions/{test_session_id}", headers=headers)
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -557,7 +557,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/{session_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/sessions/{test_session_id}")
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -598,7 +598,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/sessions/{test_session_id}/bookings", headers=headers)
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}/bookings', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -616,7 +616,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/{session_id}/bookings requires authentication
         """
         
-        response = api_client.get(f"/api/v1/sessions/{test_session_id}/bookings")
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}/bookings')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -657,7 +657,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/sessions/{test_session_id}/results", headers=headers)
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}/results', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -675,7 +675,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/{session_id}/results requires authentication
         """
         
-        response = api_client.get(f"/api/v1/sessions/{test_session_id}/results")
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}/results')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -717,7 +717,7 @@ class TestSessionsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/sessions/{test_session_id}", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/sessions/{test_session_id}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -735,7 +735,7 @@ class TestSessionsSmoke:
         Auth validation: PATCH /api/v1/{session_id} requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/sessions/{test_session_id}", json={})
+        response = api_client.patch(f'/api/v1/sessions/{test_session_id}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -759,7 +759,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/sessions/{test_session_id}",
+            f'/api/v1/sessions/{test_session_id}',
             json=invalid_payload,
             headers=headers
         )
@@ -787,7 +787,7 @@ class TestSessionsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/sessions/{test_session_id}/head-to-head-results", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/sessions/{test_session_id}/head-to-head-results', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -805,7 +805,7 @@ class TestSessionsSmoke:
         Auth validation: PATCH /api/v1/{session_id}/head-to-head-results requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/sessions/{test_session_id}/head-to-head-results", json={})
+        response = api_client.patch(f'/api/v1/sessions/{test_session_id}/head-to-head-results', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -829,7 +829,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/sessions/{test_session_id}/head-to-head-results",
+            f'/api/v1/sessions/{test_session_id}/head-to-head-results',
             json=invalid_payload,
             headers=headers
         )
@@ -857,7 +857,7 @@ class TestSessionsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/sessions/{test_session_id}/results", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/sessions/{test_session_id}/results', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -875,7 +875,7 @@ class TestSessionsSmoke:
         Auth validation: PATCH /api/v1/{session_id}/results requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/sessions/{test_session_id}/results", json={})
+        response = api_client.patch(f'/api/v1/sessions/{test_session_id}/results', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -899,7 +899,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/sessions/{test_session_id}/results",
+            f'/api/v1/sessions/{test_session_id}/results',
             json=invalid_payload,
             headers=headers
         )
@@ -927,7 +927,7 @@ class TestSessionsSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/sessions/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/sessions/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -944,7 +944,7 @@ class TestSessionsSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/sessions/", json={})
+        response = api_client.post('/api/v1/sessions/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -967,7 +967,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/sessions/",
+            '/api/v1/sessions/',
             json=invalid_payload,
             headers=headers
         )
@@ -996,7 +996,7 @@ class TestSessionsSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/book/{session_id}
         payload = {}
-        response = api_client.post(f"/api/v1/sessions/sessions/book/{test_session_id}", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/sessions/sessions/book/{test_session_id}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -1014,7 +1014,7 @@ class TestSessionsSmoke:
         Auth validation: POST /api/v1/sessions/book/{session_id} requires authentication
         """
         
-        response = api_client.post(f"/api/v1/sessions/sessions/book/{test_session_id}", json={})
+        response = api_client.post(f'/api/v1/sessions/sessions/book/{test_session_id}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -1038,7 +1038,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/sessions/sessions/book/{test_session_id}",
+            f'/api/v1/sessions/sessions/book/{test_session_id}',
             json=invalid_payload,
             headers=headers
         )
@@ -1067,7 +1067,7 @@ class TestSessionsSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/cancel/{session_id}
         payload = {}
-        response = api_client.post(f"/api/v1/sessions/sessions/cancel/{test_session_id}", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/sessions/sessions/cancel/{test_session_id}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -1085,7 +1085,7 @@ class TestSessionsSmoke:
         Auth validation: POST /api/v1/sessions/cancel/{session_id} requires authentication
         """
         
-        response = api_client.post(f"/api/v1/sessions/sessions/cancel/{test_session_id}", json={})
+        response = api_client.post(f'/api/v1/sessions/sessions/cancel/{test_session_id}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -1109,7 +1109,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/sessions/sessions/cancel/{test_session_id}",
+            f'/api/v1/sessions/sessions/cancel/{test_session_id}',
             json=invalid_payload,
             headers=headers
         )
@@ -1138,7 +1138,7 @@ class TestSessionsSmoke:
         
         # TODO: Add realistic payload for /api/v1/{session_id}/check-in
         payload = {}
-        response = api_client.post(f"/api/v1/sessions/{test_session_id}/check-in", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/sessions/{test_session_id}/check-in', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -1156,7 +1156,7 @@ class TestSessionsSmoke:
         Auth validation: POST /api/v1/{session_id}/check-in requires authentication
         """
         
-        response = api_client.post(f"/api/v1/sessions/{test_session_id}/check-in", json={})
+        response = api_client.post(f'/api/v1/sessions/{test_session_id}/check-in', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -1180,7 +1180,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/sessions/{test_session_id}/check-in",
+            f'/api/v1/sessions/{test_session_id}/check-in',
             json=invalid_payload,
             headers=headers
         )

@@ -28,7 +28,7 @@ class TestStudentfeaturesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/student-features/about-specializations", headers=headers)
+        response = api_client.get('/api/v1/student-features/about-specializations', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestStudentfeaturesSmoke:
         Auth validation: GET /api/v1/about-specializations requires authentication
         """
         
-        response = api_client.get("/api/v1/student-features/about-specializations")
+        response = api_client.get('/api/v1/student-features/about-specializations')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestStudentfeaturesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/student-features/achievements", headers=headers)
+        response = api_client.get('/api/v1/student-features/achievements', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestStudentfeaturesSmoke:
         Auth validation: GET /api/v1/achievements requires authentication
         """
         
-        response = api_client.get("/api/v1/student-features/achievements")
+        response = api_client.get('/api/v1/student-features/achievements')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestStudentfeaturesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/student-features/credits", headers=headers)
+        response = api_client.get('/api/v1/student-features/credits', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestStudentfeaturesSmoke:
         Auth validation: GET /api/v1/credits requires authentication
         """
         
-        response = api_client.get("/api/v1/student-features/credits")
+        response = api_client.get('/api/v1/student-features/credits')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestStudentfeaturesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/student-features/progress", headers=headers)
+        response = api_client.get('/api/v1/student-features/progress', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestStudentfeaturesSmoke:
         Auth validation: GET /api/v1/progress requires authentication
         """
         
-        response = api_client.get("/api/v1/student-features/progress")
+        response = api_client.get('/api/v1/student-features/progress')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

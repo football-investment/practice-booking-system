@@ -29,7 +29,7 @@ class TestPublicprofileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/basic", headers=headers)
+        response = api_client.get(f'/api/v1/public-profile/users/{test_student_id}/profile/basic', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestPublicprofileSmoke:
         Auth validation: GET /api/v1/users/{user_id}/profile/basic requires authentication
         """
         
-        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/basic")
+        response = api_client.get(f'/api/v1/public-profile/users/{test_student_id}/profile/basic')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -88,7 +88,7 @@ class TestPublicprofileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/instructor", headers=headers)
+        response = api_client.get(f'/api/v1/public-profile/users/{test_student_id}/profile/instructor', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -106,7 +106,7 @@ class TestPublicprofileSmoke:
         Auth validation: GET /api/v1/users/{user_id}/profile/instructor requires authentication
         """
         
-        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/instructor")
+        response = api_client.get(f'/api/v1/public-profile/users/{test_student_id}/profile/instructor')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -147,7 +147,7 @@ class TestPublicprofileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/lfa-player", headers=headers)
+        response = api_client.get(f'/api/v1/public-profile/users/{test_student_id}/profile/lfa-player', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -165,7 +165,7 @@ class TestPublicprofileSmoke:
         Auth validation: GET /api/v1/users/{user_id}/profile/lfa-player requires authentication
         """
         
-        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/lfa-player")
+        response = api_client.get(f'/api/v1/public-profile/users/{test_student_id}/profile/lfa-player')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

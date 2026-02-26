@@ -28,7 +28,7 @@ class TestCompetencySmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/competency/assessment-history", headers=headers)
+        response = api_client.get('/api/v1/competency/assessment-history', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestCompetencySmoke:
         Auth validation: GET /api/v1/assessment-history requires authentication
         """
         
-        response = api_client.get("/api/v1/competency/assessment-history")
+        response = api_client.get('/api/v1/competency/assessment-history')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -85,7 +85,7 @@ class TestCompetencySmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/competency/breakdown/{test_tournament["category_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/competency/breakdown/{test_tournament["category_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestCompetencySmoke:
         Auth validation: GET /api/v1/breakdown/{category_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/competency/breakdown/{test_tournament["category_id"]}")
+        response = api_client.get(f'/api/v1/competency/breakdown/{test_tournament["category_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestCompetencySmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/competency/categories", headers=headers)
+        response = api_client.get('/api/v1/competency/categories', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestCompetencySmoke:
         Auth validation: GET /api/v1/categories requires authentication
         """
         
-        response = api_client.get("/api/v1/competency/categories")
+        response = api_client.get('/api/v1/competency/categories')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -199,7 +199,7 @@ class TestCompetencySmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/competency/milestones", headers=headers)
+        response = api_client.get('/api/v1/competency/milestones', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -216,7 +216,7 @@ class TestCompetencySmoke:
         Auth validation: GET /api/v1/milestones requires authentication
         """
         
-        response = api_client.get("/api/v1/competency/milestones")
+        response = api_client.get('/api/v1/competency/milestones')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -255,7 +255,7 @@ class TestCompetencySmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/competency/my-competencies", headers=headers)
+        response = api_client.get('/api/v1/competency/my-competencies', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -272,7 +272,7 @@ class TestCompetencySmoke:
         Auth validation: GET /api/v1/my-competencies requires authentication
         """
         
-        response = api_client.get("/api/v1/competency/my-competencies")
+        response = api_client.get('/api/v1/competency/my-competencies')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -311,7 +311,7 @@ class TestCompetencySmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/competency/radar-chart-data", headers=headers)
+        response = api_client.get('/api/v1/competency/radar-chart-data', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -328,7 +328,7 @@ class TestCompetencySmoke:
         Auth validation: GET /api/v1/radar-chart-data requires authentication
         """
         
-        response = api_client.get("/api/v1/competency/radar-chart-data")
+        response = api_client.get('/api/v1/competency/radar-chart-data')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

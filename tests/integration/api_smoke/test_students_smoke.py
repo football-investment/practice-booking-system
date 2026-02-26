@@ -28,7 +28,7 @@ class TestStudentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/students/dashboard/achievements", headers=headers)
+        response = api_client.get('/api/v1/students/dashboard/achievements', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestStudentsSmoke:
         Auth validation: GET /api/v1/dashboard/achievements requires authentication
         """
         
-        response = api_client.get("/api/v1/students/dashboard/achievements")
+        response = api_client.get('/api/v1/students/dashboard/achievements')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestStudentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/students/dashboard/daily-challenge", headers=headers)
+        response = api_client.get('/api/v1/students/dashboard/daily-challenge', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestStudentsSmoke:
         Auth validation: GET /api/v1/dashboard/daily-challenge requires authentication
         """
         
-        response = api_client.get("/api/v1/students/dashboard/daily-challenge")
+        response = api_client.get('/api/v1/students/dashboard/daily-challenge')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestStudentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/students/dashboard/semester-progress", headers=headers)
+        response = api_client.get('/api/v1/students/dashboard/semester-progress', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestStudentsSmoke:
         Auth validation: GET /api/v1/dashboard/semester-progress requires authentication
         """
         
-        response = api_client.get("/api/v1/students/dashboard/semester-progress")
+        response = api_client.get('/api/v1/students/dashboard/semester-progress')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

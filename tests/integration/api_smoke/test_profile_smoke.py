@@ -28,7 +28,7 @@ class TestProfileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/profile/profile", headers=headers)
+        response = api_client.get('/api/v1/profile/profile', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestProfileSmoke:
         Auth validation: GET /api/v1/profile requires authentication
         """
         
-        response = api_client.get("/api/v1/profile/profile")
+        response = api_client.get('/api/v1/profile/profile')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestProfileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/profile/profile/edit", headers=headers)
+        response = api_client.get('/api/v1/profile/profile/edit', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestProfileSmoke:
         Auth validation: GET /api/v1/profile/edit requires authentication
         """
         
-        response = api_client.get("/api/v1/profile/profile/edit")
+        response = api_client.get('/api/v1/profile/profile/edit')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -142,7 +142,7 @@ class TestProfileSmoke:
         
         # TODO: Add realistic payload for /api/v1/profile/edit
         payload = {}
-        response = api_client.post("/api/v1/profile/profile/edit", json=payload, headers=headers)
+        response = api_client.post('/api/v1/profile/profile/edit', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestProfileSmoke:
         Auth validation: POST /api/v1/profile/edit requires authentication
         """
         
-        response = api_client.post("/api/v1/profile/profile/edit", json={})
+        response = api_client.post('/api/v1/profile/profile/edit', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -182,7 +182,7 @@ class TestProfileSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/profile/profile/edit",
+            '/api/v1/profile/profile/edit',
             json=invalid_payload,
             headers=headers
         )

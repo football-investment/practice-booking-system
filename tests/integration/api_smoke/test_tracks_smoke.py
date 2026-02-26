@@ -28,7 +28,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/tracks/", headers=headers)
+        response = api_client.get('/api/v1/tracks/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestTracksSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/tracks/")
+        response = api_client.get('/api/v1/tracks/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/tracks/my", headers=headers)
+        response = api_client.get('/api/v1/tracks/my', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestTracksSmoke:
         Auth validation: GET /api/v1/my requires authentication
         """
         
-        response = api_client.get("/api/v1/tracks/my")
+        response = api_client.get('/api/v1/tracks/my')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -141,7 +141,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_id"]}/analytics", headers=headers)
+        response = api_client.get(f'/api/v1/tracks/{test_tournament["track_id"]}/analytics', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestTracksSmoke:
         Auth validation: GET /api/v1/{track_id}/analytics requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_id"]}/analytics")
+        response = api_client.get(f'/api/v1/tracks/{test_tournament["track_id"]}/analytics')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -200,7 +200,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/progress", headers=headers)
+        response = api_client.get(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/progress', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestTracksSmoke:
         Auth validation: GET /api/v1/{track_progress_id}/progress requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/progress")
+        response = api_client.get(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/progress')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -260,7 +260,7 @@ class TestTracksSmoke:
         
         # TODO: Add realistic payload for /api/v1/enroll
         payload = {}
-        response = api_client.post("/api/v1/tracks/enroll", json=payload, headers=headers)
+        response = api_client.post('/api/v1/tracks/enroll', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -277,7 +277,7 @@ class TestTracksSmoke:
         Auth validation: POST /api/v1/enroll requires authentication
         """
         
-        response = api_client.post("/api/v1/tracks/enroll", json={})
+        response = api_client.post('/api/v1/tracks/enroll', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -300,7 +300,7 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/tracks/enroll",
+            '/api/v1/tracks/enroll',
             json=invalid_payload,
             headers=headers
         )
@@ -329,7 +329,7 @@ class TestTracksSmoke:
         
         # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{module_id}/complete
         payload = {}
-        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -347,7 +347,7 @@ class TestTracksSmoke:
         Auth validation: POST /api/v1/{track_progress_id}/modules/{module_id}/complete requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete", json={})
+        response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -371,7 +371,7 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete",
+            f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete',
             json=invalid_payload,
             headers=headers
         )
@@ -400,7 +400,7 @@ class TestTracksSmoke:
         
         # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{module_id}/start
         payload = {}
-        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -418,7 +418,7 @@ class TestTracksSmoke:
         Auth validation: POST /api/v1/{track_progress_id}/modules/{module_id}/start requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start", json={})
+        response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -442,7 +442,7 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start",
+            f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start',
             json=invalid_payload,
             headers=headers
         )
@@ -471,7 +471,7 @@ class TestTracksSmoke:
         
         # TODO: Add realistic payload for /api/v1/{track_progress_id}/start
         payload = {}
-        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/start", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/start', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -489,7 +489,7 @@ class TestTracksSmoke:
         Auth validation: POST /api/v1/{track_progress_id}/start requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/start", json={})
+        response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/start', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -513,7 +513,7 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tracks/{test_tournament["track_progress_id"]}/start",
+            f'/api/v1/tracks/{test_tournament["track_progress_id"]}/start',
             json=invalid_payload,
             headers=headers
         )

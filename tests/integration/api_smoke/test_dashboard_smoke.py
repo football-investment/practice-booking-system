@@ -28,7 +28,7 @@ class TestDashboardSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/dashboard/dashboard", headers=headers)
+        response = api_client.get('/api/v1/dashboard/dashboard', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestDashboardSmoke:
         Auth validation: GET /api/v1/dashboard requires authentication
         """
         
-        response = api_client.get("/api/v1/dashboard/dashboard")
+        response = api_client.get('/api/v1/dashboard/dashboard')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestDashboardSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/dashboard/dashboard-fresh", headers=headers)
+        response = api_client.get('/api/v1/dashboard/dashboard-fresh', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestDashboardSmoke:
         Auth validation: GET /api/v1/dashboard-fresh requires authentication
         """
         
-        response = api_client.get("/api/v1/dashboard/dashboard-fresh")
+        response = api_client.get('/api/v1/dashboard/dashboard-fresh')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -141,7 +141,7 @@ class TestDashboardSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}", headers=headers)
+        response = api_client.get(f'/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestDashboardSmoke:
         Auth validation: GET /api/v1/dashboard/{spec_type} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}")
+        response = api_client.get(f'/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

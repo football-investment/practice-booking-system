@@ -28,7 +28,7 @@ class TestCertificatesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/certificates/analytics", headers=headers)
+        response = api_client.get('/api/v1/certificates/analytics', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestCertificatesSmoke:
         Auth validation: GET /api/v1/analytics requires authentication
         """
         
-        response = api_client.get("/api/v1/certificates/analytics")
+        response = api_client.get('/api/v1/certificates/analytics')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestCertificatesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/certificates/my", headers=headers)
+        response = api_client.get('/api/v1/certificates/my', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestCertificatesSmoke:
         Auth validation: GET /api/v1/my requires authentication
         """
         
-        response = api_client.get("/api/v1/certificates/my")
+        response = api_client.get('/api/v1/certificates/my')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -141,7 +141,7 @@ class TestCertificatesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/certificates/public/verify/{test_tournament["unique_identifier"]}", headers=headers)
+        response = api_client.get(f'/api/v1/certificates/public/verify/{test_tournament["unique_identifier"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -159,7 +159,7 @@ class TestCertificatesSmoke:
         Auth validation: GET /api/v1/public/verify/{unique_identifier} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/certificates/public/verify/{test_tournament["unique_identifier"]}")
+        response = api_client.get(f'/api/v1/certificates/public/verify/{test_tournament["unique_identifier"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -200,7 +200,7 @@ class TestCertificatesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/certificates/verify/{test_tournament["unique_identifier"]}", headers=headers)
+        response = api_client.get(f'/api/v1/certificates/verify/{test_tournament["unique_identifier"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestCertificatesSmoke:
         Auth validation: GET /api/v1/verify/{unique_identifier} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/certificates/verify/{test_tournament["unique_identifier"]}")
+        response = api_client.get(f'/api/v1/certificates/verify/{test_tournament["unique_identifier"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -259,7 +259,7 @@ class TestCertificatesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/certificates/{test_tournament["certificate_id"]}/download", headers=headers)
+        response = api_client.get(f'/api/v1/certificates/{test_tournament["certificate_id"]}/download', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -277,7 +277,7 @@ class TestCertificatesSmoke:
         Auth validation: GET /api/v1/{certificate_id}/download requires authentication
         """
         
-        response = api_client.get(f"/api/v1/certificates/{test_tournament["certificate_id"]}/download")
+        response = api_client.get(f'/api/v1/certificates/{test_tournament["certificate_id"]}/download')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -320,7 +320,7 @@ class TestCertificatesSmoke:
         
         # TODO: Add realistic payload for /api/v1/{certificate_id}/revoke
         payload = {}
-        response = api_client.post(f"/api/v1/certificates/{test_tournament["certificate_id"]}/revoke", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/certificates/{test_tournament["certificate_id"]}/revoke', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -338,7 +338,7 @@ class TestCertificatesSmoke:
         Auth validation: POST /api/v1/{certificate_id}/revoke requires authentication
         """
         
-        response = api_client.post(f"/api/v1/certificates/{test_tournament["certificate_id"]}/revoke", json={})
+        response = api_client.post(f'/api/v1/certificates/{test_tournament["certificate_id"]}/revoke', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -362,7 +362,7 @@ class TestCertificatesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/certificates/{test_tournament["certificate_id"]}/revoke",
+            f'/api/v1/certificates/{test_tournament["certificate_id"]}/revoke',
             json=invalid_payload,
             headers=headers
         )

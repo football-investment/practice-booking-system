@@ -29,7 +29,7 @@ class TestNotificationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/notifications/{test_tournament["notification_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/notifications/{test_tournament["notification_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestNotificationsSmoke:
         Auth validation: DELETE /api/v1/{notification_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/notifications/{test_tournament["notification_id"]}")
+        response = api_client.delete(f'/api/v1/notifications/{test_tournament["notification_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestNotificationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/notifications/me", headers=headers)
+        response = api_client.get('/api/v1/notifications/me', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestNotificationsSmoke:
         Auth validation: GET /api/v1/me requires authentication
         """
         
-        response = api_client.get("/api/v1/notifications/me")
+        response = api_client.get('/api/v1/notifications/me')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -145,7 +145,7 @@ class TestNotificationsSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/notifications/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/notifications/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -162,7 +162,7 @@ class TestNotificationsSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/notifications/", json={})
+        response = api_client.post('/api/v1/notifications/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -185,7 +185,7 @@ class TestNotificationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/notifications/",
+            '/api/v1/notifications/',
             json=invalid_payload,
             headers=headers
         )
@@ -212,7 +212,7 @@ class TestNotificationsSmoke:
 
         
         payload = {}
-        response = api_client.put("/api/v1/notifications/mark-all-read", json=payload, headers=headers)
+        response = api_client.put('/api/v1/notifications/mark-all-read', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -229,7 +229,7 @@ class TestNotificationsSmoke:
         Auth validation: PUT /api/v1/mark-all-read requires authentication
         """
         
-        response = api_client.put("/api/v1/notifications/mark-all-read", json={})
+        response = api_client.put('/api/v1/notifications/mark-all-read', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -252,7 +252,7 @@ class TestNotificationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            "/api/v1/notifications/mark-all-read",
+            '/api/v1/notifications/mark-all-read',
             json=invalid_payload,
             headers=headers
         )
@@ -279,7 +279,7 @@ class TestNotificationsSmoke:
 
         
         payload = {}
-        response = api_client.put("/api/v1/notifications/mark-read", json=payload, headers=headers)
+        response = api_client.put('/api/v1/notifications/mark-read', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -296,7 +296,7 @@ class TestNotificationsSmoke:
         Auth validation: PUT /api/v1/mark-read requires authentication
         """
         
-        response = api_client.put("/api/v1/notifications/mark-read", json={})
+        response = api_client.put('/api/v1/notifications/mark-read', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -319,7 +319,7 @@ class TestNotificationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            "/api/v1/notifications/mark-read",
+            '/api/v1/notifications/mark-read',
             json=invalid_payload,
             headers=headers
         )

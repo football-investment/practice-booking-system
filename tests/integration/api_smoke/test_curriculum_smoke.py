@@ -29,7 +29,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/exercise/{exercise_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}")
+        response = api_client.get(f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -88,7 +88,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submission", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submission', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -106,7 +106,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/exercise/{exercise_id}/submission requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submission")
+        response = api_client.get(f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submission')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -147,7 +147,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -165,7 +165,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/lesson/{lesson_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}")
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -206,7 +206,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/exercises", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/exercises', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -224,7 +224,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/lesson/{lesson_id}/exercises requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/exercises")
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/exercises')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -265,7 +265,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/modules", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/modules', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -283,7 +283,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/lesson/{lesson_id}/modules requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/modules")
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/modules')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -324,7 +324,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/progress", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/progress', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -342,7 +342,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/lesson/{lesson_id}/progress requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/progress")
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/progress')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -383,7 +383,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/quizzes", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/quizzes', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -401,7 +401,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/lesson/{lesson_id}/quizzes requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/quizzes")
+        response = api_client.get(f'/api/v1/curriculum/lesson/{test_tournament["lesson_id"]}/quizzes')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -442,7 +442,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/progress/{test_tournament["specialization_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/progress/{test_tournament["specialization_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -460,7 +460,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/progress/{specialization_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/progress/{test_tournament["specialization_id"]}")
+        response = api_client.get(f'/api/v1/curriculum/progress/{test_tournament["specialization_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -501,7 +501,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/track/{test_tournament["specialization_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/track/{test_tournament["specialization_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -519,7 +519,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/track/{specialization_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/track/{test_tournament["specialization_id"]}")
+        response = api_client.get(f'/api/v1/curriculum/track/{test_tournament["specialization_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -560,7 +560,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/curriculum/track/{test_tournament["specialization_id"]}/lessons", headers=headers)
+        response = api_client.get(f'/api/v1/curriculum/track/{test_tournament["specialization_id"]}/lessons', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -578,7 +578,7 @@ class TestCurriculumSmoke:
         Auth validation: GET /api/v1/track/{specialization_id}/lessons requires authentication
         """
         
-        response = api_client.get(f"/api/v1/curriculum/track/{test_tournament["specialization_id"]}/lessons")
+        response = api_client.get(f'/api/v1/curriculum/track/{test_tournament["specialization_id"]}/lessons')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -621,7 +621,7 @@ class TestCurriculumSmoke:
         
         # TODO: Add realistic payload for /api/v1/exercise/submission/{submission_id}/grade
         payload = {}
-        response = api_client.post(f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/grade", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/grade', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -639,7 +639,7 @@ class TestCurriculumSmoke:
         Auth validation: POST /api/v1/exercise/submission/{submission_id}/grade requires authentication
         """
         
-        response = api_client.post(f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/grade", json={})
+        response = api_client.post(f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/grade', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -663,7 +663,7 @@ class TestCurriculumSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/grade",
+            f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/grade',
             json=invalid_payload,
             headers=headers
         )
@@ -692,7 +692,7 @@ class TestCurriculumSmoke:
         
         # TODO: Add realistic payload for /api/v1/exercise/submission/{submission_id}/upload
         payload = {}
-        response = api_client.post(f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/upload", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/upload', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -710,7 +710,7 @@ class TestCurriculumSmoke:
         Auth validation: POST /api/v1/exercise/submission/{submission_id}/upload requires authentication
         """
         
-        response = api_client.post(f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/upload", json={})
+        response = api_client.post(f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/upload', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -734,7 +734,7 @@ class TestCurriculumSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/upload",
+            f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}/upload',
             json=invalid_payload,
             headers=headers
         )
@@ -763,7 +763,7 @@ class TestCurriculumSmoke:
         
         # TODO: Add realistic payload for /api/v1/exercise/{exercise_id}/submit
         payload = {}
-        response = api_client.post(f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submit", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submit', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -781,7 +781,7 @@ class TestCurriculumSmoke:
         Auth validation: POST /api/v1/exercise/{exercise_id}/submit requires authentication
         """
         
-        response = api_client.post(f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submit", json={})
+        response = api_client.post(f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submit', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -805,7 +805,7 @@ class TestCurriculumSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submit",
+            f'/api/v1/curriculum/exercise/{test_tournament["exercise_id"]}/submit',
             json=invalid_payload,
             headers=headers
         )
@@ -834,7 +834,7 @@ class TestCurriculumSmoke:
         
         # TODO: Add realistic payload for /api/v1/module/{module_id}/complete
         payload = {}
-        response = api_client.post(f"/api/v1/curriculum/module/{test_tournament["module_id"]}/complete", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/curriculum/module/{test_tournament["module_id"]}/complete', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -852,7 +852,7 @@ class TestCurriculumSmoke:
         Auth validation: POST /api/v1/module/{module_id}/complete requires authentication
         """
         
-        response = api_client.post(f"/api/v1/curriculum/module/{test_tournament["module_id"]}/complete", json={})
+        response = api_client.post(f'/api/v1/curriculum/module/{test_tournament["module_id"]}/complete', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -876,7 +876,7 @@ class TestCurriculumSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/curriculum/module/{test_tournament["module_id"]}/complete",
+            f'/api/v1/curriculum/module/{test_tournament["module_id"]}/complete',
             json=invalid_payload,
             headers=headers
         )
@@ -905,7 +905,7 @@ class TestCurriculumSmoke:
         
         # TODO: Add realistic payload for /api/v1/module/{module_id}/view
         payload = {}
-        response = api_client.post(f"/api/v1/curriculum/module/{test_tournament["module_id"]}/view", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/curriculum/module/{test_tournament["module_id"]}/view', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -923,7 +923,7 @@ class TestCurriculumSmoke:
         Auth validation: POST /api/v1/module/{module_id}/view requires authentication
         """
         
-        response = api_client.post(f"/api/v1/curriculum/module/{test_tournament["module_id"]}/view", json={})
+        response = api_client.post(f'/api/v1/curriculum/module/{test_tournament["module_id"]}/view', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -947,7 +947,7 @@ class TestCurriculumSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/curriculum/module/{test_tournament["module_id"]}/view",
+            f'/api/v1/curriculum/module/{test_tournament["module_id"]}/view',
             json=invalid_payload,
             headers=headers
         )
@@ -975,7 +975,7 @@ class TestCurriculumSmoke:
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -993,7 +993,7 @@ class TestCurriculumSmoke:
         Auth validation: PUT /api/v1/exercise/submission/{submission_id} requires authentication
         """
         
-        response = api_client.put(f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}", json={})
+        response = api_client.put(f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -1017,7 +1017,7 @@ class TestCurriculumSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}",
+            f'/api/v1/curriculum/exercise/submission/{test_tournament["submission_id"]}',
             json=invalid_payload,
             headers=headers
         )

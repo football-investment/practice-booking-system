@@ -29,7 +29,7 @@ class TestsemestersmainSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament["semester_id"]}", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["semester_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestsemestersmainSmoke:
         Auth validation: DELETE /api/v1/{semester_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament["semester_id"]}")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["semester_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestsemestersmainSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/tournaments/", headers=headers)
+        response = api_client.get('/api/v1/tournaments/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestsemestersmainSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/tournaments/")
+        response = api_client.get('/api/v1/tournaments/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestsemestersmainSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/tournaments/active", headers=headers)
+        response = api_client.get('/api/v1/tournaments/active', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestsemestersmainSmoke:
         Auth validation: GET /api/v1/active requires authentication
         """
         
-        response = api_client.get("/api/v1/tournaments/active")
+        response = api_client.get('/api/v1/tournaments/active')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -200,7 +200,7 @@ class TestsemestersmainSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament["semester_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["semester_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -218,7 +218,7 @@ class TestsemestersmainSmoke:
         Auth validation: GET /api/v1/{semester_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament["semester_id"]}")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["semester_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -260,7 +260,7 @@ class TestsemestersmainSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament["semester_id"]}", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["semester_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -278,7 +278,7 @@ class TestsemestersmainSmoke:
         Auth validation: PATCH /api/v1/{semester_id} requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament["semester_id"]}", json={})
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["semester_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -302,7 +302,7 @@ class TestsemestersmainSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/tournaments/{test_tournament["semester_id"]}",
+            f'/api/v1/tournaments/{test_tournament["semester_id"]}',
             json=invalid_payload,
             headers=headers
         )
@@ -330,7 +330,7 @@ class TestsemestersmainSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/tournaments/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/tournaments/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -347,7 +347,7 @@ class TestsemestersmainSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/tournaments/", json={})
+        response = api_client.post('/api/v1/tournaments/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -370,7 +370,7 @@ class TestsemestersmainSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/tournaments/",
+            '/api/v1/tournaments/',
             json=invalid_payload,
             headers=headers
         )

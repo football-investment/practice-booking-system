@@ -30,7 +30,7 @@ class TestLfaplayerroutesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -49,7 +49,7 @@ class TestLfaplayerroutesSmoke:
         Auth validation: GET /api/v1/instructor/students/{student_id}/skills-v2/{license_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}")
+        response = api_client.get(f'/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -94,7 +94,7 @@ class TestLfaplayerroutesSmoke:
         
         # TODO: Add realistic payload for /api/v1/instructor/students/{student_id}/skills-v2/{license_id}
         payload = {}
-        response = api_client.post(f"/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -113,7 +113,7 @@ class TestLfaplayerroutesSmoke:
         Auth validation: POST /api/v1/instructor/students/{student_id}/skills-v2/{license_id} requires authentication
         """
         
-        response = api_client.post(f"/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}", json={})
+        response = api_client.post(f'/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -138,7 +138,7 @@ class TestLfaplayerroutesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}",
+            f'/api/v1/lfa-player/instructor/students/{test_student_id}/skills-v2/{test_tournament["license_id"]}',
             json=invalid_payload,
             headers=headers
         )

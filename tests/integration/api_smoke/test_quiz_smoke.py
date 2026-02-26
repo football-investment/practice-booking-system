@@ -28,7 +28,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/quiz/admin/all", headers=headers)
+        response = api_client.get('/api/v1/quiz/admin/all', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/admin/all requires authentication
         """
         
-        response = api_client.get("/api/v1/quiz/admin/all")
+        response = api_client.get('/api/v1/quiz/admin/all')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -85,7 +85,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/quiz/admin/{test_tournament["quiz_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/quiz/admin/{test_tournament["quiz_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -103,7 +103,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/admin/{quiz_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/quiz/admin/{test_tournament["quiz_id"]}")
+        response = api_client.get(f'/api/v1/quiz/admin/{test_tournament["quiz_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/quiz/attempts/my", headers=headers)
+        response = api_client.get('/api/v1/quiz/attempts/my', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/attempts/my requires authentication
         """
         
-        response = api_client.get("/api/v1/quiz/attempts/my")
+        response = api_client.get('/api/v1/quiz/attempts/my')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -199,7 +199,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/quiz/available", headers=headers)
+        response = api_client.get('/api/v1/quiz/available', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -216,7 +216,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/available requires authentication
         """
         
-        response = api_client.get("/api/v1/quiz/available")
+        response = api_client.get('/api/v1/quiz/available')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -256,7 +256,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/quiz/category/{test_tournament["category"]}", headers=headers)
+        response = api_client.get(f'/api/v1/quiz/category/{test_tournament["category"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -274,7 +274,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/category/{category} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/quiz/category/{test_tournament["category"]}")
+        response = api_client.get(f'/api/v1/quiz/category/{test_tournament["category"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -314,7 +314,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/quiz/dashboard/overview", headers=headers)
+        response = api_client.get('/api/v1/quiz/dashboard/overview', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -331,7 +331,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/dashboard/overview requires authentication
         """
         
-        response = api_client.get("/api/v1/quiz/dashboard/overview")
+        response = api_client.get('/api/v1/quiz/dashboard/overview')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -371,7 +371,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/quiz/leaderboard/{test_tournament["quiz_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/quiz/leaderboard/{test_tournament["quiz_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -389,7 +389,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/leaderboard/{quiz_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/quiz/leaderboard/{test_tournament["quiz_id"]}")
+        response = api_client.get(f'/api/v1/quiz/leaderboard/{test_tournament["quiz_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -430,7 +430,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/take", headers=headers)
+        response = api_client.get(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/take', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -448,7 +448,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/quizzes/{quiz_id}/take requires authentication
         """
         
-        response = api_client.get(f"/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/take")
+        response = api_client.get(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/take')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -488,7 +488,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/quiz/statistics/my", headers=headers)
+        response = api_client.get('/api/v1/quiz/statistics/my', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -505,7 +505,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/statistics/my requires authentication
         """
         
-        response = api_client.get("/api/v1/quiz/statistics/my")
+        response = api_client.get('/api/v1/quiz/statistics/my')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -545,7 +545,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/quiz/statistics/{test_tournament["quiz_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/quiz/statistics/{test_tournament["quiz_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -563,7 +563,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/statistics/{quiz_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/quiz/statistics/{test_tournament["quiz_id"]}")
+        response = api_client.get(f'/api/v1/quiz/statistics/{test_tournament["quiz_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -604,7 +604,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/quiz/{test_tournament["quiz_id"]}", headers=headers)
+        response = api_client.get(f'/api/v1/quiz/{test_tournament["quiz_id"]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -622,7 +622,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/{quiz_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/quiz/{test_tournament["quiz_id"]}")
+        response = api_client.get(f'/api/v1/quiz/{test_tournament["quiz_id"]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -664,7 +664,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/quiz/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/quiz/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -681,7 +681,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/quiz/", json={})
+        response = api_client.post('/api/v1/quiz/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -704,7 +704,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/quiz/",
+            '/api/v1/quiz/',
             json=invalid_payload,
             headers=headers
         )
@@ -733,7 +733,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/quizzes/{quiz_id}/submit
         payload = {}
-        response = api_client.post(f"/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -751,7 +751,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/quizzes/{quiz_id}/submit requires authentication
         """
         
-        response = api_client.post(f"/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit", json={})
+        response = api_client.post(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -775,7 +775,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit",
+            f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit',
             json=invalid_payload,
             headers=headers
         )
@@ -804,7 +804,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/unlock-quiz
         payload = {}
-        response = api_client.post(f"/api/v1/quiz/sessions/{test_session_id}/unlock-quiz", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/quiz/sessions/{test_session_id}/unlock-quiz', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -822,7 +822,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/unlock-quiz requires authentication
         """
         
-        response = api_client.post(f"/api/v1/quiz/sessions/{test_session_id}/unlock-quiz", json={})
+        response = api_client.post(f'/api/v1/quiz/sessions/{test_session_id}/unlock-quiz', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -846,7 +846,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/quiz/sessions/{test_session_id}/unlock-quiz",
+            f'/api/v1/quiz/sessions/{test_session_id}/unlock-quiz',
             json=invalid_payload,
             headers=headers
         )
@@ -874,7 +874,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/start
         payload = {}
-        response = api_client.post("/api/v1/quiz/start", json=payload, headers=headers)
+        response = api_client.post('/api/v1/quiz/start', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -891,7 +891,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/start requires authentication
         """
         
-        response = api_client.post("/api/v1/quiz/start", json={})
+        response = api_client.post('/api/v1/quiz/start', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -914,7 +914,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/quiz/start",
+            '/api/v1/quiz/start',
             json=invalid_payload,
             headers=headers
         )
@@ -942,7 +942,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/submit
         payload = {}
-        response = api_client.post("/api/v1/quiz/submit", json=payload, headers=headers)
+        response = api_client.post('/api/v1/quiz/submit', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -959,7 +959,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/submit requires authentication
         """
         
-        response = api_client.post("/api/v1/quiz/submit", json={})
+        response = api_client.post('/api/v1/quiz/submit', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -982,7 +982,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/quiz/submit",
+            '/api/v1/quiz/submit',
             json=invalid_payload,
             headers=headers
         )

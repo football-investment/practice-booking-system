@@ -28,7 +28,7 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/onboarding/onboarding/start", headers=headers)
+        response = api_client.get('/api/v1/onboarding/onboarding/start', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestOnboardingSmoke:
         Auth validation: GET /api/v1/onboarding/start requires authentication
         """
         
-        response = api_client.get("/api/v1/onboarding/onboarding/start")
+        response = api_client.get('/api/v1/onboarding/onboarding/start')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding", headers=headers)
+        response = api_client.get('/api/v1/onboarding/specialization/lfa-player/onboarding', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestOnboardingSmoke:
         Auth validation: GET /api/v1/specialization/lfa-player/onboarding requires authentication
         """
         
-        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding")
+        response = api_client.get('/api/v1/onboarding/specialization/lfa-player/onboarding')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding-cancel", headers=headers)
+        response = api_client.get('/api/v1/onboarding/specialization/lfa-player/onboarding-cancel', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestOnboardingSmoke:
         Auth validation: GET /api/v1/specialization/lfa-player/onboarding-cancel requires authentication
         """
         
-        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding-cancel")
+        response = api_client.get('/api/v1/onboarding/specialization/lfa-player/onboarding-cancel')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/onboarding/specialization/select", headers=headers)
+        response = api_client.get('/api/v1/onboarding/specialization/select', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestOnboardingSmoke:
         Auth validation: GET /api/v1/specialization/select requires authentication
         """
         
-        response = api_client.get("/api/v1/onboarding/specialization/select")
+        response = api_client.get('/api/v1/onboarding/specialization/select')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -254,7 +254,7 @@ class TestOnboardingSmoke:
         
         # TODO: Add realistic payload for /api/v1/onboarding/set-birthdate
         payload = {}
-        response = api_client.post("/api/v1/onboarding/onboarding/set-birthdate", json=payload, headers=headers)
+        response = api_client.post('/api/v1/onboarding/onboarding/set-birthdate', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -271,7 +271,7 @@ class TestOnboardingSmoke:
         Auth validation: POST /api/v1/onboarding/set-birthdate requires authentication
         """
         
-        response = api_client.post("/api/v1/onboarding/onboarding/set-birthdate", json={})
+        response = api_client.post('/api/v1/onboarding/onboarding/set-birthdate', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -294,7 +294,7 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/onboarding/onboarding/set-birthdate",
+            '/api/v1/onboarding/onboarding/set-birthdate',
             json=invalid_payload,
             headers=headers
         )
@@ -322,7 +322,7 @@ class TestOnboardingSmoke:
         
         # TODO: Add realistic payload for /api/v1/specialization/lfa-player/onboarding-submit
         payload = {}
-        response = api_client.post("/api/v1/onboarding/specialization/lfa-player/onboarding-submit", json=payload, headers=headers)
+        response = api_client.post('/api/v1/onboarding/specialization/lfa-player/onboarding-submit', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -339,7 +339,7 @@ class TestOnboardingSmoke:
         Auth validation: POST /api/v1/specialization/lfa-player/onboarding-submit requires authentication
         """
         
-        response = api_client.post("/api/v1/onboarding/specialization/lfa-player/onboarding-submit", json={})
+        response = api_client.post('/api/v1/onboarding/specialization/lfa-player/onboarding-submit', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -362,7 +362,7 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/onboarding/specialization/lfa-player/onboarding-submit",
+            '/api/v1/onboarding/specialization/lfa-player/onboarding-submit',
             json=invalid_payload,
             headers=headers
         )
@@ -390,7 +390,7 @@ class TestOnboardingSmoke:
         
         # TODO: Add realistic payload for /api/v1/specialization/select
         payload = {}
-        response = api_client.post("/api/v1/onboarding/specialization/select", json=payload, headers=headers)
+        response = api_client.post('/api/v1/onboarding/specialization/select', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -407,7 +407,7 @@ class TestOnboardingSmoke:
         Auth validation: POST /api/v1/specialization/select requires authentication
         """
         
-        response = api_client.post("/api/v1/onboarding/specialization/select", json={})
+        response = api_client.post('/api/v1/onboarding/specialization/select', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -430,7 +430,7 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/onboarding/specialization/select",
+            '/api/v1/onboarding/specialization/select',
             json=invalid_payload,
             headers=headers
         )

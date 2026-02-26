@@ -28,7 +28,7 @@ class TestAnalyticsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/analytics/attendance", headers=headers)
+        response = api_client.get('/api/v1/analytics/attendance', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -45,7 +45,7 @@ class TestAnalyticsSmoke:
         Auth validation: GET /api/v1/attendance requires authentication
         """
         
-        response = api_client.get("/api/v1/analytics/attendance")
+        response = api_client.get('/api/v1/analytics/attendance')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -84,7 +84,7 @@ class TestAnalyticsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/analytics/bookings", headers=headers)
+        response = api_client.get('/api/v1/analytics/bookings', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -101,7 +101,7 @@ class TestAnalyticsSmoke:
         Auth validation: GET /api/v1/bookings requires authentication
         """
         
-        response = api_client.get("/api/v1/analytics/bookings")
+        response = api_client.get('/api/v1/analytics/bookings')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -140,7 +140,7 @@ class TestAnalyticsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/analytics/metrics", headers=headers)
+        response = api_client.get('/api/v1/analytics/metrics', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -157,7 +157,7 @@ class TestAnalyticsSmoke:
         Auth validation: GET /api/v1/metrics requires authentication
         """
         
-        response = api_client.get("/api/v1/analytics/metrics")
+        response = api_client.get('/api/v1/analytics/metrics')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -196,7 +196,7 @@ class TestAnalyticsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/analytics/users", headers=headers)
+        response = api_client.get('/api/v1/analytics/users', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -213,7 +213,7 @@ class TestAnalyticsSmoke:
         Auth validation: GET /api/v1/users requires authentication
         """
         
-        response = api_client.get("/api/v1/analytics/users")
+        response = api_client.get('/api/v1/analytics/users')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -252,7 +252,7 @@ class TestAnalyticsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/analytics/utilization", headers=headers)
+        response = api_client.get('/api/v1/analytics/utilization', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -269,7 +269,7 @@ class TestAnalyticsSmoke:
         Auth validation: GET /api/v1/utilization requires authentication
         """
         
-        response = api_client.get("/api/v1/analytics/utilization")
+        response = api_client.get('/api/v1/analytics/utilization')
         
 
         # Should return 401 Unauthorized or 403 Forbidden

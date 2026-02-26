@@ -29,7 +29,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/bookings/{test_tournament["session_ids"][0]}", headers=headers)
+        response = api_client.delete(f'/api/v1/bookings/{test_tournament["session_ids"][0]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -47,7 +47,7 @@ class TestBookingsSmoke:
         Auth validation: DELETE /api/v1/{booking_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/bookings/{test_tournament["session_ids"][0]}")
+        response = api_client.delete(f'/api/v1/bookings/{test_tournament["session_ids"][0]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -87,7 +87,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/bookings/", headers=headers)
+        response = api_client.get('/api/v1/bookings/', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -104,7 +104,7 @@ class TestBookingsSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/api/v1/bookings/")
+        response = api_client.get('/api/v1/bookings/')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -143,7 +143,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/bookings/me", headers=headers)
+        response = api_client.get('/api/v1/bookings/me', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -160,7 +160,7 @@ class TestBookingsSmoke:
         Auth validation: GET /api/v1/me requires authentication
         """
         
-        response = api_client.get("/api/v1/bookings/me")
+        response = api_client.get('/api/v1/bookings/me')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -199,7 +199,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/api/v1/bookings/my-stats", headers=headers)
+        response = api_client.get('/api/v1/bookings/my-stats', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -216,7 +216,7 @@ class TestBookingsSmoke:
         Auth validation: GET /api/v1/my-stats requires authentication
         """
         
-        response = api_client.get("/api/v1/bookings/my-stats")
+        response = api_client.get('/api/v1/bookings/my-stats')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -256,7 +256,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/bookings/{test_tournament["session_ids"][0]}", headers=headers)
+        response = api_client.get(f'/api/v1/bookings/{test_tournament["session_ids"][0]}', headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -274,7 +274,7 @@ class TestBookingsSmoke:
         Auth validation: GET /api/v1/{booking_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/bookings/{test_tournament["session_ids"][0]}")
+        response = api_client.get(f'/api/v1/bookings/{test_tournament["session_ids"][0]}')
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -316,7 +316,7 @@ class TestBookingsSmoke:
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/bookings/{test_tournament["session_ids"][0]}/attendance", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/bookings/{test_tournament["session_ids"][0]}/attendance', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -334,7 +334,7 @@ class TestBookingsSmoke:
         Auth validation: PATCH /api/v1/{booking_id}/attendance requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/bookings/{test_tournament["session_ids"][0]}/attendance", json={})
+        response = api_client.patch(f'/api/v1/bookings/{test_tournament["session_ids"][0]}/attendance', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -358,7 +358,7 @@ class TestBookingsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/bookings/{test_tournament["session_ids"][0]}/attendance",
+            f'/api/v1/bookings/{test_tournament["session_ids"][0]}/attendance',
             json=invalid_payload,
             headers=headers
         )
@@ -386,7 +386,7 @@ class TestBookingsSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/api/v1/bookings/", json=payload, headers=headers)
+        response = api_client.post('/api/v1/bookings/', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -403,7 +403,7 @@ class TestBookingsSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/api/v1/bookings/", json={})
+        response = api_client.post('/api/v1/bookings/', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -426,7 +426,7 @@ class TestBookingsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/api/v1/bookings/",
+            '/api/v1/bookings/',
             json=invalid_payload,
             headers=headers
         )
@@ -455,7 +455,7 @@ class TestBookingsSmoke:
         
         # TODO: Add realistic payload for /api/v1/{booking_id}/cancel
         payload = {}
-        response = api_client.post(f"/api/v1/bookings/{test_tournament["session_ids"][0]}/cancel", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/bookings/{test_tournament["session_ids"][0]}/cancel', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -473,7 +473,7 @@ class TestBookingsSmoke:
         Auth validation: POST /api/v1/{booking_id}/cancel requires authentication
         """
         
-        response = api_client.post(f"/api/v1/bookings/{test_tournament["session_ids"][0]}/cancel", json={})
+        response = api_client.post(f'/api/v1/bookings/{test_tournament["session_ids"][0]}/cancel', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -497,7 +497,7 @@ class TestBookingsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/bookings/{test_tournament["session_ids"][0]}/cancel",
+            f'/api/v1/bookings/{test_tournament["session_ids"][0]}/cancel',
             json=invalid_payload,
             headers=headers
         )
@@ -526,7 +526,7 @@ class TestBookingsSmoke:
         
         # TODO: Add realistic payload for /api/v1/{booking_id}/confirm
         payload = {}
-        response = api_client.post(f"/api/v1/bookings/{test_tournament["session_ids"][0]}/confirm", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/bookings/{test_tournament["session_ids"][0]}/confirm', json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -544,7 +544,7 @@ class TestBookingsSmoke:
         Auth validation: POST /api/v1/{booking_id}/confirm requires authentication
         """
         
-        response = api_client.post(f"/api/v1/bookings/{test_tournament["session_ids"][0]}/confirm", json={})
+        response = api_client.post(f'/api/v1/bookings/{test_tournament["session_ids"][0]}/confirm', json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
@@ -568,7 +568,7 @@ class TestBookingsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/bookings/{test_tournament["session_ids"][0]}/confirm",
+            f'/api/v1/bookings/{test_tournament["session_ids"][0]}/confirm',
             json=invalid_payload,
             headers=headers
         )
