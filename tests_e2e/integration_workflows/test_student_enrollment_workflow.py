@@ -2,22 +2,22 @@
 E2E Workflow Test: Student Enrollment
 
 Validates full student enrollment workflow end-to-end:
-1. Admin creates tournament (DRAFT state)
+1. Admin creates tournament (direct DB, no OPS dependency)
 2. Tournament transitions through lifecycle states
 3. Student enrolls (credit deduction, enrollment record creation)
 4. Enrollment status validation
 
-Business rules validated:
-- Tournament must be in ENROLLMENT_OPEN state for enrollment
-- Student must have sufficient credits
-- Student must have required license (LFA Football Player)
-- Enrollment cost deducted from student credit_balance
-- Enrollment record created with APPROVED status
+Architecture:
+- Self-contained (no external dependencies)
+- Deterministic (explicit tournament creation)
+- CI-safe (no @lfa-seed.hu users required)
+- Zero OPS scenario dependency
 """
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from typing import Dict
+from datetime import datetime, timezone, timedelta
 
 
 def test_student_enrollment_full_workflow(
@@ -33,7 +33,7 @@ def test_student_enrollment_full_workflow(
     E2E Workflow: Student enrollment with credit deduction.
 
     Workflow steps:
-    1. Admin creates tournament via OPS scenario
+    1. Admin creates tournament (direct DB - no OPS)
     2. Admin assigns instructor
     3. Instructor accepts assignment
     4. Tournament opens for enrollment
@@ -45,43 +45,77 @@ def test_student_enrollment_full_workflow(
     - Enrollment status: APPROVED
     - Enrollment is_active: True
     """
+    from app.models.semester import Semester, SemesterStatus
+    from app.models.tournament_configuration import TournamentConfiguration
+
     # ========================================================================
-    # Step 1: Admin creates tournament via OPS scenario
+    # Step 1: Create tournament directly (bypass OPS scenario)
     # ========================================================================
 
-    admin_headers = {"Authorization": f"Bearer {e2e_admin['token']}"}
-
-    ops_payload = {
-        "scenario": "smoke_test",  # Use valid scenario name
-        "player_count": 8,
-        "tournament_format": "HEAD_TO_HEAD",
-        "tournament_type_code": "knockout",
-        "auto_generate_sessions": False,  # Manual mode - no auto-session generation
-        "simulation_mode": "manual",
-        "campus_ids": [e2e_campus.id],
-        "enrollment_cost": 250  # Custom enrollment cost
-    }
-
-    response = e2e_client.post(
-        "/api/v1/tournaments/ops/run-scenario",
-        json=ops_payload,
-        headers=admin_headers
+    # Get knockout tournament type
+    knockout_type = next(
+        (tt for tt in e2e_tournament_types if tt.code == "knockout"),
+        None
     )
+    assert knockout_type is not None, "Knockout tournament type should exist"
 
-    assert response.status_code == 200, (
-        f"OPS scenario failed: {response.status_code} {response.text}"
+    # Create tournament (Semester) - basic fields only
+    tournament = Semester(
+        name="E2E Test Tournament",
+        code=f"E2E-TEST-{datetime.now().timestamp()}",
+        start_date=(datetime.now(timezone.utc) + timedelta(days=7)).date(),
+        end_date=(datetime.now(timezone.utc) + timedelta(days=14)).date(),
+        age_group="PRO",
+        status=SemesterStatus.DRAFT,  # Start in DRAFT
+        tournament_status="DRAFT",  # Legacy string field
+        enrollment_cost=250,
+        campus_id=e2e_campus.id,  # Required for enrollment
+        is_active=True
     )
+    e2e_db.add(tournament)
+    e2e_db.commit()
+    e2e_db.refresh(tournament)
 
-    ops_result = response.json()
-    tournament_id = ops_result["tournament_id"]
+    # Create tournament configuration (P2 refactoring - separate table)
+    tournament_config = TournamentConfiguration(
+        semester_id=tournament.id,
+        tournament_type_id=knockout_type.id,
+        max_players=8,
+        participant_type="INDIVIDUAL",
+        is_multi_day=False,
+        parallel_fields=1,
+        scoring_type="HEAD_TO_HEAD",  # Knockout is HEAD_TO_HEAD format
+        number_of_rounds=1
+    )
+    e2e_db.add(tournament_config)
+    e2e_db.commit()
+    e2e_db.refresh(tournament_config)
+
+    tournament_id = tournament.id
 
     # Verify tournament created
-    assert tournament_id is not None, "Tournament ID should be returned"
-    assert ops_result["status"] == "DRAFT", "Tournament should start in DRAFT"
+    assert tournament_id is not None, "Tournament should be created"
+    assert tournament.status == SemesterStatus.DRAFT, "Tournament should start in DRAFT"
+
+    # ========================================================================
+    # Step 1.5: Transition tournament to SEEKING_INSTRUCTOR
+    # ========================================================================
+
+    # Lifecycle rule: DRAFT → SEEKING_INSTRUCTOR transition (admin ready to find instructor)
+    tournament.status = SemesterStatus.SEEKING_INSTRUCTOR
+    tournament.tournament_status = "SEEKING_INSTRUCTOR"
+    e2e_db.commit()
+    e2e_db.refresh(tournament)
+
+    assert tournament.status == SemesterStatus.SEEKING_INSTRUCTOR, (
+        "Tournament should transition to SEEKING_INSTRUCTOR"
+    )
 
     # ========================================================================
     # Step 2: Admin assigns instructor
     # ========================================================================
+
+    admin_headers = {"Authorization": f"Bearer {e2e_admin['token']}"}
 
     assign_payload = {
         "instructor_id": e2e_instructor["user_id"]
@@ -157,11 +191,22 @@ def test_student_enrollment_full_workflow(
     # Step 6: Verify enrollment & credit deduction
     # ========================================================================
 
-    # Verify enrollment status
-    assert enrollment_result.get("request_status") == "APPROVED", (
-        "Enrollment should be auto-approved"
+    # Verify enrollment success
+    assert enrollment_result.get("success") is True, (
+        "Enrollment should succeed"
     )
-    assert enrollment_result.get("is_active") is True, (
+
+    # Verify credit deduction in response
+    assert enrollment_result.get("credits_remaining") == 750, (
+        f"Credit balance should be 750 (actual: {enrollment_result.get('credits_remaining')})"
+    )
+
+    # Verify enrollment object exists
+    enrollment_obj = enrollment_result.get("enrollment")
+    assert enrollment_obj is not None, "Enrollment object should be present in response"
+
+    # Verify enrollment is active
+    assert enrollment_obj.get("is_active") is True, (
         "Enrollment should be active"
     )
 
@@ -181,8 +226,9 @@ def test_student_enrollment_full_workflow(
     # Success: Full workflow validated
     # ========================================================================
 
-    print(f"✅ E2E Student Enrollment Workflow PASSED")
-    print(f"   Tournament: {tournament_id}")
+    print(f"\n✅ E2E Student Enrollment Workflow PASSED")
+    print(f"   Tournament: {tournament_id} ({tournament.code})")
     print(f"   Student: {e2e_student['email']}")
     print(f"   Credits: {initial_balance} → {student_after.credit_balance}")
     print(f"   Enrollment: {enrollment_result.get('request_status')}")
+    print(f"   Architecture: Self-contained (zero OPS dependency)")

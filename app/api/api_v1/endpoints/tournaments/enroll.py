@@ -82,9 +82,9 @@ def enroll_in_tournament(
         )
 
     # 2. Verify tournament status (check tournament_status field, NOT the old status field)
-    # Only READY_FOR_ENROLLMENT and ONGOING allow enrollment
+    # Only READY_FOR_ENROLLMENT, ENROLLMENT_OPEN, and ONGOING allow enrollment
     # ENROLLMENT_CLOSED does NOT allow new enrollments (enrollment period ended)
-    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "ONGOING"]:
+    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "ENROLLMENT_OPEN", "ONGOING"]:
         # Audit enrollment failure for observability
         audit_service = AuditService(db)
         audit_service.log(
