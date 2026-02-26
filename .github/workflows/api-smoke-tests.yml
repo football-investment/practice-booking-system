@@ -83,7 +83,8 @@ jobs:
             -v \
             --tb=short \
             --timeout=10 \
-            --durations=20
+            --durations=20 \
+            --maxfail=0
 
       - name: Run smoke tests (parallel - performance validation)
         id: parallel_tests
