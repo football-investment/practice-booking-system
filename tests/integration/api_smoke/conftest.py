@@ -21,6 +21,7 @@ from app.models.location import Location
 from app.models.specialization import SpecializationType
 from app.models.license import UserLicense
 from app.models.tournament_achievement import TournamentSkillMapping
+from app.models.tournament_type import TournamentType
 from app.core.security import get_password_hash
 
 
@@ -41,7 +42,67 @@ def test_db():
 
 
 @pytest.fixture(scope="module")
-def admin_token(test_db: Session):
+def ensure_tournament_types(test_db: Session):
+    """
+    Ensure core TournamentType records exist (query-first, create-if-not-exists fallback).
+    Pattern: Infrastructure fixture for smoke tests.
+    """
+    tournament_types_config = [
+        {
+            "code": "knockout",
+            "display_name": "Single Elimination (Knockout)",
+            "description": "Single elimination tournament",
+            "min_players": 4,
+            "max_players": 64,
+            "requires_power_of_two": True,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {"type": "knockout", "elimination": "single"}
+        },
+        {
+            "code": "league",
+            "display_name": "League (Round Robin)",
+            "description": "Round robin league format",
+            "min_players": 3,
+            "max_players": None,
+            "requires_power_of_two": False,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {"type": "league", "rounds": "full_round_robin"}
+        },
+        {
+            "code": "hybrid",
+            "display_name": "Hybrid (Group + Knockout)",
+            "description": "Group stage followed by knockout",
+            "min_players": 8,
+            "max_players": 64,
+            "requires_power_of_two": False,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {"type": "hybrid", "group_size": 4, "knockout_qualifiers": 2}
+        }
+    ]
+
+    for tt_config in tournament_types_config:
+        # Query first
+        existing = test_db.query(TournamentType).filter(
+            TournamentType.code == tt_config["code"]
+        ).first()
+
+        # Create if not exists
+        if not existing:
+            tournament_type = TournamentType(**tt_config)
+            test_db.add(tournament_type)
+
+    test_db.commit()
+    return True
+
+
+@pytest.fixture(scope="module")
+def admin_token(test_db: Session, ensure_tournament_types):
     """Admin user authentication token"""
     # Check if admin exists
     admin = test_db.query(User).filter(User.email == "smoke.admin@generated.test").first()
@@ -66,7 +127,7 @@ def admin_token(test_db: Session):
 
 @pytest.fixture(scope="module")
 def student_token(test_db: Session):
-    """Student user authentication token"""
+    """Student user authentication token with LFA Football Player license"""
     student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
 
     if not student:
@@ -75,11 +136,30 @@ def student_token(test_db: Session):
             email="smoke.student@generated.test",
             password_hash=get_password_hash("student123"),
             role=UserRole.STUDENT,
-            is_active=True
+            is_active=True,
+            credit_balance=1000  # Add credits for enrollment tests
         )
         test_db.add(student)
         test_db.commit()
         test_db.refresh(student)
+
+    # Ensure student has LFA Football Player license (required for enrollment)
+    existing_license = test_db.query(UserLicense).filter(
+        UserLicense.user_id == student.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
+    ).first()
+
+    if not existing_license:
+        license = UserLicense(
+            user_id=student.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            current_level=1,  # Basic level sufficient for student enrollment
+            max_achieved_level=1,
+            started_at=datetime.now(timezone.utc),
+            is_active=True
+        )
+        test_db.add(license)
+        test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
