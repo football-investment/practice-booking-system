@@ -87,19 +87,16 @@ def e2e_tournament_types(test_db: Session) -> List[TournamentType]:
             "code": "knockout",
             "display_name": "Single Elimination (Knockout)",
             "description": "Single elimination bracket tournament",
-            "is_active": True
         },
         {
             "code": "league",
             "display_name": "League (Round Robin)",
             "description": "Round-robin league format",
-            "is_active": True
         },
         {
             "code": "hybrid",
             "display_name": "Hybrid (Group + Knockout)",
             "description": "Group stage followed by knockout",
-            "is_active": True
         }
     ]
 
