@@ -482,7 +482,14 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
             CampusScheduleConfig.tournament_id == tournament.id
         ).delete(synchronize_session=False)
 
-        # 5. Delete tournament (parent entity)
+        # 5. Delete tournament status history (FK: tournament_id → semesters.id)
+        # Phase 1.2 Fix: Added cleanup for status transition history
+        from app.models.tournament_status_history import TournamentStatusHistory
+        test_db.query(TournamentStatusHistory).filter(
+            TournamentStatusHistory.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 6. Delete tournament (parent entity)
         test_db.query(Semester).filter(
             Semester.id == tournament.id
         ).delete(synchronize_session=False)

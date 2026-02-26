@@ -1804,9 +1804,10 @@ class TestTournamentsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Phase 1: Generate schema-compliant payload
-        payload = payload_factory.create_payload('PATCH', '/api/v1/tournaments/{test_tournament[tournament_id]}/status', {'tournament_id': test_tournament['tournament_id'], 'tournament_id': test_tournament['tournament_id']})
+
+        # Phase 1.2 Pattern 2 Fix: Use valid DRAFT → CANCELLED transition (smoke test)
+        # PayloadFactory generates invalid DRAFT → ENROLLMENT_OPEN
+        payload = {"new_status": "CANCELLED"}  # Valid transition from DRAFT, no prerequisites
         response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/status", json=payload, headers=headers)
         
 
