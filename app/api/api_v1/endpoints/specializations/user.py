@@ -15,6 +15,7 @@ from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.specialization import SpecializationType
 from .....services.specialization_service import SpecializationService
+from .....services.specialization_config_loader import SpecializationConfigLoader
 
 router = APIRouter()
 

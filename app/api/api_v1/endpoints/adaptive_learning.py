@@ -8,6 +8,7 @@ from ....database import get_db
 from ....dependencies import get_current_user
 from ....models.user import User
 from ....models.quiz import QuizCategory, QuestionType, Quiz, QuizQuestion
+from ....models.adaptive_learning import AdaptiveLearningSession
 from ....services.adaptive_learning import AdaptiveLearningService
 
 router = APIRouter()
