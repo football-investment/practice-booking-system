@@ -84,11 +84,11 @@ jobs:
 
       - name: Run Phase 1.1 Pattern 4 Fixes (5 tests)
         run: |
-          pytest tests/integration/api_smoke/test_tournaments_smoke.py::test_get_generation_status_happy_path \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_get_generation_status_not_found \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_list_tournament_rounds_happy_path \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_list_tournament_rounds_not_found \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_get_reward_policy_details_happy_path \
+          pytest tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_happy_path \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_happy_path \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_auth_required \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_rounds_status_happy_path \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_rounds_status_auth_required \
             -v \
             --tb=short \
             --timeout=10 \
@@ -96,19 +96,19 @@ jobs:
 
       - name: Run Phase 1.2 Pattern 2 Fix (1 test)
         run: |
-          pytest tests/integration/api_smoke/test_tournaments_smoke.py::test_transition_tournament_status_happy_path \
+          pytest tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_transition_tournament_status_happy_path \
             -v \
             --tb=short \
             --timeout=10
 
       - name: Run Phase 1 Fixes - Parallel Mode (stability check)
         run: |
-          pytest tests/integration/api_smoke/test_tournaments_smoke.py::test_get_generation_status_happy_path \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_get_generation_status_not_found \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_list_tournament_rounds_happy_path \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_list_tournament_rounds_not_found \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_get_reward_policy_details_happy_path \
-                 tests/integration/api_smoke/test_tournaments_smoke.py::test_transition_tournament_status_happy_path \
+          pytest tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_happy_path \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_happy_path \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_auth_required \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_rounds_status_happy_path \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_rounds_status_auth_required \
+                 tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_transition_tournament_status_happy_path \
             -n auto \
             -v \
             --tb=line
