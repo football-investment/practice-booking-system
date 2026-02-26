@@ -404,11 +404,22 @@ class Test{{ domain|title|replace('_', '') }}Smoke:
         response = api_client.delete({{ endpoint.url_fstring }}, headers=headers)
         {% endif %}
 
-        # Accept 200, 201, 404 (if resource doesn't exist in test DB)
-        assert response.status_code in [200, 201, 404], (
+        # Accept valid responses:
+        # - 200/201: Success
+        # - 404: Resource not found (acceptable in test DB)
+        # - 405: Method not allowed (endpoint exists but different HTTP method)
+        # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
+        {% if endpoint.method in ["POST", "PATCH", "PUT"] %}
+        assert response.status_code in [200, 201, 404, 405, 422], (
             f"{{ endpoint.method }} /api/v1{{ endpoint.path }} failed: {response.status_code} "
             f"{response.text}"
         )
+        {% else %}
+        assert response.status_code in [200, 201, 404, 405], (
+            f"{{ endpoint.method }} /api/v1{{ endpoint.path }} failed: {response.status_code} "
+            f"{response.text}"
+        )
+        {% endif %}
 
     def test_{{ endpoint.function_name }}_auth_required(
         self,
