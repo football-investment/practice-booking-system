@@ -268,10 +268,11 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
 
     Creates a complete tournament with minimal viable state:
     - Tournament entity (Semester)
+    - TournamentConfiguration (P2 refactoring - separate table)
     - Campus schedule config
     - Reward config
-    - 2 Students with PLAYER licenses
-    - 2 Enrollments (APPROVED, is_active=True)
+    - 4 Students with PLAYER licenses (Phase 2.1: increased from 2 to meet min_players=4)
+    - 4 Enrollments (APPROVED, is_active=True)
     - 1 Session (tournament_round=1)
 
     Note: MatchStructure/MatchResult not included (tables don't exist in DB).
@@ -297,6 +298,8 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     from app.models.license import UserLicense
     from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
     from app.models.session import Session as SessionModel
+    from app.models.tournament_configuration import TournamentConfiguration
+    from app.models.tournament_type import TournamentType
 
     # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
     unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
@@ -318,6 +321,51 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     test_db.commit()
     test_db.refresh(tournament)
 
+    # Phase 2.1 Fix: Create TournamentConfiguration (P2 refactoring - separate table)
+    # Required for preview-sessions endpoint (checks tournament.tournament_config_obj.tournament_type_id)
+    # Query-first for existing TournamentType (knockout)
+    tournament_type = test_db.query(TournamentType).filter(
+        TournamentType.code == "knockout"
+    ).first()
+
+    if not tournament_type:
+        # Create minimal knockout type if none exists
+        tournament_type = TournamentType(
+            code="knockout",
+            display_name="Single Elimination (Knockout)",
+            description="Single elimination bracket tournament",
+            min_players=4,
+            max_players=1024,
+            requires_power_of_two=True,
+            session_duration_minutes=90,
+            break_between_sessions_minutes=15,
+            format="HEAD_TO_HEAD",
+            config={
+                "code": "knockout",
+                "display_name": "Single Elimination (Knockout)",
+                "format": "HEAD_TO_HEAD",
+                "min_players": 4,
+                "requires_power_of_two": True,
+                "matches_calculation": "n - 1"
+            }
+        )
+        test_db.add(tournament_type)
+        test_db.commit()
+        test_db.refresh(tournament_type)
+
+    tournament_config = TournamentConfiguration(
+        semester_id=tournament.id,
+        tournament_type_id=tournament_type.id,
+        max_players=16,
+        participant_type="INDIVIDUAL",
+        is_multi_day=False,
+        parallel_fields=1,
+        scoring_type="HEAD_TO_HEAD",
+        number_of_rounds=3
+    )
+    test_db.add(tournament_config)
+    test_db.commit()
+
     # Add campus schedule config (minimal valid configuration)
     campus_schedule = CampusScheduleConfig(
         tournament_id=tournament.id,
@@ -338,29 +386,33 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
 
     test_db.commit()
 
-    # ── 4. Create 2 Students with PLAYER Licenses ──────────────────────
+    # ── 4. Create 4 Students with PLAYER Licenses ──────────────────────
+    # Phase 2.1 Fix: Increased from 2 to 4 students (min_players requirement)
     # Get student 1 (created by student_token fixture)
     student1 = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
 
-    # Create student 2
-    student2_email = f"smoke.student2.{unique_id}@generated.test"
-    student2 = test_db.query(User).filter(User.email == student2_email).first()
-    if not student2:
-        student2 = User(
-            name="Smoke Test Student 2",
-            email=student2_email,
-            password_hash=get_password_hash("student123"),
-            role=UserRole.STUDENT,
-            is_active=True,
-            credit_balance=1000
-        )
-        test_db.add(student2)
-        test_db.commit()
-        test_db.refresh(student2)
+    # Create students 2-4
+    students = [student1]
+    for i in range(2, 5):  # Create students 2, 3, 4
+        student_email = f"smoke.student{i}.{unique_id}@generated.test"
+        student = test_db.query(User).filter(User.email == student_email).first()
+        if not student:
+            student = User(
+                name=f"Smoke Test Student {i}",
+                email=student_email,
+                password_hash=get_password_hash("student123"),
+                role=UserRole.STUDENT,
+                is_active=True,
+                credit_balance=1000
+            )
+            test_db.add(student)
+            test_db.commit()
+            test_db.refresh(student)
+        students.append(student)
 
-    # Create UserLicense + Enrollment for both students
+    # Create UserLicense + Enrollment for all 4 students
     enrolled_student_ids = []
-    for student in [student1, student2]:
+    for student in students:
         # Check if PLAYER license exists
         user_license = test_db.query(UserLicense).filter(
             UserLicense.user_id == student.id,
@@ -404,11 +456,14 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     # Phase D.1: Build rounds_data with round_results for calculate-rankings API
     # INDIVIDUAL_RANKING tournaments use rounds_data.round_results (not game_results)
     # Format: {"round_number": {"user_id": "measured_value"}} - ALL STRINGS!
+    # Phase 2.1: Updated to include all 4 students (min_players requirement)
     rounds_data = {
         "round_results": {
             "1": {  # Round number as string ("1", not "round_1")
                 str(enrolled_student_ids[0]): "100",  # Student 1: 100 points (STRING!)
-                str(enrolled_student_ids[1]): "85"    # Student 2: 85 points (STRING!)
+                str(enrolled_student_ids[1]): "85",   # Student 2: 85 points (STRING!)
+                str(enrolled_student_ids[2]): "75",   # Student 3: 75 points (STRING!)
+                str(enrolled_student_ids[3]): "60"    # Student 4: 60 points (STRING!)
             }
         }
     }
@@ -482,6 +537,12 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         # 4. Delete campus schedule config (FK: tournament_id → semesters.id)
         test_db.query(CampusScheduleConfig).filter(
             CampusScheduleConfig.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 4.5. Delete tournament configuration (FK: semester_id → semesters.id)
+        # Phase 2.1 Fix: Added cleanup for TournamentConfiguration
+        test_db.query(TournamentConfiguration).filter(
+            TournamentConfiguration.semester_id == tournament.id
         ).delete(synchronize_session=False)
 
         # 5. Delete tournament status history (FK: tournament_id → semesters.id)
