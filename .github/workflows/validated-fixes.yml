@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.13"
+  PYTHON_VERSION: "3.11"  # Must match api-smoke-tests.yml (psycopg2-binary 2.9.9 not compatible with 3.13)
   POSTGRES_VERSION: "14"
 
 jobs:
