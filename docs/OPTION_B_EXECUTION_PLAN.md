@@ -92,11 +92,30 @@ tests_e2e/integration_workflows/      (E2E Suite - Workflow Validation)
 
 **Stop Rule**: If lifecycle setup becomes complex cascade, **STOP** and move to Phase 2 (E2E migration).
 
+**ACTUALS (2026-02-26)**:
+- ✅ **Result**: 31F → 30F (+1 PASS, 14%)
+- ✅ **Tests Fixed**: 1/7 (14%)
+  - #8: test_transition_tournament_status_happy_path → DRAFT→CANCELLED transition ✅
+- ⚠️ **CASCADE STOP**: 6/7 tests (86%)
+  - #9-10: Instructor accept/decline → Requires PENDING_INSTRUCTOR_ACCEPTANCE + assignment
+  - #11-14: Approve/decline application → Requires SEEKING_INSTRUCTOR + sessions infrastructure
+  - Root cause: All need TournamentType, GamePreset, multi-step lifecycle (CASCADE)
+- **Pattern 2 Taxonomy Correction**: 14% simple lifecycle, 86% cascade overlap
+- **Time**: ~1 hour (stopped early per STOP rule)
+- **Phase 2 Revised Scope**: +6 tests migrated from Pattern 2
+- **Commit**: a3a7537
+
 ---
 
-### Phase 2: Structural Migration (22 tests → ~1-2 weeks)
+### Phase 2: Structural Migration (28 tests → ~1-2 weeks)
 
-**Goal**: Migrate Pattern 1 + Pattern 3 tests to dedicated E2E suite
+**Goal**: Migrate Pattern 1 + Pattern 3 + Cascade overlap tests to dedicated E2E suite
+
+**REVISED SCOPE** (post Phase 1 actuals):
+- Original: 22 tests (Pattern 1: 9, Pattern 3: 13)
+- Added from Pattern 4 cascade: 2 tests (#2-3 preview endpoints)
+- Added from Pattern 2 cascade: 6 tests (#9-14 instructor assignment)
+- **Total: 28 tests**
 
 #### Phase 2.1: E2E Suite Scaffold (~8-12 hours)
 
@@ -177,8 +196,8 @@ tests_e2e/integration_workflows/      (E2E Suite - Workflow Validation)
 | Phase | Scope | Effort | Duration | Risk | Status |
 |-------|-------|--------|----------|------|--------|
 | **Phase 1.1** | Pattern 4 (5/7 tests) | 4-6 hours | 1 day | LOW | ✅ DONE (+5 PASS) |
-| **Phase 1.2** | Pattern 2 (7 tests) | 8-12 hours | 1-2 days | LOW-MODERATE | 🔄 IN PROGRESS |
-| **Phase 2.1** | E2E Scaffold | 8-12 hours | 1-2 days | MODERATE |
+| **Phase 1.2** | Pattern 2 (1/7 tests) | 8-12 hours | 1-2 days | LOW-MODERATE | ✅ DONE (+1 PASS, 6 CASCADE) |
+| **Phase 2.1** | E2E Scaffold | 8-12 hours | 1-2 days | MODERATE | ⏭️ NEXT |
 | **Phase 2.2** | Pattern 1+3 (22 tests) | 20-30 hours | 3-5 days | MODERATE |
 | **TOTAL** | **36 tests** | **40-60 hours** | **~2 weeks** | **Managed** |
 
@@ -216,11 +235,19 @@ tests_e2e/integration_workflows/      (E2E Suite - Workflow Validation)
 
 ### Phase 1 Success (Low Risk)
 
-- ✅ 14/36 tests fixed (39% improvement)
-- ✅ Smoke baseline: **22F/113P/75S**
-- ✅ 100% deterministic
-- ✅ No regressions in 99 PASS tests
+**PLANNED**:
+- 14/36 tests fixed (39% improvement)
+- Smoke baseline: 22F/113P/75S
+
+**ACTUALS** (2026-02-26):
+- ✅ 6/36 tests fixed (17% improvement) → 30F/105P/75S
+- ✅ Pattern 4: 5/7 (71% success), 2 cascade
+- ✅ Pattern 2: 1/7 (14% success), 6 cascade
+- ✅ 100% deterministic (all fixes stable)
+- ✅ No regressions in existing PASS tests
 - ✅ 0 ERROR maintained
+- ✅ Time: ~4 hours (vs 2-3 days estimated)
+- ⚠️ **Revised understanding**: 57% of "Pattern 2+4" tests are cascade overlap → Phase 2
 
 ### Phase 2 Success (Structural)
 
