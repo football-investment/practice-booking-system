@@ -891,34 +891,34 @@ class TestTournamentsSmoke:
 
     # ── GET /{test_tournament['tournament_id']}/generation-status/{task_id} ────────────────────────────
 
-    def test_get_generation_status_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
+    def test_get_generation_status_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict, test_generation_task_id: str):
         """
         Happy path: GET /{{test_tournament["tournament_id"]}}/generation-status/{task_id}
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:get_generation_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{task_id}", headers=headers)
+
+        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id}", headers=headers)
         
 
         # Accept 200 OK, 201 Created, or 204 No Content
         assert response.status_code in [200, 201, 204], (
-            f"GET /{test_tournament['tournament_id']}/generation-status/{task_id} failed: {response.status_code} "
+            f"GET /{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_generation_status_auth_required(self, api_client: TestClient, test_tournament: Dict):
+    def test_get_generation_status_auth_required(self, api_client: TestClient, test_tournament: Dict, test_generation_task_id: str):
         """
         Auth validation: GET /{{test_tournament["tournament_id"]}}/generation-status/{task_id} requires authentication
         """
-        
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{task_id}")
-        
+
+        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id}")
+
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{test_tournament['tournament_id']}/generation-status/{task_id} should require auth: {response.status_code}"
+            f"GET /{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1446,34 +1446,34 @@ class TestTournamentsSmoke:
 
     # ── GET /{test_tournament['tournament_id']}/sessions/{session_id}/rounds ────────────────────────────
 
-    def test_get_rounds_status_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
+    def test_get_rounds_status_happy_path(self, api_client: TestClient, admin_token: str, test_tournament: Dict, test_rounds_session_id: int):
         """
         Happy path: GET /{{test_tournament["tournament_id"]}}/sessions/{session_id}/rounds
         Source: app/api/api_v1/endpoints/tournaments/results/round_management.py:get_rounds_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{session_id}/rounds", headers=headers)
-        
+
+        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_rounds_session_id}/rounds", headers=headers)
+
 
         # Accept 200 OK, 201 Created, or 204 No Content
         assert response.status_code in [200, 201, 204], (
-            f"GET /{test_tournament['tournament_id']}/sessions/{session_id}/rounds failed: {response.status_code} "
+            f"GET /{test_tournament['tournament_id']}/sessions/{test_rounds_session_id}/rounds failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_rounds_status_auth_required(self, api_client: TestClient, test_tournament: Dict):
+    def test_get_rounds_status_auth_required(self, api_client: TestClient, test_tournament: Dict, test_rounds_session_id: int):
         """
         Auth validation: GET /{{test_tournament["tournament_id"]}}/sessions/{session_id}/rounds requires authentication
         """
-        
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{session_id}/rounds")
-        
+
+        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_rounds_session_id}/rounds")
+
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{test_tournament['tournament_id']}/sessions/{session_id}/rounds should require auth: {response.status_code}"
+            f"GET /{test_tournament['tournament_id']}/sessions/{test_rounds_session_id}/rounds should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")

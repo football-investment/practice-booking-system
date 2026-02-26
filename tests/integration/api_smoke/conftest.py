@@ -835,3 +835,91 @@ def test_skill_mapping_id(test_tournament: Dict, test_db: Session) -> int:
     test_db.refresh(mapping)
 
     return mapping.id
+
+
+@pytest.fixture(scope="function")
+def test_generation_task_id(test_tournament: Dict) -> str:
+    """
+    Phase 1.1 Pattern 4 Fix: Create dummy generation task in registry.
+
+    Provides a valid task_id for testing GET /tournaments/{id}/generation-status/{task_id}
+    endpoint without requiring actual session generation (cascade).
+
+    ⚠️  Function-scoped to match test_tournament fixture scope.
+
+    Args:
+        test_tournament: Tournament fixture with tournament_id
+
+    Returns:
+        task_id (str): UUID task identifier registered in _task_registry
+    """
+    from app.api.api_v1.endpoints.tournaments.generate_sessions import _task_registry, _registry_lock
+    import uuid
+
+    # Generate unique task ID
+    task_id = f"smoke-test-{uuid.uuid4()}"
+
+    # Register dummy task in generation tracking registry
+    with _registry_lock:
+        _task_registry[task_id] = {
+            "task_id": task_id,
+            "tournament_id": test_tournament["tournament_id"],
+            "status": "done",  # Completed status for smoke test
+            "message": "Smoke test generation (dummy)",
+            "sessions_count": 0,
+            "backend": "thread"
+        }
+
+    return task_id
+
+
+@pytest.fixture(scope="function")
+def test_rounds_session_id(test_tournament: Dict, test_db: Session, test_campus_id: int) -> int:
+    """
+    Phase 1.1 Pattern 4 Fix: Create minimal INDIVIDUAL_RANKING session for rounds status tests.
+
+    Provides a valid session_id for testing GET /tournaments/{id}/sessions/{session_id}/rounds
+    endpoint without requiring full session generation (cascade).
+
+    ⚠️  Function-scoped to match test_tournament fixture scope.
+
+    Args:
+        test_tournament: Tournament fixture with tournament_id
+        test_db: Database session
+        test_campus_id: Campus ID for session location
+
+    Returns:
+        session_id (int): ID of created minimal session
+    """
+    from app.models.session import Session as SessionModel
+    from app.models.user import User, UserRole
+    from datetime import datetime, timezone, timedelta
+
+    # Get instructor user (created by instructor_token fixture)
+    instructor = test_db.query(User).filter(
+        User.email == "smoke.instructor@generated.test"
+    ).first()
+
+    # Create minimal INDIVIDUAL_RANKING session
+    session = SessionModel(
+        title="Smoke Test Rounds Session",
+        semester_id=test_tournament["tournament_id"],
+        date_start=datetime.now(timezone.utc) + timedelta(days=1, hours=10),
+        date_end=datetime.now(timezone.utc) + timedelta(days=1, hours=12),
+        capacity=16,
+        campus_id=test_campus_id,
+        instructor_id=instructor.id if instructor else None,
+        is_tournament_game=True,  # Required for get_session_or_404 helper
+        match_format="INDIVIDUAL_RANKING",  # Required for rounds endpoint
+        session_status="scheduled",
+        rounds_data={
+            "total_rounds": 3,
+            "completed_rounds": 0,
+            "round_results": {}
+        }
+    )
+    test_db.add(session)
+    test_db.commit()
+    test_db.refresh(session)
+
+    return session.id
