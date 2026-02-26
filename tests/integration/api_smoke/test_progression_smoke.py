@@ -14,42 +14,53 @@ class TestProgressionSmoke:
     """Smoke tests for progression API endpoints"""
 
 
-    # ── GET /progress ────────────────────────────
+    # ── GET /api/v1/progress ────────────────────────────
 
-    def test_get_user_progress_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_user_progress_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /progress
+        Happy path: GET /api/v1/progress
         Source: app/api/api_v1/endpoints/progression.py:get_user_progress
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/progress", headers=headers)
+        response = api_client.get("/api/v1/progression/progress", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /progress failed: {response.status_code} "
+            f"GET /api/v1/progress failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_user_progress_auth_required(self, api_client: TestClient):
+    def test_get_user_progress_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /progress requires authentication
+        Auth validation: GET /api/v1/progress requires authentication
         """
         
-        response = api_client.get("/progress")
+        response = api_client.get("/api/v1/progression/progress")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /progress should require auth: {response.status_code}"
+            f"GET /api/v1/progress should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_progress_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_user_progress_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /progress validates request data
+        Input validation: GET /api/v1/progress validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestProgressionSmoke:
         
 
 
-    # ── GET /skill-audit ────────────────────────────
+    # ── GET /api/v1/skill-audit ────────────────────────────
 
-    def test_get_skill_audit_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_skill_audit_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /skill-audit
+        Happy path: GET /api/v1/skill-audit
         Source: app/api/api_v1/endpoints/progression.py:get_skill_audit
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/skill-audit", headers=headers)
+        response = api_client.get("/api/v1/progression/skill-audit", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /skill-audit failed: {response.status_code} "
+            f"GET /api/v1/skill-audit failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_skill_audit_auth_required(self, api_client: TestClient):
+    def test_get_skill_audit_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /skill-audit requires authentication
+        Auth validation: GET /api/v1/skill-audit requires authentication
         """
         
-        response = api_client.get("/skill-audit")
+        response = api_client.get("/api/v1/progression/skill-audit")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /skill-audit should require auth: {response.status_code}"
+            f"GET /api/v1/skill-audit should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_skill_audit_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_skill_audit_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /skill-audit validates request data
+        Input validation: GET /api/v1/skill-audit validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestProgressionSmoke:
         
 
 
-    # ── GET /skill-profile ────────────────────────────
+    # ── GET /api/v1/skill-profile ────────────────────────────
 
-    def test_get_skill_profile_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_skill_profile_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /skill-profile
+        Happy path: GET /api/v1/skill-profile
         Source: app/api/api_v1/endpoints/progression.py:get_skill_profile
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/skill-profile", headers=headers)
+        response = api_client.get("/api/v1/progression/skill-profile", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /skill-profile failed: {response.status_code} "
+            f"GET /api/v1/skill-profile failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_skill_profile_auth_required(self, api_client: TestClient):
+    def test_get_skill_profile_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /skill-profile requires authentication
+        Auth validation: GET /api/v1/skill-profile requires authentication
         """
         
-        response = api_client.get("/skill-profile")
+        response = api_client.get("/api/v1/progression/skill-profile")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /skill-profile should require auth: {response.status_code}"
+            f"GET /api/v1/skill-profile should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_skill_profile_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_skill_profile_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /skill-profile validates request data
+        Input validation: GET /api/v1/skill-profile validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +182,53 @@ class TestProgressionSmoke:
         
 
 
-    # ── GET /skill-timeline ────────────────────────────
+    # ── GET /api/v1/skill-timeline ────────────────────────────
 
-    def test_get_skill_timeline_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_skill_timeline_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /skill-timeline
+        Happy path: GET /api/v1/skill-timeline
         Source: app/api/api_v1/endpoints/progression.py:get_skill_timeline
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/skill-timeline", headers=headers)
+        response = api_client.get("/api/v1/progression/skill-timeline", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /skill-timeline failed: {response.status_code} "
+            f"GET /api/v1/skill-timeline failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_skill_timeline_auth_required(self, api_client: TestClient):
+    def test_get_skill_timeline_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /skill-timeline requires authentication
+        Auth validation: GET /api/v1/skill-timeline requires authentication
         """
         
-        response = api_client.get("/skill-timeline")
+        response = api_client.get("/api/v1/progression/skill-timeline")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /skill-timeline should require auth: {response.status_code}"
+            f"GET /api/v1/skill-timeline should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_skill_timeline_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_skill_timeline_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /skill-timeline validates request data
+        Input validation: GET /api/v1/skill-timeline validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,42 +238,53 @@ class TestProgressionSmoke:
         
 
 
-    # ── GET /systems ────────────────────────────
+    # ── GET /api/v1/systems ────────────────────────────
 
-    def test_get_progression_systems_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_progression_systems_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /systems
+        Happy path: GET /api/v1/systems
         Source: app/api/api_v1/endpoints/progression.py:get_progression_systems
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/systems", headers=headers)
+        response = api_client.get("/api/v1/progression/systems", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /systems failed: {response.status_code} "
+            f"GET /api/v1/systems failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_progression_systems_auth_required(self, api_client: TestClient):
+    def test_get_progression_systems_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /systems requires authentication
+        Auth validation: GET /api/v1/systems requires authentication
         """
         
-        response = api_client.get("/systems")
+        response = api_client.get("/api/v1/progression/systems")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /systems should require auth: {response.status_code}"
+            f"GET /api/v1/systems should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_progression_systems_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_progression_systems_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /systems validates request data
+        Input validation: GET /api/v1/systems validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,44 +294,55 @@ class TestProgressionSmoke:
         
 
 
-    # ── POST /progress/update ────────────────────────────
+    # ── POST /api/v1/progress/update ────────────────────────────
 
-    def test_update_user_progress_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_update_user_progress_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /progress/update
+        Happy path: POST /api/v1/progress/update
         Source: app/api/api_v1/endpoints/progression.py:update_user_progress
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /progress/update
+        # TODO: Add realistic payload for /api/v1/progress/update
         payload = {}
-        response = api_client.post("/progress/update", json=payload, headers=headers)
+        response = api_client.post("/api/v1/progression/progress/update", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /progress/update failed: {response.status_code} "
+            f"POST /api/v1/progress/update failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_update_user_progress_auth_required(self, api_client: TestClient):
+    def test_update_user_progress_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /progress/update requires authentication
+        Auth validation: POST /api/v1/progress/update requires authentication
         """
         
-        response = api_client.post("/progress/update", json={})
+        response = api_client.post("/api/v1/progression/progress/update", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /progress/update should require auth: {response.status_code}"
+            f"POST /api/v1/progress/update should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_update_user_progress_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_update_user_progress_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /progress/update validates request data
+        Input validation: POST /api/v1/progress/update validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -284,14 +350,14 @@ class TestProgressionSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/progress/update",
+            "/api/v1/progression/progress/update",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /progress/update should validate input: {response.status_code}"
+            f"POST /api/v1/progress/update should validate input: {response.status_code}"
         )
         
 

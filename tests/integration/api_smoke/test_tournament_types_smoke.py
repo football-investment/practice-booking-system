@@ -14,42 +14,53 @@ class TestTournamenttypesSmoke:
     """Smoke tests for tournament_types API endpoints"""
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_list_tournament_types_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_tournament_types_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/tournament_types.py:list_tournament_types
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/tournament-types/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_tournament_types_auth_required(self, api_client: TestClient):
+    def test_list_tournament_types_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/tournament-types/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_tournament_types_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_tournament_types_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,56 @@ class TestTournamenttypesSmoke:
         
 
 
-    # ── GET /{tournament_type_id} ────────────────────────────
+    # ── GET /api/v1/{tournament_type_id} ────────────────────────────
 
-    def test_get_tournament_type_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_tournament_type_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /{tournament_type_id}
+        Happy path: GET /api/v1/{tournament_type_id}
         Source: app/api/api_v1/endpoints/tournament_types.py:get_tournament_type
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/{tournament_type_id}", headers=headers)
+        response = api_client.get(f"/api/v1/tournament-types/{test_tournament["tournament_type_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /{tournament_type_id} failed: {response.status_code} "
+            f"GET /api/v1/{tournament_type_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_tournament_type_auth_required(self, api_client: TestClient):
+    def test_get_tournament_type_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /{tournament_type_id} requires authentication
+        Auth validation: GET /api/v1/{tournament_type_id} requires authentication
         """
         
-        response = api_client.get("/{tournament_type_id}")
+        response = api_client.get(f"/api/v1/tournament-types/{test_tournament["tournament_type_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{tournament_type_id} should require auth: {response.status_code}"
+            f"GET /api/v1/{tournament_type_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_tournament_type_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_tournament_type_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /{tournament_type_id} validates request data
+        Input validation: GET /api/v1/{tournament_type_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,44 +129,58 @@ class TestTournamenttypesSmoke:
         
 
 
-    # ── POST /{tournament_type_id}/estimate ────────────────────────────
+    # ── POST /api/v1/{tournament_type_id}/estimate ────────────────────────────
 
-    def test_estimate_tournament_duration_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_estimate_tournament_duration_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{tournament_type_id}/estimate
+        Happy path: POST /api/v1/{tournament_type_id}/estimate
         Source: app/api/api_v1/endpoints/tournament_types.py:estimate_tournament_duration
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{tournament_type_id}/estimate
+        # TODO: Add realistic payload for /api/v1/{tournament_type_id}/estimate
         payload = {}
-        response = api_client.post("/{tournament_type_id}/estimate", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/tournament-types/{test_tournament["tournament_type_id"]}/estimate", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{tournament_type_id}/estimate failed: {response.status_code} "
+            f"POST /api/v1/{tournament_type_id}/estimate failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_estimate_tournament_duration_auth_required(self, api_client: TestClient):
+    def test_estimate_tournament_duration_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{tournament_type_id}/estimate requires authentication
+        Auth validation: POST /api/v1/{tournament_type_id}/estimate requires authentication
         """
         
-        response = api_client.post("/{tournament_type_id}/estimate", json={})
+        response = api_client.post(f"/api/v1/tournament-types/{test_tournament["tournament_type_id"]}/estimate", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{tournament_type_id}/estimate should require auth: {response.status_code}"
+            f"POST /api/v1/{tournament_type_id}/estimate should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_estimate_tournament_duration_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_estimate_tournament_duration_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{tournament_type_id}/estimate validates request data
+        Input validation: POST /api/v1/{tournament_type_id}/estimate validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,14 +188,14 @@ class TestTournamenttypesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{tournament_type_id}/estimate",
+            f"/api/v1/tournament-types/{test_tournament["tournament_type_id"]}/estimate",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{tournament_type_id}/estimate should validate input: {response.status_code}"
+            f"POST /api/v1/{tournament_type_id}/estimate should validate input: {response.status_code}"
         )
         
 

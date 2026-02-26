@@ -14,42 +14,53 @@ class TestCoachSmoke:
     """Smoke tests for coach API endpoints"""
 
 
-    # ── GET /licenses ────────────────────────────
+    # ── GET /api/v1/licenses ────────────────────────────
 
-    def test_list_all_licenses_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_all_licenses_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /licenses
+        Happy path: GET /api/v1/licenses
         Source: app/api/api_v1/endpoints/coach/licenses.py:list_all_licenses
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/licenses", headers=headers)
+        response = api_client.get("/api/v1/coach/licenses", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /licenses failed: {response.status_code} "
+            f"GET /api/v1/licenses failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_all_licenses_auth_required(self, api_client: TestClient):
+    def test_list_all_licenses_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /licenses requires authentication
+        Auth validation: GET /api/v1/licenses requires authentication
         """
         
-        response = api_client.get("/licenses")
+        response = api_client.get("/api/v1/coach/licenses")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /licenses should require auth: {response.status_code}"
+            f"GET /api/v1/licenses should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_all_licenses_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_all_licenses_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /licenses validates request data
+        Input validation: GET /api/v1/licenses validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestCoachSmoke:
         
 
 
-    # ── GET /licenses/me ────────────────────────────
+    # ── GET /api/v1/licenses/me ────────────────────────────
 
-    def test_get_my_license_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_license_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /licenses/me
+        Happy path: GET /api/v1/licenses/me
         Source: app/api/api_v1/endpoints/coach/licenses.py:get_my_license
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/licenses/me", headers=headers)
+        response = api_client.get("/api/v1/coach/licenses/me", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /licenses/me failed: {response.status_code} "
+            f"GET /api/v1/licenses/me failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_my_license_auth_required(self, api_client: TestClient):
+    def test_get_my_license_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /licenses/me requires authentication
+        Auth validation: GET /api/v1/licenses/me requires authentication
         """
         
-        response = api_client.get("/licenses/me")
+        response = api_client.get("/api/v1/coach/licenses/me")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /licenses/me should require auth: {response.status_code}"
+            f"GET /api/v1/licenses/me should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_license_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_my_license_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /licenses/me validates request data
+        Input validation: GET /api/v1/licenses/me validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,56 @@ class TestCoachSmoke:
         
 
 
-    # ── GET /licenses/{license_id}/expiry ────────────────────────────
+    # ── GET /api/v1/licenses/{license_id}/expiry ────────────────────────────
 
-    def test_check_expiry_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_check_expiry_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /licenses/{license_id}/expiry
+        Happy path: GET /api/v1/licenses/{license_id}/expiry
         Source: app/api/api_v1/endpoints/coach/progression.py:check_expiry
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/licenses/{license_id}/expiry", headers=headers)
+        response = api_client.get(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/expiry", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /licenses/{license_id}/expiry failed: {response.status_code} "
+            f"GET /api/v1/licenses/{license_id}/expiry failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_check_expiry_auth_required(self, api_client: TestClient):
+    def test_check_expiry_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /licenses/{license_id}/expiry requires authentication
+        Auth validation: GET /api/v1/licenses/{license_id}/expiry requires authentication
         """
         
-        response = api_client.get("/licenses/{license_id}/expiry")
+        response = api_client.get(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/expiry")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /licenses/{license_id}/expiry should require auth: {response.status_code}"
+            f"GET /api/v1/licenses/{license_id}/expiry should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_check_expiry_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_check_expiry_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /licenses/{license_id}/expiry validates request data
+        Input validation: GET /api/v1/licenses/{license_id}/expiry validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +185,56 @@ class TestCoachSmoke:
         
 
 
-    # ── GET /licenses/{license_id}/stats ────────────────────────────
+    # ── GET /api/v1/licenses/{license_id}/stats ────────────────────────────
 
-    def test_get_license_stats_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_license_stats_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /licenses/{license_id}/stats
+        Happy path: GET /api/v1/licenses/{license_id}/stats
         Source: app/api/api_v1/endpoints/coach/progression.py:get_license_stats
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/licenses/{license_id}/stats", headers=headers)
+        response = api_client.get(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/stats", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /licenses/{license_id}/stats failed: {response.status_code} "
+            f"GET /api/v1/licenses/{license_id}/stats failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_license_stats_auth_required(self, api_client: TestClient):
+    def test_get_license_stats_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /licenses/{license_id}/stats requires authentication
+        Auth validation: GET /api/v1/licenses/{license_id}/stats requires authentication
         """
         
-        response = api_client.get("/licenses/{license_id}/stats")
+        response = api_client.get(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/stats")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /licenses/{license_id}/stats should require auth: {response.status_code}"
+            f"GET /api/v1/licenses/{license_id}/stats should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_license_stats_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_license_stats_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /licenses/{license_id}/stats validates request data
+        Input validation: GET /api/v1/licenses/{license_id}/stats validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,44 +244,55 @@ class TestCoachSmoke:
         
 
 
-    # ── POST /licenses ────────────────────────────
+    # ── POST /api/v1/licenses ────────────────────────────
 
-    def test_create_license_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_license_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /licenses
+        Happy path: POST /api/v1/licenses
         Source: app/api/api_v1/endpoints/coach/licenses.py:create_license
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses
+        # TODO: Add realistic payload for /api/v1/licenses
         payload = {}
-        response = api_client.post("/licenses", json=payload, headers=headers)
+        response = api_client.post("/api/v1/coach/licenses", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /licenses failed: {response.status_code} "
+            f"POST /api/v1/licenses failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_license_auth_required(self, api_client: TestClient):
+    def test_create_license_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /licenses requires authentication
+        Auth validation: POST /api/v1/licenses requires authentication
         """
         
-        response = api_client.post("/licenses", json={})
+        response = api_client.post("/api/v1/coach/licenses", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /licenses should require auth: {response.status_code}"
+            f"POST /api/v1/licenses should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_license_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_license_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /licenses validates request data
+        Input validation: POST /api/v1/licenses validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,56 +300,70 @@ class TestCoachSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/licenses",
+            "/api/v1/coach/licenses",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /licenses should validate input: {response.status_code}"
+            f"POST /api/v1/licenses should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /licenses/{license_id}/promote ────────────────────────────
+    # ── POST /api/v1/licenses/{license_id}/promote ────────────────────────────
 
-    def test_promote_level_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_promote_level_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /licenses/{license_id}/promote
+        Happy path: POST /api/v1/licenses/{license_id}/promote
         Source: app/api/api_v1/endpoints/coach/progression.py:promote_level
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/promote
+        # TODO: Add realistic payload for /api/v1/licenses/{license_id}/promote
         payload = {}
-        response = api_client.post("/licenses/{license_id}/promote", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/promote", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /licenses/{license_id}/promote failed: {response.status_code} "
+            f"POST /api/v1/licenses/{license_id}/promote failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_promote_level_auth_required(self, api_client: TestClient):
+    def test_promote_level_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /licenses/{license_id}/promote requires authentication
+        Auth validation: POST /api/v1/licenses/{license_id}/promote requires authentication
         """
         
-        response = api_client.post("/licenses/{license_id}/promote", json={})
+        response = api_client.post(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/promote", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /licenses/{license_id}/promote should require auth: {response.status_code}"
+            f"POST /api/v1/licenses/{license_id}/promote should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_promote_level_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_promote_level_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /licenses/{license_id}/promote validates request data
+        Input validation: POST /api/v1/licenses/{license_id}/promote validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -296,56 +371,70 @@ class TestCoachSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/licenses/{license_id}/promote",
+            f"/api/v1/coach/licenses/{test_tournament["license_id"]}/promote",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /licenses/{license_id}/promote should validate input: {response.status_code}"
+            f"POST /api/v1/licenses/{license_id}/promote should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /licenses/{license_id}/renew ────────────────────────────
+    # ── POST /api/v1/licenses/{license_id}/renew ────────────────────────────
 
-    def test_renew_certification_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_renew_certification_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /licenses/{license_id}/renew
+        Happy path: POST /api/v1/licenses/{license_id}/renew
         Source: app/api/api_v1/endpoints/coach/progression.py:renew_certification
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/renew
+        # TODO: Add realistic payload for /api/v1/licenses/{license_id}/renew
         payload = {}
-        response = api_client.post("/licenses/{license_id}/renew", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/renew", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /licenses/{license_id}/renew failed: {response.status_code} "
+            f"POST /api/v1/licenses/{license_id}/renew failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_renew_certification_auth_required(self, api_client: TestClient):
+    def test_renew_certification_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /licenses/{license_id}/renew requires authentication
+        Auth validation: POST /api/v1/licenses/{license_id}/renew requires authentication
         """
         
-        response = api_client.post("/licenses/{license_id}/renew", json={})
+        response = api_client.post(f"/api/v1/coach/licenses/{test_tournament["license_id"]}/renew", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /licenses/{license_id}/renew should require auth: {response.status_code}"
+            f"POST /api/v1/licenses/{license_id}/renew should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_renew_certification_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_renew_certification_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /licenses/{license_id}/renew validates request data
+        Input validation: POST /api/v1/licenses/{license_id}/renew validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -353,56 +442,67 @@ class TestCoachSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/licenses/{license_id}/renew",
+            f"/api/v1/coach/licenses/{test_tournament["license_id"]}/renew",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /licenses/{license_id}/renew should validate input: {response.status_code}"
+            f"POST /api/v1/licenses/{license_id}/renew should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /practice-hours ────────────────────────────
+    # ── POST /api/v1/practice-hours ────────────────────────────
 
-    def test_add_practice_hours_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_add_practice_hours_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /practice-hours
+        Happy path: POST /api/v1/practice-hours
         Source: app/api/api_v1/endpoints/coach/hours.py:add_practice_hours
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /practice-hours
+        # TODO: Add realistic payload for /api/v1/practice-hours
         payload = {}
-        response = api_client.post("/practice-hours", json=payload, headers=headers)
+        response = api_client.post("/api/v1/coach/practice-hours", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /practice-hours failed: {response.status_code} "
+            f"POST /api/v1/practice-hours failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_add_practice_hours_auth_required(self, api_client: TestClient):
+    def test_add_practice_hours_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /practice-hours requires authentication
+        Auth validation: POST /api/v1/practice-hours requires authentication
         """
         
-        response = api_client.post("/practice-hours", json={})
+        response = api_client.post("/api/v1/coach/practice-hours", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /practice-hours should require auth: {response.status_code}"
+            f"POST /api/v1/practice-hours should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_add_practice_hours_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_add_practice_hours_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /practice-hours validates request data
+        Input validation: POST /api/v1/practice-hours validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -410,56 +510,67 @@ class TestCoachSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/practice-hours",
+            "/api/v1/coach/practice-hours",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /practice-hours should validate input: {response.status_code}"
+            f"POST /api/v1/practice-hours should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /theory-hours ────────────────────────────
+    # ── POST /api/v1/theory-hours ────────────────────────────
 
-    def test_add_theory_hours_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_add_theory_hours_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /theory-hours
+        Happy path: POST /api/v1/theory-hours
         Source: app/api/api_v1/endpoints/coach/hours.py:add_theory_hours
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /theory-hours
+        # TODO: Add realistic payload for /api/v1/theory-hours
         payload = {}
-        response = api_client.post("/theory-hours", json=payload, headers=headers)
+        response = api_client.post("/api/v1/coach/theory-hours", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /theory-hours failed: {response.status_code} "
+            f"POST /api/v1/theory-hours failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_add_theory_hours_auth_required(self, api_client: TestClient):
+    def test_add_theory_hours_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /theory-hours requires authentication
+        Auth validation: POST /api/v1/theory-hours requires authentication
         """
         
-        response = api_client.post("/theory-hours", json={})
+        response = api_client.post("/api/v1/coach/theory-hours", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /theory-hours should require auth: {response.status_code}"
+            f"POST /api/v1/theory-hours should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_add_theory_hours_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_add_theory_hours_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /theory-hours validates request data
+        Input validation: POST /api/v1/theory-hours validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -467,14 +578,14 @@ class TestCoachSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/theory-hours",
+            "/api/v1/coach/theory-hours",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /theory-hours should validate input: {response.status_code}"
+            f"POST /api/v1/theory-hours should validate input: {response.status_code}"
         )
         
 

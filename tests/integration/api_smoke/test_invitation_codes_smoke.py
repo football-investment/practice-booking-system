@@ -14,42 +14,56 @@ class TestInvitationcodesSmoke:
     """Smoke tests for invitation_codes API endpoints"""
 
 
-    # ── DELETE /admin/invitation-codes/{code_id} ────────────────────────────
+    # ── DELETE /api/v1/admin/invitation-codes/{code_id} ────────────────────────────
 
-    def test_delete_invitation_code_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_delete_invitation_code_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: DELETE /admin/invitation-codes/{code_id}
+        Happy path: DELETE /api/v1/admin/invitation-codes/{code_id}
         Source: app/api/api_v1/endpoints/invitation_codes.py:delete_invitation_code
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete("/admin/invitation-codes/{code_id}", headers=headers)
+        response = api_client.delete(f"/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"DELETE /admin/invitation-codes/{code_id} failed: {response.status_code} "
+            f"DELETE /api/v1/admin/invitation-codes/{code_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_delete_invitation_code_auth_required(self, api_client: TestClient):
+    def test_delete_invitation_code_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: DELETE /admin/invitation-codes/{code_id} requires authentication
+        Auth validation: DELETE /api/v1/admin/invitation-codes/{code_id} requires authentication
         """
         
-        response = api_client.delete("/admin/invitation-codes/{code_id}")
+        response = api_client.delete(f"/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"DELETE /admin/invitation-codes/{code_id} should require auth: {response.status_code}"
+            f"DELETE /api/v1/admin/invitation-codes/{code_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_invitation_code_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_delete_invitation_code_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: DELETE /admin/invitation-codes/{code_id} validates request data
+        Input validation: DELETE /api/v1/admin/invitation-codes/{code_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +73,53 @@ class TestInvitationcodesSmoke:
         
 
 
-    # ── GET /admin/invitation-codes ────────────────────────────
+    # ── GET /api/v1/admin/invitation-codes ────────────────────────────
 
-    def test_get_all_invitation_codes_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_all_invitation_codes_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /admin/invitation-codes
+        Happy path: GET /api/v1/admin/invitation-codes
         Source: app/api/api_v1/endpoints/invitation_codes.py:get_all_invitation_codes
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/admin/invitation-codes", headers=headers)
+        response = api_client.get("/api/v1/invitation-codes/admin/invitation-codes", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /admin/invitation-codes failed: {response.status_code} "
+            f"GET /api/v1/admin/invitation-codes failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_all_invitation_codes_auth_required(self, api_client: TestClient):
+    def test_get_all_invitation_codes_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /admin/invitation-codes requires authentication
+        Auth validation: GET /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.get("/admin/invitation-codes")
+        response = api_client.get("/api/v1/invitation-codes/admin/invitation-codes")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /admin/invitation-codes should require auth: {response.status_code}"
+            f"GET /api/v1/admin/invitation-codes should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_all_invitation_codes_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_all_invitation_codes_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /admin/invitation-codes validates request data
+        Input validation: GET /api/v1/admin/invitation-codes validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,44 +129,55 @@ class TestInvitationcodesSmoke:
         
 
 
-    # ── POST /admin/invitation-codes ────────────────────────────
+    # ── POST /api/v1/admin/invitation-codes ────────────────────────────
 
-    def test_create_invitation_code_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_invitation_code_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /admin/invitation-codes
+        Happy path: POST /api/v1/admin/invitation-codes
         Source: app/api/api_v1/endpoints/invitation_codes.py:create_invitation_code
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/invitation-codes
+        # TODO: Add realistic payload for /api/v1/admin/invitation-codes
         payload = {}
-        response = api_client.post("/admin/invitation-codes", json=payload, headers=headers)
+        response = api_client.post("/api/v1/invitation-codes/admin/invitation-codes", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /admin/invitation-codes failed: {response.status_code} "
+            f"POST /api/v1/admin/invitation-codes failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_invitation_code_auth_required(self, api_client: TestClient):
+    def test_create_invitation_code_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /admin/invitation-codes requires authentication
+        Auth validation: POST /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.post("/admin/invitation-codes", json={})
+        response = api_client.post("/api/v1/invitation-codes/admin/invitation-codes", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /admin/invitation-codes should require auth: {response.status_code}"
+            f"POST /api/v1/admin/invitation-codes should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_invitation_code_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_invitation_code_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /admin/invitation-codes validates request data
+        Input validation: POST /api/v1/admin/invitation-codes validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,56 +185,67 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/admin/invitation-codes",
+            "/api/v1/invitation-codes/admin/invitation-codes",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /admin/invitation-codes should validate input: {response.status_code}"
+            f"POST /api/v1/admin/invitation-codes should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /invitation-codes/redeem ────────────────────────────
+    # ── POST /api/v1/invitation-codes/redeem ────────────────────────────
 
-    def test_redeem_invitation_code_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_redeem_invitation_code_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /invitation-codes/redeem
+        Happy path: POST /api/v1/invitation-codes/redeem
         Source: app/api/api_v1/endpoints/invitation_codes.py:redeem_invitation_code
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /invitation-codes/redeem
+        # TODO: Add realistic payload for /api/v1/invitation-codes/redeem
         payload = {}
-        response = api_client.post("/invitation-codes/redeem", json=payload, headers=headers)
+        response = api_client.post("/api/v1/invitation-codes/invitation-codes/redeem", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /invitation-codes/redeem failed: {response.status_code} "
+            f"POST /api/v1/invitation-codes/redeem failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_redeem_invitation_code_auth_required(self, api_client: TestClient):
+    def test_redeem_invitation_code_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /invitation-codes/redeem requires authentication
+        Auth validation: POST /api/v1/invitation-codes/redeem requires authentication
         """
         
-        response = api_client.post("/invitation-codes/redeem", json={})
+        response = api_client.post("/api/v1/invitation-codes/invitation-codes/redeem", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /invitation-codes/redeem should require auth: {response.status_code}"
+            f"POST /api/v1/invitation-codes/redeem should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_redeem_invitation_code_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_redeem_invitation_code_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /invitation-codes/redeem validates request data
+        Input validation: POST /api/v1/invitation-codes/redeem validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -206,56 +253,67 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/invitation-codes/redeem",
+            "/api/v1/invitation-codes/invitation-codes/redeem",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /invitation-codes/redeem should validate input: {response.status_code}"
+            f"POST /api/v1/invitation-codes/redeem should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /invitation-codes/validate ────────────────────────────
+    # ── POST /api/v1/invitation-codes/validate ────────────────────────────
 
-    def test_validate_invitation_code_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_validate_invitation_code_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /invitation-codes/validate
+        Happy path: POST /api/v1/invitation-codes/validate
         Source: app/api/api_v1/endpoints/invitation_codes.py:validate_invitation_code
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /invitation-codes/validate
+        # TODO: Add realistic payload for /api/v1/invitation-codes/validate
         payload = {}
-        response = api_client.post("/invitation-codes/validate", json=payload, headers=headers)
+        response = api_client.post("/api/v1/invitation-codes/invitation-codes/validate", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /invitation-codes/validate failed: {response.status_code} "
+            f"POST /api/v1/invitation-codes/validate failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_validate_invitation_code_auth_required(self, api_client: TestClient):
+    def test_validate_invitation_code_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /invitation-codes/validate requires authentication
+        Auth validation: POST /api/v1/invitation-codes/validate requires authentication
         """
         
-        response = api_client.post("/invitation-codes/validate", json={})
+        response = api_client.post("/api/v1/invitation-codes/invitation-codes/validate", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /invitation-codes/validate should require auth: {response.status_code}"
+            f"POST /api/v1/invitation-codes/validate should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_validate_invitation_code_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_validate_invitation_code_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /invitation-codes/validate validates request data
+        Input validation: POST /api/v1/invitation-codes/validate validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -263,14 +321,14 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/invitation-codes/validate",
+            "/api/v1/invitation-codes/invitation-codes/validate",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /invitation-codes/validate should validate input: {response.status_code}"
+            f"POST /api/v1/invitation-codes/validate should validate input: {response.status_code}"
         )
         
 

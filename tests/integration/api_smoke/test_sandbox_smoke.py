@@ -14,42 +14,53 @@ class TestSandboxSmoke:
     """Smoke tests for sandbox API endpoints"""
 
 
-    # ── GET /instructors ────────────────────────────
+    # ── GET /api/v1/instructors ────────────────────────────
 
-    def test_list_instructors_for_sandbox_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_instructors_for_sandbox_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /instructors
+        Happy path: GET /api/v1/instructors
         Source: app/api/api_v1/endpoints/sandbox/data.py:list_instructors_for_sandbox
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/instructors", headers=headers)
+        response = api_client.get("/api/v1/sandbox/instructors", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /instructors failed: {response.status_code} "
+            f"GET /api/v1/instructors failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_instructors_for_sandbox_auth_required(self, api_client: TestClient):
+    def test_list_instructors_for_sandbox_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /instructors requires authentication
+        Auth validation: GET /api/v1/instructors requires authentication
         """
         
-        response = api_client.get("/instructors")
+        response = api_client.get("/api/v1/sandbox/instructors")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /instructors should require auth: {response.status_code}"
+            f"GET /api/v1/instructors should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_instructors_for_sandbox_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_instructors_for_sandbox_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /instructors validates request data
+        Input validation: GET /api/v1/instructors validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestSandboxSmoke:
         
 
 
-    # ── GET /users ────────────────────────────
+    # ── GET /api/v1/users ────────────────────────────
 
-    def test_list_users_for_sandbox_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_users_for_sandbox_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /users
+        Happy path: GET /api/v1/users
         Source: app/api/api_v1/endpoints/sandbox/data.py:list_users_for_sandbox
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/users", headers=headers)
+        response = api_client.get("/api/v1/sandbox/users", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /users failed: {response.status_code} "
+            f"GET /api/v1/users failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_users_for_sandbox_auth_required(self, api_client: TestClient):
+    def test_list_users_for_sandbox_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /users requires authentication
+        Auth validation: GET /api/v1/users requires authentication
         """
         
-        response = api_client.get("/users")
+        response = api_client.get("/api/v1/sandbox/users")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /users should require auth: {response.status_code}"
+            f"GET /api/v1/users should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_users_for_sandbox_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_users_for_sandbox_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /users validates request data
+        Input validation: GET /api/v1/users validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,56 @@ class TestSandboxSmoke:
         
 
 
-    # ── GET /users/{user_id}/skills ────────────────────────────
+    # ── GET /api/v1/users/{user_id}/skills ────────────────────────────
 
-    def test_get_user_skills_for_sandbox_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_user_skills_for_sandbox_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: GET /users/{user_id}/skills
+        Happy path: GET /api/v1/users/{user_id}/skills
         Source: app/api/api_v1/endpoints/sandbox/data.py:get_user_skills_for_sandbox
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/users/{user_id}/skills", headers=headers)
+        response = api_client.get(f"/api/v1/sandbox/users/{test_student_id}/skills", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /users/{user_id}/skills failed: {response.status_code} "
+            f"GET /api/v1/users/{user_id}/skills failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_user_skills_for_sandbox_auth_required(self, api_client: TestClient):
+    def test_get_user_skills_for_sandbox_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: GET /users/{user_id}/skills requires authentication
+        Auth validation: GET /api/v1/users/{user_id}/skills requires authentication
         """
         
-        response = api_client.get("/users/{user_id}/skills")
+        response = api_client.get(f"/api/v1/sandbox/users/{test_student_id}/skills")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /users/{user_id}/skills should require auth: {response.status_code}"
+            f"GET /api/v1/users/{user_id}/skills should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_skills_for_sandbox_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_user_skills_for_sandbox_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: GET /users/{user_id}/skills validates request data
+        Input validation: GET /api/v1/users/{user_id}/skills validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,44 +185,55 @@ class TestSandboxSmoke:
         
 
 
-    # ── POST /run-test ────────────────────────────
+    # ── POST /api/v1/run-test ────────────────────────────
 
-    def test_run_sandbox_test_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_run_sandbox_test_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /run-test
+        Happy path: POST /api/v1/run-test
         Source: app/api/api_v1/endpoints/sandbox/run_test.py:run_sandbox_test
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /run-test
+        # TODO: Add realistic payload for /api/v1/run-test
         payload = {}
-        response = api_client.post("/run-test", json=payload, headers=headers)
+        response = api_client.post("/api/v1/sandbox/run-test", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /run-test failed: {response.status_code} "
+            f"POST /api/v1/run-test failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_run_sandbox_test_auth_required(self, api_client: TestClient):
+    def test_run_sandbox_test_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /run-test requires authentication
+        Auth validation: POST /api/v1/run-test requires authentication
         """
         
-        response = api_client.post("/run-test", json={})
+        response = api_client.post("/api/v1/sandbox/run-test", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /run-test should require auth: {response.status_code}"
+            f"POST /api/v1/run-test should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_run_sandbox_test_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_run_sandbox_test_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /run-test validates request data
+        Input validation: POST /api/v1/run-test validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,14 +241,14 @@ class TestSandboxSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/run-test",
+            "/api/v1/sandbox/run-test",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /run-test should validate input: {response.status_code}"
+            f"POST /api/v1/run-test should validate input: {response.status_code}"
         )
         
 

@@ -14,42 +14,53 @@ class TestCompetencySmoke:
     """Smoke tests for competency API endpoints"""
 
 
-    # ── GET /assessment-history ────────────────────────────
+    # ── GET /api/v1/assessment-history ────────────────────────────
 
-    def test_get_assessment_history_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_assessment_history_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /assessment-history
+        Happy path: GET /api/v1/assessment-history
         Source: app/api/api_v1/endpoints/competency.py:get_assessment_history
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/assessment-history", headers=headers)
+        response = api_client.get("/api/v1/competency/assessment-history", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /assessment-history failed: {response.status_code} "
+            f"GET /api/v1/assessment-history failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_assessment_history_auth_required(self, api_client: TestClient):
+    def test_get_assessment_history_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /assessment-history requires authentication
+        Auth validation: GET /api/v1/assessment-history requires authentication
         """
         
-        response = api_client.get("/assessment-history")
+        response = api_client.get("/api/v1/competency/assessment-history")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /assessment-history should require auth: {response.status_code}"
+            f"GET /api/v1/assessment-history should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_assessment_history_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_assessment_history_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /assessment-history validates request data
+        Input validation: GET /api/v1/assessment-history validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,56 @@ class TestCompetencySmoke:
         
 
 
-    # ── GET /breakdown/{category_id} ────────────────────────────
+    # ── GET /api/v1/breakdown/{category_id} ────────────────────────────
 
-    def test_get_competency_breakdown_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_competency_breakdown_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /breakdown/{category_id}
+        Happy path: GET /api/v1/breakdown/{category_id}
         Source: app/api/api_v1/endpoints/competency.py:get_competency_breakdown
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/breakdown/{category_id}", headers=headers)
+        response = api_client.get(f"/api/v1/competency/breakdown/{test_tournament["category_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /breakdown/{category_id} failed: {response.status_code} "
+            f"GET /api/v1/breakdown/{category_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_competency_breakdown_auth_required(self, api_client: TestClient):
+    def test_get_competency_breakdown_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /breakdown/{category_id} requires authentication
+        Auth validation: GET /api/v1/breakdown/{category_id} requires authentication
         """
         
-        response = api_client.get("/breakdown/{category_id}")
+        response = api_client.get(f"/api/v1/competency/breakdown/{test_tournament["category_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /breakdown/{category_id} should require auth: {response.status_code}"
+            f"GET /api/v1/breakdown/{category_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_competency_breakdown_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_competency_breakdown_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /breakdown/{category_id} validates request data
+        Input validation: GET /api/v1/breakdown/{category_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +129,53 @@ class TestCompetencySmoke:
         
 
 
-    # ── GET /categories ────────────────────────────
+    # ── GET /api/v1/categories ────────────────────────────
 
-    def test_get_competency_categories_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_competency_categories_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /categories
+        Happy path: GET /api/v1/categories
         Source: app/api/api_v1/endpoints/competency.py:get_competency_categories
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/categories", headers=headers)
+        response = api_client.get("/api/v1/competency/categories", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /categories failed: {response.status_code} "
+            f"GET /api/v1/categories failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_competency_categories_auth_required(self, api_client: TestClient):
+    def test_get_competency_categories_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /categories requires authentication
+        Auth validation: GET /api/v1/categories requires authentication
         """
         
-        response = api_client.get("/categories")
+        response = api_client.get("/api/v1/competency/categories")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /categories should require auth: {response.status_code}"
+            f"GET /api/v1/categories should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_competency_categories_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_competency_categories_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /categories validates request data
+        Input validation: GET /api/v1/categories validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +185,53 @@ class TestCompetencySmoke:
         
 
 
-    # ── GET /milestones ────────────────────────────
+    # ── GET /api/v1/milestones ────────────────────────────
 
-    def test_get_user_milestones_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_user_milestones_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /milestones
+        Happy path: GET /api/v1/milestones
         Source: app/api/api_v1/endpoints/competency.py:get_user_milestones
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/milestones", headers=headers)
+        response = api_client.get("/api/v1/competency/milestones", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /milestones failed: {response.status_code} "
+            f"GET /api/v1/milestones failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_user_milestones_auth_required(self, api_client: TestClient):
+    def test_get_user_milestones_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /milestones requires authentication
+        Auth validation: GET /api/v1/milestones requires authentication
         """
         
-        response = api_client.get("/milestones")
+        response = api_client.get("/api/v1/competency/milestones")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /milestones should require auth: {response.status_code}"
+            f"GET /api/v1/milestones should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_milestones_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_user_milestones_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /milestones validates request data
+        Input validation: GET /api/v1/milestones validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,42 +241,53 @@ class TestCompetencySmoke:
         
 
 
-    # ── GET /my-competencies ────────────────────────────
+    # ── GET /api/v1/my-competencies ────────────────────────────
 
-    def test_get_my_competencies_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_competencies_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /my-competencies
+        Happy path: GET /api/v1/my-competencies
         Source: app/api/api_v1/endpoints/competency.py:get_my_competencies
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/my-competencies", headers=headers)
+        response = api_client.get("/api/v1/competency/my-competencies", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /my-competencies failed: {response.status_code} "
+            f"GET /api/v1/my-competencies failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_my_competencies_auth_required(self, api_client: TestClient):
+    def test_get_my_competencies_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /my-competencies requires authentication
+        Auth validation: GET /api/v1/my-competencies requires authentication
         """
         
-        response = api_client.get("/my-competencies")
+        response = api_client.get("/api/v1/competency/my-competencies")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /my-competencies should require auth: {response.status_code}"
+            f"GET /api/v1/my-competencies should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_competencies_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_my_competencies_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /my-competencies validates request data
+        Input validation: GET /api/v1/my-competencies validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,42 +297,53 @@ class TestCompetencySmoke:
         
 
 
-    # ── GET /radar-chart-data ────────────────────────────
+    # ── GET /api/v1/radar-chart-data ────────────────────────────
 
-    def test_get_radar_chart_data_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_radar_chart_data_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /radar-chart-data
+        Happy path: GET /api/v1/radar-chart-data
         Source: app/api/api_v1/endpoints/competency.py:get_radar_chart_data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/radar-chart-data", headers=headers)
+        response = api_client.get("/api/v1/competency/radar-chart-data", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /radar-chart-data failed: {response.status_code} "
+            f"GET /api/v1/radar-chart-data failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_radar_chart_data_auth_required(self, api_client: TestClient):
+    def test_get_radar_chart_data_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /radar-chart-data requires authentication
+        Auth validation: GET /api/v1/radar-chart-data requires authentication
         """
         
-        response = api_client.get("/radar-chart-data")
+        response = api_client.get("/api/v1/competency/radar-chart-data")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /radar-chart-data should require auth: {response.status_code}"
+            f"GET /api/v1/radar-chart-data should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_radar_chart_data_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_radar_chart_data_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /radar-chart-data validates request data
+        Input validation: GET /api/v1/radar-chart-data validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 

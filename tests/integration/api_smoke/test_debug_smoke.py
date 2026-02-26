@@ -14,42 +14,53 @@ class TestDebugSmoke:
     """Smoke tests for debug API endpoints"""
 
 
-    # ── GET /environment ────────────────────────────
+    # ── GET /api/v1/environment ────────────────────────────
 
-    def test_get_environment_info_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_environment_info_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /environment
+        Happy path: GET /api/v1/environment
         Source: app/api/api_v1/endpoints/debug.py:get_environment_info
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/environment", headers=headers)
+        response = api_client.get("/api/v1/debug/environment", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /environment failed: {response.status_code} "
+            f"GET /api/v1/environment failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_environment_info_auth_required(self, api_client: TestClient):
+    def test_get_environment_info_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /environment requires authentication
+        Auth validation: GET /api/v1/environment requires authentication
         """
         
-        response = api_client.get("/environment")
+        response = api_client.get("/api/v1/debug/environment")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /environment should require auth: {response.status_code}"
+            f"GET /api/v1/environment should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_environment_info_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_environment_info_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /environment validates request data
+        Input validation: GET /api/v1/environment validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestDebugSmoke:
         
 
 
-    # ── GET /health ────────────────────────────
+    # ── GET /api/v1/health ────────────────────────────
 
-    def test_unknown_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_unknown_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /health
+        Happy path: GET /api/v1/health
         Source: app/api/api_v1/endpoints/debug.py:unknown
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/health", headers=headers)
+        response = api_client.get("/api/v1/debug/health", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /health failed: {response.status_code} "
+            f"GET /api/v1/health failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_unknown_auth_required(self, api_client: TestClient):
+    def test_unknown_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /health requires authentication
+        Auth validation: GET /api/v1/health requires authentication
         """
         
-        response = api_client.get("/health")
+        response = api_client.get("/api/v1/debug/health")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /health should require auth: {response.status_code}"
+            f"GET /api/v1/health should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_unknown_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_unknown_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /health validates request data
+        Input validation: GET /api/v1/health validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,44 +126,55 @@ class TestDebugSmoke:
         
 
 
-    # ── POST /log-error ────────────────────────────
+    # ── POST /api/v1/log-error ────────────────────────────
 
-    def test_log_frontend_error_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_log_frontend_error_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /log-error
+        Happy path: POST /api/v1/log-error
         Source: app/api/api_v1/endpoints/debug.py:log_frontend_error
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /log-error
+        # TODO: Add realistic payload for /api/v1/log-error
         payload = {}
-        response = api_client.post("/log-error", json=payload, headers=headers)
+        response = api_client.post("/api/v1/debug/log-error", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /log-error failed: {response.status_code} "
+            f"POST /api/v1/log-error failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_log_frontend_error_auth_required(self, api_client: TestClient):
+    def test_log_frontend_error_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /log-error requires authentication
+        Auth validation: POST /api/v1/log-error requires authentication
         """
         
-        response = api_client.post("/log-error", json={})
+        response = api_client.post("/api/v1/debug/log-error", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /log-error should require auth: {response.status_code}"
+            f"POST /api/v1/log-error should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_log_frontend_error_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_log_frontend_error_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /log-error validates request data
+        Input validation: POST /api/v1/log-error validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,14 +182,14 @@ class TestDebugSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/log-error",
+            "/api/v1/debug/log-error",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /log-error should validate input: {response.status_code}"
+            f"POST /api/v1/log-error should validate input: {response.status_code}"
         )
         
 

@@ -14,42 +14,53 @@ class TestProfileSmoke:
     """Smoke tests for profile API endpoints"""
 
 
-    # ── GET /profile ────────────────────────────
+    # ── GET /api/v1/profile ────────────────────────────
 
-    def test_profile_page_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_profile_page_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /profile
+        Happy path: GET /api/v1/profile
         Source: app/api/web_routes/profile.py:profile_page
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/profile", headers=headers)
+        response = api_client.get("/api/v1/profile/profile", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /profile failed: {response.status_code} "
+            f"GET /api/v1/profile failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_profile_page_auth_required(self, api_client: TestClient):
+    def test_profile_page_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /profile requires authentication
+        Auth validation: GET /api/v1/profile requires authentication
         """
         
-        response = api_client.get("/profile")
+        response = api_client.get("/api/v1/profile/profile")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /profile should require auth: {response.status_code}"
+            f"GET /api/v1/profile should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_profile_page_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_profile_page_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /profile validates request data
+        Input validation: GET /api/v1/profile validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestProfileSmoke:
         
 
 
-    # ── GET /profile/edit ────────────────────────────
+    # ── GET /api/v1/profile/edit ────────────────────────────
 
-    def test_profile_edit_page_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_profile_edit_page_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /profile/edit
+        Happy path: GET /api/v1/profile/edit
         Source: app/api/web_routes/profile.py:profile_edit_page
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/profile/edit", headers=headers)
+        response = api_client.get("/api/v1/profile/profile/edit", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /profile/edit failed: {response.status_code} "
+            f"GET /api/v1/profile/edit failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_profile_edit_page_auth_required(self, api_client: TestClient):
+    def test_profile_edit_page_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /profile/edit requires authentication
+        Auth validation: GET /api/v1/profile/edit requires authentication
         """
         
-        response = api_client.get("/profile/edit")
+        response = api_client.get("/api/v1/profile/profile/edit")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /profile/edit should require auth: {response.status_code}"
+            f"GET /api/v1/profile/edit should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_profile_edit_page_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_profile_edit_page_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /profile/edit validates request data
+        Input validation: GET /api/v1/profile/edit validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,44 +126,55 @@ class TestProfileSmoke:
         
 
 
-    # ── POST /profile/edit ────────────────────────────
+    # ── POST /api/v1/profile/edit ────────────────────────────
 
-    def test_profile_edit_submit_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_profile_edit_submit_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /profile/edit
+        Happy path: POST /api/v1/profile/edit
         Source: app/api/web_routes/profile.py:profile_edit_submit
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /profile/edit
+        # TODO: Add realistic payload for /api/v1/profile/edit
         payload = {}
-        response = api_client.post("/profile/edit", json=payload, headers=headers)
+        response = api_client.post("/api/v1/profile/profile/edit", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /profile/edit failed: {response.status_code} "
+            f"POST /api/v1/profile/edit failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_profile_edit_submit_auth_required(self, api_client: TestClient):
+    def test_profile_edit_submit_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /profile/edit requires authentication
+        Auth validation: POST /api/v1/profile/edit requires authentication
         """
         
-        response = api_client.post("/profile/edit", json={})
+        response = api_client.post("/api/v1/profile/profile/edit", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /profile/edit should require auth: {response.status_code}"
+            f"POST /api/v1/profile/edit should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_profile_edit_submit_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_profile_edit_submit_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /profile/edit validates request data
+        Input validation: POST /api/v1/profile/edit validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,14 +182,14 @@ class TestProfileSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/profile/edit",
+            "/api/v1/profile/profile/edit",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /profile/edit should validate input: {response.status_code}"
+            f"POST /api/v1/profile/edit should validate input: {response.status_code}"
         )
         
 

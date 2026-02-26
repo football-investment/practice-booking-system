@@ -14,42 +14,53 @@ class TestGamificationSmoke:
     """Smoke tests for gamification API endpoints"""
 
 
-    # ── GET /me ────────────────────────────
+    # ── GET /api/v1/me ────────────────────────────
 
-    def test_get_my_gamification_data_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_gamification_data_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /me
+        Happy path: GET /api/v1/me
         Source: app/api/api_v1/endpoints/gamification.py:get_my_gamification_data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/me", headers=headers)
+        response = api_client.get("/api/v1/gamification/me", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /me failed: {response.status_code} "
+            f"GET /api/v1/me failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_my_gamification_data_auth_required(self, api_client: TestClient):
+    def test_get_my_gamification_data_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /me requires authentication
+        Auth validation: GET /api/v1/me requires authentication
         """
         
-        response = api_client.get("/me")
+        response = api_client.get("/api/v1/gamification/me")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /me should require auth: {response.status_code}"
+            f"GET /api/v1/me should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_gamification_data_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_my_gamification_data_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /me validates request data
+        Input validation: GET /api/v1/me validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,56 @@ class TestGamificationSmoke:
         
 
 
-    # ── GET /user/{user_id} ────────────────────────────
+    # ── GET /api/v1/user/{user_id} ────────────────────────────
 
-    def test_get_user_gamification_data_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_user_gamification_data_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: GET /user/{user_id}
+        Happy path: GET /api/v1/user/{user_id}
         Source: app/api/api_v1/endpoints/gamification.py:get_user_gamification_data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/user/{user_id}", headers=headers)
+        response = api_client.get(f"/api/v1/gamification/user/{test_student_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /user/{user_id} failed: {response.status_code} "
+            f"GET /api/v1/user/{user_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_user_gamification_data_auth_required(self, api_client: TestClient):
+    def test_get_user_gamification_data_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: GET /user/{user_id} requires authentication
+        Auth validation: GET /api/v1/user/{user_id} requires authentication
         """
         
-        response = api_client.get("/user/{user_id}")
+        response = api_client.get(f"/api/v1/gamification/user/{test_student_id}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /user/{user_id} should require auth: {response.status_code}"
+            f"GET /api/v1/user/{user_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_gamification_data_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_user_gamification_data_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: GET /user/{user_id} validates request data
+        Input validation: GET /api/v1/user/{user_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,44 +129,58 @@ class TestGamificationSmoke:
         
 
 
-    # ── POST /refresh/{user_id} ────────────────────────────
+    # ── POST /api/v1/refresh/{user_id} ────────────────────────────
 
-    def test_refresh_user_achievements_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_refresh_user_achievements_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: POST /refresh/{user_id}
+        Happy path: POST /api/v1/refresh/{user_id}
         Source: app/api/api_v1/endpoints/gamification.py:refresh_user_achievements
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /refresh/{user_id}
+        # TODO: Add realistic payload for /api/v1/refresh/{user_id}
         payload = {}
-        response = api_client.post("/refresh/{user_id}", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/gamification/refresh/{test_student_id}", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /refresh/{user_id} failed: {response.status_code} "
+            f"POST /api/v1/refresh/{user_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_refresh_user_achievements_auth_required(self, api_client: TestClient):
+    def test_refresh_user_achievements_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: POST /refresh/{user_id} requires authentication
+        Auth validation: POST /api/v1/refresh/{user_id} requires authentication
         """
         
-        response = api_client.post("/refresh/{user_id}", json={})
+        response = api_client.post(f"/api/v1/gamification/refresh/{test_student_id}", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /refresh/{user_id} should require auth: {response.status_code}"
+            f"POST /api/v1/refresh/{user_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_refresh_user_achievements_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_refresh_user_achievements_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: POST /refresh/{user_id} validates request data
+        Input validation: POST /api/v1/refresh/{user_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,14 +188,14 @@ class TestGamificationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/refresh/{user_id}",
+            f"/api/v1/gamification/refresh/{test_student_id}",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /refresh/{user_id} should validate input: {response.status_code}"
+            f"POST /api/v1/refresh/{user_id} should validate input: {response.status_code}"
         )
         
 

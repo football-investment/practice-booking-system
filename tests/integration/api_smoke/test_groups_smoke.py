@@ -14,42 +14,56 @@ class TestGroupsSmoke:
     """Smoke tests for groups API endpoints"""
 
 
-    # ── DELETE /{group_id} ────────────────────────────
+    # ── DELETE /api/v1/{group_id} ────────────────────────────
 
-    def test_delete_group_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_delete_group_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: DELETE /{group_id}
+        Happy path: DELETE /api/v1/{group_id}
         Source: app/api/api_v1/endpoints/groups.py:delete_group
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete("/{group_id}", headers=headers)
+        response = api_client.delete(f"/api/v1/groups/{test_tournament["group_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"DELETE /{group_id} failed: {response.status_code} "
+            f"DELETE /api/v1/{group_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_delete_group_auth_required(self, api_client: TestClient):
+    def test_delete_group_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: DELETE /{group_id} requires authentication
+        Auth validation: DELETE /api/v1/{group_id} requires authentication
         """
         
-        response = api_client.delete("/{group_id}")
+        response = api_client.delete(f"/api/v1/groups/{test_tournament["group_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"DELETE /{group_id} should require auth: {response.status_code}"
+            f"DELETE /api/v1/{group_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_group_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_delete_group_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: DELETE /{group_id} validates request data
+        Input validation: DELETE /api/v1/{group_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +73,59 @@ class TestGroupsSmoke:
         
 
 
-    # ── DELETE /{group_id}/users/{user_id} ────────────────────────────
+    # ── DELETE /api/v1/{group_id}/users/{user_id} ────────────────────────────
 
-    def test_remove_user_from_group_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_remove_user_from_group_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+        test_student_id,
+    ):
         """
-        Happy path: DELETE /{group_id}/users/{user_id}
+        Happy path: DELETE /api/v1/{group_id}/users/{user_id}
         Source: app/api/api_v1/endpoints/groups.py:remove_user_from_group
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete("/{group_id}/users/{user_id}", headers=headers)
+        response = api_client.delete(f"/api/v1/groups/{test_tournament["group_id"]}/users/{test_student_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"DELETE /{group_id}/users/{user_id} failed: {response.status_code} "
+            f"DELETE /api/v1/{group_id}/users/{user_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_remove_user_from_group_auth_required(self, api_client: TestClient):
+    def test_remove_user_from_group_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+        test_student_id,
+    ):
         """
-        Auth validation: DELETE /{group_id}/users/{user_id} requires authentication
+        Auth validation: DELETE /api/v1/{group_id}/users/{user_id} requires authentication
         """
         
-        response = api_client.delete("/{group_id}/users/{user_id}")
+        response = api_client.delete(f"/api/v1/groups/{test_tournament["group_id"]}/users/{test_student_id}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"DELETE /{group_id}/users/{user_id} should require auth: {response.status_code}"
+            f"DELETE /api/v1/{group_id}/users/{user_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_remove_user_from_group_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_remove_user_from_group_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+        test_student_id,
+    ):
         """
-        Input validation: DELETE /{group_id}/users/{user_id} validates request data
+        Input validation: DELETE /api/v1/{group_id}/users/{user_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +135,53 @@ class TestGroupsSmoke:
         
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_list_groups_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_groups_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/groups.py:list_groups
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/groups/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_groups_auth_required(self, api_client: TestClient):
+    def test_list_groups_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/groups/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_groups_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_groups_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +191,56 @@ class TestGroupsSmoke:
         
 
 
-    # ── GET /{group_id} ────────────────────────────
+    # ── GET /api/v1/{group_id} ────────────────────────────
 
-    def test_get_group_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_group_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /{group_id}
+        Happy path: GET /api/v1/{group_id}
         Source: app/api/api_v1/endpoints/groups.py:get_group
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/{group_id}", headers=headers)
+        response = api_client.get(f"/api/v1/groups/{test_tournament["group_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /{group_id} failed: {response.status_code} "
+            f"GET /api/v1/{group_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_group_auth_required(self, api_client: TestClient):
+    def test_get_group_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /{group_id} requires authentication
+        Auth validation: GET /api/v1/{group_id} requires authentication
         """
         
-        response = api_client.get("/{group_id}")
+        response = api_client.get(f"/api/v1/groups/{test_tournament["group_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{group_id} should require auth: {response.status_code}"
+            f"GET /api/v1/{group_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_group_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_group_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /{group_id} validates request data
+        Input validation: GET /api/v1/{group_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,43 +250,57 @@ class TestGroupsSmoke:
         
 
 
-    # ── PATCH /{group_id} ────────────────────────────
+    # ── PATCH /api/v1/{group_id} ────────────────────────────
 
-    def test_update_group_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_update_group_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: PATCH /{group_id}
+        Happy path: PATCH /api/v1/{group_id}
         Source: app/api/api_v1/endpoints/groups.py:update_group
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch("/{group_id}", json=payload, headers=headers)
+        response = api_client.patch(f"/api/v1/groups/{test_tournament["group_id"]}", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"PATCH /{group_id} failed: {response.status_code} "
+            f"PATCH /api/v1/{group_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_update_group_auth_required(self, api_client: TestClient):
+    def test_update_group_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: PATCH /{group_id} requires authentication
+        Auth validation: PATCH /api/v1/{group_id} requires authentication
         """
         
-        response = api_client.patch("/{group_id}", json={})
+        response = api_client.patch(f"/api/v1/groups/{test_tournament["group_id"]}", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"PATCH /{group_id} should require auth: {response.status_code}"
+            f"PATCH /api/v1/{group_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_update_group_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_update_group_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: PATCH /{group_id} validates request data
+        Input validation: PATCH /api/v1/{group_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -238,56 +308,67 @@ class TestGroupsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            "/{group_id}",
+            f"/api/v1/groups/{test_tournament["group_id"]}",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /{group_id} should validate input: {response.status_code}"
+            f"PATCH /api/v1/{group_id} should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST / ────────────────────────────
+    # ── POST /api/v1/ ────────────────────────────
 
-    def test_create_group_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_group_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /
+        Happy path: POST /api/v1/
         Source: app/api/api_v1/endpoints/groups.py:create_group
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
+        # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/", json=payload, headers=headers)
+        response = api_client.post("/api/v1/groups/", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST / failed: {response.status_code} "
+            f"POST /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_group_auth_required(self, api_client: TestClient):
+    def test_create_group_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST / requires authentication
+        Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/", json={})
+        response = api_client.post("/api/v1/groups/", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST / should require auth: {response.status_code}"
+            f"POST /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_group_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_group_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST / validates request data
+        Input validation: POST /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -295,56 +376,70 @@ class TestGroupsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/",
+            "/api/v1/groups/",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST / should validate input: {response.status_code}"
+            f"POST /api/v1/ should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{group_id}/users ────────────────────────────
+    # ── POST /api/v1/{group_id}/users ────────────────────────────
 
-    def test_add_user_to_group_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_add_user_to_group_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{group_id}/users
+        Happy path: POST /api/v1/{group_id}/users
         Source: app/api/api_v1/endpoints/groups.py:add_user_to_group
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{group_id}/users
+        # TODO: Add realistic payload for /api/v1/{group_id}/users
         payload = {}
-        response = api_client.post("/{group_id}/users", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/groups/{test_tournament["group_id"]}/users", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{group_id}/users failed: {response.status_code} "
+            f"POST /api/v1/{group_id}/users failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_add_user_to_group_auth_required(self, api_client: TestClient):
+    def test_add_user_to_group_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{group_id}/users requires authentication
+        Auth validation: POST /api/v1/{group_id}/users requires authentication
         """
         
-        response = api_client.post("/{group_id}/users", json={})
+        response = api_client.post(f"/api/v1/groups/{test_tournament["group_id"]}/users", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{group_id}/users should require auth: {response.status_code}"
+            f"POST /api/v1/{group_id}/users should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_add_user_to_group_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_add_user_to_group_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{group_id}/users validates request data
+        Input validation: POST /api/v1/{group_id}/users validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -352,14 +447,14 @@ class TestGroupsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{group_id}/users",
+            f"/api/v1/groups/{test_tournament["group_id"]}/users",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{group_id}/users should validate input: {response.status_code}"
+            f"POST /api/v1/{group_id}/users should validate input: {response.status_code}"
         )
         
 

@@ -14,42 +14,53 @@ class TestTracksSmoke:
     """Smoke tests for tracks API endpoints"""
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_get_available_tracks_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_available_tracks_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/tracks.py:get_available_tracks
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/tracks/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_available_tracks_auth_required(self, api_client: TestClient):
+    def test_get_available_tracks_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/tracks/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_tracks_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_available_tracks_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestTracksSmoke:
         
 
 
-    # ── GET /my ────────────────────────────
+    # ── GET /api/v1/my ────────────────────────────
 
-    def test_get_my_tracks_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_tracks_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /my
+        Happy path: GET /api/v1/my
         Source: app/api/api_v1/endpoints/tracks.py:get_my_tracks
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/my", headers=headers)
+        response = api_client.get("/api/v1/tracks/my", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /my failed: {response.status_code} "
+            f"GET /api/v1/my failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_my_tracks_auth_required(self, api_client: TestClient):
+    def test_get_my_tracks_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /my requires authentication
+        Auth validation: GET /api/v1/my requires authentication
         """
         
-        response = api_client.get("/my")
+        response = api_client.get("/api/v1/tracks/my")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /my should require auth: {response.status_code}"
+            f"GET /api/v1/my should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_tracks_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_my_tracks_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /my validates request data
+        Input validation: GET /api/v1/my validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,56 @@ class TestTracksSmoke:
         
 
 
-    # ── GET /{track_id}/analytics ────────────────────────────
+    # ── GET /api/v1/{track_id}/analytics ────────────────────────────
 
-    def test_get_track_analytics_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_track_analytics_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /{track_id}/analytics
+        Happy path: GET /api/v1/{track_id}/analytics
         Source: app/api/api_v1/endpoints/tracks.py:get_track_analytics
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/{track_id}/analytics", headers=headers)
+        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_id"]}/analytics", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /{track_id}/analytics failed: {response.status_code} "
+            f"GET /api/v1/{track_id}/analytics failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_track_analytics_auth_required(self, api_client: TestClient):
+    def test_get_track_analytics_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /{track_id}/analytics requires authentication
+        Auth validation: GET /api/v1/{track_id}/analytics requires authentication
         """
         
-        response = api_client.get("/{track_id}/analytics")
+        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_id"]}/analytics")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{track_id}/analytics should require auth: {response.status_code}"
+            f"GET /api/v1/{track_id}/analytics should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_track_analytics_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_track_analytics_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /{track_id}/analytics validates request data
+        Input validation: GET /api/v1/{track_id}/analytics validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +185,56 @@ class TestTracksSmoke:
         
 
 
-    # ── GET /{track_progress_id}/progress ────────────────────────────
+    # ── GET /api/v1/{track_progress_id}/progress ────────────────────────────
 
-    def test_get_track_progress_detail_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_track_progress_detail_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /{track_progress_id}/progress
+        Happy path: GET /api/v1/{track_progress_id}/progress
         Source: app/api/api_v1/endpoints/tracks.py:get_track_progress_detail
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/{track_progress_id}/progress", headers=headers)
+        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/progress", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /{track_progress_id}/progress failed: {response.status_code} "
+            f"GET /api/v1/{track_progress_id}/progress failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_track_progress_detail_auth_required(self, api_client: TestClient):
+    def test_get_track_progress_detail_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /{track_progress_id}/progress requires authentication
+        Auth validation: GET /api/v1/{track_progress_id}/progress requires authentication
         """
         
-        response = api_client.get("/{track_progress_id}/progress")
+        response = api_client.get(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/progress")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{track_progress_id}/progress should require auth: {response.status_code}"
+            f"GET /api/v1/{track_progress_id}/progress should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_track_progress_detail_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_track_progress_detail_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /{track_progress_id}/progress validates request data
+        Input validation: GET /api/v1/{track_progress_id}/progress validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,44 +244,55 @@ class TestTracksSmoke:
         
 
 
-    # ── POST /enroll ────────────────────────────
+    # ── POST /api/v1/enroll ────────────────────────────
 
-    def test_enroll_in_track_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_enroll_in_track_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /enroll
+        Happy path: POST /api/v1/enroll
         Source: app/api/api_v1/endpoints/tracks.py:enroll_in_track
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /enroll
+        # TODO: Add realistic payload for /api/v1/enroll
         payload = {}
-        response = api_client.post("/enroll", json=payload, headers=headers)
+        response = api_client.post("/api/v1/tracks/enroll", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /enroll failed: {response.status_code} "
+            f"POST /api/v1/enroll failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_enroll_in_track_auth_required(self, api_client: TestClient):
+    def test_enroll_in_track_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /enroll requires authentication
+        Auth validation: POST /api/v1/enroll requires authentication
         """
         
-        response = api_client.post("/enroll", json={})
+        response = api_client.post("/api/v1/tracks/enroll", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /enroll should require auth: {response.status_code}"
+            f"POST /api/v1/enroll should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_enroll_in_track_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_enroll_in_track_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /enroll validates request data
+        Input validation: POST /api/v1/enroll validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,56 +300,70 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/enroll",
+            "/api/v1/tracks/enroll",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /enroll should validate input: {response.status_code}"
+            f"POST /api/v1/enroll should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{track_progress_id}/modules/{module_id}/complete ────────────────────────────
+    # ── POST /api/v1/{track_progress_id}/modules/{module_id}/complete ────────────────────────────
 
-    def test_complete_module_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_complete_module_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{track_progress_id}/modules/{module_id}/complete
+        Happy path: POST /api/v1/{track_progress_id}/modules/{module_id}/complete
         Source: app/api/api_v1/endpoints/tracks.py:complete_module
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{track_progress_id}/modules/{module_id}/complete
+        # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{module_id}/complete
         payload = {}
-        response = api_client.post("/{track_progress_id}/modules/{module_id}/complete", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{track_progress_id}/modules/{module_id}/complete failed: {response.status_code} "
+            f"POST /api/v1/{track_progress_id}/modules/{module_id}/complete failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_complete_module_auth_required(self, api_client: TestClient):
+    def test_complete_module_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{track_progress_id}/modules/{module_id}/complete requires authentication
+        Auth validation: POST /api/v1/{track_progress_id}/modules/{module_id}/complete requires authentication
         """
         
-        response = api_client.post("/{track_progress_id}/modules/{module_id}/complete", json={})
+        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{track_progress_id}/modules/{module_id}/complete should require auth: {response.status_code}"
+            f"POST /api/v1/{track_progress_id}/modules/{module_id}/complete should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_complete_module_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_complete_module_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{track_progress_id}/modules/{module_id}/complete validates request data
+        Input validation: POST /api/v1/{track_progress_id}/modules/{module_id}/complete validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -296,56 +371,70 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{track_progress_id}/modules/{module_id}/complete",
+            f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{track_progress_id}/modules/{module_id}/complete should validate input: {response.status_code}"
+            f"POST /api/v1/{track_progress_id}/modules/{module_id}/complete should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{track_progress_id}/modules/{module_id}/start ────────────────────────────
+    # ── POST /api/v1/{track_progress_id}/modules/{module_id}/start ────────────────────────────
 
-    def test_start_module_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_start_module_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{track_progress_id}/modules/{module_id}/start
+        Happy path: POST /api/v1/{track_progress_id}/modules/{module_id}/start
         Source: app/api/api_v1/endpoints/tracks.py:start_module
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{track_progress_id}/modules/{module_id}/start
+        # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{module_id}/start
         payload = {}
-        response = api_client.post("/{track_progress_id}/modules/{module_id}/start", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{track_progress_id}/modules/{module_id}/start failed: {response.status_code} "
+            f"POST /api/v1/{track_progress_id}/modules/{module_id}/start failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_start_module_auth_required(self, api_client: TestClient):
+    def test_start_module_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{track_progress_id}/modules/{module_id}/start requires authentication
+        Auth validation: POST /api/v1/{track_progress_id}/modules/{module_id}/start requires authentication
         """
         
-        response = api_client.post("/{track_progress_id}/modules/{module_id}/start", json={})
+        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{track_progress_id}/modules/{module_id}/start should require auth: {response.status_code}"
+            f"POST /api/v1/{track_progress_id}/modules/{module_id}/start should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_start_module_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_start_module_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{track_progress_id}/modules/{module_id}/start validates request data
+        Input validation: POST /api/v1/{track_progress_id}/modules/{module_id}/start validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -353,56 +442,70 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{track_progress_id}/modules/{module_id}/start",
+            f"/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{track_progress_id}/modules/{module_id}/start should validate input: {response.status_code}"
+            f"POST /api/v1/{track_progress_id}/modules/{module_id}/start should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{track_progress_id}/start ────────────────────────────
+    # ── POST /api/v1/{track_progress_id}/start ────────────────────────────
 
-    def test_start_track_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_start_track_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{track_progress_id}/start
+        Happy path: POST /api/v1/{track_progress_id}/start
         Source: app/api/api_v1/endpoints/tracks.py:start_track
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{track_progress_id}/start
+        # TODO: Add realistic payload for /api/v1/{track_progress_id}/start
         payload = {}
-        response = api_client.post("/{track_progress_id}/start", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/start", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{track_progress_id}/start failed: {response.status_code} "
+            f"POST /api/v1/{track_progress_id}/start failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_start_track_auth_required(self, api_client: TestClient):
+    def test_start_track_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{track_progress_id}/start requires authentication
+        Auth validation: POST /api/v1/{track_progress_id}/start requires authentication
         """
         
-        response = api_client.post("/{track_progress_id}/start", json={})
+        response = api_client.post(f"/api/v1/tracks/{test_tournament["track_progress_id"]}/start", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{track_progress_id}/start should require auth: {response.status_code}"
+            f"POST /api/v1/{track_progress_id}/start should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_start_track_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_start_track_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{track_progress_id}/start validates request data
+        Input validation: POST /api/v1/{track_progress_id}/start validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -410,14 +513,14 @@ class TestTracksSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{track_progress_id}/start",
+            f"/api/v1/tracks/{test_tournament["track_progress_id"]}/start",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{track_progress_id}/start should validate input: {response.status_code}"
+            f"POST /api/v1/{track_progress_id}/start should validate input: {response.status_code}"
         )
         
 

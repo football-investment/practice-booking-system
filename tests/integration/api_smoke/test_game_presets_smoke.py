@@ -14,42 +14,56 @@ class TestGamepresetsSmoke:
     """Smoke tests for game_presets API endpoints"""
 
 
-    # ── DELETE /{preset_id} ────────────────────────────
+    # ── DELETE /api/v1/{preset_id} ────────────────────────────
 
-    def test_delete_game_preset_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_delete_game_preset_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: DELETE /{preset_id}
+        Happy path: DELETE /api/v1/{preset_id}
         Source: app/api/api_v1/endpoints/game_presets/router.py:delete_game_preset
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete("/{preset_id}", headers=headers)
+        response = api_client.delete(f"/api/v1/game-presets/{test_tournament["preset_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"DELETE /{preset_id} failed: {response.status_code} "
+            f"DELETE /api/v1/{preset_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_delete_game_preset_auth_required(self, api_client: TestClient):
+    def test_delete_game_preset_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: DELETE /{preset_id} requires authentication
+        Auth validation: DELETE /api/v1/{preset_id} requires authentication
         """
         
-        response = api_client.delete("/{preset_id}")
+        response = api_client.delete(f"/api/v1/game-presets/{test_tournament["preset_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"DELETE /{preset_id} should require auth: {response.status_code}"
+            f"DELETE /api/v1/{preset_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_game_preset_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_delete_game_preset_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: DELETE /{preset_id} validates request data
+        Input validation: DELETE /api/v1/{preset_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +73,53 @@ class TestGamepresetsSmoke:
         
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_list_game_presets_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_game_presets_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/game_presets/router.py:list_game_presets
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/game-presets/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_game_presets_auth_required(self, api_client: TestClient):
+    def test_list_game_presets_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/game-presets/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_game_presets_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_game_presets_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +129,56 @@ class TestGamepresetsSmoke:
         
 
 
-    # ── GET /code/{code} ────────────────────────────
+    # ── GET /api/v1/code/{code} ────────────────────────────
 
-    def test_get_game_preset_by_code_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_game_preset_by_code_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /code/{code}
+        Happy path: GET /api/v1/code/{code}
         Source: app/api/api_v1/endpoints/game_presets/router.py:get_game_preset_by_code
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/code/{code}", headers=headers)
+        response = api_client.get(f"/api/v1/game-presets/code/{test_tournament["code"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /code/{code} failed: {response.status_code} "
+            f"GET /api/v1/code/{code} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_game_preset_by_code_auth_required(self, api_client: TestClient):
+    def test_get_game_preset_by_code_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /code/{code} requires authentication
+        Auth validation: GET /api/v1/code/{code} requires authentication
         """
         
-        response = api_client.get("/code/{code}")
+        response = api_client.get(f"/api/v1/game-presets/code/{test_tournament["code"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /code/{code} should require auth: {response.status_code}"
+            f"GET /api/v1/code/{code} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_game_preset_by_code_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_game_preset_by_code_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /code/{code} validates request data
+        Input validation: GET /api/v1/code/{code} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +188,56 @@ class TestGamepresetsSmoke:
         
 
 
-    # ── GET /{preset_id} ────────────────────────────
+    # ── GET /api/v1/{preset_id} ────────────────────────────
 
-    def test_get_game_preset_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_game_preset_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /{preset_id}
+        Happy path: GET /api/v1/{preset_id}
         Source: app/api/api_v1/endpoints/game_presets/router.py:get_game_preset
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/{preset_id}", headers=headers)
+        response = api_client.get(f"/api/v1/game-presets/{test_tournament["preset_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /{preset_id} failed: {response.status_code} "
+            f"GET /api/v1/{preset_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_game_preset_auth_required(self, api_client: TestClient):
+    def test_get_game_preset_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /{preset_id} requires authentication
+        Auth validation: GET /api/v1/{preset_id} requires authentication
         """
         
-        response = api_client.get("/{preset_id}")
+        response = api_client.get(f"/api/v1/game-presets/{test_tournament["preset_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{preset_id} should require auth: {response.status_code}"
+            f"GET /api/v1/{preset_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_game_preset_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_game_preset_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /{preset_id} validates request data
+        Input validation: GET /api/v1/{preset_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,43 +247,57 @@ class TestGamepresetsSmoke:
         
 
 
-    # ── PATCH /{preset_id} ────────────────────────────
+    # ── PATCH /api/v1/{preset_id} ────────────────────────────
 
-    def test_update_game_preset_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_update_game_preset_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: PATCH /{preset_id}
+        Happy path: PATCH /api/v1/{preset_id}
         Source: app/api/api_v1/endpoints/game_presets/router.py:update_game_preset
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch("/{preset_id}", json=payload, headers=headers)
+        response = api_client.patch(f"/api/v1/game-presets/{test_tournament["preset_id"]}", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"PATCH /{preset_id} failed: {response.status_code} "
+            f"PATCH /api/v1/{preset_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_update_game_preset_auth_required(self, api_client: TestClient):
+    def test_update_game_preset_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: PATCH /{preset_id} requires authentication
+        Auth validation: PATCH /api/v1/{preset_id} requires authentication
         """
         
-        response = api_client.patch("/{preset_id}", json={})
+        response = api_client.patch(f"/api/v1/game-presets/{test_tournament["preset_id"]}", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"PATCH /{preset_id} should require auth: {response.status_code}"
+            f"PATCH /api/v1/{preset_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_update_game_preset_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_update_game_preset_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: PATCH /{preset_id} validates request data
+        Input validation: PATCH /api/v1/{preset_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -238,56 +305,67 @@ class TestGamepresetsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            "/{preset_id}",
+            f"/api/v1/game-presets/{test_tournament["preset_id"]}",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /{preset_id} should validate input: {response.status_code}"
+            f"PATCH /api/v1/{preset_id} should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST / ────────────────────────────
+    # ── POST /api/v1/ ────────────────────────────
 
-    def test_create_game_preset_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_game_preset_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /
+        Happy path: POST /api/v1/
         Source: app/api/api_v1/endpoints/game_presets/router.py:create_game_preset
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
+        # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/", json=payload, headers=headers)
+        response = api_client.post("/api/v1/game-presets/", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST / failed: {response.status_code} "
+            f"POST /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_game_preset_auth_required(self, api_client: TestClient):
+    def test_create_game_preset_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST / requires authentication
+        Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/", json={})
+        response = api_client.post("/api/v1/game-presets/", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST / should require auth: {response.status_code}"
+            f"POST /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_game_preset_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_game_preset_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST / validates request data
+        Input validation: POST /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -295,14 +373,14 @@ class TestGamepresetsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/",
+            "/api/v1/game-presets/",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST / should validate input: {response.status_code}"
+            f"POST /api/v1/ should validate input: {response.status_code}"
         )
         
 

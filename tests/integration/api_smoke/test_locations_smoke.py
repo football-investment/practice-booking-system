@@ -14,42 +14,56 @@ class TestLocationsSmoke:
     """Smoke tests for locations API endpoints"""
 
 
-    # ── DELETE /{location_id} ────────────────────────────
+    # ── DELETE /api/v1/{location_id} ────────────────────────────
 
-    def test_delete_location_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_delete_location_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: DELETE /{location_id}
+        Happy path: DELETE /api/v1/{location_id}
         Source: app/api/api_v1/endpoints/locations.py:delete_location
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete("/{location_id}", headers=headers)
+        response = api_client.delete(f"/api/v1/locations/{test_tournament["location_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"DELETE /{location_id} failed: {response.status_code} "
+            f"DELETE /api/v1/{location_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_delete_location_auth_required(self, api_client: TestClient):
+    def test_delete_location_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: DELETE /{location_id} requires authentication
+        Auth validation: DELETE /api/v1/{location_id} requires authentication
         """
         
-        response = api_client.delete("/{location_id}")
+        response = api_client.delete(f"/api/v1/locations/{test_tournament["location_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"DELETE /{location_id} should require auth: {response.status_code}"
+            f"DELETE /api/v1/{location_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_location_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_delete_location_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: DELETE /{location_id} validates request data
+        Input validation: DELETE /api/v1/{location_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +73,53 @@ class TestLocationsSmoke:
         
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_get_all_locations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_all_locations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/locations.py:get_all_locations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/locations/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_all_locations_auth_required(self, api_client: TestClient):
+    def test_get_all_locations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/locations/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_all_locations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_all_locations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +129,53 @@ class TestLocationsSmoke:
         
 
 
-    # ── GET /active/list ────────────────────────────
+    # ── GET /api/v1/active/list ────────────────────────────
 
-    def test_get_active_locations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_active_locations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /active/list
+        Happy path: GET /api/v1/active/list
         Source: app/api/api_v1/endpoints/locations.py:get_active_locations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/active/list", headers=headers)
+        response = api_client.get("/api/v1/locations/active/list", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /active/list failed: {response.status_code} "
+            f"GET /api/v1/active/list failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_active_locations_auth_required(self, api_client: TestClient):
+    def test_get_active_locations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /active/list requires authentication
+        Auth validation: GET /api/v1/active/list requires authentication
         """
         
-        response = api_client.get("/active/list")
+        response = api_client.get("/api/v1/locations/active/list")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /active/list should require auth: {response.status_code}"
+            f"GET /api/v1/active/list should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_active_locations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_active_locations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /active/list validates request data
+        Input validation: GET /api/v1/active/list validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +185,56 @@ class TestLocationsSmoke:
         
 
 
-    # ── GET /{location_id} ────────────────────────────
+    # ── GET /api/v1/{location_id} ────────────────────────────
 
-    def test_get_location_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_location_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /{location_id}
+        Happy path: GET /api/v1/{location_id}
         Source: app/api/api_v1/endpoints/locations.py:get_location
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/{location_id}", headers=headers)
+        response = api_client.get(f"/api/v1/locations/{test_tournament["location_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /{location_id} failed: {response.status_code} "
+            f"GET /api/v1/{location_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_location_auth_required(self, api_client: TestClient):
+    def test_get_location_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /{location_id} requires authentication
+        Auth validation: GET /api/v1/{location_id} requires authentication
         """
         
-        response = api_client.get("/{location_id}")
+        response = api_client.get(f"/api/v1/locations/{test_tournament["location_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /{location_id} should require auth: {response.status_code}"
+            f"GET /api/v1/{location_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_location_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_location_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /{location_id} validates request data
+        Input validation: GET /api/v1/{location_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,44 +244,55 @@ class TestLocationsSmoke:
         
 
 
-    # ── POST / ────────────────────────────
+    # ── POST /api/v1/ ────────────────────────────
 
-    def test_create_location_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_location_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /
+        Happy path: POST /api/v1/
         Source: app/api/api_v1/endpoints/locations.py:create_location
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
+        # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/", json=payload, headers=headers)
+        response = api_client.post("/api/v1/locations/", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST / failed: {response.status_code} "
+            f"POST /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_location_auth_required(self, api_client: TestClient):
+    def test_create_location_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST / requires authentication
+        Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/", json={})
+        response = api_client.post("/api/v1/locations/", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST / should require auth: {response.status_code}"
+            f"POST /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_location_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_location_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST / validates request data
+        Input validation: POST /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,55 +300,69 @@ class TestLocationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/",
+            "/api/v1/locations/",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST / should validate input: {response.status_code}"
+            f"POST /api/v1/ should validate input: {response.status_code}"
         )
         
 
 
-    # ── PUT /{location_id} ────────────────────────────
+    # ── PUT /api/v1/{location_id} ────────────────────────────
 
-    def test_update_location_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_update_location_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: PUT /{location_id}
+        Happy path: PUT /api/v1/{location_id}
         Source: app/api/api_v1/endpoints/locations.py:update_location
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.put("/{location_id}", json=payload, headers=headers)
+        response = api_client.put(f"/api/v1/locations/{test_tournament["location_id"]}", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"PUT /{location_id} failed: {response.status_code} "
+            f"PUT /api/v1/{location_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_update_location_auth_required(self, api_client: TestClient):
+    def test_update_location_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: PUT /{location_id} requires authentication
+        Auth validation: PUT /api/v1/{location_id} requires authentication
         """
         
-        response = api_client.put("/{location_id}", json={})
+        response = api_client.put(f"/api/v1/locations/{test_tournament["location_id"]}", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"PUT /{location_id} should require auth: {response.status_code}"
+            f"PUT /api/v1/{location_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_update_location_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_update_location_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: PUT /{location_id} validates request data
+        Input validation: PUT /api/v1/{location_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -295,14 +370,14 @@ class TestLocationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            "/{location_id}",
+            f"/api/v1/locations/{test_tournament["location_id"]}",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PUT /{location_id} should validate input: {response.status_code}"
+            f"PUT /api/v1/{location_id} should validate input: {response.status_code}"
         )
         
 

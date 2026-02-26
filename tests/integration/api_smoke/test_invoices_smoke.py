@@ -14,42 +14,53 @@ class TestInvoicesSmoke:
     """Smoke tests for invoices API endpoints"""
 
 
-    # ── GET /count ────────────────────────────
+    # ── GET /api/v1/count ────────────────────────────
 
-    def test_get_invoice_count_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_invoice_count_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /count
+        Happy path: GET /api/v1/count
         Source: app/api/api_v1/endpoints/invoices/requests.py:get_invoice_count
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/count", headers=headers)
+        response = api_client.get("/api/v1/invoices/count", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /count failed: {response.status_code} "
+            f"GET /api/v1/count failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_invoice_count_auth_required(self, api_client: TestClient):
+    def test_get_invoice_count_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /count requires authentication
+        Auth validation: GET /api/v1/count requires authentication
         """
         
-        response = api_client.get("/count")
+        response = api_client.get("/api/v1/invoices/count")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /count should require auth: {response.status_code}"
+            f"GET /api/v1/count should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_invoice_count_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_invoice_count_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /count validates request data
+        Input validation: GET /api/v1/count validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestInvoicesSmoke:
         
 
 
-    # ── GET /list ────────────────────────────
+    # ── GET /api/v1/list ────────────────────────────
 
-    def test_list_invoices_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_invoices_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /list
+        Happy path: GET /api/v1/list
         Source: app/api/api_v1/endpoints/invoices/requests.py:list_invoices
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/list", headers=headers)
+        response = api_client.get("/api/v1/invoices/list", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /list failed: {response.status_code} "
+            f"GET /api/v1/list failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_invoices_auth_required(self, api_client: TestClient):
+    def test_list_invoices_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /list requires authentication
+        Auth validation: GET /api/v1/list requires authentication
         """
         
-        response = api_client.get("/list")
+        response = api_client.get("/api/v1/invoices/list")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /list should require auth: {response.status_code}"
+            f"GET /api/v1/list should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_invoices_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_invoices_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /list validates request data
+        Input validation: GET /api/v1/list validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestInvoicesSmoke:
         
 
 
-    # ── GET /my-invoices ────────────────────────────
+    # ── GET /api/v1/my-invoices ────────────────────────────
 
-    def test_get_my_invoices_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_invoices_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /my-invoices
+        Happy path: GET /api/v1/my-invoices
         Source: app/api/api_v1/endpoints/invoices/requests.py:get_my_invoices
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/my-invoices", headers=headers)
+        response = api_client.get("/api/v1/invoices/my-invoices", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /my-invoices failed: {response.status_code} "
+            f"GET /api/v1/my-invoices failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_my_invoices_auth_required(self, api_client: TestClient):
+    def test_get_my_invoices_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /my-invoices requires authentication
+        Auth validation: GET /api/v1/my-invoices requires authentication
         """
         
-        response = api_client.get("/my-invoices")
+        response = api_client.get("/api/v1/invoices/my-invoices")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /my-invoices should require auth: {response.status_code}"
+            f"GET /api/v1/my-invoices should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_invoices_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_my_invoices_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /my-invoices validates request data
+        Input validation: GET /api/v1/my-invoices validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +182,53 @@ class TestInvoicesSmoke:
         
 
 
-    # ── GET /summary ────────────────────────────
+    # ── GET /api/v1/summary ────────────────────────────
 
-    def test_get_financial_summary_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_financial_summary_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /summary
+        Happy path: GET /api/v1/summary
         Source: app/api/api_v1/endpoints/invoices/requests.py:get_financial_summary
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/summary", headers=headers)
+        response = api_client.get("/api/v1/invoices/summary", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /summary failed: {response.status_code} "
+            f"GET /api/v1/summary failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_financial_summary_auth_required(self, api_client: TestClient):
+    def test_get_financial_summary_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /summary requires authentication
+        Auth validation: GET /api/v1/summary requires authentication
         """
         
-        response = api_client.get("/summary")
+        response = api_client.get("/api/v1/invoices/summary")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /summary should require auth: {response.status_code}"
+            f"GET /api/v1/summary should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_financial_summary_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_financial_summary_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /summary validates request data
+        Input validation: GET /api/v1/summary validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,44 +238,55 @@ class TestInvoicesSmoke:
         
 
 
-    # ── POST /request ────────────────────────────
+    # ── POST /api/v1/request ────────────────────────────
 
-    def test_create_invoice_request_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_invoice_request_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /request
+        Happy path: POST /api/v1/request
         Source: app/api/api_v1/endpoints/invoices/requests.py:create_invoice_request
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /request
+        # TODO: Add realistic payload for /api/v1/request
         payload = {}
-        response = api_client.post("/request", json=payload, headers=headers)
+        response = api_client.post("/api/v1/invoices/request", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /request failed: {response.status_code} "
+            f"POST /api/v1/request failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_invoice_request_auth_required(self, api_client: TestClient):
+    def test_create_invoice_request_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /request requires authentication
+        Auth validation: POST /api/v1/request requires authentication
         """
         
-        response = api_client.post("/request", json={})
+        response = api_client.post("/api/v1/invoices/request", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /request should require auth: {response.status_code}"
+            f"POST /api/v1/request should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_invoice_request_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_invoice_request_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /request validates request data
+        Input validation: POST /api/v1/request validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,56 +294,70 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/request",
+            "/api/v1/invoices/request",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /request should validate input: {response.status_code}"
+            f"POST /api/v1/request should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{invoice_id}/cancel ────────────────────────────
+    # ── POST /api/v1/{invoice_id}/cancel ────────────────────────────
 
-    def test_cancel_invoice_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_cancel_invoice_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{invoice_id}/cancel
+        Happy path: POST /api/v1/{invoice_id}/cancel
         Source: app/api/api_v1/endpoints/invoices/admin.py:cancel_invoice
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{invoice_id}/cancel
+        # TODO: Add realistic payload for /api/v1/{invoice_id}/cancel
         payload = {}
-        response = api_client.post("/{invoice_id}/cancel", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/cancel", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{invoice_id}/cancel failed: {response.status_code} "
+            f"POST /api/v1/{invoice_id}/cancel failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_cancel_invoice_auth_required(self, api_client: TestClient):
+    def test_cancel_invoice_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{invoice_id}/cancel requires authentication
+        Auth validation: POST /api/v1/{invoice_id}/cancel requires authentication
         """
         
-        response = api_client.post("/{invoice_id}/cancel", json={})
+        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/cancel", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{invoice_id}/cancel should require auth: {response.status_code}"
+            f"POST /api/v1/{invoice_id}/cancel should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_cancel_invoice_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_cancel_invoice_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{invoice_id}/cancel validates request data
+        Input validation: POST /api/v1/{invoice_id}/cancel validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -296,56 +365,70 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{invoice_id}/cancel",
+            f"/api/v1/invoices/{test_tournament["invoice_id"]}/cancel",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{invoice_id}/cancel should validate input: {response.status_code}"
+            f"POST /api/v1/{invoice_id}/cancel should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{invoice_id}/unverify ────────────────────────────
+    # ── POST /api/v1/{invoice_id}/unverify ────────────────────────────
 
-    def test_unverify_invoice_payment_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_unverify_invoice_payment_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{invoice_id}/unverify
+        Happy path: POST /api/v1/{invoice_id}/unverify
         Source: app/api/api_v1/endpoints/invoices/admin.py:unverify_invoice_payment
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{invoice_id}/unverify
+        # TODO: Add realistic payload for /api/v1/{invoice_id}/unverify
         payload = {}
-        response = api_client.post("/{invoice_id}/unverify", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/unverify", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{invoice_id}/unverify failed: {response.status_code} "
+            f"POST /api/v1/{invoice_id}/unverify failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_unverify_invoice_payment_auth_required(self, api_client: TestClient):
+    def test_unverify_invoice_payment_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{invoice_id}/unverify requires authentication
+        Auth validation: POST /api/v1/{invoice_id}/unverify requires authentication
         """
         
-        response = api_client.post("/{invoice_id}/unverify", json={})
+        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/unverify", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{invoice_id}/unverify should require auth: {response.status_code}"
+            f"POST /api/v1/{invoice_id}/unverify should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_unverify_invoice_payment_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_unverify_invoice_payment_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{invoice_id}/unverify validates request data
+        Input validation: POST /api/v1/{invoice_id}/unverify validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -353,56 +436,70 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{invoice_id}/unverify",
+            f"/api/v1/invoices/{test_tournament["invoice_id"]}/unverify",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{invoice_id}/unverify should validate input: {response.status_code}"
+            f"POST /api/v1/{invoice_id}/unverify should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{invoice_id}/verify ────────────────────────────
+    # ── POST /api/v1/{invoice_id}/verify ────────────────────────────
 
-    def test_verify_invoice_payment_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_verify_invoice_payment_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{invoice_id}/verify
+        Happy path: POST /api/v1/{invoice_id}/verify
         Source: app/api/api_v1/endpoints/invoices/admin.py:verify_invoice_payment
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{invoice_id}/verify
+        # TODO: Add realistic payload for /api/v1/{invoice_id}/verify
         payload = {}
-        response = api_client.post("/{invoice_id}/verify", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/verify", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{invoice_id}/verify failed: {response.status_code} "
+            f"POST /api/v1/{invoice_id}/verify failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_verify_invoice_payment_auth_required(self, api_client: TestClient):
+    def test_verify_invoice_payment_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{invoice_id}/verify requires authentication
+        Auth validation: POST /api/v1/{invoice_id}/verify requires authentication
         """
         
-        response = api_client.post("/{invoice_id}/verify", json={})
+        response = api_client.post(f"/api/v1/invoices/{test_tournament["invoice_id"]}/verify", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{invoice_id}/verify should require auth: {response.status_code}"
+            f"POST /api/v1/{invoice_id}/verify should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_verify_invoice_payment_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_verify_invoice_payment_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{invoice_id}/verify validates request data
+        Input validation: POST /api/v1/{invoice_id}/verify validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -410,14 +507,14 @@ class TestInvoicesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{invoice_id}/verify",
+            f"/api/v1/invoices/{test_tournament["invoice_id"]}/verify",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{invoice_id}/verify should validate input: {response.status_code}"
+            f"POST /api/v1/{invoice_id}/verify should validate input: {response.status_code}"
         )
         
 

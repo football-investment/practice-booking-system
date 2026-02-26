@@ -14,44 +14,55 @@ class TestPeriodsSmoke:
     """Smoke tests for periods API endpoints"""
 
 
-    # ── POST /lfa-player/amateur ────────────────────────────
+    # ── POST /api/v1/lfa-player/amateur ────────────────────────────
 
-    def test_generate_lfa_player_amateur_season_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_amateur_season_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /lfa-player/amateur
+        Happy path: POST /api/v1/lfa-player/amateur
         Source: app/api/api_v1/endpoints/periods/lfa_player_generators.py:generate_lfa_player_amateur_season
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/amateur
+        # TODO: Add realistic payload for /api/v1/lfa-player/amateur
         payload = {}
-        response = api_client.post("/lfa-player/amateur", json=payload, headers=headers)
+        response = api_client.post("/api/v1/periods/lfa-player/amateur", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /lfa-player/amateur failed: {response.status_code} "
+            f"POST /api/v1/lfa-player/amateur failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_generate_lfa_player_amateur_season_auth_required(self, api_client: TestClient):
+    def test_generate_lfa_player_amateur_season_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /lfa-player/amateur requires authentication
+        Auth validation: POST /api/v1/lfa-player/amateur requires authentication
         """
         
-        response = api_client.post("/lfa-player/amateur", json={})
+        response = api_client.post("/api/v1/periods/lfa-player/amateur", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /lfa-player/amateur should require auth: {response.status_code}"
+            f"POST /api/v1/lfa-player/amateur should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_generate_lfa_player_amateur_season_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_amateur_season_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /lfa-player/amateur validates request data
+        Input validation: POST /api/v1/lfa-player/amateur validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,56 +70,67 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/lfa-player/amateur",
+            "/api/v1/periods/lfa-player/amateur",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /lfa-player/amateur should validate input: {response.status_code}"
+            f"POST /api/v1/lfa-player/amateur should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /lfa-player/pre ────────────────────────────
+    # ── POST /api/v1/lfa-player/pre ────────────────────────────
 
-    def test_generate_lfa_player_pre_season_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_pre_season_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /lfa-player/pre
+        Happy path: POST /api/v1/lfa-player/pre
         Source: app/api/api_v1/endpoints/periods/lfa_player_generators.py:generate_lfa_player_pre_season
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/pre
+        # TODO: Add realistic payload for /api/v1/lfa-player/pre
         payload = {}
-        response = api_client.post("/lfa-player/pre", json=payload, headers=headers)
+        response = api_client.post("/api/v1/periods/lfa-player/pre", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /lfa-player/pre failed: {response.status_code} "
+            f"POST /api/v1/lfa-player/pre failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_generate_lfa_player_pre_season_auth_required(self, api_client: TestClient):
+    def test_generate_lfa_player_pre_season_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /lfa-player/pre requires authentication
+        Auth validation: POST /api/v1/lfa-player/pre requires authentication
         """
         
-        response = api_client.post("/lfa-player/pre", json={})
+        response = api_client.post("/api/v1/periods/lfa-player/pre", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /lfa-player/pre should require auth: {response.status_code}"
+            f"POST /api/v1/lfa-player/pre should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_generate_lfa_player_pre_season_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_pre_season_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /lfa-player/pre validates request data
+        Input validation: POST /api/v1/lfa-player/pre validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -116,56 +138,67 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/lfa-player/pre",
+            "/api/v1/periods/lfa-player/pre",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /lfa-player/pre should validate input: {response.status_code}"
+            f"POST /api/v1/lfa-player/pre should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /lfa-player/pro ────────────────────────────
+    # ── POST /api/v1/lfa-player/pro ────────────────────────────
 
-    def test_generate_lfa_player_pro_season_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_pro_season_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /lfa-player/pro
+        Happy path: POST /api/v1/lfa-player/pro
         Source: app/api/api_v1/endpoints/periods/lfa_player_generators.py:generate_lfa_player_pro_season
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/pro
+        # TODO: Add realistic payload for /api/v1/lfa-player/pro
         payload = {}
-        response = api_client.post("/lfa-player/pro", json=payload, headers=headers)
+        response = api_client.post("/api/v1/periods/lfa-player/pro", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /lfa-player/pro failed: {response.status_code} "
+            f"POST /api/v1/lfa-player/pro failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_generate_lfa_player_pro_season_auth_required(self, api_client: TestClient):
+    def test_generate_lfa_player_pro_season_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /lfa-player/pro requires authentication
+        Auth validation: POST /api/v1/lfa-player/pro requires authentication
         """
         
-        response = api_client.post("/lfa-player/pro", json={})
+        response = api_client.post("/api/v1/periods/lfa-player/pro", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /lfa-player/pro should require auth: {response.status_code}"
+            f"POST /api/v1/lfa-player/pro should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_generate_lfa_player_pro_season_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_pro_season_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /lfa-player/pro validates request data
+        Input validation: POST /api/v1/lfa-player/pro validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -173,56 +206,67 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/lfa-player/pro",
+            "/api/v1/periods/lfa-player/pro",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /lfa-player/pro should validate input: {response.status_code}"
+            f"POST /api/v1/lfa-player/pro should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /lfa-player/youth ────────────────────────────
+    # ── POST /api/v1/lfa-player/youth ────────────────────────────
 
-    def test_generate_lfa_player_youth_season_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_youth_season_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /lfa-player/youth
+        Happy path: POST /api/v1/lfa-player/youth
         Source: app/api/api_v1/endpoints/periods/lfa_player_generators.py:generate_lfa_player_youth_season
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/youth
+        # TODO: Add realistic payload for /api/v1/lfa-player/youth
         payload = {}
-        response = api_client.post("/lfa-player/youth", json=payload, headers=headers)
+        response = api_client.post("/api/v1/periods/lfa-player/youth", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /lfa-player/youth failed: {response.status_code} "
+            f"POST /api/v1/lfa-player/youth failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_generate_lfa_player_youth_season_auth_required(self, api_client: TestClient):
+    def test_generate_lfa_player_youth_season_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /lfa-player/youth requires authentication
+        Auth validation: POST /api/v1/lfa-player/youth requires authentication
         """
         
-        response = api_client.post("/lfa-player/youth", json={})
+        response = api_client.post("/api/v1/periods/lfa-player/youth", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /lfa-player/youth should require auth: {response.status_code}"
+            f"POST /api/v1/lfa-player/youth should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_generate_lfa_player_youth_season_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_generate_lfa_player_youth_season_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /lfa-player/youth validates request data
+        Input validation: POST /api/v1/lfa-player/youth validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -230,14 +274,14 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/lfa-player/youth",
+            "/api/v1/periods/lfa-player/youth",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /lfa-player/youth should validate input: {response.status_code}"
+            f"POST /api/v1/lfa-player/youth should validate input: {response.status_code}"
         )
         
 

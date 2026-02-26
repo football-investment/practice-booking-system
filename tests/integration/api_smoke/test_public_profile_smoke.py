@@ -14,42 +14,56 @@ class TestPublicprofileSmoke:
     """Smoke tests for public_profile API endpoints"""
 
 
-    # ── GET /users/{user_id}/profile/basic ────────────────────────────
+    # ── GET /api/v1/users/{user_id}/profile/basic ────────────────────────────
 
-    def test_get_basic_profile_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_basic_profile_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: GET /users/{user_id}/profile/basic
+        Happy path: GET /api/v1/users/{user_id}/profile/basic
         Source: app/api/api_v1/endpoints/public_profile.py:get_basic_profile
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/users/{user_id}/profile/basic", headers=headers)
+        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/basic", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /users/{user_id}/profile/basic failed: {response.status_code} "
+            f"GET /api/v1/users/{user_id}/profile/basic failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_basic_profile_auth_required(self, api_client: TestClient):
+    def test_get_basic_profile_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: GET /users/{user_id}/profile/basic requires authentication
+        Auth validation: GET /api/v1/users/{user_id}/profile/basic requires authentication
         """
         
-        response = api_client.get("/users/{user_id}/profile/basic")
+        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/basic")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /users/{user_id}/profile/basic should require auth: {response.status_code}"
+            f"GET /api/v1/users/{user_id}/profile/basic should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_basic_profile_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_basic_profile_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: GET /users/{user_id}/profile/basic validates request data
+        Input validation: GET /api/v1/users/{user_id}/profile/basic validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +73,56 @@ class TestPublicprofileSmoke:
         
 
 
-    # ── GET /users/{user_id}/profile/instructor ────────────────────────────
+    # ── GET /api/v1/users/{user_id}/profile/instructor ────────────────────────────
 
-    def test_get_instructor_profile_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_instructor_profile_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: GET /users/{user_id}/profile/instructor
+        Happy path: GET /api/v1/users/{user_id}/profile/instructor
         Source: app/api/api_v1/endpoints/public_profile.py:get_instructor_profile
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/users/{user_id}/profile/instructor", headers=headers)
+        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/instructor", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /users/{user_id}/profile/instructor failed: {response.status_code} "
+            f"GET /api/v1/users/{user_id}/profile/instructor failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_instructor_profile_auth_required(self, api_client: TestClient):
+    def test_get_instructor_profile_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: GET /users/{user_id}/profile/instructor requires authentication
+        Auth validation: GET /api/v1/users/{user_id}/profile/instructor requires authentication
         """
         
-        response = api_client.get("/users/{user_id}/profile/instructor")
+        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/instructor")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /users/{user_id}/profile/instructor should require auth: {response.status_code}"
+            f"GET /api/v1/users/{user_id}/profile/instructor should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_instructor_profile_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_instructor_profile_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: GET /users/{user_id}/profile/instructor validates request data
+        Input validation: GET /api/v1/users/{user_id}/profile/instructor validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +132,56 @@ class TestPublicprofileSmoke:
         
 
 
-    # ── GET /users/{user_id}/profile/lfa-player ────────────────────────────
+    # ── GET /api/v1/users/{user_id}/profile/lfa-player ────────────────────────────
 
-    def test_get_lfa_player_profile_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_lfa_player_profile_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: GET /users/{user_id}/profile/lfa-player
+        Happy path: GET /api/v1/users/{user_id}/profile/lfa-player
         Source: app/api/api_v1/endpoints/public_profile.py:get_lfa_player_profile
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/users/{user_id}/profile/lfa-player", headers=headers)
+        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/lfa-player", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /users/{user_id}/profile/lfa-player failed: {response.status_code} "
+            f"GET /api/v1/users/{user_id}/profile/lfa-player failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_lfa_player_profile_auth_required(self, api_client: TestClient):
+    def test_get_lfa_player_profile_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: GET /users/{user_id}/profile/lfa-player requires authentication
+        Auth validation: GET /api/v1/users/{user_id}/profile/lfa-player requires authentication
         """
         
-        response = api_client.get("/users/{user_id}/profile/lfa-player")
+        response = api_client.get(f"/api/v1/public-profile/users/{test_student_id}/profile/lfa-player")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /users/{user_id}/profile/lfa-player should require auth: {response.status_code}"
+            f"GET /api/v1/users/{user_id}/profile/lfa-player should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_lfa_player_profile_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_lfa_player_profile_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: GET /users/{user_id}/profile/lfa-player validates request data
+        Input validation: GET /api/v1/users/{user_id}/profile/lfa-player validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 

@@ -14,42 +14,53 @@ class TestOnboardingSmoke:
     """Smoke tests for onboarding API endpoints"""
 
 
-    # ── GET /onboarding/start ────────────────────────────
+    # ── GET /api/v1/onboarding/start ────────────────────────────
 
-    def test_onboarding_start_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_onboarding_start_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /onboarding/start
+        Happy path: GET /api/v1/onboarding/start
         Source: app/api/web_routes/onboarding.py:onboarding_start
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/onboarding/start", headers=headers)
+        response = api_client.get("/api/v1/onboarding/onboarding/start", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /onboarding/start failed: {response.status_code} "
+            f"GET /api/v1/onboarding/start failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_onboarding_start_auth_required(self, api_client: TestClient):
+    def test_onboarding_start_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /onboarding/start requires authentication
+        Auth validation: GET /api/v1/onboarding/start requires authentication
         """
         
-        response = api_client.get("/onboarding/start")
+        response = api_client.get("/api/v1/onboarding/onboarding/start")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /onboarding/start should require auth: {response.status_code}"
+            f"GET /api/v1/onboarding/start should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_onboarding_start_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_onboarding_start_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /onboarding/start validates request data
+        Input validation: GET /api/v1/onboarding/start validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestOnboardingSmoke:
         
 
 
-    # ── GET /specialization/lfa-player/onboarding ────────────────────────────
+    # ── GET /api/v1/specialization/lfa-player/onboarding ────────────────────────────
 
-    def test_lfa_player_onboarding_page_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_lfa_player_onboarding_page_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /specialization/lfa-player/onboarding
+        Happy path: GET /api/v1/specialization/lfa-player/onboarding
         Source: app/api/web_routes/onboarding.py:lfa_player_onboarding_page
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/specialization/lfa-player/onboarding", headers=headers)
+        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /specialization/lfa-player/onboarding failed: {response.status_code} "
+            f"GET /api/v1/specialization/lfa-player/onboarding failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_lfa_player_onboarding_page_auth_required(self, api_client: TestClient):
+    def test_lfa_player_onboarding_page_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /specialization/lfa-player/onboarding requires authentication
+        Auth validation: GET /api/v1/specialization/lfa-player/onboarding requires authentication
         """
         
-        response = api_client.get("/specialization/lfa-player/onboarding")
+        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /specialization/lfa-player/onboarding should require auth: {response.status_code}"
+            f"GET /api/v1/specialization/lfa-player/onboarding should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_lfa_player_onboarding_page_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_lfa_player_onboarding_page_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /specialization/lfa-player/onboarding validates request data
+        Input validation: GET /api/v1/specialization/lfa-player/onboarding validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestOnboardingSmoke:
         
 
 
-    # ── GET /specialization/lfa-player/onboarding-cancel ────────────────────────────
+    # ── GET /api/v1/specialization/lfa-player/onboarding-cancel ────────────────────────────
 
-    def test_lfa_player_onboarding_cancel_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_lfa_player_onboarding_cancel_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /specialization/lfa-player/onboarding-cancel
+        Happy path: GET /api/v1/specialization/lfa-player/onboarding-cancel
         Source: app/api/web_routes/onboarding.py:lfa_player_onboarding_cancel
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/specialization/lfa-player/onboarding-cancel", headers=headers)
+        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding-cancel", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /specialization/lfa-player/onboarding-cancel failed: {response.status_code} "
+            f"GET /api/v1/specialization/lfa-player/onboarding-cancel failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_lfa_player_onboarding_cancel_auth_required(self, api_client: TestClient):
+    def test_lfa_player_onboarding_cancel_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /specialization/lfa-player/onboarding-cancel requires authentication
+        Auth validation: GET /api/v1/specialization/lfa-player/onboarding-cancel requires authentication
         """
         
-        response = api_client.get("/specialization/lfa-player/onboarding-cancel")
+        response = api_client.get("/api/v1/onboarding/specialization/lfa-player/onboarding-cancel")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /specialization/lfa-player/onboarding-cancel should require auth: {response.status_code}"
+            f"GET /api/v1/specialization/lfa-player/onboarding-cancel should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_lfa_player_onboarding_cancel_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_lfa_player_onboarding_cancel_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /specialization/lfa-player/onboarding-cancel validates request data
+        Input validation: GET /api/v1/specialization/lfa-player/onboarding-cancel validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +182,53 @@ class TestOnboardingSmoke:
         
 
 
-    # ── GET /specialization/select ────────────────────────────
+    # ── GET /api/v1/specialization/select ────────────────────────────
 
-    def test_specialization_select_page_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_specialization_select_page_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /specialization/select
+        Happy path: GET /api/v1/specialization/select
         Source: app/api/web_routes/onboarding.py:specialization_select_page
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/specialization/select", headers=headers)
+        response = api_client.get("/api/v1/onboarding/specialization/select", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /specialization/select failed: {response.status_code} "
+            f"GET /api/v1/specialization/select failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_specialization_select_page_auth_required(self, api_client: TestClient):
+    def test_specialization_select_page_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /specialization/select requires authentication
+        Auth validation: GET /api/v1/specialization/select requires authentication
         """
         
-        response = api_client.get("/specialization/select")
+        response = api_client.get("/api/v1/onboarding/specialization/select")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /specialization/select should require auth: {response.status_code}"
+            f"GET /api/v1/specialization/select should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_specialization_select_page_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_specialization_select_page_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /specialization/select validates request data
+        Input validation: GET /api/v1/specialization/select validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,44 +238,55 @@ class TestOnboardingSmoke:
         
 
 
-    # ── POST /onboarding/set-birthdate ────────────────────────────
+    # ── POST /api/v1/onboarding/set-birthdate ────────────────────────────
 
-    def test_onboarding_set_birthdate_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_onboarding_set_birthdate_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /onboarding/set-birthdate
+        Happy path: POST /api/v1/onboarding/set-birthdate
         Source: app/api/web_routes/onboarding.py:onboarding_set_birthdate
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /onboarding/set-birthdate
+        # TODO: Add realistic payload for /api/v1/onboarding/set-birthdate
         payload = {}
-        response = api_client.post("/onboarding/set-birthdate", json=payload, headers=headers)
+        response = api_client.post("/api/v1/onboarding/onboarding/set-birthdate", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /onboarding/set-birthdate failed: {response.status_code} "
+            f"POST /api/v1/onboarding/set-birthdate failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_onboarding_set_birthdate_auth_required(self, api_client: TestClient):
+    def test_onboarding_set_birthdate_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /onboarding/set-birthdate requires authentication
+        Auth validation: POST /api/v1/onboarding/set-birthdate requires authentication
         """
         
-        response = api_client.post("/onboarding/set-birthdate", json={})
+        response = api_client.post("/api/v1/onboarding/onboarding/set-birthdate", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /onboarding/set-birthdate should require auth: {response.status_code}"
+            f"POST /api/v1/onboarding/set-birthdate should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_onboarding_set_birthdate_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_onboarding_set_birthdate_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /onboarding/set-birthdate validates request data
+        Input validation: POST /api/v1/onboarding/set-birthdate validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,56 +294,67 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/onboarding/set-birthdate",
+            "/api/v1/onboarding/onboarding/set-birthdate",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /onboarding/set-birthdate should validate input: {response.status_code}"
+            f"POST /api/v1/onboarding/set-birthdate should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /specialization/lfa-player/onboarding-submit ────────────────────────────
+    # ── POST /api/v1/specialization/lfa-player/onboarding-submit ────────────────────────────
 
-    def test_lfa_player_onboarding_submit_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_lfa_player_onboarding_submit_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /specialization/lfa-player/onboarding-submit
+        Happy path: POST /api/v1/specialization/lfa-player/onboarding-submit
         Source: app/api/web_routes/onboarding.py:lfa_player_onboarding_submit
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /specialization/lfa-player/onboarding-submit
+        # TODO: Add realistic payload for /api/v1/specialization/lfa-player/onboarding-submit
         payload = {}
-        response = api_client.post("/specialization/lfa-player/onboarding-submit", json=payload, headers=headers)
+        response = api_client.post("/api/v1/onboarding/specialization/lfa-player/onboarding-submit", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /specialization/lfa-player/onboarding-submit failed: {response.status_code} "
+            f"POST /api/v1/specialization/lfa-player/onboarding-submit failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_lfa_player_onboarding_submit_auth_required(self, api_client: TestClient):
+    def test_lfa_player_onboarding_submit_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /specialization/lfa-player/onboarding-submit requires authentication
+        Auth validation: POST /api/v1/specialization/lfa-player/onboarding-submit requires authentication
         """
         
-        response = api_client.post("/specialization/lfa-player/onboarding-submit", json={})
+        response = api_client.post("/api/v1/onboarding/specialization/lfa-player/onboarding-submit", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /specialization/lfa-player/onboarding-submit should require auth: {response.status_code}"
+            f"POST /api/v1/specialization/lfa-player/onboarding-submit should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_lfa_player_onboarding_submit_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_lfa_player_onboarding_submit_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /specialization/lfa-player/onboarding-submit validates request data
+        Input validation: POST /api/v1/specialization/lfa-player/onboarding-submit validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -296,56 +362,67 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/specialization/lfa-player/onboarding-submit",
+            "/api/v1/onboarding/specialization/lfa-player/onboarding-submit",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /specialization/lfa-player/onboarding-submit should validate input: {response.status_code}"
+            f"POST /api/v1/specialization/lfa-player/onboarding-submit should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /specialization/select ────────────────────────────
+    # ── POST /api/v1/specialization/select ────────────────────────────
 
-    def test_specialization_select_submit_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_specialization_select_submit_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /specialization/select
+        Happy path: POST /api/v1/specialization/select
         Source: app/api/web_routes/onboarding.py:specialization_select_submit
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /specialization/select
+        # TODO: Add realistic payload for /api/v1/specialization/select
         payload = {}
-        response = api_client.post("/specialization/select", json=payload, headers=headers)
+        response = api_client.post("/api/v1/onboarding/specialization/select", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /specialization/select failed: {response.status_code} "
+            f"POST /api/v1/specialization/select failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_specialization_select_submit_auth_required(self, api_client: TestClient):
+    def test_specialization_select_submit_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /specialization/select requires authentication
+        Auth validation: POST /api/v1/specialization/select requires authentication
         """
         
-        response = api_client.post("/specialization/select", json={})
+        response = api_client.post("/api/v1/onboarding/specialization/select", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /specialization/select should require auth: {response.status_code}"
+            f"POST /api/v1/specialization/select should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_specialization_select_submit_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_specialization_select_submit_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /specialization/select validates request data
+        Input validation: POST /api/v1/specialization/select validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -353,14 +430,14 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/specialization/select",
+            "/api/v1/onboarding/specialization/select",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /specialization/select should validate input: {response.status_code}"
+            f"POST /api/v1/specialization/select should validate input: {response.status_code}"
         )
         
 

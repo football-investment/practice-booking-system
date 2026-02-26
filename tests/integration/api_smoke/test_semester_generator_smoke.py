@@ -14,42 +14,53 @@ class TestSemestergeneratorSmoke:
     """Smoke tests for semester_generator API endpoints"""
 
 
-    # ── GET /available-templates ────────────────────────────
+    # ── GET /api/v1/available-templates ────────────────────────────
 
-    def test_get_available_templates_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_available_templates_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /available-templates
+        Happy path: GET /api/v1/available-templates
         Source: app/api/api_v1/endpoints/semester_generator.py:get_available_templates
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/available-templates", headers=headers)
+        response = api_client.get("/api/v1/tournament-generator/available-templates", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /available-templates failed: {response.status_code} "
+            f"GET /api/v1/available-templates failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_available_templates_auth_required(self, api_client: TestClient):
+    def test_get_available_templates_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /available-templates requires authentication
+        Auth validation: GET /api/v1/available-templates requires authentication
         """
         
-        response = api_client.get("/available-templates")
+        response = api_client.get("/api/v1/tournament-generator/available-templates")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /available-templates should require auth: {response.status_code}"
+            f"GET /api/v1/available-templates should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_templates_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_available_templates_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /available-templates validates request data
+        Input validation: GET /api/v1/available-templates validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,44 +70,55 @@ class TestSemestergeneratorSmoke:
         
 
 
-    # ── POST /generate ────────────────────────────
+    # ── POST /api/v1/generate ────────────────────────────
 
-    def test_generate_semesters_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_generate_semesters_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /generate
+        Happy path: POST /api/v1/generate
         Source: app/api/api_v1/endpoints/semester_generator.py:generate_semesters
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /generate
+        # TODO: Add realistic payload for /api/v1/generate
         payload = {}
-        response = api_client.post("/generate", json=payload, headers=headers)
+        response = api_client.post("/api/v1/tournament-generator/generate", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /generate failed: {response.status_code} "
+            f"POST /api/v1/generate failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_generate_semesters_auth_required(self, api_client: TestClient):
+    def test_generate_semesters_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /generate requires authentication
+        Auth validation: POST /api/v1/generate requires authentication
         """
         
-        response = api_client.post("/generate", json={})
+        response = api_client.post("/api/v1/tournament-generator/generate", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /generate should require auth: {response.status_code}"
+            f"POST /api/v1/generate should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_generate_semesters_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_generate_semesters_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /generate validates request data
+        Input validation: POST /api/v1/generate validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,14 +126,14 @@ class TestSemestergeneratorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/generate",
+            "/api/v1/tournament-generator/generate",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /generate should validate input: {response.status_code}"
+            f"POST /api/v1/generate should validate input: {response.status_code}"
         )
         
 

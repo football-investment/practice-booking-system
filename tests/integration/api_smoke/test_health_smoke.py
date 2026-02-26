@@ -14,42 +14,53 @@ class TestHealthSmoke:
     """Smoke tests for health API endpoints"""
 
 
-    # ── GET /latest-report ────────────────────────────
+    # ── GET /api/v1/latest-report ────────────────────────────
 
-    def test_get_latest_health_report_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_latest_health_report_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /latest-report
+        Happy path: GET /api/v1/latest-report
         Source: app/api/api_v1/endpoints/health.py:get_latest_health_report
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/latest-report", headers=headers)
+        response = api_client.get("/api/v1/health/latest-report", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /latest-report failed: {response.status_code} "
+            f"GET /api/v1/latest-report failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_latest_health_report_auth_required(self, api_client: TestClient):
+    def test_get_latest_health_report_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /latest-report requires authentication
+        Auth validation: GET /api/v1/latest-report requires authentication
         """
         
-        response = api_client.get("/latest-report")
+        response = api_client.get("/api/v1/health/latest-report")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /latest-report should require auth: {response.status_code}"
+            f"GET /api/v1/latest-report should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_latest_health_report_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_latest_health_report_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /latest-report validates request data
+        Input validation: GET /api/v1/latest-report validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestHealthSmoke:
         
 
 
-    # ── GET /metrics ────────────────────────────
+    # ── GET /api/v1/metrics ────────────────────────────
 
-    def test_get_health_metrics_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_health_metrics_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /metrics
+        Happy path: GET /api/v1/metrics
         Source: app/api/api_v1/endpoints/health.py:get_health_metrics
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/metrics", headers=headers)
+        response = api_client.get("/api/v1/health/metrics", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /metrics failed: {response.status_code} "
+            f"GET /api/v1/metrics failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_health_metrics_auth_required(self, api_client: TestClient):
+    def test_get_health_metrics_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /metrics requires authentication
+        Auth validation: GET /api/v1/metrics requires authentication
         """
         
-        response = api_client.get("/metrics")
+        response = api_client.get("/api/v1/health/metrics")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /metrics should require auth: {response.status_code}"
+            f"GET /api/v1/metrics should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_health_metrics_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_health_metrics_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /metrics validates request data
+        Input validation: GET /api/v1/metrics validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestHealthSmoke:
         
 
 
-    # ── GET /status ────────────────────────────
+    # ── GET /api/v1/status ────────────────────────────
 
-    def test_get_health_status_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_health_status_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /status
+        Happy path: GET /api/v1/status
         Source: app/api/api_v1/endpoints/health.py:get_health_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/status", headers=headers)
+        response = api_client.get("/api/v1/health/status", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /status failed: {response.status_code} "
+            f"GET /api/v1/status failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_health_status_auth_required(self, api_client: TestClient):
+    def test_get_health_status_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /status requires authentication
+        Auth validation: GET /api/v1/status requires authentication
         """
         
-        response = api_client.get("/status")
+        response = api_client.get("/api/v1/health/status")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /status should require auth: {response.status_code}"
+            f"GET /api/v1/status should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_health_status_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_health_status_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /status validates request data
+        Input validation: GET /api/v1/status validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +182,53 @@ class TestHealthSmoke:
         
 
 
-    # ── GET /violations ────────────────────────────
+    # ── GET /api/v1/violations ────────────────────────────
 
-    def test_get_current_violations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_current_violations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /violations
+        Happy path: GET /api/v1/violations
         Source: app/api/api_v1/endpoints/health.py:get_current_violations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/violations", headers=headers)
+        response = api_client.get("/api/v1/health/violations", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /violations failed: {response.status_code} "
+            f"GET /api/v1/violations failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_current_violations_auth_required(self, api_client: TestClient):
+    def test_get_current_violations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /violations requires authentication
+        Auth validation: GET /api/v1/violations requires authentication
         """
         
-        response = api_client.get("/violations")
+        response = api_client.get("/api/v1/health/violations")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /violations should require auth: {response.status_code}"
+            f"GET /api/v1/violations should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_current_violations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_current_violations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /violations validates request data
+        Input validation: GET /api/v1/violations validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,44 +238,55 @@ class TestHealthSmoke:
         
 
 
-    # ── POST /check-now ────────────────────────────
+    # ── POST /api/v1/check-now ────────────────────────────
 
-    def test_run_health_check_now_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_run_health_check_now_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /check-now
+        Happy path: POST /api/v1/check-now
         Source: app/api/api_v1/endpoints/health.py:run_health_check_now
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /check-now
+        # TODO: Add realistic payload for /api/v1/check-now
         payload = {}
-        response = api_client.post("/check-now", json=payload, headers=headers)
+        response = api_client.post("/api/v1/health/check-now", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /check-now failed: {response.status_code} "
+            f"POST /api/v1/check-now failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_run_health_check_now_auth_required(self, api_client: TestClient):
+    def test_run_health_check_now_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /check-now requires authentication
+        Auth validation: POST /api/v1/check-now requires authentication
         """
         
-        response = api_client.post("/check-now", json={})
+        response = api_client.post("/api/v1/health/check-now", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /check-now should require auth: {response.status_code}"
+            f"POST /api/v1/check-now should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_run_health_check_now_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_run_health_check_now_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /check-now validates request data
+        Input validation: POST /api/v1/check-now validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,14 +294,14 @@ class TestHealthSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/check-now",
+            "/api/v1/health/check-now",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /check-now should validate input: {response.status_code}"
+            f"POST /api/v1/check-now should validate input: {response.status_code}"
         )
         
 

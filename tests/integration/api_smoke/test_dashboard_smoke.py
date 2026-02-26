@@ -14,42 +14,53 @@ class TestDashboardSmoke:
     """Smoke tests for dashboard API endpoints"""
 
 
-    # ── GET /dashboard ────────────────────────────
+    # ── GET /api/v1/dashboard ────────────────────────────
 
-    def test_unknown_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_unknown_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /dashboard
+        Happy path: GET /api/v1/dashboard
         Source: app/api/web_routes/dashboard.py:unknown
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard", headers=headers)
+        response = api_client.get("/api/v1/dashboard/dashboard", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard failed: {response.status_code} "
+            f"GET /api/v1/dashboard failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_unknown_auth_required(self, api_client: TestClient):
+    def test_unknown_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /dashboard requires authentication
+        Auth validation: GET /api/v1/dashboard requires authentication
         """
         
-        response = api_client.get("/dashboard")
+        response = api_client.get("/api/v1/dashboard/dashboard")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_unknown_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_unknown_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /dashboard validates request data
+        Input validation: GET /api/v1/dashboard validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestDashboardSmoke:
         
 
 
-    # ── GET /dashboard-fresh ────────────────────────────
+    # ── GET /api/v1/dashboard-fresh ────────────────────────────
 
-    def test_dashboard_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_dashboard_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /dashboard-fresh
+        Happy path: GET /api/v1/dashboard-fresh
         Source: app/api/web_routes/dashboard.py:dashboard
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard-fresh", headers=headers)
+        response = api_client.get("/api/v1/dashboard/dashboard-fresh", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard-fresh failed: {response.status_code} "
+            f"GET /api/v1/dashboard-fresh failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_dashboard_auth_required(self, api_client: TestClient):
+    def test_dashboard_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /dashboard-fresh requires authentication
+        Auth validation: GET /api/v1/dashboard-fresh requires authentication
         """
         
-        response = api_client.get("/dashboard-fresh")
+        response = api_client.get("/api/v1/dashboard/dashboard-fresh")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard-fresh should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard-fresh should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_dashboard_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_dashboard_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /dashboard-fresh validates request data
+        Input validation: GET /api/v1/dashboard-fresh validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,56 @@ class TestDashboardSmoke:
         
 
 
-    # ── GET /dashboard/{spec_type} ────────────────────────────
+    # ── GET /api/v1/dashboard/{spec_type} ────────────────────────────
 
-    def test_spec_dashboard_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_spec_dashboard_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /dashboard/{spec_type}
+        Happy path: GET /api/v1/dashboard/{spec_type}
         Source: app/api/web_routes/dashboard.py:spec_dashboard
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard/{spec_type}", headers=headers)
+        response = api_client.get(f"/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard/{spec_type} failed: {response.status_code} "
+            f"GET /api/v1/dashboard/{spec_type} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_spec_dashboard_auth_required(self, api_client: TestClient):
+    def test_spec_dashboard_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /dashboard/{spec_type} requires authentication
+        Auth validation: GET /api/v1/dashboard/{spec_type} requires authentication
         """
         
-        response = api_client.get("/dashboard/{spec_type}")
+        response = api_client.get(f"/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard/{spec_type} should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard/{spec_type} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_spec_dashboard_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_spec_dashboard_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /dashboard/{spec_type} validates request data
+        Input validation: GET /api/v1/dashboard/{spec_type} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 

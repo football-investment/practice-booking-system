@@ -14,42 +14,53 @@ class TestReportsSmoke:
     """Smoke tests for reports API endpoints"""
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_list_reports_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_reports_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/reports/standard.py:list_reports
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/reports/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_reports_auth_required(self, api_client: TestClient):
+    def test_list_reports_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/reports/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_reports_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_reports_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestReportsSmoke:
         
 
 
-    # ── GET /export/sessions ────────────────────────────
+    # ── GET /api/v1/export/sessions ────────────────────────────
 
-    def test_export_sessions_csv_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_export_sessions_csv_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /export/sessions
+        Happy path: GET /api/v1/export/sessions
         Source: app/api/api_v1/endpoints/reports/export.py:export_sessions_csv
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/export/sessions", headers=headers)
+        response = api_client.get("/api/v1/reports/export/sessions", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /export/sessions failed: {response.status_code} "
+            f"GET /api/v1/export/sessions failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_export_sessions_csv_auth_required(self, api_client: TestClient):
+    def test_export_sessions_csv_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /export/sessions requires authentication
+        Auth validation: GET /api/v1/export/sessions requires authentication
         """
         
-        response = api_client.get("/export/sessions")
+        response = api_client.get("/api/v1/reports/export/sessions")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /export/sessions should require auth: {response.status_code}"
+            f"GET /api/v1/export/sessions should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_export_sessions_csv_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_export_sessions_csv_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /export/sessions validates request data
+        Input validation: GET /api/v1/export/sessions validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestReportsSmoke:
         
 
 
-    # ── GET /history ────────────────────────────
+    # ── GET /api/v1/history ────────────────────────────
 
-    def test_get_report_history_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_report_history_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /history
+        Happy path: GET /api/v1/history
         Source: app/api/api_v1/endpoints/reports/standard.py:get_report_history
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/history", headers=headers)
+        response = api_client.get("/api/v1/reports/history", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /history failed: {response.status_code} "
+            f"GET /api/v1/history failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_report_history_auth_required(self, api_client: TestClient):
+    def test_get_report_history_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /history requires authentication
+        Auth validation: GET /api/v1/history requires authentication
         """
         
-        response = api_client.get("/history")
+        response = api_client.get("/api/v1/reports/history")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /history should require auth: {response.status_code}"
+            f"GET /api/v1/history should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_report_history_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_report_history_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /history validates request data
+        Input validation: GET /api/v1/history validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +182,56 @@ class TestReportsSmoke:
         
 
 
-    # ── GET /semester/{semester_id} ────────────────────────────
+    # ── GET /api/v1/semester/{semester_id} ────────────────────────────
 
-    def test_get_semester_report_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_semester_report_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /semester/{semester_id}
+        Happy path: GET /api/v1/semester/{semester_id}
         Source: app/api/api_v1/endpoints/reports/entity.py:get_semester_report
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/semester/{semester_id}", headers=headers)
+        response = api_client.get(f"/api/v1/reports/semester/{test_tournament["semester_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /semester/{semester_id} failed: {response.status_code} "
+            f"GET /api/v1/semester/{semester_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_semester_report_auth_required(self, api_client: TestClient):
+    def test_get_semester_report_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /semester/{semester_id} requires authentication
+        Auth validation: GET /api/v1/semester/{semester_id} requires authentication
         """
         
-        response = api_client.get("/semester/{semester_id}")
+        response = api_client.get(f"/api/v1/reports/semester/{test_tournament["semester_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /semester/{semester_id} should require auth: {response.status_code}"
+            f"GET /api/v1/semester/{semester_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_semester_report_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_semester_report_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /semester/{semester_id} validates request data
+        Input validation: GET /api/v1/semester/{semester_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,42 +241,53 @@ class TestReportsSmoke:
         
 
 
-    # ── GET /system-stats ────────────────────────────
+    # ── GET /api/v1/system-stats ────────────────────────────
 
-    def test_get_system_stats_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_system_stats_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /system-stats
+        Happy path: GET /api/v1/system-stats
         Source: app/api/api_v1/endpoints/reports/export.py:get_system_stats
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/system-stats", headers=headers)
+        response = api_client.get("/api/v1/reports/system-stats", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /system-stats failed: {response.status_code} "
+            f"GET /api/v1/system-stats failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_system_stats_auth_required(self, api_client: TestClient):
+    def test_get_system_stats_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /system-stats requires authentication
+        Auth validation: GET /api/v1/system-stats requires authentication
         """
         
-        response = api_client.get("/system-stats")
+        response = api_client.get("/api/v1/reports/system-stats")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /system-stats should require auth: {response.status_code}"
+            f"GET /api/v1/system-stats should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_system_stats_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_system_stats_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /system-stats validates request data
+        Input validation: GET /api/v1/system-stats validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,42 +297,56 @@ class TestReportsSmoke:
         
 
 
-    # ── GET /user/{user_id} ────────────────────────────
+    # ── GET /api/v1/user/{user_id} ────────────────────────────
 
-    def test_get_user_report_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_user_report_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Happy path: GET /user/{user_id}
+        Happy path: GET /api/v1/user/{user_id}
         Source: app/api/api_v1/endpoints/reports/entity.py:get_user_report
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/user/{user_id}", headers=headers)
+        response = api_client.get(f"/api/v1/reports/user/{test_student_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /user/{user_id} failed: {response.status_code} "
+            f"GET /api/v1/user/{user_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_user_report_auth_required(self, api_client: TestClient):
+    def test_get_user_report_auth_required(
+        self,
+        api_client: TestClient,
+        test_student_id,
+    ):
         """
-        Auth validation: GET /user/{user_id} requires authentication
+        Auth validation: GET /api/v1/user/{user_id} requires authentication
         """
         
-        response = api_client.get("/user/{user_id}")
+        response = api_client.get(f"/api/v1/reports/user/{test_student_id}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /user/{user_id} should require auth: {response.status_code}"
+            f"GET /api/v1/user/{user_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_report_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_user_report_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_student_id,
+    ):
         """
-        Input validation: GET /user/{user_id} validates request data
+        Input validation: GET /api/v1/user/{user_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -284,44 +356,55 @@ class TestReportsSmoke:
         
 
 
-    # ── POST /custom ────────────────────────────
+    # ── POST /api/v1/custom ────────────────────────────
 
-    def test_create_custom_report_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_custom_report_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /custom
+        Happy path: POST /api/v1/custom
         Source: app/api/api_v1/endpoints/reports/standard.py:create_custom_report
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /custom
+        # TODO: Add realistic payload for /api/v1/custom
         payload = {}
-        response = api_client.post("/custom", json=payload, headers=headers)
+        response = api_client.post("/api/v1/reports/custom", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /custom failed: {response.status_code} "
+            f"POST /api/v1/custom failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_custom_report_auth_required(self, api_client: TestClient):
+    def test_create_custom_report_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /custom requires authentication
+        Auth validation: POST /api/v1/custom requires authentication
         """
         
-        response = api_client.post("/custom", json={})
+        response = api_client.post("/api/v1/reports/custom", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /custom should require auth: {response.status_code}"
+            f"POST /api/v1/custom should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_custom_report_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_custom_report_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /custom validates request data
+        Input validation: POST /api/v1/custom validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -329,14 +412,14 @@ class TestReportsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/custom",
+            "/api/v1/reports/custom",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /custom should validate input: {response.status_code}"
+            f"POST /api/v1/custom should validate input: {response.status_code}"
         )
         
 

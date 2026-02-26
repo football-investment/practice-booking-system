@@ -14,42 +14,53 @@ class TestStudentsSmoke:
     """Smoke tests for students API endpoints"""
 
 
-    # ── GET /dashboard/achievements ────────────────────────────
+    # ── GET /api/v1/dashboard/achievements ────────────────────────────
 
-    def test_get_achievements_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_achievements_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /dashboard/achievements
+        Happy path: GET /api/v1/dashboard/achievements
         Source: app/api/api_v1/endpoints/students.py:get_achievements
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard/achievements", headers=headers)
+        response = api_client.get("/api/v1/students/dashboard/achievements", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard/achievements failed: {response.status_code} "
+            f"GET /api/v1/dashboard/achievements failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_achievements_auth_required(self, api_client: TestClient):
+    def test_get_achievements_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /dashboard/achievements requires authentication
+        Auth validation: GET /api/v1/dashboard/achievements requires authentication
         """
         
-        response = api_client.get("/dashboard/achievements")
+        response = api_client.get("/api/v1/students/dashboard/achievements")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard/achievements should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard/achievements should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_achievements_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_achievements_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /dashboard/achievements validates request data
+        Input validation: GET /api/v1/dashboard/achievements validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestStudentsSmoke:
         
 
 
-    # ── GET /dashboard/daily-challenge ────────────────────────────
+    # ── GET /api/v1/dashboard/daily-challenge ────────────────────────────
 
-    def test_get_daily_challenge_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_daily_challenge_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /dashboard/daily-challenge
+        Happy path: GET /api/v1/dashboard/daily-challenge
         Source: app/api/api_v1/endpoints/students.py:get_daily_challenge
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard/daily-challenge", headers=headers)
+        response = api_client.get("/api/v1/students/dashboard/daily-challenge", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard/daily-challenge failed: {response.status_code} "
+            f"GET /api/v1/dashboard/daily-challenge failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_daily_challenge_auth_required(self, api_client: TestClient):
+    def test_get_daily_challenge_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /dashboard/daily-challenge requires authentication
+        Auth validation: GET /api/v1/dashboard/daily-challenge requires authentication
         """
         
-        response = api_client.get("/dashboard/daily-challenge")
+        response = api_client.get("/api/v1/students/dashboard/daily-challenge")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard/daily-challenge should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard/daily-challenge should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_daily_challenge_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_daily_challenge_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /dashboard/daily-challenge validates request data
+        Input validation: GET /api/v1/dashboard/daily-challenge validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestStudentsSmoke:
         
 
 
-    # ── GET /dashboard/semester-progress ────────────────────────────
+    # ── GET /api/v1/dashboard/semester-progress ────────────────────────────
 
-    def test_get_semester_progress_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_semester_progress_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /dashboard/semester-progress
+        Happy path: GET /api/v1/dashboard/semester-progress
         Source: app/api/api_v1/endpoints/students.py:get_semester_progress
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard/semester-progress", headers=headers)
+        response = api_client.get("/api/v1/students/dashboard/semester-progress", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard/semester-progress failed: {response.status_code} "
+            f"GET /api/v1/dashboard/semester-progress failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_semester_progress_auth_required(self, api_client: TestClient):
+    def test_get_semester_progress_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /dashboard/semester-progress requires authentication
+        Auth validation: GET /api/v1/dashboard/semester-progress requires authentication
         """
         
-        response = api_client.get("/dashboard/semester-progress")
+        response = api_client.get("/api/v1/students/dashboard/semester-progress")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard/semester-progress should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard/semester-progress should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_semester_progress_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_semester_progress_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /dashboard/semester-progress validates request data
+        Input validation: GET /api/v1/dashboard/semester-progress validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 

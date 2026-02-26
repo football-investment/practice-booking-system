@@ -14,42 +14,53 @@ class TestAdaptivelearningSmoke:
     """Smoke tests for adaptive_learning API endpoints"""
 
 
-    # ── GET /analytics ────────────────────────────
+    # ── GET /api/v1/analytics ────────────────────────────
 
-    def test_get_learning_analytics_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_learning_analytics_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /analytics
+        Happy path: GET /api/v1/analytics
         Source: app/api/api_v1/endpoints/adaptive_learning.py:get_learning_analytics
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/analytics", headers=headers)
+        response = api_client.get("/api/v1/adaptive-learning/analytics", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /analytics failed: {response.status_code} "
+            f"GET /api/v1/analytics failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_learning_analytics_auth_required(self, api_client: TestClient):
+    def test_get_learning_analytics_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /analytics requires authentication
+        Auth validation: GET /api/v1/analytics requires authentication
         """
         
-        response = api_client.get("/analytics")
+        response = api_client.get("/api/v1/adaptive-learning/analytics")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /analytics should require auth: {response.status_code}"
+            f"GET /api/v1/analytics should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_learning_analytics_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_learning_analytics_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /analytics validates request data
+        Input validation: GET /api/v1/analytics validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestAdaptivelearningSmoke:
         
 
 
-    # ── GET /categories ────────────────────────────
+    # ── GET /api/v1/categories ────────────────────────────
 
-    def test_get_available_categories_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_available_categories_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /categories
+        Happy path: GET /api/v1/categories
         Source: app/api/api_v1/endpoints/adaptive_learning.py:get_available_categories
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/categories", headers=headers)
+        response = api_client.get("/api/v1/adaptive-learning/categories", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /categories failed: {response.status_code} "
+            f"GET /api/v1/categories failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_available_categories_auth_required(self, api_client: TestClient):
+    def test_get_available_categories_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /categories requires authentication
+        Auth validation: GET /api/v1/categories requires authentication
         """
         
-        response = api_client.get("/categories")
+        response = api_client.get("/api/v1/adaptive-learning/categories")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /categories should require auth: {response.status_code}"
+            f"GET /api/v1/categories should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_categories_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_available_categories_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /categories validates request data
+        Input validation: GET /api/v1/categories validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestAdaptivelearningSmoke:
         
 
 
-    # ── GET /leaderboard ────────────────────────────
+    # ── GET /api/v1/leaderboard ────────────────────────────
 
-    def test_get_adaptive_leaderboard_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_adaptive_leaderboard_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /leaderboard
+        Happy path: GET /api/v1/leaderboard
         Source: app/api/api_v1/endpoints/adaptive_learning.py:get_adaptive_leaderboard
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/leaderboard", headers=headers)
+        response = api_client.get("/api/v1/adaptive-learning/leaderboard", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /leaderboard failed: {response.status_code} "
+            f"GET /api/v1/leaderboard failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_adaptive_leaderboard_auth_required(self, api_client: TestClient):
+    def test_get_adaptive_leaderboard_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /leaderboard requires authentication
+        Auth validation: GET /api/v1/leaderboard requires authentication
         """
         
-        response = api_client.get("/leaderboard")
+        response = api_client.get("/api/v1/adaptive-learning/leaderboard")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /leaderboard should require auth: {response.status_code}"
+            f"GET /api/v1/leaderboard should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_adaptive_leaderboard_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_adaptive_leaderboard_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /leaderboard validates request data
+        Input validation: GET /api/v1/leaderboard validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,44 +182,58 @@ class TestAdaptivelearningSmoke:
         
 
 
-    # ── POST /sessions/{session_id}/answer ────────────────────────────
+    # ── POST /api/v1/sessions/{session_id}/answer ────────────────────────────
 
-    def test_submit_answer_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_submit_answer_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Happy path: POST /sessions/{session_id}/answer
+        Happy path: POST /api/v1/sessions/{session_id}/answer
         Source: app/api/api_v1/endpoints/adaptive_learning.py:submit_answer
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/answer
+        # TODO: Add realistic payload for /api/v1/sessions/{session_id}/answer
         payload = {}
-        response = api_client.post("/sessions/{session_id}/answer", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/answer", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /sessions/{session_id}/answer failed: {response.status_code} "
+            f"POST /api/v1/sessions/{session_id}/answer failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_submit_answer_auth_required(self, api_client: TestClient):
+    def test_submit_answer_auth_required(
+        self,
+        api_client: TestClient,
+        test_session_id,
+    ):
         """
-        Auth validation: POST /sessions/{session_id}/answer requires authentication
+        Auth validation: POST /api/v1/sessions/{session_id}/answer requires authentication
         """
         
-        response = api_client.post("/sessions/{session_id}/answer", json={})
+        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/answer", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /sessions/{session_id}/answer should require auth: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/answer should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_submit_answer_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_submit_answer_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Input validation: POST /sessions/{session_id}/answer validates request data
+        Input validation: POST /api/v1/sessions/{session_id}/answer validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,56 +241,70 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/sessions/{session_id}/answer",
+            f"/api/v1/adaptive-learning/sessions/{test_session_id}/answer",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /sessions/{session_id}/answer should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/answer should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /sessions/{session_id}/end ────────────────────────────
+    # ── POST /api/v1/sessions/{session_id}/end ────────────────────────────
 
-    def test_end_learning_session_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_end_learning_session_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Happy path: POST /sessions/{session_id}/end
+        Happy path: POST /api/v1/sessions/{session_id}/end
         Source: app/api/api_v1/endpoints/adaptive_learning.py:end_learning_session
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/end
+        # TODO: Add realistic payload for /api/v1/sessions/{session_id}/end
         payload = {}
-        response = api_client.post("/sessions/{session_id}/end", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/end", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /sessions/{session_id}/end failed: {response.status_code} "
+            f"POST /api/v1/sessions/{session_id}/end failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_end_learning_session_auth_required(self, api_client: TestClient):
+    def test_end_learning_session_auth_required(
+        self,
+        api_client: TestClient,
+        test_session_id,
+    ):
         """
-        Auth validation: POST /sessions/{session_id}/end requires authentication
+        Auth validation: POST /api/v1/sessions/{session_id}/end requires authentication
         """
         
-        response = api_client.post("/sessions/{session_id}/end", json={})
+        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/end", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /sessions/{session_id}/end should require auth: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/end should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_end_learning_session_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_end_learning_session_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Input validation: POST /sessions/{session_id}/end validates request data
+        Input validation: POST /api/v1/sessions/{session_id}/end validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -251,56 +312,70 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/sessions/{session_id}/end",
+            f"/api/v1/adaptive-learning/sessions/{test_session_id}/end",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /sessions/{session_id}/end should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/end should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /sessions/{session_id}/next-question ────────────────────────────
+    # ── POST /api/v1/sessions/{session_id}/next-question ────────────────────────────
 
-    def test_get_next_question_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_next_question_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Happy path: POST /sessions/{session_id}/next-question
+        Happy path: POST /api/v1/sessions/{session_id}/next-question
         Source: app/api/api_v1/endpoints/adaptive_learning.py:get_next_question
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/next-question
+        # TODO: Add realistic payload for /api/v1/sessions/{session_id}/next-question
         payload = {}
-        response = api_client.post("/sessions/{session_id}/next-question", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/next-question", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /sessions/{session_id}/next-question failed: {response.status_code} "
+            f"POST /api/v1/sessions/{session_id}/next-question failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_next_question_auth_required(self, api_client: TestClient):
+    def test_get_next_question_auth_required(
+        self,
+        api_client: TestClient,
+        test_session_id,
+    ):
         """
-        Auth validation: POST /sessions/{session_id}/next-question requires authentication
+        Auth validation: POST /api/v1/sessions/{session_id}/next-question requires authentication
         """
         
-        response = api_client.post("/sessions/{session_id}/next-question", json={})
+        response = api_client.post(f"/api/v1/adaptive-learning/sessions/{test_session_id}/next-question", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /sessions/{session_id}/next-question should require auth: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/next-question should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_next_question_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_next_question_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Input validation: POST /sessions/{session_id}/next-question validates request data
+        Input validation: POST /api/v1/sessions/{session_id}/next-question validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -308,56 +383,67 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/sessions/{session_id}/next-question",
+            f"/api/v1/adaptive-learning/sessions/{test_session_id}/next-question",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /sessions/{session_id}/next-question should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/next-question should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /start-session ────────────────────────────
+    # ── POST /api/v1/start-session ────────────────────────────
 
-    def test_start_adaptive_learning_session_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_start_adaptive_learning_session_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /start-session
+        Happy path: POST /api/v1/start-session
         Source: app/api/api_v1/endpoints/adaptive_learning.py:start_adaptive_learning_session
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /start-session
+        # TODO: Add realistic payload for /api/v1/start-session
         payload = {}
-        response = api_client.post("/start-session", json=payload, headers=headers)
+        response = api_client.post("/api/v1/adaptive-learning/start-session", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /start-session failed: {response.status_code} "
+            f"POST /api/v1/start-session failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_start_adaptive_learning_session_auth_required(self, api_client: TestClient):
+    def test_start_adaptive_learning_session_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /start-session requires authentication
+        Auth validation: POST /api/v1/start-session requires authentication
         """
         
-        response = api_client.post("/start-session", json={})
+        response = api_client.post("/api/v1/adaptive-learning/start-session", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /start-session should require auth: {response.status_code}"
+            f"POST /api/v1/start-session should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_start_adaptive_learning_session_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_start_adaptive_learning_session_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /start-session validates request data
+        Input validation: POST /api/v1/start-session validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -365,14 +451,14 @@ class TestAdaptivelearningSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/start-session",
+            "/api/v1/adaptive-learning/start-session",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /start-session should validate input: {response.status_code}"
+            f"POST /api/v1/start-session should validate input: {response.status_code}"
         )
         
 

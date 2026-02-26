@@ -14,42 +14,53 @@ class TestCurriculumadaptiveSmoke:
     """Smoke tests for curriculum_adaptive API endpoints"""
 
 
-    # ── GET /performance-history ────────────────────────────
+    # ── GET /api/v1/performance-history ────────────────────────────
 
-    def test_get_performance_history_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_performance_history_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /performance-history
+        Happy path: GET /api/v1/performance-history
         Source: app/api/api_v1/endpoints/curriculum_adaptive.py:get_performance_history
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/performance-history", headers=headers)
+        response = api_client.get("/api/v1/curriculum-adaptive/performance-history", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /performance-history failed: {response.status_code} "
+            f"GET /api/v1/performance-history failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_performance_history_auth_required(self, api_client: TestClient):
+    def test_get_performance_history_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /performance-history requires authentication
+        Auth validation: GET /api/v1/performance-history requires authentication
         """
         
-        response = api_client.get("/performance-history")
+        response = api_client.get("/api/v1/curriculum-adaptive/performance-history")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /performance-history should require auth: {response.status_code}"
+            f"GET /api/v1/performance-history should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_performance_history_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_performance_history_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /performance-history validates request data
+        Input validation: GET /api/v1/performance-history validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestCurriculumadaptiveSmoke:
         
 
 
-    # ── GET /profile ────────────────────────────
+    # ── GET /api/v1/profile ────────────────────────────
 
-    def test_get_learning_profile_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_learning_profile_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /profile
+        Happy path: GET /api/v1/profile
         Source: app/api/api_v1/endpoints/curriculum_adaptive.py:get_learning_profile
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/profile", headers=headers)
+        response = api_client.get("/api/v1/curriculum-adaptive/profile", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /profile failed: {response.status_code} "
+            f"GET /api/v1/profile failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_learning_profile_auth_required(self, api_client: TestClient):
+    def test_get_learning_profile_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /profile requires authentication
+        Auth validation: GET /api/v1/profile requires authentication
         """
         
-        response = api_client.get("/profile")
+        response = api_client.get("/api/v1/curriculum-adaptive/profile")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /profile should require auth: {response.status_code}"
+            f"GET /api/v1/profile should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_learning_profile_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_learning_profile_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /profile validates request data
+        Input validation: GET /api/v1/profile validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestCurriculumadaptiveSmoke:
         
 
 
-    # ── GET /recommendations ────────────────────────────
+    # ── GET /api/v1/recommendations ────────────────────────────
 
-    def test_get_recommendations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_recommendations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /recommendations
+        Happy path: GET /api/v1/recommendations
         Source: app/api/api_v1/endpoints/curriculum_adaptive.py:get_recommendations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/recommendations", headers=headers)
+        response = api_client.get("/api/v1/curriculum-adaptive/recommendations", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /recommendations failed: {response.status_code} "
+            f"GET /api/v1/recommendations failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_recommendations_auth_required(self, api_client: TestClient):
+    def test_get_recommendations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /recommendations requires authentication
+        Auth validation: GET /api/v1/recommendations requires authentication
         """
         
-        response = api_client.get("/recommendations")
+        response = api_client.get("/api/v1/curriculum-adaptive/recommendations")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /recommendations should require auth: {response.status_code}"
+            f"GET /api/v1/recommendations should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_recommendations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_recommendations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /recommendations validates request data
+        Input validation: GET /api/v1/recommendations validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,44 +182,55 @@ class TestCurriculumadaptiveSmoke:
         
 
 
-    # ── POST /profile/update ────────────────────────────
+    # ── POST /api/v1/profile/update ────────────────────────────
 
-    def test_update_learning_profile_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_update_learning_profile_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /profile/update
+        Happy path: POST /api/v1/profile/update
         Source: app/api/api_v1/endpoints/curriculum_adaptive.py:update_learning_profile
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /profile/update
+        # TODO: Add realistic payload for /api/v1/profile/update
         payload = {}
-        response = api_client.post("/profile/update", json=payload, headers=headers)
+        response = api_client.post("/api/v1/curriculum-adaptive/profile/update", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /profile/update failed: {response.status_code} "
+            f"POST /api/v1/profile/update failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_update_learning_profile_auth_required(self, api_client: TestClient):
+    def test_update_learning_profile_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /profile/update requires authentication
+        Auth validation: POST /api/v1/profile/update requires authentication
         """
         
-        response = api_client.post("/profile/update", json={})
+        response = api_client.post("/api/v1/curriculum-adaptive/profile/update", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /profile/update should require auth: {response.status_code}"
+            f"POST /api/v1/profile/update should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_update_learning_profile_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_update_learning_profile_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /profile/update validates request data
+        Input validation: POST /api/v1/profile/update validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,56 +238,70 @@ class TestCurriculumadaptiveSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/profile/update",
+            "/api/v1/curriculum-adaptive/profile/update",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /profile/update should validate input: {response.status_code}"
+            f"POST /api/v1/profile/update should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /recommendations/{recommendation_id}/dismiss ────────────────────────────
+    # ── POST /api/v1/recommendations/{recommendation_id}/dismiss ────────────────────────────
 
-    def test_dismiss_recommendation_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_dismiss_recommendation_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /recommendations/{recommendation_id}/dismiss
+        Happy path: POST /api/v1/recommendations/{recommendation_id}/dismiss
         Source: app/api/api_v1/endpoints/curriculum_adaptive.py:dismiss_recommendation
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /recommendations/{recommendation_id}/dismiss
+        # TODO: Add realistic payload for /api/v1/recommendations/{recommendation_id}/dismiss
         payload = {}
-        response = api_client.post("/recommendations/{recommendation_id}/dismiss", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /recommendations/{recommendation_id}/dismiss failed: {response.status_code} "
+            f"POST /api/v1/recommendations/{recommendation_id}/dismiss failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_dismiss_recommendation_auth_required(self, api_client: TestClient):
+    def test_dismiss_recommendation_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /recommendations/{recommendation_id}/dismiss requires authentication
+        Auth validation: POST /api/v1/recommendations/{recommendation_id}/dismiss requires authentication
         """
         
-        response = api_client.post("/recommendations/{recommendation_id}/dismiss", json={})
+        response = api_client.post(f"/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /recommendations/{recommendation_id}/dismiss should require auth: {response.status_code}"
+            f"POST /api/v1/recommendations/{recommendation_id}/dismiss should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_dismiss_recommendation_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_dismiss_recommendation_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /recommendations/{recommendation_id}/dismiss validates request data
+        Input validation: POST /api/v1/recommendations/{recommendation_id}/dismiss validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -251,56 +309,67 @@ class TestCurriculumadaptiveSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/recommendations/{recommendation_id}/dismiss",
+            f"/api/v1/curriculum-adaptive/recommendations/{test_tournament["recommendation_id"]}/dismiss",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /recommendations/{recommendation_id}/dismiss should validate input: {response.status_code}"
+            f"POST /api/v1/recommendations/{recommendation_id}/dismiss should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /snapshot ────────────────────────────
+    # ── POST /api/v1/snapshot ────────────────────────────
 
-    def test_create_performance_snapshot_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_performance_snapshot_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /snapshot
+        Happy path: POST /api/v1/snapshot
         Source: app/api/api_v1/endpoints/curriculum_adaptive.py:create_performance_snapshot
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /snapshot
+        # TODO: Add realistic payload for /api/v1/snapshot
         payload = {}
-        response = api_client.post("/snapshot", json=payload, headers=headers)
+        response = api_client.post("/api/v1/curriculum-adaptive/snapshot", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /snapshot failed: {response.status_code} "
+            f"POST /api/v1/snapshot failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_performance_snapshot_auth_required(self, api_client: TestClient):
+    def test_create_performance_snapshot_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /snapshot requires authentication
+        Auth validation: POST /api/v1/snapshot requires authentication
         """
         
-        response = api_client.post("/snapshot", json={})
+        response = api_client.post("/api/v1/curriculum-adaptive/snapshot", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /snapshot should require auth: {response.status_code}"
+            f"POST /api/v1/snapshot should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_performance_snapshot_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_performance_snapshot_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /snapshot validates request data
+        Input validation: POST /api/v1/snapshot validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -308,14 +377,14 @@ class TestCurriculumadaptiveSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/snapshot",
+            "/api/v1/curriculum-adaptive/snapshot",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /snapshot should validate input: {response.status_code}"
+            f"POST /api/v1/snapshot should validate input: {response.status_code}"
         )
         
 

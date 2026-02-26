@@ -14,42 +14,53 @@ class TestAttendanceSmoke:
     """Smoke tests for attendance API endpoints"""
 
 
-    # ── GET / ────────────────────────────
+    # ── GET /api/v1/ ────────────────────────────
 
-    def test_list_attendance_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_list_attendance_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /
+        Happy path: GET /api/v1/
         Source: app/api/api_v1/endpoints/attendance.py:list_attendance
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/", headers=headers)
+        response = api_client.get("/api/v1/attendance/", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET / failed: {response.status_code} "
+            f"GET /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_list_attendance_auth_required(self, api_client: TestClient):
+    def test_list_attendance_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET / requires authentication
+        Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get("/")
+        response = api_client.get("/api/v1/attendance/")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET / should require auth: {response.status_code}"
+            f"GET /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_attendance_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_list_attendance_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET / validates request data
+        Input validation: GET /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestAttendanceSmoke:
         
 
 
-    # ── GET /instructor/overview ────────────────────────────
+    # ── GET /api/v1/instructor/overview ────────────────────────────
 
-    def test_get_instructor_attendance_overview_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_instructor_attendance_overview_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /instructor/overview
+        Happy path: GET /api/v1/instructor/overview
         Source: app/api/api_v1/endpoints/attendance.py:get_instructor_attendance_overview
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/instructor/overview", headers=headers)
+        response = api_client.get("/api/v1/attendance/instructor/overview", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /instructor/overview failed: {response.status_code} "
+            f"GET /api/v1/instructor/overview failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_instructor_attendance_overview_auth_required(self, api_client: TestClient):
+    def test_get_instructor_attendance_overview_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /instructor/overview requires authentication
+        Auth validation: GET /api/v1/instructor/overview requires authentication
         """
         
-        response = api_client.get("/instructor/overview")
+        response = api_client.get("/api/v1/attendance/instructor/overview")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /instructor/overview should require auth: {response.status_code}"
+            f"GET /api/v1/instructor/overview should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_instructor_attendance_overview_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_instructor_attendance_overview_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /instructor/overview validates request data
+        Input validation: GET /api/v1/instructor/overview validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,43 +126,57 @@ class TestAttendanceSmoke:
         
 
 
-    # ── PATCH /{attendance_id} ────────────────────────────
+    # ── PATCH /api/v1/{attendance_id} ────────────────────────────
 
-    def test_update_attendance_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_update_attendance_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: PATCH /{attendance_id}
+        Happy path: PATCH /api/v1/{attendance_id}
         Source: app/api/api_v1/endpoints/attendance.py:update_attendance
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch("/{attendance_id}", json=payload, headers=headers)
+        response = api_client.patch(f"/api/v1/attendance/{test_tournament["attendance_id"]}", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"PATCH /{attendance_id} failed: {response.status_code} "
+            f"PATCH /api/v1/{attendance_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_update_attendance_auth_required(self, api_client: TestClient):
+    def test_update_attendance_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: PATCH /{attendance_id} requires authentication
+        Auth validation: PATCH /api/v1/{attendance_id} requires authentication
         """
         
-        response = api_client.patch("/{attendance_id}", json={})
+        response = api_client.patch(f"/api/v1/attendance/{test_tournament["attendance_id"]}", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"PATCH /{attendance_id} should require auth: {response.status_code}"
+            f"PATCH /api/v1/{attendance_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_update_attendance_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_update_attendance_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: PATCH /{attendance_id} validates request data
+        Input validation: PATCH /api/v1/{attendance_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -148,56 +184,67 @@ class TestAttendanceSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            "/{attendance_id}",
+            f"/api/v1/attendance/{test_tournament["attendance_id"]}",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /{attendance_id} should validate input: {response.status_code}"
+            f"PATCH /api/v1/{attendance_id} should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST / ────────────────────────────
+    # ── POST /api/v1/ ────────────────────────────
 
-    def test_create_attendance_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_create_attendance_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /
+        Happy path: POST /api/v1/
         Source: app/api/api_v1/endpoints/attendance.py:create_attendance
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
+        # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post("/", json=payload, headers=headers)
+        response = api_client.post("/api/v1/attendance/", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST / failed: {response.status_code} "
+            f"POST /api/v1/ failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_create_attendance_auth_required(self, api_client: TestClient):
+    def test_create_attendance_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST / requires authentication
+        Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post("/", json={})
+        response = api_client.post("/api/v1/attendance/", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST / should require auth: {response.status_code}"
+            f"POST /api/v1/ should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_attendance_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_attendance_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST / validates request data
+        Input validation: POST /api/v1/ validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -205,56 +252,70 @@ class TestAttendanceSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/",
+            "/api/v1/attendance/",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST / should validate input: {response.status_code}"
+            f"POST /api/v1/ should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /sessions/{session_id}/attendance/change-request ────────────────────────────
+    # ── POST /api/v1/sessions/{session_id}/attendance/change-request ────────────────────────────
 
-    def test_handle_change_request_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_handle_change_request_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Happy path: POST /sessions/{session_id}/attendance/change-request
+        Happy path: POST /api/v1/sessions/{session_id}/attendance/change-request
         Source: app/api/web_routes/attendance.py:handle_change_request
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/attendance/change-request
+        # TODO: Add realistic payload for /api/v1/sessions/{session_id}/attendance/change-request
         payload = {}
-        response = api_client.post("/sessions/{session_id}/attendance/change-request", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/attendance/sessions/{test_session_id}/attendance/change-request", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /sessions/{session_id}/attendance/change-request failed: {response.status_code} "
+            f"POST /api/v1/sessions/{session_id}/attendance/change-request failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_handle_change_request_auth_required(self, api_client: TestClient):
+    def test_handle_change_request_auth_required(
+        self,
+        api_client: TestClient,
+        test_session_id,
+    ):
         """
-        Auth validation: POST /sessions/{session_id}/attendance/change-request requires authentication
+        Auth validation: POST /api/v1/sessions/{session_id}/attendance/change-request requires authentication
         """
         
-        response = api_client.post("/sessions/{session_id}/attendance/change-request", json={})
+        response = api_client.post(f"/api/v1/attendance/sessions/{test_session_id}/attendance/change-request", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /sessions/{session_id}/attendance/change-request should require auth: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/attendance/change-request should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_handle_change_request_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_handle_change_request_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Input validation: POST /sessions/{session_id}/attendance/change-request validates request data
+        Input validation: POST /api/v1/sessions/{session_id}/attendance/change-request validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -262,56 +323,70 @@ class TestAttendanceSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/sessions/{session_id}/attendance/change-request",
+            f"/api/v1/attendance/sessions/{test_session_id}/attendance/change-request",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /sessions/{session_id}/attendance/change-request should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/attendance/change-request should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /sessions/{session_id}/attendance/confirm ────────────────────────────
+    # ── POST /api/v1/sessions/{session_id}/attendance/confirm ────────────────────────────
 
-    def test_confirm_attendance_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_confirm_attendance_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Happy path: POST /sessions/{session_id}/attendance/confirm
+        Happy path: POST /api/v1/sessions/{session_id}/attendance/confirm
         Source: app/api/web_routes/attendance.py:confirm_attendance
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/attendance/confirm
+        # TODO: Add realistic payload for /api/v1/sessions/{session_id}/attendance/confirm
         payload = {}
-        response = api_client.post("/sessions/{session_id}/attendance/confirm", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/attendance/sessions/{test_session_id}/attendance/confirm", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /sessions/{session_id}/attendance/confirm failed: {response.status_code} "
+            f"POST /api/v1/sessions/{session_id}/attendance/confirm failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_confirm_attendance_auth_required(self, api_client: TestClient):
+    def test_confirm_attendance_auth_required(
+        self,
+        api_client: TestClient,
+        test_session_id,
+    ):
         """
-        Auth validation: POST /sessions/{session_id}/attendance/confirm requires authentication
+        Auth validation: POST /api/v1/sessions/{session_id}/attendance/confirm requires authentication
         """
         
-        response = api_client.post("/sessions/{session_id}/attendance/confirm", json={})
+        response = api_client.post(f"/api/v1/attendance/sessions/{test_session_id}/attendance/confirm", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /sessions/{session_id}/attendance/confirm should require auth: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/attendance/confirm should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_confirm_attendance_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_confirm_attendance_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Input validation: POST /sessions/{session_id}/attendance/confirm validates request data
+        Input validation: POST /api/v1/sessions/{session_id}/attendance/confirm validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -319,56 +394,70 @@ class TestAttendanceSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/sessions/{session_id}/attendance/confirm",
+            f"/api/v1/attendance/sessions/{test_session_id}/attendance/confirm",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /sessions/{session_id}/attendance/confirm should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/attendance/confirm should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /sessions/{session_id}/attendance/mark ────────────────────────────
+    # ── POST /api/v1/sessions/{session_id}/attendance/mark ────────────────────────────
 
-    def test_mark_attendance_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_mark_attendance_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Happy path: POST /sessions/{session_id}/attendance/mark
+        Happy path: POST /api/v1/sessions/{session_id}/attendance/mark
         Source: app/api/web_routes/attendance.py:mark_attendance
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/attendance/mark
+        # TODO: Add realistic payload for /api/v1/sessions/{session_id}/attendance/mark
         payload = {}
-        response = api_client.post("/sessions/{session_id}/attendance/mark", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/attendance/sessions/{test_session_id}/attendance/mark", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /sessions/{session_id}/attendance/mark failed: {response.status_code} "
+            f"POST /api/v1/sessions/{session_id}/attendance/mark failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_mark_attendance_auth_required(self, api_client: TestClient):
+    def test_mark_attendance_auth_required(
+        self,
+        api_client: TestClient,
+        test_session_id,
+    ):
         """
-        Auth validation: POST /sessions/{session_id}/attendance/mark requires authentication
+        Auth validation: POST /api/v1/sessions/{session_id}/attendance/mark requires authentication
         """
         
-        response = api_client.post("/sessions/{session_id}/attendance/mark", json={})
+        response = api_client.post(f"/api/v1/attendance/sessions/{test_session_id}/attendance/mark", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /sessions/{session_id}/attendance/mark should require auth: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/attendance/mark should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_mark_attendance_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_mark_attendance_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_session_id,
+    ):
         """
-        Input validation: POST /sessions/{session_id}/attendance/mark validates request data
+        Input validation: POST /api/v1/sessions/{session_id}/attendance/mark validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -376,56 +465,70 @@ class TestAttendanceSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/sessions/{session_id}/attendance/mark",
+            f"/api/v1/attendance/sessions/{test_session_id}/attendance/mark",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /sessions/{session_id}/attendance/mark should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{session_id}/attendance/mark should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /{booking_id}/checkin ────────────────────────────
+    # ── POST /api/v1/{booking_id}/checkin ────────────────────────────
 
-    def test_checkin_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_checkin_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: POST /{booking_id}/checkin
+        Happy path: POST /api/v1/{booking_id}/checkin
         Source: app/api/api_v1/endpoints/attendance.py:checkin
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{booking_id}/checkin
+        # TODO: Add realistic payload for /api/v1/{booking_id}/checkin
         payload = {}
-        response = api_client.post("/{booking_id}/checkin", json=payload, headers=headers)
+        response = api_client.post(f"/api/v1/attendance/{test_tournament["session_ids"][0]}/checkin", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /{booking_id}/checkin failed: {response.status_code} "
+            f"POST /api/v1/{booking_id}/checkin failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_checkin_auth_required(self, api_client: TestClient):
+    def test_checkin_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: POST /{booking_id}/checkin requires authentication
+        Auth validation: POST /api/v1/{booking_id}/checkin requires authentication
         """
         
-        response = api_client.post("/{booking_id}/checkin", json={})
+        response = api_client.post(f"/api/v1/attendance/{test_tournament["session_ids"][0]}/checkin", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /{booking_id}/checkin should require auth: {response.status_code}"
+            f"POST /api/v1/{booking_id}/checkin should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_checkin_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_checkin_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: POST /{booking_id}/checkin validates request data
+        Input validation: POST /api/v1/{booking_id}/checkin validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -433,14 +536,14 @@ class TestAttendanceSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/{booking_id}/checkin",
+            f"/api/v1/attendance/{test_tournament["session_ids"][0]}/checkin",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /{booking_id}/checkin should validate input: {response.status_code}"
+            f"POST /api/v1/{booking_id}/checkin should validate input: {response.status_code}"
         )
         
 

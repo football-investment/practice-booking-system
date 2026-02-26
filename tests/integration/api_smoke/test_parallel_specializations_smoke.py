@@ -14,42 +14,53 @@ class TestParallelspecializationsSmoke:
     """Smoke tests for parallel_specializations API endpoints"""
 
 
-    # ── GET /available ────────────────────────────
+    # ── GET /api/v1/available ────────────────────────────
 
-    def test_get_available_specializations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_available_specializations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /available
+        Happy path: GET /api/v1/available
         Source: app/api/api_v1/endpoints/parallel_specializations.py:get_available_specializations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/available", headers=headers)
+        response = api_client.get("/api/v1/parallel-specializations/available", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /available failed: {response.status_code} "
+            f"GET /api/v1/available failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_available_specializations_auth_required(self, api_client: TestClient):
+    def test_get_available_specializations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /available requires authentication
+        Auth validation: GET /api/v1/available requires authentication
         """
         
-        response = api_client.get("/available")
+        response = api_client.get("/api/v1/parallel-specializations/available")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /available should require auth: {response.status_code}"
+            f"GET /api/v1/available should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_specializations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_available_specializations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /available validates request data
+        Input validation: GET /api/v1/available validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,53 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── GET /combinations ────────────────────────────
+    # ── GET /api/v1/combinations ────────────────────────────
 
-    def test_get_specialization_combinations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_specialization_combinations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /combinations
+        Happy path: GET /api/v1/combinations
         Source: app/api/api_v1/endpoints/parallel_specializations.py:get_specialization_combinations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/combinations", headers=headers)
+        response = api_client.get("/api/v1/parallel-specializations/combinations", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /combinations failed: {response.status_code} "
+            f"GET /api/v1/combinations failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_specialization_combinations_auth_required(self, api_client: TestClient):
+    def test_get_specialization_combinations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /combinations requires authentication
+        Auth validation: GET /api/v1/combinations requires authentication
         """
         
-        response = api_client.get("/combinations")
+        response = api_client.get("/api/v1/parallel-specializations/combinations")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /combinations should require auth: {response.status_code}"
+            f"GET /api/v1/combinations should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_specialization_combinations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_specialization_combinations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /combinations validates request data
+        Input validation: GET /api/v1/combinations validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,42 +126,53 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── GET /dashboard ────────────────────────────
+    # ── GET /api/v1/dashboard ────────────────────────────
 
-    def test_get_specialization_dashboard_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_specialization_dashboard_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /dashboard
+        Happy path: GET /api/v1/dashboard
         Source: app/api/api_v1/endpoints/parallel_specializations.py:get_specialization_dashboard
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/dashboard", headers=headers)
+        response = api_client.get("/api/v1/parallel-specializations/dashboard", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /dashboard failed: {response.status_code} "
+            f"GET /api/v1/dashboard failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_specialization_dashboard_auth_required(self, api_client: TestClient):
+    def test_get_specialization_dashboard_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /dashboard requires authentication
+        Auth validation: GET /api/v1/dashboard requires authentication
         """
         
-        response = api_client.get("/dashboard")
+        response = api_client.get("/api/v1/parallel-specializations/dashboard")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /dashboard should require auth: {response.status_code}"
+            f"GET /api/v1/dashboard should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_specialization_dashboard_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_specialization_dashboard_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /dashboard validates request data
+        Input validation: GET /api/v1/dashboard validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,42 +182,53 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── GET /my-specializations ────────────────────────────
+    # ── GET /api/v1/my-specializations ────────────────────────────
 
-    def test_get_my_specializations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_my_specializations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /my-specializations
+        Happy path: GET /api/v1/my-specializations
         Source: app/api/api_v1/endpoints/parallel_specializations.py:get_my_specializations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/my-specializations", headers=headers)
+        response = api_client.get("/api/v1/parallel-specializations/my-specializations", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /my-specializations failed: {response.status_code} "
+            f"GET /api/v1/my-specializations failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_my_specializations_auth_required(self, api_client: TestClient):
+    def test_get_my_specializations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /my-specializations requires authentication
+        Auth validation: GET /api/v1/my-specializations requires authentication
         """
         
-        response = api_client.get("/my-specializations")
+        response = api_client.get("/api/v1/parallel-specializations/my-specializations")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /my-specializations should require auth: {response.status_code}"
+            f"GET /api/v1/my-specializations should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_specializations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_my_specializations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /my-specializations validates request data
+        Input validation: GET /api/v1/my-specializations validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -194,42 +238,53 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── GET /progression-rules ────────────────────────────
+    # ── GET /api/v1/progression-rules ────────────────────────────
 
-    def test_get_progression_rules_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_progression_rules_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /progression-rules
+        Happy path: GET /api/v1/progression-rules
         Source: app/api/api_v1/endpoints/parallel_specializations.py:get_progression_rules
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/progression-rules", headers=headers)
+        response = api_client.get("/api/v1/parallel-specializations/progression-rules", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /progression-rules failed: {response.status_code} "
+            f"GET /api/v1/progression-rules failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_progression_rules_auth_required(self, api_client: TestClient):
+    def test_get_progression_rules_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /progression-rules requires authentication
+        Auth validation: GET /api/v1/progression-rules requires authentication
         """
         
-        response = api_client.get("/progression-rules")
+        response = api_client.get("/api/v1/parallel-specializations/progression-rules")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /progression-rules should require auth: {response.status_code}"
+            f"GET /api/v1/progression-rules should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_progression_rules_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_progression_rules_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /progression-rules validates request data
+        Input validation: GET /api/v1/progression-rules validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -239,42 +294,56 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── GET /semester-info/{semester} ────────────────────────────
+    # ── GET /api/v1/semester-info/{semester} ────────────────────────────
 
-    def test_get_semester_specialization_info_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_semester_specialization_info_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /semester-info/{semester}
+        Happy path: GET /api/v1/semester-info/{semester}
         Source: app/api/api_v1/endpoints/parallel_specializations.py:get_semester_specialization_info
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/semester-info/{semester}", headers=headers)
+        response = api_client.get(f"/api/v1/parallel-specializations/semester-info/{test_tournament["semester"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /semester-info/{semester} failed: {response.status_code} "
+            f"GET /api/v1/semester-info/{semester} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_semester_specialization_info_auth_required(self, api_client: TestClient):
+    def test_get_semester_specialization_info_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /semester-info/{semester} requires authentication
+        Auth validation: GET /api/v1/semester-info/{semester} requires authentication
         """
         
-        response = api_client.get("/semester-info/{semester}")
+        response = api_client.get(f"/api/v1/parallel-specializations/semester-info/{test_tournament["semester"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /semester-info/{semester} should require auth: {response.status_code}"
+            f"GET /api/v1/semester-info/{semester} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_semester_specialization_info_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_semester_specialization_info_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /semester-info/{semester} validates request data
+        Input validation: GET /api/v1/semester-info/{semester} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -284,42 +353,56 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── GET /validate/{specialization} ────────────────────────────
+    # ── GET /api/v1/validate/{specialization} ────────────────────────────
 
-    def test_validate_specialization_addition_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_validate_specialization_addition_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /validate/{specialization}
+        Happy path: GET /api/v1/validate/{specialization}
         Source: app/api/api_v1/endpoints/parallel_specializations.py:validate_specialization_addition
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/validate/{specialization}", headers=headers)
+        response = api_client.get(f"/api/v1/parallel-specializations/validate/{test_tournament["specialization"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /validate/{specialization} failed: {response.status_code} "
+            f"GET /api/v1/validate/{specialization} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_validate_specialization_addition_auth_required(self, api_client: TestClient):
+    def test_validate_specialization_addition_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /validate/{specialization} requires authentication
+        Auth validation: GET /api/v1/validate/{specialization} requires authentication
         """
         
-        response = api_client.get("/validate/{specialization}")
+        response = api_client.get(f"/api/v1/parallel-specializations/validate/{test_tournament["specialization"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /validate/{specialization} should require auth: {response.status_code}"
+            f"GET /api/v1/validate/{specialization} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_validate_specialization_addition_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_validate_specialization_addition_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /validate/{specialization} validates request data
+        Input validation: GET /api/v1/validate/{specialization} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -329,44 +412,55 @@ class TestParallelspecializationsSmoke:
         
 
 
-    # ── POST /start ────────────────────────────
+    # ── POST /api/v1/start ────────────────────────────
 
-    def test_start_new_specialization_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_start_new_specialization_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /start
+        Happy path: POST /api/v1/start
         Source: app/api/api_v1/endpoints/parallel_specializations.py:start_new_specialization
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /start
+        # TODO: Add realistic payload for /api/v1/start
         payload = {}
-        response = api_client.post("/start", json=payload, headers=headers)
+        response = api_client.post("/api/v1/parallel-specializations/start", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /start failed: {response.status_code} "
+            f"POST /api/v1/start failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_start_new_specialization_auth_required(self, api_client: TestClient):
+    def test_start_new_specialization_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /start requires authentication
+        Auth validation: POST /api/v1/start requires authentication
         """
         
-        response = api_client.post("/start", json={})
+        response = api_client.post("/api/v1/parallel-specializations/start", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /start should require auth: {response.status_code}"
+            f"POST /api/v1/start should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_start_new_specialization_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_start_new_specialization_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /start validates request data
+        Input validation: POST /api/v1/start validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -374,14 +468,14 @@ class TestParallelspecializationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/start",
+            "/api/v1/parallel-specializations/start",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /start should validate input: {response.status_code}"
+            f"POST /api/v1/start should validate input: {response.status_code}"
         )
         
 

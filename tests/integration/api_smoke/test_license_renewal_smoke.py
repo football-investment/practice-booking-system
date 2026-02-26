@@ -14,42 +14,53 @@ class TestLicenserenewalSmoke:
     """Smoke tests for license_renewal API endpoints"""
 
 
-    # ── GET /expiring ────────────────────────────
+    # ── GET /api/v1/expiring ────────────────────────────
 
-    def test_get_expiring_licenses_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_expiring_licenses_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: GET /expiring
+        Happy path: GET /api/v1/expiring
         Source: app/api/api_v1/endpoints/license_renewal.py:get_expiring_licenses
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/expiring", headers=headers)
+        response = api_client.get("/api/v1/license-renewal/expiring", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /expiring failed: {response.status_code} "
+            f"GET /api/v1/expiring failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_expiring_licenses_auth_required(self, api_client: TestClient):
+    def test_get_expiring_licenses_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: GET /expiring requires authentication
+        Auth validation: GET /api/v1/expiring requires authentication
         """
         
-        response = api_client.get("/expiring")
+        response = api_client.get("/api/v1/license-renewal/expiring")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /expiring should require auth: {response.status_code}"
+            f"GET /api/v1/expiring should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_expiring_licenses_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_expiring_licenses_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: GET /expiring validates request data
+        Input validation: GET /api/v1/expiring validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -59,42 +70,56 @@ class TestLicenserenewalSmoke:
         
 
 
-    # ── GET /status/{license_id} ────────────────────────────
+    # ── GET /api/v1/status/{license_id} ────────────────────────────
 
-    def test_get_license_status_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_get_license_status_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Happy path: GET /status/{license_id}
+        Happy path: GET /api/v1/status/{license_id}
         Source: app/api/api_v1/endpoints/license_renewal.py:get_license_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get("/status/{license_id}", headers=headers)
+        response = api_client.get(f"/api/v1/license-renewal/status/{test_tournament["license_id"]}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"GET /status/{license_id} failed: {response.status_code} "
+            f"GET /api/v1/status/{license_id} failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_get_license_status_auth_required(self, api_client: TestClient):
+    def test_get_license_status_auth_required(
+        self,
+        api_client: TestClient,
+        test_tournament,
+    ):
         """
-        Auth validation: GET /status/{license_id} requires authentication
+        Auth validation: GET /api/v1/status/{license_id} requires authentication
         """
         
-        response = api_client.get("/status/{license_id}")
+        response = api_client.get(f"/api/v1/license-renewal/status/{test_tournament["license_id"]}")
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"GET /status/{license_id} should require auth: {response.status_code}"
+            f"GET /api/v1/status/{license_id} should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_license_status_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_get_license_status_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        test_tournament,
+    ):
         """
-        Input validation: GET /status/{license_id} validates request data
+        Input validation: GET /api/v1/status/{license_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -104,44 +129,55 @@ class TestLicenserenewalSmoke:
         
 
 
-    # ── POST /check-expirations ────────────────────────────
+    # ── POST /api/v1/check-expirations ────────────────────────────
 
-    def test_bulk_check_expirations_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_bulk_check_expirations_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /check-expirations
+        Happy path: POST /api/v1/check-expirations
         Source: app/api/api_v1/endpoints/license_renewal.py:bulk_check_expirations
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /check-expirations
+        # TODO: Add realistic payload for /api/v1/check-expirations
         payload = {}
-        response = api_client.post("/check-expirations", json=payload, headers=headers)
+        response = api_client.post("/api/v1/license-renewal/check-expirations", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /check-expirations failed: {response.status_code} "
+            f"POST /api/v1/check-expirations failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_bulk_check_expirations_auth_required(self, api_client: TestClient):
+    def test_bulk_check_expirations_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /check-expirations requires authentication
+        Auth validation: POST /api/v1/check-expirations requires authentication
         """
         
-        response = api_client.post("/check-expirations", json={})
+        response = api_client.post("/api/v1/license-renewal/check-expirations", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /check-expirations should require auth: {response.status_code}"
+            f"POST /api/v1/check-expirations should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_bulk_check_expirations_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_bulk_check_expirations_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /check-expirations validates request data
+        Input validation: POST /api/v1/check-expirations validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -149,56 +185,67 @@ class TestLicenserenewalSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/check-expirations",
+            "/api/v1/license-renewal/check-expirations",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /check-expirations should validate input: {response.status_code}"
+            f"POST /api/v1/check-expirations should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /renew ────────────────────────────
+    # ── POST /api/v1/renew ────────────────────────────
 
-    def test_renew_license_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_renew_license_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Happy path: POST /renew
+        Happy path: POST /api/v1/renew
         Source: app/api/api_v1/endpoints/license_renewal.py:renew_license
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /renew
+        # TODO: Add realistic payload for /api/v1/renew
         payload = {}
-        response = api_client.post("/renew", json=payload, headers=headers)
+        response = api_client.post("/api/v1/license-renewal/renew", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 404], (
-            f"POST /renew failed: {response.status_code} "
+            f"POST /api/v1/renew failed: {response.status_code} "
             f"{response.text}"
         )
 
-    def test_renew_license_auth_required(self, api_client: TestClient):
+    def test_renew_license_auth_required(
+        self,
+        api_client: TestClient,
+    ):
         """
-        Auth validation: POST /renew requires authentication
+        Auth validation: POST /api/v1/renew requires authentication
         """
         
-        response = api_client.post("/renew", json={})
+        response = api_client.post("/api/v1/license-renewal/renew", json={})
         
 
         # Should return 401 Unauthorized or 403 Forbidden
         assert response.status_code in [401, 403], (
-            f"POST /renew should require auth: {response.status_code}"
+            f"POST /api/v1/renew should require auth: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_renew_license_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_renew_license_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+    ):
         """
-        Input validation: POST /renew validates request data
+        Input validation: POST /api/v1/renew validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -206,14 +253,14 @@ class TestLicenserenewalSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            "/renew",
+            "/api/v1/license-renewal/renew",
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /renew should validate input: {response.status_code}"
+            f"POST /api/v1/renew should validate input: {response.status_code}"
         )
         
 
