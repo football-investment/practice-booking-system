@@ -49,7 +49,7 @@ def enroll_in_tournament(
     **Authorization:** Student role only
 
     **Validations:**
-    1. Tournament exists and tournament_status is READY_FOR_ENROLLMENT or ONGOING
+    1. Tournament exists and tournament_status is ENROLLMENT_OPEN or IN_PROGRESS
     2. Student has LFA_FOOTBALL_PLAYER license
     3. Age category enrollment rules (UPWARD ENROLLMENT - no instructor approval needed):
        - PRE (5-13): Can enroll in PRE, YOUTH, AMATEUR, PRO (all above)
@@ -82,9 +82,9 @@ def enroll_in_tournament(
         )
 
     # 2. Verify tournament status (check tournament_status field, NOT the old status field)
-    # Only READY_FOR_ENROLLMENT, ENROLLMENT_OPEN, and ONGOING allow enrollment
+    # Only ENROLLMENT_OPEN and IN_PROGRESS allow enrollment
     # ENROLLMENT_CLOSED does NOT allow new enrollments (enrollment period ended)
-    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "ENROLLMENT_OPEN", "ONGOING"]:
+    if tournament.tournament_status not in ["ENROLLMENT_OPEN", "IN_PROGRESS"]:
         # Audit enrollment failure for observability
         audit_service = AuditService(db)
         audit_service.log(
@@ -96,7 +96,7 @@ def enroll_in_tournament(
                 "tournament_name": tournament.name,
                 "tournament_status": tournament.tournament_status,
                 "failure_reason": "tournament_not_accepting_enrollments",
-                "allowed_statuses": ["READY_FOR_ENROLLMENT", "ONGOING"],
+                "allowed_statuses": ["ENROLLMENT_OPEN", "IN_PROGRESS"],
                 "student_balance": current_user.credit_balance,
                 "enrollment_cost": tournament.enrollment_cost
             }
@@ -104,7 +104,7 @@ def enroll_in_tournament(
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tournament not accepting enrollments (tournament_status: {tournament.tournament_status}). Only READY_FOR_ENROLLMENT and ONGOING tournaments accept enrollments."
+            detail=f"Tournament not accepting enrollments (tournament_status: {tournament.tournament_status}). Only ENROLLMENT_OPEN and IN_PROGRESS tournaments accept enrollments."
         )
 
     # 2.5. Verify enrollment deadline (1 hour before first tournament session)
@@ -422,7 +422,7 @@ def unenroll_from_tournament(
     **Authorization:** Student role only
 
     **Business Rules:**
-    1. Can only unenroll from READY_FOR_ENROLLMENT or ONGOING tournaments
+    1. Can only unenroll from ENROLLMENT_OPEN or IN_PROGRESS tournaments
     2. Cannot unenroll if tournament already COMPLETED or CANCELLED
     3. Credit refund: 50% penalty (user gets 50% back, 50% lost)
     4. Sets enrollment to is_active=False and request_status=WITHDRAWN
@@ -457,10 +457,10 @@ def unenroll_from_tournament(
         )
 
     # 3. Verify tournament status - can only unenroll from active tournaments
-    if tournament.tournament_status not in ["READY_FOR_ENROLLMENT", "ONGOING"]:
+    if tournament.tournament_status not in ["ENROLLMENT_OPEN", "IN_PROGRESS"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot unenroll from tournament in {tournament.tournament_status} status. Only READY_FOR_ENROLLMENT and ONGOING tournaments allow unenrollment."
+            detail=f"Cannot unenroll from tournament in {tournament.tournament_status} status. Only ENROLLMENT_OPEN and IN_PROGRESS tournaments allow unenrollment."
         )
 
     # 4. Find active enrollment — RACE-04 fix: SELECT FOR UPDATE
