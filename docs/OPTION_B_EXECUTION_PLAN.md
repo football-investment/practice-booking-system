@@ -52,6 +52,19 @@ tests_e2e/integration_workflows/      (E2E Suite - Workflow Validation)
 
 **Expected Outcome**: 36F → 29F (+7 PASS, 19% improvement)
 
+**ACTUALS (2026-02-26)**:
+- ✅ **Result**: 36F → 31F (+5 PASS, 14% improvement)
+- ✅ **Tests Fixed**: 5/7 (71%)
+  - #1: default_policy.json created ✅
+  - #4-5: test_generation_task_id fixture ✅ (2 tests)
+  - #6-7: test_rounds_session_id fixture ✅ (2 tests)
+- ⚠️ **CASCADE STOP**: 2/7 tests (29%)
+  - #2: test_preview_tournament_rewards → Requires reward_config DB record (not file)
+  - #3: test_preview_tournament_sessions → Requires tournament_type config (not file)
+- **Pattern 4 Taxonomy Correction**: 71% pure infrastructure, 29% cascade overlap
+- **Time**: ~2.5 hours (within estimate)
+- **Commit**: 4fcea87
+
 ---
 
 #### Phase 1.2: Pattern 2 Stabilization (7 tests, ~8-12 hours)
@@ -74,6 +87,8 @@ tests_e2e/integration_workflows/      (E2E Suite - Workflow Validation)
 - Validate: 1 test at a time, smoke run + 3x determinism, commit
 
 **Expected Outcome**: 29F → 22F (+7 PASS, 39% total improvement from Phase 1)
+
+**REVISED TARGET** (based on Phase 1.1 actuals): 31F → 24F (+7 PASS if all succeed)
 
 **Stop Rule**: If lifecycle setup becomes complex cascade, **STOP** and move to Phase 2 (E2E migration).
 
@@ -152,16 +167,17 @@ tests_e2e/integration_workflows/      (E2E Suite - Workflow Validation)
 
 **Expected Outcome**:
 - Smoke suite: **22F/113P/75S** → Stabilize to **0F/135P/75S** (Phase 1 complete)
+- **REVISED** (post Phase 1.1): **31F/104P/75S** → Target **24F/111P/75S** (if Phase 1.2 complete)
 - E2E suite: **0F/22P** (new baseline)
 
 ---
 
 ## Timeline & Effort
 
-| Phase | Scope | Effort | Duration | Risk |
-|-------|-------|--------|----------|------|
-| **Phase 1.1** | Pattern 4 (7 tests) | 4-6 hours | 1 day | LOW |
-| **Phase 1.2** | Pattern 2 (7 tests) | 8-12 hours | 1-2 days | LOW-MODERATE |
+| Phase | Scope | Effort | Duration | Risk | Status |
+|-------|-------|--------|----------|------|--------|
+| **Phase 1.1** | Pattern 4 (5/7 tests) | 4-6 hours | 1 day | LOW | ✅ DONE (+5 PASS) |
+| **Phase 1.2** | Pattern 2 (7 tests) | 8-12 hours | 1-2 days | LOW-MODERATE | 🔄 IN PROGRESS |
 | **Phase 2.1** | E2E Scaffold | 8-12 hours | 1-2 days | MODERATE |
 | **Phase 2.2** | Pattern 1+3 (22 tests) | 20-30 hours | 3-5 days | MODERATE |
 | **TOTAL** | **36 tests** | **40-60 hours** | **~2 weeks** | **Managed** |
