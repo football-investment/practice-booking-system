@@ -2,12 +2,12 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from ....database import get_db
 from ....dependencies import get_current_user
 from ....models.user import User
-from ....models.quiz import QuizCategory, QuestionType
+from ....models.quiz import QuizCategory, QuestionType, Quiz, QuizQuestion
 from ....services.adaptive_learning import AdaptiveLearningService
 
 router = APIRouter()

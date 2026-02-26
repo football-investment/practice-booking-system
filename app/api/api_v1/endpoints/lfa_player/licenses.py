@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
-from .....models.user import User
+from .....models.user import User, UserRole
 from .....services.specs.session_based.lfa_player_service import LFAPlayerService
 
 router = APIRouter()

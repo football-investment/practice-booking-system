@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ....database import get_db
 from ....dependencies import get_current_user
-from ....models.user import User
+from ....models.user import User, UserRole
 from ....services.gamification import GamificationService
 from ....schemas.gamification import UserGamificationResponse
 
