@@ -211,6 +211,8 @@ def e2e_campus(test_db: Session) -> Campus:
         location = Location(
             name="E2E Test Location",
             city="Budapest",
+            country="Hungary",
+            country_code="HU",
             is_active=True
         )
         test_db.add(location)
