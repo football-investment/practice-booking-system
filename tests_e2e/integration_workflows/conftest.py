@@ -87,16 +87,62 @@ def e2e_tournament_types(test_db: Session) -> List[TournamentType]:
             "code": "knockout",
             "display_name": "Single Elimination (Knockout)",
             "description": "Single elimination bracket tournament",
+            "min_players": 4,
+            "max_players": 1024,
+            "requires_power_of_two": True,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {
+                "code": "knockout",
+                "display_name": "Single Elimination (Knockout)",
+                "description": "Single elimination bracket tournament",
+                "format": "HEAD_TO_HEAD",
+                "min_players": 4,
+                "max_players": 1024,
+                "requires_power_of_two": True,
+                "matches_calculation": "n - 1",
+                "rounds_calculation": "log2(n)",
+            }
         },
         {
             "code": "league",
             "display_name": "League (Round Robin)",
             "description": "Round-robin league format",
+            "min_players": 4,
+            "max_players": None,
+            "requires_power_of_two": False,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {
+                "code": "league",
+                "display_name": "League (Round Robin)",
+                "description": "Round-robin league format",
+                "format": "HEAD_TO_HEAD",
+                "min_players": 4,
+                "requires_power_of_two": False,
+                "matches_calculation": "n * (n-1) / 2",
+            }
         },
         {
             "code": "hybrid",
             "display_name": "Hybrid (Group + Knockout)",
             "description": "Group stage followed by knockout",
+            "min_players": 8,
+            "max_players": None,
+            "requires_power_of_two": False,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {
+                "code": "hybrid",
+                "display_name": "Hybrid (Group + Knockout)",
+                "description": "Group stage followed by knockout",
+                "format": "HEAD_TO_HEAD",
+                "min_players": 8,
+                "requires_power_of_two": False,
+            }
         }
     ]
 
