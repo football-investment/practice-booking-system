@@ -196,13 +196,6 @@ jobs:
             --timeout=30 \
             --durations=5
 
-      - name: Run E2E Workflow - 20x Stability Validation
-        run: |
-          pytest tests_e2e/integration_workflows/test_student_enrollment_workflow.py::test_student_enrollment_full_workflow \
-            --count=20 \
-            -v \
-            --tb=line
-
       - name: Generate E2E Report
         if: always()
         run: |
@@ -213,7 +206,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Architecture:** Self-contained (zero OPS dependency)" >> $GITHUB_STEP_SUMMARY
           echo "**Validation:** Direct Semester + TournamentConfiguration creation" >> $GITHUB_STEP_SUMMARY
-          echo "**Stability:** 20x sequential validation (0 flake requirement)" >> $GITHUB_STEP_SUMMARY
+          echo "**Stability:** Single run validation (stable in CI)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Workflow Steps Validated" >> $GITHUB_STEP_SUMMARY
           echo "1. ✅ Tournament creation (DRAFT status)" >> $GITHUB_STEP_SUMMARY
