@@ -412,7 +412,10 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
 
     # Create UserLicense + Enrollment for all 4 students
     enrolled_student_ids = []
-    for student in students:
+    first_user_license = None  # Store first license for fixture data
+    first_enrollment = None    # Store first enrollment for fixture data
+
+    for i, student in enumerate(students):
         # Check if PLAYER license exists
         user_license = test_db.query(UserLicense).filter(
             UserLicense.user_id == student.id,
@@ -432,6 +435,10 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
             test_db.commit()
             test_db.refresh(user_license)
 
+        # Store first license
+        if i == 0:
+            first_user_license = user_license
+
         # ── 5. Create Enrollment (APPROVED, is_active=True) ────────────
         enrollment = SemesterEnrollment(
             user_id=student.id,
@@ -446,6 +453,10 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         )
         test_db.add(enrollment)
         enrolled_student_ids.append(student.id)
+
+        # Store first enrollment
+        if i == 0:
+            first_enrollment = enrollment
 
     test_db.commit()
 
@@ -492,13 +503,70 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     instructor_id = instructor.id if instructor else None
 
     fixture_data = {
+        # ── Core tournament data (REAL) ──────────────────────────────────
         "tournament_id": tournament.id,
         "semester_id": tournament.id,
         "code": tournament.code,
         "name": tournament.name,
         "session_ids": [session.id],
         "enrolled_student_ids": enrolled_student_ids,
-        "instructor_id": instructor_id,  # Phase C: Add instructor_id for payload context
+        "instructor_id": instructor_id,
+
+        # ── Created entity IDs (REAL) ────────────────────────────────────
+        "license_id": first_user_license.id if first_user_license else 1,
+        "enrollment_id": first_enrollment.id if first_enrollment else 1,
+        "specialization": "PLAYER",
+        "specialization_code": "PLAYER",
+        "spec_type": "PLAYER",
+
+        # ── Placeholder IDs (404 acceptable for smoke tests) ────────────
+        "project_id": 1,
+        "quiz_id": 1,
+        "quiz_connection_id": 1,
+        "assessment_id": 1,
+        "assignment_id": 1,
+        "attendance_id": 1,
+        "availability_id": 1,
+        "application_id": 1,
+        "category_id": 1,
+        "certificate_id": 1,
+        "code_id": 1,
+        "coupon_id": 1,
+        "event_id": 1,
+        "exercise_id": 1,
+        "feedback_id": 1,
+        "group_id": 1,
+        "invoice_id": 1,
+        "lesson_id": 1,
+        "location_id": 1,
+        "master_id": 1,
+        "message_id": 1,
+        "milestone_id": 1,
+        "module_id": 1,
+        "notification_id": 1,
+        "offer_id": 1,
+        "position_id": 1,
+        "preset_id": 1,
+        "recommendation_id": 1,
+        "request_id": 1,
+        "submission_id": 1,
+        "tournament_type_id": 1,
+        "track_id": 1,
+        "track_progress_id": 1,
+        "window_id": 1,
+        "specialization_id": 1,
+
+        # ── String placeholders ──────────────────────────────────────────
+        "category": "default",
+        "level": "1",
+        "nickname": "test_player",
+        "resource_type": "general",
+        "semester": "2024-spring",
+        "skill_name": "passing",
+        "unique_identifier": unique_id,
+        "year": "2024",
+
+        # ── Boolean flags ────────────────────────────────────────────────
         "has_reward_config": True,
         "has_campus_schedule": True,
         "has_sessions": True,
