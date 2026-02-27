@@ -389,7 +389,7 @@ def get_my_booking_statistics(
     attended_sessions = db.query(Attendance).filter(
         and_(
             Attendance.user_id == current_user.id,
-            Attendance.status == AttendanceStatus.PRESENT
+            Attendance.status == AttendanceStatus.present
         )
     )
 

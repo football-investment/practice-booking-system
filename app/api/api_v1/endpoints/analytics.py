@@ -165,7 +165,7 @@ async def get_attendance_analytics(
             attendance_query = db.query(
                 func.date(SessionTypel.date_start).label('date'),
                 func.count(Attendance.id).label('total_records'),
-                func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('attended_count')
+                func.sum(case((Attendance.status == AttendanceStatus.present, 1), else_=0)).label('attended_count')
             ).join(Booking, Attendance.booking_id == Booking.id
             ).join(SessionTypel, Booking.session_id == SessionTypel.id
             ).filter(

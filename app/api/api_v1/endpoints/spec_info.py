@@ -174,7 +174,7 @@ def check_can_book_session(
 
     return {
         "session_id": session_id,
-        "session_name": session.name,
+        "session_name": session.title,
         "session_specialization": session.semester.specialization_type,
         "service_type": service_type,
         "can_book": can_book,

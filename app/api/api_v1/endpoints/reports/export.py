@@ -89,7 +89,7 @@ def export_sessions_csv(
     attendance_stats = db.query(
         Attendance.session_id,
         func.count(Attendance.id).label('total_attendance'),
-        func.sum(func.case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('present_attendance')
+        func.sum(func.case((Attendance.status == AttendanceStatus.present, 1), else_=0)).label('present_attendance')
     ).filter(Attendance.session_id.in_(session_ids)).group_by(Attendance.session_id).all()
 
     attendance_stats_map = {
@@ -131,7 +131,7 @@ def export_sessions_csv(
             session.title,
             session.date_start,
             session.date_end,
-            session.mode.value,
+            session.session_type.value,
             session.capacity,
             session.location or '',
             session.meeting_link or '',
@@ -211,7 +211,7 @@ def get_system_stats(
     # Attendance statistics
     total_attendances = db.query(func.count(Attendance.id)).scalar() or 0
     present_attendances = db.query(func.count(Attendance.id)).filter(
-        Attendance.status == AttendanceStatus.PRESENT
+        Attendance.status == AttendanceStatus.present
     ).scalar() or 0
     
     # Feedback statistics
