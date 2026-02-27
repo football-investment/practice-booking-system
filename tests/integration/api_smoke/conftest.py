@@ -565,6 +565,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         "skill_name": "passing",
         "unique_identifier": unique_id,
         "year": "2024",
+        "round_number": "1",
 
         # ── Boolean flags ────────────────────────────────────────────────
         "has_reward_config": True,
