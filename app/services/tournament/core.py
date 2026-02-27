@@ -438,12 +438,15 @@ def delete_tournament(db: Session, semester_id: int) -> bool:
             db.add(user)
 
             # Create refund transaction record
+            # Generate unique idempotency key to prevent duplicate refunds
+            idempotency_key = f"tournament_deleted_refund_{semester_id}_{enrollment.user_license_id}"
             refund_transaction = CreditTransaction(
                 user_license_id=enrollment.user_license_id,
                 transaction_type="TOURNAMENT_DELETED_REFUND",
                 amount=enrollment_cost,  # Positive amount (refund)
                 balance_after=user.credit_balance,
                 description=f"Tournament deleted by admin - Full refund: {semester.name} ({semester.code})",
+                idempotency_key=idempotency_key,
                 semester_id=None,  # Will be deleted
                 enrollment_id=None  # Will be deleted
             )
