@@ -46,6 +46,59 @@ class GanCujuPlayerService(BaseSpecializationService):
         """Initialize GanCuju Player service with database session"""
         self.db = db
 
+    def get_license_by_user(self, user_id: int):
+        """Get user's active license (required by credit endpoints)"""
+        try:
+            from app.models.license import UserLicense
+            license = self.db.query(UserLicense).filter(
+                UserLicense.user_id == user_id,
+                UserLicense.is_active == True
+            ).first()
+            if not license:
+                return None
+            return {
+                'id': license.id,
+                'user_id': license.user_id,
+                'credit_balance': getattr(license, 'credit_balance', 0),
+                'is_active': license.is_active
+            }
+        except Exception:
+            return None
+
+    def get_credit_balance(self, license_id: int) -> int:
+        """Get credit balance (required by credit endpoints)"""
+        try:
+            from app.models.license import UserLicense
+            license = self.db.query(UserLicense).filter(UserLicense.id == license_id).first()
+            if not license:
+                return 0
+            return getattr(license, 'credit_balance', 0)
+        except Exception:
+            return 0
+
+    def get_transaction_history(self, license_id: int, limit: int = 50):
+        """Get transaction history (required by credit endpoints)"""
+        try:
+            from app.models.credit_transaction import CreditTransaction
+            transactions = self.db.query(CreditTransaction).filter(
+                CreditTransaction.license_id == license_id
+            ).order_by(CreditTransaction.created_at.desc()).limit(limit).all()
+            return [
+                {
+                    'id': tx.id,
+                    'transaction_type': tx.transaction_type,
+                    'amount': tx.amount,
+                    'enrollment_id': getattr(tx, 'enrollment_id', None),
+                    'payment_verified': getattr(tx, 'payment_verified', None),
+                    'payment_reference_code': getattr(tx, 'payment_reference_code', None),
+                    'description': getattr(tx, 'description', None),
+                    'created_at': tx.created_at
+                }
+                for tx in transactions
+            ]
+        except Exception:
+            return []
+
     # ========================================================================
     # BELT CONFIGURATION
     # ========================================================================
