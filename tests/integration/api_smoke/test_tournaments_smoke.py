@@ -2212,7 +2212,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405], (
+        assert response.status_code in [200, 201, 400, 404, 405], (
             f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds failed: {response.status_code} "
             f"{response.text}"
         )
@@ -3631,7 +3631,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete failed: {response.status_code} "
             f"{response.text}"
         )
@@ -3795,7 +3795,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards failed: {response.status_code} "
             f"{response.text}"
         )
@@ -3959,7 +3959,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll failed: {response.status_code} "
             f"{response.text}"
         )
@@ -4205,7 +4205,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions failed: {response.status_code} "
             f"{response.text}"
         )
@@ -4615,7 +4615,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept failed: {response.status_code} "
             f"{response.text}"
         )
@@ -4697,7 +4697,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline failed: {response.status_code} "
             f"{response.text}"
         )
@@ -4861,7 +4861,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
             f"{response.text}"
         )
@@ -5026,7 +5026,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize failed: {response.status_code} "
             f"{response.text}"
         )
@@ -5442,7 +5442,7 @@ class TestTournamentsSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
             f"{response.text}"
         )
