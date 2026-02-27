@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 
 from ....database import get_db
-from ....dependencies import get_current_admin_user, get_current_admin_user_web, get_current_user
+from ....dependencies import get_current_admin_user, get_current_admin_user, get_current_user
 from ....models.coupon import Coupon, CouponType, CouponUsage
 from ....models.audit_log import AuditLog, AuditAction
 from ....models.user import User
@@ -162,7 +162,7 @@ async def create_coupon_web(
     request: Request,
     coupon_data: CouponCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Create a new coupon (Admin only) - Web-based (cookie auth)

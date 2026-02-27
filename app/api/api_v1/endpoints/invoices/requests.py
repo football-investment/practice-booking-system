@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from .....database import get_db
-from .....dependencies import get_current_user, get_current_admin_user_web, get_current_admin_user
+from .....dependencies import get_current_user, get_current_admin_user, get_current_admin_user
 from .....models.user import User
 from .....models.invoice_request import InvoiceRequest
 from .....models.coupon import Coupon
@@ -150,7 +150,7 @@ async def list_invoices(
 async def get_invoice_count(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Get invoice request counts by status (Admin only - for polling)

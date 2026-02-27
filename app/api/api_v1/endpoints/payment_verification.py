@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from ....database import get_db
-from ....dependencies import get_current_admin_user_web, get_current_admin_user
+from ....dependencies import get_current_admin_user, get_current_admin_user
 from ....models.user import User, UserRole
 from ....models.specialization import SpecializationType
 from ....models.license import UserLicense
@@ -27,7 +27,7 @@ class SpecializationRequest(BaseModel):
 async def get_students_payment_status(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Get all students with their payment verification status (Admin only)
@@ -146,7 +146,7 @@ async def unverify_student_payment(
     request: Request,
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Remove payment verification for a specific student (Admin only)
@@ -181,7 +181,7 @@ async def get_student_payment_status(
     request: Request,
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Get payment verification status for a specific student (Admin only)
@@ -298,7 +298,7 @@ async def remove_student_specialization(
     student_id: int,
     spec_request: SpecializationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Remove a single specialization from a student (Admin only)
