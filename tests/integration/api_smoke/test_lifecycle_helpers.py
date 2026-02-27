@@ -74,7 +74,7 @@ class TestCreateInstructorApplication:
 
         # Get instructor ID from token fixture
         instructor = test_db.query(User).filter(
-            User.email == "smoke.instructor@generated.test"
+            User.email == "smoke.instructor@example.com"
         ).first()
         assert instructor is not None, "Instructor fixture not found"
         instructor_id = instructor.id
@@ -105,7 +105,7 @@ class TestCreateInstructorApplication:
 
         # Get instructor
         instructor = test_db.query(User).filter(
-            User.email == "smoke.instructor@generated.test"
+            User.email == "smoke.instructor@example.com"
         ).first()
 
         # Verify: Application creation rejected
@@ -121,7 +121,7 @@ class TestCreateInstructorApplication:
 
         # Get instructor
         instructor = test_db.query(User).filter(
-            User.email == "smoke.instructor@generated.test"
+            User.email == "smoke.instructor@example.com"
         ).first()
 
         # Create first request (should succeed)
@@ -134,7 +134,7 @@ class TestCreateInstructorApplication:
     def test_reject_nonexistent_tournament(self, test_db: Session, instructor_token: str):
         """Invalid: Tournament does not exist"""
         instructor = test_db.query(User).filter(
-            User.email == "smoke.instructor@generated.test"
+            User.email == "smoke.instructor@example.com"
         ).first()
 
         with pytest.raises(LookupError, match="Tournament.*not found"):

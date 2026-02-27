@@ -314,6 +314,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         tournament_status="DRAFT",
         enrollment_cost=0,
         age_group="PRO",
+        specialization_type="LFA_FOOTBALL_PLAYER",  # Fix: Required for conflict_check endpoint
         campus_id=test_campus_id,
         is_active=True
     )
