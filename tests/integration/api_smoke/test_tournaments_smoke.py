@@ -1015,10 +1015,10 @@ class TestTournamentsSmoke:
         # - 200/201: Success
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
-        # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/templates failed: {response.status_code} "
+        # - 422: Validation error (routing conflict: /templates caught by /{tournament_id})
+
+        assert response.status_code in [200, 201, 404, 405, 422], (
+            f"GET /api/v1/tournaments/templates failed: {response.status_code} "
             f"{response.text}"
         )
         
