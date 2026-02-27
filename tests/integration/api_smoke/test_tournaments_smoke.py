@@ -39,7 +39,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/{tournament_id} failed: {response.status_code} "
+            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']} failed: {response.status_code} "
             f"{response.text}"
         )
         
