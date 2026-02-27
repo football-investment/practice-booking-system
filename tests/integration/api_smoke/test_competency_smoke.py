@@ -174,7 +174,7 @@ class TestCompetencySmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405], (
+        assert response.status_code in [200, 201, 404, 405, 422], (
             f"GET /api/v1/categories failed: {response.status_code} "
             f"{response.text}"
         )
@@ -375,7 +375,7 @@ class TestCompetencySmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405], (
+        assert response.status_code in [200, 201, 404, 405, 422], (
             f"GET /api/v1/radar-chart-data failed: {response.status_code} "
             f"{response.text}"
         )

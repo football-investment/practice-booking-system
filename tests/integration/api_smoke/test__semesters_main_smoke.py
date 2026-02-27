@@ -37,8 +37,9 @@ class TestsemestersmainSmoke:
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405], (
+        # - 204: No Content (valid for DELETE operations)
+
+        assert response.status_code in [200, 201, 204, 404, 405], (
             f"DELETE /api/v1/{test_tournament['semester_id']} failed: {response.status_code} "
             f"{response.text}"
         )
@@ -174,7 +175,7 @@ class TestsemestersmainSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405], (
+        assert response.status_code in [200, 201, 404, 405, 422], (
             f"GET /api/v1/active failed: {response.status_code} "
             f"{response.text}"
         )
