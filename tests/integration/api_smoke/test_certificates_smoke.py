@@ -173,7 +173,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/public/verify/{unique_identifier} failed: {response.status_code} "
+            f"GET /api/v1/public/verify/{test_tournament['unique_identifier']} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -197,7 +197,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/public/verify/{unique_identifier} should require auth or error: {response.status_code}"
+            f"GET /api/v1/public/verify/{test_tournament['unique_identifier']} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -243,7 +243,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/verify/{unique_identifier} failed: {response.status_code} "
+            f"GET /api/v1/verify/{test_tournament['unique_identifier']} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -267,7 +267,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/verify/{unique_identifier} should require auth or error: {response.status_code}"
+            f"GET /api/v1/verify/{test_tournament['unique_identifier']} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -313,7 +313,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/{certificate_id}/download failed: {response.status_code} "
+            f"GET /api/v1/{test_tournament['certificate_id']}/download failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -337,7 +337,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/{certificate_id}/download should require auth or error: {response.status_code}"
+            f"GET /api/v1/{test_tournament['certificate_id']}/download should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -385,7 +385,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{certificate_id}/revoke failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['certificate_id']}/revoke failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -409,7 +409,7 @@ class TestCertificatesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{certificate_id}/revoke should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament['certificate_id']}/revoke should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -435,7 +435,7 @@ class TestCertificatesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{certificate_id}/revoke should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament['certificate_id']}/revoke should validate input: {response.status_code}"
         )
         
 

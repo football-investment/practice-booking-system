@@ -316,7 +316,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/requests/semester/{semester_id} failed: {response.status_code} "
+            f"GET /api/v1/requests/semester/{test_tournament['semester_id']} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -340,7 +340,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/requests/semester/{semester_id} should require auth or error: {response.status_code}"
+            f"GET /api/v1/requests/semester/{test_tournament['semester_id']} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -468,7 +468,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/requests/{request_id}/accept failed: {response.status_code} "
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/accept failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -492,7 +492,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/requests/{request_id}/accept should require auth or error: {response.status_code}"
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/accept should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -518,7 +518,7 @@ class TestInstructorassignmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/requests/{request_id}/accept should validate input: {response.status_code}"
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/accept should validate input: {response.status_code}"
         )
         
 
@@ -549,7 +549,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/requests/{request_id}/cancel failed: {response.status_code} "
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/cancel failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -573,7 +573,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/requests/{request_id}/cancel should require auth or error: {response.status_code}"
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/cancel should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -599,7 +599,7 @@ class TestInstructorassignmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/requests/{request_id}/cancel should validate input: {response.status_code}"
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/cancel should validate input: {response.status_code}"
         )
         
 
@@ -630,7 +630,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/requests/{request_id}/decline failed: {response.status_code} "
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/decline failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -654,7 +654,7 @@ class TestInstructorassignmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/requests/{request_id}/decline should require auth or error: {response.status_code}"
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/decline should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -680,7 +680,7 @@ class TestInstructorassignmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/requests/{request_id}/decline should validate input: {response.status_code}"
+            f"PATCH /api/v1/requests/{test_tournament['request_id']}/decline should validate input: {response.status_code}"
         )
         
 
