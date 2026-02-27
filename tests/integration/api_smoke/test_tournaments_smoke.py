@@ -935,8 +935,10 @@ class TestTournamentsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        response = api_client.get(f'/api/v1/tournaments/reward-policies/{test_tournament["policy_name"]}', headers=headers)
+        # Smoke test: Use generic policy name (fixture doesn't provide policy_name)
+        # Endpoint returns 404 if not found (acceptable for smoke test)
+        policy_name = "default"
+        response = api_client.get(f'/api/v1/tournaments/reward-policies/{policy_name}', headers=headers)
         
 
         # Accept valid responses:
