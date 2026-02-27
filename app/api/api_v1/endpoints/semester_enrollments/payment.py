@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user_web, get_current_user_web
+from .....dependencies import get_current_admin_user, get_current_user
 from .....models.user import User, UserRole
 from .....models.semester_enrollment import SemesterEnrollment
 
@@ -17,10 +17,9 @@ router = APIRouter()
 
 @router.post("/{enrollment_id}/verify-payment")
 async def verify_enrollment_payment(
-    request: Request,
     enrollment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
     Verify payment for a specific enrollment (Admin only)
@@ -40,10 +39,9 @@ async def verify_enrollment_payment(
 
 @router.post("/{enrollment_id}/unverify-payment")
 async def unverify_enrollment_payment(
-    request: Request,
     enrollment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
     Unverify payment for a specific enrollment (Admin only)
@@ -65,7 +63,7 @@ async def unverify_enrollment_payment(
 async def get_payment_info(
     enrollment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_web)  # Allow both student and admin
+    current_user: User = Depends(get_current_user)  # Allow both student and admin
 ):
     """
     📄 Get payment information for an enrollment (payment code, instructions, etc.)
@@ -141,7 +139,7 @@ async def get_payment_info(
 async def verify_payment_by_code(
     payment_code: str,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user_web)
+    admin_user: User = Depends(get_current_admin_user)
 ):
     """
     ✅ Admin verifies payment using the payment reference code
