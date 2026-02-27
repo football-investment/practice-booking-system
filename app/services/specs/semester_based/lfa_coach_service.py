@@ -40,8 +40,8 @@ class LFACoachService(BaseSpecializationService):
     Handles semester-based enrollment, certification progression, and coaching development.
     """
 
-    def __init__(self, db):
-        """Initialize LFA Coach service with database session"""
+    def __init__(self, db: Session = None):
+        """Initialize LFA Coach service with optional database session"""
         self.db = db
 
     def get_license_by_user(self, user_id: int):

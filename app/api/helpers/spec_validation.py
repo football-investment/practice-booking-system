@@ -49,7 +49,7 @@ def validate_can_book_session(
 
     # Get appropriate spec service for target specialization
     try:
-        spec_service = get_spec_service(session.target_specialization.value)
+        spec_service = get_spec_service(session.target_specialization.value, db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -89,7 +89,7 @@ def validate_user_age_for_specialization(
     """
     # Get appropriate spec service
     try:
-        spec_service = get_spec_service(specialization_type)
+        spec_service = get_spec_service(specialization_type, db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -131,7 +131,7 @@ def get_user_enrollment_requirements(
     """
     # Get appropriate spec service
     try:
-        spec_service = get_spec_service(specialization_type)
+        spec_service = get_spec_service(specialization_type, db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -172,7 +172,7 @@ def get_user_progression_status(
 
     # Get appropriate spec service
     try:
-        spec_service = get_spec_service(user_license.specialization_type)
+        spec_service = get_spec_service(user_license.specialization_type, db)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
