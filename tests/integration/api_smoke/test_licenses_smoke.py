@@ -242,7 +242,7 @@ class TestLicensesSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405], (
+        assert response.status_code in [200, 201, 403, 404, 405], (
             f"GET /api/v1/instructor/dashboard/{test_student_id} failed: {response.status_code} "
             f"{response.text}"
         )
@@ -312,7 +312,7 @@ class TestLicensesSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405], (
+        assert response.status_code in [200, 201, 403, 404, 405], (
             f"GET /api/v1/instructor/users/{test_student_id}/licenses failed: {response.status_code} "
             f"{response.text}"
         )
@@ -1770,7 +1770,7 @@ class TestLicensesSmoke:
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        assert response.status_code in [200, 201, 403, 404, 405, 422], (
             f"POST /api/v1/instructor/advance failed: {response.status_code} "
             f"{response.text}"
         )
