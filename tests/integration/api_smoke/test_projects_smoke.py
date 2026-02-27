@@ -110,7 +110,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/{project_id}/instructor/enroll/{test_tournament['user_id']} failed: {response.status_code} "
+            f"DELETE /api/v1/{test_tournament['project_id']}/instructor/enroll/{test_student_id} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -1352,7 +1352,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/approve failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament['milestone_id']}/approve failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -1516,7 +1516,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/submit failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament['milestone_id']}/submit failed: {response.status_code} "
             f"{response.text}"
         )
         

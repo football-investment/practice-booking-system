@@ -453,7 +453,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/marketing/{specialization} failed: {response.status_code} "
+            f"GET /api/v1/marketing/{test_tournament['specialization']} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -477,7 +477,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/marketing/{specialization} should require auth or error: {response.status_code}"
+            f"GET /api/v1/marketing/{test_tournament['specialization']} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -657,7 +657,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/metadata/{specialization} failed: {response.status_code} "
+            f"GET /api/v1/metadata/{test_tournament['specialization']} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -681,7 +681,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/metadata/{specialization} should require auth or error: {response.status_code}"
+            f"GET /api/v1/metadata/{test_tournament['specialization']} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -727,7 +727,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/metadata/{specialization}/{level} failed: {response.status_code} "
+            f"GET /api/v1/metadata/{test_tournament['specialization']}/{level} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -751,7 +751,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/metadata/{specialization}/{level} should require auth or error: {response.status_code}"
+            f"GET /api/v1/metadata/{test_tournament['specialization']}/{level} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -864,7 +864,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/progression/{specialization} failed: {response.status_code} "
+            f"GET /api/v1/progression/{test_tournament['specialization']} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -888,7 +888,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/progression/{specialization} should require auth or error: {response.status_code}"
+            f"GET /api/v1/progression/{test_tournament['specialization']} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -934,7 +934,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/requirements/{specialization}/{level} failed: {response.status_code} "
+            f"GET /api/v1/requirements/{test_tournament['specialization']}/{level} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -958,7 +958,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/requirements/{specialization}/{level} should require auth or error: {response.status_code}"
+            f"GET /api/v1/requirements/{test_tournament['specialization']}/{level} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")

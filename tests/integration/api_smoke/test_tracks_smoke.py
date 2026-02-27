@@ -367,7 +367,7 @@ class TestTracksSmoke:
         
 
 
-    # ── POST /api/v1/{track_progress_id}/modules/{module_id}/complete ────────────────────────────
+    # ── POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/complete ────────────────────────────
 
     def test_complete_module_happy_path(
         self,
@@ -376,13 +376,13 @@ class TestTracksSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/{track_progress_id}/modules/{module_id}/complete
+        Happy path: POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/complete
         Source: app/api/api_v1/endpoints/tracks.py:complete_module
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{module_id}/complete
+        # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/complete
         payload = {}
         response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete', json=payload, headers=headers)
         
@@ -394,7 +394,7 @@ class TestTracksSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{module_id}/complete failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/complete failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -405,7 +405,7 @@ class TestTracksSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/{track_progress_id}/modules/{module_id}/complete requires authentication
+        Auth validation: POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/complete requires authentication
         """
         
         response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/complete', json={})
@@ -418,7 +418,7 @@ class TestTracksSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{module_id}/complete should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/complete should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -429,7 +429,7 @@ class TestTracksSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/{track_progress_id}/modules/{module_id}/complete validates request data
+        Input validation: POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/complete validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -444,12 +444,12 @@ class TestTracksSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{module_id}/complete should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/complete should validate input: {response.status_code}"
         )
         
 
 
-    # ── POST /api/v1/{track_progress_id}/modules/{module_id}/start ────────────────────────────
+    # ── POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/start ────────────────────────────
 
     def test_start_module_happy_path(
         self,
@@ -458,13 +458,13 @@ class TestTracksSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/{track_progress_id}/modules/{module_id}/start
+        Happy path: POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/start
         Source: app/api/api_v1/endpoints/tracks.py:start_module
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{module_id}/start
+        # TODO: Add realistic payload for /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/start
         payload = {}
         response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start', json=payload, headers=headers)
         
@@ -476,7 +476,7 @@ class TestTracksSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{module_id}/start failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/start failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -487,7 +487,7 @@ class TestTracksSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/{track_progress_id}/modules/{module_id}/start requires authentication
+        Auth validation: POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/start requires authentication
         """
         
         response = api_client.post(f'/api/v1/tracks/{test_tournament["track_progress_id"]}/modules/{test_tournament["module_id"]}/start', json={})
@@ -500,7 +500,7 @@ class TestTracksSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{module_id}/start should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/start should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -511,7 +511,7 @@ class TestTracksSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/{track_progress_id}/modules/{module_id}/start validates request data
+        Input validation: POST /api/v1/{track_progress_id}/modules/{test_tournament['module_id']}/start validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -526,7 +526,7 @@ class TestTracksSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{module_id}/start should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/start should validate input: {response.status_code}"
         )
         
 
