@@ -735,12 +735,13 @@ class TestTournamentsSmoke:
 
         # Accept valid responses:
         # - 200/201: Success
+        # - 403: Forbidden (only instructors can view - admin token not allowed)
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/instructor/my-applications failed: {response.status_code} "
+
+        assert response.status_code in [200, 201, 403, 404, 405], (
+            f"GET /api/v1/tournaments/instructor/my-applications failed: {response.status_code} "
             f"{response.text}"
         )
         
