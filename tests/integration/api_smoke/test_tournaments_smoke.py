@@ -961,8 +961,9 @@ class TestTournamentsSmoke:
         """
         Auth validation: GET /api/v1/reward-policies/{policy_name} requires authentication
         """
-        
-        response = api_client.get(f'/api/v1/tournaments/reward-policies/{test_tournament["policy_name"]}')
+        # Smoke test: Use generic policy name (fixture doesn't provide policy_name)
+        policy_name = "default"
+        response = api_client.get(f'/api/v1/tournaments/reward-policies/{policy_name}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
