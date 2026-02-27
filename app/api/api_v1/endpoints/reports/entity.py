@@ -70,7 +70,7 @@ def get_semester_report(
     # Attendance statistics
     total_attendance = db.query(func.count(Attendance.id)).join(SessionTypel).filter(SessionTypel.semester_id == semester_id).scalar() or 0
     present_attendance = db.query(func.count(Attendance.id)).join(SessionTypel).filter(
-        and_(SessionTypel.semester_id == semester_id, Attendance.status == AttendanceStatus.PRESENT)
+        and_(SessionTypel.semester_id == semester_id, Attendance.status == AttendanceStatus.present)
     ).scalar() or 0
     
     # Feedback statistics
@@ -159,7 +159,7 @@ def get_user_report(
     # Attendance statistics
     total_sessions_attended = db.query(func.count(Attendance.id)).filter(Attendance.user_id == user_id).scalar() or 0
     present_sessions = db.query(func.count(Attendance.id)).filter(
-        and_(Attendance.user_id == user_id, Attendance.status == AttendanceStatus.PRESENT)
+        and_(Attendance.user_id == user_id, Attendance.status == AttendanceStatus.present)
     ).scalar() or 0
     
     # Feedback statistics

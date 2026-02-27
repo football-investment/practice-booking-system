@@ -193,9 +193,9 @@ def get_system_stats(
     
     # Session mode breakdown
     session_modes = db.query(
-        SessionTypel.mode,
+        SessionTypel.session_type,
         func.count(SessionTypel.id)
-    ).group_by(SessionTypel.mode).all()
+    ).group_by(SessionTypel.session_type).all()
     
     mode_breakdown = {}
     for mode, count in session_modes:

@@ -170,12 +170,12 @@ def check_can_book_session(
     can_book, reason = validate_can_book_session(current_user, session, db)
 
     # Check service type
-    _, service_type = check_specialization_type(session.specialization_type)
+    _, service_type = check_specialization_type(session.semester.specialization_type)
 
     return {
         "session_id": session_id,
         "session_name": session.name,
-        "session_specialization": session.specialization_type,
+        "session_specialization": session.semester.specialization_type,
         "service_type": service_type,
         "can_book": can_book,
         "reason": reason
