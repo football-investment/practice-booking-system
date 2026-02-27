@@ -82,11 +82,11 @@ def get_semester_report(
     
     # Session mode breakdown
     session_modes = db.query(
-        SessionTypel.mode,
+        SessionTypel.session_type,
         func.count(SessionTypel.id)
-    ).filter(SessionTypel.semester_id == semester_id).group_by(SessionTypel.mode).all()
-    
-    mode_breakdown = {mode: 0 for mode in SessionTypel.__table__.columns.mode.type.enums}
+    ).filter(SessionTypel.semester_id == semester_id).group_by(SessionTypel.session_type).all()
+
+    mode_breakdown = {mode: 0 for mode in SessionTypel.__table__.columns.session_type.type.enums}
     for mode, count in session_modes:
         mode_breakdown[mode.value] = count
     
