@@ -39,7 +39,7 @@ class TestMessagesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/conversation/{test_tournament['user_id']} failed: {response.status_code} "
+            f"DELETE /api/v1/conversation/{test_student_id} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -63,7 +63,7 @@ class TestMessagesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/conversation/{test_tournament['user_id']} should require auth or error: {response.status_code}"
+            f"DELETE /api/v1/conversation/{test_student_id} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")

@@ -242,7 +242,7 @@ class TestAdaptivelearningSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/answer failed: {response.status_code} "
+            f"POST /api/v1/sessions/{test_session_id}/answer failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -266,7 +266,7 @@ class TestAdaptivelearningSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/answer should require auth or error: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/answer should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -324,7 +324,7 @@ class TestAdaptivelearningSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/end failed: {response.status_code} "
+            f"POST /api/v1/sessions/{test_session_id}/end failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -348,7 +348,7 @@ class TestAdaptivelearningSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/end should require auth or error: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/end should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -406,7 +406,7 @@ class TestAdaptivelearningSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/next-question failed: {response.status_code} "
+            f"POST /api/v1/sessions/{test_session_id}/next-question failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -430,7 +430,7 @@ class TestAdaptivelearningSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/next-question should require auth or error: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/next-question should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
