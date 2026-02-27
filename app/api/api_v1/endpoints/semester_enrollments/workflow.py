@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from .....database import get_db
-from .....dependencies import get_current_user_web
+from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .schemas import EnrollmentRejection
@@ -18,7 +18,7 @@ router = APIRouter()
 async def approve_enrollment_request(
     enrollment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)
 ):
     """
     ✅ Admin or Master Instructor approves a PENDING enrollment request
@@ -80,7 +80,7 @@ async def reject_enrollment_request(
     enrollment_id: int,
     rejection: EnrollmentRejection,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)
 ):
     """
     ❌ Admin or Master Instructor rejects a PENDING enrollment request
