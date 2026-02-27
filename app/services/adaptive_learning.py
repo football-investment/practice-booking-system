@@ -136,9 +136,17 @@ class AdaptiveLearningService:
         session = self.db.query(AdaptiveLearningSession).filter(
             AdaptiveLearningSession.id == session_id
         ).first()
-        
+
         if not session:
-            return {}
+            # Return valid structure even if session not found - prevents KeyError
+            return {
+                "questions_answered": 0,
+                "correct_answers": 0,
+                "success_rate": 0.0,
+                "xp_earned": 0,
+                "performance_trend": 0.0,
+                "final_difficulty": 0.5
+            }
             
         session.ended_at = datetime.now(timezone.utc)
         
@@ -179,6 +187,7 @@ class AdaptiveLearningService:
         if not performances:
             return {
                 "total_questions_attempted": 0,
+                "total_attempts": 0,  # Required field - was missing, causing KeyError
                 "overall_success_rate": 0.0,
                 "mastery_level": 0.0,
                 "learning_velocity": 0.0,

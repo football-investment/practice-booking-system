@@ -42,6 +42,10 @@ class GanCujuPlayerService(BaseSpecializationService):
     Handles semester-based enrollment, belt progression, and ancient Chinese football training.
     """
 
+    def __init__(self, db):
+        """Initialize GanCuju Player service with database session"""
+        self.db = db
+
     # ========================================================================
     # BELT CONFIGURATION
     # ========================================================================

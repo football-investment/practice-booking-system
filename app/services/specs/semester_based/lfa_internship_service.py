@@ -38,6 +38,10 @@ class LFAInternshipService(BaseSpecializationService):
     Handles semester-based enrollment, XP progression, and internship position management.
     """
 
+    def __init__(self, db):
+        """Initialize LFA Internship service with database session"""
+        self.db = db
+
     # ========================================================================
     # AGE REQUIREMENT
     # ========================================================================
