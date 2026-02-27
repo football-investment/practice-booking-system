@@ -1,8 +1,8 @@
 # API Smoke Test Fix Progress
 
-## Status Summary (2026-02-27)
-- **PASSING**: 719 / 1160 tests (62%)
-- **FAILING**: 441 tests (38%)
+## Status Summary (2026-02-27 07:40 CET)
+- **PASSING**: 720 / 1160 tests (62%)
+- **FAILING**: 440 tests (38%) - down from 441
 - **SKIPPED**: 576 (input validation - intentional)
 
 ## Completed Fixes
@@ -10,8 +10,9 @@
 ### Phase 1: Import Errors (DONE)
 ✅ Commit `0e607b4`: Fixed 13 files with NameError imports
 ✅ Commit `de2ea4b`: Fixed AdaptiveLearningSession import
+✅ Commit `8601eac`: Fixed Specialization + and_ + LFAPlayerService.__init__
 
-**Impact**: Eliminated blocking import errors, enabled 719 tests to pass
+**Impact**: Eliminated blocking import errors, enabled 720 tests to pass (+1 from 719)
 
 ### Phase 2: Test Assertion Adjustments (DONE)
 ✅ Commit `f3deeb4`: Accept 422 + 405 in happy_path tests
@@ -19,21 +20,25 @@
 
 **Impact**: Fixed ~300 false-positive failures
 
-## Remaining Work
+## Remaining 500 Errors: 11 (was 18)
 
-### Critical (500 errors - 18 tests):
-1. Missing `Specialization` model import
-2. Missing `and_` from SQLAlchemy
-3. `LFAPlayerService()` takes no arguments
+### Critical (Backend Bugs):
+1. **LFAPlayerService missing methods** (3×): `get_license_by_user()`, `get_credit_balance()`, `get_transaction_history()`
+   - Root cause: Service extends ABC but doesn't implement all required methods
+   - Impact: All LFA Player credit/license endpoints fail
+   - Complexity: HIGH (requires business logic implementation)
 
-###Test Adjustments:
-- 15 × 422: GET endpoints with required query params
-- 14 × 403: Role mismatch (admin token on instructor-only endpoints)
-- 13 × 200: Public endpoints (false positive auth requirements)
-- 10 × 401: Auth token not passed correctly
+2. **Database operation failed** (7×): Generic DB errors in competency/curriculum_adaptive domains
+   - Root cause: TBD (need detailed traceback)
+   - Impact: Assessment history, performance tracking endpoints fail
+   - Complexity: MEDIUM (need investigation)
 
-## Next Steps
-1. Fix remaining 500 errors (critical bugs)
-2. Add 422 to GET endpoint allowed status codes
-3. Adjust role-based test fixtures
-4. Mark public endpoints in auth_required tests
+3. **Invalid package_type** (1×): Actually 400 validation error, not 500
+   - Root cause: Empty payload on invoice request endpoint
+   - Impact: Invoice request endpoint fails with empty {}
+   - Complexity: LOW (test issue, not backend bug)
+
+## Next Steps (Iterative)
+1. ✅ Push current fixes → CI validation
+2. 🔄 Investigate remaining 11 × 500 errors (need tracebacks)
+3. ⏳ Fix after CI confirms progress
