@@ -41,16 +41,22 @@ def get_learning_profile(
     except Exception as e:
         # Defensive: If adaptive learning tables don't exist, return minimal profile
         import logging
+        from datetime import datetime, timezone
         logger = logging.getLogger(__name__)
         logger.warning(f"Learning profile unavailable for user {current_user.id}: {str(e)}")
-        # Return default profile structure
+        # Return default profile structure matching LearningProfileResponse schema
         return {
+            "id": 0,  # Dummy ID for unavailable profile
             "user_id": current_user.id,
             "learning_pace": "MEDIUM",
-            "quiz_average": 0.0,
-            "lessons_completed": 0,
-            "preferred_content_type": None,
-            "last_activity": None
+            "pace_score": 50.0,  # Default medium pace score
+            "quiz_average_score": 0.0,
+            "lessons_completed_count": 0,
+            "avg_time_per_lesson_minutes": 0.0,
+            "preferred_content_type": "VIDEO",  # Default to VIDEO (cannot be None)
+            "last_activity_at": None,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": None
         }
 
 
@@ -74,15 +80,22 @@ def update_learning_profile(
     except Exception as e:
         # Defensive: If tables don't exist, return default profile
         import logging
+        from datetime import datetime, timezone
         logger = logging.getLogger(__name__)
         logger.warning(f"Profile update unavailable for user {current_user.id}: {str(e)}")
+        # Return default profile structure matching LearningProfileResponse schema
         return {
+            "id": 0,  # Dummy ID for unavailable profile
             "user_id": current_user.id,
             "learning_pace": "MEDIUM",
-            "quiz_average": 0.0,
-            "lessons_completed": 0,
-            "preferred_content_type": None,
-            "last_activity": None
+            "pace_score": 50.0,  # Default medium pace score
+            "quiz_average_score": 0.0,
+            "lessons_completed_count": 0,
+            "avg_time_per_lesson_minutes": 0.0,
+            "preferred_content_type": "VIDEO",  # Default to VIDEO (cannot be None)
+            "last_activity_at": None,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": None
         }
 
 

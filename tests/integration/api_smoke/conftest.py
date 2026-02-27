@@ -105,12 +105,12 @@ def ensure_tournament_types(test_db: Session):
 def admin_token(test_db: Session, ensure_tournament_types):
     """Admin user authentication token"""
     # Check if admin exists
-    admin = test_db.query(User).filter(User.email == "smoke.admin@generated.test").first()
+    admin = test_db.query(User).filter(User.email == "smoke.admin@example.com").first()
 
     if not admin:
         admin = User(
             name="Smoke Test Admin",
-            email="smoke.admin@generated.test",
+            email="smoke.admin@example.com",
             password_hash=get_password_hash("admin123"),
             role=UserRole.ADMIN,
             is_active=True
@@ -128,12 +128,12 @@ def admin_token(test_db: Session, ensure_tournament_types):
 @pytest.fixture(scope="module")
 def student_token(test_db: Session):
     """Student user authentication token with LFA Football Player license"""
-    student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
     if not student:
         student = User(
             name="Smoke Test Student",
-            email="smoke.student@generated.test",
+            email="smoke.student@example.com",
             password_hash=get_password_hash("student123"),
             role=UserRole.STUDENT,
             is_active=True,
@@ -174,12 +174,12 @@ def instructor_token(test_db: Session):
     High Priority Fix: Added LFA_COACH license to enable test_direct_assign_instructor_happy_path.
     The /direct-assign-instructor endpoint validates LFA_COACH license via LicenseValidator.
     """
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
 
     if not instructor:
         instructor = User(
             name="Smoke Test Instructor",
-            email="smoke.instructor@generated.test",
+            email="smoke.instructor@example.com",
             password_hash=get_password_hash("instructor123"),
             role=UserRole.INSTRUCTOR,
             specialization=SpecializationType.LFA_COACH,  # High Priority Fix: Add LFA_COACH
@@ -389,12 +389,12 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     # ── 4. Create 4 Students with PLAYER Licenses ──────────────────────
     # Phase 2.1 Fix: Increased from 2 to 4 students (min_players requirement)
     # Get student 1 (created by student_token fixture)
-    student1 = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student1 = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
     # Create students 2-4
     students = [student1]
     for i in range(2, 5):  # Create students 2, 3, 4
-        student_email = f"smoke.student{i}.{unique_id}@generated.test"
+        student_email = f"smoke.student{i}.{unique_id}@example.com"
         student = test_db.query(User).filter(User.email == student_email).first()
         if not student:
             student = User(
@@ -488,7 +488,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
 
     # ── YIELD: Provide fixture data to test ──────────────────────────────
     # Phase C: Get instructor ID for instructor-related tests
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
     instructor_id = instructor.id if instructor else None
 
     fixture_data = {
@@ -740,7 +740,7 @@ def test_student_id(test_db: Session) -> int:
     Returns:
         User ID (int)
     """
-    student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
     assert student, "Smoke test student not found - ensure student_token fixture is called first"
     return student.id
 
@@ -755,7 +755,7 @@ def test_instructor_id(test_db: Session, instructor_token: str) -> int:
     Returns:
         User ID (int)
     """
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
     assert instructor, "Smoke test instructor not found after instructor_token fixture"
     return instructor.id
 
@@ -967,7 +967,7 @@ def test_rounds_session_id(test_tournament: Dict, test_db: Session, test_campus_
 
     # Get instructor user (created by instructor_token fixture)
     instructor = test_db.query(User).filter(
-        User.email == "smoke.instructor@generated.test"
+        User.email == "smoke.instructor@example.com"
     ).first()
 
     # Create minimal INDIVIDUAL_RANKING session

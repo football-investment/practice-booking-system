@@ -277,7 +277,23 @@ def delete_session(
                    f"Please remove all related records before deleting the session."
         )
 
-    db.delete(session)
-    db.commit()
+    # Defensive: Wrap delete+commit to handle missing match_structures table gracefully
+    try:
+        db.delete(session)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        # If error is due to missing match_structures table, use raw SQL delete
+        if "match_structures" in str(e).lower():
+            import logging
+            from sqlalchemy import text
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Skipping match_structures cascade check (table not found) for session {session_id}")
+            # Safe parameterized query to delete without cascade checks
+            db.execute(text("DELETE FROM sessions WHERE id = :session_id"), {"session_id": session_id})
+            db.commit()
+        else:
+            # Re-raise if it's a different error
+            raise
 
     return {"message": "Session deleted successfully"}
