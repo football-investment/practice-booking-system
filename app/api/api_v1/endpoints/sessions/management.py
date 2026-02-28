@@ -475,3 +475,102 @@ def evaluate_student(
         student_id=student_id,
         rating=evaluation.rating
     )
+
+
+# ============================================================================
+# Session Booking Endpoint
+# ============================================================================
+
+class BookSessionResponse(BaseModel):
+    """Response from booking a session"""
+    success: bool
+    message: str
+    booking_id: int
+    session_id: int
+    status: str
+
+
+@router.post("/book/{session_id}", response_model=BookSessionResponse)
+def book_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Book a session (Student functionality)
+
+    **Business Logic** (from web route):
+    - Checks 12-hour booking deadline
+    - Prevents double booking
+    - Creates CONFIRMED booking
+    - Validates session exists and is bookable
+
+    **Permissions:** Authenticated users (typically students)
+    """
+    from .....models.booking import Booking, BookingStatus
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    # Get session
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found"
+        )
+
+    # Check 12-hour booking deadline
+    budapest_tz = ZoneInfo("Europe/Budapest")
+    now = datetime.now(budapest_tz).replace(tzinfo=None)
+    session_start = session.date_start
+    booking_deadline = session_start - timedelta(hours=12)
+
+    if now >= booking_deadline:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Booking deadline has passed. Cannot book within 12 hours of session start."
+        )
+
+    # Check if already booked
+    existing_booking = db.query(Booking).filter(
+        Booking.user_id == current_user.id,
+        Booking.session_id == session_id
+    ).first()
+
+    if existing_booking:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already booked this session"
+        )
+
+    # Create booking
+    booking = Booking(
+        user_id=current_user.id,
+        session_id=session_id,
+        status=BookingStatus.CONFIRMED
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    # Audit log
+    audit_service = AuditService(db)
+    audit_service.log(
+        action=AuditAction.SESSION_BOOKING_CREATED,
+        user_id=current_user.id,
+        resource_type="booking",
+        resource_id=booking.id,
+        details={
+            "session_id": session_id,
+            "session_title": session.title,
+            "status": "CONFIRMED"
+        }
+    )
+
+    return BookSessionResponse(
+        success=True,
+        message="Session booked successfully",
+        booking_id=booking.id,
+        session_id=session_id,
+        status="CONFIRMED"
+    )

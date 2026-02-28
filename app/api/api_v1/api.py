@@ -81,6 +81,7 @@ api_router.include_router(academy_generator.router, prefix="/semesters", tags=["
 api_router.include_router(conflict_check.router, prefix="/enrollments", tags=["enrollments", "conflict-check"])  # ⚠️ Enrollment conflict detection
 api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
+api_router.include_router(sessions.router, prefix="/instructor/sessions", tags=["instructor", "sessions"])  # PHASE 2: Instructor session management (multi-prefix routing)
 api_router.include_router(session_results.router, prefix="/sessions", tags=["sessions", "game-results"])  # 🏆 Game results endpoints
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
@@ -89,6 +90,7 @@ api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["gamification"])
 api_router.include_router(quiz.router, prefix="/quizzes", tags=["quizzes"])
+api_router.include_router(quiz.router, prefix="/instructor/quizzes", tags=["instructor", "quizzes"])  # Instructor alias
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
