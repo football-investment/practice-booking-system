@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db

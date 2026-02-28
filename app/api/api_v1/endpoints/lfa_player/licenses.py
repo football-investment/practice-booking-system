@@ -11,6 +11,7 @@ Provides REST API for LFA Player license management:
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
