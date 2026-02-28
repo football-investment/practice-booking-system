@@ -10,6 +10,7 @@ from .....database import get_db
 from .....dependencies import get_current_admin_user
 from .....models.user import User
 from .....models.license import UserLicense
+from .....services.audit_service import AuditService, AuditAction
 
 router = APIRouter()
 
