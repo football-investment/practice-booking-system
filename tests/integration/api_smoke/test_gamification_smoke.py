@@ -227,7 +227,7 @@ class TestGamificationSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/refresh/{test_tournament['user_id']} should validate input: {response.status_code}"
+            f"POST /api/v1/refresh/{test_student_id} should validate input: {response.status_code}"
         )
         
 
