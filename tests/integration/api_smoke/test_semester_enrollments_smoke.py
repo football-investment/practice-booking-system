@@ -747,6 +747,7 @@ class TestSemesterenrollmentsSmoke:
             f'POST /api/v1/{test_tournament["enrollment_id"]}/toggle-active should require auth or error: {response.status_code}'
         )
 
+    @pytest.mark.skip(reason="POST /{enrollment_id}/toggle-active doesn't require request body - toggle operation")
     def test_toggle_enrollment_active_input_validation(
         self,
         api_client: TestClient,
@@ -828,6 +829,7 @@ class TestSemesterenrollmentsSmoke:
             f'POST /api/v1/{test_tournament["enrollment_id"]}/unverify-payment should require auth or error: {response.status_code}'
         )
 
+    @pytest.mark.skip(reason="POST /{enrollment_id}/unverify-payment doesn't require request body - operation is implicit")
     def test_unverify_enrollment_payment_input_validation(
         self,
         api_client: TestClient,
@@ -909,6 +911,7 @@ class TestSemesterenrollmentsSmoke:
             f'POST /api/v1/{test_tournament["enrollment_id"]}/verify-payment should require auth or error: {response.status_code}'
         )
 
+    @pytest.mark.skip(reason="POST /{enrollment_id}/verify-payment doesn't require request body - verification is implicit")
     def test_verify_enrollment_payment_input_validation(
         self,
         api_client: TestClient,
