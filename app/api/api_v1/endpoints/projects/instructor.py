@@ -199,11 +199,11 @@ def instructor_enroll_student(
     
     for i, milestone in enumerate(milestones):
         # First milestone starts as IN_PROGRESS, others as PENDING
-        status = MilestoneStatus.IN_PROGRESS.value if i == 0 else MilestoneStatus.PENDING.value
+        milestone_status = MilestoneStatus.IN_PROGRESS.value if i == 0 else MilestoneStatus.PENDING.value
         milestone_progress = ProjectMilestoneProgress(
             enrollment_id=enrollment.id,
             milestone_id=milestone.id,
-            status=status
+            status=milestone_status
         )
         db.add(milestone_progress)
     
