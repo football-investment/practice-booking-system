@@ -173,10 +173,12 @@ def get_user_report(
         Semester.name,
         func.count(func.distinct(Booking.id)).label('bookings'),
         func.count(func.distinct(Attendance.id)).label('attendances')
-    ).outerjoin(SessionTypel).outerjoin(Booking, Booking.session_id == SessionTypel.id).outerjoin(
-        Attendance, Attendance.session_id == SessionTypel.id
-    ).filter(
-        and_(Booking.user_id == user_id, Attendance.user_id == user_id)
+    ).outerjoin(
+        SessionTypel, SessionTypel.semester_id == Semester.id
+    ).outerjoin(
+        Booking, and_(Booking.session_id == SessionTypel.id, Booking.user_id == user_id)
+    ).outerjoin(
+        Attendance, and_(Attendance.session_id == SessionTypel.id, Attendance.user_id == user_id)
     ).group_by(Semester.id, Semester.code, Semester.name).all()
     
     semester_breakdown = []

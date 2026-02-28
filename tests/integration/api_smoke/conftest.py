@@ -417,16 +417,16 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     first_enrollment = None    # Store first enrollment for fixture data
 
     for i, student in enumerate(students):
-        # Check if PLAYER license exists
+        # Check if LFA_PLAYER license exists
         user_license = test_db.query(UserLicense).filter(
             UserLicense.user_id == student.id,
-            UserLicense.specialization_type == "PLAYER"
+            UserLicense.specialization_type == "LFA_PLAYER"
         ).first()
 
         if not user_license:
             user_license = UserLicense(
                 user_id=student.id,
-                specialization_type="PLAYER",
+                specialization_type="LFA_PLAYER",
                 current_level=1,
                 max_achieved_level=1,
                 started_at=datetime.now(timezone.utc),

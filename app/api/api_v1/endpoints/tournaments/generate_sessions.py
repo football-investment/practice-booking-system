@@ -261,27 +261,36 @@ def preview_tournament_sessions(
     session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else session_duration_minutes
     break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else break_minutes
 
-    # Generate preview (call generator service in DRY_RUN mode)
-    generator = TournamentSessionGenerator(db)
+    # Generate preview using new modular generator architecture
+    from app.services.tournament.session_generation import (
+        LeagueGenerator,
+        KnockoutGenerator,
+        GroupKnockoutGenerator,
+        SwissGenerator
+    )
 
     # Generate session structure (same logic as actual generation, but don't commit)
     if tournament_type.code == "league":
-        sessions = generator._generate_league_sessions(
+        generator = LeagueGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
     elif tournament_type.code == "knockout":
-        sessions = generator._generate_knockout_sessions(
+        generator = KnockoutGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
     elif tournament_type.code == "group_knockout":
-        sessions = generator._generate_group_knockout_sessions(
+        generator = GroupKnockoutGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
     elif tournament_type.code == "swiss":
-        sessions = generator._generate_swiss_sessions(
+        generator = SwissGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
