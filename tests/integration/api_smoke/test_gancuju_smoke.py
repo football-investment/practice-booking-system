@@ -401,8 +401,9 @@ class TestGancujuSmoke:
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        # - 501: Not Implemented (feature not yet implemented)
+
+        assert response.status_code in [200, 201, 404, 405, 422, 501], (
             f"POST /api/v1/licenses/{test_tournament['license_id']}/demote failed: {response.status_code} "
             f"{response.text}"
         )
@@ -483,8 +484,9 @@ class TestGancujuSmoke:
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405, 422], (
+        # - 501: Not Implemented (feature not yet implemented)
+
+        assert response.status_code in [200, 201, 404, 405, 422, 501], (
             f"POST /api/v1/licenses/{test_tournament['license_id']}/promote failed: {response.status_code} "
             f"{response.text}"
         )

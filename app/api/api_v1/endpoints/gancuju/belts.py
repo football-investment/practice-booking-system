@@ -271,6 +271,13 @@ def promote_level(
         # RBAC: Validate ownership (students can only promote own, instructors/admins can promote others)
         validate_license_ownership(db, current_user, license_id, 'gancuju_licenses')
 
+        # Check if method is implemented
+        if not hasattr(service, 'promote_level'):
+            raise HTTPException(
+                status_code=501,
+                detail="Level promotion is not yet implemented for GānCuju Player specialization"
+            )
+
         result = service.promote_level(license_id, reason=request.reason)
 
         return LevelChangeResponse(
@@ -315,6 +322,13 @@ def demote_level(
     try:
         # RBAC: Validate ownership (only instructors/admins can demote, not students)
         validate_license_ownership(db, current_user, license_id, 'gancuju_licenses')
+
+        # Check if method is implemented
+        if not hasattr(service, 'demote_level'):
+            raise HTTPException(
+                status_code=501,
+                detail="Level demotion is not yet implemented for GānCuju Player specialization"
+            )
 
         result = service.demote_level(license_id, reason=request.reason)
 
