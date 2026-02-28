@@ -100,6 +100,8 @@ class InvitationCodeResponse(BaseModel):
 
 class InvitationCodeRedeem(BaseModel):
     """Request body for redeeming an invitation code"""
+    model_config = ConfigDict(extra='forbid')
+
     code: str
 
 

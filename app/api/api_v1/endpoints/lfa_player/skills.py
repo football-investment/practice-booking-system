@@ -73,6 +73,8 @@ class SkillUpdateResponse(BaseModel):
 
 class CreditPurchase(BaseModel):
     """Request to purchase credits"""
+    model_config = ConfigDict(extra='forbid')
+
     amount: int = Field(..., gt=0)
     payment_verified: bool = False
     payment_proof_url: Optional[str] = None
@@ -82,6 +84,8 @@ class CreditPurchase(BaseModel):
 
 class CreditSpend(BaseModel):
     """Request to spend credits"""
+    model_config = ConfigDict(extra='forbid')
+
     enrollment_id: int
     amount: int = Field(..., gt=0)
     description: Optional[str] = None

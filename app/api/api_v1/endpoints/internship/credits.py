@@ -186,14 +186,9 @@ class RenewResponse(BaseModel):
 
 class CreditPurchase(BaseModel):
     """Request body for purchasing credits"""
-    amount: int = Field(..., gt=0, description="Amount of credits to purchase")
-    payment_verified: bool = Field(default=False, description="Whether payment has been verified")
-    payment_proof_url: Optional[str] = Field(None, max_length=500, description="URL to payment proof")
-    payment_reference_code: Optional[str] = Field(None, max_length=100, description="Payment reference code")
-    description: Optional[str] = Field(None, max_length=500, description="Purchase description")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "amount": 50,
                 "payment_verified": True,
@@ -201,22 +196,31 @@ class CreditPurchase(BaseModel):
                 "description": "Monthly credit package"
             }
         }
+    )
+
+    amount: int = Field(..., gt=0, description="Amount of credits to purchase")
+    payment_verified: bool = Field(default=False, description="Whether payment has been verified")
+    payment_proof_url: Optional[str] = Field(None, max_length=500, description="URL to payment proof")
+    payment_reference_code: Optional[str] = Field(None, max_length=100, description="Payment reference code")
+    description: Optional[str] = Field(None, max_length=500, description="Purchase description")
 
 
 class CreditSpend(BaseModel):
     """Request body for spending credits"""
-    enrollment_id: int = Field(..., description="Enrollment ID for the expense")
-    amount: int = Field(..., gt=0, description="Amount of credits to spend")
-    description: Optional[str] = Field(None, max_length=500, description="Spending description")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "enrollment_id": 123,
                 "amount": 25,
                 "description": "Session enrollment fee"
             }
         }
+    )
+
+    enrollment_id: int = Field(..., description="Enrollment ID for the expense")
+    amount: int = Field(..., gt=0, description="Amount of credits to spend")
+    description: Optional[str] = Field(None, max_length=500, description="Spending description")
 
 
 class CreditTransaction(BaseModel):

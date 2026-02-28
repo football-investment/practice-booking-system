@@ -236,6 +236,8 @@ def change_password(
 
 class RegisterWithInvitation(BaseModel):
     """Registration request with invitation code"""
+    model_config = ConfigDict(extra='forbid')
+
     email: EmailStr
     password: str
     name: str  # Keep for backward compatibility
