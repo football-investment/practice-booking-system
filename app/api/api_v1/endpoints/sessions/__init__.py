@@ -19,7 +19,7 @@ Combines:
 """
 from fastapi import APIRouter
 
-from . import crud, queries, checkin, availability, management
+from . import crud, queries, checkin, availability, management, attendance
 
 # Create main router
 router = APIRouter()
@@ -30,4 +30,5 @@ router.include_router(queries.router)  # Includes /recommendations, /instructor/
 router.include_router(availability.router)  # Includes /availability (batch queries)
 router.include_router(checkin.router)  # Includes /{session_id}/check-in (instructor check-in)
 router.include_router(management.router)  # PHASE 2: /start, /stop, /unlock-quiz, /evaluate-* (instructor tools)
+router.include_router(attendance.router)  # PHASE 4: /{session_id}/attendance/* (mark, confirm, change-request)
 router.include_router(crud.router)     # Then includes /{session_id} routes

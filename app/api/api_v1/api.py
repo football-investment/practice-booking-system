@@ -61,6 +61,7 @@ from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test
 from .endpoints.sandbox import data as sandbox_data  # 🧪 NEW: Add sandbox data endpoints
 
 from .endpoints.sessions import results as session_results  # 🏆 NEW: Game results management
+from .endpoints.sessions import attendance as sessions_attendance  # PHASE 4: Session attendance operations
 
 from .endpoints.semesters import academy_generator  # 🏫 NEW: Add Academy Season generator
 from .endpoints.enrollments import conflict_check  # ⚠️ NEW: Add enrollment conflict detection
@@ -85,6 +86,7 @@ api_router.include_router(sessions.router, prefix="/instructor/sessions", tags=[
 api_router.include_router(session_results.router, prefix="/sessions", tags=["sessions", "game-results"])  # 🏆 Game results endpoints
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
+api_router.include_router(sessions_attendance.router, prefix="/attendance/sessions", tags=["attendance", "sessions"])  # PHASE 4: Session attendance (alias for test compatibility)
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
