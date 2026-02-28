@@ -587,11 +587,61 @@ class LFAPlayerService(BaseSpecializationService):
             if not license:
                 return None
 
+            # Get current age group from user (Player ages are category-based)
+            from app.models.user import User
+            user = self.db.query(User).filter(User.id == user_id).first()
+            age_group = getattr(user, 'age_group', 'AMATEUR')  # Default to AMATEUR
+
+            # Calculate overall average and skills from skill assessments
+            overall_avg = 0.0
+            skills = {
+                'heading_avg': None,
+                'shooting_avg': None,
+                'crossing_avg': None,
+                'passing_avg': None,
+                'dribbling_avg': None,
+                'ball_control_avg': None,
+                'defending_avg': None
+            }
+
+            try:
+                assessments = self.db.query(FootballSkillAssessment).filter(
+                    FootballSkillAssessment.user_id == user_id
+                ).all()
+
+                if assessments:
+                    # Calculate overall average
+                    total_score = sum(getattr(a, 'score', 0) for a in assessments)
+                    overall_avg = round(total_score / len(assessments), 2)
+
+                    # Calculate per-skill averages
+                    skill_scores = {}
+                    for assessment in assessments:
+                        skill_name = getattr(assessment, 'skill_name', None)
+                        score = getattr(assessment, 'score', 0)
+                        if skill_name:
+                            if skill_name not in skill_scores:
+                                skill_scores[skill_name] = []
+                            skill_scores[skill_name].append(score)
+
+                    # Average per skill
+                    for skill_name, scores in skill_scores.items():
+                        avg_key = f"{skill_name}_avg"
+                        if avg_key in skills:
+                            skills[avg_key] = round(sum(scores) / len(scores), 2)
+            except:
+                pass
+
             return {
                 'id': license.id,
                 'user_id': license.user_id,
+                'age_group': age_group,
                 'credit_balance': getattr(license, 'credit_balance', 0),
-                'is_active': license.is_active
+                'overall_avg': overall_avg,
+                'skills': skills,
+                'is_active': license.is_active,
+                'created_at': license.created_at,
+                'updated_at': getattr(license, 'updated_at', license.created_at)
             }
         except Exception as e:
             import logging

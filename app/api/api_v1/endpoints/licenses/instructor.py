@@ -138,7 +138,7 @@ async def get_instructor_teachable_specializations(
         )
 
     # Get instructor's active licenses
-    from ....models.license import UserLicense
+    from .....models.license import UserLicense
     licenses = db.query(UserLicense).filter(
         UserLicense.user_id == instructor_id,
         UserLicense.is_active == True

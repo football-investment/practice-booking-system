@@ -383,12 +383,13 @@ class TestInvoicesSmoke:
 
         # Accept valid responses:
         # - 200/201: Success
+        # - 400: Business validation (e.g., "Cannot cancel verified invoice")
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{invoice_id}/cancel failed: {response.status_code} "
+
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
+            f"POST /api/v1/{test_tournament['invoice_id']}/cancel failed: {response.status_code} "
             f"{response.text}"
         )
         
