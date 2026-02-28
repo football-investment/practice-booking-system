@@ -205,7 +205,6 @@ class TestPaymentverificationSmoke:
             f"POST /api/v1/students/{test_student_id}/add-specialization should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_add_student_specialization_input_validation(
         self,
         api_client: TestClient,
@@ -287,7 +286,6 @@ class TestPaymentverificationSmoke:
             f"POST /api/v1/students/{test_student_id}/remove-specialization should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_remove_student_specialization_input_validation(
         self,
         api_client: TestClient,
@@ -369,7 +367,6 @@ class TestPaymentverificationSmoke:
             f"POST /api/v1/students/{test_student_id}/unverify should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_unverify_student_payment_input_validation(
         self,
         api_client: TestClient,
@@ -451,7 +448,6 @@ class TestPaymentverificationSmoke:
             f"POST /api/v1/students/{test_student_id}/verify should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_verify_student_payment_input_validation(
         self,
         api_client: TestClient,

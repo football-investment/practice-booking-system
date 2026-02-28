@@ -8,7 +8,7 @@ Only admin users can create, update, or delete locations.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 from ....database import get_db
@@ -24,6 +24,8 @@ router = APIRouter()
 # ============================================================================
 
 class LocationCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for creating a new location"""
     name: str
     city: str
@@ -39,6 +41,8 @@ class LocationCreate(BaseModel):
 
 
 class LocationUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating an existing location"""
     name: str | None = None
     city: str | None = None
@@ -70,8 +74,7 @@ class LocationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================

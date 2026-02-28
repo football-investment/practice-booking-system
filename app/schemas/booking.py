@@ -6,6 +6,8 @@ from ..models.session import SessionType
 
 
 class BookingBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     session_id: int = Field(..., ge=1, description="Session ID (must be positive)")
     notes: Optional[str] = Field(None, max_length=1000, description="Optional booking notes")
 
@@ -15,6 +17,8 @@ class BookingCreate(BookingBase):
 
 
 class BookingUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     notes: Optional[str] = Field(None, max_length=1000, description="Optional booking notes")
     status: Optional[BookingStatus] = None
 
@@ -78,13 +82,19 @@ class BookingList(BaseModel):
 
 
 class BookingStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     status: BookingStatus
     notes: Optional[str] = Field(None, max_length=1000, description="Optional status update notes")
 
 
 class BookingConfirm(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     notes: Optional[str] = Field(None, max_length=1000, description="Optional confirmation notes")
 
 
 class BookingCancel(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     reason: Optional[str] = Field(None, max_length=1000, description="Optional cancellation reason")

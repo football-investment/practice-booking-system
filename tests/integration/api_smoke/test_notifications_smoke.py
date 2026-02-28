@@ -203,7 +203,6 @@ class TestNotificationsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_notification_input_validation(
         self,
         api_client: TestClient,
@@ -281,7 +280,6 @@ class TestNotificationsSmoke:
             f"PUT /api/v1/mark-all-read should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_mark_all_notifications_as_read_input_validation(
         self,
         api_client: TestClient,
@@ -359,7 +357,6 @@ class TestNotificationsSmoke:
             f"PUT /api/v1/mark-read should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_mark_notifications_as_read_input_validation(
         self,
         api_client: TestClient,

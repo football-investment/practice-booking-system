@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....database import get_db
 from .....dependencies import get_current_user
@@ -27,6 +27,8 @@ class SpecializationResponse(BaseModel):
     icon: str
 
 class SpecializationSetRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     specialization: str
 
 
@@ -177,6 +179,8 @@ async def get_level_info(
 # ========================================
 
 class UpdateHoursRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     theory_hours_increment: int = 0
     practice_hours_increment: int = 0
 

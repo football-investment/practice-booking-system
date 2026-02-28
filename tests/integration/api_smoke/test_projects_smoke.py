@@ -967,7 +967,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_project_input_validation(
         self,
         api_client: TestClient,
@@ -1048,7 +1047,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/confirm-enrollment should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_confirm_project_enrollment_input_validation(
         self,
         api_client: TestClient,
@@ -1130,7 +1128,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/enroll should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_enroll_in_project_input_validation(
         self,
         api_client: TestClient,
@@ -1212,7 +1209,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/enrollment-quiz should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_complete_enrollment_quiz_input_validation(
         self,
         api_client: TestClient,
@@ -1296,7 +1292,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{project_id}/instructor/enroll/{test_tournament['user_id']} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_instructor_enroll_student_input_validation(
         self,
         api_client: TestClient,
@@ -1379,7 +1374,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/approve should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_approve_milestone_input_validation(
         self,
         api_client: TestClient,
@@ -1461,7 +1455,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/reject should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_reject_milestone_input_validation(
         self,
         api_client: TestClient,
@@ -1543,7 +1536,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_milestone_input_validation(
         self,
         api_client: TestClient,
@@ -1625,7 +1617,6 @@ class TestProjectsSmoke:
             f"POST /api/v1/{test_tournament['project_id']}/quizzes should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_add_quiz_to_project_input_validation(
         self,
         api_client: TestClient,

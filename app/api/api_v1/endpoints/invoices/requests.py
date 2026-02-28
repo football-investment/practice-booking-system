@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import Any
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_user, get_current_admin_user
@@ -17,6 +17,8 @@ router = APIRouter()
 
 
 class InvoiceRequestCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for creating an invoice request"""
     credit_amount: int
     amount_eur: float
@@ -265,6 +267,8 @@ async def get_my_invoices(
 
 
 class InvoiceCancellationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for invoice cancellation"""
     reason: str = "No reason provided"
 

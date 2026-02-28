@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime, timezone, timedelta
 
 from ....database import get_db
@@ -15,10 +15,14 @@ router = APIRouter()
 
 # Request/Response schemas
 class StartSessionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     category: QuizCategory
     session_duration_seconds: int = 180  # 3 minutes default
 
 class AnswerQuestionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     question_id: int
     selected_option_id: int = None
     answer_text: str = None

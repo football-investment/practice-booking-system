@@ -477,7 +477,6 @@ class TestMessagesSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_message_input_validation(
         self,
         api_client: TestClient,
@@ -556,7 +555,6 @@ class TestMessagesSmoke:
             f"POST /api/v1/by-nickname should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_message_by_nickname_input_validation(
         self,
         api_client: TestClient,
@@ -636,7 +634,6 @@ class TestMessagesSmoke:
             f"PUT /api/v1/{message_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_message_input_validation(
         self,
         api_client: TestClient,

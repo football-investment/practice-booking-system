@@ -13,7 +13,7 @@ Workflow:
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -32,8 +32,7 @@ class GroupStudentResponse(BaseModel):
     student_id: int
     student_name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GroupResponse(BaseModel):
@@ -46,8 +45,7 @@ class GroupResponse(BaseModel):
     student_count: int
     students: List[GroupStudentResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GroupSummaryResponse(BaseModel):
@@ -59,11 +57,15 @@ class GroupSummaryResponse(BaseModel):
 
 
 class AutoAssignRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to auto-assign students to groups"""
     session_id: int
 
 
 class MoveStudentRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to move student between groups"""
     student_id: int
     from_group_id: int

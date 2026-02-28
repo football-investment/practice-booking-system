@@ -347,7 +347,6 @@ class TestGroupsSmoke:
             f"PATCH /api/v1/{group_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_group_input_validation(
         self,
         api_client: TestClient,
@@ -427,7 +426,6 @@ class TestGroupsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_group_input_validation(
         self,
         api_client: TestClient,
@@ -508,7 +506,6 @@ class TestGroupsSmoke:
             f"POST /api/v1/{group_id}/users should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_add_user_to_group_input_validation(
         self,
         api_client: TestClient,

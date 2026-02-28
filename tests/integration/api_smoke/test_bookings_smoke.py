@@ -408,7 +408,6 @@ class TestBookingsSmoke:
             f"PATCH /api/v1/{booking_id}/attendance should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_booking_attendance_input_validation(
         self,
         api_client: TestClient,
@@ -488,7 +487,6 @@ class TestBookingsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_booking_input_validation(
         self,
         api_client: TestClient,
@@ -569,7 +567,6 @@ class TestBookingsSmoke:
             f"POST /api/v1/{booking_id}/cancel should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_admin_cancel_booking_input_validation(
         self,
         api_client: TestClient,
@@ -651,7 +648,6 @@ class TestBookingsSmoke:
             f"POST /api/v1/{booking_id}/confirm should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_confirm_booking_input_validation(
         self,
         api_client: TestClient,

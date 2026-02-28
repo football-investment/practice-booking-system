@@ -340,7 +340,6 @@ class TestCoachSmoke:
             f"POST /api/v1/licenses should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_license_input_validation(
         self,
         api_client: TestClient,
@@ -421,7 +420,6 @@ class TestCoachSmoke:
             f"POST /api/v1/licenses/{test_tournament['license_id']}/promote should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_promote_level_input_validation(
         self,
         api_client: TestClient,
@@ -503,7 +501,6 @@ class TestCoachSmoke:
             f"POST /api/v1/licenses/{test_tournament['license_id']}/renew should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_renew_certification_input_validation(
         self,
         api_client: TestClient,
@@ -583,7 +580,6 @@ class TestCoachSmoke:
             f"POST /api/v1/practice-hours should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_add_practice_hours_input_validation(
         self,
         api_client: TestClient,
@@ -662,7 +658,6 @@ class TestCoachSmoke:
             f"POST /api/v1/theory-hours should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_add_theory_hours_input_validation(
         self,
         api_client: TestClient,

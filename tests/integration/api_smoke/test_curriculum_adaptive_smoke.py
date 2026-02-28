@@ -279,7 +279,6 @@ class TestCurriculumadaptiveSmoke:
             f"POST /api/v1/profile/update should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_learning_profile_input_validation(
         self,
         api_client: TestClient,
@@ -360,7 +359,6 @@ class TestCurriculumadaptiveSmoke:
             f"POST /api/v1/recommendations/{test_tournament['recommendation_id']}/dismiss should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_dismiss_recommendation_input_validation(
         self,
         api_client: TestClient,
@@ -440,7 +438,6 @@ class TestCurriculumadaptiveSmoke:
             f"POST /api/v1/snapshot should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_performance_snapshot_input_validation(
         self,
         api_client: TestClient,

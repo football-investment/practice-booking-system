@@ -414,7 +414,6 @@ class TestInstructorassignmentsSmoke:
             f"PATCH /api/v1/availability/{window_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_availability_window_input_validation(
         self,
         api_client: TestClient,
@@ -495,7 +494,6 @@ class TestInstructorassignmentsSmoke:
             f"PATCH /api/v1/requests/{test_tournament['request_id']}/accept should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_accept_assignment_request_input_validation(
         self,
         api_client: TestClient,
@@ -576,7 +574,6 @@ class TestInstructorassignmentsSmoke:
             f"PATCH /api/v1/requests/{test_tournament['request_id']}/cancel should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_cancel_assignment_request_input_validation(
         self,
         api_client: TestClient,
@@ -657,7 +654,6 @@ class TestInstructorassignmentsSmoke:
             f"PATCH /api/v1/requests/{test_tournament['request_id']}/decline should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_decline_assignment_request_input_validation(
         self,
         api_client: TestClient,
@@ -737,7 +733,6 @@ class TestInstructorassignmentsSmoke:
             f"POST /api/v1/availability should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_availability_window_input_validation(
         self,
         api_client: TestClient,
@@ -816,7 +811,6 @@ class TestInstructorassignmentsSmoke:
             f"POST /api/v1/requests should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_assignment_request_input_validation(
         self,
         api_client: TestClient,

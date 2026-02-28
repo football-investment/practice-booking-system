@@ -133,7 +133,6 @@ class TestSemestersSmoke:
             f"POST /api/v1/generate-academy-season should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_academy_season_input_validation(
         self,
         api_client: TestClient,

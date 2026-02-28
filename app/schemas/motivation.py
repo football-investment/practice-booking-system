@@ -5,7 +5,7 @@ Pydantic models for specialization-specific motivation/preference assessments.
 These assessments are completed ONCE after specialization unlock.
 """
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 from enum import Enum
 
 
@@ -223,6 +223,8 @@ class InternshipMotivation(BaseModel):
 # ==================== UNIFIED MOTIVATION REQUEST ====================
 
 class MotivationAssessmentRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """
     Unified motivation assessment request
 

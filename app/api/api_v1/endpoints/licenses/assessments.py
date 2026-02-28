@@ -14,7 +14,7 @@ Routes:
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, timezone
 
 from .....database import get_db
@@ -33,19 +33,21 @@ router = APIRouter()
 # ============================================================================
 
 class CreateAssessmentRequest(BaseModel):
-    """Request body for creating skill assessment"""
-    points_earned: int = Field(..., ge=0, description="Points earned (numerator)")
-    points_total: int = Field(..., gt=0, description="Total points possible (denominator)")
-    notes: Optional[str] = Field(None, max_length=1000, description="Optional instructor notes")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "points_earned": 8,
                 "points_total": 10,
                 "notes": "Good ball control, needs improvement on weak foot"
             }
         }
+    )
+
+    """Request body for creating skill assessment"""
+    points_earned: int = Field(..., ge=0, description="Points earned (numerator)")
+    points_total: int = Field(..., gt=0, description="Total points possible (denominator)")
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional instructor notes")
 
 
 class AssessmentResponse(BaseModel):
@@ -78,11 +80,12 @@ class AssessmentResponse(BaseModel):
     status_changed_at: Optional[datetime]
     status_changed_by: Optional[int]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateAssessmentResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Response for assessment creation"""
     success: bool
     created: bool

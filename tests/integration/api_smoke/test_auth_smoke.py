@@ -401,7 +401,6 @@ class TestAuthSmoke:
             f"POST /api/v1/age-verification should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_age_verification_submit_input_validation(
         self,
         api_client: TestClient,
@@ -480,7 +479,6 @@ class TestAuthSmoke:
             f"POST /api/v1/change-password should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_change_password_input_validation(
         self,
         api_client: TestClient,
@@ -559,7 +557,6 @@ class TestAuthSmoke:
             f"POST /api/v1/login should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_login_submit_input_validation(
         self,
         api_client: TestClient,
@@ -638,7 +635,6 @@ class TestAuthSmoke:
             f"POST /api/v1/login should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_login_input_validation(
         self,
         api_client: TestClient,
@@ -717,7 +713,6 @@ class TestAuthSmoke:
             f"POST /api/v1/login/form should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_login_form_input_validation(
         self,
         api_client: TestClient,
@@ -796,7 +791,6 @@ class TestAuthSmoke:
             f"POST /api/v1/logout should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_logout_input_validation(
         self,
         api_client: TestClient,
@@ -875,7 +869,6 @@ class TestAuthSmoke:
             f"POST /api/v1/refresh should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_refresh_token_input_validation(
         self,
         api_client: TestClient,
@@ -954,7 +947,6 @@ class TestAuthSmoke:
             f"POST /api/v1/register-with-invitation should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_register_with_invitation_input_validation(
         self,
         api_client: TestClient,

@@ -1163,7 +1163,6 @@ class TestInstructormanagementSmoke:
             f"PATCH /api/v1/offers/{offer_id}/respond should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_respond_to_offer_input_validation(
         self,
         api_client: TestClient,
@@ -1244,7 +1243,6 @@ class TestInstructormanagementSmoke:
             f"PATCH /api/v1/{application_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_review_application_input_validation(
         self,
         api_client: TestClient,
@@ -1325,7 +1323,6 @@ class TestInstructormanagementSmoke:
             f"PATCH /api/v1/{assignment_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_assignment_input_validation(
         self,
         api_client: TestClient,
@@ -1406,7 +1403,6 @@ class TestInstructormanagementSmoke:
             f"PATCH /api/v1/{master_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_master_instructor_input_validation(
         self,
         api_client: TestClient,
@@ -1487,7 +1483,6 @@ class TestInstructormanagementSmoke:
             f"PATCH /api/v1/{position_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_position_input_validation(
         self,
         api_client: TestClient,
@@ -1567,7 +1562,6 @@ class TestInstructormanagementSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_application_input_validation(
         self,
         api_client: TestClient,
@@ -1646,7 +1640,6 @@ class TestInstructormanagementSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_position_input_validation(
         self,
         api_client: TestClient,
@@ -1725,7 +1718,6 @@ class TestInstructormanagementSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_assignment_input_validation(
         self,
         api_client: TestClient,
@@ -1804,7 +1796,6 @@ class TestInstructormanagementSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_master_instructor_legacy_input_validation(
         self,
         api_client: TestClient,
@@ -1883,7 +1874,6 @@ class TestInstructormanagementSmoke:
             f"POST /api/v1/direct-hire should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_direct_hire_offer_input_validation(
         self,
         api_client: TestClient,
@@ -1962,7 +1952,6 @@ class TestInstructormanagementSmoke:
             f"POST /api/v1/hire-from-application should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_hire_from_application_input_validation(
         self,
         api_client: TestClient,

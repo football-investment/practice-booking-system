@@ -136,7 +136,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/instructor/specialization/toggle should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_toggle_instructor_specialization_input_validation(
         self,
         api_client: TestClient,
@@ -217,7 +216,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/quizzes/{quiz_id}/submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_quiz_input_validation(
         self,
         api_client: TestClient,
@@ -299,7 +297,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/sessions/{test_session_id}/evaluate-instructor should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_evaluate_instructor_session_input_validation(
         self,
         api_client: TestClient,
@@ -383,7 +380,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/sessions/{session_id}/evaluate-student/{test_session_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_evaluate_student_performance_input_validation(
         self,
         api_client: TestClient,
@@ -466,7 +462,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/sessions/{test_session_id}/start should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_start_session_input_validation(
         self,
         api_client: TestClient,
@@ -548,7 +543,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/sessions/{test_session_id}/stop should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_stop_session_input_validation(
         self,
         api_client: TestClient,
@@ -630,7 +624,6 @@ class TestInstructorSmoke:
             f"POST /api/v1/sessions/{test_session_id}/unlock-quiz should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_unlock_quiz_input_validation(
         self,
         api_client: TestClient,

@@ -821,7 +821,6 @@ class TestQuizSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_quiz_input_validation(
         self,
         api_client: TestClient,
@@ -902,7 +901,6 @@ class TestQuizSmoke:
             f"POST /api/v1/quizzes/{quiz_id}/submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_quiz_input_validation(
         self,
         api_client: TestClient,
@@ -984,7 +982,6 @@ class TestQuizSmoke:
             f"POST /api/v1/sessions/{test_session_id}/unlock-quiz should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_unlock_quiz_input_validation(
         self,
         api_client: TestClient,
@@ -1064,7 +1061,6 @@ class TestQuizSmoke:
             f"POST /api/v1/start should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_start_quiz_attempt_input_validation(
         self,
         api_client: TestClient,
@@ -1143,7 +1139,6 @@ class TestQuizSmoke:
             f"POST /api/v1/submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_quiz_attempt_input_validation(
         self,
         api_client: TestClient,

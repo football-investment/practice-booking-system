@@ -205,7 +205,6 @@ class TestGamificationSmoke:
             f"POST /api/v1/refresh/{test_student_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_refresh_user_achievements_input_validation(
         self,
         api_client: TestClient,

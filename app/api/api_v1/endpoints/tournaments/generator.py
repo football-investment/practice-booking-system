@@ -7,7 +7,7 @@ from datetime import date, datetime
 from typing import Dict, List, Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 
 from app.database import get_db
 from app.api.api_v1.endpoints.auth import get_current_user
@@ -28,6 +28,8 @@ router = APIRouter()
 # ============================================================================
 
 class SessionConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Configuration for a single tournament session"""
     time: str = Field(..., description="Start time in HH:MM format (e.g., '09:00')")
     title: str = Field(..., description="Session title")
@@ -38,6 +40,8 @@ class SessionConfig(BaseModel):
 
 
 class TournamentGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate a tournament"""
     date: str = Field(..., description="Tournament date (YYYY-MM-DD)")
     name: str = Field(..., description="Tournament name")
@@ -229,12 +233,16 @@ class TournamentGenerateRequest(BaseModel):
 
 
 class SendInstructorRequestSchema(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to send instructor assignment request"""
     instructor_id: int = Field(..., description="Grandmaster instructor ID to invite")
     message: Optional[str] = Field(None, description="Optional message to instructor")
 
 
 class InstructorRequestActionSchema(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to accept/decline instructor assignment"""
     reason: Optional[str] = Field(None, description="Optional reason for declining")
 

@@ -6,7 +6,7 @@ Phase 2.1: Uses TournamentPhase enum for type safety
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 import json
 
@@ -28,6 +28,8 @@ class GameResultEntry(BaseModel):
 
 
 class SubmitGameResultsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to submit game results (INDIVIDUAL tournaments)"""
     results: List[GameResultEntry] = Field(..., min_items=1, description="List of participant results")
 
@@ -43,6 +45,8 @@ class HeadToHeadParticipantResult(BaseModel):
 
 
 class SubmitHeadToHeadMatchRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to submit HEAD_TO_HEAD match result"""
     results: List[HeadToHeadParticipantResult] = Field(
         ...,

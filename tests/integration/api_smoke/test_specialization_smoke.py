@@ -267,7 +267,6 @@ class TestSpecializationSmoke:
             f"POST /api/v1/specialization/motivation-submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_student_motivation_questionnaire_submit_input_validation(
         self,
         api_client: TestClient,
@@ -346,7 +345,6 @@ class TestSpecializationSmoke:
             f"POST /api/v1/specialization/switch should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_specialization_switch_input_validation(
         self,
         api_client: TestClient,
@@ -425,7 +423,6 @@ class TestSpecializationSmoke:
             f"POST /api/v1/specialization/unlock should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_specialization_unlock_input_validation(
         self,
         api_client: TestClient,

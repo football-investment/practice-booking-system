@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.orm.attributes import flag_modified
 from typing import Dict, Any, Optional, List, Union, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 import json
 
@@ -47,6 +47,8 @@ class MatchResultEntry(BaseModel):
 
 
 class RecordMatchResultsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for recording match results (legacy endpoint)"""
     results: List[MatchResultEntry] = Field(..., min_items=1, description="List of match results (min 1 participant)")
     match_notes: Optional[str] = Field(None, max_length=1000, description="Optional match notes")
@@ -84,6 +86,8 @@ class TeamMatchResult(BaseModel):
 
 
 class TimeBasedResult(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Result for TIME_BASED tournaments (time trials)"""
     user_id: int = Field(..., ge=1, description="Participant user ID")
     time_seconds: float = Field(..., gt=0.0, le=86400.0, description="Time in seconds (must be positive, max 24 hours)")
@@ -108,6 +112,8 @@ ResultEntryUnion = Union[
 
 
 class SubmitMatchResultsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """
     Structured match results submission (Type-safe with Union validation)
 
@@ -126,6 +132,8 @@ class SubmitMatchResultsRequest(BaseModel):
 
 
 class SubmitRoundResultsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """
     Round-based results submission for INDIVIDUAL_RANKING tournaments.
 

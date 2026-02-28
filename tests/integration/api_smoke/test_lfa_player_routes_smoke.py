@@ -143,7 +143,6 @@ class TestLfaplayerroutesSmoke:
             f"POST /api/v1/instructor/students/{student_id}/skills-v2/{test_tournament['license_id']} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_instructor_student_skills_v2_submit_input_validation(
         self,
         api_client: TestClient,

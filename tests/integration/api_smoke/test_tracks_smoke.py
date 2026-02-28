@@ -352,7 +352,6 @@ class TestTracksSmoke:
             f"POST /api/v1/enroll should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_enroll_in_track_input_validation(
         self,
         api_client: TestClient,
@@ -433,7 +432,6 @@ class TestTracksSmoke:
             f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/complete should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_complete_module_input_validation(
         self,
         api_client: TestClient,
@@ -515,7 +513,6 @@ class TestTracksSmoke:
             f"POST /api/v1/{test_tournament['track_progress_id']}/modules/{test_tournament['module_id']}/start should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_start_module_input_validation(
         self,
         api_client: TestClient,
@@ -597,7 +594,6 @@ class TestTracksSmoke:
             f"POST /api/v1/{test_tournament['track_progress_id']}/start should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_start_track_input_validation(
         self,
         api_client: TestClient,

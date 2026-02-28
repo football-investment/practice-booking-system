@@ -334,7 +334,6 @@ class TestHealthSmoke:
             f"POST /api/v1/check-now should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_run_health_check_now_input_validation(
         self,
         api_client: TestClient,

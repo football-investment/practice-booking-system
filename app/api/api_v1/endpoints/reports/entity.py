@@ -10,7 +10,7 @@ from .....database import get_db
 from .....models.user import User
 
 from sqlalchemy import func, and_
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....dependencies import get_current_admin_user
 from .....models.semester import Semester
@@ -23,6 +23,8 @@ router = APIRouter()
 
 # Pydantic models for request/response
 class ReportConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     report_type: str
     filters: Optional[Dict[str, Any]] = {}
     format: Optional[str] = "json"

@@ -270,7 +270,6 @@ class TestGancujuSmoke:
             f"POST /api/v1/competitions should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_record_competition_input_validation(
         self,
         api_client: TestClient,
@@ -349,7 +348,6 @@ class TestGancujuSmoke:
             f"POST /api/v1/licenses should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_license_input_validation(
         self,
         api_client: TestClient,
@@ -431,7 +429,6 @@ class TestGancujuSmoke:
             f"POST /api/v1/licenses/{test_tournament['license_id']}/demote should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_demote_level_input_validation(
         self,
         api_client: TestClient,
@@ -514,7 +511,6 @@ class TestGancujuSmoke:
             f"POST /api/v1/licenses/{test_tournament['license_id']}/promote should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_promote_level_input_validation(
         self,
         api_client: TestClient,
@@ -594,7 +590,6 @@ class TestGancujuSmoke:
             f"POST /api/v1/teaching-hours should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_record_teaching_hours_input_validation(
         self,
         api_client: TestClient,

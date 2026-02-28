@@ -886,7 +886,6 @@ class TestSessionsSmoke:
             f"PATCH /api/v1/{test_session_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_session_input_validation(
         self,
         api_client: TestClient,
@@ -967,7 +966,6 @@ class TestSessionsSmoke:
             f"PATCH /api/v1/{test_session_id}/head-to-head-results should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_head_to_head_match_result_input_validation(
         self,
         api_client: TestClient,
@@ -1048,7 +1046,6 @@ class TestSessionsSmoke:
             f"PATCH /api/v1/{test_session_id}/results should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_game_results_input_validation(
         self,
         api_client: TestClient,
@@ -1128,7 +1125,6 @@ class TestSessionsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_session_input_validation(
         self,
         api_client: TestClient,
@@ -1209,7 +1205,6 @@ class TestSessionsSmoke:
             f"POST /api/v1/sessions/book/{test_session_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_book_session_input_validation(
         self,
         api_client: TestClient,
@@ -1291,7 +1286,6 @@ class TestSessionsSmoke:
             f"POST /api/v1/sessions/cancel/{test_session_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_cancel_booking_input_validation(
         self,
         api_client: TestClient,
@@ -1373,7 +1367,6 @@ class TestSessionsSmoke:
             f"POST /api/v1/{test_session_id}/check-in should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_check_in_to_session_input_validation(
         self,
         api_client: TestClient,

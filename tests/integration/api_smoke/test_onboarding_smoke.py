@@ -334,7 +334,6 @@ class TestOnboardingSmoke:
             f"POST /api/v1/onboarding/set-birthdate should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_onboarding_set_birthdate_input_validation(
         self,
         api_client: TestClient,
@@ -413,7 +412,6 @@ class TestOnboardingSmoke:
             f"POST /api/v1/specialization/lfa-player/onboarding-submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_lfa_player_onboarding_submit_input_validation(
         self,
         api_client: TestClient,
@@ -492,7 +490,6 @@ class TestOnboardingSmoke:
             f"POST /api/v1/specialization/select should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_specialization_select_submit_input_validation(
         self,
         api_client: TestClient,

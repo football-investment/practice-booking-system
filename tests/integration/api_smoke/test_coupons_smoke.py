@@ -270,7 +270,6 @@ class TestCouponsSmoke:
             f"POST /api/v1/admin/coupons should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_coupon_api_input_validation(
         self,
         api_client: TestClient,
@@ -349,7 +348,6 @@ class TestCouponsSmoke:
             f"POST /api/v1/admin/coupons/web should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_coupon_web_input_validation(
         self,
         api_client: TestClient,
@@ -430,7 +428,6 @@ class TestCouponsSmoke:
             f"POST /api/v1/admin/coupons/{coupon_id}/toggle should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_toggle_coupon_status_input_validation(
         self,
         api_client: TestClient,
@@ -510,7 +507,6 @@ class TestCouponsSmoke:
             f"POST /api/v1/coupons/apply should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_apply_coupon_input_validation(
         self,
         api_client: TestClient,
@@ -591,7 +587,6 @@ class TestCouponsSmoke:
             f"POST /api/v1/coupons/validate/{code} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_validate_coupon_input_validation(
         self,
         api_client: TestClient,
@@ -672,7 +667,6 @@ class TestCouponsSmoke:
             f"PUT /api/v1/admin/coupons/{coupon_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_coupon_input_validation(
         self,
         api_client: TestClient,

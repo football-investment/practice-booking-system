@@ -6,7 +6,7 @@ from app.models.user import User
 from app.models.license import UserLicense
 from app.dependencies import get_current_user
 from app.services import skill_progression_service
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 router = APIRouter()
 
@@ -18,6 +18,8 @@ class UserProgressResponse(BaseModel):
     completed_semesters: dict = {}
 
 class UpdateProgressRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     track: str  # 'internship', 'coach', 'gancuju'
     level: str
     specializations: Optional[List[str]] = None

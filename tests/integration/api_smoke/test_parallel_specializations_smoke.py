@@ -541,7 +541,6 @@ class TestParallelspecializationsSmoke:
             f"POST /api/v1/start should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_start_new_specialization_input_validation(
         self,
         api_client: TestClient,

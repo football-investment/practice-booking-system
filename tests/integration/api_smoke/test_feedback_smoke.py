@@ -478,7 +478,6 @@ class TestFeedbackSmoke:
             f"PATCH /api/v1/{feedback_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_feedback_input_validation(
         self,
         api_client: TestClient,
@@ -558,7 +557,6 @@ class TestFeedbackSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_feedback_input_validation(
         self,
         api_client: TestClient,

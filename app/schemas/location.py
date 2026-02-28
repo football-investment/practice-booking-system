@@ -2,12 +2,14 @@
 Location Schemas
 Pydantic models for Location API requests/responses
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
 
 class LocationBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Base location schema"""
     name: str = Field(..., min_length=1, max_length=200, description="Location name (legacy field)")
     city: str = Field(..., min_length=1, max_length=100, description="City name (primary identifier)")
@@ -27,6 +29,8 @@ class LocationCreate(LocationBase):
 
 
 class LocationUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating location (all fields optional)"""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     city: Optional[str] = Field(None, min_length=1, max_length=100)
@@ -46,5 +50,4 @@ class LocationResponse(LocationBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

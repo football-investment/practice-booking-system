@@ -12,7 +12,7 @@ See also: instructor_assignment.py (application-based flow, different URL paths)
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 from app.database import get_db
@@ -29,12 +29,16 @@ router = APIRouter()
 # ============================================================================
 
 class AssignInstructorRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to assign an instructor to a tournament"""
     instructor_id: int = Field(..., description="ID of the instructor to assign")
     message: Optional[str] = Field(None, description="Optional message to instructor")
 
 
 class InstructorActionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request from instructor to accept/decline assignment"""
     message: Optional[str] = Field(None, description="Optional message/reason")
 

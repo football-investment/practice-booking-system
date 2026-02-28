@@ -2,7 +2,7 @@
 Adaptive Learning Schemas
 Pydantic models for adaptive learning API
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -25,8 +25,7 @@ class LearningProfileResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -44,11 +43,12 @@ class RecommendationResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GenerateRecommendationsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate new recommendations"""
     refresh: bool = Field(default=False, description="Force regenerate recommendations")
 
@@ -65,11 +65,12 @@ class PerformanceSnapshotResponse(BaseModel):
     lessons_completed: int
     time_spent: float = Field(description="Minutes spent studying today")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PerformanceHistoryRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request performance history"""
     days: int = Field(default=30, description="Number of days to retrieve", ge=1, le=365)
 
@@ -89,5 +90,4 @@ class LearningAnalytics(BaseModel):
     average_session_duration: float
     consistency_score: float = Field(description="0-100, based on regular study habits")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

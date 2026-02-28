@@ -200,7 +200,6 @@ class TestProfileSmoke:
             f"POST /api/v1/profile/edit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_profile_edit_submit_input_validation(
         self,
         api_client: TestClient,

@@ -344,7 +344,6 @@ class TestCampusesSmoke:
             f"PATCH /api/v1/campuses/{campus_id}/toggle-status should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_toggle_campus_status_input_validation(
         self,
         api_client: TestClient,
@@ -426,7 +425,6 @@ class TestCampusesSmoke:
             f"POST /api/v1/locations/{location_id}/campuses should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_campus_input_validation(
         self,
         api_client: TestClient,
@@ -507,7 +505,6 @@ class TestCampusesSmoke:
             f"PUT /api/v1/campuses/{campus_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_campus_input_validation(
         self,
         api_client: TestClient,

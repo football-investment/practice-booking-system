@@ -817,7 +817,6 @@ class TestUsersSmoke:
             f"PATCH /api/v1/me should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_own_profile_input_validation(
         self,
         api_client: TestClient,
@@ -897,7 +896,6 @@ class TestUsersSmoke:
             f"PATCH /api/v1/{test_student_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_user_input_validation(
         self,
         api_client: TestClient,
@@ -977,7 +975,6 @@ class TestUsersSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_user_input_validation(
         self,
         api_client: TestClient,
@@ -1056,7 +1053,6 @@ class TestUsersSmoke:
             f"POST /api/v1/request-invoice should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_request_invoice_input_validation(
         self,
         api_client: TestClient,
@@ -1137,7 +1133,6 @@ class TestUsersSmoke:
             f"POST /api/v1/{test_student_id}/reset-password should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_reset_user_password_input_validation(
         self,
         api_client: TestClient,

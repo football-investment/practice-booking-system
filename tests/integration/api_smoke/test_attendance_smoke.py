@@ -201,7 +201,6 @@ class TestAttendanceSmoke:
             f"PATCH /api/v1/{attendance_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_attendance_input_validation(
         self,
         api_client: TestClient,
@@ -281,7 +280,6 @@ class TestAttendanceSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_attendance_input_validation(
         self,
         api_client: TestClient,
@@ -362,7 +360,6 @@ class TestAttendanceSmoke:
             f"POST /api/v1/sessions/{test_session_id}/attendance/change-request should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_handle_change_request_input_validation(
         self,
         api_client: TestClient,
@@ -444,7 +441,6 @@ class TestAttendanceSmoke:
             f"POST /api/v1/sessions/{test_session_id}/attendance/confirm should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_confirm_attendance_input_validation(
         self,
         api_client: TestClient,
@@ -526,7 +522,6 @@ class TestAttendanceSmoke:
             f"POST /api/v1/sessions/{test_session_id}/attendance/mark should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_mark_attendance_input_validation(
         self,
         api_client: TestClient,
@@ -608,7 +603,6 @@ class TestAttendanceSmoke:
             f"POST /api/v1/{booking_id}/checkin should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_checkin_input_validation(
         self,
         api_client: TestClient,

@@ -401,7 +401,6 @@ class TestProgressionSmoke:
             f"POST /api/v1/progress/update should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_user_progress_input_validation(
         self,
         api_client: TestClient,

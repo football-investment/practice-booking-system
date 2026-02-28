@@ -281,7 +281,6 @@ class TestAdaptivelearningSmoke:
             f"POST /api/v1/sessions/{test_session_id}/answer should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_answer_input_validation(
         self,
         api_client: TestClient,
@@ -363,7 +362,6 @@ class TestAdaptivelearningSmoke:
             f"POST /api/v1/sessions/{test_session_id}/end should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_end_learning_session_input_validation(
         self,
         api_client: TestClient,
@@ -445,7 +443,6 @@ class TestAdaptivelearningSmoke:
             f"POST /api/v1/sessions/{test_session_id}/next-question should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_get_next_question_input_validation(
         self,
         api_client: TestClient,
@@ -525,7 +522,6 @@ class TestAdaptivelearningSmoke:
             f"POST /api/v1/start-session should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_start_adaptive_learning_session_input_validation(
         self,
         api_client: TestClient,

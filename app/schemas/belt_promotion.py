@@ -2,12 +2,14 @@
 🥋 Belt Promotion Schemas - Gancuju Belt System
 Pydantic schemas for belt promotion requests and responses
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
 
 class BeltPromotionCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for creating a belt promotion"""
     notes: Optional[str] = Field(None, description="Promotion notes")
     exam_score: Optional[int] = Field(None, ge=0, le=100, description="Exam score (0-100)")
@@ -38,8 +40,7 @@ class BeltPromotionResponse(BaseModel):
     exam_score: Optional[int]
     exam_notes: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BeltHistoryResponse(BaseModel):

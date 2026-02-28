@@ -200,7 +200,6 @@ class TestDebugSmoke:
             f"POST /api/v1/log-error should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_log_frontend_error_input_validation(
         self,
         api_client: TestClient,

@@ -6,6 +6,8 @@ from .session import Session
 
 
 class FeedbackBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     session_id: int
     rating: float
     instructor_rating: Optional[float] = None
@@ -41,6 +43,8 @@ class FeedbackCreate(FeedbackBase):
 
 
 class FeedbackUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     rating: Optional[float] = None
     instructor_rating: Optional[float] = None
     session_quality: Optional[float] = None

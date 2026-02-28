@@ -2,12 +2,14 @@
 Campus Schemas
 Pydantic models for Campus API requests/responses
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import datetime
 
 
 class CampusBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Base campus schema"""
     name: str = Field(..., min_length=1, max_length=200, description="Campus name (e.g., 'Buda Campus', 'Main Field')")
     venue: Optional[str] = Field(None, max_length=200, description="Venue/facility name")
@@ -21,6 +23,8 @@ class CampusCreate(CampusBase):
 
 
 class CampusUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating campus (all fields optional)"""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     venue: Optional[str] = Field(None, max_length=200)
@@ -36,8 +40,7 @@ class CampusResponse(CampusBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CampusWithLocation(CampusResponse):
@@ -45,5 +48,4 @@ class CampusWithLocation(CampusResponse):
     location_city: Optional[str] = None
     location_country: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -205,7 +205,6 @@ class TestTournamenttypesSmoke:
             f"POST /api/v1/{tournament_type_id}/estimate should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_estimate_tournament_duration_input_validation(
         self,
         api_client: TestClient,

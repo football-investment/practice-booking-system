@@ -782,7 +782,6 @@ class TestCurriculumSmoke:
             f"POST /api/v1/exercise/submission/{test_tournament['submission_id']}/grade should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_grade_exercise_submission_input_validation(
         self,
         api_client: TestClient,
@@ -864,7 +863,6 @@ class TestCurriculumSmoke:
             f"POST /api/v1/exercise/submission/{test_tournament['submission_id']}/upload should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_upload_exercise_file_input_validation(
         self,
         api_client: TestClient,
@@ -946,7 +944,6 @@ class TestCurriculumSmoke:
             f"POST /api/v1/exercise/{test_tournament['exercise_id']}/submit should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_exercise_input_validation(
         self,
         api_client: TestClient,
@@ -1028,7 +1025,6 @@ class TestCurriculumSmoke:
             f"POST /api/v1/module/{test_tournament['module_id']}/complete should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_mark_module_complete_input_validation(
         self,
         api_client: TestClient,
@@ -1110,7 +1106,6 @@ class TestCurriculumSmoke:
             f"POST /api/v1/module/{test_tournament['module_id']}/view should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_mark_module_viewed_input_validation(
         self,
         api_client: TestClient,
@@ -1191,7 +1186,6 @@ class TestCurriculumSmoke:
             f"PUT /api/v1/exercise/submission/{test_tournament['submission_id']} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_exercise_submission_input_validation(
         self,
         api_client: TestClient,

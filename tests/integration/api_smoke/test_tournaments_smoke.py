@@ -2523,7 +2523,6 @@ class TestTournamentsSmoke:
             f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -2604,7 +2603,6 @@ class TestTournamentsSmoke:
             f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_schedule_config_input_validation(
         self,
         api_client: TestClient,
@@ -2687,7 +2685,6 @@ class TestTournamentsSmoke:
             f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_record_match_results_input_validation(
         self,
         api_client: TestClient,
@@ -2769,7 +2766,6 @@ class TestTournamentsSmoke:
             f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_transition_tournament_status_input_validation(
         self,
         api_client: TestClient,
@@ -2849,7 +2845,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -2928,7 +2923,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/create should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -3007,7 +3001,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/generate should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -3086,7 +3079,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/ops/run-scenario should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_run_ops_scenario_input_validation(
         self,
         api_client: TestClient,
@@ -3167,7 +3159,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/requests/{test_tournament['request_id']}/accept should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_accept_instructor_request_input_validation(
         self,
         api_client: TestClient,
@@ -3249,7 +3240,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/requests/{test_tournament['request_id']}/decline should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_decline_instructor_request_input_validation(
         self,
         api_client: TestClient,
@@ -3331,7 +3321,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_admin_batch_enroll_players_input_validation(
         self,
         api_client: TestClient,
@@ -3413,7 +3402,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_assign_instructor_to_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -3495,7 +3483,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_calculate_tournament_rankings_input_validation(
         self,
         api_client: TestClient,
@@ -3577,7 +3564,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_cancel_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -3659,7 +3645,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_complete_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -3741,7 +3726,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_direct_assign_instructor_input_validation(
         self,
         api_client: TestClient,
@@ -3823,7 +3807,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_distribute_tournament_rewards_input_validation(
         self,
         api_client: TestClient,
@@ -3905,7 +3888,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_distribute_tournament_rewards_v2_input_validation(
         self,
         api_client: TestClient,
@@ -3987,7 +3969,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_enroll_in_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -4069,7 +4050,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_finalize_group_stage_input_validation(
         self,
         api_client: TestClient,
@@ -4151,7 +4131,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_finalize_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -4233,7 +4212,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_tournament_sessions_input_validation(
         self,
         api_client: TestClient,
@@ -4315,7 +4293,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_apply_to_tournament_input_validation(
         self,
         api_client: TestClient,
@@ -4397,7 +4374,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_approve_instructor_application_input_validation(
         self,
         api_client: TestClient,
@@ -4479,7 +4455,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_decline_instructor_application_input_validation(
         self,
         api_client: TestClient,
@@ -4561,7 +4536,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_accept_instructor_assignment_input_validation(
         self,
         api_client: TestClient,
@@ -4643,7 +4617,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_instructor_accept_assignment_input_validation(
         self,
         api_client: TestClient,
@@ -4725,7 +4698,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_instructor_decline_assignment_input_validation(
         self,
         api_client: TestClient,
@@ -4807,7 +4779,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_tournament_rankings_input_validation(
         self,
         api_client: TestClient,
@@ -4889,7 +4860,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_save_tournament_reward_config_input_validation(
         self,
         api_client: TestClient,
@@ -4971,7 +4941,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_send_instructor_request_input_validation(
         self,
         api_client: TestClient,
@@ -5055,7 +5024,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_finalize_individual_ranking_session_input_validation(
         self,
         api_client: TestClient,
@@ -5140,7 +5108,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_round_results_input_validation(
         self,
         api_client: TestClient,
@@ -5225,7 +5192,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_submit_structured_match_results_input_validation(
         self,
         api_client: TestClient,
@@ -5308,7 +5274,6 @@ class TestTournamentsSmoke:
             f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_add_tournament_skill_mapping_input_validation(
         self,
         api_client: TestClient,
@@ -5389,7 +5354,6 @@ class TestTournamentsSmoke:
             f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_upsert_campus_schedule_input_validation(
         self,
         api_client: TestClient,
@@ -5470,7 +5434,6 @@ class TestTournamentsSmoke:
             f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_tournament_reward_config_input_validation(
         self,
         api_client: TestClient,

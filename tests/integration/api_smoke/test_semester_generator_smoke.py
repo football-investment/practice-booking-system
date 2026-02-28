@@ -133,7 +133,6 @@ class TestSemestergeneratorSmoke:
             f"POST /api/v1/generate should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_semesters_input_validation(
         self,
         api_client: TestClient,

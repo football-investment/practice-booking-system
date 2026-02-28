@@ -9,7 +9,7 @@ Provides REST API for LFA Player skill management:
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
@@ -33,6 +33,8 @@ class SkillAverages(BaseModel):
 
 
 class LicenseCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to create LFA Player license"""
     age_group: str = Field(..., description="Age group: PRE, YOUTH, AMATEUR, PRO")
     initial_credits: int = Field(0, ge=0)
@@ -53,12 +55,16 @@ class LicenseResponse(BaseModel):
 
 
 class SkillUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to update a skill"""
     skill_name: str = Field(..., description="heading, shooting, crossing, passing, dribbling, ball_control, defending")
     new_avg: float = Field(..., ge=0, le=100)
 
 
 class SkillUpdateResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Response after skill update"""
     skill_name: str
     new_avg: float

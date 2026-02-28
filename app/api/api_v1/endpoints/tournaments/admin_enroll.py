@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -60,6 +60,8 @@ def _check_enroll_rate_limit(user_id: int, incoming_count: int) -> None:
 
 
 class BatchEnrollRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     player_ids: List[int]
 
 

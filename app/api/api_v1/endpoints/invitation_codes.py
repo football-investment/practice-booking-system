@@ -3,7 +3,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from ....database import get_db
 from ....dependencies import get_current_user_web, security_optional
@@ -65,6 +65,8 @@ async def get_admin_user_hybrid(
 # ==================== SCHEMAS ====================
 
 class InvitationCodeCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for creating an invitation code"""
     invited_name: str
     invited_email: EmailStr | None = None
@@ -93,8 +95,7 @@ class InvitationCodeResponse(BaseModel):
     created_by_name: str | None = None
     is_valid: bool = True
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InvitationCodeRedeem(BaseModel):

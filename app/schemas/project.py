@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from enum import Enum
@@ -34,6 +34,8 @@ class MilestoneStatusEnum(str, Enum):
 
 # Base schemas
 class ProjectMilestoneBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: str = Field(..., max_length=200, description="Milestone title")
     description: Optional[str] = Field(None, max_length=2000, description="Optional milestone description")
     order_index: int = Field(..., ge=0, le=100, description="Milestone order index (0-100)")
@@ -48,6 +50,8 @@ class ProjectMilestoneCreate(ProjectMilestoneBase):
 
 
 class ProjectMilestoneUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: Optional[str] = Field(None, max_length=200, description="Milestone title")
     description: Optional[str] = Field(None, max_length=2000, description="Optional milestone description")
     order_index: Optional[int] = Field(None, ge=0, le=100, description="Milestone order index (0-100)")
@@ -62,12 +66,13 @@ class ProjectMilestone(ProjectMilestoneBase):
     project_id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Project Base Schemas
 class ProjectBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: str = Field(..., max_length=200, description="Project title")
     description: Optional[str] = Field(None, max_length=5000, description="Optional project description")
     max_participants: int = Field(10, ge=1, le=1000, description="Maximum participants (1-1000)")
@@ -83,6 +88,8 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: Optional[str] = Field(None, max_length=200, description="Project title")
     description: Optional[str] = Field(None, max_length=5000, description="Optional project description")
     max_participants: Optional[int] = Field(None, ge=1, le=1000, description="Maximum participants (1-1000)")
@@ -109,8 +116,7 @@ class Project(ProjectBase):
     # Optional semester details for enrollment validation
     semester: Optional[Dict[str, Any]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProjectWithDetails(Project):
@@ -121,6 +127,8 @@ class ProjectWithDetails(Project):
 
 # Project Enrollment Schemas
 class ProjectEnrollmentBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
 
 
@@ -143,8 +151,7 @@ class ProjectEnrollment(ProjectEnrollmentBase):
     sessions_completed: Optional[int] = None
     sessions_required: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProjectEnrollmentWithDetails(ProjectEnrollment):
@@ -155,11 +162,15 @@ class ProjectEnrollmentWithDetails(ProjectEnrollment):
 
 # Milestone Progress Schemas
 class MilestoneProgressBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     enrollment_id: int = Field(..., ge=1, description="Enrollment ID (must be positive)")
     milestone_id: int = Field(..., ge=1, description="Milestone ID (must be positive)")
 
 
 class MilestoneProgressUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     status: Optional[MilestoneStatusEnum] = Field(None, description="Milestone status")
     instructor_feedback: Optional[str] = Field(None, max_length=2000, description="Optional instructor feedback")
     sessions_completed: Optional[int] = Field(None, ge=0, le=100, description="Sessions completed (0-100)")
@@ -175,8 +186,7 @@ class MilestoneProgress(MilestoneProgressBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MilestoneProgressWithDetails(MilestoneProgress):
@@ -186,6 +196,8 @@ class MilestoneProgressWithDetails(MilestoneProgress):
 
 # Project Session Connection Schemas
 class ProjectSessionBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
     session_id: int = Field(..., ge=1, description="Session ID (must be positive)")
     milestone_id: Optional[int] = Field(None, ge=1, description="Optional milestone ID (must be positive)")
@@ -200,8 +212,7 @@ class ProjectSession(ProjectSessionBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Response schemas for lists
@@ -250,6 +261,8 @@ class ProjectProgressResponse(BaseModel):
 
 # Project-Quiz Connection Schemas
 class ProjectQuizBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
     quiz_id: int = Field(..., ge=1, description="Quiz ID (must be positive)")
     milestone_id: Optional[int] = Field(None, ge=1, description="Optional milestone ID (must be positive)")
@@ -265,6 +278,8 @@ class ProjectQuizCreate(ProjectQuizBase):
 
 
 class ProjectQuizUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     milestone_id: Optional[int] = Field(None, ge=1, description="Optional milestone ID (must be positive)")
     quiz_type: Optional[str] = Field(None, description="Quiz type: 'enrollment' or 'milestone'")
     is_required: Optional[bool] = Field(None, description="Whether quiz is required")
@@ -277,8 +292,7 @@ class ProjectQuiz(ProjectQuizBase):
     id: int
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProjectQuizWithDetails(ProjectQuiz):
@@ -288,6 +302,8 @@ class ProjectQuizWithDetails(ProjectQuiz):
 
 # Enrollment Quiz Results
 class ProjectEnrollmentQuizBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
     user_id: int = Field(..., ge=1, description="User ID (must be positive)")
     quiz_attempt_id: int = Field(..., ge=1, description="Quiz attempt ID (must be positive)")
@@ -304,8 +320,7 @@ class ProjectEnrollmentQuiz(ProjectEnrollmentQuizBase):
     enrollment_confirmed: bool = False
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProjectEnrollmentQuizWithDetails(ProjectEnrollmentQuiz):
@@ -321,6 +336,8 @@ class ProjectWithQuizzes(ProjectWithDetails):
 
 # Quiz Configuration for Instructors
 class ProjectQuizConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Konfigurációs adatok instruktoroknak"""
     project_id: int
     enrollment_quiz_id: Optional[int] = None

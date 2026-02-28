@@ -203,7 +203,6 @@ class TestEnrollmentsSmoke:
             f"POST /api/v1/validate should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_validate_enrollment_input_validation(
         self,
         api_client: TestClient,

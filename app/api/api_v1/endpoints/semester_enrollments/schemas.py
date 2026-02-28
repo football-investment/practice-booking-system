@@ -1,12 +1,14 @@
 """
 Pydantic schemas for semester enrollment endpoints
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Literal
 from datetime import datetime
 
 
 class EnrollmentCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to create a new semester enrollment"""
     user_id: int = Field(..., ge=1, description="Student user ID (must be positive)")
     semester_id: int = Field(..., ge=1, description="Semester ID (must be positive)")
@@ -14,6 +16,8 @@ class EnrollmentCreate(BaseModel):
 
 
 class EnrollmentUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to update enrollment"""
     payment_verified: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -38,11 +42,15 @@ class EnrollmentResponse(BaseModel):
 
 
 class EnrollmentRejection(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to reject an enrollment with optional reason"""
     reason: Optional[str] = Field(None, max_length=1000, description="Optional rejection reason")
 
 
 class CategoryOverride(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to override age category for a student enrollment"""
     age_category: Literal["PRE", "YOUTH", "AMATEUR", "PRO"] = Field(
         ...,

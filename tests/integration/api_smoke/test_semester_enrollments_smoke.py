@@ -346,7 +346,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/enroll should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_enrollment_input_validation(
         self,
         api_client: TestClient,
@@ -425,7 +424,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/verify-by-code should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_verify_payment_by_code_input_validation(
         self,
         api_client: TestClient,
@@ -506,7 +504,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/{test_tournament['enrollment_id']}/approve should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_approve_enrollment_request_input_validation(
         self,
         api_client: TestClient,
@@ -588,7 +585,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/{test_tournament['enrollment_id']}/override-category should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_override_age_category_input_validation(
         self,
         api_client: TestClient,
@@ -670,7 +666,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/{test_tournament['enrollment_id']}/reject should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_reject_enrollment_request_input_validation(
         self,
         api_client: TestClient,
@@ -752,7 +747,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/{test_tournament['enrollment_id']}/toggle-active should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_toggle_enrollment_active_input_validation(
         self,
         api_client: TestClient,
@@ -834,7 +828,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/{test_tournament['enrollment_id']}/unverify-payment should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_unverify_enrollment_payment_input_validation(
         self,
         api_client: TestClient,
@@ -916,7 +909,6 @@ class TestSemesterenrollmentsSmoke:
             f"POST /api/v1/{test_tournament['enrollment_id']}/verify-payment should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_verify_enrollment_payment_input_validation(
         self,
         api_client: TestClient,

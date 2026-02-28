@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
@@ -50,17 +50,19 @@ router = APIRouter()
 # ============================================================================
 
 class LicenseCreate(BaseModel):
-    """Request body for creating a new Coach license"""
-    starting_level: int = Field(default=1, ge=1, le=8, description="Starting certification level (1-8)")
-    duration_years: int = Field(default=2, ge=1, le=5, description="License duration in years (1-5)")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "starting_level": 1,
                 "duration_years": 2
             }
         }
+    )
+
+    """Request body for creating a new Coach license"""
+    starting_level: int = Field(default=1, ge=1, le=8, description="Starting certification level (1-8)")
+    duration_years: int = Field(default=2, ge=1, le=5, description="License duration in years (1-5)")
 
 
 class LicenseResponse(BaseModel):
@@ -96,35 +98,39 @@ class LicenseResponse(BaseModel):
 
 
 class AddTheoryHoursRequest(BaseModel):
-    """Request body for adding theory hours"""
-    hours: int = Field(..., gt=0, description="Theory hours to add (must be positive)")
-    course_name: Optional[str] = Field(None, max_length=200, description="Name of theory course")
-    description: Optional[str] = Field(None, max_length=500, description="Description of theory work")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "hours": 10,
                 "course_name": "Advanced Coaching Methodology",
                 "description": "Completed module on tactical analysis"
             }
         }
+    )
+
+    """Request body for adding theory hours"""
+    hours: int = Field(..., gt=0, description="Theory hours to add (must be positive)")
+    course_name: Optional[str] = Field(None, max_length=200, description="Name of theory course")
+    description: Optional[str] = Field(None, max_length=500, description="Description of theory work")
 
 
 class AddPracticeHoursRequest(BaseModel):
-    """Request body for adding practice hours"""
-    hours: int = Field(..., gt=0, description="Practice hours to add (must be positive)")
-    session_type: Optional[str] = Field(None, max_length=100, description="Type of practice session")
-    description: Optional[str] = Field(None, max_length=500, description="Description of practice work")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "hours": 5,
                 "session_type": "Team Training Session",
                 "description": "Led U15 team training focusing on possession drills"
             }
         }
+    )
+
+    """Request body for adding practice hours"""
+    hours: int = Field(..., gt=0, description="Practice hours to add (must be positive)")
+    session_type: Optional[str] = Field(None, max_length=100, description="Type of practice session")
+    description: Optional[str] = Field(None, max_length=500, description="Description of practice work")
 
 
 class HoursResponse(BaseModel):
@@ -164,15 +170,17 @@ class ExpiryResponse(BaseModel):
 
 
 class RenewRequest(BaseModel):
-    """Request body for renewing certification"""
-    extension_years: int = Field(default=2, ge=1, le=5, description="Years to extend (1-5)")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "extension_years": 2
             }
         }
+    )
+
+    """Request body for renewing certification"""
+    extension_years: int = Field(default=2, ge=1, le=5, description="Years to extend (1-5)")
 
 
 class RenewResponse(BaseModel):
@@ -196,15 +204,17 @@ class RenewResponse(BaseModel):
 
 
 class PromoteRequest(BaseModel):
-    """Request body for promoting level"""
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for promotion")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "reason": "Met all requirements for Level 3 certification"
             }
         }
+    )
+
+    """Request body for promoting level"""
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for promotion")
 
 
 class PromoteResponse(BaseModel):

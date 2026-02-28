@@ -280,7 +280,6 @@ class TestInstructoravailabilitySmoke:
             f"PATCH /api/v1/{availability_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_instructor_availability_input_validation(
         self,
         api_client: TestClient,
@@ -360,7 +359,6 @@ class TestInstructoravailabilitySmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_instructor_availability_input_validation(
         self,
         api_client: TestClient,
@@ -439,7 +437,6 @@ class TestInstructoravailabilitySmoke:
             f"POST /api/v1/bulk-upsert should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_bulk_upsert_instructor_availability_input_validation(
         self,
         api_client: TestClient,

@@ -66,7 +66,6 @@ class TestPeriodsSmoke:
             f"POST /api/v1/lfa-player/amateur should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_lfa_player_amateur_season_input_validation(
         self,
         api_client: TestClient,
@@ -145,7 +144,6 @@ class TestPeriodsSmoke:
             f"POST /api/v1/lfa-player/pre should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_lfa_player_pre_season_input_validation(
         self,
         api_client: TestClient,
@@ -224,7 +222,6 @@ class TestPeriodsSmoke:
             f"POST /api/v1/lfa-player/pro should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_lfa_player_pro_season_input_validation(
         self,
         api_client: TestClient,
@@ -303,7 +300,6 @@ class TestPeriodsSmoke:
             f"POST /api/v1/lfa-player/youth should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_generate_lfa_player_youth_season_input_validation(
         self,
         api_client: TestClient,

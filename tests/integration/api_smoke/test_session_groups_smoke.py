@@ -207,7 +207,6 @@ class TestSessiongroupsSmoke:
             f"POST /api/v1/auto-assign should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_auto_assign_groups_input_validation(
         self,
         api_client: TestClient,
@@ -286,7 +285,6 @@ class TestSessiongroupsSmoke:
             f"POST /api/v1/move-student should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_move_student_input_validation(
         self,
         api_client: TestClient,

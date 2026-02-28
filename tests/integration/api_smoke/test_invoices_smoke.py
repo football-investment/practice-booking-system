@@ -334,7 +334,6 @@ class TestInvoicesSmoke:
             f"POST /api/v1/request should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_invoice_request_input_validation(
         self,
         api_client: TestClient,
@@ -416,7 +415,6 @@ class TestInvoicesSmoke:
             f"POST /api/v1/{invoice_id}/cancel should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_cancel_invoice_input_validation(
         self,
         api_client: TestClient,
@@ -498,7 +496,6 @@ class TestInvoicesSmoke:
             f"POST /api/v1/{invoice_id}/unverify should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_unverify_invoice_payment_input_validation(
         self,
         api_client: TestClient,
@@ -580,7 +577,6 @@ class TestInvoicesSmoke:
             f"POST /api/v1/{invoice_id}/verify should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_verify_invoice_payment_input_validation(
         self,
         api_client: TestClient,

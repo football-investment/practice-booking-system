@@ -344,7 +344,6 @@ class TestGamepresetsSmoke:
             f"PATCH /api/v1/{preset_id} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_game_preset_input_validation(
         self,
         api_client: TestClient,
@@ -424,7 +423,6 @@ class TestGamepresetsSmoke:
             f"POST /api/v1/ should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_game_preset_input_validation(
         self,
         api_client: TestClient,

@@ -13,7 +13,7 @@ import threading
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db, SessionLocal
 from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
@@ -110,6 +110,8 @@ def _run_generation_in_background(
 
 
 class CampusScheduleConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Per-campus schedule overrides for multi-venue tournaments"""
     match_duration_minutes: Optional[int] = Field(default=None, ge=1, le=180, description="Override match duration for this campus")
     break_duration_minutes: Optional[int] = Field(default=None, ge=0, le=60, description="Override break duration for this campus")
@@ -117,6 +119,8 @@ class CampusScheduleConfig(BaseModel):
 
 
 class SessionGenerationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for session generation"""
     parallel_fields: int = Field(default=1, ge=1, le=10, description="Number of fields available for parallel matches")
     session_duration_minutes: int = Field(default=90, ge=1, le=180, description="Duration of each session in minutes (business allows 1-5 min matches)")

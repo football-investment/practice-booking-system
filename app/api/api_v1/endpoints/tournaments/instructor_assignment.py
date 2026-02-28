@@ -32,7 +32,7 @@ See: REFACTORING_IMPLEMENTATION_PLAN.md
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 from app.database import get_db
@@ -60,22 +60,30 @@ router = APIRouter()
 # ============================================================================
 
 class InstructorApplicationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for instructor application"""
     application_message: Optional[str] = None
 
 
 class InstructorApplicationApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for admin approval"""
     response_message: Optional[str] = None
 
 
 class DirectAssignmentRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for direct instructor assignment"""
     instructor_id: int
     assignment_message: Optional[str] = None
 
 
 class DeclineApplicationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for declining an application"""
     decline_message: Optional[str] = None
 

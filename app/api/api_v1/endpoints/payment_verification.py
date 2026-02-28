@@ -2,7 +2,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ....database import get_db
 from ....dependencies import get_current_admin_user, get_current_admin_user
@@ -14,11 +14,15 @@ router = APIRouter()
 
 
 class PaymentVerificationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for payment verification"""
     specializations: List[str]  # List of SpecializationType enum values
 
 
 class SpecializationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for adding/removing a single specialization"""
     specialization_type: str  # SpecializationType enum value
 

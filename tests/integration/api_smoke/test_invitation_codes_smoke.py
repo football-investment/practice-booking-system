@@ -203,7 +203,6 @@ class TestInvitationcodesSmoke:
             f"POST /api/v1/admin/invitation-codes should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_invitation_code_input_validation(
         self,
         api_client: TestClient,
@@ -282,7 +281,6 @@ class TestInvitationcodesSmoke:
             f"POST /api/v1/invitation-codes/redeem should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_redeem_invitation_code_input_validation(
         self,
         api_client: TestClient,
@@ -361,7 +359,6 @@ class TestInvitationcodesSmoke:
             f"POST /api/v1/invitation-codes/validate should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_validate_invitation_code_input_validation(
         self,
         api_client: TestClient,

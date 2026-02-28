@@ -210,7 +210,6 @@ class TestInstructordashboardSmoke:
             f"POST /api/v1/instructor/students/{student_id}/skills/{test_tournament['license_id']} should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_instructor_update_student_skills_input_validation(
         self,
         api_client: TestClient,

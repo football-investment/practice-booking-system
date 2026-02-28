@@ -203,7 +203,6 @@ class TestLicenserenewalSmoke:
             f"POST /api/v1/check-expirations should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_bulk_check_expirations_input_validation(
         self,
         api_client: TestClient,
@@ -282,7 +281,6 @@ class TestLicenserenewalSmoke:
             f"POST /api/v1/renew should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_renew_license_input_validation(
         self,
         api_client: TestClient,

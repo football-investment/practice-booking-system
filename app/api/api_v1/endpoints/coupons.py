@@ -5,7 +5,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ....database import get_db
 from ....dependencies import get_current_admin_user, get_current_admin_user, get_current_user
@@ -18,6 +18,8 @@ router = APIRouter()
 
 # Pydantic schemas
 class CouponBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Base coupon schema"""
     code: str = Field(..., min_length=3, max_length=50, description="Unique coupon code")
     type: CouponType = Field(..., description="Coupon type (percent, fixed, credits)")
@@ -33,6 +35,8 @@ class CouponCreate(CouponBase):
 
 
 class CouponUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating a coupon"""
     code: str | None = Field(None, min_length=3, max_length=50)
     type: CouponType | None = None
@@ -51,8 +55,7 @@ class CouponResponse(CouponBase):
     updated_at: datetime
     is_valid: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CouponPublic(BaseModel):
@@ -62,8 +65,7 @@ class CouponPublic(BaseModel):
     discount_value: float
     description: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Admin endpoints
@@ -485,6 +487,8 @@ async def validate_coupon(
 
 
 class ApplyCouponRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for applying a coupon"""
     code: str = Field(..., min_length=3, max_length=50, description="Coupon code to apply")
 

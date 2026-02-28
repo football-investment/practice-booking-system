@@ -9,7 +9,7 @@ POST  /system-events/purge            → delete resolved events older than N da
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -32,8 +32,7 @@ class SystemEventResponse(BaseModel):
     payload_json: Optional[Dict[str, Any]]
     resolved: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def from_orm_safe(cls, obj: Any) -> "SystemEventResponse":

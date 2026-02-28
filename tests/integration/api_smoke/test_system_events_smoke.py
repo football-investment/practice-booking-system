@@ -67,7 +67,6 @@ class TestSystemeventsSmoke:
             f"PATCH /api/v1/{event_id}/resolve should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_resolve_event_input_validation(
         self,
         api_client: TestClient,
@@ -148,7 +147,6 @@ class TestSystemeventsSmoke:
             f"PATCH /api/v1/{event_id}/unresolve should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_unresolve_event_input_validation(
         self,
         api_client: TestClient,
@@ -228,7 +226,6 @@ class TestSystemeventsSmoke:
             f"POST /api/v1/purge should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_purge_old_events_input_validation(
         self,
         api_client: TestClient,
