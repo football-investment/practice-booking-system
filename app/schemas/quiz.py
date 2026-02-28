@@ -5,7 +5,7 @@ from app.models.quiz import QuestionType, QuizCategory, QuizDifficulty
 
 # Base schemas
 class QuizAnswerOptionBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     option_text: str = Field(..., max_length=500)
     is_correct: bool = False
@@ -30,7 +30,7 @@ class QuizAnswerOptionPublic(BaseModel):
 
 # Question schemas
 class QuizQuestionBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     question_text: str
     question_type: QuestionType
@@ -72,7 +72,7 @@ class QuizQuestionPublic(BaseModel):
 
 # Quiz schemas
 class QuizBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     title: str = Field(..., max_length=200)
     description: Optional[str] = None

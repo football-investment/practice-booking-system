@@ -21,7 +21,7 @@ class AssignmentRequestStatusEnum(str, Enum):
 # ============================================================================
 
 class InstructorAvailabilityWindowBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for availability window - NO LOCATION (comes from assignment request)"""
     year: int = Field(..., ge=2024, le=2100, description="Year (e.g., 2026)")
@@ -66,7 +66,7 @@ class InstructorAvailabilityWindowResponse(InstructorAvailabilityWindowBase):
 # ============================================================================
 
 class InstructorAssignmentRequestBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for assignment request"""
     request_message: Optional[str] = Field(None, description="Message from admin to instructor")

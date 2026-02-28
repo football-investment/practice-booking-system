@@ -6,7 +6,7 @@ from .session import Session
 
 
 class FeedbackBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     session_id: int
     rating: float

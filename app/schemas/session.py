@@ -8,7 +8,7 @@ from .group import Group
 
 
 class SessionBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     title: str
     description: Optional[str] = None

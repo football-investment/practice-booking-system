@@ -6,7 +6,7 @@ from ..models.session import SessionType
 
 
 class BookingBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     session_id: int = Field(..., ge=1, description="Session ID (must be positive)")
     notes: Optional[str] = Field(None, max_length=1000, description="Optional booking notes")

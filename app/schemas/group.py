@@ -6,7 +6,7 @@ from .semester import Semester
 
 
 class GroupBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     name: str
     description: Optional[str] = None

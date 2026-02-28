@@ -10,7 +10,7 @@ from uuid import UUID
 
 # Certificate Template Schemas
 class CertificateTemplateBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     title: str
     description: Optional[str] = None
@@ -32,7 +32,7 @@ class CertificateTemplateResponse(CertificateTemplateBase):
 
 # Issued Certificate Schemas
 class IssuedCertificateBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     unique_identifier: str
     issue_date: datetime

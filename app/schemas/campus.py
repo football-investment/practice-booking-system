@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 class CampusBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base campus schema"""
     name: str = Field(..., min_length=1, max_length=200, description="Campus name (e.g., 'Buda Campus', 'Main Field')")

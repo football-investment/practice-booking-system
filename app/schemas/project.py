@@ -34,7 +34,7 @@ class MilestoneStatusEnum(str, Enum):
 
 # Base schemas
 class ProjectMilestoneBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     title: str = Field(..., max_length=200, description="Milestone title")
     description: Optional[str] = Field(None, max_length=2000, description="Optional milestone description")
@@ -71,7 +71,7 @@ class ProjectMilestone(ProjectMilestoneBase):
 
 # Project Base Schemas
 class ProjectBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     title: str = Field(..., max_length=200, description="Project title")
     description: Optional[str] = Field(None, max_length=5000, description="Optional project description")
@@ -127,7 +127,7 @@ class ProjectWithDetails(Project):
 
 # Project Enrollment Schemas
 class ProjectEnrollmentBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
 
@@ -162,7 +162,7 @@ class ProjectEnrollmentWithDetails(ProjectEnrollment):
 
 # Milestone Progress Schemas
 class MilestoneProgressBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     enrollment_id: int = Field(..., ge=1, description="Enrollment ID (must be positive)")
     milestone_id: int = Field(..., ge=1, description="Milestone ID (must be positive)")
@@ -196,7 +196,7 @@ class MilestoneProgressWithDetails(MilestoneProgress):
 
 # Project Session Connection Schemas
 class ProjectSessionBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
     session_id: int = Field(..., ge=1, description="Session ID (must be positive)")
@@ -261,7 +261,7 @@ class ProjectProgressResponse(BaseModel):
 
 # Project-Quiz Connection Schemas
 class ProjectQuizBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
     quiz_id: int = Field(..., ge=1, description="Quiz ID (must be positive)")
@@ -302,7 +302,7 @@ class ProjectQuizWithDetails(ProjectQuiz):
 
 # Enrollment Quiz Results
 class ProjectEnrollmentQuizBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
     user_id: int = Field(..., ge=1, description="User ID (must be positive)")

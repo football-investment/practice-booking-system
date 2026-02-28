@@ -5,7 +5,7 @@ from ..models.semester import SemesterStatus
 
 
 class SemesterBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     code: str
     name: str

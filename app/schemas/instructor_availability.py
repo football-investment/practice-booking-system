@@ -11,7 +11,7 @@ import re
 
 
 class InstructorAvailabilityBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for instructor availability"""
     specialization_type: str = Field(..., description="LFA_PLAYER_PRE, LFA_PLAYER_YOUTH, LFA_PLAYER_AMATEUR, LFA_PLAYER_PRO")

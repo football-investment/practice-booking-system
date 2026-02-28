@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 class LocationBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base location schema"""
     name: str = Field(..., min_length=1, max_length=200, description="Location name (legacy field)")

@@ -54,7 +54,7 @@ class ApplicationStatusEnum(str, Enum):
 
 
 class MasterInstructorBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for master instructor"""
     location_id: int = Field(..., description="Location ID")
@@ -115,7 +115,7 @@ class MasterInstructorResponse(MasterInstructorBase):
 
 
 class PositionBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for position posting"""
     location_id: int = Field(..., description="Location ID")
@@ -172,7 +172,7 @@ class PositionResponse(PositionBase):
 
 
 class ApplicationBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for position application"""
     position_id: int = Field(..., description="Position ID")
@@ -217,7 +217,7 @@ class ApplicationResponse(ApplicationBase):
 
 
 class AssignmentBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """Base schema for instructor assignment"""
     location_id: int = Field(..., description="Location ID")

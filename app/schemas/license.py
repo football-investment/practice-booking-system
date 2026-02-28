@@ -7,7 +7,7 @@ from datetime import datetime
 
 
 class FootballSkillsBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     """6 football skills with percentage values (0-100)"""
     heading: float = Field(..., ge=0.0, le=100.0, description="Heading skill percentage (0-100)")

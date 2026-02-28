@@ -19,7 +19,7 @@ class UserLicenseSimple(BaseModel):
 
 
 class UserBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     name: str
     nickname: Optional[str] = None

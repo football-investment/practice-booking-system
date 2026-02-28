@@ -5,7 +5,7 @@ from ..models.notification import NotificationType
 
 
 class NotificationBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     title: str
     message: str

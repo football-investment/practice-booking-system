@@ -21,7 +21,7 @@ class MessageUserInfo(BaseModel):
 
 
 class MessageBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     subject: str
     message: str

@@ -10,7 +10,7 @@ from uuid import UUID
 
 # Base Track Schemas
 class TrackBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     name: str
     code: str
@@ -45,7 +45,7 @@ class TrackResponse(TrackBase):
 
 # Module Schemas
 class ModuleBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     name: str
     description: Optional[str] = None
@@ -74,7 +74,7 @@ class ModuleResponse(ModuleBase):
 
 # Module Component Schemas
 class ModuleComponentBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     type: str  # 'theory', 'quiz', 'project', 'assignment', 'video'
     name: str
@@ -101,7 +101,7 @@ class ModuleComponentResponse(ModuleComponentBase):
 
 # Track Progress Schemas
 class UserTrackProgressBase(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+
 
     status: str
     completion_percentage: float = 0.0
