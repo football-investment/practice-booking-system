@@ -45,20 +45,42 @@ class LFACoachService(BaseSpecializationService):
         self.db = db
 
     def get_license_by_user(self, user_id: int):
-        """Get user's active license (required by credit endpoints)"""
+        """Get user's active license with all fields for license endpoints"""
         try:
             from app.models.license import UserLicense
+            from app.models.user_progress import UserProgress
+            from datetime import datetime
+
             license = self.db.query(UserLicense).filter(
                 UserLicense.user_id == user_id,
-                UserLicense.is_active == True
+                UserLicense.is_active == True,
+                UserLicense.specialization_type == 'LFA_COACH'
             ).first()
             if not license:
                 return None
+
+            # Get theory/practice hours from UserProgress if exists
+            progress = self.db.query(UserProgress).filter(
+                UserProgress.user_id == user_id,
+                UserProgress.specialization_type == 'LFA_COACH'
+            ).first()
+
+            theory_hours = progress.theory_hours_completed if progress else 0
+            practice_hours = progress.practice_hours_completed if progress else 0
+
             return {
                 'id': license.id,
                 'user_id': license.user_id,
-                'credit_balance': getattr(license, 'credit_balance', 0),
-                'is_active': license.is_active
+                'current_level': license.current_level,
+                'max_achieved_level': license.max_achieved_level,
+                'theory_hours': theory_hours,
+                'practice_hours': practice_hours,
+                'expires_at': license.expires_at,
+                'is_expired': license.expires_at < datetime.utcnow() if license.expires_at else False,
+                'is_active': license.is_active,
+                'created_at': license.started_at,
+                'updated_at': license.last_advanced_at,
+                'credit_balance': getattr(license, 'credit_balance', 0)
             }
         except Exception:
             return None

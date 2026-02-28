@@ -43,20 +43,40 @@ class LFAInternshipService(BaseSpecializationService):
         self.db = db
 
     def get_license_by_user(self, user_id: int):
-        """Get user's active license (required by credit endpoints)"""
+        """Get user's active license with all fields for license endpoints"""
         try:
             from app.models.license import UserLicense
+            from app.models.user_progress import UserProgress
+            from datetime import datetime
+
             license = self.db.query(UserLicense).filter(
                 UserLicense.user_id == user_id,
-                UserLicense.is_active == True
+                UserLicense.is_active == True,
+                UserLicense.specialization_type == 'INTERNSHIP'
             ).first()
             if not license:
                 return None
+
+            # Get XP from UserProgress if exists
+            progress = self.db.query(UserProgress).filter(
+                UserProgress.user_id == user_id,
+                UserProgress.specialization_type == 'INTERNSHIP'
+            ).first()
+
+            current_xp = getattr(progress, 'current_xp', 0) if progress else 0
+
             return {
                 'id': license.id,
                 'user_id': license.user_id,
+                'current_level': license.current_level,
+                'max_achieved_level': license.max_achieved_level,
+                'current_xp': current_xp,
                 'credit_balance': getattr(license, 'credit_balance', 0),
-                'is_active': license.is_active
+                'expires_at': license.expires_at.isoformat() if license.expires_at else None,
+                'is_expired': license.expires_at < datetime.utcnow() if license.expires_at else False,
+                'is_active': license.is_active,
+                'created_at': license.started_at,
+                'updated_at': license.last_advanced_at
             }
         except Exception:
             return None
