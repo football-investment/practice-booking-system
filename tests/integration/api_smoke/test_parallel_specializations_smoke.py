@@ -374,7 +374,7 @@ class TestParallelspecializationsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"GET /api/v1/semester-info/{test_tournament['semester']} failed: {response.status_code} "
+            f'GET /api/v1/semester-info/{test_tournament["semester"]} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -398,7 +398,7 @@ class TestParallelspecializationsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/semester-info/{test_tournament['semester']} should require auth or error: {response.status_code}"
+            f'GET /api/v1/semester-info/{test_tournament["semester"]} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -444,7 +444,7 @@ class TestParallelspecializationsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/validate/{test_tournament['specialization']} failed: {response.status_code} "
+            f'GET /api/v1/validate/{test_tournament["specialization"]} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -468,7 +468,7 @@ class TestParallelspecializationsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/validate/{test_tournament['specialization']} should require auth or error: {response.status_code}"
+            f'GET /api/v1/validate/{test_tournament["specialization"]} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")

@@ -388,7 +388,7 @@ class TestInvoicesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
 
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['invoice_id']}/cancel failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["invoice_id"]}/cancel failed: {response.status_code} '
             f"{response.text}"
         )
         

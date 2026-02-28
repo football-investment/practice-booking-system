@@ -14,7 +14,7 @@ class TestTournamentsSmoke:
     """Smoke tests for tournaments API endpoints"""
 
 
-    # ── DELETE /api/v1/tournaments/{test_tournament['tournament_id']} ────────────────────────────
+    # ── DELETE /api/v1/tournaments/{test_tournament["tournament_id"]} ────────────────────────────
 
     def test_delete_tournament_happy_path(
         self,
@@ -23,13 +23,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}
+        Happy path: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}
         Source: app/api/api_v1/endpoints/tournaments/generator.py:delete_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -40,7 +40,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
 
         assert response.status_code in [200, 201, 204, 404, 405], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']} failed: {response.status_code} "
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -51,10 +51,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']} requires authentication
+        Auth validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -64,7 +64,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']} should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -75,7 +75,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']} validates request data
+        Input validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -85,7 +85,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id} ────────────────────────────
+    # ── DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id} ────────────────────────────
 
     def test_delete_campus_schedule_happy_path(
         self,
@@ -95,13 +95,13 @@ class TestTournamentsSmoke:
         test_campus_id,
     ):
         """
-        Happy path: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id}
+        Happy path: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id}
         Source: app/api/api_v1/endpoints/tournaments/campus_schedule.py:delete_campus_schedule
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id}", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -111,7 +111,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id} failed: {response.status_code} "
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -123,10 +123,10 @@ class TestTournamentsSmoke:
         test_campus_id,
     ):
         """
-        Auth validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id} requires authentication
+        Auth validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id}")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -136,7 +136,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id} should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -148,7 +148,7 @@ class TestTournamentsSmoke:
         test_campus_id,
     ):
         """
-        Input validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules/{test_campus_id} validates request data
+        Input validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules/{test_campus_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -158,7 +158,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config ────────────────────────────
+    # ── DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config ────────────────────────────
 
     def test_delete_tournament_reward_config_happy_path(
         self,
@@ -167,13 +167,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config
+        Happy path: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config
         Source: app/api/api_v1/endpoints/tournaments/reward_config.py:delete_tournament_reward_config
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config', headers=headers)
         
 
         # Accept valid responses:
@@ -183,7 +183,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -194,10 +194,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config requires authentication
+        Auth validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -207,7 +207,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -218,7 +218,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config validates request data
+        Input validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -228,7 +228,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/sessions ────────────────────────────
+    # ── DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions ────────────────────────────
 
     def test_delete_generated_sessions_happy_path(
         self,
@@ -237,13 +237,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/sessions
+        Happy path: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:delete_generated_sessions
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions', headers=headers)
         
 
         # Accept valid responses:
@@ -253,7 +253,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/sessions failed: {response.status_code} "
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -264,10 +264,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/sessions requires authentication
+        Auth validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -277,7 +277,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/sessions should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -288,7 +288,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/sessions validates request data
+        Input validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -298,7 +298,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id} ────────────────────────────
+    # ── DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{mapping_id} ────────────────────────────
 
     def test_delete_tournament_skill_mapping_happy_path(
         self,
@@ -308,13 +308,13 @@ class TestTournamentsSmoke:
         test_skill_mapping_id,
     ):
         """
-        Happy path: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id}
+        Happy path: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{mapping_id}
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:delete_tournament_skill_mapping
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{test_skill_mapping_id}", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{test_skill_mapping_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -324,7 +324,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id} failed: {response.status_code} "
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{mapping_id} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -336,10 +336,10 @@ class TestTournamentsSmoke:
         test_skill_mapping_id,
     ):
         """
-        Auth validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id} requires authentication
+        Auth validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{mapping_id} requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{test_skill_mapping_id}")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{test_skill_mapping_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -349,7 +349,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id} should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{mapping_id} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -361,7 +361,7 @@ class TestTournamentsSmoke:
         test_skill_mapping_id,
     ):
         """
-        Input validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings/{mapping_id} validates request data
+        Input validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings/{mapping_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -371,7 +371,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/unenroll ────────────────────────────
+    # ── DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll ────────────────────────────
 
     def test_unenroll_from_tournament_happy_path(
         self,
@@ -380,13 +380,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/unenroll
+        Happy path: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll
         Source: app/api/api_v1/endpoints/tournaments/enroll.py:unenroll_from_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/unenroll", headers=headers)
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll', headers=headers)
         
 
         # Accept valid responses:
@@ -397,7 +397,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
 
         assert response.status_code in [200, 201, 403, 404, 405], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/unenroll failed: {response.status_code} "
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -408,10 +408,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/unenroll requires authentication
+        Auth validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll requires authentication
         """
         
-        response = api_client.delete(f"/api/v1/tournaments/{test_tournament['tournament_id']}/unenroll")
+        response = api_client.delete(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -421,7 +421,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/unenroll should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -432,7 +432,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: DELETE /api/v1/tournaments/{test_tournament['tournament_id']}/unenroll validates request data
+        Input validation: DELETE /api/v1/tournaments/{test_tournament["tournament_id"]}/unenroll validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1061,7 +1061,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']} ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]} ────────────────────────────
 
     def test_get_tournament_detail_happy_path(
         self,
@@ -1070,13 +1070,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}
         Source: app/api/api_v1/endpoints/tournaments/detail.py:get_tournament_detail
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -1086,7 +1086,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']} failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1097,10 +1097,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']} requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1110,7 +1110,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']} should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1121,7 +1121,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']} validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1131,7 +1131,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/active-match ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/active-match ────────────────────────────
 
     def test_get_active_match_happy_path(
         self,
@@ -1140,13 +1140,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/active-match
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/active-match
         Source: app/api/api_v1/endpoints/tournaments/instructor.py:get_active_match
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/active-match", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/active-match', headers=headers)
         
 
         # Accept valid responses:
@@ -1156,7 +1156,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/active-match failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/active-match failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1167,10 +1167,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/active-match requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/active-match requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/active-match")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/active-match')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1180,7 +1180,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/active-match should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/active-match should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1191,7 +1191,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/active-match validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/active-match validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1201,7 +1201,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules ────────────────────────────
 
     def test_list_campus_schedules_happy_path(
         self,
@@ -1210,13 +1210,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules
         Source: app/api/api_v1/endpoints/tournaments/campus_schedule.py:list_campus_schedules
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules', headers=headers)
         
 
         # Accept valid responses:
@@ -1226,7 +1226,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1237,10 +1237,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1250,7 +1250,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1261,7 +1261,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1271,7 +1271,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards ────────────────────────────
 
     def test_get_distributed_rewards_happy_path(
         self,
@@ -1280,13 +1280,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:get_distributed_rewards
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards', headers=headers)
         
 
         # Accept valid responses:
@@ -1296,7 +1296,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1307,10 +1307,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1320,7 +1320,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1331,7 +1331,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/distributed-rewards validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/distributed-rewards validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1341,7 +1341,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id} ────────────────────────────
 
     def test_get_generation_status_happy_path(
         self,
@@ -1351,13 +1351,13 @@ class TestTournamentsSmoke:
         test_generation_task_id,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id}
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id}
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:get_generation_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id}", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -1367,7 +1367,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1379,10 +1379,10 @@ class TestTournamentsSmoke:
         test_generation_task_id,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id}")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1392,7 +1392,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1404,7 +1404,7 @@ class TestTournamentsSmoke:
         test_generation_task_id,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/generation-status/{test_generation_task_id} validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/generation-status/{test_generation_task_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1414,7 +1414,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications ────────────────────────────
 
     def test_get_instructor_applications_happy_path(
         self,
@@ -1423,13 +1423,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:get_instructor_applications
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications', headers=headers)
         
 
         # Accept valid responses:
@@ -1439,7 +1439,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1450,10 +1450,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1463,7 +1463,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1474,7 +1474,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1484,7 +1484,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard ────────────────────────────
 
     def test_get_tournament_leaderboard_happy_path(
         self,
@@ -1493,13 +1493,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard
         Source: app/api/api_v1/endpoints/tournaments/instructor.py:get_tournament_leaderboard
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard', headers=headers)
         
 
         # Accept valid responses:
@@ -1509,7 +1509,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1520,10 +1520,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1533,7 +1533,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1544,7 +1544,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/leaderboard validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/leaderboard validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1554,7 +1554,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/my-application ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/my-application ────────────────────────────
 
     def test_get_my_tournament_application_happy_path(
         self,
@@ -1563,13 +1563,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/my-application
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/my-application
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:get_my_tournament_application
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/my-application", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/my-application', headers=headers)
         
 
         # Accept valid responses:
@@ -1579,7 +1579,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 403, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/my-application failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/my-application failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1590,10 +1590,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/my-application requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/my-application requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/my-application")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/my-application')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1603,7 +1603,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/my-application should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/my-application should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1614,7 +1614,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/my-application validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/my-application validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1624,7 +1624,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions ────────────────────────────
 
     def test_preview_tournament_sessions_happy_path(
         self,
@@ -1633,13 +1633,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:preview_tournament_sessions
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions', headers=headers)
         
 
         # Accept valid responses:
@@ -1649,7 +1649,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1660,10 +1660,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1673,7 +1673,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1684,7 +1684,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/preview-sessions validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/preview-sessions validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1694,7 +1694,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings ────────────────────────────
 
     def test_get_tournament_rankings_happy_path(
         self,
@@ -1703,13 +1703,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings
         Source: app/api/api_v1/endpoints/tournaments/calculate_rankings.py:get_tournament_rankings
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings', headers=headers)
         
 
         # Accept valid responses:
@@ -1719,7 +1719,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1730,10 +1730,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1743,7 +1743,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1754,7 +1754,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1764,7 +1764,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings ────────────────────────────
 
     def test_get_tournament_rankings_happy_path(
         self,
@@ -1773,13 +1773,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:get_tournament_rankings
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings', headers=headers)
         
 
         # Accept valid responses:
@@ -1789,7 +1789,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1800,10 +1800,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1813,7 +1813,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1824,7 +1824,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rankings validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1834,7 +1834,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config ────────────────────────────
 
     def test_get_tournament_reward_config_happy_path(
         self,
@@ -1843,13 +1843,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config
         Source: app/api/api_v1/endpoints/tournaments/reward_config.py:get_tournament_reward_config
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config', headers=headers)
         
 
         # Accept valid responses:
@@ -1859,7 +1859,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1870,10 +1870,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1883,7 +1883,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1894,7 +1894,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1904,7 +1904,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview ────────────────────────────
 
     def test_preview_tournament_rewards_happy_path(
         self,
@@ -1913,13 +1913,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview
         Source: app/api/api_v1/endpoints/tournaments/reward_config.py:preview_tournament_rewards
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview', headers=headers)
         
 
         # Accept valid responses:
@@ -1929,7 +1929,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1940,10 +1940,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1953,7 +1953,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1964,7 +1964,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config/preview validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config/preview validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1974,7 +1974,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id} ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id} ────────────────────────────
 
     def test_get_user_tournament_rewards_happy_path(
         self,
@@ -1984,13 +1984,13 @@ class TestTournamentsSmoke:
         test_student_id,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id}
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id}
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:get_user_tournament_rewards
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id}", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -2000,7 +2000,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id} failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2012,10 +2012,10 @@ class TestTournamentsSmoke:
         test_student_id,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id} requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id} requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id}")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2025,7 +2025,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id} should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2037,7 +2037,7 @@ class TestTournamentsSmoke:
         test_student_id,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/rewards/{test_student_id} validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/rewards/{test_student_id} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2047,7 +2047,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config ────────────────────────────
 
     def test_get_schedule_config_happy_path(
         self,
@@ -2056,13 +2056,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config
         Source: app/api/api_v1/endpoints/tournaments/schedule_config.py:get_schedule_config
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config', headers=headers)
         
 
         # Accept valid responses:
@@ -2072,7 +2072,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2083,10 +2083,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2096,7 +2096,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2107,7 +2107,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2117,7 +2117,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions ────────────────────────────
 
     def test_get_tournament_sessions_happy_path(
         self,
@@ -2126,13 +2126,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:get_tournament_sessions
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions', headers=headers)
         
 
         # Accept valid responses:
@@ -2142,7 +2142,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2153,10 +2153,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2166,7 +2166,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2177,7 +2177,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2187,7 +2187,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds ────────────────────────────
 
     def test_get_rounds_status_happy_path(
         self,
@@ -2197,13 +2197,13 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds
         Source: app/api/api_v1/endpoints/tournaments/results/round_management.py:get_rounds_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds', headers=headers)
         
 
         # Accept valid responses:
@@ -2213,7 +2213,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2225,10 +2225,10 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2238,7 +2238,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2250,7 +2250,7 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2260,7 +2260,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings ────────────────────────────
 
     def test_get_tournament_skill_mappings_happy_path(
         self,
@@ -2269,13 +2269,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:get_tournament_skill_mappings
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings', headers=headers)
         
 
         # Accept valid responses:
@@ -2285,7 +2285,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2296,10 +2296,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2309,7 +2309,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2320,7 +2320,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2330,7 +2330,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/status-history ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/status-history ────────────────────────────
 
     def test_get_tournament_status_history_happy_path(
         self,
@@ -2339,13 +2339,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/status-history
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/status-history
         Source: app/api/api_v1/endpoints/tournaments/lifecycle.py:get_tournament_status_history
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/status-history", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/status-history', headers=headers)
         
 
         # Accept valid responses:
@@ -2355,7 +2355,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/status-history failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/status-history failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2366,10 +2366,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/status-history requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/status-history requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/status-history")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/status-history')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2379,7 +2379,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/status-history should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/status-history should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2390,7 +2390,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/status-history validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/status-history validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2400,7 +2400,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── GET /api/v1/tournaments/{test_tournament['tournament_id']}/summary ────────────────────────────
+    # ── GET /api/v1/tournaments/{test_tournament["tournament_id"]}/summary ────────────────────────────
 
     def test_get_tournament_summary_happy_path(
         self,
@@ -2409,13 +2409,13 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: GET /api/v1/tournaments/{test_tournament['tournament_id']}/summary
+        Happy path: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/summary
         Source: app/api/api_v1/endpoints/tournaments/generator.py:get_tournament_summary
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/summary", headers=headers)
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/summary', headers=headers)
         
 
         # Accept valid responses:
@@ -2425,7 +2425,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/summary failed: {response.status_code} "
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/summary failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2436,10 +2436,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/summary requires authentication
+        Auth validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/summary requires authentication
         """
         
-        response = api_client.get(f"/api/v1/tournaments/{test_tournament['tournament_id']}/summary")
+        response = api_client.get(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/summary')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2449,7 +2449,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/tournaments/{test_tournament['tournament_id']}/summary should require auth or error: {response.status_code}"
+            f'GET /api/v1/tournaments/{test_tournament["tournament_id"]}/summary should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -2460,7 +2460,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: GET /api/v1/tournaments/{test_tournament['tournament_id']}/summary validates request data
+        Input validation: GET /api/v1/tournaments/{test_tournament["tournament_id"]}/summary validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2470,7 +2470,7 @@ class TestTournamentsSmoke:
         
 
 
-    # ── PATCH /api/v1/tournaments/{test_tournament['tournament_id']} ────────────────────────────
+    # ── PATCH /api/v1/tournaments/{test_tournament["tournament_id"]} ────────────────────────────
 
     def test_update_tournament_happy_path(
         self,
@@ -2479,14 +2479,14 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}
+        Happy path: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_updates.py:update_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -2496,7 +2496,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']} failed: {response.status_code} "
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2507,10 +2507,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']} requires authentication
+        Auth validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]} requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}", json={})
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2520,7 +2520,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']} should require auth or error: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]} should require auth or error: {response.status_code}'
         )
 
     def test_update_tournament_input_validation(
@@ -2530,7 +2530,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']} validates request data
+        Input validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2538,19 +2538,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']} should validate input: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]} should validate input: {response.status_code}'
         )
         
 
 
-    # ── PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config ────────────────────────────
+    # ── PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config ────────────────────────────
 
     def test_update_schedule_config_happy_path(
         self,
@@ -2559,14 +2559,14 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config
+        Happy path: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config
         Source: app/api/api_v1/endpoints/tournaments/schedule_config.py:update_schedule_config
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -2576,7 +2576,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config failed: {response.status_code} "
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2587,10 +2587,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config requires authentication
+        Auth validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config", json={})
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2600,7 +2600,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config should require auth or error: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config should require auth or error: {response.status_code}'
         )
 
     def test_update_schedule_config_input_validation(
@@ -2610,7 +2610,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config validates request data
+        Input validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2618,19 +2618,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/schedule-config should validate input: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/schedule-config should validate input: {response.status_code}'
         )
         
 
 
-    # ── PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results ────────────────────────────
+    # ── PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results ────────────────────────────
 
     def test_record_match_results_happy_path(
         self,
@@ -2640,14 +2640,14 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Happy path: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results
+        Happy path: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results
         Source: app/api/api_v1/endpoints/tournaments/results/submission.py:record_match_results
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -2657,7 +2657,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results failed: {response.status_code} "
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2669,10 +2669,10 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Auth validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results requires authentication
+        Auth validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results", json={})
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2682,7 +2682,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results should require auth or error: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results should require auth or error: {response.status_code}'
         )
 
     def test_record_match_results_input_validation(
@@ -2693,7 +2693,7 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Input validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results validates request data
+        Input validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2701,19 +2701,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/results should validate input: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/results should validate input: {response.status_code}'
         )
         
 
 
-    # ── PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status ────────────────────────────
+    # ── PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status ────────────────────────────
 
     def test_transition_tournament_status_happy_path(
         self,
@@ -2722,14 +2722,14 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status
+        Happy path: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status
         Source: app/api/api_v1/endpoints/tournaments/lifecycle.py:transition_tournament_status
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/status", json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/status', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -2739,7 +2739,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status failed: {response.status_code} "
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -2750,10 +2750,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status requires authentication
+        Auth validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status requires authentication
         """
         
-        response = api_client.patch(f"/api/v1/tournaments/{test_tournament['tournament_id']}/status", json={})
+        response = api_client.patch(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/status', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -2763,7 +2763,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status should require auth or error: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status should require auth or error: {response.status_code}'
         )
 
     def test_transition_tournament_status_input_validation(
@@ -2773,7 +2773,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status validates request data
+        Input validation: PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -2781,14 +2781,14 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/status",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/status',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/tournaments/{test_tournament['tournament_id']}/status should validate input: {response.status_code}"
+            f'PATCH /api/v1/tournaments/{test_tournament["tournament_id"]}/status should validate input: {response.status_code}'
         )
         
 
@@ -3122,7 +3122,7 @@ class TestTournamentsSmoke:
         
         # TODO: Add realistic payload for /api/v1/requests/{request_id}/accept
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/requests/{test_tournament['request_id']}/accept", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/requests/{test_tournament["request_id"]}/accept', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3132,7 +3132,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 403, 404, 405, 422], (
-            f"POST /api/v1/requests/{test_tournament['request_id']}/accept failed: {response.status_code} "
+            f'POST /api/v1/requests/{test_tournament["request_id"]}/accept failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3146,7 +3146,7 @@ class TestTournamentsSmoke:
         Auth validation: POST /api/v1/requests/{request_id}/accept requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/requests/{test_tournament['request_id']}/accept", json={})
+        response = api_client.post(f'/api/v1/tournaments/requests/{test_tournament["request_id"]}/accept', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3156,7 +3156,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/requests/{test_tournament['request_id']}/accept should require auth or error: {response.status_code}"
+            f'POST /api/v1/requests/{test_tournament["request_id"]}/accept should require auth or error: {response.status_code}'
         )
 
     def test_accept_instructor_request_input_validation(
@@ -3174,14 +3174,14 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/requests/{test_tournament['request_id']}/accept",
+            f'/api/v1/tournaments/requests/{test_tournament["request_id"]}/accept',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/requests/{test_tournament['request_id']}/accept should validate input: {response.status_code}"
+            f'POST /api/v1/requests/{test_tournament["request_id"]}/accept should validate input: {response.status_code}'
         )
         
 
@@ -3203,7 +3203,7 @@ class TestTournamentsSmoke:
         
         # TODO: Add realistic payload for /api/v1/requests/{request_id}/decline
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/requests/{test_tournament['request_id']}/decline", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/requests/{test_tournament["request_id"]}/decline', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3213,7 +3213,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 403, 404, 405, 422], (
-            f"POST /api/v1/requests/{test_tournament['request_id']}/decline failed: {response.status_code} "
+            f'POST /api/v1/requests/{test_tournament["request_id"]}/decline failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3227,7 +3227,7 @@ class TestTournamentsSmoke:
         Auth validation: POST /api/v1/requests/{request_id}/decline requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/requests/{test_tournament['request_id']}/decline", json={})
+        response = api_client.post(f'/api/v1/tournaments/requests/{test_tournament["request_id"]}/decline', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3237,7 +3237,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/requests/{test_tournament['request_id']}/decline should require auth or error: {response.status_code}"
+            f'POST /api/v1/requests/{test_tournament["request_id"]}/decline should require auth or error: {response.status_code}'
         )
 
     def test_decline_instructor_request_input_validation(
@@ -3255,19 +3255,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/requests/{test_tournament['request_id']}/decline",
+            f'/api/v1/tournaments/requests/{test_tournament["request_id"]}/decline',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/requests/{test_tournament['request_id']}/decline should validate input: {response.status_code}"
+            f'POST /api/v1/requests/{test_tournament["request_id"]}/decline should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll ────────────────────────────
 
     def test_admin_batch_enroll_players_happy_path(
         self,
@@ -3276,15 +3276,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll
         Source: app/api/api_v1/endpoints/tournaments/admin_enroll.py:admin_batch_enroll_players
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3294,7 +3294,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3305,10 +3305,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3318,7 +3318,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll should require auth or error: {response.status_code}'
         )
 
     def test_admin_batch_enroll_players_input_validation(
@@ -3328,7 +3328,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3336,19 +3336,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/admin/batch-enroll should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/admin/batch-enroll should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor ────────────────────────────
 
     def test_assign_instructor_to_tournament_happy_path(
         self,
@@ -3357,15 +3357,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_instructor.py:assign_instructor_to_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3375,7 +3375,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3386,10 +3386,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3399,7 +3399,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor should require auth or error: {response.status_code}'
         )
 
     def test_assign_instructor_to_tournament_input_validation(
@@ -3409,7 +3409,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3417,19 +3417,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/assign-instructor should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/assign-instructor should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings ────────────────────────────
 
     def test_calculate_tournament_rankings_happy_path(
         self,
@@ -3438,15 +3438,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings
         Source: app/api/api_v1/endpoints/tournaments/calculate_rankings.py:calculate_tournament_rankings
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3456,7 +3456,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3467,10 +3467,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3480,7 +3480,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings should require auth or error: {response.status_code}'
         )
 
     def test_calculate_tournament_rankings_input_validation(
@@ -3490,7 +3490,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3498,19 +3498,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/calculate-rankings should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/calculate-rankings should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel ────────────────────────────
 
     def test_cancel_tournament_happy_path(
         self,
@@ -3519,15 +3519,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel
         Source: app/api/api_v1/endpoints/tournaments/cancellation.py:cancel_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/cancel
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/cancel", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/cancel', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3537,7 +3537,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3548,10 +3548,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/cancel", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/cancel', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3561,7 +3561,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel should require auth or error: {response.status_code}'
         )
 
     def test_cancel_tournament_input_validation(
@@ -3571,7 +3571,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3579,19 +3579,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/cancel",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/cancel',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/cancel should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/cancel should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete ────────────────────────────
 
     def test_complete_tournament_happy_path(
         self,
@@ -3600,15 +3600,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:complete_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/complete
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/complete
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/complete", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/complete', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3618,7 +3618,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3629,10 +3629,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/complete", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/complete', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3642,7 +3642,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete should require auth or error: {response.status_code}'
         )
 
     def test_complete_tournament_input_validation(
@@ -3652,7 +3652,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3660,19 +3660,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/complete",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/complete',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/complete should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/complete should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor ────────────────────────────
 
     def test_direct_assign_instructor_happy_path(
         self,
@@ -3681,15 +3681,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:direct_assign_instructor
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3699,7 +3699,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3710,10 +3710,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3723,7 +3723,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor should require auth or error: {response.status_code}'
         )
 
     def test_direct_assign_instructor_input_validation(
@@ -3733,7 +3733,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3741,19 +3741,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/direct-assign-instructor should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/direct-assign-instructor should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards ────────────────────────────
 
     def test_distribute_tournament_rewards_happy_path(
         self,
@@ -3762,15 +3762,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:distribute_tournament_rewards
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3780,7 +3780,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3791,10 +3791,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3804,7 +3804,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards should require auth or error: {response.status_code}'
         )
 
     def test_distribute_tournament_rewards_input_validation(
@@ -3814,7 +3814,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3822,19 +3822,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2 ────────────────────────────
 
     def test_distribute_tournament_rewards_v2_happy_path(
         self,
@@ -3843,15 +3843,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:distribute_tournament_rewards_v2
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3861,7 +3861,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2 failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3872,10 +3872,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2 requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3885,7 +3885,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2 should require auth or error: {response.status_code}'
         )
 
     def test_distribute_tournament_rewards_v2_input_validation(
@@ -3895,7 +3895,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2 validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3903,19 +3903,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards-v2 should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/distribute-rewards-v2 should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll ────────────────────────────
 
     def test_enroll_in_tournament_happy_path(
         self,
@@ -3924,15 +3924,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll
         Source: app/api/api_v1/endpoints/tournaments/enroll.py:enroll_in_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/enroll
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/enroll", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/enroll', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -3942,7 +3942,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -3953,10 +3953,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/enroll", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/enroll', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -3966,7 +3966,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll should require auth or error: {response.status_code}'
         )
 
     def test_enroll_in_tournament_input_validation(
@@ -3976,7 +3976,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -3984,19 +3984,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/enroll",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/enroll',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/enroll should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/enroll should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage ────────────────────────────
 
     def test_finalize_group_stage_happy_path(
         self,
@@ -4005,15 +4005,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage
         Source: app/api/api_v1/endpoints/tournaments/results/finalization.py:finalize_group_stage
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4023,7 +4023,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4034,10 +4034,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4047,7 +4047,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage should require auth or error: {response.status_code}'
         )
 
     def test_finalize_group_stage_input_validation(
@@ -4057,7 +4057,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4065,19 +4065,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-group-stage should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-group-stage should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament ────────────────────────────
 
     def test_finalize_tournament_happy_path(
         self,
@@ -4086,15 +4086,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament
         Source: app/api/api_v1/endpoints/tournaments/results/finalization.py:finalize_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4104,7 +4104,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4115,10 +4115,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4128,7 +4128,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament should require auth or error: {response.status_code}'
         )
 
     def test_finalize_tournament_input_validation(
@@ -4138,7 +4138,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4146,19 +4146,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/finalize-tournament should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/finalize-tournament should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions ────────────────────────────
 
     def test_generate_tournament_sessions_happy_path(
         self,
@@ -4167,15 +4167,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions
         Source: app/api/api_v1/endpoints/tournaments/generate_sessions.py:generate_tournament_sessions
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4185,7 +4185,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4196,10 +4196,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4209,7 +4209,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions should require auth or error: {response.status_code}'
         )
 
     def test_generate_tournament_sessions_input_validation(
@@ -4219,7 +4219,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4227,19 +4227,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/generate-sessions should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/generate-sessions should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications ────────────────────────────
 
     def test_apply_to_tournament_happy_path(
         self,
@@ -4248,15 +4248,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:apply_to_tournament
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4266,7 +4266,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 403, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4277,10 +4277,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4290,7 +4290,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications should require auth or error: {response.status_code}'
         )
 
     def test_apply_to_tournament_input_validation(
@@ -4300,7 +4300,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4308,19 +4308,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve ────────────────────────────
 
     def test_approve_instructor_application_happy_path(
         self,
@@ -4329,15 +4329,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:approve_instructor_application
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4347,7 +4347,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4358,10 +4358,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4371,7 +4371,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve should require auth or error: {response.status_code}'
         )
 
     def test_approve_instructor_application_input_validation(
@@ -4381,7 +4381,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4389,19 +4389,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/approve should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/approve should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline ────────────────────────────
 
     def test_decline_instructor_application_happy_path(
         self,
@@ -4410,15 +4410,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:decline_instructor_application
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4428,7 +4428,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4439,10 +4439,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4452,7 +4452,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline should require auth or error: {response.status_code}'
         )
 
     def test_decline_instructor_application_input_validation(
@@ -4462,7 +4462,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4470,19 +4470,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-applications/{test_tournament['application_id']}/decline should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-applications/{test_tournament["application_id"]}/decline should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept ────────────────────────────
 
     def test_accept_instructor_assignment_happy_path(
         self,
@@ -4491,15 +4491,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept
         Source: app/api/api_v1/endpoints/tournaments/instructor_assignment.py:accept_instructor_assignment
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4509,7 +4509,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 403, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4520,10 +4520,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4533,7 +4533,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept should require auth or error: {response.status_code}'
         )
 
     def test_accept_instructor_assignment_input_validation(
@@ -4543,7 +4543,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4551,19 +4551,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor-assignment/accept should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor-assignment/accept should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept ────────────────────────────
 
     def test_instructor_accept_assignment_happy_path(
         self,
@@ -4572,15 +4572,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_instructor.py:instructor_accept_assignment
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4590,7 +4590,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4601,10 +4601,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4614,7 +4614,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept should require auth or error: {response.status_code}'
         )
 
     def test_instructor_accept_assignment_input_validation(
@@ -4624,7 +4624,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4632,19 +4632,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/accept should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/accept should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline ────────────────────────────
 
     def test_instructor_decline_assignment_happy_path(
         self,
@@ -4653,15 +4653,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline
         Source: app/api/api_v1/endpoints/tournaments/lifecycle_instructor.py:instructor_decline_assignment
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4671,7 +4671,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4682,10 +4682,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4695,7 +4695,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline should require auth or error: {response.status_code}'
         )
 
     def test_instructor_decline_assignment_input_validation(
@@ -4705,7 +4705,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4713,19 +4713,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/instructor/decline should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/instructor/decline should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings ────────────────────────────
 
     def test_submit_tournament_rankings_happy_path(
         self,
@@ -4734,15 +4734,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings
         Source: app/api/api_v1/endpoints/tournaments/rewards.py:submit_tournament_rankings
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/rankings
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4752,7 +4752,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4763,10 +4763,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4776,7 +4776,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings should require auth or error: {response.status_code}'
         )
 
     def test_submit_tournament_rankings_input_validation(
@@ -4786,7 +4786,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4794,19 +4794,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/rankings",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/rankings',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/rankings should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/rankings should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config ────────────────────────────
 
     def test_save_tournament_reward_config_happy_path(
         self,
@@ -4815,15 +4815,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config
         Source: app/api/api_v1/endpoints/tournaments/reward_config.py:save_tournament_reward_config
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4833,7 +4833,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4844,10 +4844,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4857,7 +4857,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config should require auth or error: {response.status_code}'
         )
 
     def test_save_tournament_reward_config_input_validation(
@@ -4867,7 +4867,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4875,19 +4875,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request ────────────────────────────
 
     def test_send_instructor_request_happy_path(
         self,
@@ -4896,15 +4896,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request
         Source: app/api/api_v1/endpoints/tournaments/generator.py:send_instructor_request
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4914,7 +4914,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -4925,10 +4925,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -4938,7 +4938,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request should require auth or error: {response.status_code}'
         )
 
     def test_send_instructor_request_input_validation(
@@ -4948,7 +4948,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -4956,19 +4956,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/send-instructor-request should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/send-instructor-request should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize ────────────────────────────
 
     def test_finalize_individual_ranking_session_happy_path(
         self,
@@ -4978,15 +4978,15 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize
         Source: app/api/api_v1/endpoints/tournaments/results/finalization.py:finalize_individual_ranking_session
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -4996,7 +4996,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -5008,10 +5008,10 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -5021,7 +5021,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize should require auth or error: {response.status_code}'
         )
 
     def test_finalize_individual_ranking_session_input_validation(
@@ -5032,7 +5032,7 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -5040,19 +5040,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/finalize should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/finalize should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results ────────────────────────────
 
     def test_submit_round_results_happy_path(
         self,
@@ -5062,15 +5062,15 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results
         Source: app/api/api_v1/endpoints/tournaments/results/submission.py:submit_round_results
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -5080,7 +5080,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -5092,10 +5092,10 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -5105,7 +5105,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results should require auth or error: {response.status_code}'
         )
 
     def test_submit_round_results_input_validation(
@@ -5116,7 +5116,7 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -5124,19 +5124,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/rounds/{test_tournament['round_number']}/submit-results should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/rounds/{test_tournament["round_number"]}/submit-results should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results ────────────────────────────
 
     def test_submit_structured_match_results_happy_path(
         self,
@@ -5146,15 +5146,15 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results
         Source: app/api/api_v1/endpoints/tournaments/results/submission.py:submit_structured_match_results
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -5164,7 +5164,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -5176,10 +5176,10 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -5189,7 +5189,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results should require auth or error: {response.status_code}'
         )
 
     def test_submit_structured_match_results_input_validation(
@@ -5200,7 +5200,7 @@ class TestTournamentsSmoke:
         test_session_id,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -5208,19 +5208,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{test_session_id}/submit-results should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/sessions/{test_session_id}/submit-results should validate input: {response.status_code}'
         )
         
 
 
-    # ── POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings ────────────────────────────
+    # ── POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings ────────────────────────────
 
     def test_add_tournament_skill_mapping_happy_path(
         self,
@@ -5229,15 +5229,15 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings
+        Happy path: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings
         Source: app/api/api_v1/endpoints/tournaments/rewards_v2.py:add_tournament_skill_mapping
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings
+        # TODO: Add realistic payload for /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings
         payload = {}
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings", json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -5247,7 +5247,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings failed: {response.status_code} "
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -5258,10 +5258,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings requires authentication
+        Auth validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings requires authentication
         """
         
-        response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings", json={})
+        response = api_client.post(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -5271,7 +5271,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings should require auth or error: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings should require auth or error: {response.status_code}'
         )
 
     def test_add_tournament_skill_mapping_input_validation(
@@ -5281,7 +5281,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings validates request data
+        Input validation: POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -5289,19 +5289,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/tournaments/{test_tournament['tournament_id']}/skill-mappings should validate input: {response.status_code}"
+            f'POST /api/v1/tournaments/{test_tournament["tournament_id"]}/skill-mappings should validate input: {response.status_code}'
         )
         
 
 
-    # ── PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules ────────────────────────────
+    # ── PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules ────────────────────────────
 
     def test_upsert_campus_schedule_happy_path(
         self,
@@ -5310,14 +5310,14 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules
+        Happy path: PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules
         Source: app/api/api_v1/endpoints/tournaments/campus_schedule.py:upsert_campus_schedule
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -5327,7 +5327,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules failed: {response.status_code} "
+            f'PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -5338,10 +5338,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules requires authentication
+        Auth validation: PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules requires authentication
         """
         
-        response = api_client.put(f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules", json={})
+        response = api_client.put(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -5351,7 +5351,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules should require auth or error: {response.status_code}"
+            f'PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules should require auth or error: {response.status_code}'
         )
 
     def test_upsert_campus_schedule_input_validation(
@@ -5361,7 +5361,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules validates request data
+        Input validation: PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -5369,19 +5369,19 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/campus-schedules should validate input: {response.status_code}"
+            f'PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/campus-schedules should validate input: {response.status_code}'
         )
         
 
 
-    # ── PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config ────────────────────────────
+    # ── PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config ────────────────────────────
 
     def test_update_tournament_reward_config_happy_path(
         self,
@@ -5390,14 +5390,14 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Happy path: PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config
+        Happy path: PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config
         Source: app/api/api_v1/endpoints/tournaments/reward_config.py:update_tournament_reward_config
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
         payload = {}
-        response = api_client.put(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -5407,7 +5407,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config failed: {response.status_code} "
+            f'PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -5418,10 +5418,10 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Auth validation: PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config requires authentication
+        Auth validation: PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config requires authentication
         """
         
-        response = api_client.put(f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config", json={})
+        response = api_client.put(f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -5431,7 +5431,7 @@ class TestTournamentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should require auth or error: {response.status_code}"
+            f'PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config should require auth or error: {response.status_code}'
         )
 
     def test_update_tournament_reward_config_input_validation(
@@ -5441,7 +5441,7 @@ class TestTournamentsSmoke:
         test_tournament,
     ):
         """
-        Input validation: PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config validates request data
+        Input validation: PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -5449,14 +5449,14 @@ class TestTournamentsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f"/api/v1/tournaments/{test_tournament['tournament_id']}/reward-config",
+            f'/api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PUT /api/v1/tournaments/{test_tournament['tournament_id']}/reward-config should validate input: {response.status_code}"
+            f'PUT /api/v1/tournaments/{test_tournament["tournament_id"]}/reward-config should validate input: {response.status_code}'
         )
         
 

@@ -227,7 +227,7 @@ class TestPaymentverificationSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/students/{test_tournament['student_id']}/add-specialization should validate input: {response.status_code}"
+            f'POST /api/v1/students/{test_tournament["student_id"]}/add-specialization should validate input: {response.status_code}'
         )
         
 
@@ -308,7 +308,7 @@ class TestPaymentverificationSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/students/{test_tournament['student_id']}/remove-specialization should validate input: {response.status_code}"
+            f'POST /api/v1/students/{test_tournament["student_id"]}/remove-specialization should validate input: {response.status_code}'
         )
         
 
@@ -470,7 +470,7 @@ class TestPaymentverificationSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/students/{test_tournament['student_id']}/verify should validate input: {response.status_code}"
+            f'POST /api/v1/students/{test_tournament["student_id"]}/verify should validate input: {response.status_code}'
         )
         
 

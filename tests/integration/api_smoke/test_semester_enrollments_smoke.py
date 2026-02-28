@@ -39,7 +39,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/{test_tournament['enrollment_id']} failed: {response.status_code} "
+            f'DELETE /api/v1/{test_tournament["enrollment_id"]} failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -63,7 +63,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/{test_tournament['enrollment_id']} should require auth or error: {response.status_code}"
+            f'DELETE /api/v1/{test_tournament["enrollment_id"]} should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -109,7 +109,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/semesters/{test_tournament['semester_id']}/enrollments failed: {response.status_code} "
+            f'GET /api/v1/semesters/{test_tournament["semester_id"]}/enrollments failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -133,7 +133,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/semesters/{test_tournament['semester_id']}/enrollments should require auth or error: {response.status_code}"
+            f'GET /api/v1/semesters/{test_tournament["semester_id"]}/enrollments should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -249,7 +249,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"GET /api/v1/{test_tournament['enrollment_id']}/payment-info failed: {response.status_code} "
+            f'GET /api/v1/{test_tournament["enrollment_id"]}/payment-info failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -273,7 +273,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"GET /api/v1/{test_tournament['enrollment_id']}/payment-info should require auth or error: {response.status_code}"
+            f'GET /api/v1/{test_tournament["enrollment_id"]}/payment-info should require auth or error: {response.status_code}'
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -477,7 +477,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/approve failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/approve failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -501,7 +501,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/approve should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/approve should require auth or error: {response.status_code}'
         )
 
     def test_approve_enrollment_request_input_validation(
@@ -526,7 +526,7 @@ class TestSemesterenrollmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/approve should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/approve should validate input: {response.status_code}'
         )
         
 
@@ -558,7 +558,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/override-category failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/override-category failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -582,7 +582,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/override-category should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/override-category should require auth or error: {response.status_code}'
         )
 
     def test_override_age_category_input_validation(
@@ -607,7 +607,7 @@ class TestSemesterenrollmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/override-category should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/override-category should validate input: {response.status_code}'
         )
         
 
@@ -639,7 +639,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 400, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/reject failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/reject failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -663,7 +663,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/reject should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/reject should require auth or error: {response.status_code}'
         )
 
     def test_reject_enrollment_request_input_validation(
@@ -688,7 +688,7 @@ class TestSemesterenrollmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/reject should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/reject should validate input: {response.status_code}'
         )
         
 
@@ -720,7 +720,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/toggle-active failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/toggle-active failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -744,7 +744,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/toggle-active should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/toggle-active should require auth or error: {response.status_code}'
         )
 
     def test_toggle_enrollment_active_input_validation(
@@ -769,7 +769,7 @@ class TestSemesterenrollmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/toggle-active should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/toggle-active should validate input: {response.status_code}'
         )
         
 
@@ -801,7 +801,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/unverify-payment failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/unverify-payment failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -825,7 +825,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/unverify-payment should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/unverify-payment should require auth or error: {response.status_code}'
         )
 
     def test_unverify_enrollment_payment_input_validation(
@@ -850,7 +850,7 @@ class TestSemesterenrollmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/unverify-payment should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/unverify-payment should validate input: {response.status_code}'
         )
         
 
@@ -882,7 +882,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/verify-payment failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/verify-payment failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -906,7 +906,7 @@ class TestSemesterenrollmentsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/verify-payment should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/verify-payment should require auth or error: {response.status_code}'
         )
 
     def test_verify_enrollment_payment_input_validation(
@@ -931,7 +931,7 @@ class TestSemesterenrollmentsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['enrollment_id']}/verify-payment should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["enrollment_id"]}/verify-payment should validate input: {response.status_code}'
         )
         
 
