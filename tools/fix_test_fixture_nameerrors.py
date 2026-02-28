@@ -26,6 +26,25 @@ VARIABLE_FIXES = {
     # Actual usage: test_student_id
     r'\{student_id\}': r'{test_student_id}',
 
+    # session_id in paths (when fixture is test_session_id)
+    # Note: check if using test_session_id fixture
+    r'\{session_id\}': r'{test_session_id}',
+
+    # event_id in paths
+    r'\{event_id\}': r'{test_tournament["event_id"]}',
+
+    # project_id in paths
+    r'\{project_id\}': r'{test_tournament["project_id"]}',
+
+    # skill_name in paths
+    r'\{skill_name\}': r'{test_tournament["skill_name"]}',
+
+    # test_tournament with quotes (for dictionary access in assertions)
+    r"test_tournament\['session_id'\]": r'test_session_id',
+    r'test_tournament\["session_id"\]': r'test_session_id',
+    r"test_tournament\['user_id'\]": r'test_student_id',
+    r'test_tournament\["user_id"\]': r'test_student_id',
+
     # session_id in paths (when NOT using test_session_id fixture)
     # Some tests use test_tournament["session_ids"][0]
     # NOTE: This is only for assertion messages where test_tournament is the fixture

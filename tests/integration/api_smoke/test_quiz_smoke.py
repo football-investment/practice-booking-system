@@ -1004,7 +1004,7 @@ class TestQuizSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/unlock-quiz should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/unlock-quiz should validate input: {response.status_code}"
         )
         
 

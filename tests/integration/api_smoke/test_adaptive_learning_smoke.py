@@ -303,7 +303,7 @@ class TestAdaptivelearningSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/answer should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/answer should validate input: {response.status_code}"
         )
         
 
@@ -384,7 +384,7 @@ class TestAdaptivelearningSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/end should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/end should validate input: {response.status_code}"
         )
         
 
@@ -465,7 +465,7 @@ class TestAdaptivelearningSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/sessions/{test_tournament['session_id']}/next-question should validate input: {response.status_code}"
+            f"POST /api/v1/sessions/{test_session_id}/next-question should validate input: {response.status_code}"
         )
         
 

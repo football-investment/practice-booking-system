@@ -135,7 +135,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/{project_id}/instructor/enroll/{test_tournament['user_id']} should require auth or error: {response.status_code}"
+            f"DELETE /api/v1/{test_tournament["project_id"]}/instructor/enroll/{test_student_id} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -1264,7 +1264,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 403, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/instructor/enroll/{test_tournament['user_id']} failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['project_id']}/instructor/enroll/{test_student_id} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -1289,7 +1289,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{project_id}/instructor/enroll/{test_tournament['user_id']} should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament["project_id"]}/instructor/enroll/{test_student_id} should require auth or error: {response.status_code}"
         )
 
     def test_instructor_enroll_student_input_validation(
@@ -1315,7 +1315,7 @@ class TestProjectsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{project_id}/instructor/enroll/{test_tournament['user_id']} should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament["project_id"]}/instructor/enroll/{test_student_id} should validate input: {response.status_code}"
         )
         
 

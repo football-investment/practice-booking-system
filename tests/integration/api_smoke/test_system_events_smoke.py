@@ -40,7 +40,7 @@ class TestSystemeventsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/{event_id}/resolve failed: {response.status_code} "
+            f"PATCH /api/v1/{test_tournament["event_id"]}/resolve failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -64,7 +64,7 @@ class TestSystemeventsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/{event_id}/resolve should require auth or error: {response.status_code}"
+            f"PATCH /api/v1/{test_tournament["event_id"]}/resolve should require auth or error: {response.status_code}"
         )
 
     def test_resolve_event_input_validation(
@@ -89,7 +89,7 @@ class TestSystemeventsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/{event_id}/resolve should validate input: {response.status_code}"
+            f"PATCH /api/v1/{test_tournament["event_id"]}/resolve should validate input: {response.status_code}"
         )
         
 
@@ -120,7 +120,7 @@ class TestSystemeventsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PATCH /api/v1/{event_id}/unresolve failed: {response.status_code} "
+            f"PATCH /api/v1/{test_tournament["event_id"]}/unresolve failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -144,7 +144,7 @@ class TestSystemeventsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PATCH /api/v1/{event_id}/unresolve should require auth or error: {response.status_code}"
+            f"PATCH /api/v1/{test_tournament["event_id"]}/unresolve should require auth or error: {response.status_code}"
         )
 
     def test_unresolve_event_input_validation(
@@ -169,7 +169,7 @@ class TestSystemeventsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PATCH /api/v1/{event_id}/unresolve should validate input: {response.status_code}"
+            f"PATCH /api/v1/{test_tournament["event_id"]}/unresolve should validate input: {response.status_code}"
         )
         
 
