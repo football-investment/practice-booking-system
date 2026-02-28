@@ -34,13 +34,13 @@ class MilestoneStatusEnum(str, Enum):
 
 # Base schemas
 class ProjectMilestoneBase(BaseModel):
-    title: str = Field(..., max_length=200)
-    description: Optional[str] = None
-    order_index: int
-    required_sessions: int = 2
-    xp_reward: int = 25
-    deadline: Optional[date] = None
-    is_required: bool = True
+    title: str = Field(..., max_length=200, description="Milestone title")
+    description: Optional[str] = Field(None, max_length=2000, description="Optional milestone description")
+    order_index: int = Field(..., ge=0, le=100, description="Milestone order index (0-100)")
+    required_sessions: int = Field(2, ge=1, le=50, description="Required sessions to complete milestone (1-50)")
+    xp_reward: int = Field(25, ge=0, le=10000, description="XP reward for milestone completion (0-10000)")
+    deadline: Optional[date] = Field(None, description="Optional milestone deadline")
+    is_required: bool = Field(True, description="Whether milestone is required for project completion")
 
 
 class ProjectMilestoneCreate(ProjectMilestoneBase):
@@ -48,13 +48,13 @@ class ProjectMilestoneCreate(ProjectMilestoneBase):
 
 
 class ProjectMilestoneUpdate(BaseModel):
-    title: Optional[str] = Field(None, max_length=200)
-    description: Optional[str] = None
-    order_index: Optional[int] = None
-    required_sessions: Optional[int] = None
-    xp_reward: Optional[int] = None
-    deadline: Optional[date] = None
-    is_required: Optional[bool] = None
+    title: Optional[str] = Field(None, max_length=200, description="Milestone title")
+    description: Optional[str] = Field(None, max_length=2000, description="Optional milestone description")
+    order_index: Optional[int] = Field(None, ge=0, le=100, description="Milestone order index (0-100)")
+    required_sessions: Optional[int] = Field(None, ge=1, le=50, description="Required sessions (1-50)")
+    xp_reward: Optional[int] = Field(None, ge=0, le=10000, description="XP reward (0-10000)")
+    deadline: Optional[date] = Field(None, description="Optional milestone deadline")
+    is_required: Optional[bool] = Field(None, description="Whether milestone is required")
 
 
 class ProjectMilestone(ProjectMilestoneBase):
@@ -68,28 +68,28 @@ class ProjectMilestone(ProjectMilestoneBase):
 
 # Project Base Schemas
 class ProjectBase(BaseModel):
-    title: str = Field(..., max_length=200)
-    description: Optional[str] = None
-    max_participants: int = 10
-    required_sessions: int = 8
-    xp_reward: int = 200
-    deadline: Optional[date] = None
+    title: str = Field(..., max_length=200, description="Project title")
+    description: Optional[str] = Field(None, max_length=5000, description="Optional project description")
+    max_participants: int = Field(10, ge=1, le=1000, description="Maximum participants (1-1000)")
+    required_sessions: int = Field(8, ge=1, le=100, description="Required sessions to complete project (1-100)")
+    xp_reward: int = Field(200, ge=0, le=100000, description="XP reward for project completion (0-100000)")
+    deadline: Optional[date] = Field(None, description="Optional project deadline")
 
 
 class ProjectCreate(ProjectBase):
-    semester_id: int
-    instructor_id: Optional[int] = None
-    milestones: Optional[List[ProjectMilestoneCreate]] = []
+    semester_id: int = Field(..., ge=1, description="Semester ID (must be positive)")
+    instructor_id: Optional[int] = Field(None, ge=1, description="Optional instructor ID (must be positive)")
+    milestones: Optional[List[ProjectMilestoneCreate]] = Field([], description="Optional list of project milestones")
 
 
 class ProjectUpdate(BaseModel):
-    title: Optional[str] = Field(None, max_length=200)
-    description: Optional[str] = None
-    max_participants: Optional[int] = None
-    required_sessions: Optional[int] = None
-    xp_reward: Optional[int] = None
-    deadline: Optional[date] = None
-    status: Optional[ProjectStatusEnum] = None
+    title: Optional[str] = Field(None, max_length=200, description="Project title")
+    description: Optional[str] = Field(None, max_length=5000, description="Optional project description")
+    max_participants: Optional[int] = Field(None, ge=1, le=1000, description="Maximum participants (1-1000)")
+    required_sessions: Optional[int] = Field(None, ge=1, le=100, description="Required sessions (1-100)")
+    xp_reward: Optional[int] = Field(None, ge=0, le=100000, description="XP reward (0-100000)")
+    deadline: Optional[date] = Field(None, description="Optional project deadline")
+    status: Optional[ProjectStatusEnum] = Field(None, description="Project status")
 
 
 class Project(ProjectBase):
@@ -121,7 +121,7 @@ class ProjectWithDetails(Project):
 
 # Project Enrollment Schemas
 class ProjectEnrollmentBase(BaseModel):
-    project_id: int
+    project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
 
 
 class ProjectEnrollmentCreate(ProjectEnrollmentBase):
@@ -155,14 +155,14 @@ class ProjectEnrollmentWithDetails(ProjectEnrollment):
 
 # Milestone Progress Schemas
 class MilestoneProgressBase(BaseModel):
-    enrollment_id: int
-    milestone_id: int
+    enrollment_id: int = Field(..., ge=1, description="Enrollment ID (must be positive)")
+    milestone_id: int = Field(..., ge=1, description="Milestone ID (must be positive)")
 
 
 class MilestoneProgressUpdate(BaseModel):
-    status: Optional[MilestoneStatusEnum] = None
-    instructor_feedback: Optional[str] = None
-    sessions_completed: Optional[int] = None
+    status: Optional[MilestoneStatusEnum] = Field(None, description="Milestone status")
+    instructor_feedback: Optional[str] = Field(None, max_length=2000, description="Optional instructor feedback")
+    sessions_completed: Optional[int] = Field(None, ge=0, le=100, description="Sessions completed (0-100)")
 
 
 class MilestoneProgress(MilestoneProgressBase):
@@ -186,10 +186,10 @@ class MilestoneProgressWithDetails(MilestoneProgress):
 
 # Project Session Connection Schemas
 class ProjectSessionBase(BaseModel):
-    project_id: int
-    session_id: int
-    milestone_id: Optional[int] = None
-    is_required: bool = False
+    project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
+    session_id: int = Field(..., ge=1, description="Session ID (must be positive)")
+    milestone_id: Optional[int] = Field(None, ge=1, description="Optional milestone ID (must be positive)")
+    is_required: bool = Field(False, description="Whether session is required for project completion")
 
 
 class ProjectSessionCreate(ProjectSessionBase):
@@ -250,14 +250,14 @@ class ProjectProgressResponse(BaseModel):
 
 # Project-Quiz Connection Schemas
 class ProjectQuizBase(BaseModel):
-    project_id: int
-    quiz_id: int
-    milestone_id: Optional[int] = None
-    quiz_type: str = "milestone"  # "enrollment" vagy "milestone"
-    is_required: bool = True
-    minimum_score: float = 75.0
-    order_index: int = 0
-    is_active: bool = True
+    project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
+    quiz_id: int = Field(..., ge=1, description="Quiz ID (must be positive)")
+    milestone_id: Optional[int] = Field(None, ge=1, description="Optional milestone ID (must be positive)")
+    quiz_type: str = Field("milestone", description="Quiz type: 'enrollment' or 'milestone'")
+    is_required: bool = Field(True, description="Whether quiz is required")
+    minimum_score: float = Field(75.0, ge=0.0, le=100.0, description="Minimum passing score (0-100)")
+    order_index: int = Field(0, ge=0, le=100, description="Quiz order index (0-100)")
+    is_active: bool = Field(True, description="Whether quiz is active")
 
 
 class ProjectQuizCreate(ProjectQuizBase):
@@ -265,12 +265,12 @@ class ProjectQuizCreate(ProjectQuizBase):
 
 
 class ProjectQuizUpdate(BaseModel):
-    milestone_id: Optional[int] = None
-    quiz_type: Optional[str] = None
-    is_required: Optional[bool] = None
-    minimum_score: Optional[float] = None
-    order_index: Optional[int] = None
-    is_active: Optional[bool] = None
+    milestone_id: Optional[int] = Field(None, ge=1, description="Optional milestone ID (must be positive)")
+    quiz_type: Optional[str] = Field(None, description="Quiz type: 'enrollment' or 'milestone'")
+    is_required: Optional[bool] = Field(None, description="Whether quiz is required")
+    minimum_score: Optional[float] = Field(None, ge=0.0, le=100.0, description="Minimum passing score (0-100)")
+    order_index: Optional[int] = Field(None, ge=0, le=100, description="Quiz order index (0-100)")
+    is_active: Optional[bool] = Field(None, description="Whether quiz is active")
 
 
 class ProjectQuiz(ProjectQuizBase):
@@ -288,14 +288,14 @@ class ProjectQuizWithDetails(ProjectQuiz):
 
 # Enrollment Quiz Results
 class ProjectEnrollmentQuizBase(BaseModel):
-    project_id: int
-    user_id: int
-    quiz_attempt_id: int
+    project_id: int = Field(..., ge=1, description="Project ID (must be positive)")
+    user_id: int = Field(..., ge=1, description="User ID (must be positive)")
+    quiz_attempt_id: int = Field(..., ge=1, description="Quiz attempt ID (must be positive)")
 
 
 class ProjectEnrollmentQuizCreate(ProjectEnrollmentQuizBase):
-    enrollment_priority: Optional[int] = None
-    enrollment_confirmed: bool = False
+    enrollment_priority: Optional[int] = Field(None, ge=1, le=1000, description="Optional enrollment priority (1-1000)")
+    enrollment_confirmed: bool = Field(False, description="Whether enrollment is confirmed")
 
 
 class ProjectEnrollmentQuiz(ProjectEnrollmentQuizBase):

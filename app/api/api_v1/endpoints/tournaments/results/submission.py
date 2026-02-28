@@ -14,8 +14,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.orm.attributes import flag_modified
-from typing import Dict, Any, Optional, List
-from pydantic import BaseModel
+from typing import Dict, Any, Optional, List, Union, Literal
+from pydantic import BaseModel, Field
 from datetime import datetime
 import json
 
@@ -39,33 +39,90 @@ router = APIRouter()
 # ============================================================================
 
 class MatchResultEntry(BaseModel):
-    """Single player result entry"""
-    user_id: int
-    rank: int  # 1st, 2nd, 3rd, etc.
-    score: Optional[float] = None  # Optional score/points
-    notes: Optional[str] = None
+    """Single player result entry (legacy format)"""
+    user_id: int = Field(..., ge=1, description="User ID (must be positive)")
+    rank: int = Field(..., ge=1, description="Rank/placement (1st, 2nd, 3rd, etc.)")
+    score: Optional[float] = Field(None, ge=0.0, description="Optional score/points (non-negative)")
+    notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
 
 
 class RecordMatchResultsRequest(BaseModel):
-    """Request schema for recording match results"""
-    results: list[MatchResultEntry]
-    match_notes: Optional[str] = None
+    """Request schema for recording match results (legacy endpoint)"""
+    results: List[MatchResultEntry] = Field(..., min_items=1, description="List of match results (min 1 participant)")
+    match_notes: Optional[str] = Field(None, max_length=1000, description="Optional match notes")
+
+
+# ============================================================================
+# Typed Result Models for Structured Submission (Type-safe Validation)
+# ============================================================================
+
+class IndividualRankingResult(BaseModel):
+    """Result for INDIVIDUAL_RANKING tournaments"""
+    user_id: int = Field(..., ge=1, description="Participant user ID")
+    placement: int = Field(..., ge=1, description="Final placement (1st, 2nd, 3rd, etc.)")
+    score: Optional[float] = Field(None, ge=0.0, description="Optional score")
+
+
+class HeadToHeadWinLossResult(BaseModel):
+    """Result for HEAD_TO_HEAD tournaments (WIN/LOSS format)"""
+    user_id: int = Field(..., ge=1, description="Participant user ID")
+    result: Literal["WIN", "LOSS", "TIE"] = Field(..., description="Match result (WIN/LOSS/TIE)")
+
+
+class HeadToHeadScoreResult(BaseModel):
+    """Result for HEAD_TO_HEAD tournaments (SCORE format)"""
+    user_id: int = Field(..., ge=1, description="Participant user ID")
+    score: int = Field(..., ge=0, le=999, description="Match score (0-999)")
+
+
+class TeamMatchResult(BaseModel):
+    """Result for TEAM_MATCH tournaments"""
+    user_id: int = Field(..., ge=1, description="Participant user ID")
+    team: str = Field(..., min_length=1, max_length=10, description="Team identifier (e.g., 'A', 'B', 'RED', 'BLUE')")
+    team_score: int = Field(..., ge=0, le=999, description="Team score (0-999)")
+    opponent_score: int = Field(..., ge=0, le=999, description="Opponent score (0-999)")
+
+
+class TimeBasedResult(BaseModel):
+    """Result for TIME_BASED tournaments (time trials)"""
+    user_id: int = Field(..., ge=1, description="Participant user ID")
+    time_seconds: float = Field(..., gt=0.0, le=86400.0, description="Time in seconds (must be positive, max 24 hours)")
+
+
+class SkillRatingResult(BaseModel):
+    """Result for SKILL_RATING tournaments"""
+    user_id: int = Field(..., ge=1, description="Participant user ID")
+    rating: float = Field(..., ge=0.0, le=10.0, description="Skill rating (0.0-10.0)")
+    criteria_scores: Optional[Dict[str, float]] = Field(None, description="Optional detailed criteria scores")
+
+
+# Union type for all result formats (enables type-safe validation)
+ResultEntryUnion = Union[
+    IndividualRankingResult,
+    HeadToHeadWinLossResult,
+    HeadToHeadScoreResult,
+    TeamMatchResult,
+    TimeBasedResult,
+    SkillRatingResult
+]
 
 
 class SubmitMatchResultsRequest(BaseModel):
     """
-    Structured match results submission
+    Structured match results submission (Type-safe with Union validation)
 
-    Format depends on match_format:
-    - INDIVIDUAL_RANKING: [{"user_id": 1, "placement": 1}, ...]
-    - HEAD_TO_HEAD (WIN_LOSS): [{"user_id": 1, "result": "WIN"}, {"user_id": 2, "result": "LOSS"}]
-    - HEAD_TO_HEAD (SCORE): [{"user_id": 1, "score": 3}, {"user_id": 2, "score": 1}]
-    - TEAM_MATCH: [{"user_id": 1, "team": "A", "team_score": 5, "opponent_score": 3}, ...]
-    - TIME_BASED: [{"user_id": 1, "time_seconds": 12.45}, ...]
-    - SKILL_RATING: [{"user_id": 1, "rating": 8.5, "criteria_scores": {...}}, ...]
+    Supports all match formats:
+    - INDIVIDUAL_RANKING: IndividualRankingResult (user_id, placement)
+    - HEAD_TO_HEAD (WIN_LOSS): HeadToHeadWinLossResult (user_id, result: "WIN"/"LOSS"/"TIE")
+    - HEAD_TO_HEAD (SCORE): HeadToHeadScoreResult (user_id, score)
+    - TEAM_MATCH: TeamMatchResult (user_id, team, team_score, opponent_score)
+    - TIME_BASED: TimeBasedResult (user_id, time_seconds)
+    - SKILL_RATING: SkillRatingResult (user_id, rating, criteria_scores)
+
+    Pydantic validates each result entry against all Union types until a match is found.
     """
-    results: list[Dict[str, Any]]
-    notes: Optional[str] = None
+    results: List[ResultEntryUnion] = Field(..., min_items=1, description="List of match results (min 1 participant)")
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional match notes")
 
 
 class SubmitRoundResultsRequest(BaseModel):
@@ -80,9 +137,13 @@ class SubmitRoundResultsRequest(BaseModel):
         "results": {"123": "12.5s", "456": "13.2s"}
     }
     """
-    round_number: int
-    results: Dict[str, str]  # user_id -> measured_value (e.g., "12.5s", "95 points")
-    notes: Optional[str] = None
+    round_number: int = Field(..., ge=1, le=100, description="Round number (1-100)")
+    results: Dict[str, str] = Field(
+        ...,
+        min_length=1,
+        description="User results map: user_id -> measured_value (e.g., '12.5s', '95 points'). Min 1 participant."
+    )
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional round notes")
 
 
 # ============================================================================
@@ -201,12 +262,15 @@ def submit_structured_match_results(
     # Process results using result processor
     processor = ResultProcessor(db)
 
+    # Convert Pydantic models to dict for business logic compatibility
+    raw_results = [r.model_dump() for r in request.results]
+
     try:
         result = processor.process_match_results(
             db=db,
             session=session,
             tournament=tournament,
-            raw_results=request.results,
+            raw_results=raw_results,
             match_notes=request.notes,
             recorded_by_user_id=current_user.id,
             recorded_by_name=current_user.name or current_user.email

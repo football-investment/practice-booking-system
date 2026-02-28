@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 from ..models.booking import BookingStatus
@@ -6,8 +6,8 @@ from ..models.session import SessionType
 
 
 class BookingBase(BaseModel):
-    session_id: int
-    notes: Optional[str] = None
+    session_id: int = Field(..., ge=1, description="Session ID (must be positive)")
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional booking notes")
 
 
 class BookingCreate(BookingBase):
@@ -15,7 +15,7 @@ class BookingCreate(BookingBase):
 
 
 class BookingUpdate(BaseModel):
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional booking notes")
     status: Optional[BookingStatus] = None
 
 
@@ -79,12 +79,12 @@ class BookingList(BaseModel):
 
 class BookingStatusUpdate(BaseModel):
     status: BookingStatus
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional status update notes")
 
 
 class BookingConfirm(BaseModel):
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000, description="Optional confirmation notes")
 
 
 class BookingCancel(BaseModel):
-    reason: Optional[str] = None
+    reason: Optional[str] = Field(None, max_length=1000, description="Optional cancellation reason")
