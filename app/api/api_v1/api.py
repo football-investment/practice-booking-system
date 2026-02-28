@@ -53,7 +53,8 @@ from .endpoints import (
     session_groups,  # 👥 NEW: Add dynamic session group assignment system
     tournaments,  # 🏆 NEW: Add one-day tournament generator system
     tournament_types,  # 🎯 NEW: Add tournament type system
-    game_presets  # 🎮 P3: Add game preset system
+    game_presets,  # 🎮 P3: Add game preset system
+    instructor  # 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints
 )
 
 from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test system
@@ -309,6 +310,26 @@ api_router.include_router(
     instructor_assignments.router,
     prefix="/instructor-assignments",
     tags=["instructor-assignments"]
+)
+
+# 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints
+api_router.include_router(
+    instructor.router,
+    tags=["instructor", "student-assessment"]
+)
+
+# 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints (admin prefix alias)
+api_router.include_router(
+    instructor.router,
+    prefix="/admin",
+    tags=["admin", "instructor", "student-assessment"]
+)
+
+# 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints (lfa-player prefix alias)
+api_router.include_router(
+    instructor.router,
+    prefix="/lfa-player",
+    tags=["lfa-player", "instructor", "student-assessment"]
 )
 
 # 💰 NEW: Add license renewal system routes (Fase 2)
