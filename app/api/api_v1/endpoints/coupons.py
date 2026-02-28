@@ -447,13 +447,23 @@ async def list_active_coupons(
     return valid_coupons
 
 
+class ValidateCouponRequest(BaseModel):
+    """Request schema for validating a coupon - empty body allowed"""
+    model_config = ConfigDict(extra='forbid')
+
+
 @router.post("/coupons/validate/{code}")
 async def validate_coupon(
     code: str,
-    db: Session = Depends(get_db)
+    request_data: ValidateCouponRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Validate a coupon code and return its details if valid
+
+    **Authorization:** Authenticated user
+    **Performance:** p95 < 100ms
     """
     coupon = db.query(Coupon).filter(Coupon.code == code.upper()).first()
 
