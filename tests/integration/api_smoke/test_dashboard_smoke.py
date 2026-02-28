@@ -163,7 +163,7 @@ class TestDashboardSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}', headers=headers)
+        response = api_client.get(f'/api/v1/dashboard/{test_tournament["spec_type"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -187,7 +187,7 @@ class TestDashboardSmoke:
         Auth validation: GET /api/v1/dashboard/{spec_type} requires authentication
         """
         
-        response = api_client.get(f'/api/v1/dashboard/dashboard/{test_tournament["spec_type"]}')
+        response = api_client.get(f'/api/v1/dashboard/{test_tournament["spec_type"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):

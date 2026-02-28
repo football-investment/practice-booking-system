@@ -308,7 +308,7 @@ class TestInstructormanagementSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/instructor-management/', headers=headers)
+        response = api_client.get('/api/v1/instructor-management', headers=headers)
         
 
         # Accept valid responses:
@@ -331,7 +331,7 @@ class TestInstructormanagementSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get('/api/v1/instructor-management/')
+        response = api_client.get('/api/v1/instructor-management')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -375,7 +375,7 @@ class TestInstructormanagementSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/instructor-management/', headers=headers)
+        response = api_client.get('/api/v1/instructor-management', headers=headers)
         
 
         # Accept valid responses:
@@ -398,7 +398,7 @@ class TestInstructormanagementSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get('/api/v1/instructor-management/')
+        response = api_client.get('/api/v1/instructor-management')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1526,7 +1526,7 @@ class TestInstructormanagementSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/instructor-management/', json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor-management', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1549,7 +1549,7 @@ class TestInstructormanagementSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/instructor-management/', json={})
+        response = api_client.post('/api/v1/instructor-management', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1576,7 +1576,7 @@ class TestInstructormanagementSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/instructor-management/',
+            '/api/v1/instructor-management',
             json=invalid_payload,
             headers=headers
         )
@@ -1604,7 +1604,7 @@ class TestInstructormanagementSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/instructor-management/', json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor-management', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1627,7 +1627,7 @@ class TestInstructormanagementSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/instructor-management/', json={})
+        response = api_client.post('/api/v1/instructor-management', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1654,7 +1654,7 @@ class TestInstructormanagementSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/instructor-management/',
+            '/api/v1/instructor-management',
             json=invalid_payload,
             headers=headers
         )
@@ -1682,7 +1682,7 @@ class TestInstructormanagementSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/instructor-management/', json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor-management', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1705,7 +1705,7 @@ class TestInstructormanagementSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/instructor-management/', json={})
+        response = api_client.post('/api/v1/instructor-management', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1732,7 +1732,7 @@ class TestInstructormanagementSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/instructor-management/',
+            '/api/v1/instructor-management',
             json=invalid_payload,
             headers=headers
         )
@@ -1760,7 +1760,7 @@ class TestInstructormanagementSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/instructor-management/', json=payload, headers=headers)
+        response = api_client.post('/api/v1/instructor-management', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1783,7 +1783,7 @@ class TestInstructormanagementSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/instructor-management/', json={})
+        response = api_client.post('/api/v1/instructor-management', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1810,7 +1810,7 @@ class TestInstructormanagementSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/instructor-management/',
+            '/api/v1/instructor-management',
             json=invalid_payload,
             headers=headers
         )

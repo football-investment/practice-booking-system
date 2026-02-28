@@ -165,7 +165,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/coupons/coupons/active', headers=headers)
+        response = api_client.get('/api/v1/coupons/active', headers=headers)
         
 
         # Accept valid responses:
@@ -188,7 +188,7 @@ class TestCouponsSmoke:
         Auth validation: GET /api/v1/coupons/active requires authentication
         """
         
-        response = api_client.get('/api/v1/coupons/coupons/active')
+        response = api_client.get('/api/v1/coupons/active')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -471,7 +471,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/coupons/apply
         payload = {}
-        response = api_client.post('/api/v1/coupons/coupons/apply', json=payload, headers=headers)
+        response = api_client.post('/api/v1/coupons/apply', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -494,7 +494,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/coupons/apply requires authentication
         """
         
-        response = api_client.post('/api/v1/coupons/coupons/apply', json={})
+        response = api_client.post('/api/v1/coupons/apply', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -521,7 +521,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/coupons/coupons/apply',
+            '/api/v1/coupons/apply',
             json=invalid_payload,
             headers=headers
         )
@@ -550,7 +550,7 @@ class TestCouponsSmoke:
         
         # TODO: Add realistic payload for /api/v1/coupons/validate/{code}
         payload = {}
-        response = api_client.post(f'/api/v1/coupons/coupons/validate/{test_tournament["code"]}', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/coupons/validate/{test_tournament["code"]}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -574,7 +574,7 @@ class TestCouponsSmoke:
         Auth validation: POST /api/v1/coupons/validate/{code} requires authentication
         """
         
-        response = api_client.post(f'/api/v1/coupons/coupons/validate/{test_tournament["code"]}', json={})
+        response = api_client.post(f'/api/v1/coupons/validate/{test_tournament["code"]}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -602,7 +602,7 @@ class TestCouponsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/coupons/coupons/validate/{test_tournament["code"]}',
+            f'/api/v1/coupons/validate/{test_tournament["code"]}',
             json=invalid_payload,
             headers=headers
         )

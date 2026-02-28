@@ -99,7 +99,7 @@ class TestsemestersmainSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/tournaments/', headers=headers)
+        response = api_client.get('/api/v1/tournaments', headers=headers)
         
 
         # Accept valid responses:
@@ -122,7 +122,7 @@ class TestsemestersmainSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get('/api/v1/tournaments/')
+        response = api_client.get('/api/v1/tournaments')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -385,7 +385,7 @@ class TestsemestersmainSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/tournaments/', json=payload, headers=headers)
+        response = api_client.post('/api/v1/tournaments', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -408,7 +408,7 @@ class TestsemestersmainSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/tournaments/', json={})
+        response = api_client.post('/api/v1/tournaments', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -435,7 +435,7 @@ class TestsemestersmainSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/tournaments/',
+            '/api/v1/tournaments',
             json=invalid_payload,
             headers=headers
         )

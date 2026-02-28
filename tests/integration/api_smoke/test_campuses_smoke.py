@@ -29,7 +29,7 @@ class TestCampusesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f'/api/v1/campuses/campuses/{test_campus_id}', headers=headers)
+        response = api_client.delete(f'/api/v1/campuses/{test_campus_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -53,7 +53,7 @@ class TestCampusesSmoke:
         Auth validation: DELETE /api/v1/campuses/{campus_id} requires authentication
         """
         
-        response = api_client.delete(f'/api/v1/campuses/campuses/{test_campus_id}')
+        response = api_client.delete(f'/api/v1/campuses/{test_campus_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -166,7 +166,7 @@ class TestCampusesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/campuses/campuses/{test_campus_id}', headers=headers)
+        response = api_client.get(f'/api/v1/campuses/{test_campus_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -190,7 +190,7 @@ class TestCampusesSmoke:
         Auth validation: GET /api/v1/campuses/{campus_id} requires authentication
         """
         
-        response = api_client.get(f'/api/v1/campuses/campuses/{test_campus_id}')
+        response = api_client.get(f'/api/v1/campuses/{test_campus_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -307,7 +307,7 @@ class TestCampusesSmoke:
 
         
         payload = {}
-        response = api_client.patch(f'/api/v1/campuses/campuses/{test_campus_id}/toggle-status', json=payload, headers=headers)
+        response = api_client.patch(f'/api/v1/campuses/{test_campus_id}/toggle-status', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -331,7 +331,7 @@ class TestCampusesSmoke:
         Auth validation: PATCH /api/v1/campuses/{campus_id}/toggle-status requires authentication
         """
         
-        response = api_client.patch(f'/api/v1/campuses/campuses/{test_campus_id}/toggle-status', json={})
+        response = api_client.patch(f'/api/v1/campuses/{test_campus_id}/toggle-status', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -359,7 +359,7 @@ class TestCampusesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.patch(
-            f'/api/v1/campuses/campuses/{test_campus_id}/toggle-status',
+            f'/api/v1/campuses/{test_campus_id}/toggle-status',
             json=invalid_payload,
             headers=headers
         )
@@ -468,7 +468,7 @@ class TestCampusesSmoke:
 
         
         payload = {}
-        response = api_client.put(f'/api/v1/campuses/campuses/{test_campus_id}', json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/campuses/{test_campus_id}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -492,7 +492,7 @@ class TestCampusesSmoke:
         Auth validation: PUT /api/v1/campuses/{campus_id} requires authentication
         """
         
-        response = api_client.put(f'/api/v1/campuses/campuses/{test_campus_id}', json={})
+        response = api_client.put(f'/api/v1/campuses/{test_campus_id}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -520,7 +520,7 @@ class TestCampusesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f'/api/v1/campuses/campuses/{test_campus_id}',
+            f'/api/v1/campuses/{test_campus_id}',
             json=invalid_payload,
             headers=headers
         )

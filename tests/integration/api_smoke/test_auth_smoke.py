@@ -28,7 +28,7 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/auth/', headers=headers)
+        response = api_client.get('/api/v1/auth', headers=headers)
         
 
         # Accept valid responses:
@@ -51,7 +51,7 @@ class TestAuthSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get('/api/v1/auth/')
+        response = api_client.get('/api/v1/auth')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):

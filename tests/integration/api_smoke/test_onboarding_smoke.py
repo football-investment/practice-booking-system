@@ -28,7 +28,7 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/onboarding/onboarding/start', headers=headers)
+        response = api_client.get('/api/v1/onboarding/start', headers=headers)
         
 
         # Accept valid responses:
@@ -51,7 +51,7 @@ class TestOnboardingSmoke:
         Auth validation: GET /api/v1/onboarding/start requires authentication
         """
         
-        response = api_client.get('/api/v1/onboarding/onboarding/start')
+        response = api_client.get('/api/v1/onboarding/start')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -298,7 +298,7 @@ class TestOnboardingSmoke:
         
         # TODO: Add realistic payload for /api/v1/onboarding/set-birthdate
         payload = {}
-        response = api_client.post('/api/v1/onboarding/onboarding/set-birthdate', json=payload, headers=headers)
+        response = api_client.post('/api/v1/onboarding/set-birthdate', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -321,7 +321,7 @@ class TestOnboardingSmoke:
         Auth validation: POST /api/v1/onboarding/set-birthdate requires authentication
         """
         
-        response = api_client.post('/api/v1/onboarding/onboarding/set-birthdate', json={})
+        response = api_client.post('/api/v1/onboarding/set-birthdate', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -348,7 +348,7 @@ class TestOnboardingSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/onboarding/onboarding/set-birthdate',
+            '/api/v1/onboarding/set-birthdate',
             json=invalid_payload,
             headers=headers
         )

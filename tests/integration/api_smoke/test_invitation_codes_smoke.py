@@ -245,7 +245,7 @@ class TestInvitationcodesSmoke:
         
         # TODO: Add realistic payload for /api/v1/invitation-codes/redeem
         payload = {}
-        response = api_client.post('/api/v1/invitation-codes/invitation-codes/redeem', json=payload, headers=headers)
+        response = api_client.post('/api/v1/invitation-codes/redeem', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -268,7 +268,7 @@ class TestInvitationcodesSmoke:
         Auth validation: POST /api/v1/invitation-codes/redeem requires authentication
         """
         
-        response = api_client.post('/api/v1/invitation-codes/invitation-codes/redeem', json={})
+        response = api_client.post('/api/v1/invitation-codes/redeem', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -295,7 +295,7 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/invitation-codes/invitation-codes/redeem',
+            '/api/v1/invitation-codes/redeem',
             json=invalid_payload,
             headers=headers
         )
@@ -323,7 +323,7 @@ class TestInvitationcodesSmoke:
         
         # TODO: Add realistic payload for /api/v1/invitation-codes/validate
         payload = {}
-        response = api_client.post('/api/v1/invitation-codes/invitation-codes/validate', json=payload, headers=headers)
+        response = api_client.post('/api/v1/invitation-codes/validate', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -346,7 +346,7 @@ class TestInvitationcodesSmoke:
         Auth validation: POST /api/v1/invitation-codes/validate requires authentication
         """
         
-        response = api_client.post('/api/v1/invitation-codes/invitation-codes/validate', json={})
+        response = api_client.post('/api/v1/invitation-codes/validate', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -373,7 +373,7 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/invitation-codes/invitation-codes/validate',
+            '/api/v1/invitation-codes/validate',
             json=invalid_payload,
             headers=headers
         )

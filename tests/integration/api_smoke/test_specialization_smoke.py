@@ -28,7 +28,7 @@ class TestSpecializationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/specialization/specialization/lfa-player/onboarding', headers=headers)
+        response = api_client.get('/api/v1/specialization/lfa-player/onboarding', headers=headers)
         
 
         # Accept valid responses:
@@ -51,7 +51,7 @@ class TestSpecializationSmoke:
         Auth validation: GET /api/v1/specialization/lfa-player/onboarding requires authentication
         """
         
-        response = api_client.get('/api/v1/specialization/specialization/lfa-player/onboarding')
+        response = api_client.get('/api/v1/specialization/lfa-player/onboarding')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -95,7 +95,7 @@ class TestSpecializationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/specialization/specialization/lfa-player/onboarding-cancel', headers=headers)
+        response = api_client.get('/api/v1/specialization/lfa-player/onboarding-cancel', headers=headers)
         
 
         # Accept valid responses:
@@ -118,7 +118,7 @@ class TestSpecializationSmoke:
         Auth validation: GET /api/v1/specialization/lfa-player/onboarding-cancel requires authentication
         """
         
-        response = api_client.get('/api/v1/specialization/specialization/lfa-player/onboarding-cancel')
+        response = api_client.get('/api/v1/specialization/lfa-player/onboarding-cancel')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -162,7 +162,7 @@ class TestSpecializationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/specialization/specialization/motivation', headers=headers)
+        response = api_client.get('/api/v1/specialization/motivation', headers=headers)
         
 
         # Accept valid responses:
@@ -185,7 +185,7 @@ class TestSpecializationSmoke:
         Auth validation: GET /api/v1/specialization/motivation requires authentication
         """
         
-        response = api_client.get('/api/v1/specialization/specialization/motivation')
+        response = api_client.get('/api/v1/specialization/motivation')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -231,7 +231,7 @@ class TestSpecializationSmoke:
         
         # TODO: Add realistic payload for /api/v1/specialization/motivation-submit
         payload = {}
-        response = api_client.post('/api/v1/specialization/specialization/motivation-submit', json=payload, headers=headers)
+        response = api_client.post('/api/v1/specialization/motivation-submit', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -254,7 +254,7 @@ class TestSpecializationSmoke:
         Auth validation: POST /api/v1/specialization/motivation-submit requires authentication
         """
         
-        response = api_client.post('/api/v1/specialization/specialization/motivation-submit', json={})
+        response = api_client.post('/api/v1/specialization/motivation-submit', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -281,7 +281,7 @@ class TestSpecializationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/specialization/specialization/motivation-submit',
+            '/api/v1/specialization/motivation-submit',
             json=invalid_payload,
             headers=headers
         )
@@ -309,7 +309,7 @@ class TestSpecializationSmoke:
         
         # TODO: Add realistic payload for /api/v1/specialization/switch
         payload = {}
-        response = api_client.post('/api/v1/specialization/specialization/switch', json=payload, headers=headers)
+        response = api_client.post('/api/v1/specialization/switch', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -332,7 +332,7 @@ class TestSpecializationSmoke:
         Auth validation: POST /api/v1/specialization/switch requires authentication
         """
         
-        response = api_client.post('/api/v1/specialization/specialization/switch', json={})
+        response = api_client.post('/api/v1/specialization/switch', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -359,7 +359,7 @@ class TestSpecializationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/specialization/specialization/switch',
+            '/api/v1/specialization/switch',
             json=invalid_payload,
             headers=headers
         )
@@ -387,7 +387,7 @@ class TestSpecializationSmoke:
         
         # TODO: Add realistic payload for /api/v1/specialization/unlock
         payload = {}
-        response = api_client.post('/api/v1/specialization/specialization/unlock', json=payload, headers=headers)
+        response = api_client.post('/api/v1/specialization/unlock', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -410,7 +410,7 @@ class TestSpecializationSmoke:
         Auth validation: POST /api/v1/specialization/unlock requires authentication
         """
         
-        response = api_client.post('/api/v1/specialization/specialization/unlock', json={})
+        response = api_client.post('/api/v1/specialization/unlock', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -437,7 +437,7 @@ class TestSpecializationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/specialization/specialization/unlock',
+            '/api/v1/specialization/unlock',
             json=invalid_payload,
             headers=headers
         )

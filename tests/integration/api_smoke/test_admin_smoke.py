@@ -28,7 +28,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/analytics', headers=headers)
+        response = api_client.get('/api/v1/admin/analytics', headers=headers)
         
 
         # Accept valid responses:
@@ -51,7 +51,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/analytics requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/analytics')
+        response = api_client.get('/api/v1/admin/analytics')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -95,7 +95,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/coupons', headers=headers)
+        response = api_client.get('/api/v1/admin/coupons', headers=headers)
         
 
         # Accept valid responses:
@@ -118,7 +118,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/coupons requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/coupons')
+        response = api_client.get('/api/v1/admin/coupons')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -162,7 +162,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/enrollments', headers=headers)
+        response = api_client.get('/api/v1/admin/enrollments', headers=headers)
         
 
         # Accept valid responses:
@@ -185,7 +185,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/enrollments requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/enrollments')
+        response = api_client.get('/api/v1/admin/enrollments')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -229,7 +229,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/invitation-codes', headers=headers)
+        response = api_client.get('/api/v1/admin/invitation-codes', headers=headers)
         
 
         # Accept valid responses:
@@ -252,7 +252,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/invitation-codes')
+        response = api_client.get('/api/v1/admin/invitation-codes')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -296,7 +296,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/payments', headers=headers)
+        response = api_client.get('/api/v1/admin/payments', headers=headers)
         
 
         # Accept valid responses:
@@ -319,7 +319,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/payments requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/payments')
+        response = api_client.get('/api/v1/admin/payments')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -363,7 +363,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/semesters', headers=headers)
+        response = api_client.get('/api/v1/admin/semesters', headers=headers)
         
 
         # Accept valid responses:
@@ -386,7 +386,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/semesters requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/semesters')
+        response = api_client.get('/api/v1/admin/semesters')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -432,7 +432,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/admin/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}', headers=headers)
+        response = api_client.get(f'/api/v1/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -457,7 +457,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/students/{student_id}/motivation/{specialization} requires authentication
         """
         
-        response = api_client.get(f'/api/v1/admin/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}')
+        response = api_client.get(f'/api/v1/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -503,7 +503,7 @@ class TestAdminSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/admin/admin/users', headers=headers)
+        response = api_client.get('/api/v1/admin/users', headers=headers)
         
 
         # Accept valid responses:
@@ -526,7 +526,7 @@ class TestAdminSmoke:
         Auth validation: GET /api/v1/admin/users requires authentication
         """
         
-        response = api_client.get('/api/v1/admin/admin/users')
+        response = api_client.get('/api/v1/admin/users')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -781,7 +781,7 @@ class TestAdminSmoke:
         
         # TODO: Add realistic payload for /api/v1/admin/students/{student_id}/motivation/{specialization}
         payload = {}
-        response = api_client.post(f'/api/v1/admin/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -806,7 +806,7 @@ class TestAdminSmoke:
         Auth validation: POST /api/v1/admin/students/{student_id}/motivation/{specialization} requires authentication
         """
         
-        response = api_client.post(f'/api/v1/admin/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}', json={})
+        response = api_client.post(f'/api/v1/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -835,7 +835,7 @@ class TestAdminSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/admin/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}',
+            f'/api/v1/admin/students/{test_student_id}/motivation/{test_tournament["specialization"]}',
             json=invalid_payload,
             headers=headers
         )

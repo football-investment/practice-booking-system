@@ -568,7 +568,7 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/sessions/sessions/{test_session_id}', headers=headers)
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}', headers=headers)
         
 
         # Accept valid responses:
@@ -592,7 +592,7 @@ class TestSessionsSmoke:
         Auth validation: GET /api/v1/sessions/{session_id} requires authentication
         """
         
-        response = api_client.get(f'/api/v1/sessions/sessions/{test_session_id}')
+        response = api_client.get(f'/api/v1/sessions/{test_session_id}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1168,7 +1168,7 @@ class TestSessionsSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/book/{session_id}
         payload = {}
-        response = api_client.post(f'/api/v1/sessions/sessions/book/{test_session_id}', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/sessions/book/{test_session_id}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1192,7 +1192,7 @@ class TestSessionsSmoke:
         Auth validation: POST /api/v1/sessions/book/{session_id} requires authentication
         """
         
-        response = api_client.post(f'/api/v1/sessions/sessions/book/{test_session_id}', json={})
+        response = api_client.post(f'/api/v1/sessions/book/{test_session_id}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1220,7 +1220,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/sessions/sessions/book/{test_session_id}',
+            f'/api/v1/sessions/book/{test_session_id}',
             json=invalid_payload,
             headers=headers
         )
@@ -1249,7 +1249,7 @@ class TestSessionsSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/cancel/{session_id}
         payload = {}
-        response = api_client.post(f'/api/v1/sessions/sessions/cancel/{test_session_id}', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/sessions/cancel/{test_session_id}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1273,7 +1273,7 @@ class TestSessionsSmoke:
         Auth validation: POST /api/v1/sessions/cancel/{session_id} requires authentication
         """
         
-        response = api_client.post(f'/api/v1/sessions/sessions/cancel/{test_session_id}', json={})
+        response = api_client.post(f'/api/v1/sessions/cancel/{test_session_id}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1301,7 +1301,7 @@ class TestSessionsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/sessions/sessions/cancel/{test_session_id}',
+            f'/api/v1/sessions/cancel/{test_session_id}',
             json=invalid_payload,
             headers=headers
         )

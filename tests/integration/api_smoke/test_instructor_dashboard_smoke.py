@@ -28,7 +28,7 @@ class TestInstructordashboardSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/instructor/instructor/enrollments', headers=headers)
+        response = api_client.get('/api/v1/instructor/enrollments', headers=headers)
         
 
         # Accept valid responses:
@@ -51,7 +51,7 @@ class TestInstructordashboardSmoke:
         Auth validation: GET /api/v1/instructor/enrollments requires authentication
         """
         
-        response = api_client.get('/api/v1/instructor/instructor/enrollments')
+        response = api_client.get('/api/v1/instructor/enrollments')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -97,7 +97,7 @@ class TestInstructordashboardSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/instructor/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}', headers=headers)
+        response = api_client.get(f'/api/v1/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -122,7 +122,7 @@ class TestInstructordashboardSmoke:
         Auth validation: GET /api/v1/instructor/students/{student_id}/skills/{license_id} requires authentication
         """
         
-        response = api_client.get(f'/api/v1/instructor/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}')
+        response = api_client.get(f'/api/v1/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -172,7 +172,7 @@ class TestInstructordashboardSmoke:
         
         # TODO: Add realistic payload for /api/v1/instructor/students/{student_id}/skills/{license_id}
         payload = {}
-        response = api_client.post(f'/api/v1/instructor/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -197,7 +197,7 @@ class TestInstructordashboardSmoke:
         Auth validation: POST /api/v1/instructor/students/{student_id}/skills/{license_id} requires authentication
         """
         
-        response = api_client.post(f'/api/v1/instructor/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}', json={})
+        response = api_client.post(f'/api/v1/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -226,7 +226,7 @@ class TestInstructordashboardSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/instructor/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}',
+            f'/api/v1/instructor/students/{test_student_id}/skills/{test_tournament["license_id"]}',
             json=invalid_payload,
             headers=headers
         )

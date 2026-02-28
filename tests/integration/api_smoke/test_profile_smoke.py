@@ -95,7 +95,7 @@ class TestProfileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/profile/profile/edit', headers=headers)
+        response = api_client.get('/api/v1/profile/edit', headers=headers)
         
 
         # Accept valid responses:
@@ -118,7 +118,7 @@ class TestProfileSmoke:
         Auth validation: GET /api/v1/profile/edit requires authentication
         """
         
-        response = api_client.get('/api/v1/profile/profile/edit')
+        response = api_client.get('/api/v1/profile/edit')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -164,7 +164,7 @@ class TestProfileSmoke:
         
         # TODO: Add realistic payload for /api/v1/profile/edit
         payload = {}
-        response = api_client.post('/api/v1/profile/profile/edit', json=payload, headers=headers)
+        response = api_client.post('/api/v1/profile/edit', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -187,7 +187,7 @@ class TestProfileSmoke:
         Auth validation: POST /api/v1/profile/edit requires authentication
         """
         
-        response = api_client.post('/api/v1/profile/profile/edit', json={})
+        response = api_client.post('/api/v1/profile/edit', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -214,7 +214,7 @@ class TestProfileSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/profile/profile/edit',
+            '/api/v1/profile/edit',
             json=invalid_payload,
             headers=headers
         )

@@ -785,7 +785,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/quiz/', json=payload, headers=headers)
+        response = api_client.post('/api/v1/quiz', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -808,7 +808,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/quiz/', json={})
+        response = api_client.post('/api/v1/quiz', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -835,7 +835,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/quiz/',
+            '/api/v1/quiz',
             json=invalid_payload,
             headers=headers
         )
