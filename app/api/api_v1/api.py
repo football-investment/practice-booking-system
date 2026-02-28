@@ -96,9 +96,16 @@ api_router.include_router(adaptive_learning.router, prefix="/adaptive-learning",
 
 # 🎓 NEW: Add specialization routes
 api_router.include_router(
-    specializations.router, 
-    prefix="/specializations", 
+    specializations.router,
+    prefix="/specializations",
     tags=["specializations"]
+)
+
+# 🎓 ALIAS: Add singular /specialization path (for backward compatibility)
+api_router.include_router(
+    specializations.router,
+    prefix="/specialization",
+    tags=["specialization-alias"]
 )
 
 # 💰 NEW: Add payment verification routes
