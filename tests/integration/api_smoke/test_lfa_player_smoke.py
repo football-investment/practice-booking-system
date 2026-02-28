@@ -542,7 +542,7 @@ class TestLfaplayerSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PUT /api/v1/licenses/{test_tournament['license_id']}/skills failed: {response.status_code} "
+            f'PUT /api/v1/licenses/{test_tournament['license_id']}/skills failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -566,7 +566,7 @@ class TestLfaplayerSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PUT /api/v1/licenses/{test_tournament['license_id']}/skills should require auth or error: {response.status_code}"
+            f'PUT /api/v1/licenses/{test_tournament['license_id']}/skills should require auth or error: {response.status_code}'
         )
 
     def test_update_skill_input_validation(
@@ -591,7 +591,7 @@ class TestLfaplayerSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PUT /api/v1/licenses/{test_tournament['license_id']}/skills should validate input: {response.status_code}"
+            f'PUT /api/v1/licenses/{test_tournament['license_id']}/skills should validate input: {response.status_code}'
         )
         
 

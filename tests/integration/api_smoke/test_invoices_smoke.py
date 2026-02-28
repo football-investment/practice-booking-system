@@ -412,7 +412,7 @@ class TestInvoicesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/cancel should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["invoice_id"]}/cancel should require auth or error: {response.status_code}'
         )
 
     def test_cancel_invoice_input_validation(
@@ -437,7 +437,7 @@ class TestInvoicesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/cancel should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["invoice_id"]}/cancel should validate input: {response.status_code}'
         )
         
 
@@ -469,7 +469,7 @@ class TestInvoicesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/unverify failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["invoice_id"]}/unverify failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -493,7 +493,7 @@ class TestInvoicesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/unverify should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["invoice_id"]}/unverify should require auth or error: {response.status_code}'
         )
 
     def test_unverify_invoice_payment_input_validation(
@@ -518,7 +518,7 @@ class TestInvoicesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/unverify should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["invoice_id"]}/unverify should validate input: {response.status_code}'
         )
         
 
@@ -550,7 +550,7 @@ class TestInvoicesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/verify failed: {response.status_code} "
+            f'POST /api/v1/{test_tournament["invoice_id"]}/verify failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -574,7 +574,7 @@ class TestInvoicesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/verify should require auth or error: {response.status_code}"
+            f'POST /api/v1/{test_tournament["invoice_id"]}/verify should require auth or error: {response.status_code}'
         )
 
     def test_verify_invoice_payment_input_validation(
@@ -599,7 +599,7 @@ class TestInvoicesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament["invoice_id"]}/verify should validate input: {response.status_code}"
+            f'POST /api/v1/{test_tournament["invoice_id"]}/verify should validate input: {response.status_code}'
         )
         
 
