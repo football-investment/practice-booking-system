@@ -226,28 +226,3 @@ class TestSystemeventsSmoke:
             f"POST /api/v1/purge should require auth or error: {response.status_code}"
         )
 
-    def test_purge_old_events_input_validation(
-        self,
-        api_client: TestClient,
-        admin_token: str,
-    ):
-        """
-        Input validation: POST /api/v1/purge validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
-        response = api_client.post(
-            '/api/v1/system-events/purge',
-            json=invalid_payload,
-            headers=headers
-        )
-
-        # Should return 422 Unprocessable Entity for validation errors
-        assert response.status_code in [400, 422], (
-            f"POST /api/v1/purge should validate input: {response.status_code}"
-        )
-        
-

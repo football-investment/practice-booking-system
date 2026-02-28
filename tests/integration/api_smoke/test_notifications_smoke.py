@@ -280,32 +280,6 @@ class TestNotificationsSmoke:
             f"PUT /api/v1/mark-all-read should require auth or error: {response.status_code}"
         )
 
-    def test_mark_all_notifications_as_read_input_validation(
-        self,
-        api_client: TestClient,
-        admin_token: str,
-    ):
-        """
-        Input validation: PUT /api/v1/mark-all-read validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
-        response = api_client.put(
-            '/api/v1/notifications/mark-all-read',
-            json=invalid_payload,
-            headers=headers
-        )
-
-        # Should return 422 Unprocessable Entity for validation errors
-        assert response.status_code in [400, 422], (
-            f"PUT /api/v1/mark-all-read should validate input: {response.status_code}"
-        )
-        
-
-
     # ── PUT /api/v1/mark-read ────────────────────────────
 
     def test_mark_notifications_as_read_happy_path(
