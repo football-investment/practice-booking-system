@@ -1844,7 +1844,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f'POST /api/v1/{test_tournament["license_id"]}/skills/{test_tournament["skill_name"]}/assess failed: {response.status_code} '
+            f'POST /api/v1/licenses/{test_tournament["license_id"]}/skills/{test_tournament["skill_name"]}/assess failed: {response.status_code} '
             f"{response.text}"
         )
         
@@ -1868,7 +1868,7 @@ class TestLicensesSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f'POST /api/v1/{test_tournament["license_id"]}/skills/{test_tournament["skill_name"]}/assess should require auth or error: {response.status_code}'
+            f'POST /api/v1/licenses/{test_tournament["license_id"]}/skills/{test_tournament["skill_name"]}/assess should require auth or error: {response.status_code}'
         )
 
     def test_create_skill_assessment_input_validation(
@@ -1893,7 +1893,7 @@ class TestLicensesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'POST /api/v1/{test_tournament["license_id"]}/skills/{test_tournament["skill_name"]}/assess should validate input: {response.status_code}'
+            f'POST /api/v1/licenses/{test_tournament["license_id"]}/skills/{test_tournament["skill_name"]}/assess should validate input: {response.status_code}'
         )
         
 

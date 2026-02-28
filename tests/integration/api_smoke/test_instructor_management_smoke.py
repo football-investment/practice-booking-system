@@ -1265,7 +1265,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'PATCH /api/v1/{test_tournament["application_id"]} should validate input: {response.status_code}'
+            f'PATCH /api/v1/instructor-management/applications/{test_tournament["application_id"]} should validate input: {response.status_code}'
         )
         
 
@@ -1583,7 +1583,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/ should validate input: {response.status_code}"
+            f"POST /api/v1/instructor-management/applications should validate input: {response.status_code}"
         )
         
 
@@ -1661,7 +1661,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/ should validate input: {response.status_code}"
+            f"POST /api/v1/instructor-management/applications should validate input: {response.status_code}"
         )
         
 
@@ -1739,7 +1739,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/ should validate input: {response.status_code}"
+            f"POST /api/v1/instructor-management/applications should validate input: {response.status_code}"
         )
         
 
@@ -1817,7 +1817,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/ should validate input: {response.status_code}"
+            f"POST /api/v1/instructor-management/applications should validate input: {response.status_code}"
         )
         
 
@@ -1895,7 +1895,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/direct-hire should validate input: {response.status_code}"
+            f"POST /api/v1/instructor-management/masters/direct-hire should validate input: {response.status_code}"
         )
         
 
@@ -1973,7 +1973,7 @@ class TestInstructormanagementSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/hire-from-application should validate input: {response.status_code}"
+            f"POST /api/v1/instructor-management/masters/hire-from-application should validate input: {response.status_code}"
         )
         
 

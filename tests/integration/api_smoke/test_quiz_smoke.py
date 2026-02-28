@@ -785,7 +785,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/quiz', json=payload, headers=headers)
+        response = api_client.post('/api/v1/quizzes', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -808,7 +808,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/quiz', json={})
+        response = api_client.post('/api/v1/quizzes', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -818,7 +818,7 @@ class TestQuizSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/ should require auth or error: {response.status_code}"
+            f"POST /api/v1/quizzes should require auth or error: {response.status_code}"
         )
 
     def test_create_quiz_input_validation(
@@ -842,7 +842,7 @@ class TestQuizSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/ should validate input: {response.status_code}"
+            f"POST /api/v1/quizzes should validate input: {response.status_code}"
         )
         
 
@@ -1017,7 +1017,7 @@ class TestQuizSmoke:
         admin_token: str,
     ):
         """
-        Happy path: POST /api/v1/start
+        Happy path: POST /api/v1/quizzes/start
         Source: app/api/api_v1/endpoints/quiz/attempts.py:start_quiz_attempt
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
@@ -1025,7 +1025,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/start
         payload = {}
-        response = api_client.post('/api/v1/quiz/start', json=payload, headers=headers)
+        response = api_client.post('/api/v1/quizzes/start', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1048,7 +1048,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/start requires authentication
         """
         
-        response = api_client.post('/api/v1/quiz/start', json={})
+        response = api_client.post('/api/v1/quizzes/start', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1058,7 +1058,7 @@ class TestQuizSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/start should require auth or error: {response.status_code}"
+            f"POST /api/v1/quizzes/start should require auth or error: {response.status_code}"
         )
 
     def test_start_quiz_attempt_input_validation(
@@ -1067,7 +1067,7 @@ class TestQuizSmoke:
         admin_token: str,
     ):
         """
-        Input validation: POST /api/v1/start validates request data
+        Input validation: POST /api/v1/quizzes/start validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1075,14 +1075,14 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/quiz/start',
+            '/api/v1/quizzes/start',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/start should validate input: {response.status_code}"
+            f"POST /api/v1/quizzes/start should validate input: {response.status_code}"
         )
         
 
@@ -1095,7 +1095,7 @@ class TestQuizSmoke:
         admin_token: str,
     ):
         """
-        Happy path: POST /api/v1/submit
+        Happy path: POST /api/v1/quizzes/submit
         Source: app/api/api_v1/endpoints/quiz/attempts.py:submit_quiz_attempt
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
@@ -1103,7 +1103,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/submit
         payload = {}
-        response = api_client.post('/api/v1/quiz/submit', json=payload, headers=headers)
+        response = api_client.post('/api/v1/quizzes/submit', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -1126,7 +1126,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/submit requires authentication
         """
         
-        response = api_client.post('/api/v1/quiz/submit', json={})
+        response = api_client.post('/api/v1/quizzes/submit', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -1136,7 +1136,7 @@ class TestQuizSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/submit should require auth or error: {response.status_code}"
+            f"POST /api/v1/quizzes/submit should require auth or error: {response.status_code}"
         )
 
     def test_submit_quiz_attempt_input_validation(
@@ -1145,7 +1145,7 @@ class TestQuizSmoke:
         admin_token: str,
     ):
         """
-        Input validation: POST /api/v1/submit validates request data
+        Input validation: POST /api/v1/quizzes/submit validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -1153,14 +1153,14 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/quiz/submit',
+            '/api/v1/quizzes/submit',
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/submit should validate input: {response.status_code}"
+            f"POST /api/v1/quizzes/submit should validate input: {response.status_code}"
         )
         
 

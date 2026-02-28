@@ -130,7 +130,7 @@ class TestMotivationSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/motivation-assessment should require auth or error: {response.status_code}"
+            f"POST /api/v1/licenses/motivation-assessment should require auth or error: {response.status_code}"
         )
 
     def test_submit_motivation_assessment_input_validation(
@@ -139,7 +139,7 @@ class TestMotivationSmoke:
         admin_token: str,
     ):
         """
-        Input validation: POST /api/v1/motivation-assessment validates request data
+        Input validation: POST /api/v1/licenses/motivation-assessment validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -154,7 +154,7 @@ class TestMotivationSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/motivation-assessment should validate input: {response.status_code}"
+            f"POST /api/v1/licenses/motivation-assessment should validate input: {response.status_code}"
         )
         
 

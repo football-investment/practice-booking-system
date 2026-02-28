@@ -361,7 +361,7 @@ class TestLocationsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/ should validate input: {response.status_code}"
+            f"POST /api/v1/admin/locations should validate input: {response.status_code}"
         )
         
 
@@ -441,7 +441,7 @@ class TestLocationsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'PUT /api/v1/{test_tournament["location_id"]} should validate input: {response.status_code}'
+            f'PUT /api/v1/admin/locations/{test_tournament["location_id"]} should validate input: {response.status_code}'
         )
         
 

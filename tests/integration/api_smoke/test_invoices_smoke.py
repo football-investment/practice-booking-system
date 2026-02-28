@@ -518,7 +518,7 @@ class TestInvoicesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'POST /api/v1/{test_tournament["invoice_id"]}/unverify should validate input: {response.status_code}'
+            f'POST /api/v1/invoices/{test_tournament["invoice_id"]}/unverify should validate input: {response.status_code}'
         )
         
 
@@ -599,7 +599,7 @@ class TestInvoicesSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'POST /api/v1/{test_tournament["invoice_id"]}/verify should validate input: {response.status_code}'
+            f'POST /api/v1/invoices/{test_tournament["invoice_id"]}/verify should validate input: {response.status_code}'
         )
         
 

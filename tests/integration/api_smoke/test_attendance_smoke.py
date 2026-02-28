@@ -625,7 +625,7 @@ class TestAttendanceSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'POST /api/v1/{test_tournament["session_ids"][0]}/checkin should validate input: {response.status_code}'
+            f'POST /api/v1/attendance/{test_tournament["session_ids"][0]}/checkin should validate input: {response.status_code}'
         )
         
 

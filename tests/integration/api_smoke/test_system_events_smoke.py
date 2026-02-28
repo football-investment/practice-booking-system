@@ -89,7 +89,7 @@ class TestSystemeventsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'PATCH /api/v1/{test_tournament["event_id"]}/resolve should validate input: {response.status_code}'
+            f'PATCH /api/v1/system-events/{test_tournament["event_id"]}/resolve should validate input: {response.status_code}'
         )
         
 
@@ -169,7 +169,7 @@ class TestSystemeventsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f'PATCH /api/v1/{test_tournament["event_id"]}/unresolve should validate input: {response.status_code}'
+            f'PATCH /api/v1/system-events/{test_tournament["event_id"]}/unresolve should validate input: {response.status_code}'
         )
         
 
