@@ -413,14 +413,14 @@ class TestInstructorSmoke:
     def test_start_session_happy_path(
         self,
         api_client: TestClient,
-        admin_token: str,
+        instructor_token: str,  # FIX: Use instructor role
         test_session_id,
     ):
         """
         Happy path: POST /api/v1/sessions/{session_id}/start
         Source: app/api/web_routes/instructor.py:start_session
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/start
@@ -465,13 +465,13 @@ class TestInstructorSmoke:
     def test_start_session_input_validation(
         self,
         api_client: TestClient,
-        admin_token: str,
+        instructor_token: str,  # FIX: Use instructor role
         test_session_id,
     ):
         """
         Input validation: POST /api/v1/sessions/{session_id}/start validates request data
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # Invalid payload (empty or malformed)
@@ -494,14 +494,14 @@ class TestInstructorSmoke:
     def test_stop_session_happy_path(
         self,
         api_client: TestClient,
-        admin_token: str,
+        instructor_token: str,  # FIX: Use instructor role
         test_session_id,
     ):
         """
         Happy path: POST /api/v1/sessions/{session_id}/stop
         Source: app/api/web_routes/instructor.py:stop_session
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/stop
@@ -546,13 +546,13 @@ class TestInstructorSmoke:
     def test_stop_session_input_validation(
         self,
         api_client: TestClient,
-        admin_token: str,
+        instructor_token: str,  # FIX: Use instructor role
         test_session_id,
     ):
         """
         Input validation: POST /api/v1/sessions/{session_id}/stop validates request data
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # Invalid payload (empty or malformed)
@@ -575,14 +575,14 @@ class TestInstructorSmoke:
     def test_unlock_quiz_happy_path(
         self,
         api_client: TestClient,
-        admin_token: str,
+        instructor_token: str,  # FIX: Use instructor role
         test_session_id,
     ):
         """
         Happy path: POST /api/v1/sessions/{session_id}/unlock-quiz
         Source: app/api/web_routes/instructor.py:unlock_quiz
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/unlock-quiz
@@ -627,13 +627,13 @@ class TestInstructorSmoke:
     def test_unlock_quiz_input_validation(
         self,
         api_client: TestClient,
-        admin_token: str,
+        instructor_token: str,  # FIX: Use instructor role
         test_session_id,
     ):
         """
         Input validation: POST /api/v1/sessions/{session_id}/unlock-quiz validates request data
         """
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {instructor_token}"}
 
         
         # Invalid payload (empty or malformed)
