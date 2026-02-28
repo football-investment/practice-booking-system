@@ -12,7 +12,7 @@ from ....core.auth import create_access_token, create_refresh_token, verify_toke
 from ....core.security import verify_password, get_password_hash
 from ....models.user import User
 from ....models.invitation_code import InvitationCode
-from ....schemas.auth import Login, Token, RefreshToken, ChangePassword
+from ....schemas.auth import Login, Token, RefreshToken, ChangePassword, AgeVerificationRequest, AgeVerificationResponse
 from ....schemas.user import User as UserSchema
 from ....config import settings
 from ....services.audit_service import AuditService
@@ -431,3 +431,76 @@ def register_with_invitation(
         "refresh_token": refresh_token,
         "token_type": "bearer",
     }
+
+
+@router.post("/age-verification", response_model=AgeVerificationResponse)
+def verify_age(
+    data: AgeVerificationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Submit age verification (COPPA/GDPR compliance)
+
+    **Requirements:**
+    - Age: 5-120 years
+    - Date not in future
+    - Student role only
+    """
+    from datetime import date as date_type
+    from ....models.user import UserRole
+
+    # Verify student role
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Age verification is only for students"
+        )
+
+    # Validate date
+    today = date_type.today()
+    dob = data.date_of_birth
+
+    if dob > today:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Date of birth cannot be in the future"
+        )
+
+    # Calculate age
+    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    if age < 5:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="You must be at least 5 years old to use this platform"
+        )
+
+    if age > 120:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Please enter a valid date of birth"
+        )
+
+    # Save to user record
+    current_user.date_of_birth = dob
+    db.commit()
+    db.refresh(current_user)
+
+    # Audit log
+    audit_service = AuditService(db)
+    audit_service.log(
+        action=AuditAction.USER_UPDATED,
+        user_id=current_user.id,
+        details={
+            "field": "date_of_birth",
+            "age": age,
+            "context": "age_verification"
+        }
+    )
+
+    return AgeVerificationResponse(
+        success=True,
+        age=age,
+        message=f"Age verified successfully: {age} years old"
+    )
