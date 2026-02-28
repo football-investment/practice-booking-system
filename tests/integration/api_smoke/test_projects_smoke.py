@@ -1371,7 +1371,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/approve should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/approve should require auth or error: {response.status_code}"
         )
 
     def test_approve_milestone_input_validation(
@@ -1396,7 +1396,7 @@ class TestProjectsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/approve should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/approve should validate input: {response.status_code}"
         )
         
 
@@ -1428,7 +1428,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/reject failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/reject failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -1452,7 +1452,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/reject should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/reject should require auth or error: {response.status_code}"
         )
 
     def test_reject_milestone_input_validation(
@@ -1477,7 +1477,7 @@ class TestProjectsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/reject should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/reject should validate input: {response.status_code}"
         )
         
 
@@ -1533,7 +1533,7 @@ class TestProjectsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/submit should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/submit should require auth or error: {response.status_code}"
         )
 
     def test_submit_milestone_input_validation(
@@ -1558,7 +1558,7 @@ class TestProjectsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{test_tournament['project_id']}/milestones/{milestone_id}/submit should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament['project_id']}/milestones/{test_tournament["milestone_id"]}/submit should validate input: {response.status_code}"
         )
         
 

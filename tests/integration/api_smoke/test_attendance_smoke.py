@@ -576,7 +576,7 @@ class TestAttendanceSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/{booking_id}/checkin failed: {response.status_code} "
+            f"POST /api/v1/{test_tournament["session_ids"][0]}/checkin failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -600,7 +600,7 @@ class TestAttendanceSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/{booking_id}/checkin should require auth or error: {response.status_code}"
+            f"POST /api/v1/{test_tournament["session_ids"][0]}/checkin should require auth or error: {response.status_code}"
         )
 
     def test_checkin_input_validation(
@@ -625,7 +625,7 @@ class TestAttendanceSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/{booking_id}/checkin should validate input: {response.status_code}"
+            f"POST /api/v1/{test_tournament["session_ids"][0]}/checkin should validate input: {response.status_code}"
         )
         
 

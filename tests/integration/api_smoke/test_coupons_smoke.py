@@ -39,7 +39,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405], (
-            f"DELETE /api/v1/admin/coupons/{coupon_id} failed: {response.status_code} "
+            f"DELETE /api/v1/admin/coupons/{test_tournament["coupon_id"]} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -63,7 +63,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"DELETE /api/v1/admin/coupons/{coupon_id} should require auth or error: {response.status_code}"
+            f"DELETE /api/v1/admin/coupons/{test_tournament["coupon_id"]} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
@@ -401,7 +401,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/admin/coupons/{coupon_id}/toggle failed: {response.status_code} "
+            f"POST /api/v1/admin/coupons/{test_tournament["coupon_id"]}/toggle failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -425,7 +425,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/admin/coupons/{coupon_id}/toggle should require auth or error: {response.status_code}"
+            f"POST /api/v1/admin/coupons/{test_tournament["coupon_id"]}/toggle should require auth or error: {response.status_code}"
         )
 
     def test_toggle_coupon_status_input_validation(
@@ -450,7 +450,7 @@ class TestCouponsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/admin/coupons/{coupon_id}/toggle should validate input: {response.status_code}"
+            f"POST /api/v1/admin/coupons/{test_tournament["coupon_id"]}/toggle should validate input: {response.status_code}"
         )
         
 
@@ -560,7 +560,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"POST /api/v1/coupons/validate/{code} failed: {response.status_code} "
+            f"POST /api/v1/coupons/validate/{test_tournament["code"]} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -584,7 +584,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"POST /api/v1/coupons/validate/{code} should require auth or error: {response.status_code}"
+            f"POST /api/v1/coupons/validate/{test_tournament["code"]} should require auth or error: {response.status_code}"
         )
 
     def test_validate_coupon_input_validation(
@@ -609,7 +609,7 @@ class TestCouponsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"POST /api/v1/coupons/validate/{code} should validate input: {response.status_code}"
+            f"POST /api/v1/coupons/validate/{test_tournament["code"]} should validate input: {response.status_code}"
         )
         
 
@@ -640,7 +640,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
         
         assert response.status_code in [200, 201, 404, 405, 422], (
-            f"PUT /api/v1/admin/coupons/{coupon_id} failed: {response.status_code} "
+            f"PUT /api/v1/admin/coupons/{test_tournament["coupon_id"]} failed: {response.status_code} "
             f"{response.text}"
         )
         
@@ -664,7 +664,7 @@ class TestCouponsSmoke:
         # - 422: Validation error (may validate before auth check)
         # - 500: Server error (endpoint exists but has bugs)
         assert response.status_code in [401, 403, 404, 405, 422, 500], (
-            f"PUT /api/v1/admin/coupons/{coupon_id} should require auth or error: {response.status_code}"
+            f"PUT /api/v1/admin/coupons/{test_tournament["coupon_id"]} should require auth or error: {response.status_code}"
         )
 
     def test_update_coupon_input_validation(
@@ -689,7 +689,7 @@ class TestCouponsSmoke:
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"PUT /api/v1/admin/coupons/{coupon_id} should validate input: {response.status_code}"
+            f"PUT /api/v1/admin/coupons/{test_tournament["coupon_id"]} should validate input: {response.status_code}"
         )
         
 
