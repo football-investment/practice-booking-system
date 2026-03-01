@@ -143,8 +143,8 @@ def list_all_licenses(
 
     try:
         service = LFAPlayerService(db)
-        # Get all licenses from database
-        query = "SELECT * FROM lfa_player_licenses WHERE is_active = TRUE ORDER BY id DESC"
+        # Get all licenses from database (P0: text() wrapper required by SQLAlchemy 2.0)
+        query = text("SELECT * FROM lfa_player_licenses WHERE is_active = TRUE ORDER BY id DESC")
         licenses = db.execute(query).fetchall()
 
         result = []
