@@ -28,6 +28,11 @@ router = APIRouter()
 # Request/Response Schemas
 # ============================================================================
 
+class SessionActionRequest(BaseModel):
+    """Empty request schema for action endpoints - validates no extra fields"""
+    model_config = {"extra": "forbid"}
+
+
 class SessionStartResponse(BaseModel):
     """Response from starting a session"""
     success: bool
@@ -91,6 +96,7 @@ class EvaluateStudentResponse(BaseModel):
 @router.post("/{session_id}/start", response_model=SessionStartResponse)
 def start_session(
     session_id: int,
+    request_data: SessionActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -104,6 +110,7 @@ def start_session(
     - Session must not be already started
 
     **Permissions:** INSTRUCTOR role required
+    **Validation:** Empty body required, rejects invalid fields (422)
     """
     # Verify instructor role
     if current_user.role != UserRole.INSTRUCTOR:
@@ -170,12 +177,14 @@ def start_session(
 @router.post("/{session_id}/stop", response_model=SessionStopResponse)
 def stop_session(
     session_id: int,
+    request_data: SessionActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
     Stop a session (Instructor only)
 
+    **Validation:** Empty body required, rejects invalid fields (422)
     **Business Logic** (from web route):
     - Records actual end time
     - Calculates duration
@@ -256,6 +265,7 @@ def stop_session(
 @router.post("/{session_id}/unlock-quiz", response_model=UnlockQuizResponse)
 def unlock_quiz(
     session_id: int,
+    request_data: SessionActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -268,6 +278,7 @@ def unlock_quiz(
     - Session must have a quiz assigned
 
     **Permissions:** INSTRUCTOR role required
+    **Validation:** Empty body required, rejects invalid fields (422)
     """
     # Verify instructor role
     if current_user.role != UserRole.INSTRUCTOR:
@@ -493,6 +504,7 @@ class BookSessionResponse(BaseModel):
 @router.post("/book/{session_id}", response_model=BookSessionResponse)
 def book_session(
     session_id: int,
+    request_data: SessionActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -506,6 +518,7 @@ def book_session(
     - Validates session exists and is bookable
 
     **Permissions:** Authenticated users (typically students)
+    **Validation:** Empty body required, rejects invalid fields (422)
     """
     from .....models.booking import Booking, BookingStatus
     from datetime import timedelta
