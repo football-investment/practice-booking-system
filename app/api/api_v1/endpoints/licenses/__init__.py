@@ -9,10 +9,11 @@ Combines:
 - admin.py: Admin license sync (4 routes)
 - payment.py: Payment verification (2 routes)
 - skills.py: Football skills assessment (3 routes)
+- assessments.py: Skill assessments (3 routes) - BATCH 9
 """
 from fastapi import APIRouter
 
-from . import metadata, student, instructor, admin, payment, skills
+from . import metadata, student, instructor, admin, payment, skills, assessments
 
 # Create main router
 router = APIRouter()
@@ -24,3 +25,4 @@ router.include_router(instructor.router)
 router.include_router(admin.router)
 router.include_router(payment.router)
 router.include_router(skills.router)
+router.include_router(assessments.router)  # BATCH 9: Missing assessment routes

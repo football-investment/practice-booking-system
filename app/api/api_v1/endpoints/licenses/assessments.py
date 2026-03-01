@@ -93,6 +93,18 @@ class CreateAssessmentResponse(BaseModel):
     assessment: AssessmentResponse
 
 
+class ValidateAssessmentRequest(BaseModel):
+    """Empty request schema for validate endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
+class ArchiveAssessmentRequest(BaseModel):
+    """Request schema for archiving assessment"""
+    model_config = ConfigDict(extra='forbid')
+
+    reason: Optional[str] = Field(None, description="Reason for archiving (optional)")
+
+
 class ValidateArchiveResponse(BaseModel):
     """Response for validate/archive operations"""
     success: bool
@@ -333,6 +345,7 @@ async def get_assessment(
 @router.post("/assessments/{assessment_id}/validate", response_model=ValidateArchiveResponse)
 async def validate_assessment(
     assessment_id: int,
+    request_data: ValidateAssessmentRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -400,7 +413,7 @@ async def validate_assessment(
 @router.post("/assessments/{assessment_id}/archive", response_model=ValidateArchiveResponse)
 async def archive_assessment(
     assessment_id: int,
-    reason: Optional[str] = None,
+    request_data: ArchiveAssessmentRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -420,11 +433,12 @@ async def archive_assessment(
     - NOT_ASSESSED → ARCHIVED (must assess first)
     - ARCHIVED → ARCHIVED (already archived - idempotent)
 
-    **Query Parameters:**
+    **Request Body:**
     - reason: Optional reason for archiving (default: "Manually archived by instructor")
 
     **Args:**
     - assessment_id: Assessment ID
+    - request_data: Archive request with optional reason
 
     **Returns:**
     - success: True
@@ -439,8 +453,7 @@ async def archive_assessment(
         )
 
     # Default reason if not provided
-    if not reason:
-        reason = "Manually archived by instructor"
+    reason = request_data.reason if request_data.reason else "Manually archived by instructor"
 
     # Archive assessment via service layer
     try:
