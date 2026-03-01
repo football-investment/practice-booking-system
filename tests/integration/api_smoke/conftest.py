@@ -642,6 +642,52 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         raise
 
 
+# ── BATCH 12 Domain 1: Attendance Fixture ─────────────────────────────────────
+
+@pytest.fixture(scope="function")
+def test_booking_id(test_db: Session, test_tournament: Dict) -> int:
+    """
+    BATCH 12: Valid booking fixture for attendance tests.
+
+    Creates a Booking record linking the admin user to a session from test_tournament.
+    Enables attendance checkin tests that require a valid booking_id.
+    Admin user ownership allows admin_token tests to pass authorization checks.
+
+    Returns:
+        int: Valid booking ID owned by admin user
+    """
+    from app.models.booking import Booking, BookingStatus
+    from app.models.user import User
+
+    # Get admin user (smoke tests use admin_token)
+    admin = test_db.query(User).filter(User.email == "smoke.admin@example.com").first()
+    if not admin:
+        raise RuntimeError("Admin user not found - ensure admin_token fixture runs first")
+
+    # Create booking for admin user + first session
+    booking = Booking(
+        user_id=admin.id,                                    # Admin user (matches admin_token)
+        session_id=test_tournament["session_ids"][0],        # First session
+        status=BookingStatus.CONFIRMED,
+        notes="Smoke test booking (BATCH 12)"
+    )
+    test_db.add(booking)
+    test_db.commit()
+    test_db.refresh(booking)
+
+    booking_id = booking.id
+
+    yield booking_id
+
+    # Teardown: Delete booking (FK-safe - no child dependencies)
+    try:
+        test_db.query(Booking).filter(Booking.id == booking_id).delete(synchronize_session=False)
+        test_db.commit()
+    except Exception as e:
+        test_db.rollback()
+        print(f"⚠️  Booking teardown warning: {e}")
+
+
 # ── Sprint 2: Minimal Fixture Variants ───────────────────────────────────────
 
 @pytest.fixture(scope="function")
