@@ -295,7 +295,8 @@ class TestSessionManagementE2E:
         # ============================================================
         response = client.post(
             f"/api/v1/sessions/{test_session.id}/check-in",
-            headers={"Authorization": f"Bearer {session_instructor_token}"}
+            headers={"Authorization": f"Bearer {session_instructor_token}"},
+            json={}  # Empty body required by CheckInRequest schema
         )
 
         assert response.status_code == 200
@@ -370,7 +371,8 @@ class TestSessionManagementE2E:
         # ============================================================
         response = client.post(
             f"/api/v1/sessions/{test_session.id}/check-in",
-            headers={"Authorization": f"Bearer {session_student_token}"}
+            headers={"Authorization": f"Bearer {session_student_token}"},
+            json={}  # Empty body required by CheckInRequest schema
         )
 
         assert response.status_code == 403
@@ -393,7 +395,8 @@ class TestSessionManagementE2E:
         # ============================================================
         response = client.post(
             f"/api/v1/sessions/{test_session.id}/check-in",
-            headers={"Authorization": f"Bearer {session_instructor_token}"}
+            headers={"Authorization": f"Bearer {session_instructor_token}"},
+            json={}  # Empty body required by CheckInRequest schema
         )
 
         assert response.status_code == 200
@@ -598,7 +601,8 @@ class TestSessionManagementE2E:
         # ============================================================
         response = client.post(
             f"/api/v1/sessions/{test_session.id}/check-in",
-            headers={"Authorization": f"Bearer {session_instructor_token}"}
+            headers={"Authorization": f"Bearer {session_instructor_token}"},
+            json={}  # Empty body required by CheckInRequest schema
         )
 
         assert response.status_code == 200
@@ -612,7 +616,8 @@ class TestSessionManagementE2E:
         # ============================================================
         response = client.post(
             f"/api/v1/sessions/{test_session.id}/check-in",
-            headers={"Authorization": f"Bearer {session_instructor_token}"}
+            headers={"Authorization": f"Bearer {session_instructor_token}"},
+            json={}  # Empty body required by CheckInRequest schema
         )
 
         assert response.status_code == 400
