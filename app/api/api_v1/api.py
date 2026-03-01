@@ -350,6 +350,13 @@ api_router.include_router(
     tags=["campuses"]
 )
 
+# Path alias: /campuses for backward compatibility (BATCH 5 - Phase 3)
+api_router.include_router(
+    campuses.router,
+    prefix="/campuses",
+    tags=["campuses"]
+)
+
 # 🎯 NEW: Add spec services information API routes
 api_router.include_router(
     spec_info.router,
