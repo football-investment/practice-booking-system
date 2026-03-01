@@ -34,11 +34,12 @@ class TestCampusesSmoke:
 
         # Accept valid responses:
         # - 200/201: Success
+        # - 204: No Content (standard DELETE response)
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405], (
+
+        assert response.status_code in [200, 201, 204, 404, 405], (
             f"DELETE /api/v1/campuses/{test_campus_id} failed: {response.status_code} "
             f"{response.text}"
         )
