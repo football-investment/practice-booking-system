@@ -575,9 +575,15 @@ def send_instructor_request(
     }
 
 
+class AcceptInstructorRequestRequest(BaseModel):
+    """Empty request schema for accept instructor request - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 @router.post("/requests/{request_id}/accept", status_code=status.HTTP_200_OK)
 def accept_instructor_request(
     request_id: int,
+    request_data: AcceptInstructorRequestRequest,  # BATCH 13: Validation before permission check
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

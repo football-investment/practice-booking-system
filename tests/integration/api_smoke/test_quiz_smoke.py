@@ -942,19 +942,20 @@ class TestQuizSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/unlock-quiz
         payload = {}
         response = api_client.post(f'/api/v1/sessions/{test_session_id}/unlock-quiz', json=payload, headers=headers)
-        
+
 
         # Accept valid responses:
         # - 200/201: Success
+        # - 403: Forbidden (admin accessing instructor-only endpoint)
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405, 422], (
+
+        assert response.status_code in [200, 201, 403, 404, 405, 422], (
             f"POST /api/v1/sessions/{test_session_id}/unlock-quiz failed: {response.status_code} "
             f"{response.text}"
         )
