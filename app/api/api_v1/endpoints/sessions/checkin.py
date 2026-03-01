@@ -19,6 +19,11 @@ from app.services.audit_service import AuditService
 router = APIRouter()
 
 
+class CheckInRequest(BaseModel):
+    """Empty request schema for check-in endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 class SessionCheckInResponse(BaseModel):
     """Session check-in response schema"""
     model_config = ConfigDict(from_attributes=True)
@@ -33,6 +38,7 @@ class SessionCheckInResponse(BaseModel):
 @router.post("/{session_id}/check-in", response_model=SessionCheckInResponse)
 def check_in_to_session(
     session_id: int,
+    request_data: CheckInRequest,  # BATCH 10: Validation before permission check
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
