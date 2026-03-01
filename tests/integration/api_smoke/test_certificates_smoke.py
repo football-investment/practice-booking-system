@@ -308,13 +308,12 @@ class TestCertificatesSmoke:
 
         # Accept valid responses:
         # - 200/201: Success
+        # - 400: Bad request (invalid UUID format - P0 fix applied)
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        # - 500: Database UUID validation error (endpoint accepts str, not UUID type)
-        #        Backend TODO: Change endpoint signature to use UUID type for validation
 
-        assert response.status_code in [200, 201, 404, 405, 500], (
+        assert response.status_code in [200, 201, 400, 404, 405, 422], (
             f'GET /api/v1/{test_tournament["certificate_id"]}/download failed: {response.status_code} '
             f"{response.text}"
         )
