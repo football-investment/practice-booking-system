@@ -10,6 +10,7 @@ Tests for 5 Acceptance Criteria:
 """
 import pytest
 import uuid
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -36,16 +37,18 @@ def test_user(postgres_db: Session):
     postgres_db.commit()
     postgres_db.refresh(user)
 
+    user_id = user.id  # Store ID before yielding to avoid session expiration issues
+
     yield user
 
-    # Cleanup
+    # Cleanup - use stored user_id to avoid session expiration
     postgres_db.query(CreditTransaction).filter(
         CreditTransaction.user_license_id.in_(
-            postgres_db.query(UserLicense.id).filter(UserLicense.user_id == user.id)
+            postgres_db.query(UserLicense.id).filter(UserLicense.user_id == user_id)
         )
     ).delete(synchronize_session=False)
-    postgres_db.query(UserLicense).filter(UserLicense.user_id == user.id).delete()
-    postgres_db.query(User).filter(User.id == user.id).delete()
+    postgres_db.query(UserLicense).filter(UserLicense.user_id == user_id).delete()
+    postgres_db.query(User).filter(User.id == user_id).delete()
     postgres_db.commit()
 
 
@@ -253,7 +256,9 @@ def test_ac4_duplicate_selection_no_cost(
         current_level=3,
         max_achieved_level=3,
         is_active=True,
-        payment_verified=True
+        payment_verified=True,
+        started_at=datetime.now(timezone.utc),
+        payment_verified_at=datetime.now(timezone.utc)
     )
     postgres_db.add(existing_license)
     postgres_db.commit()
