@@ -461,6 +461,13 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
 
     test_db.commit()
 
+    # ── 5.5: Get instructor BEFORE creating session (PHASE 4 FIX) ──────
+    # PHASE 4 P5 Quick Fix: Query instructor user before session creation
+    # This allows setting session.instructor_id to match instructor_token user
+    # Fixes 3 happy_path test failures (start_session, stop_session, unlock_quiz)
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
+    instructor_id = instructor.id if instructor else None
+
     # ── 6. Create 1 Tournament Session ──────────────────────────────────
     session_start = datetime.now(timezone.utc) + timedelta(days=1)
     session_end = session_start + timedelta(hours=2)
@@ -487,6 +494,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
         date_end=session_end,
         semester_id=tournament.id,
         campus_id=test_campus_id,
+        instructor_id=instructor_id,  # PHASE 4 P5: Assign instructor to enable all instructor tests
         tournament_round=1,
         tournament_match_number=1,
         session_status="scheduled",
@@ -499,9 +507,6 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str, i
     test_db.refresh(session)
 
     # ── YIELD: Provide fixture data to test ──────────────────────────────
-    # Phase C: Get instructor ID for instructor-related tests
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
-    instructor_id = instructor.id if instructor else None
 
     fixture_data = {
         # ── Core tournament data (REAL) ──────────────────────────────────
