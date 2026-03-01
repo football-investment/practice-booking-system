@@ -4,11 +4,13 @@ GānCuju™© belt promotion/demotion endpoints
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
+from .....services.specs.semester_based.gancuju_player_service import GanCujuPlayerService
+from .....utils.rbac import validate_license_ownership
 
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -44,15 +46,17 @@ router = APIRouter()
 # ============================================================================
 
 class LicenseCreate(BaseModel):
-    """Request body for creating a new GānCuju license"""
-    starting_level: int = Field(default=1, ge=1, le=8, description="Starting level (1-8)")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "starting_level": 1
             }
         }
+    )
+
+    """Request body for creating a new GānCuju license"""
+    starting_level: int = Field(default=1, ge=1, le=8, description="Starting level (1-8)")
 
 
 class LicenseResponse(BaseModel):
@@ -88,27 +92,31 @@ class LicenseResponse(BaseModel):
 
 
 class PromoteRequest(BaseModel):
-    """Request body for promoting a level"""
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for promotion")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "reason": "Passed promotion exam with excellent performance"
             }
         }
+    )
+
+    """Request body for promoting a level"""
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for promotion")
 
 
 class DemoteRequest(BaseModel):
-    """Request body for demoting a level"""
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for demotion")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "reason": "Failed to maintain required standards"
             }
         }
+    )
+
+    """Request body for demoting a level"""
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for demotion")
 
 
 class LevelChangeResponse(BaseModel):
@@ -269,6 +277,13 @@ def promote_level(
         # RBAC: Validate ownership (students can only promote own, instructors/admins can promote others)
         validate_license_ownership(db, current_user, license_id, 'gancuju_licenses')
 
+        # Check if method is implemented
+        if not hasattr(service, 'promote_level'):
+            raise HTTPException(
+                status_code=501,
+                detail="Level promotion is not yet implemented for GānCuju Player specialization"
+            )
+
         result = service.promote_level(license_id, reason=request.reason)
 
         return LevelChangeResponse(
@@ -313,6 +328,13 @@ def demote_level(
     try:
         # RBAC: Validate ownership (only instructors/admins can demote, not students)
         validate_license_ownership(db, current_user, license_id, 'gancuju_licenses')
+
+        # Check if method is implemented
+        if not hasattr(service, 'demote_level'):
+            raise HTTPException(
+                status_code=501,
+                detail="Level demotion is not yet implemented for GānCuju Player specialization"
+            )
 
         result = service.demote_level(license_id, reason=request.reason)
 

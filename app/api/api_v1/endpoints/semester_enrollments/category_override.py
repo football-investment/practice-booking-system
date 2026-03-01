@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from .....database import get_db
-from .....dependencies import get_current_user_web
+from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.semester_enrollment import SemesterEnrollment
 from .....services.age_category_service import (
@@ -32,7 +32,7 @@ async def override_age_category(
     enrollment_id: int,
     override: CategoryOverride,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_web)
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     🎯 Override age category for a student enrollment.

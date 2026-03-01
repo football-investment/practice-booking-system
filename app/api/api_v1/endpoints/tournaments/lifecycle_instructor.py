@@ -12,7 +12,7 @@ See also: instructor_assignment.py (application-based flow, different URL paths)
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 
 from app.database import get_db
@@ -29,12 +29,16 @@ router = APIRouter()
 # ============================================================================
 
 class AssignInstructorRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to assign an instructor to a tournament"""
     instructor_id: int = Field(..., description="ID of the instructor to assign")
     message: Optional[str] = Field(None, description="Optional message to instructor")
 
 
 class InstructorActionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request from instructor to accept/decline assignment"""
     message: Optional[str] = Field(None, description="Optional message/reason")
 
@@ -67,7 +71,7 @@ def assign_instructor_to_tournament(
     Business rules:
     - Only admins can assign instructors
     - Tournament must be in SEEKING_INSTRUCTOR status
-    - Instructor must have GRANDMASTER role
+    - Instructor must have INSTRUCTOR role (Priority 1 Fix: corrected from GRANDMASTER)
     - Auto-transition to PENDING_INSTRUCTOR_ACCEPTANCE
     """
 
@@ -102,10 +106,11 @@ def assign_instructor_to_tournament(
         )
 
     # Validate instructor role
-    if instructor.role != UserRole.GRANDMASTER:
+    # Priority 1 Fix: UserRole.INSTRUCTOR (not GRANDMASTER - which doesn't exist in enum)
+    if instructor.role != UserRole.INSTRUCTOR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User {instructor.email} is not an instructor (GRANDMASTER role required)"
+            detail=f"User {instructor.email} is not an instructor (INSTRUCTOR role required)"
         )
 
     # Assign instructor

@@ -10,7 +10,7 @@ Handles:
 
 from typing import Optional, List, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 from enum import Enum
 
 
@@ -54,6 +54,8 @@ class ApplicationStatusEnum(str, Enum):
 
 
 class MasterInstructorBase(BaseModel):
+
+
     """Base schema for master instructor"""
     location_id: int = Field(..., description="Location ID")
     instructor_id: int = Field(..., description="Instructor user ID")
@@ -73,6 +75,8 @@ class MasterInstructorCreate(MasterInstructorBase):
 
 
 class MasterInstructorUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating master instructor contract"""
     contract_end: Optional[datetime] = Field(None, description="New contract end date")
     is_active: Optional[bool] = Field(None, description="Active status")
@@ -102,8 +106,7 @@ class MasterInstructorResponse(MasterInstructorBase):
     instructor_name: Optional[str] = None
     instructor_email: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -112,6 +115,8 @@ class MasterInstructorResponse(MasterInstructorBase):
 
 
 class PositionBase(BaseModel):
+
+
     """Base schema for position posting"""
     location_id: int = Field(..., description="Location ID")
     specialization_type: str = Field(..., description="Specialization (e.g., LFA_PLAYER)")
@@ -136,6 +141,8 @@ class PositionCreate(PositionBase):
 
 
 class PositionUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating position posting"""
     description: Optional[str] = Field(None, min_length=10, max_length=5000)
     priority: Optional[int] = Field(None, ge=1, le=10)
@@ -156,8 +163,7 @@ class PositionResponse(PositionBase):
     master_name: Optional[str] = None
     application_count: Optional[int] = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -166,6 +172,8 @@ class PositionResponse(PositionBase):
 
 
 class ApplicationBase(BaseModel):
+
+
     """Base schema for position application"""
     position_id: int = Field(..., description="Position ID")
     application_message: str = Field(
@@ -181,6 +189,8 @@ class ApplicationCreate(ApplicationBase):
 
 
 class ApplicationUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating application (master reviews)"""
     status: ApplicationStatusEnum = Field(..., description="ACCEPTED or DECLINED")
 
@@ -198,8 +208,7 @@ class ApplicationResponse(ApplicationBase):
     applicant_email: Optional[str] = None
     position_title: Optional[str] = None  # e.g., "LFA_PLAYER/PRE M01-M06"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -208,6 +217,8 @@ class ApplicationResponse(ApplicationBase):
 
 
 class AssignmentBase(BaseModel):
+
+
     """Base schema for instructor assignment"""
     location_id: int = Field(..., description="Location ID")
     instructor_id: int = Field(..., description="Assigned instructor ID")
@@ -224,6 +235,8 @@ class AssignmentCreate(AssignmentBase):
 
 
 class AssignmentUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating instructor assignment"""
     is_active: Optional[bool] = Field(None, description="Active status")
 
@@ -242,8 +255,7 @@ class AssignmentResponse(AssignmentBase):
     location_name: Optional[str] = None
     assigner_name: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -337,6 +349,8 @@ class JobBoardResponse(BaseModel):
 
 
 class MasterDirectHireCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for creating direct hire offer (Pathway A)"""
     location_id: int = Field(..., description="Location ID")
     instructor_id: int = Field(..., description="Instructor user ID")
@@ -379,8 +393,7 @@ class MasterOfferResponse(BaseModel):
     instructor_name: Optional[str] = None
     instructor_email: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MasterOfferAction(BaseModel):
@@ -389,6 +402,8 @@ class MasterOfferAction(BaseModel):
 
 
 class HireFromApplicationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for hiring from job application (Pathway B)"""
     application_id: int = Field(..., description="Application ID to accept")
     contract_start: datetime = Field(..., description="Contract start date (can adjust from posting)")
@@ -404,6 +419,8 @@ class HireFromApplicationRequest(BaseModel):
 
 
 class MasterOpeningCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for posting master instructor opening (Pathway B)"""
     location_id: int = Field(..., description="Location ID")
     year: int = Field(..., ge=2020, le=2100, description="Year (e.g., 2026)")

@@ -66,7 +66,7 @@ jobs:
 
       - name: Start Streamlit frontend
         run: |
-          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          streamlit run streamlit_app/🏠_Home.py --server.port 8501 --server.headless true &
           sleep 10
 
           # Health check

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload
 from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_or_instructor_user
 from .....models.user import User
-from .....models.project import Project as ProjectModel
+from .....models.project import Project as ProjectModel, ProjectQuiz
 from .....schemas.project import (
     ProjectQuiz as ProjectQuizSchema,
     ProjectQuizCreate,
@@ -293,22 +293,22 @@ def get_project_waitlist(
         if not attempt:
             continue
             
-        # Determine status based on priority and confirmation
+        # Determine enrollment status based on priority and confirmation
         if entry.enrollment_confirmed:
-            status = "confirmed"
+            enrollment_status = "confirmed"
         elif entry.enrollment_priority <= project.max_participants:
-            status = "eligible"
+            enrollment_status = "eligible"
         else:
-            status = "waiting"
-        
+            enrollment_status = "waiting"
+
         # Use nickname or fallback to "Anonymous" for privacy
         display_name = user.nickname if user.nickname else f"Diák #{entry.enrollment_priority}"
-        
+
         waitlist_entry = {
             "position": entry.enrollment_priority,
             "display_name": display_name,
             "score_percentage": round(attempt.score, 1),
-            "status": status,
+            "status": enrollment_status,
             "confirmed": entry.enrollment_confirmed,
             "is_current_user": user.id == current_user.id
         }

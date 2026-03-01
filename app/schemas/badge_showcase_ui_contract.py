@@ -5,7 +5,7 @@ Minimal contract between backend and frontend for badge display.
 Defines exactly what data the UI needs for different badge views.
 """
 from typing import List, Optional, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
 
 
@@ -44,8 +44,7 @@ class BadgeUIMinimal(BaseModel):
     rarity: BadgeRarity          # For color coding
     title: str                   # Short title
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BadgeUIStandard(BaseModel):
@@ -64,8 +63,7 @@ class BadgeUIStandard(BaseModel):
     earned_at: str               # ISO datetime
     is_pinned: bool = False      # User can pin favorites
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BadgeUIExtended(BaseModel):
@@ -95,8 +93,7 @@ class BadgeUIExtended(BaseModel):
         description="Progress towards next tier (e.g., '5/10 tournaments for Legend')"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -144,8 +141,7 @@ class BadgeShowcaseUI(BaseModel):
         description="Badge counts by rarity/category"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -173,8 +169,7 @@ class BadgeProgressUI(BaseModel):
     # Metadata
     unlock_condition: str        # "Participate in 5 tournaments"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BadgeProgressListUI(BaseModel):
@@ -191,8 +186,7 @@ class BadgeProgressListUI(BaseModel):
     total_available: int
     completion_percentage: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -238,8 +232,7 @@ class BadgeListUI(BaseModel):
     applied_filter: Optional[BadgeFilter] = None
     applied_sort: BadgeSortOption = BadgeSortOption.EARNED_DATE_DESC
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -247,6 +240,8 @@ class BadgeListUI(BaseModel):
 # ============================================================================
 
 class PinBadgeRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to pin/unpin a badge"""
     badge_id: int
     is_pinned: bool
@@ -288,8 +283,7 @@ class BadgeDetailModalUI(BaseModel):
         description="Other badges in same category"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -313,8 +307,7 @@ class BadgeNotificationUI(BaseModel):
         description="Custom message (e.g., 'First tournament badge!')"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================

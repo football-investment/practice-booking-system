@@ -5,11 +5,13 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from sqlalchemy import text
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
+from .....services.specs.semester_based.gancuju_player_service import GanCujuPlayerService
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +52,16 @@ router = APIRouter()
 
 class LicenseCreate(BaseModel):
     """Request body for creating a new GānCuju license"""
-    starting_level: int = Field(default=1, ge=1, le=8, description="Starting level (1-8)")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "starting_level": 1
             }
         }
+    )
+
+    starting_level: int = Field(default=1, ge=1, le=8, description="Starting level (1-8)")
 
 
 class LicenseResponse(BaseModel):
@@ -94,26 +98,30 @@ class LicenseResponse(BaseModel):
 
 class PromoteRequest(BaseModel):
     """Request body for promoting a level"""
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for promotion")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "reason": "Passed promotion exam with excellent performance"
             }
         }
+    )
+
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for promotion")
 
 
 class DemoteRequest(BaseModel):
     """Request body for demoting a level"""
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for demotion")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "reason": "Failed to maintain required standards"
             }
         }
+    )
+
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for demotion")
 
 
 class LevelChangeResponse(BaseModel):

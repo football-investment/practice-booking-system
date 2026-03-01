@@ -44,6 +44,10 @@ class LFAPlayerService(BaseSpecializationService):
     Handles age-based categorization, session booking, and skills progression.
     """
 
+    def __init__(self, db: Session = None):
+        """Initialize LFA Player service with optional database session"""
+        self.db = db
+
     # ========================================================================
     # AGE GROUP CONFIGURATION
     # ========================================================================
@@ -562,3 +566,144 @@ class LFAPlayerService(BaseSpecializationService):
         db.commit()
 
         return True, f"Successfully promoted from {current_age_group} to {target_age_group}"
+
+    # ========================================================================
+    # CREDIT MANAGEMENT (for compatibility with LFA Player credit endpoints)
+    # ========================================================================
+
+    def get_license_by_user(self, user_id: int) -> Optional[Dict]:
+        """
+        Get user's active LFA Player license
+
+        Returns license data as dict for compatibility with credit endpoints.
+        If no license exists, returns None.
+        """
+        try:
+            license = self.db.query(UserLicense).filter(
+                UserLicense.user_id == user_id,
+                UserLicense.is_active == True
+            ).first()
+
+            if not license:
+                return None
+
+            # Get current age group from user (Player ages are category-based)
+            from app.models.user import User
+            user = self.db.query(User).filter(User.id == user_id).first()
+            age_group = getattr(user, 'age_group', 'AMATEUR')  # Default to AMATEUR
+
+            # Calculate overall average and skills from skill assessments
+            overall_avg = 0.0
+            skills = {
+                'heading_avg': None,
+                'shooting_avg': None,
+                'crossing_avg': None,
+                'passing_avg': None,
+                'dribbling_avg': None,
+                'ball_control_avg': None,
+                'defending_avg': None
+            }
+
+            try:
+                assessments = self.db.query(FootballSkillAssessment).filter(
+                    FootballSkillAssessment.user_id == user_id
+                ).all()
+
+                if assessments:
+                    # Calculate overall average
+                    total_score = sum(getattr(a, 'score', 0) for a in assessments)
+                    overall_avg = round(total_score / len(assessments), 2)
+
+                    # Calculate per-skill averages
+                    skill_scores = {}
+                    for assessment in assessments:
+                        skill_name = getattr(assessment, 'skill_name', None)
+                        score = getattr(assessment, 'score', 0)
+                        if skill_name:
+                            if skill_name not in skill_scores:
+                                skill_scores[skill_name] = []
+                            skill_scores[skill_name].append(score)
+
+                    # Average per skill
+                    for skill_name, scores in skill_scores.items():
+                        avg_key = f"{skill_name}_avg"
+                        if avg_key in skills:
+                            skills[avg_key] = round(sum(scores) / len(scores), 2)
+            except:
+                pass
+
+            return {
+                'id': license.id,
+                'user_id': license.user_id,
+                'age_group': age_group,
+                'credit_balance': getattr(license, 'credit_balance', 0),
+                'overall_avg': overall_avg,
+                'skills': skills,
+                'is_active': license.is_active,
+                'created_at': license.created_at,
+                'updated_at': getattr(license, 'updated_at', license.created_at)
+            }
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error fetching license for user {user_id}: {str(e)}")
+            return None
+
+    def get_credit_balance(self, license_id: int) -> int:
+        """
+        Get current credit balance for a license
+
+        Returns:
+            int: Current credit balance (defaults to 0 if not found)
+        """
+        try:
+            license = self.db.query(UserLicense).filter(
+                UserLicense.id == license_id
+            ).first()
+
+            if not license:
+                return 0
+
+            return getattr(license, 'credit_balance', 0)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error fetching balance for license {license_id}: {str(e)}")
+            return 0
+
+    def get_transaction_history(self, license_id: int, limit: int = 50) -> List[Dict]:
+        """
+        Get credit transaction history for a license
+
+        Returns:
+            List[Dict]: Transaction history (empty list if unavailable)
+        """
+        try:
+            # Note: This assumes a CreditTransaction model exists
+            # If it doesn't, return empty list gracefully
+            from app.models.credit_transaction import CreditTransaction
+
+            transactions = self.db.query(CreditTransaction).filter(
+                CreditTransaction.license_id == license_id
+            ).order_by(
+                CreditTransaction.created_at.desc()
+            ).limit(limit).all()
+
+            return [
+                {
+                    'id': tx.id,
+                    'transaction_type': tx.transaction_type,
+                    'amount': tx.amount,
+                    'enrollment_id': getattr(tx, 'enrollment_id', None),
+                    'payment_verified': getattr(tx, 'payment_verified', None),
+                    'payment_reference_code': getattr(tx, 'payment_reference_code', None),
+                    'description': getattr(tx, 'description', None),
+                    'created_at': tx.created_at
+                }
+                for tx in transactions
+            ]
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Transaction history unavailable for license {license_id}: {str(e)}")
+            return []

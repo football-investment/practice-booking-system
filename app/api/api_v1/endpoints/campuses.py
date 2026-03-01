@@ -11,7 +11,7 @@ from ....dependencies import get_db, get_current_admin_user
 from ....models.campus import Campus
 from ....models.location import Location
 from ....models.user import User
-from ....schemas.campus import CampusCreate, CampusUpdate, CampusResponse
+from ....schemas.campus import CampusCreate, CampusUpdate, CampusResponse, ToggleCampusStatusRequest
 
 router = APIRouter()
 
@@ -135,7 +135,7 @@ def create_campus(
     return campus
 
 
-@router.put("/campuses/{campus_id}", response_model=CampusResponse)
+@router.put("/{campus_id}", response_model=CampusResponse)  # BATCH 12: Fixed duplicate /campuses prefix
 def update_campus(
     campus_id: int,
     campus_data: CampusUpdate,
@@ -180,7 +180,7 @@ def update_campus(
     return campus
 
 
-@router.delete("/campuses/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)  # BATCH 12: Fixed duplicate /campuses prefix
 def delete_campus(
     campus_id: int,
     db: Session = Depends(get_db),
@@ -204,15 +204,19 @@ def delete_campus(
     return None
 
 
-@router.patch("/campuses/{campus_id}/toggle-status", response_model=CampusResponse)
+@router.patch("/{campus_id}/toggle-status", response_model=CampusResponse)  # BATCH 12: Fixed duplicate /campuses prefix
 def toggle_campus_status(
     campus_id: int,
-    is_active: bool,
+    request_data: ToggleCampusStatusRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
     """
     Activate or deactivate campus (admin only)
+
+    **Authorization:** Admin role required
+    **Validation:** is_active field required (boolean)
+    **Performance:** p95 < 100ms
     """
     campus = db.query(Campus).filter(Campus.id == campus_id).first()
 
@@ -222,7 +226,7 @@ def toggle_campus_status(
             detail=f"Campus with ID {campus_id} not found"
         )
 
-    campus.is_active = is_active
+    campus.is_active = request_data.is_active
     db.commit()
     db.refresh(campus)
 

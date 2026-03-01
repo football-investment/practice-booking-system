@@ -16,7 +16,7 @@ All values are persisted to the database.
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db
 from app.dependencies import get_current_admin_user
@@ -30,6 +30,8 @@ router = APIRouter()
 # ── Schemas ─────────────────────────────────────────────────────────────────
 
 class MatchDurationConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """
     Global match-duration / schedule configuration for a tournament.
 
@@ -64,6 +66,8 @@ class MatchDurationConfig(BaseModel):
 
 
 class ScheduleConfigResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     tournament_id: int
     tournament_name: str
     # Global values (from TournamentConfiguration)

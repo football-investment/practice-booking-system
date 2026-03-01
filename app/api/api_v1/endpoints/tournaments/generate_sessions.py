@@ -13,7 +13,7 @@ import threading
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db, SessionLocal
 from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
@@ -110,6 +110,8 @@ def _run_generation_in_background(
 
 
 class CampusScheduleConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Per-campus schedule overrides for multi-venue tournaments"""
     match_duration_minutes: Optional[int] = Field(default=None, ge=1, le=180, description="Override match duration for this campus")
     break_duration_minutes: Optional[int] = Field(default=None, ge=0, le=60, description="Override break duration for this campus")
@@ -117,6 +119,8 @@ class CampusScheduleConfig(BaseModel):
 
 
 class SessionGenerationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for session generation"""
     parallel_fields: int = Field(default=1, ge=1, le=10, description="Number of fields available for parallel matches")
     session_duration_minutes: int = Field(default=90, ge=1, le=180, description="Duration of each session in minutes (business allows 1-5 min matches)")
@@ -261,27 +265,36 @@ def preview_tournament_sessions(
     session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else session_duration_minutes
     break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else break_minutes
 
-    # Generate preview (call generator service in DRY_RUN mode)
-    generator = TournamentSessionGenerator(db)
+    # Generate preview using new modular generator architecture
+    from app.services.tournament.session_generation import (
+        LeagueGenerator,
+        KnockoutGenerator,
+        GroupKnockoutGenerator,
+        SwissGenerator
+    )
 
     # Generate session structure (same logic as actual generation, but don't commit)
     if tournament_type.code == "league":
-        sessions = generator._generate_league_sessions(
+        generator = LeagueGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
     elif tournament_type.code == "knockout":
-        sessions = generator._generate_knockout_sessions(
+        generator = KnockoutGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
     elif tournament_type.code == "group_knockout":
-        sessions = generator._generate_group_knockout_sessions(
+        generator = GroupKnockoutGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )
     elif tournament_type.code == "swiss":
-        sessions = generator._generate_swiss_sessions(
+        generator = SwissGenerator(db)
+        sessions = generator.generate(
             tournament, tournament_type, player_count, parallel_fields,
             session_duration, break_duration
         )

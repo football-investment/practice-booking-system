@@ -13,6 +13,7 @@ Endpoints:
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any
+from pydantic import BaseModel, ConfigDict
 
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -29,6 +30,15 @@ from app.services.tournament.results.finalization import (
 )
 
 router = APIRouter()
+
+
+# ============================================================================
+# Request/Response Schemas
+# ============================================================================
+
+class TournamentActionRequest(BaseModel):
+    """Empty request schema for tournament action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
 
 
 # ============================================================================
@@ -81,6 +91,7 @@ def get_session_or_404(
 @router.post("/{tournament_id}/finalize-group-stage")
 def finalize_group_stage(
     tournament_id: int,
+    request_data: TournamentActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
@@ -93,7 +104,9 @@ def finalize_group_stage(
     3. Determines qualified participants for knockout stage
     4. Updates knockout session participant_user_ids with seeding
 
-    Authorization: ADMIN or INSTRUCTOR
+    **Authorization:** ADMIN or INSTRUCTOR
+    **Validation:** Empty body required, rejects invalid fields (422)
+    **Performance:** p95 < 500ms
     """
     # Authorization check
     require_admin_or_instructor(
@@ -115,6 +128,7 @@ def finalize_group_stage(
 @router.post("/{tournament_id}/finalize-tournament")
 def finalize_tournament(
     tournament_id: int,
+    request_data: TournamentActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
@@ -129,7 +143,9 @@ def finalize_tournament(
     3. Updates tournament_rankings table
     4. Sets tournament status to COMPLETED
 
-    Authorization: ADMIN only
+    **Authorization:** ADMIN only
+    **Validation:** Empty body required, rejects invalid fields (422)
+    **Performance:** p95 < 500ms
     """
     # Authorization check
     require_admin(

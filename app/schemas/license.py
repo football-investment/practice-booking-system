@@ -1,12 +1,14 @@
 """
 License schemas for API validation
 """
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 
 
 class FootballSkillsBase(BaseModel):
+
+
     """6 football skills with percentage values (0-100)"""
     heading: float = Field(..., ge=0.0, le=100.0, description="Heading skill percentage (0-100)")
     shooting: float = Field(..., ge=0.0, le=100.0, description="Shooting skill percentage (0-100)")
@@ -34,8 +36,7 @@ class FootballSkillsResponse(FootballSkillsBase):
     skills_updated_by_name: Optional[str] = None
     instructor_notes: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LicenseWithSkillsResponse(BaseModel):
@@ -51,13 +52,14 @@ class LicenseWithSkillsResponse(BaseModel):
     # Football skills (only populated for LFA_PLAYER_* specializations)
     football_skills: Optional[FootballSkillsResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ⚽ NEW: Skill Assessment Schemas (Points-based system)
 
 class SkillAssessmentCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Create a new skill assessment (instructor submits points)"""
     skill_name: str = Field(..., description="Skill name: heading, shooting, crossing, passing, dribbling, ball_control")
     points_earned: int = Field(..., ge=0, description="Points earned (e.g., 7)")
@@ -94,8 +96,7 @@ class SkillAssessmentResponse(BaseModel):
     notes: Optional[str] = None
     assessor_name: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SkillAssessmentHistoryResponse(BaseModel):
@@ -105,11 +106,12 @@ class SkillAssessmentHistoryResponse(BaseModel):
     assessment_count: int
     assessments: List[SkillAssessmentResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BulkSkillAssessmentCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Create assessments for all 6 skills at once"""
     heading: SkillAssessmentCreate
     shooting: SkillAssessmentCreate

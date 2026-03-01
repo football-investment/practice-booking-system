@@ -6,10 +6,28 @@ Can be overridden per-tournament via reward_config.
 """
 
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SkillProgressionConfig(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
+            "example": {
+                "tournament_delta_multiplier": 0.125,
+                "tournament_max_contribution": 15.0,
+                "assessment_delta_multiplier": 0.20,
+                "assessment_max_contribution": 10.0,
+                "max_skill_level": 100.0,
+                "min_skill_level": 0.0,
+                "decay_enabled": False,
+                "decay_threshold_days": 30,
+                "decay_max_percentage": 0.20,
+                "decay_curve_steepness": 0.5
+            }
+        }
+    )
+
     """
     Skill progression configuration model.
 
@@ -78,21 +96,6 @@ class SkillProgressionConfig(BaseModel):
         le=2.0,
         description="Steepness of decay curve (k parameter, default: 0.5)"
     )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "tournament_delta_multiplier": 0.125,
-                "tournament_max_contribution": 15.0,
-                "assessment_delta_multiplier": 0.20,
-                "assessment_max_contribution": 10.0,
-                "max_skill_level": 100.0,
-                "min_skill_level": 0.0,
-                "decay_enabled": False,
-                "decay_threshold_days": 30,
-                "decay_max_percentage": 0.20,
-                "decay_curve_steepness": 0.5
-            }
         }
 
 
@@ -156,8 +159,7 @@ def get_tournament_config(
         # Custom override
         config = get_tournament_config(custom_config={
             "tournament_delta_multiplier": 0.15,
-            "tournament_max_contribution": 18.0
-        })
+            "tournament_max_contribution": 18.0)
     """
     # Start with default
     if tournament_type and tournament_type in TOURNAMENT_CONFIG_TEMPLATES:

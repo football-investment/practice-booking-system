@@ -13,7 +13,7 @@ from typing import Any
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_admin_user
@@ -29,6 +29,8 @@ router = APIRouter()
 
 
 class AcademySeasonGenerateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request model for generating Academy Season"""
     specialization_type: SpecializationType = Field(
         ...,

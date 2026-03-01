@@ -62,7 +62,7 @@ def check_enrollment_conflicts(
             "id": semester.id,
             "name": semester.name,
             "code": semester.code,
-            "specialization_type": semester.specialization_type.value,
+            "specialization_type": semester.specialization_type,
             "start_date": semester.start_date.isoformat(),
             "end_date": semester.end_date.isoformat()
         },

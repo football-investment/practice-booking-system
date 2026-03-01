@@ -15,7 +15,7 @@ Precedence in session generation:
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db
 from app.dependencies import get_current_admin_user
@@ -30,6 +30,8 @@ router = APIRouter()
 # ── Pydantic schemas ────────────────────────────────────────────────────────
 
 class CampusScheduleUpsertRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Create or update a per-campus schedule config for a tournament."""
     campus_id: int = Field(..., description="Campus ID to configure")
     match_duration_minutes: Optional[int] = Field(

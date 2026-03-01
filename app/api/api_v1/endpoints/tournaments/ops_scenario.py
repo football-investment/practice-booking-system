@@ -13,7 +13,7 @@ import json as _json
 from typing import Dict, List, Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db
 from app.api.api_v1.endpoints.auth import get_current_user
@@ -29,6 +29,8 @@ _OPS_CONFIRM_THRESHOLD = 128  # player_count >= this requires confirmed=True
 # ============================================================================
 
 class OpsScenarioRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to trigger an ops scenario (admin-only)."""
     scenario: Literal["large_field_monitor", "smoke_test", "scale_test"] = Field(
         ...,

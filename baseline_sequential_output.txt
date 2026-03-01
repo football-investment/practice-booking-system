@@ -1,0 +1,1232 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-7.4.3, pluggy-1.6.0 -- /opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+cachedir: .pytest_cache
+rootdir: /home/runner/work/practice-booking-system/practice-booking-system
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-0.21.1, xdist-3.8.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT
+timeout: 10.0s
+timeout method: signal
+timeout func_only: False
+collecting ... collected 210 items
+
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:33 [    INFO] {"event_type": "request_start", "request_id": "9ee759f3-6599-44ae-a896-f4524a606d58", "timestamp": "2026-02-27T11:10:33.145884+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/1", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:33 [    INFO] {"event_type": "request_complete", "request_id": "9ee759f3-6599-44ae-a896-f4524a606d58", "timestamp": "2026-02-27T11:10:33.214285+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/1", "status_code": 204, "process_time_ms": 68.42, "client_ip": "testclient", "response_size": 0}
+2026-02-27 11:10:33 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/1 "HTTP/1.1 204 No Content"
+PASSED                                                                   [  0%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:33 [    INFO] {"event_type": "request_start", "request_id": "7bf37015-19e2-43b3-9e00-9c4d79f57813", "timestamp": "2026-02-27T11:10:33.484722+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/2", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:33 [ WARNING] {"event_type": "application_error", "request_id": "7bf37015-19e2-43b3-9e00-9c4d79f57813", "timestamp": "2026-02-27T11:10:33.486932+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/2", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:33 [ WARNING] {"event_type": "request_complete", "request_id": "7bf37015-19e2-43b3-9e00-9c4d79f57813", "timestamp": "2026-02-27T11:10:33.487356+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/2", "status_code": 401, "process_time_ms": 2.65, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:33 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/2 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  0%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_input_validation SKIPPED [  1%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_campus_schedule_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:33 [    INFO] {"event_type": "request_start", "request_id": "48269d31-dff0-4f1c-b229-332ccb20429a", "timestamp": "2026-02-27T11:10:33.757614+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/3/campus-schedules/1", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:33 [    INFO] {"event_type": "request_complete", "request_id": "48269d31-dff0-4f1c-b229-332ccb20429a", "timestamp": "2026-02-27T11:10:33.765934+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/3/campus-schedules/1", "status_code": 200, "process_time_ms": 8.34, "client_ip": "testclient", "response_size": 56}
+2026-02-27 11:10:33 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/3/campus-schedules/1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_campus_schedule_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:34 [    INFO] {"event_type": "request_start", "request_id": "c55fd75d-e3fa-4fc4-86fa-9eab2a3c4b93", "timestamp": "2026-02-27T11:10:34.033836+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/4/campus-schedules/1", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:34 [ WARNING] {"event_type": "application_error", "request_id": "c55fd75d-e3fa-4fc4-86fa-9eab2a3c4b93", "timestamp": "2026-02-27T11:10:34.036011+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/4/campus-schedules/1", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:34 [ WARNING] {"event_type": "request_complete", "request_id": "c55fd75d-e3fa-4fc4-86fa-9eab2a3c4b93", "timestamp": "2026-02-27T11:10:34.036411+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/4/campus-schedules/1", "status_code": 401, "process_time_ms": 2.59, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/4/campus-schedules/1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  2%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_campus_schedule_input_validation SKIPPED [  2%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_reward_config_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:34 [    INFO] {"event_type": "request_start", "request_id": "ac296326-59db-478e-ac8d-4a620f29e80a", "timestamp": "2026-02-27T11:10:34.300315+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/5/reward-config", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:34 [    INFO] {"event_type": "request_complete", "request_id": "ac296326-59db-478e-ac8d-4a620f29e80a", "timestamp": "2026-02-27T11:10:34.307217+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/5/reward-config", "status_code": 200, "process_time_ms": 6.92, "client_ip": "testclient", "response_size": 55}
+2026-02-27 11:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/5/reward-config "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_reward_config_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:34 [    INFO] {"event_type": "request_start", "request_id": "74badcd8-fc3f-42f7-b3ad-9454acee4113", "timestamp": "2026-02-27T11:10:34.570389+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/6/reward-config", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:34 [ WARNING] {"event_type": "application_error", "request_id": "74badcd8-fc3f-42f7-b3ad-9454acee4113", "timestamp": "2026-02-27T11:10:34.572454+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/6/reward-config", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:34 [ WARNING] {"event_type": "request_complete", "request_id": "74badcd8-fc3f-42f7-b3ad-9454acee4113", "timestamp": "2026-02-27T11:10:34.572843+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/6/reward-config", "status_code": 401, "process_time_ms": 2.47, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/6/reward-config "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  3%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_reward_config_input_validation SKIPPED [  4%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_generated_sessions_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:34 [    INFO] {"event_type": "request_start", "request_id": "a4b93a32-0515-4d3f-9c25-3304e2920440", "timestamp": "2026-02-27T11:10:34.837134+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/7/sessions", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:34 [    INFO] {"event_type": "request_complete", "request_id": "a4b93a32-0515-4d3f-9c25-3304e2920440", "timestamp": "2026-02-27T11:10:34.845187+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/7/sessions", "status_code": 200, "process_time_ms": 8.07, "client_ip": "testclient", "response_size": 83}
+2026-02-27 11:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/7/sessions "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_generated_sessions_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:35 [    INFO] {"event_type": "request_start", "request_id": "65889765-27c4-4a5a-aa44-99d3d735bda6", "timestamp": "2026-02-27T11:10:35.121807+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/8/sessions", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:35 [ WARNING] {"event_type": "application_error", "request_id": "65889765-27c4-4a5a-aa44-99d3d735bda6", "timestamp": "2026-02-27T11:10:35.124051+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/8/sessions", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:35 [ WARNING] {"event_type": "request_complete", "request_id": "65889765-27c4-4a5a-aa44-99d3d735bda6", "timestamp": "2026-02-27T11:10:35.124445+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/8/sessions", "status_code": 401, "process_time_ms": 2.66, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:35 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/8/sessions "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  5%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_generated_sessions_input_validation SKIPPED [  5%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_skill_mapping_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:35 [    INFO] {"event_type": "request_start", "request_id": "1fc0a7bb-1514-48b2-ad5a-234e88982e27", "timestamp": "2026-02-27T11:10:35.388326+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/9/skill-mappings/1", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:35 [    INFO] {"event_type": "request_complete", "request_id": "1fc0a7bb-1514-48b2-ad5a-234e88982e27", "timestamp": "2026-02-27T11:10:35.396481+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/9/skill-mappings/1", "status_code": 200, "process_time_ms": 8.17, "client_ip": "testclient", "response_size": 62}
+2026-02-27 11:10:35 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/9/skill-mappings/1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_skill_mapping_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:35 [    INFO] {"event_type": "request_start", "request_id": "944e5533-32c5-4402-83d8-80e6824fae08", "timestamp": "2026-02-27T11:10:35.668986+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/10/skill-mappings/2", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:35 [ WARNING] {"event_type": "application_error", "request_id": "944e5533-32c5-4402-83d8-80e6824fae08", "timestamp": "2026-02-27T11:10:35.671448+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/10/skill-mappings/2", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:35 [ WARNING] {"event_type": "request_complete", "request_id": "944e5533-32c5-4402-83d8-80e6824fae08", "timestamp": "2026-02-27T11:10:35.671844+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/10/skill-mappings/2", "status_code": 401, "process_time_ms": 2.87, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:35 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/10/skill-mappings/2 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  6%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_skill_mapping_input_validation SKIPPED [  7%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_unenroll_from_tournament_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:35 [    INFO] {"event_type": "request_start", "request_id": "dd72e4d5-bbe6-4472-bc73-88ed85f9f831", "timestamp": "2026-02-27T11:10:35.935222+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/11/unenroll", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:35 [    INFO] 🚫 UNENROLL START - Tournament: 11, User: 1
+2026-02-27 11:10:35 [ WARNING] {"event_type": "application_error", "request_id": "dd72e4d5-bbe6-4472-bc73-88ed85f9f831", "timestamp": "2026-02-27T11:10:35.941747+00:00", "error_type": "HTTPException", "error_code": "http_403", "status_code": 403, "user_message": "Only students can unenroll from tournaments", "internal_message": "403: Only students can unenroll from tournaments", "url": "http://testserver/api/v1/tournaments/11/unenroll", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:35 [ WARNING] {"event_type": "request_complete", "request_id": "dd72e4d5-bbe6-4472-bc73-88ed85f9f831", "timestamp": "2026-02-27T11:10:35.942161+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/11/unenroll", "status_code": 403, "process_time_ms": 6.95, "client_ip": "testclient", "response_size": 184}
+2026-02-27 11:10:35 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/11/unenroll "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  7%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_unenroll_from_tournament_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "f5caadee-df18-4323-8855-060b23b721c9", "timestamp": "2026-02-27T11:10:36.202341+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/12/unenroll", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "f5caadee-df18-4323-8855-060b23b721c9", "timestamp": "2026-02-27T11:10:36.204344+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/12/unenroll", "method": "DELETE", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "f5caadee-df18-4323-8855-060b23b721c9", "timestamp": "2026-02-27T11:10:36.204747+00:00", "method": "DELETE", "url": "http://testserver/api/v1/tournaments/12/unenroll", "status_code": 401, "process_time_ms": 2.42, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: DELETE http://testserver/api/v1/tournaments/12/unenroll "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  8%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_unenroll_from_tournament_input_validation SKIPPED [  8%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_tournaments_admin_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "61fb4eb2-7ff6-4295-9d4f-01641cf9a448", "timestamp": "2026-02-27T11:10:36.216617+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/admin/list", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_complete", "request_id": "61fb4eb2-7ff6-4295-9d4f-01641cf9a448", "timestamp": "2026-02-27T11:10:36.224020+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/admin/list", "status_code": 200, "process_time_ms": 7.42, "client_ip": "testclient", "response_size": 2}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/admin/list "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_tournaments_admin_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "6ab0c216-c595-43ee-bd85-3d72539a0bfd", "timestamp": "2026-02-27T11:10:36.232055+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/admin/list", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "6ab0c216-c595-43ee-bd85-3d72539a0bfd", "timestamp": "2026-02-27T11:10:36.234117+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/admin/list", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "6ab0c216-c595-43ee-bd85-3d72539a0bfd", "timestamp": "2026-02-27T11:10:36.234488+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/admin/list", "status_code": 401, "process_time_ms": 2.47, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/admin/list "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  9%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_tournaments_admin_input_validation SKIPPED [ 10%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_available_tournaments_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "31ef6be9-9101-4430-aafd-8d490f19e7b5", "timestamp": "2026-02-27T11:10:36.242270+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/available", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "31ef6be9-9101-4430-aafd-8d490f19e7b5", "timestamp": "2026-02-27T11:10:36.247796+00:00", "error_type": "RequestValidationError", "error_code": "validation_error", "status_code": 422, "user_message": "Invalid request data", "internal_message": "1 validation error:\n  {'type': 'int_parsing', 'loc': ('path', 'tournament_id'), 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': 'available'}\n\n  File \"/home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/detail.py\", line 38, in get_tournament_detail\n    GET /api/v1/tournaments/{tournament_id}", "url": "http://testserver/api/v1/tournaments/available", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "31ef6be9-9101-4430-aafd-8d490f19e7b5", "timestamp": "2026-02-27T11:10:36.248380+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/available", "status_code": 422, "process_time_ms": 6.12, "client_ip": "testclient", "response_size": 337}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/available "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 10%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_available_tournaments_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "ac753586-642a-4737-8946-b03e65c2d6c0", "timestamp": "2026-02-27T11:10:36.256894+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/available", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "ac753586-642a-4737-8946-b03e65c2d6c0", "timestamp": "2026-02-27T11:10:36.258995+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/available", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "ac753586-642a-4737-8946-b03e65c2d6c0", "timestamp": "2026-02-27T11:10:36.259397+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/available", "status_code": 401, "process_time_ms": 2.52, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/available "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 10%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_available_tournaments_input_validation SKIPPED [ 11%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_user_badge_showcase_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "50f3447c-6080-4453-8d61-ceff0748bf86", "timestamp": "2026-02-27T11:10:36.269242+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/showcase/2", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_complete", "request_id": "50f3447c-6080-4453-8d61-ceff0748bf86", "timestamp": "2026-02-27T11:10:36.275364+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/showcase/2", "status_code": 200, "process_time_ms": 6.14, "client_ip": "testclient", "response_size": 98}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/badges/showcase/2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_user_badge_showcase_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "a39f57ff-dd98-47bd-875d-55a00082e9d9", "timestamp": "2026-02-27T11:10:36.279702+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/showcase/2", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "a39f57ff-dd98-47bd-875d-55a00082e9d9", "timestamp": "2026-02-27T11:10:36.281780+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/badges/showcase/2", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "a39f57ff-dd98-47bd-875d-55a00082e9d9", "timestamp": "2026-02-27T11:10:36.282177+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/showcase/2", "status_code": 401, "process_time_ms": 2.49, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/badges/showcase/2 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 12%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_user_badge_showcase_input_validation SKIPPED [ 12%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_user_tournament_badges_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "004ee21f-141a-4ae2-8474-af05709509c1", "timestamp": "2026-02-27T11:10:36.289682+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/user/2", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_complete", "request_id": "004ee21f-141a-4ae2-8474-af05709509c1", "timestamp": "2026-02-27T11:10:36.300471+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/user/2", "status_code": 200, "process_time_ms": 10.8, "client_ip": "testclient", "response_size": 42}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/badges/user/2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_user_tournament_badges_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "be70360b-a6fc-4e27-b2c2-103344bd4cf2", "timestamp": "2026-02-27T11:10:36.304661+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/user/2", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "be70360b-a6fc-4e27-b2c2-103344bd4cf2", "timestamp": "2026-02-27T11:10:36.306774+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/badges/user/2", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "be70360b-a6fc-4e27-b2c2-103344bd4cf2", "timestamp": "2026-02-27T11:10:36.307203+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/badges/user/2", "status_code": 401, "process_time_ms": 2.56, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/badges/user/2 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 13%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_user_tournament_badges_input_validation SKIPPED [ 14%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_my_instructor_applications_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "1c9ab8de-0e90-49bc-ba23-d5c821191169", "timestamp": "2026-02-27T11:10:36.314782+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/instructor/my-applications", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "1c9ab8de-0e90-49bc-ba23-d5c821191169", "timestamp": "2026-02-27T11:10:36.320116+00:00", "error_type": "HTTPException", "error_code": "http_403", "status_code": 403, "user_message": "Only instructors can view their own applications", "internal_message": "403: Only instructors can view their own applications", "url": "http://testserver/api/v1/tournaments/instructor/my-applications", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "1c9ab8de-0e90-49bc-ba23-d5c821191169", "timestamp": "2026-02-27T11:10:36.320504+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/instructor/my-applications", "status_code": 403, "process_time_ms": 5.73, "client_ip": "testclient", "response_size": 189}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/instructor/my-applications "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 14%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_my_instructor_applications_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "42e9ef83-4792-4272-8dd8-c53fb152ae88", "timestamp": "2026-02-27T11:10:36.327961+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/instructor/my-applications", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "42e9ef83-4792-4272-8dd8-c53fb152ae88", "timestamp": "2026-02-27T11:10:36.329966+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/instructor/my-applications", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "42e9ef83-4792-4272-8dd8-c53fb152ae88", "timestamp": "2026-02-27T11:10:36.330367+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/instructor/my-applications", "status_code": 401, "process_time_ms": 2.42, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/instructor/my-applications "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 15%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_my_instructor_applications_input_validation SKIPPED [ 15%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_tournament_requests_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "203fe79f-1c56-492f-a8b5-2d9b2483248d", "timestamp": "2026-02-27T11:10:36.338806+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/requests/instructor/3", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_complete", "request_id": "203fe79f-1c56-492f-a8b5-2d9b2483248d", "timestamp": "2026-02-27T11:10:36.344702+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/requests/instructor/3", "status_code": 200, "process_time_ms": 5.91, "client_ip": "testclient", "response_size": 2}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/requests/instructor/3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_tournament_requests_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "b9dd2ef6-86f7-4bda-b3cc-96fb6a6a871c", "timestamp": "2026-02-27T11:10:36.348985+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/requests/instructor/3", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "b9dd2ef6-86f7-4bda-b3cc-96fb6a6a871c", "timestamp": "2026-02-27T11:10:36.350944+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/requests/instructor/3", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "b9dd2ef6-86f7-4bda-b3cc-96fb6a6a871c", "timestamp": "2026-02-27T11:10:36.351364+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/requests/instructor/3", "status_code": 401, "process_time_ms": 2.39, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/requests/instructor/3 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 16%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_tournament_requests_input_validation SKIPPED [ 17%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policies_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "cdd7d569-ba84-43c4-90d7-cf4be8c63323", "timestamp": "2026-02-27T11:10:36.359565+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "cdd7d569-ba84-43c4-90d7-cf4be8c63323", "timestamp": "2026-02-27T11:10:36.363820+00:00", "error_type": "RequestValidationError", "error_code": "validation_error", "status_code": 422, "user_message": "Invalid request data", "internal_message": "1 validation error:\n  {'type': 'int_parsing', 'loc': ('path', 'tournament_id'), 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': 'reward-policies'}\n\n  File \"/home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/detail.py\", line 38, in get_tournament_detail\n    GET /api/v1/tournaments/{tournament_id}", "url": "http://testserver/api/v1/tournaments/reward-policies", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "cdd7d569-ba84-43c4-90d7-cf4be8c63323", "timestamp": "2026-02-27T11:10:36.364272+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies", "status_code": 422, "process_time_ms": 4.72, "client_ip": "testclient", "response_size": 337}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/reward-policies "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 17%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policies_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "e141e643-ed3a-4e6f-b0f5-9241ec9ac156", "timestamp": "2026-02-27T11:10:36.372055+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "e141e643-ed3a-4e6f-b0f5-9241ec9ac156", "timestamp": "2026-02-27T11:10:36.374014+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/reward-policies", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "e141e643-ed3a-4e6f-b0f5-9241ec9ac156", "timestamp": "2026-02-27T11:10:36.374402+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies", "status_code": 401, "process_time_ms": 2.39, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/reward-policies "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 18%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policies_input_validation SKIPPED [ 18%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "01a6d6c5-52a9-4872-ae7a-e2e5291c58f8", "timestamp": "2026-02-27T11:10:36.633389+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies/default", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_complete", "request_id": "01a6d6c5-52a9-4872-ae7a-e2e5291c58f8", "timestamp": "2026-02-27T11:10:36.638264+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies/default", "status_code": 200, "process_time_ms": 4.89, "client_ip": "testclient", "response_size": 166}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/reward-policies/default "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "08437e49-0b79-4cb6-880d-a42b13f8beef", "timestamp": "2026-02-27T11:10:36.896909+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies/default", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "08437e49-0b79-4cb6-880d-a42b13f8beef", "timestamp": "2026-02-27T11:10:36.899202+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/reward-policies/default", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "08437e49-0b79-4cb6-880d-a42b13f8beef", "timestamp": "2026-02-27T11:10:36.899618+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/reward-policies/default", "status_code": 401, "process_time_ms": 2.72, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/reward-policies/default "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 19%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_input_validation SKIPPED [ 20%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_config_templates_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "cac0b5d7-2607-470e-bc53-ba99192d35c1", "timestamp": "2026-02-27T11:10:36.911423+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/templates", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "cac0b5d7-2607-470e-bc53-ba99192d35c1", "timestamp": "2026-02-27T11:10:36.915206+00:00", "error_type": "RequestValidationError", "error_code": "validation_error", "status_code": 422, "user_message": "Invalid request data", "internal_message": "1 validation error:\n  {'type': 'int_parsing', 'loc': ('path', 'tournament_id'), 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': 'templates'}\n\n  File \"/home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/detail.py\", line 38, in get_tournament_detail\n    GET /api/v1/tournaments/{tournament_id}", "url": "http://testserver/api/v1/tournaments/templates", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "cac0b5d7-2607-470e-bc53-ba99192d35c1", "timestamp": "2026-02-27T11:10:36.915598+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/templates", "status_code": 422, "process_time_ms": 4.19, "client_ip": "testclient", "response_size": 337}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/templates "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 20%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_config_templates_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:36 [    INFO] {"event_type": "request_start", "request_id": "b67b9a94-54ca-459c-892b-08a1c3cc48f4", "timestamp": "2026-02-27T11:10:36.922887+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/templates", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "application_error", "request_id": "b67b9a94-54ca-459c-892b-08a1c3cc48f4", "timestamp": "2026-02-27T11:10:36.925287+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/templates", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:36 [ WARNING] {"event_type": "request_complete", "request_id": "b67b9a94-54ca-459c-892b-08a1c3cc48f4", "timestamp": "2026-02-27T11:10:36.925645+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/templates", "status_code": 401, "process_time_ms": 2.77, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:36 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/templates "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 20%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_config_templates_input_validation SKIPPED [ 21%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_detail_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:37 [    INFO] {"event_type": "request_start", "request_id": "b116a866-f43d-4d31-bc31-a31f1c22e449", "timestamp": "2026-02-27T11:10:37.183235+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/15", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:37 [    INFO] {"event_type": "request_complete", "request_id": "b116a866-f43d-4d31-bc31-a31f1c22e449", "timestamp": "2026-02-27T11:10:37.189572+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/15", "status_code": 200, "process_time_ms": 6.35, "client_ip": "testclient", "response_size": 276}
+2026-02-27 11:10:37 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/15 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_detail_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:37 [    INFO] {"event_type": "request_start", "request_id": "d613e64f-8b29-4902-8174-4ec5dbae9a93", "timestamp": "2026-02-27T11:10:37.452180+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/16", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:37 [ WARNING] {"event_type": "application_error", "request_id": "d613e64f-8b29-4902-8174-4ec5dbae9a93", "timestamp": "2026-02-27T11:10:37.454397+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/16", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:37 [ WARNING] {"event_type": "request_complete", "request_id": "d613e64f-8b29-4902-8174-4ec5dbae9a93", "timestamp": "2026-02-27T11:10:37.454841+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/16", "status_code": 401, "process_time_ms": 2.68, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:37 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/16 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 22%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_detail_input_validation SKIPPED [ 22%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_active_match_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:37 [    INFO] {"event_type": "request_start", "request_id": "5d12543c-8208-4ea9-938e-498df69dd196", "timestamp": "2026-02-27T11:10:37.718702+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/17/active-match", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:37 [    INFO] {"event_type": "request_complete", "request_id": "5d12543c-8208-4ea9-938e-498df69dd196", "timestamp": "2026-02-27T11:10:37.730641+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/17/active-match", "status_code": 200, "process_time_ms": 11.95, "client_ip": "testclient", "response_size": 356}
+2026-02-27 11:10:37 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/17/active-match "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_active_match_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:37 [    INFO] {"event_type": "request_start", "request_id": "81f07d8c-9f7a-489c-bf12-5d32092beb28", "timestamp": "2026-02-27T11:10:37.987672+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/18/active-match", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:37 [ WARNING] {"event_type": "application_error", "request_id": "81f07d8c-9f7a-489c-bf12-5d32092beb28", "timestamp": "2026-02-27T11:10:37.990092+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/18/active-match", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:37 [ WARNING] {"event_type": "request_complete", "request_id": "81f07d8c-9f7a-489c-bf12-5d32092beb28", "timestamp": "2026-02-27T11:10:37.990513+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/18/active-match", "status_code": 401, "process_time_ms": 2.86, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:37 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/18/active-match "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 23%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_active_match_input_validation SKIPPED [ 24%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_campus_schedules_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:38 [    INFO] {"event_type": "request_start", "request_id": "d6028478-a538-44e9-8923-55ec14122201", "timestamp": "2026-02-27T11:10:38.254917+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/19/campus-schedules", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:38 [    INFO] {"event_type": "request_complete", "request_id": "d6028478-a538-44e9-8923-55ec14122201", "timestamp": "2026-02-27T11:10:38.263790+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/19/campus-schedules", "status_code": 200, "process_time_ms": 8.89, "client_ip": "testclient", "response_size": 277}
+2026-02-27 11:10:38 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/19/campus-schedules "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_campus_schedules_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:38 [    INFO] {"event_type": "request_start", "request_id": "e675c7f2-8997-4344-8971-e27899f36c37", "timestamp": "2026-02-27T11:10:38.528091+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/20/campus-schedules", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:38 [ WARNING] {"event_type": "application_error", "request_id": "e675c7f2-8997-4344-8971-e27899f36c37", "timestamp": "2026-02-27T11:10:38.530860+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/20/campus-schedules", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:38 [ WARNING] {"event_type": "request_complete", "request_id": "e675c7f2-8997-4344-8971-e27899f36c37", "timestamp": "2026-02-27T11:10:38.531312+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/20/campus-schedules", "status_code": 401, "process_time_ms": 3.23, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:38 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/20/campus-schedules "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 25%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_campus_schedules_input_validation SKIPPED [ 25%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_distributed_rewards_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:38 [    INFO] {"event_type": "request_start", "request_id": "8a990342-ec80-4023-b343-01d1000de709", "timestamp": "2026-02-27T11:10:38.794156+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/21/distributed-rewards", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:38 [    INFO] {"event_type": "request_complete", "request_id": "8a990342-ec80-4023-b343-01d1000de709", "timestamp": "2026-02-27T11:10:38.801725+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/21/distributed-rewards", "status_code": 200, "process_time_ms": 7.58, "client_ip": "testclient", "response_size": 162}
+2026-02-27 11:10:38 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/21/distributed-rewards "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_distributed_rewards_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:39 [    INFO] {"event_type": "request_start", "request_id": "e85765f5-c1f5-4c17-b466-8d3972a25c03", "timestamp": "2026-02-27T11:10:39.059470+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/22/distributed-rewards", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:39 [ WARNING] {"event_type": "application_error", "request_id": "e85765f5-c1f5-4c17-b466-8d3972a25c03", "timestamp": "2026-02-27T11:10:39.061807+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/22/distributed-rewards", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:39 [ WARNING] {"event_type": "request_complete", "request_id": "e85765f5-c1f5-4c17-b466-8d3972a25c03", "timestamp": "2026-02-27T11:10:39.062276+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/22/distributed-rewards", "status_code": 401, "process_time_ms": 2.82, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:39 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/22/distributed-rewards "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 26%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_distributed_rewards_input_validation SKIPPED [ 27%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:39 [    INFO] {"event_type": "request_start", "request_id": "964c07cc-9aa6-4f25-b6e5-b3a368aff900", "timestamp": "2026-02-27T11:10:39.324524+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/23/generation-status/smoke-test-f112d8df-de8f-4b71-9463-fc50002c3fa8", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:39 [    INFO] {"event_type": "request_complete", "request_id": "964c07cc-9aa6-4f25-b6e5-b3a368aff900", "timestamp": "2026-02-27T11:10:39.403944+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/23/generation-status/smoke-test-f112d8df-de8f-4b71-9463-fc50002c3fa8", "status_code": 200, "process_time_ms": 79.43, "client_ip": "testclient", "response_size": 176}
+2026-02-27 11:10:39 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/23/generation-status/smoke-test-f112d8df-de8f-4b71-9463-fc50002c3fa8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:39 [    INFO] {"event_type": "request_start", "request_id": "3264e347-1897-411b-8980-ecfbe3be7fb8", "timestamp": "2026-02-27T11:10:39.662806+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/24/generation-status/smoke-test-5e55e904-252d-41f8-a266-af8e4401ad9a", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:39 [ WARNING] {"event_type": "application_error", "request_id": "3264e347-1897-411b-8980-ecfbe3be7fb8", "timestamp": "2026-02-27T11:10:39.664965+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/24/generation-status/smoke-test-5e55e904-252d-41f8-a266-af8e4401ad9a", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:39 [ WARNING] {"event_type": "request_complete", "request_id": "3264e347-1897-411b-8980-ecfbe3be7fb8", "timestamp": "2026-02-27T11:10:39.665362+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/24/generation-status/smoke-test-5e55e904-252d-41f8-a266-af8e4401ad9a", "status_code": 401, "process_time_ms": 2.57, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:39 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/24/generation-status/smoke-test-5e55e904-252d-41f8-a266-af8e4401ad9a "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 28%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_generation_status_input_validation SKIPPED [ 28%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_applications_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:39 [    INFO] {"event_type": "request_start", "request_id": "9585b294-cb04-4820-911b-3d628a024d3f", "timestamp": "2026-02-27T11:10:39.928904+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/25/instructor-applications", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:39 [    INFO] {"event_type": "request_complete", "request_id": "9585b294-cb04-4820-911b-3d628a024d3f", "timestamp": "2026-02-27T11:10:39.935736+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/25/instructor-applications", "status_code": 200, "process_time_ms": 6.85, "client_ip": "testclient", "response_size": 168}
+2026-02-27 11:10:39 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/25/instructor-applications "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_applications_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:40 [    INFO] {"event_type": "request_start", "request_id": "9461fdeb-4e81-41b3-8f7c-5bda9315e9aa", "timestamp": "2026-02-27T11:10:40.193720+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/26/instructor-applications", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:40 [ WARNING] {"event_type": "application_error", "request_id": "9461fdeb-4e81-41b3-8f7c-5bda9315e9aa", "timestamp": "2026-02-27T11:10:40.195712+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/26/instructor-applications", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:40 [ WARNING] {"event_type": "request_complete", "request_id": "9461fdeb-4e81-41b3-8f7c-5bda9315e9aa", "timestamp": "2026-02-27T11:10:40.196144+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/26/instructor-applications", "status_code": 401, "process_time_ms": 2.44, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:40 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/26/instructor-applications "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 29%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_applications_input_validation SKIPPED [ 30%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_leaderboard_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:40 [    INFO] {"event_type": "request_start", "request_id": "bc08410a-03e6-4161-bca4-98cf2db81bb6", "timestamp": "2026-02-27T11:10:40.462222+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/27/leaderboard", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:40 [    INFO] {"event_type": "request_complete", "request_id": "bc08410a-03e6-4161-bca4-98cf2db81bb6", "timestamp": "2026-02-27T11:10:40.494520+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/27/leaderboard", "status_code": 200, "process_time_ms": 32.31, "client_ip": "testclient", "response_size": 432}
+2026-02-27 11:10:40 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/27/leaderboard "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_leaderboard_auth_required 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:40 [    INFO] {"event_type": "request_start", "request_id": "065626b5-18e3-4b67-8281-993f057139d3", "timestamp": "2026-02-27T11:10:40.752952+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/28/leaderboard", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient"}}
+2026-02-27 11:10:40 [ WARNING] {"event_type": "application_error", "request_id": "065626b5-18e3-4b67-8281-993f057139d3", "timestamp": "2026-02-27T11:10:40.755078+00:00", "error_type": "HTTPException", "error_code": "http_401", "status_code": 401, "user_message": "Not authenticated", "internal_message": "401: Not authenticated", "url": "http://testserver/api/v1/tournaments/28/leaderboard", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:40 [ WARNING] {"event_type": "request_complete", "request_id": "065626b5-18e3-4b67-8281-993f057139d3", "timestamp": "2026-02-27T11:10:40.755493+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/28/leaderboard", "status_code": 401, "process_time_ms": 2.56, "client_ip": "testclient", "response_size": 158}
+2026-02-27 11:10:40 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/28/leaderboard "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 30%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_leaderboard_input_validation SKIPPED [ 31%]
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_my_tournament_application_happy_path 
+-------------------------------- live log call ---------------------------------
+2026-02-27 11:10:41 [    INFO] {"event_type": "request_start", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.017177+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/29/my-application", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:41 [ WARNING] {"event_type": "application_error", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.022124+00:00", "error_type": "HTTPException", "error_code": "http_403", "status_code": 403, "user_message": "Only instructors can perform this action", "internal_message": "403: Only instructors can perform this action", "url": "http://testserver/api/v1/tournaments/29/my-application", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:41 [ WARNING] {"event_type": "request_complete", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.022552+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/29/my-application", "status_code": 403, "process_time_ms": 5.39, "client_ip": "testclient", "response_size": 181}
+2026-02-27 11:10:41 [    INFO] HTTP Request: GET http://testserver/api/v1/tournaments/29/my-application "HTTP/1.1 403 Forbidden"
+FAILED                                                                   [ 31%]
+
+=================================== FAILURES ===================================
+______ TestTournamentsSmoke.test_get_my_tournament_application_happy_path ______
+tests/integration/api_smoke/test_tournaments_smoke.py:1581: in test_get_my_tournament_application_happy_path
+    assert response.status_code in [200, 201, 404, 405], (
+E   NameError: name 'tournament_id' is not defined
+----------------------------- Captured stderr call -----------------------------
+2026-02-27 11:10:41,017 - app.middleware.logging - INFO - {"event_type": "request_start", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.017177+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/29/my-application", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+2026-02-27 11:10:41,022 - app.core.exceptions - WARNING - {"event_type": "application_error", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.022124+00:00", "error_type": "HTTPException", "error_code": "http_403", "status_code": 403, "user_message": "Only instructors can perform this action", "internal_message": "403: Only instructors can perform this action", "url": "http://testserver/api/v1/tournaments/29/my-application", "method": "GET", "client_ip": "testclient"}
+2026-02-27 11:10:41,022 - app.middleware.logging - WARNING - {"event_type": "request_complete", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.022552+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/29/my-application", "status_code": 403, "process_time_ms": 5.39, "client_ip": "testclient", "response_size": 181}
+2026-02-27 11:10:41,028 - httpx - INFO - HTTP Request: GET http://testserver/api/v1/tournaments/29/my-application "HTTP/1.1 403 Forbidden"
+------------------------------ Captured log call -------------------------------
+INFO     app.middleware.logging:logging.py:73 {"event_type": "request_start", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.017177+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/29/my-application", "client_ip": "testclient", "user_agent": "testclient", "headers": {"host": "testserver", "accept": "*/*", "accept-encoding": "gzip, deflate", "connection": "keep-alive", "user-agent": "testclient", "authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzbW9rZS5hZG1pbkBleGFtcGxlLmNvbSIsImV4cCI6MTc3MjE5NDIzMiwidHlwZSI6ImFjY2VzcyJ9.G0zI4JfAbq3GzViShdPSzDPZSQtvXl8dp38nY3oAOz4"}}
+WARNING  app.core.exceptions:exceptions.py:83 {"event_type": "application_error", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.022124+00:00", "error_type": "HTTPException", "error_code": "http_403", "status_code": 403, "user_message": "Only instructors can perform this action", "internal_message": "403: Only instructors can perform this action", "url": "http://testserver/api/v1/tournaments/29/my-application", "method": "GET", "client_ip": "testclient"}
+WARNING  app.middleware.logging:logging.py:99 {"event_type": "request_complete", "request_id": "190fc2a1-b2ee-444a-af7a-2ac4defc3ba0", "timestamp": "2026-02-27T11:10:41.022552+00:00", "method": "GET", "url": "http://testserver/api/v1/tournaments/29/my-application", "status_code": 403, "process_time_ms": 5.39, "client_ip": "testclient", "response_size": 181}
+INFO     httpx:_client.py:1013 HTTP Request: GET http://testserver/api/v1/tournaments/29/my-application "HTTP/1.1 403 Forbidden"
+=============================== warnings summary ===============================
+app/api/api_v1/endpoints/sessions/availability.py:23
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/sessions/availability.py:23: FastAPIDeprecationWarning: `example` has been deprecated, please use `examples` instead
+    session_ids: str = Query(
+
+app/schemas/gamification.py:5
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/gamification.py:5: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Achievement(BaseModel):
+
+app/schemas/gamification.py:18
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/gamification.py:18: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserStats(BaseModel):
+
+app/schemas/gamification.py:32
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/gamification.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class StudentStatus(BaseModel):
+
+app/schemas/gamification.py:41
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/gamification.py:41: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class NextLevel(BaseModel):
+
+app/schemas/gamification.py:50
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/gamification.py:50: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SemesterInfo(BaseModel):
+
+app/schemas/gamification.py:60
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/gamification.py:60: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserGamificationResponse(BaseModel):
+
+app/schemas/quiz.py:15
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:15: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizAnswerOptionResponse(QuizAnswerOptionBase):
+
+app/schemas/quiz.py:22
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:22: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizAnswerOptionPublic(BaseModel):
+
+app/schemas/quiz.py:50
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:50: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizQuestionResponse(QuizQuestionBase):
+
+app/schemas/quiz.py:59
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:59: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizQuestionPublic(BaseModel):
+
+app/schemas/quiz.py:95
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:95: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizResponse(QuizBase):
+
+app/schemas/quiz.py:104
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:104: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizListItem(BaseModel):
+
+app/schemas/quiz.py:120
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:120: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizPublic(BaseModel):
+
+app/schemas/quiz.py:148
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:148: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizUserAnswerResponse(BaseModel):
+
+app/schemas/quiz.py:159
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:159: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizAttemptResponse(BaseModel):
+
+app/schemas/quiz.py:176
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/quiz.py:176: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class QuizAttemptSummary(BaseModel):
+
+app/schemas/project.py:60
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:60: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProjectMilestone(ProjectMilestoneBase):
+
+app/schemas/project.py:95
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:95: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Project(ProjectBase):
+
+app/schemas/project.py:131
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:131: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProjectEnrollment(ProjectEnrollmentBase):
+
+app/schemas/project.py:168
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:168: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MilestoneProgress(MilestoneProgressBase):
+
+app/schemas/project.py:199
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:199: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProjectSession(ProjectSessionBase):
+
+app/schemas/project.py:276
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:276: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProjectQuiz(ProjectQuizBase):
+
+app/schemas/project.py:301
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/project.py:301: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ProjectEnrollmentQuiz(ProjectEnrollmentQuizBase):
+
+app/schemas/notification.py:30
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/notification.py:30: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Notification(NotificationBase):
+
+app/schemas/message.py:14
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:14: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MessageUserInfo(BaseModel):
+
+app/schemas/message.py:33
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:33: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('subject')
+
+app/schemas/message.py:39
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:39: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('message')
+
+app/schemas/message.py:49
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:49: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('subject')
+
+app/schemas/message.py:55
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:55: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('message')
+
+app/schemas/message.py:66
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:66: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('message')
+
+app/schemas/message.py:73
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:73: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Message(MessageBase):
+
+app/schemas/message.py:89
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:89: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MessageList(BaseModel):
+
+app/schemas/message.py:108
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:108: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('message_preview', pre=True)
+
+app/schemas/message.py:98
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/message.py:98: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MessageSummary(BaseModel):
+
+app/schemas/track.py:32
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/track.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TrackResponse(TrackBase):
+
+app/schemas/track.py:58
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/track.py:58: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ModuleResponse(ModuleBase):
+
+app/schemas/track.py:86
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/track.py:86: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ModuleComponentResponse(ModuleComponentBase):
+
+app/schemas/track.py:104
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/track.py:104: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserTrackProgressResponse(UserTrackProgressBase):
+
+app/schemas/track.py:117
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/track.py:117: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserModuleProgressResponse(BaseModel):
+
+app/schemas/track.py:154
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/track.py:154: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DetailedTrackProgressResponse(BaseModel):
+
+app/schemas/certificate.py:23
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/certificate.py:23: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CertificateTemplateResponse(CertificateTemplateBase):
+
+app/schemas/certificate.py:40
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/certificate.py:40: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CertificateResponse(IssuedCertificateBase):
+
+app/schemas/adaptive_learning.py:14
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/adaptive_learning.py:14: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LearningProfileResponse(BaseModel):
+
+app/schemas/adaptive_learning.py:36
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/adaptive_learning.py:36: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RecommendationResponse(BaseModel):
+
+app/schemas/adaptive_learning.py:60
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/adaptive_learning.py:60: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PerformanceSnapshotResponse(BaseModel):
+
+app/schemas/adaptive_learning.py:81
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/adaptive_learning.py:81: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LearningAnalytics(BaseModel):
+
+app/schemas/competency.py:14
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:14: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetencyCategoryResponse(BaseModel):
+
+app/schemas/competency.py:32
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SkillResponse(BaseModel):
+
+app/schemas/competency.py:50
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:50: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class UserCompetencyResponse(BaseModel):
+
+app/schemas/competency.py:67
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:67: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetencyBreakdownResponse(BaseModel):
+
+app/schemas/competency.py:80
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:80: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AssessmentHistoryResponse(BaseModel):
+
+app/schemas/competency.py:98
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:98: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MilestoneResponse(BaseModel):
+
+app/schemas/competency.py:117
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/competency.py:117: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RadarChartDataResponse(BaseModel):
+
+app/api/api_v1/endpoints/coupons.py:46
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coupons.py:46: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CouponResponse(CouponBase):
+
+app/api/api_v1/endpoints/coupons.py:58
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coupons.py:58: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CouponPublic(BaseModel):
+
+app/api/api_v1/endpoints/invitation_codes.py:76
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/invitation_codes.py:76: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class InvitationCodeResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:52
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:52: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:64
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:64: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:96
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:96: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:108
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:108: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DemoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:120
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:120: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LevelChangeResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:142
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:142: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetitionRecord(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:160
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:160: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetitionResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:182
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:182: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TeachingHoursRecord(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:196
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:196: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TeachingHoursResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/licenses.py:214
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/licenses.py:214: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseStats(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:46
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:46: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:58
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:58: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:90
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:90: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:102
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:102: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DemoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:114
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:114: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LevelChangeResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:136
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:136: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetitionRecord(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:154
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:154: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetitionResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:176
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:176: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TeachingHoursRecord(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:190
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:190: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TeachingHoursResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/belts.py:208
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/belts.py:208: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseStats(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:46
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:46: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:58
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:58: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:90
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:90: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:102
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:102: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DemoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:114
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:114: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LevelChangeResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:136
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:136: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetitionRecord(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:154
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:154: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CompetitionResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:176
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:176: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TeachingHoursRecord(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:190
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:190: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TeachingHoursResponse(BaseModel):
+
+app/api/api_v1/endpoints/gancuju/activities.py:208
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/gancuju/activities.py:208: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseStats(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:51
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:51: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:65
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:65: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:97
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:97: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddXPRequest(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:111
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:111: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class XPResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:135
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:135: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExpiryResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:153
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:153: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewRequest(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:165
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:165: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:185
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:185: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditPurchase(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:204
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:204: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditSpend(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:220
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:220: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditTransaction(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:240
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:240: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/licenses.py:260
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/licenses.py:260: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TransactionHistoryItem(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:45
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:45: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:59
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:59: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:91
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:91: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddXPRequest(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:105
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:105: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class XPResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:129
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:129: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExpiryResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:147
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:147: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewRequest(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:159
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:159: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:179
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:179: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditPurchase(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:198
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:198: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditSpend(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:214
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:214: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditTransaction(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:234
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:234: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/xp_renewal.py:254
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/xp_renewal.py:254: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TransactionHistoryItem(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:47
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:47: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:61
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:61: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:93
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:93: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddXPRequest(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:107
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:107: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class XPResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:131
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:131: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExpiryResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:149
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:149: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewRequest(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:161
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:161: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:181
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:181: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditPurchase(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:200
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:200: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditSpend(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:216
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:216: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditTransaction(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:236
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:236: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CreditResponse(BaseModel):
+
+app/api/api_v1/endpoints/internship/credits.py:256
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/internship/credits.py:256: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TransactionHistoryItem(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:52
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:52: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:66
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:66: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:98
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:98: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddTheoryHoursRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:114
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:114: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddPracticeHoursRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:130
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:130: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class HoursResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:148
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:148: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExpiryResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:166
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:166: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:178
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:178: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:198
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:198: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:210
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:210: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/licenses.py:232
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/licenses.py:232: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseStats(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:46
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:46: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:60
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:60: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:92
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:92: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddTheoryHoursRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:108
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:108: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddPracticeHoursRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:124
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:124: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class HoursResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:142
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:142: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExpiryResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:160
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:160: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:172
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:172: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:192
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:192: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:204
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:204: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/hours.py:226
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/hours.py:226: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseStats(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:47
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:47: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseCreate(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:61
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:61: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:93
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:93: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddTheoryHoursRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:109
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:109: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddPracticeHoursRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:125
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:125: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class HoursResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:143
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:143: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ExpiryResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:161
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:161: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:173
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:173: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RenewResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:193
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:193: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteRequest(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:205
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:205: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PromoteResponse(BaseModel):
+
+app/api/api_v1/endpoints/coach/progression.py:227
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/coach/progression.py:227: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LicenseStats(BaseModel):
+
+app/schemas/motivation.py:193
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/motivation.py:193: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    selected_positions: list[str] = Field(
+
+app/schemas/motivation.py:193
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/motivation.py:193: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    selected_positions: list[str] = Field(
+
+app/schemas/motivation.py:200
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/motivation.py:200: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('selected_positions')
+
+app/schemas/motivation.py:237
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/motivation.py:237: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('internship')
+
+app/api/api_v1/endpoints/locations.py:56
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/locations.py:56: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class LocationResponse(BaseModel):
+
+app/schemas/instructor_availability.py:22
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_availability.py:22: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('time_period_code')
+
+app/schemas/instructor_availability.py:30
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_availability.py:30: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('specialization_type')
+
+app/schemas/instructor_availability.py:55
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_availability.py:55: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class InstructorAvailabilityResponse(InstructorAvailabilityBase):
+
+app/schemas/instructor_availability.py:71
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_availability.py:71: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'example'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    availabilities: list[dict[str, bool]] = Field(
+
+app/schemas/instructor_assignment.py:50
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_assignment.py:50: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class InstructorAvailabilityWindowResponse(InstructorAvailabilityWindowBase):
+
+app/schemas/instructor_assignment.py:94
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_assignment.py:94: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class InstructorAssignmentRequestResponse(InstructorAssignmentRequestBase):
+
+app/schemas/campus.py:32
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/campus.py:32: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CampusResponse(CampusBase):
+
+app/schemas/campus.py:43
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/campus.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class CampusWithLocation(CampusResponse):
+
+app/schemas/instructor_management.py:63
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('contract_end')
+
+app/schemas/instructor_management.py:81
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:81: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MasterInstructorResponse(MasterInstructorBase):
+
+app/schemas/instructor_management.py:126
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:126: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('application_deadline')
+
+app/schemas/instructor_management.py:146
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:146: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class PositionResponse(PositionBase):
+
+app/schemas/instructor_management.py:188
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:188: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ApplicationResponse(ApplicationBase):
+
+app/schemas/instructor_management.py:231
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:231: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AssignmentResponse(AssignmentBase):
+
+app/schemas/instructor_management.py:348
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:348: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('contract_end')
+
+app/schemas/instructor_management.py:356
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:356: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class MasterOfferResponse(BaseModel):
+
+app/schemas/instructor_management.py:398
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:398: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('contract_end')
+
+app/schemas/instructor_management.py:418
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/instructor_management.py:418: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('application_deadline')
+
+app/api/api_v1/endpoints/session_groups.py:30
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/session_groups.py:30: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GroupStudentResponse(BaseModel):
+
+app/api/api_v1/endpoints/session_groups.py:39
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/session_groups.py:39: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GroupResponse(BaseModel):
+
+app/api/api_v1/endpoints/tournaments/generator.py:103
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/generator.py:103: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('measurement_unit')
+
+app/api/api_v1/endpoints/tournaments/generator.py:144
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/generator.py:144: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('ranking_direction')
+
+app/api/api_v1/endpoints/tournaments/generator.py:178
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/generator.py:178: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('tournament_type_id')
+
+app/api/api_v1/endpoints/tournaments/generator.py:201
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/generator.py:201: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('instructor_id')
+
+app/api/api_v1/endpoints/tournaments/generator.py:217
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/tournaments/generator.py:217: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator('max_players')
+
+app/schemas/tournament_rewards.py:16
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:16: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SkillPointsAwarded(BaseModel):
+
+app/schemas/tournament_rewards.py:26
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ParticipationReward(BaseModel):
+
+app/schemas/tournament_rewards.py:44
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:44: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BadgeAwarded(BaseModel):
+
+app/schemas/tournament_rewards.py:58
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:58: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BadgeReward(BaseModel):
+
+app/schemas/tournament_rewards.py:73
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:73: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class TournamentRewardResult(BaseModel):
+
+app/schemas/tournament_rewards.py:135
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:135: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BulkRewardDistributionResult(BaseModel):
+
+app/schemas/tournament_rewards.py:153
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:153: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BadgeCondition(BaseModel):
+
+app/schemas/tournament_rewards.py:171
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:171: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BadgeRule(BaseModel):
+
+app/schemas/tournament_rewards.py:190
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:190: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class BadgeEvaluationContext(BaseModel):
+
+app/schemas/tournament_rewards.py:227
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:227: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class RewardPolicy(BaseModel):
+
+app/schemas/tournament_rewards.py:263
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:263: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class DistributeRewardsRequest(BaseModel):
+
+app/schemas/tournament_rewards.py:273
+  /home/runner/work/practice-booking-system/practice-booking-system/app/schemas/tournament_rewards.py:273: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class AddSkillMappingRequest(BaseModel):
+
+app/api/api_v1/endpoints/game_presets/schemas.py:72
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/game_presets/schemas.py:72: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class GamePresetResponse(GamePresetBase):
+
+app/api/api_v1/endpoints/sandbox/run_test.py:35
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/sandbox/run_test.py:35: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    skills_to_test: list[str] = Field(..., min_items=1, max_items=20, description="Skills to test (1-20)")
+
+app/api/api_v1/endpoints/sandbox/run_test.py:35
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/sandbox/run_test.py:35: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    skills_to_test: list[str] = Field(..., min_items=1, max_items=20, description="Skills to test (1-20)")
+
+app/api/api_v1/endpoints/sessions/results.py:32
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/sessions/results.py:32: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    results: List[GameResultEntry] = Field(..., min_items=1, description="List of participant results")
+
+app/api/api_v1/endpoints/sessions/results.py:47
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/sessions/results.py:47: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    results: List[HeadToHeadParticipantResult] = Field(
+
+app/api/api_v1/endpoints/sessions/results.py:47
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/sessions/results.py:47: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    results: List[HeadToHeadParticipantResult] = Field(
+
+app/api/api_v1/endpoints/system_events.py:25
+  /home/runner/work/practice-booking-system/practice-booking-system/app/api/api_v1/endpoints/system_events.py:25: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class SystemEventResponse(BaseModel):
+
+../../../../../opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/_pytest/config/__init__.py:1373
+  /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/_pytest/config/__init__.py:1373: PytestConfigWarning: Unknown config option: sensitive_url
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_available_tournaments_happy_path
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_available_tournaments_happy_path
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policies_happy_path
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policies_happy_path
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_config_templates_happy_path
+tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_config_templates_happy_path
+  /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/starlette/_exception_handler.py:59: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    response = await handler(conn, exc)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 20 durations =============================
+0.99s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_happy_path
+0.26s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_generated_sessions_auth_required
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_auth_required
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_leaderboard_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_campus_schedule_auth_required
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_detail_auth_required
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_skill_mapping_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_skill_mapping_auth_required
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_campus_schedules_auth_required
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_campus_schedule_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_list_campus_schedules_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_generated_sessions_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_instructor_applications_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_delete_tournament_reward_config_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_active_match_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_unenroll_from_tournament_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_distributed_rewards_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_tournament_detail_happy_path
+0.25s setup    tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_reward_policy_details_auth_required
+=========================== short test summary info ============================
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:70: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:142: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:213: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:283: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:355: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:427: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:495: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:562: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:631: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:701: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:770: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:839: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:907: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:979: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1047: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1116: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1186: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1256: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1326: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1398: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1469: Input validation requires domain-specific payloads
+SKIPPED [1] tests/integration/api_smoke/test_tournaments_smoke.py:1539: Input validation requires domain-specific payloads
+FAILED tests/integration/api_smoke/test_tournaments_smoke.py::TestTournamentsSmoke::test_get_my_tournament_application_happy_path - NameError: name 'tournament_id' is not defined
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============ 1 failed, 44 passed, 22 skipped, 212 warnings in 9.18s ============

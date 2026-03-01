@@ -1,10 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from ..models.notification import NotificationType
 
 
 class NotificationBase(BaseModel):
+
+
     title: str
     message: str
     type: NotificationType = NotificationType.GENERAL
@@ -21,6 +23,8 @@ class NotificationCreate(NotificationBase):
 
 
 class NotificationUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: Optional[str] = None
     message: Optional[str] = None
     type: Optional[NotificationType] = None
@@ -34,8 +38,7 @@ class Notification(NotificationBase):
     created_at: datetime
     read_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationList(BaseModel):

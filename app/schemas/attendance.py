@@ -8,6 +8,8 @@ from .booking import Booking
 
 
 class AttendanceBase(BaseModel):
+
+
     user_id: int
     session_id: int
     booking_id: Optional[int] = None  # Optional for tournament sessions
@@ -20,6 +22,8 @@ class AttendanceCreate(AttendanceBase):
 
 
 class AttendanceUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     status: Optional[AttendanceStatus] = None
     check_in_time: Optional[datetime] = None
     check_out_time: Optional[datetime] = None
@@ -54,4 +58,6 @@ class AttendanceCheckIn(BaseModel):
 
 
 class AttendanceBulkUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     attendances: List[dict]  # List of {booking_id: int, status: AttendanceStatus, notes: Optional[str]}

@@ -281,3 +281,23 @@ def submit_quiz_attempt(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+@router.post("/{quiz_id}/submit", response_model=QuizAttemptResponse)
+def submit_quiz_attempt_with_path(
+    quiz_id: int,
+    submission: QuizAttemptSubmit,
+    current_user: User = Depends(get_current_user),
+    quiz_service: QuizService = Depends(get_quiz_service),
+    db: Session = Depends(get_db)
+):
+    """
+    Submit quiz attempt with quiz_id in path (Alias for /submit)
+
+    This is an alias endpoint that accepts quiz_id from the URL path
+    instead of the request body for backward compatibility.
+    """
+    # Override quiz_id in submission with path parameter
+    submission.quiz_id = quiz_id
+
+    # Delegate to main submit function
+    return submit_quiz_attempt(submission, current_user, quiz_service, db)

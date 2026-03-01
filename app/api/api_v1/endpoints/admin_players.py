@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -94,6 +94,8 @@ def _check_rate_limit(user_id: int, incoming_count: int) -> None:
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class PlayerCreateEntry(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     email: str = Field(..., description="Player email address (must be unique)")
     password: str = Field(..., min_length=6, description="Plain-text password (hashed server-side)")
     name: str = Field(..., min_length=1, max_length=200, description="Display name")
@@ -111,6 +113,8 @@ class PlayerCreateEntry(BaseModel):
 
 
 class BatchCreatePlayersRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     players: List[PlayerCreateEntry] = Field(
         ...,
         min_length=1,
@@ -131,6 +135,8 @@ class BatchCreatePlayersRequest(BaseModel):
 
 
 class BatchCreatePlayersResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     success: bool
     created_count: int
     skipped_count: int

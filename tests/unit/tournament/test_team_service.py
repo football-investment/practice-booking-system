@@ -94,7 +94,7 @@ class TestCreateTeam:
             team_service.create_team(
                 db=test_db,
                 name="Team Without Captain",
-                captain_user_id=99999,  # Non-existent user
+                captain_user_id=999999999,  # Guaranteed non-existent user ID
                 specialization_type="LFA_PLAYER"
             )
 
@@ -237,7 +237,7 @@ class TestAddTeamMember:
         player = create_test_user(test_db, email="player2@test.com", name="Player 2")
 
         with pytest.raises(HTTPException) as exc_info:
-            team_service.add_team_member(test_db, 99999, player.id)
+            team_service.add_team_member(test_db, 999999999, player.id)  # Guaranteed non-existent team ID
 
         assert exc_info.value.status_code == 404
         assert "Team not found" in exc_info.value.detail
@@ -249,7 +249,7 @@ class TestAddTeamMember:
         team = team_service.create_team(test_db, "Team", captain.id, "LFA_PLAYER")
 
         with pytest.raises(HTTPException) as exc_info:
-            team_service.add_team_member(test_db, team.id, 99999)
+            team_service.add_team_member(test_db, team.id, 999999999)  # Guaranteed non-existent user ID
 
         assert exc_info.value.status_code == 404
         assert "User not found" in exc_info.value.detail

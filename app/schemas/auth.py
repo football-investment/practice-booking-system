@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional
+from datetime import date
 
 
 class Login(BaseModel):
@@ -28,3 +29,23 @@ class ChangePassword(BaseModel):
 
 class ResetPassword(BaseModel):
     new_password: str
+
+
+class AgeVerificationRequest(BaseModel):
+    """Request to verify user's age (COPPA/GDPR compliance)"""
+    date_of_birth: date  # ISO format: "YYYY-MM-DD"
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "date_of_birth": "2010-01-15"
+            }
+        }
+    )
+
+
+class AgeVerificationResponse(BaseModel):
+    """Response from age verification"""
+    success: bool
+    age: int
+    message: str

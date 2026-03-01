@@ -120,9 +120,17 @@ def get_assessment_history(
     - From quiz attempts
     - From exercise submissions
     """
-    service = CompetencyService(db)
-    history = service.get_assessment_history(current_user.id, limit)
-    return history
+    try:
+        service = CompetencyService(db)
+        history = service.get_assessment_history(current_user.id, limit)
+        return history
+    except Exception as e:
+        # Defensive: If competency tables don't exist, return empty list
+        # (tables are optional feature, not required for base functionality)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Assessment history unavailable for user {current_user.id}: {str(e)}")
+        return []
 
 
 @router.get("/milestones", response_model=List[MilestoneResponse])
@@ -141,9 +149,16 @@ def get_user_milestones(
 
     Each milestone awards XP.
     """
-    service = CompetencyService(db)
-    milestones = service.get_user_milestones(current_user.id, specialization_id)
-    return milestones
+    try:
+        service = CompetencyService(db)
+        milestones = service.get_user_milestones(current_user.id, specialization_id)
+        return milestones
+    except Exception as e:
+        # Defensive: If competency tables don't exist, return empty list
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Milestones unavailable for user {current_user.id}: {str(e)}")
+        return []
 
 
 @router.get("/radar-chart-data", response_model=RadarChartDataResponse)

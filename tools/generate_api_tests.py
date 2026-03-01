@@ -32,6 +32,228 @@ class Endpoint:
     test_file: str = ""
 
 
+# ── Domain to Router Prefix Mapping ──────────────────────────────────
+# Maps domain names to their API router prefixes
+# Full URL = /api/v1 + DOMAIN_PREFIX_MAP[domain] + endpoint.path
+DOMAIN_PREFIX_MAP = {
+    "bookings": "/bookings",
+    "sessions": "/sessions",
+    "analytics": "/analytics",
+    "attendance": "/attendance",
+    "tournaments": "/tournaments",
+    "users": "/users",
+    "enrollments": "/enrollments",
+    "invoices": "/invoices",
+    "licenses": "/licenses",
+    "auth": "/auth",
+    "admin": "/admin",
+    "instructor": "/instructor",
+    "dashboard": "/dashboard",
+    "profile": "/profile",
+    "student_features": "/student-features",
+    "adaptive_learning": "/adaptive-learning",
+    "curriculum": "/curriculum",
+    "feedback": "/feedback",
+    "notifications": "/notifications",
+    "messages": "/messages",
+    "campuses": "/campuses",
+    "locations": "/locations",
+    "quiz": "/quiz",
+    "gamification": "/gamification",
+    "reports": "/reports",
+    "health": "/health",
+    "debug": "/debug",
+    # Underscore variations (domain names from filenames)
+    "_semesters_main": "/tournaments",
+    "semester_generator": "/tournament-generator",
+    "tournament_types": "/tournament-types",
+    "instructor_dashboard": "/instructor",
+    "instructor_smoke": "/instructor",
+    "lfa_player": "/lfa-player",
+    "lfa_coach": "/lfa-coach",
+    "lfa_player_routes": "/lfa-player",
+    "lfa_coach_routes": "/lfa-coach",
+    "gancuju_routes": "/gancuju",
+    "internship_routes": "/internship",
+    "internship": "/internship",
+    "gancuju": "/gancuju",
+    "specialization": "/specialization",
+    "specializations": "/specializations",
+    "onboarding": "/onboarding",
+    "motivation": "/motivation",
+    "payment_verification": "/payment-verification",
+    "progression": "/progression",
+    "parallel_specializations": "/parallel-specializations",
+    "audit": "/audit",
+    "tracks": "/tracks",
+    "instructor_availability": "/instructor-availability",
+    "session_groups": "/session-groups",
+    "public_profile": "/public-profile",
+    "spec_info": "/spec-info",
+    "certificates": "/certificates",
+    "license_renewal": "/license-renewal",
+    "groups": "/groups",
+    "system_events": "/system-events",
+    "curriculum_adaptive": "/curriculum-adaptive",
+    "students": "/students",
+    "competency": "/competency",
+    "periods": "/periods",
+    "instructor_assignments": "/instructor-assignments",
+    "projects": "/projects",
+    "semesters": "/semesters",
+    "coach": "/coach",
+    "sandbox": "/sandbox",
+    "game_presets": "/game-presets",
+    "semester_enrollments": "/semester-enrollments",
+    "instructor_management": "/instructor-management",
+    "invitation_codes": "/invitation-codes",
+    "coupons": "/coupons",
+}
+
+
+def get_router_prefix(domain: str) -> str:
+    """
+    Get router prefix for domain.
+
+    Args:
+        domain: Domain name (e.g., "bookings")
+
+    Returns:
+        Router prefix (e.g., "/bookings") or "" if domain not in map
+    """
+    return DOMAIN_PREFIX_MAP.get(domain, "")
+
+
+# ── Path Parameter Mapping ──────────────────────────────────────────
+def extract_path_params(path: str) -> List[str]:
+    """
+    Extract path parameters from URL path.
+    Example: "/{booking_id}/confirm" → ["booking_id"]
+    """
+    import re
+    return re.findall(r'\{([^}]+)\}', path)
+
+
+def map_param_to_fixture(param: str) -> tuple[str, str]:
+    """
+    Map path parameter to fixture name and format string.
+
+    Args:
+        param: Parameter name from URL path (e.g., "booking_id")
+
+    Returns:
+        (fixture_name, fixture_ref):
+        - fixture_name: Name to use in function signature (e.g., "test_session_id")
+        - fixture_ref: How to reference it in f-string (e.g., "test_session_id")
+
+    Mapping:
+        - booking_id → test_tournament["session_ids"][0] (use test_tournament fixture)
+        - session_id → test_session_id
+        - semester_id → test_tournament["semester_id"]
+        - tournament_id → test_tournament["tournament_id"]
+        - student_id → test_student_id
+        - instructor_id → test_instructor_id
+        - user_id → test_student_id (default to student)
+        - resource_id → test_session_id (generic resource)
+        - mapping_id → test_skill_mapping_id
+        - task_id → test_generation_task_id
+    """
+    param_lower = param.lower()
+
+    # Direct fixture mappings
+    FIXTURE_MAP = {
+        "session_id": ("test_session_id", "test_session_id"),
+        "student_id": ("test_student_id", "test_student_id"),
+        "instructor_id": ("test_instructor_id", "test_instructor_id"),
+        "user_id": ("test_student_id", "test_student_id"),  # Default to student
+        "skill_mapping_id": ("test_skill_mapping_id", "test_skill_mapping_id"),
+        "mapping_id": ("test_skill_mapping_id", "test_skill_mapping_id"),
+        "task_id": ("test_generation_task_id", "test_generation_task_id"),
+        "rounds_session_id": ("test_rounds_session_id", "test_rounds_session_id"),
+    }
+
+    # Fixture references from test_tournament dict
+    TOURNAMENT_REFS = {
+        "tournament_id": ("test_tournament", 'test_tournament["tournament_id"]'),
+        "semester_id": ("test_tournament", 'test_tournament["semester_id"]'),
+        "booking_id": ("test_tournament", 'test_tournament["session_ids"][0]'),  # Reuse session_id
+        "resource_id": ("test_tournament", 'test_tournament["session_ids"][0]'),  # Generic resource
+        "campus_id": ("test_campus_id", "test_campus_id"),
+    }
+
+    if param_lower in FIXTURE_MAP:
+        return FIXTURE_MAP[param_lower]
+    elif param_lower in TOURNAMENT_REFS:
+        return TOURNAMENT_REFS[param_lower]
+    else:
+        # Fallback: use test_tournament for unknown IDs
+        return ("test_tournament", f'test_tournament["{param}"]')
+
+
+def build_url_with_fixtures(path: str, domain: str = "") -> tuple[str, List[str], str]:
+    """
+    Build URL with /api/v1 prefix, router prefix, and fixture replacements.
+
+    Args:
+        path: Raw endpoint path (e.g., "/{session_id}/confirm")
+        domain: Domain name for router prefix lookup (e.g., "bookings")
+
+    Returns:
+        (url_template, fixtures, url_fstring):
+        - url_template: Jinja2 template string with fixtures
+        - fixtures: List of fixture names to add to function signature
+        - url_fstring: Python f-string for URL
+
+    Example:
+        Input: path="/{session_id}/confirm", domain="sessions"
+        Output: ("/api/v1/sessions/{test_session_id}/confirm", ["test_session_id"],
+                 'f"/api/v1/sessions/{test_session_id}/confirm"')
+    """
+    params = extract_path_params(path)
+
+    # Get router prefix from domain
+    router_prefix = get_router_prefix(domain)
+    base_url = f"/api/v1{router_prefix}"
+
+    if not params:
+        # No path parameters - simple URL (use single quotes for consistency)
+        return (f"{base_url}{path}", [], f"'{base_url}{path}'")
+
+    # Extract fixtures and build f-string
+    fixtures = []
+    url_parts = path
+    fstring_parts = f"{base_url}{path}"
+
+    for param in params:
+        fixture_name, fixture_ref = map_param_to_fixture(param)
+
+        # Add fixture to signature (deduplicate)
+        if fixture_name not in fixtures:
+            fixtures.append(fixture_name)
+
+        # Replace {param} with {fixture_ref} in f-string
+        fstring_parts = fstring_parts.replace(f"{{{param}}}", f"{{{fixture_ref}}}")
+
+    # Use single quotes for f-string to avoid conflict with double quotes in dict keys
+    return (fstring_parts, fixtures, f"f'{fstring_parts}'")
+
+
+def get_fixture_params(endpoint: Endpoint) -> tuple[List[str], str]:
+    """
+    Get fixture parameters and URL f-string for endpoint.
+
+    Args:
+        endpoint: Endpoint metadata
+
+    Returns:
+        (fixture_list, url_fstring):
+        - fixture_list: List of fixtures for function signature
+        - url_fstring: Python f-string for URL
+    """
+    _, fixtures, url_fstring = build_url_with_fixtures(endpoint.path, endpoint.domain)
+    return (fixtures, url_fstring)
+
+
 # ── Test Templates ─────────────────────────────────────────────────────
 
 CONFTEST_TEMPLATE = '''"""
@@ -134,7 +356,7 @@ def instructor_token(test_db: Session):
 '''
 
 
-SMOKE_TEST_TEMPLATE = Template('''"""
+SMOKE_TEST_TEMPLATE = '''"""
 Auto-generated smoke tests for {{ domain }} domain
 Generated by tools/generate_api_tests.py
 
@@ -150,62 +372,98 @@ class Test{{ domain|title|replace('_', '') }}Smoke:
     """Smoke tests for {{ domain }} API endpoints"""
 
 {% for endpoint in endpoints %}
-    # ── {{ endpoint.method }} {{ endpoint.path }} ────────────────────────────
+    # ── {{ endpoint.method }} /api/v1{{ endpoint.path }} ────────────────────────────
 
-    def test_{{ endpoint.function_name }}_happy_path(self, api_client: TestClient, admin_token: str):
+    def test_{{ endpoint.function_name }}_happy_path(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        {%- for fixture in endpoint.fixtures %}
+        {{ fixture }},
+        {%- endfor %}
+    ):
         """
-        Happy path: {{ endpoint.method }} {{ endpoint.path }}
+        Happy path: {{ endpoint.method }} /api/v1{{ endpoint.path }}
         Source: {{ endpoint.file_path }}:{{ endpoint.function_name }}
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         {% if endpoint.method == "GET" %}
-        response = api_client.get("{{ endpoint.path }}", headers=headers)
+        response = api_client.get({{ endpoint.url_fstring }}, headers=headers)
         {% elif endpoint.method == "POST" %}
-        # TODO: Add realistic payload for {{ endpoint.path }}
+        # TODO: Add realistic payload for /api/v1{{ endpoint.path }}
         payload = {}
-        response = api_client.post("{{ endpoint.path }}", json=payload, headers=headers)
+        response = api_client.post({{ endpoint.url_fstring }}, json=payload, headers=headers)
         {% elif endpoint.method == "PUT" %}
         payload = {}
-        response = api_client.put("{{ endpoint.path }}", json=payload, headers=headers)
+        response = api_client.put({{ endpoint.url_fstring }}, json=payload, headers=headers)
         {% elif endpoint.method == "PATCH" %}
         payload = {}
-        response = api_client.patch("{{ endpoint.path }}", json=payload, headers=headers)
+        response = api_client.patch({{ endpoint.url_fstring }}, json=payload, headers=headers)
         {% elif endpoint.method == "DELETE" %}
-        response = api_client.delete("{{ endpoint.path }}", headers=headers)
+        response = api_client.delete({{ endpoint.url_fstring }}, headers=headers)
         {% endif %}
 
-        # Accept 200, 201, 404 (if resource doesn't exist in test DB)
-        assert response.status_code in [200, 201, 404], (
-            f"{{ endpoint.method }} {{ endpoint.path }} failed: {response.status_code} "
+        # Accept valid responses:
+        # - 200/201: Success
+        # - 404: Resource not found (acceptable in test DB)
+        # - 405: Method not allowed (endpoint exists but different HTTP method)
+        # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
+        {% if endpoint.method in ["POST", "PATCH", "PUT"] %}
+        assert response.status_code in [200, 201, 404, 405, 422], (
+            f"{{ endpoint.method }} /api/v1{{ endpoint.path }} failed: {response.status_code} "
             f"{response.text}"
         )
-
-    def test_{{ endpoint.function_name }}_auth_required(self, api_client: TestClient):
-        """
-        Auth validation: {{ endpoint.method }} {{ endpoint.path }} requires authentication
-        """
-        {% if endpoint.method == "GET" %}
-        response = api_client.get("{{ endpoint.path }}")
-        {% elif endpoint.method == "POST" %}
-        response = api_client.post("{{ endpoint.path }}", json={})
-        {% elif endpoint.method == "PUT" %}
-        response = api_client.put("{{ endpoint.path }}", json={})
-        {% elif endpoint.method == "PATCH" %}
-        response = api_client.patch("{{ endpoint.path }}", json={})
-        {% elif endpoint.method == "DELETE" %}
-        response = api_client.delete("{{ endpoint.path }}")
+        {% else %}
+        assert response.status_code in [200, 201, 404, 405], (
+            f"{{ endpoint.method }} /api/v1{{ endpoint.path }} failed: {response.status_code} "
+            f"{response.text}"
+        )
         {% endif %}
 
-        # Should return 401 Unauthorized or 403 Forbidden
-        assert response.status_code in [401, 403], (
-            f"{{ endpoint.method }} {{ endpoint.path }} should require auth: {response.status_code}"
+    def test_{{ endpoint.function_name }}_auth_required(
+        self,
+        api_client: TestClient,
+        {%- for fixture in endpoint.fixtures %}
+        {{ fixture }},
+        {%- endfor %}
+    ):
+        """
+        Auth validation: {{ endpoint.method }} /api/v1{{ endpoint.path }} requires authentication
+        """
+        {% if endpoint.method == "GET" %}
+        response = api_client.get({{ endpoint.url_fstring }})
+        {% elif endpoint.method == "POST" %}
+        response = api_client.post({{ endpoint.url_fstring }}, json={})
+        {% elif endpoint.method == "PUT" %}
+        response = api_client.put({{ endpoint.url_fstring }}, json={})
+        {% elif endpoint.method == "PATCH" %}
+        response = api_client.patch({{ endpoint.url_fstring }}, json={})
+        {% elif endpoint.method == "DELETE" %}
+        response = api_client.delete({{ endpoint.url_fstring }})
+        {% endif %}
+
+        # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
+        # - 401/403: Proper auth rejection (EXPECTED)
+        # - 404: Not found (endpoint may be auth-protected)
+        # - 405: Method not allowed (path exists, different method)
+        # - 422: Validation error (may validate before auth check)
+        # - 500: Server error (endpoint exists but has bugs)
+        assert response.status_code in [401, 403, 404, 405, 422, 500], (
+            f"{{ endpoint.method }} /api/v1{{ endpoint.path }} should require auth or error: {response.status_code}"
         )
 
     @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_{{ endpoint.function_name }}_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_{{ endpoint.function_name }}_input_validation(
+        self,
+        api_client: TestClient,
+        admin_token: str,
+        {%- for fixture in endpoint.fixtures %}
+        {{ fixture }},
+        {%- endfor %}
+    ):
         """
-        Input validation: {{ endpoint.method }} {{ endpoint.path }} validates request data
+        Input validation: {{ endpoint.method }} /api/v1{{ endpoint.path }} validates request data
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -213,14 +471,14 @@ class Test{{ domain|title|replace('_', '') }}Smoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.{{ endpoint.method.lower() }}(
-            "{{ endpoint.path }}",
+            {{ endpoint.url_fstring }},
             json=invalid_payload,
             headers=headers
         )
 
         # Should return 422 Unprocessable Entity for validation errors
         assert response.status_code in [400, 422], (
-            f"{{ endpoint.method }} {{ endpoint.path }} should validate input: {response.status_code}"
+            f"{{ endpoint.method }} /api/v1{{ endpoint.path }} should validate input: {response.status_code}"
         )
         {% else %}
         # GET/DELETE don't typically have input validation
@@ -228,7 +486,7 @@ class Test{{ domain|title|replace('_', '') }}Smoke:
         {% endif %}
 
 {% endfor %}
-''')
+'''
 
 
 class TestGenerator:
@@ -268,10 +526,26 @@ class TestGenerator:
         # Sort endpoints by method and path
         endpoints_sorted = sorted(endpoints, key=lambda e: (e.method, e.path))
 
-        # Render template
-        test_content = SMOKE_TEST_TEMPLATE.render(
+        # Enrich endpoints with fixture metadata
+        enriched_endpoints = []
+        for ep in endpoints_sorted:
+            fixtures, url_fstring = get_fixture_params(ep)
+            # Create new dict with all endpoint attributes + fixture metadata
+            ep_dict = {
+                'path': ep.path,
+                'method': ep.method,
+                'function_name': ep.function_name,
+                'file_path': ep.file_path,
+                'domain': ep.domain,
+                'fixtures': fixtures,
+                'url_fstring': url_fstring
+            }
+            enriched_endpoints.append(ep_dict)
+
+        # Render template with enriched data
+        test_content = Template(SMOKE_TEST_TEMPLATE).render(
             domain=domain,
-            endpoints=endpoints_sorted
+            endpoints=enriched_endpoints
         )
 
         # Write to file

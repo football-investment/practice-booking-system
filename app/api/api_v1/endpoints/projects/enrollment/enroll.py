@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
+from pydantic import BaseModel, ConfigDict
 
 from ..validators import (
     validate_semester_enrollment,
@@ -35,9 +36,15 @@ from app.schemas.project import ProjectEnrollment as ProjectEnrollmentSchema
 router = APIRouter()
 
 
+class ProjectActionRequest(BaseModel):
+    """Empty request schema for project action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 @router.post("/{project_id}/enroll", response_model=ProjectEnrollmentSchema)
 def enroll_in_project(
     project_id: int,
+    request_data: ProjectActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:

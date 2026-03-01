@@ -13,6 +13,7 @@ For HEAD_TO_HEAD tournaments:
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from pydantic import BaseModel, ConfigDict
 
 import json
 
@@ -29,9 +30,15 @@ from app.services.tournament.ranking.strategies.factory import RankingStrategyFa
 router = APIRouter()
 
 
+class TournamentActionRequest(BaseModel):
+    """Empty request schema for tournament action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 @router.post("/{tournament_id}/calculate-rankings", status_code=status.HTTP_200_OK)
 def calculate_tournament_rankings(
     tournament_id: int,
+    request_data: TournamentActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -48,8 +55,10 @@ def calculate_tournament_rankings(
     - Applies league or knockout ranking logic
     - Stores rankings in tournament_rankings table
 
-    Authorization: Master Instructor or Admin only
-    Idempotent: Can be called multiple times (overwrites existing rankings)
+    **Authorization:** Master Instructor or Admin only
+    **Validation:** Empty body required, rejects invalid fields (422)
+    **Performance:** p95 < 500ms
+    **Idempotent:** Can be called multiple times (overwrites existing rankings)
     """
     # Get tournament
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()

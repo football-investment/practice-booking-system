@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field, ConfigDict
 # ============================================================================
 
 class SkillMappingConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Configuration for a single skill mapping"""
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -47,6 +49,8 @@ class BadgeCondition(BaseModel):
 
 
 class BadgeConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Configuration for a single badge"""
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -70,6 +74,8 @@ class BadgeConfig(BaseModel):
 
 
 class PlacementRewardConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Rewards for a specific placement tier"""
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -97,6 +103,8 @@ class PlacementRewardConfig(BaseModel):
 # ============================================================================
 
 class TournamentRewardConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """
     Complete reward configuration for a tournament.
 

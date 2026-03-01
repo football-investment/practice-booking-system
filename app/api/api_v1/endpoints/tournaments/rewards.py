@@ -6,7 +6,7 @@ Handles tournament ranking submission, reward calculation, and distribution.
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -32,6 +32,8 @@ router = APIRouter()
 # ============================================================================
 
 class RankingSubmissionItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Single player ranking entry"""
     user_id: int
     rank: int = Field(ge=1, description="Player rank (1 = 1st place, 2 = 2nd place, etc.)")
@@ -39,12 +41,16 @@ class RankingSubmissionItem(BaseModel):
 
 
 class RankingSubmissionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Bulk ranking submission for tournament"""
     rankings: List[RankingSubmissionItem]
     notes: Optional[str] = Field(default=None, max_length=500)
 
 
 class RankingSubmissionResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Response after submitting rankings"""
     tournament_id: int
     tournament_name: str
@@ -53,6 +59,8 @@ class RankingSubmissionResponse(BaseModel):
 
 
 class RewardDistributionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to distribute rewards"""
     reason: Optional[str] = Field(default=None, max_length=200)
     winner_count: Optional[int] = Field(default=None, description="Number of winners for INDIVIDUAL_RANKING tournaments (E2E testing)")

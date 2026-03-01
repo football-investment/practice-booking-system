@@ -5,6 +5,8 @@ from ..models.semester import SemesterStatus
 
 
 class SemesterBase(BaseModel):
+
+
     code: str
     name: str
     start_date: date
@@ -36,6 +38,8 @@ class SemesterCreate(SemesterBase):
 
 
 class SemesterUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     code: Optional[str] = None
     name: Optional[str] = None
     start_date: Optional[date] = None

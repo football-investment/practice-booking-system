@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import Any
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....database import get_db
 from .....dependencies import get_current_admin_user
@@ -16,22 +16,36 @@ router = APIRouter()
 
 
 class InvoiceCancellationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for invoice cancellation"""
     reason: str = "No reason provided"
 
 
 class InvoiceRequestCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request body for creating an invoice request"""
     credit_amount: int
     amount_eur: float
     coupon_code: str | None = None
 
 
+class VerifyInvoiceRequest(BaseModel):
+    """Empty request schema for verify invoice endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
+class UnverifyInvoiceRequest(BaseModel):
+    """Empty request schema for unverify invoice endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
 
 @router.post("/{invoice_id}/verify")
 async def verify_invoice_payment(
     request: Request,
     invoice_id: int,
+    request_data: VerifyInvoiceRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:
@@ -184,6 +198,7 @@ async def cancel_invoice(
 async def unverify_invoice_payment(
     request: Request,
     invoice_id: int,
+    request_data: UnverifyInvoiceRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:

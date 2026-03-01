@@ -2,12 +2,14 @@
 Pydantic schemas for Game Presets API
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 
 class GameConfigBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Base game configuration structure"""
     version: str = Field(..., description="Configuration version")
     format_config: Dict[str, Any] = Field(..., description="Format-specific configuration")
@@ -17,6 +19,8 @@ class GameConfigBase(BaseModel):
 
 
 class GamePresetBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Base game preset fields"""
     code: str = Field(..., min_length=1, max_length=50, description="Unique preset code")
     name: str = Field(..., min_length=1, max_length=100, description="Display name")
@@ -51,6 +55,8 @@ class GamePresetCreate(GamePresetBase):
 
 
 class GamePresetUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating a game preset"""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
@@ -79,8 +85,7 @@ class GamePresetResponse(GamePresetBase):
     updated_at: datetime
     created_by: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GamePresetSummary(BaseModel):

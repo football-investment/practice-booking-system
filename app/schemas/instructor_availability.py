@@ -4,13 +4,15 @@ Instructor Specialization Availability Schemas
 Pydantic schemas for instructor availability preferences.
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 from typing import Optional
 from datetime import datetime
 import re
 
 
 class InstructorAvailabilityBase(BaseModel):
+
+
     """Base schema for instructor availability"""
     specialization_type: str = Field(..., description="LFA_PLAYER_PRE, LFA_PLAYER_YOUTH, LFA_PLAYER_AMATEUR, LFA_PLAYER_PRO")
     time_period_code: str = Field(..., description="Q1-Q4 for quarterly, M01-M12 for monthly")
@@ -47,6 +49,8 @@ class InstructorAvailabilityCreate(InstructorAvailabilityBase):
 
 
 class InstructorAvailabilityUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating instructor availability"""
     is_available: Optional[bool] = Field(None, description="True if instructor is available")
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes from instructor")
@@ -59,11 +63,12 @@ class InstructorAvailabilityResponse(InstructorAvailabilityBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InstructorAvailabilityBulkUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for bulk updating instructor availability for a specific instructor/year/location"""
     instructor_id: int
     year: int

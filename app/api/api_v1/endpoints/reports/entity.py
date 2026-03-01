@@ -10,7 +10,7 @@ from .....database import get_db
 from .....models.user import User
 
 from sqlalchemy import func, and_
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....dependencies import get_current_admin_user
 from .....models.semester import Semester
@@ -23,6 +23,8 @@ router = APIRouter()
 
 # Pydantic models for request/response
 class ReportConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     report_type: str
     filters: Optional[Dict[str, Any]] = {}
     format: Optional[str] = "json"
@@ -70,7 +72,7 @@ def get_semester_report(
     # Attendance statistics
     total_attendance = db.query(func.count(Attendance.id)).join(SessionTypel).filter(SessionTypel.semester_id == semester_id).scalar() or 0
     present_attendance = db.query(func.count(Attendance.id)).join(SessionTypel).filter(
-        and_(SessionTypel.semester_id == semester_id, Attendance.status == AttendanceStatus.PRESENT)
+        and_(SessionTypel.semester_id == semester_id, Attendance.status == AttendanceStatus.present)
     ).scalar() or 0
     
     # Feedback statistics
@@ -82,11 +84,11 @@ def get_semester_report(
     
     # Session mode breakdown
     session_modes = db.query(
-        SessionTypel.mode,
+        SessionTypel.session_type,
         func.count(SessionTypel.id)
-    ).filter(SessionTypel.semester_id == semester_id).group_by(SessionTypel.mode).all()
-    
-    mode_breakdown = {mode: 0 for mode in SessionTypel.__table__.columns.mode.type.enums}
+    ).filter(SessionTypel.semester_id == semester_id).group_by(SessionTypel.session_type).all()
+
+    mode_breakdown = {mode: 0 for mode in SessionTypel.__table__.columns.session_type.type.enums}
     for mode, count in session_modes:
         mode_breakdown[mode.value] = count
     
@@ -159,7 +161,7 @@ def get_user_report(
     # Attendance statistics
     total_sessions_attended = db.query(func.count(Attendance.id)).filter(Attendance.user_id == user_id).scalar() or 0
     present_sessions = db.query(func.count(Attendance.id)).filter(
-        and_(Attendance.user_id == user_id, Attendance.status == AttendanceStatus.PRESENT)
+        and_(Attendance.user_id == user_id, Attendance.status == AttendanceStatus.present)
     ).scalar() or 0
     
     # Feedback statistics
@@ -173,10 +175,12 @@ def get_user_report(
         Semester.name,
         func.count(func.distinct(Booking.id)).label('bookings'),
         func.count(func.distinct(Attendance.id)).label('attendances')
-    ).outerjoin(SessionTypel).outerjoin(Booking, Booking.session_id == SessionTypel.id).outerjoin(
-        Attendance, Attendance.session_id == SessionTypel.id
-    ).filter(
-        and_(Booking.user_id == user_id, Attendance.user_id == user_id)
+    ).outerjoin(
+        SessionTypel, SessionTypel.semester_id == Semester.id
+    ).outerjoin(
+        Booking, and_(Booking.session_id == SessionTypel.id, Booking.user_id == user_id)
+    ).outerjoin(
+        Attendance, and_(Attendance.session_id == SessionTypel.id, Attendance.user_id == user_id)
     ).group_by(Semester.id, Semester.code, Semester.name).all()
     
     semester_breakdown = []

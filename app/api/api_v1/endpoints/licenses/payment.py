@@ -2,13 +2,15 @@
 License payment verification
 """
 from typing import Any, Dict
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user_web
+from .....dependencies import get_current_admin_user
 from .....models.user import User
 from .....models.license import UserLicense
+from .....services.audit_service import AuditService, AuditAction
 
 router = APIRouter()
 
@@ -17,7 +19,7 @@ async def verify_license_payment(
     license_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user_web)
+    admin_user: User = Depends(get_current_admin_user)
 ):
     """
     Mark UserLicense payment as verified (Admin only - Web cookie auth)
@@ -72,7 +74,7 @@ async def unverify_license_payment(
     license_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(get_current_admin_user_web)
+    admin_user: User = Depends(get_current_admin_user)
 ):
     """
     Remove payment verification from UserLicense (Admin only - Web cookie auth)

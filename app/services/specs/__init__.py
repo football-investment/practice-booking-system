@@ -39,7 +39,7 @@ def register_service(spec_prefix: str, service_class):
 # FACTORY FUNCTION
 # ============================================================================
 
-def get_spec_service(spec_type: str) -> BaseSpecializationService:
+def get_spec_service(spec_type: str, db = None) -> BaseSpecializationService:
     """
     Factory function to get appropriate service based on specialization type.
 
@@ -50,6 +50,8 @@ def get_spec_service(spec_type: str) -> BaseSpecializationService:
     Args:
         spec_type: Full specialization type from user record
                    (e.g., "LFA_PLAYER_PRE", "LFA_COACH", "GANCUJU_PLAYER_YOUTH")
+        db: Optional database session. Required for operations that need DB access,
+            optional for simple type checks like is_session_based()
 
     Returns:
         Instance of appropriate specialization service
@@ -58,11 +60,11 @@ def get_spec_service(spec_type: str) -> BaseSpecializationService:
         ValueError: If specialization type is unknown or not supported
 
     Examples:
-        >>> service = get_spec_service("LFA_PLAYER_PRE")
+        >>> service = get_spec_service("LFA_PLAYER_PRE", db)
         >>> isinstance(service, LFAPlayerService)
         True
 
-        >>> service = get_spec_service("LFA_COACH")
+        >>> service = get_spec_service("LFA_COACH")  # No db for simple checks
         >>> isinstance(service, LFACoachService)
         True
     """
@@ -72,7 +74,7 @@ def get_spec_service(spec_type: str) -> BaseSpecializationService:
     # Try to find matching service by prefix
     for prefix, service_class in _SERVICE_REGISTRY.items():
         if spec_type.startswith(prefix):
-            return service_class()
+            return service_class(db)
 
     # If no match found, raise error with helpful message
     available = ", ".join(_SERVICE_REGISTRY.keys())

@@ -6,6 +6,7 @@ Phase 1 Enhancement: Real test data fixtures for path parameter resolution
 """
 
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,10 @@ from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.campus import Campus
 from app.models.location import Location
+from app.models.specialization import SpecializationType
+from app.models.license import UserLicense
+from app.models.tournament_achievement import TournamentSkillMapping
+from app.models.tournament_type import TournamentType
 from app.core.security import get_password_hash
 
 
@@ -37,15 +42,75 @@ def test_db():
 
 
 @pytest.fixture(scope="module")
-def admin_token(test_db: Session):
+def ensure_tournament_types(test_db: Session):
+    """
+    Ensure core TournamentType records exist (query-first, create-if-not-exists fallback).
+    Pattern: Infrastructure fixture for smoke tests.
+    """
+    tournament_types_config = [
+        {
+            "code": "knockout",
+            "display_name": "Single Elimination (Knockout)",
+            "description": "Single elimination tournament",
+            "min_players": 4,
+            "max_players": 64,
+            "requires_power_of_two": True,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {"type": "knockout", "elimination": "single"}
+        },
+        {
+            "code": "league",
+            "display_name": "League (Round Robin)",
+            "description": "Round robin league format",
+            "min_players": 3,
+            "max_players": None,
+            "requires_power_of_two": False,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {"type": "league", "rounds": "full_round_robin"}
+        },
+        {
+            "code": "hybrid",
+            "display_name": "Hybrid (Group + Knockout)",
+            "description": "Group stage followed by knockout",
+            "min_players": 8,
+            "max_players": 64,
+            "requires_power_of_two": False,
+            "session_duration_minutes": 90,
+            "break_between_sessions_minutes": 15,
+            "format": "HEAD_TO_HEAD",
+            "config": {"type": "hybrid", "group_size": 4, "knockout_qualifiers": 2}
+        }
+    ]
+
+    for tt_config in tournament_types_config:
+        # Query first
+        existing = test_db.query(TournamentType).filter(
+            TournamentType.code == tt_config["code"]
+        ).first()
+
+        # Create if not exists
+        if not existing:
+            tournament_type = TournamentType(**tt_config)
+            test_db.add(tournament_type)
+
+    test_db.commit()
+    return True
+
+
+@pytest.fixture(scope="module")
+def admin_token(test_db: Session, ensure_tournament_types):
     """Admin user authentication token"""
     # Check if admin exists
-    admin = test_db.query(User).filter(User.email == "smoke.admin@generated.test").first()
+    admin = test_db.query(User).filter(User.email == "smoke.admin@example.com").first()
 
     if not admin:
         admin = User(
             name="Smoke Test Admin",
-            email="smoke.admin@generated.test",
+            email="smoke.admin@example.com",
             password_hash=get_password_hash("admin123"),
             role=UserRole.ADMIN,
             is_active=True
@@ -62,20 +127,39 @@ def admin_token(test_db: Session):
 
 @pytest.fixture(scope="module")
 def student_token(test_db: Session):
-    """Student user authentication token"""
-    student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    """Student user authentication token with LFA Football Player license"""
+    student = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
     if not student:
         student = User(
             name="Smoke Test Student",
-            email="smoke.student@generated.test",
+            email="smoke.student@example.com",
             password_hash=get_password_hash("student123"),
             role=UserRole.STUDENT,
-            is_active=True
+            is_active=True,
+            credit_balance=1000  # Add credits for enrollment tests
         )
         test_db.add(student)
         test_db.commit()
         test_db.refresh(student)
+
+    # Ensure student has LFA Football Player license (required for enrollment)
+    existing_license = test_db.query(UserLicense).filter(
+        UserLicense.user_id == student.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
+    ).first()
+
+    if not existing_license:
+        license = UserLicense(
+            user_id=student.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            current_level=1,  # Basic level sufficient for student enrollment
+            max_achieved_level=1,
+            started_at=datetime.now(timezone.utc),
+            is_active=True
+        )
+        test_db.add(license)
+        test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
@@ -84,20 +168,51 @@ def student_token(test_db: Session):
 
 @pytest.fixture(scope="module")
 def instructor_token(test_db: Session):
-    """Instructor user authentication token"""
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    """
+    Instructor user authentication token with LFA_COACH license.
+
+    High Priority Fix: Added LFA_COACH license to enable test_direct_assign_instructor_happy_path.
+    The /direct-assign-instructor endpoint validates LFA_COACH license via LicenseValidator.
+    """
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
 
     if not instructor:
         instructor = User(
             name="Smoke Test Instructor",
-            email="smoke.instructor@generated.test",
+            email="smoke.instructor@example.com",
             password_hash=get_password_hash("instructor123"),
             role=UserRole.INSTRUCTOR,
+            specialization=SpecializationType.LFA_COACH,  # High Priority Fix: Add LFA_COACH
             is_active=True
         )
         test_db.add(instructor)
         test_db.commit()
         test_db.refresh(instructor)
+
+    # High Priority Fix: ALWAYS ensure UserLicense exists for LFA_COACH (LicenseValidator requirement)
+    existing_license = test_db.query(UserLicense).filter(
+        UserLicense.user_id == instructor.id,
+        UserLicense.specialization_type == "LFA_COACH"  # Must be "LFA_COACH", not enum
+    ).first()
+
+    if not existing_license:
+        license = UserLicense(
+            user_id=instructor.id,
+            specialization_type="LFA_COACH",  # Validator expects "LFA_COACH" string
+            current_level=7,  # Level 7 (highest) - allows all age groups including PRO
+            max_achieved_level=7,
+            started_at=datetime.now(timezone.utc),
+            is_active=True
+        )
+        test_db.add(license)
+        test_db.commit()
+    else:
+        # Update existing license to Level 7 if it's lower (module-scoped fixture persistence)
+        if existing_license.current_level < 7:
+            existing_license.current_level = 7
+            existing_license.max_achieved_level = 7
+            existing_license.is_active = True
+            test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": instructor.email}, expires_delta=timedelta(hours=1))
@@ -121,9 +236,13 @@ def test_campus_id(test_db: Session) -> int:
     # Create test location if none exist
     location = test_db.query(Location).filter(Location.is_active == True).first()
     if not location:
+        # FIX: Use UUID for unique city name (prevents "locations_city_key" constraint violation)
+        unique_city = f"TestCity_{uuid.uuid4().hex[:8]}"
         location = Location(
             name="Smoke Test Location",
-            city="Budapest",
+            city=unique_city,  # Unique per test run
+            country="Hungary",
+            country_code="HU",
             is_active=True
         )
         test_db.add(location)
@@ -144,20 +263,23 @@ def test_campus_id(test_db: Session) -> int:
     return campus.id
 
 
-@pytest.fixture(scope="module")
-def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -> Dict:
+@pytest.fixture(scope="function")
+def test_tournament(test_db: Session, test_campus_id: int, student_token: str, instructor_token: str) -> Dict:
     """
-    P2.1: Minimál Lifecycle Graph - State-driven test architecture.
+    P3.2: Minimál Lifecycle Graph - State-driven test architecture with FUNCTION SCOPE.
 
     Creates a complete tournament with minimal viable state:
     - Tournament entity (Semester)
+    - TournamentConfiguration (P2 refactoring - separate table)
     - Campus schedule config
     - Reward config
-    - 2 Students with PLAYER licenses
-    - 2 Enrollments (APPROVED, is_active=True)
+    - 4 Students with PLAYER licenses (Phase 2.1: increased from 2 to meet min_players=4)
+    - 4 Enrollments (APPROVED, is_active=True)
     - 1 Session (tournament_round=1)
 
     Note: MatchStructure/MatchResult not included (tables don't exist in DB).
+
+    ISOLATION: Function-scoped to prevent test contamination (each test gets fresh state).
 
     Returns:
         {
@@ -178,24 +300,74 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     from app.models.license import UserLicense
     from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
     from app.models.session import Session as SessionModel
+    from app.models.tournament_configuration import TournamentConfiguration
+    from app.models.tournament_type import TournamentType
 
-    timestamp = int(datetime.now(timezone.utc).timestamp())
+    # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
+    unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
 
     # Create tournament (game_preset_id moved to GameConfiguration in P3)
+    # P3.2: Default status DRAFT (neutral state, allows status transitions)
     tournament = Semester(
-        code=f"SMOKE_TEST_{timestamp}",
-        name=f"Smoke Test Tournament {timestamp}",
+        code=f"SMOKE_TEST_{unique_id}",
+        name=f"Smoke Test Tournament {unique_id}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
-        tournament_status="IN_PROGRESS",
+        tournament_status="DRAFT",
         enrollment_cost=0,
         age_group="PRO",
+        specialization_type="LFA_FOOTBALL_PLAYER",  # Fix: Required for conflict_check endpoint
         campus_id=test_campus_id,
         is_active=True
     )
     test_db.add(tournament)
     test_db.commit()
     test_db.refresh(tournament)
+
+    # Phase 2.1 Fix: Create TournamentConfiguration (P2 refactoring - separate table)
+    # Required for preview-sessions endpoint (checks tournament.tournament_config_obj.tournament_type_id)
+    # Query-first for existing TournamentType (knockout)
+    tournament_type = test_db.query(TournamentType).filter(
+        TournamentType.code == "knockout"
+    ).first()
+
+    if not tournament_type:
+        # Create minimal knockout type if none exists
+        tournament_type = TournamentType(
+            code="knockout",
+            display_name="Single Elimination (Knockout)",
+            description="Single elimination bracket tournament",
+            min_players=4,
+            max_players=1024,
+            requires_power_of_two=True,
+            session_duration_minutes=90,
+            break_between_sessions_minutes=15,
+            format="HEAD_TO_HEAD",
+            config={
+                "code": "knockout",
+                "display_name": "Single Elimination (Knockout)",
+                "format": "HEAD_TO_HEAD",
+                "min_players": 4,
+                "requires_power_of_two": True,
+                "matches_calculation": "n - 1"
+            }
+        )
+        test_db.add(tournament_type)
+        test_db.commit()
+        test_db.refresh(tournament_type)
+
+    tournament_config = TournamentConfiguration(
+        semester_id=tournament.id,
+        tournament_type_id=tournament_type.id,
+        max_players=16,
+        participant_type="INDIVIDUAL",
+        is_multi_day=False,
+        parallel_fields=1,
+        scoring_type="HEAD_TO_HEAD",
+        number_of_rounds=3
+    )
+    test_db.add(tournament_config)
+    test_db.commit()
 
     # Add campus schedule config (minimal valid configuration)
     campus_schedule = CampusScheduleConfig(
@@ -217,39 +389,46 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
 
     test_db.commit()
 
-    # ── 4. Create 2 Students with PLAYER Licenses ──────────────────────
+    # ── 4. Create 4 Students with PLAYER Licenses ──────────────────────
+    # Phase 2.1 Fix: Increased from 2 to 4 students (min_players requirement)
     # Get student 1 (created by student_token fixture)
-    student1 = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student1 = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
-    # Create student 2
-    student2_email = f"smoke.student2.{timestamp}@generated.test"
-    student2 = test_db.query(User).filter(User.email == student2_email).first()
-    if not student2:
-        student2 = User(
-            name="Smoke Test Student 2",
-            email=student2_email,
-            password_hash=get_password_hash("student123"),
-            role=UserRole.STUDENT,
-            is_active=True,
-            credit_balance=1000
-        )
-        test_db.add(student2)
-        test_db.commit()
-        test_db.refresh(student2)
+    # Create students 2-4
+    students = [student1]
+    for i in range(2, 5):  # Create students 2, 3, 4
+        student_email = f"smoke.student{i}.{unique_id}@example.com"
+        student = test_db.query(User).filter(User.email == student_email).first()
+        if not student:
+            student = User(
+                name=f"Smoke Test Student {i}",
+                email=student_email,
+                password_hash=get_password_hash("student123"),
+                role=UserRole.STUDENT,
+                is_active=True,
+                credit_balance=1000
+            )
+            test_db.add(student)
+            test_db.commit()
+            test_db.refresh(student)
+        students.append(student)
 
-    # Create UserLicense + Enrollment for both students
+    # Create UserLicense + Enrollment for all 4 students
     enrolled_student_ids = []
-    for student in [student1, student2]:
-        # Check if PLAYER license exists
+    first_user_license = None  # Store first license for fixture data
+    first_enrollment = None    # Store first enrollment for fixture data
+
+    for i, student in enumerate(students):
+        # Check if LFA_PLAYER license exists
         user_license = test_db.query(UserLicense).filter(
             UserLicense.user_id == student.id,
-            UserLicense.specialization_type == "PLAYER"
+            UserLicense.specialization_type == "LFA_PLAYER"
         ).first()
 
         if not user_license:
             user_license = UserLicense(
                 user_id=student.id,
-                specialization_type="PLAYER",
+                specialization_type="LFA_PLAYER",
                 current_level=1,
                 max_achieved_level=1,
                 started_at=datetime.now(timezone.utc),
@@ -258,6 +437,10 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
             test_db.add(user_license)
             test_db.commit()
             test_db.refresh(user_license)
+
+        # Store first license
+        if i == 0:
+            first_user_license = user_license
 
         # ── 5. Create Enrollment (APPROVED, is_active=True) ────────────
         enrollment = SemesterEnrollment(
@@ -274,11 +457,37 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         test_db.add(enrollment)
         enrolled_student_ids.append(student.id)
 
+        # Store first enrollment
+        if i == 0:
+            first_enrollment = enrollment
+
     test_db.commit()
 
-    # ── 6. Create 1 Session ─────────────────────────────────────────────
+    # ── 5.5: Get instructor BEFORE creating session (PHASE 4 FIX) ──────
+    # PHASE 4 P5 Quick Fix: Query instructor user before session creation
+    # This allows setting session.instructor_id to match instructor_token user
+    # Fixes 3 happy_path test failures (start_session, stop_session, unlock_quiz)
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
+    instructor_id = instructor.id if instructor else None
+
+    # ── 6. Create 1 Tournament Session ──────────────────────────────────
     session_start = datetime.now(timezone.utc) + timedelta(days=1)
     session_end = session_start + timedelta(hours=2)
+
+    # Phase D.1: Build rounds_data with round_results for calculate-rankings API
+    # INDIVIDUAL_RANKING tournaments use rounds_data.round_results (not game_results)
+    # Format: {"round_number": {"user_id": "measured_value"}} - ALL STRINGS!
+    # Phase 2.1: Updated to include all 4 students (min_players requirement)
+    rounds_data = {
+        "round_results": {
+            "1": {  # Round number as string ("1", not "round_1")
+                str(enrolled_student_ids[0]): "100",  # Student 1: 100 points (STRING!)
+                str(enrolled_student_ids[1]): "85",   # Student 2: 85 points (STRING!)
+                str(enrolled_student_ids[2]): "75",   # Student 3: 75 points (STRING!)
+                str(enrolled_student_ids[3]): "60"    # Student 4: 60 points (STRING!)
+            }
+        }
+    }
 
     session = SessionModel(
         title=f"Smoke Test Session - Round 1",
@@ -287,27 +496,363 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         date_end=session_end,
         semester_id=tournament.id,
         campus_id=test_campus_id,
+        instructor_id=instructor_id,  # PHASE 4 P5: Assign instructor to enable all instructor tests
         tournament_round=1,
         tournament_match_number=1,
         session_status="scheduled",
+        is_tournament_game=True,  # Phase C: Mark as tournament game (required by calculate-rankings API)
+        rounds_data=rounds_data,  # Phase D.1: Add round results for INDIVIDUAL_RANKING tournaments
         capacity=16
     )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
-    return {
+    # ── YIELD: Provide fixture data to test ──────────────────────────────
+
+    fixture_data = {
+        # ── Core tournament data (REAL) ──────────────────────────────────
         "tournament_id": tournament.id,
         "semester_id": tournament.id,
         "code": tournament.code,
         "name": tournament.name,
         "session_ids": [session.id],
         "enrolled_student_ids": enrolled_student_ids,
+        "instructor_id": instructor_id,
+
+        # ── Created entity IDs (REAL) ────────────────────────────────────
+        "license_id": first_user_license.id if first_user_license else 1,
+        "enrollment_id": first_enrollment.id if first_enrollment else 1,
+        "specialization": "PLAYER",
+        "specialization_code": "PLAYER",
+        "spec_type": "PLAYER",
+
+        # ── Placeholder IDs (404 acceptable for smoke tests) ────────────
+        "project_id": 1,
+        "quiz_id": 1,
+        "quiz_connection_id": 1,
+        "assessment_id": 1,
+        "assignment_id": 1,
+        "attendance_id": 1,
+        "availability_id": 1,
+        "application_id": 1,
+        "category_id": 1,
+        "certificate_id": 1,
+        "code_id": 1,
+        "coupon_id": 1,
+        "event_id": 1,
+        "exercise_id": 1,
+        "feedback_id": 1,
+        "group_id": 1,
+        "invoice_id": 1,
+        "lesson_id": 1,
+        "location_id": 1,
+        "master_id": 1,
+        "message_id": 1,
+        "milestone_id": 1,
+        "module_id": 1,
+        "notification_id": 1,
+        "offer_id": 1,
+        "position_id": 1,
+        "preset_id": 1,
+        "recommendation_id": 1,
+        "request_id": 1,
+        "submission_id": 1,
+        "tournament_type_id": 1,
+        "track_id": 1,
+        "track_progress_id": 1,
+        "window_id": 1,
+        "specialization_id": 1,
+
+        # ── String placeholders ──────────────────────────────────────────
+        "category": "default",
+        "level": "1",
+        "nickname": "test_player",
+        "resource_type": "general",
+        "semester": "2024-spring",
+        "skill_name": "passing",
+        "unique_identifier": unique_id,
+        "year": "2024",
+        "round_number": "1",
+
+        # ── Boolean flags ────────────────────────────────────────────────
         "has_reward_config": True,
         "has_campus_schedule": True,
         "has_sessions": True,
         "has_enrollments": True
     }
+
+    yield fixture_data
+
+    # ── TEARDOWN: Clean up fixture entities (FK deletion order) ──────────
+    """
+    FK deletion order (respects foreign key constraints):
+    1. SessionModel (FK: semester_id → semesters.id)
+    2. SemesterEnrollment (FK: semester_id → semesters.id, user_license_id → user_licenses.id)
+    3. TournamentRewardConfig (FK: semester_id → semesters.id)
+    4. CampusScheduleConfig (FK: tournament_id → semesters.id)
+    5. Semester (parent, no FK dependencies after above deleted)
+
+    Note: UserLicense and Student2 User NOT deleted (user infrastructure is long-lived).
+    """
+    try:
+        # 1. Delete sessions (FK: semester_id → semesters.id)
+        test_db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 2. Delete enrollments (FK: semester_id → semesters.id)
+        test_db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 3. Delete reward config (FK: semester_id → semesters.id)
+        test_db.query(TournamentRewardConfig).filter(
+            TournamentRewardConfig.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 4. Delete campus schedule config (FK: tournament_id → semesters.id)
+        test_db.query(CampusScheduleConfig).filter(
+            CampusScheduleConfig.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 4.5. Delete tournament configuration (FK: semester_id → semesters.id)
+        # Phase 2.1 Fix: Added cleanup for TournamentConfiguration
+        test_db.query(TournamentConfiguration).filter(
+            TournamentConfiguration.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 5. Delete tournament status history (FK: tournament_id → semesters.id)
+        # Phase 1.2 Fix: Added cleanup for status transition history
+        from app.models.tournament_status_history import TournamentStatusHistory
+        test_db.query(TournamentStatusHistory).filter(
+            TournamentStatusHistory.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 6. Delete tournament (parent entity)
+        test_db.query(Semester).filter(
+            Semester.id == tournament.id
+        ).delete(synchronize_session=False)
+
+        test_db.commit()
+
+    except Exception as e:
+        test_db.rollback()
+        # Log but don't fail teardown (avoid cascade failures)
+        print(f"⚠️  Fixture teardown warning: {e}")
+        # Re-raise to investigate if cleanup fails
+        raise
+
+
+# ── BATCH 12 Domain 1: Attendance Fixture ─────────────────────────────────────
+
+@pytest.fixture(scope="function")
+def test_booking_id(test_db: Session, test_tournament: Dict) -> int:
+    """
+    BATCH 12: Valid booking fixture for attendance tests.
+
+    Creates a Booking record linking the admin user to a session from test_tournament.
+    Enables attendance checkin tests that require a valid booking_id.
+    Admin user ownership allows admin_token tests to pass authorization checks.
+
+    Returns:
+        int: Valid booking ID owned by admin user
+    """
+    from app.models.booking import Booking, BookingStatus
+    from app.models.user import User
+
+    # Get admin user (smoke tests use admin_token)
+    admin = test_db.query(User).filter(User.email == "smoke.admin@example.com").first()
+    if not admin:
+        raise RuntimeError("Admin user not found - ensure admin_token fixture runs first")
+
+    # Create booking for admin user + first session
+    booking = Booking(
+        user_id=admin.id,                                    # Admin user (matches admin_token)
+        session_id=test_tournament["session_ids"][0],        # First session
+        status=BookingStatus.CONFIRMED,
+        notes="Smoke test booking (BATCH 12)"
+    )
+    test_db.add(booking)
+    test_db.commit()
+    test_db.refresh(booking)
+
+    booking_id = booking.id
+
+    yield booking_id
+
+    # Teardown: Delete booking (FK-safe - no child dependencies)
+    try:
+        test_db.query(Booking).filter(Booking.id == booking_id).delete(synchronize_session=False)
+        test_db.commit()
+    except Exception as e:
+        test_db.rollback()
+        print(f"⚠️  Booking teardown warning: {e}")
+
+
+# ── Sprint 2: Minimal Fixture Variants ───────────────────────────────────────
+
+@pytest.fixture(scope="function")
+def test_tournament_deletable(test_db: Session, test_campus_id: int) -> Dict:
+    """
+    Sprint 2 (Fixture Isolation): Deletable tournament - NO FK dependencies.
+
+    Use for DELETE tests that expect clean deletion without FK conflicts.
+
+    Creates only:
+    - Tournament entity (Semester) with minimal fields
+    - NO sessions
+    - NO enrollments
+    - NO reward config
+    - NO campus schedule config
+
+    Returns:
+        {
+            "tournament_id": int,
+            "code": str,
+            "name": str
+        }
+    """
+    from datetime import datetime, timezone, timedelta
+
+    # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
+    unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
+
+    # Create minimal tournament (deletable - no FK dependencies)
+    tournament = Semester(
+        code=f"DELETABLE_{unique_id}",
+        name=f"Deletable Tournament {unique_id}",
+        start_date=datetime.now(timezone.utc).date(),
+        end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
+        tournament_status="DRAFT",
+        enrollment_cost=0,
+        age_group="PRO",
+        campus_id=test_campus_id,
+        is_active=True
+    )
+    test_db.add(tournament)
+    test_db.commit()
+    test_db.refresh(tournament)
+
+    fixture_data = {
+        "tournament_id": tournament.id,
+        "code": tournament.code,
+        "name": tournament.name
+    }
+
+    yield fixture_data
+
+    # Teardown: Simple delete (no FK dependencies)
+    try:
+        test_db.query(Semester).filter(Semester.id == tournament.id).delete()
+        test_db.commit()
+    except Exception as e:
+        test_db.rollback()
+        # OK to fail - test may have deleted it
+        print(f"⚠️  Deletable tournament cleanup: {e}")
+
+
+@pytest.fixture(scope="function")
+def test_tournament_minimal(test_db: Session, test_campus_id: int) -> Dict:
+    """
+    Sprint 2 (Fixture Isolation): Minimal tournament - NO sessions, NO enrollments.
+
+    Use for instructor assignment tests that don't need full lifecycle graph.
+
+    Creates only:
+    - Tournament entity (Semester)
+    - Campus schedule config (required for some endpoints)
+    - Reward config (required for some endpoints)
+    - NO sessions
+    - NO enrollments
+    - NO students
+
+    Returns:
+        {
+            "tournament_id": int,
+            "semester_id": int,
+            "code": str,
+            "name": str,
+            "has_reward_config": True,
+            "has_campus_schedule": True,
+            "has_sessions": False,
+            "has_enrollments": False
+        }
+    """
+    from app.models.campus_schedule_config import CampusScheduleConfig
+    from app.models.tournament_reward_config import TournamentRewardConfig
+    from datetime import datetime, timezone, timedelta
+
+    # Use UUID suffix for guaranteed uniqueness (fix for UniqueViolation on rapid runs)
+    unique_id = str(uuid.uuid4())[:8]  # Short UUID for readability
+
+    # Create minimal tournament
+    tournament = Semester(
+        code=f"MINIMAL_{unique_id}",
+        name=f"Minimal Tournament {unique_id}",
+        start_date=datetime.now(timezone.utc).date(),
+        end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
+        tournament_status="DRAFT",
+        enrollment_cost=0,
+        age_group="PRO",
+        campus_id=test_campus_id,
+        is_active=True
+    )
+    test_db.add(tournament)
+    test_db.commit()
+    test_db.refresh(tournament)
+
+    # Add campus schedule config (minimal)
+    campus_schedule = CampusScheduleConfig(
+        tournament_id=tournament.id,
+        campus_id=test_campus_id,
+        match_duration_minutes=90,
+        break_duration_minutes=15,
+        parallel_fields=1,
+        is_active=True
+    )
+    test_db.add(campus_schedule)
+
+    # Add reward config (minimal)
+    reward_config = TournamentRewardConfig(
+        semester_id=tournament.id,
+        reward_policy_name="minimal_policy"
+    )
+    test_db.add(reward_config)
+
+    test_db.commit()
+
+    fixture_data = {
+        "tournament_id": tournament.id,
+        "semester_id": tournament.id,
+        "code": tournament.code,
+        "name": tournament.name,
+        "has_reward_config": True,
+        "has_campus_schedule": True,
+        "has_sessions": False,
+        "has_enrollments": False
+    }
+
+    yield fixture_data
+
+    # Teardown: FK-aware deletion
+    try:
+        # 1. Delete configs
+        test_db.query(TournamentRewardConfig).filter(
+            TournamentRewardConfig.semester_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        test_db.query(CampusScheduleConfig).filter(
+            CampusScheduleConfig.tournament_id == tournament.id
+        ).delete(synchronize_session=False)
+
+        # 2. Delete tournament
+        test_db.query(Semester).filter(Semester.id == tournament.id).delete()
+
+        test_db.commit()
+    except Exception as e:
+        test_db.rollback()
+        print(f"⚠️  Minimal tournament cleanup warning: {e}")
 
 
 @pytest.fixture(scope="module")
@@ -318,7 +863,7 @@ def test_student_id(test_db: Session) -> int:
     Returns:
         User ID (int)
     """
-    student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
     assert student, "Smoke test student not found - ensure student_token fixture is called first"
     return student.id
 
@@ -333,9 +878,108 @@ def test_instructor_id(test_db: Session, instructor_token: str) -> int:
     Returns:
         User ID (int)
     """
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
     assert instructor, "Smoke test instructor not found after instructor_token fixture"
     return instructor.id
+
+
+@pytest.fixture(scope="function")
+def test_session_id(test_tournament: Dict) -> int:
+    """
+    P3.2: Extract session ID from lifecycle graph (function-scoped for isolation).
+
+    Returns first session ID from test_tournament fixture.
+    NO new entities created - pure extraction from existing state.
+
+    Returns:
+        Session ID (int)
+    """
+    assert test_tournament["has_sessions"], "Tournament fixture has no sessions"
+    assert len(test_tournament["session_ids"]) > 0, "Tournament fixture session_ids is empty"
+    return test_tournament["session_ids"][0]
+
+
+def ensure_tournament_status(
+    tournament_id: int,
+    target_status: str,
+    admin_token: str,  # Unused but kept for API compatibility
+    test_db: Session
+) -> Dict[str, any]:
+    """
+    P3.3 Option C1: Direct DB status update - TEST-ONLY bypass for smoke tests.
+
+    ⚠️  TEST-ONLY: Bypasses state machine validation for endpoint contract testing.
+    ⚠️  NOT for production workflow validation - use dedicated workflow tests.
+    ⚠️  Smoke tests validate endpoint behavior, NOT state transitions.
+
+    Rationale:
+    - API layer enforces strict transition rules (e.g., DRAFT → ENROLLMENT_OPEN blocked)
+    - Smoke tests need tournaments in specific states to test endpoint contracts
+    - Workflow validation belongs in separate integration test suite
+
+    Supported target statuses:
+    - ENROLLMENT_OPEN (for enrollment endpoints)
+    - IN_PROGRESS (for session/completion endpoints)
+    - COMPLETED (for reward/ranking endpoints)
+    - SEEKING_INSTRUCTOR (for instructor assignment endpoints)
+    - PENDING_INSTRUCTOR_ACCEPTANCE (for instructor response endpoints)
+
+    Args:
+        tournament_id: Tournament to update
+        target_status: Desired final status
+        admin_token: (unused, kept for compatibility)
+        test_db: Database session
+
+    Returns:
+        {"success": True, "transitions": ["DRAFT→ENROLLMENT_OPEN (DB direct)"], "final_status": "ENROLLMENT_OPEN"}
+
+    Raises:
+        AssertionError: If status update fails
+    """
+    from app.models.semester import Semester, SemesterStatus
+
+    # TEST-ONLY: Bypass state machine for smoke endpoint validation
+    tournament = test_db.query(Semester).filter(Semester.id == tournament_id).first()
+    assert tournament, f"Tournament {tournament_id} not found in DB"
+
+    old_status = tournament.status.value if tournament.status else tournament.tournament_status
+
+    if old_status == target_status:
+        return {
+            "success": True,
+            "transitions": [],
+            "final_status": old_status,
+            "message": "Already in target status",
+        }
+
+    # Direct DB update (bypasses API validation)
+    # Map legacy/test status strings to valid SemesterStatus enum values
+    STATUS_MAPPING = {
+        "ENROLLMENT_OPEN": "READY_FOR_ENROLLMENT",  # Legacy status string
+        "IN_PROGRESS": "ONGOING",  # Legacy status string
+    }
+    normalized_status = STATUS_MAPPING.get(target_status, target_status)
+
+    # Update BOTH fields to maintain consistency
+    tournament.status = SemesterStatus(normalized_status)  # ENUM field (primary)
+    tournament.tournament_status = normalized_status  # STRING field (legacy)
+    test_db.commit()
+    test_db.refresh(tournament)
+
+    # Verify update (compare to normalized value, not legacy input)
+    assert tournament.status.value == normalized_status, (
+        f"DB status update failed: Expected {normalized_status}, got {tournament.status.value}"
+    )
+
+    # Show mapping info if legacy status was mapped
+    mapping_note = f" (mapped from {target_status})" if target_status != normalized_status else ""
+
+    return {
+        "success": True,
+        "transitions": [f"{old_status}→{normalized_status} (DB direct){mapping_note}"],
+        "final_status": tournament.status.value,
+        "message": f"TEST-ONLY: Status set to {normalized_status} (bypassed state machine){mapping_note}",
+    }
 
 
 @pytest.fixture(scope="module")
@@ -353,3 +997,122 @@ def payload_factory():
 
     # Create and return factory instance
     return PayloadFactory(openapi_schema)
+
+
+@pytest.fixture(scope="function")
+def test_skill_mapping_id(test_tournament: Dict, test_db: Session) -> int:
+    """
+    Category 1 Quick Fix: Create TournamentSkillMapping for DELETE tests.
+
+    Creates a skill mapping record for the test tournament to enable
+    DELETE /tournaments/{id}/skill-mappings/{mapping_id} endpoint testing.
+
+    ⚠️  Function-scoped to match test_tournament fixture scope.
+
+    Args:
+        test_tournament: Tournament fixture with tournament_id
+        test_db: Database session
+
+    Returns:
+        mapping_id (int): ID of created skill mapping
+    """
+    # Create skill mapping for test tournament
+    mapping = TournamentSkillMapping(
+        semester_id=test_tournament["tournament_id"],  # tournament_id is semester_id
+        skill_name="Test Skill",
+        skill_category="football_skill",
+        weight=1.0
+    )
+    test_db.add(mapping)
+    test_db.commit()
+    test_db.refresh(mapping)
+
+    return mapping.id
+
+
+@pytest.fixture(scope="function")
+def test_generation_task_id(test_tournament: Dict) -> str:
+    """
+    Phase 1.1 Pattern 4 Fix: Create dummy generation task in registry.
+
+    Provides a valid task_id for testing GET /tournaments/{id}/generation-status/{task_id}
+    endpoint without requiring actual session generation (cascade).
+
+    ⚠️  Function-scoped to match test_tournament fixture scope.
+
+    Args:
+        test_tournament: Tournament fixture with tournament_id
+
+    Returns:
+        task_id (str): UUID task identifier registered in _task_registry
+    """
+    from app.api.api_v1.endpoints.tournaments.generate_sessions import _task_registry, _registry_lock
+    import uuid
+
+    # Generate unique task ID
+    task_id = f"smoke-test-{uuid.uuid4()}"
+
+    # Register dummy task in generation tracking registry
+    with _registry_lock:
+        _task_registry[task_id] = {
+            "task_id": task_id,
+            "tournament_id": test_tournament["tournament_id"],
+            "status": "done",  # Completed status for smoke test
+            "message": "Smoke test generation (dummy)",
+            "sessions_count": 0,
+            "backend": "thread"
+        }
+
+    return task_id
+
+
+@pytest.fixture(scope="function")
+def test_rounds_session_id(test_tournament: Dict, test_db: Session, test_campus_id: int) -> int:
+    """
+    Phase 1.1 Pattern 4 Fix: Create minimal INDIVIDUAL_RANKING session for rounds status tests.
+
+    Provides a valid session_id for testing GET /tournaments/{id}/sessions/{session_id}/rounds
+    endpoint without requiring full session generation (cascade).
+
+    ⚠️  Function-scoped to match test_tournament fixture scope.
+
+    Args:
+        test_tournament: Tournament fixture with tournament_id
+        test_db: Database session
+        test_campus_id: Campus ID for session location
+
+    Returns:
+        session_id (int): ID of created minimal session
+    """
+    from app.models.session import Session as SessionModel
+    from app.models.user import User, UserRole
+    from datetime import datetime, timezone, timedelta
+
+    # Get instructor user (created by instructor_token fixture)
+    instructor = test_db.query(User).filter(
+        User.email == "smoke.instructor@example.com"
+    ).first()
+
+    # Create minimal INDIVIDUAL_RANKING session
+    session = SessionModel(
+        title="Smoke Test Rounds Session",
+        semester_id=test_tournament["tournament_id"],
+        date_start=datetime.now(timezone.utc) + timedelta(days=1, hours=10),
+        date_end=datetime.now(timezone.utc) + timedelta(days=1, hours=12),
+        capacity=16,
+        campus_id=test_campus_id,
+        instructor_id=instructor.id if instructor else None,
+        is_tournament_game=True,  # Required for get_session_or_404 helper
+        match_format="INDIVIDUAL_RANKING",  # Required for rounds endpoint
+        session_status="scheduled",
+        rounds_data={
+            "total_rounds": 3,
+            "completed_rounds": 0,
+            "round_results": {}
+        }
+    )
+    test_db.add(session)
+    test_db.commit()
+    test_db.refresh(session)
+
+    return session.id

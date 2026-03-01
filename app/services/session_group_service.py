@@ -36,7 +36,7 @@ class SessionGroupService:
         """
         attendances = db.query(Attendance).filter(
             Attendance.session_id == session_id,
-            Attendance.status == AttendanceStatus.PRESENT
+            Attendance.status == AttendanceStatus.present
         ).all()
 
         return [att.user for att in attendances if att.user]

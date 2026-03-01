@@ -35,6 +35,8 @@ from app.api.api_v1.endpoints.bookings.admin import (
     confirm_booking,
     admin_cancel_booking,
     update_booking_attendance,
+    ConfirmBookingRequest,
+    UpdateBookingAttendanceRequest,
 )
 from app.api.api_v1.endpoints.bookings.helpers import auto_promote_from_waitlist
 from app.models.booking import BookingStatus
@@ -696,6 +698,7 @@ class TestRaceB06AdminConfirmNoCapacity:
         with pytest.raises(HTTPException) as exc_info:
             confirm_booking(
                 booking_id=1,
+                request_data=ConfirmBookingRequest(),
                 db=mock_db,
                 current_user=_user(role=UserRole.ADMIN),
             )
@@ -724,6 +727,7 @@ class TestRaceB06AdminConfirmNoCapacity:
         # Must NOT raise
         result = confirm_booking(
             booking_id=1,
+            request_data=ConfirmBookingRequest(),
             db=mock_db,
             current_user=_user(role=UserRole.ADMIN),
         )
@@ -763,7 +767,7 @@ class TestRaceB07DuplicateAttendance:
 
         update_booking_attendance(
             booking_id=1,
-            attendance_data={"status": "present"},
+            attendance_data=UpdateBookingAttendanceRequest(status="present"),
             db=mock_db,
             current_user=_user(role=UserRole.ADMIN),
         )
@@ -798,7 +802,7 @@ class TestRaceB07DuplicateAttendance:
         with pytest.raises(HTTPException) as exc_info:
             update_booking_attendance(
                 booking_id=1,
-                attendance_data={"status": "present"},
+                attendance_data=UpdateBookingAttendanceRequest(status="present"),
                 db=mock_db,
                 current_user=_user(role=UserRole.ADMIN),
             )

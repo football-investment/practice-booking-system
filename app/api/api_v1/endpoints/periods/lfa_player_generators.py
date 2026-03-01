@@ -14,7 +14,7 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Dict
 
 from .....database import get_db
@@ -42,6 +42,8 @@ router = APIRouter()
 # ============================================================================
 
 class LFAPlayerPreRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate a single monthly season for LFA_PLAYER PRE"""
     year: int
     month: int  # 1-12
@@ -50,6 +52,8 @@ class LFAPlayerPreRequest(BaseModel):
 
 
 class LFAPlayerYouthRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate a single quarterly season for LFA_PLAYER YOUTH"""
     year: int
     quarter: int  # 1-4
@@ -58,6 +62,8 @@ class LFAPlayerYouthRequest(BaseModel):
 
 
 class LFAPlayerAmateurRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate annual season for LFA_PLAYER AMATEUR (Jul-Jun)"""
     year: int
     location_id: int
@@ -65,6 +71,8 @@ class LFAPlayerAmateurRequest(BaseModel):
 
 
 class LFAPlayerProRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate annual season for LFA_PLAYER PRO"""
     year: int
     location_id: int

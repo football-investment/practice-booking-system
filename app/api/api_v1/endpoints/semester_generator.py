@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import date, timedelta
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from ....database import get_db
 from ....models.semester import Semester, SemesterStatus
@@ -24,6 +24,8 @@ router = APIRouter()
 # ============================================================================
 
 class SemesterGenerationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to generate semesters for a specific year, specialization, and age group"""
     year: int
     specialization: str  # "LFA_PLAYER", "GANCUJU", "COACH", "INTERNSHIP"

@@ -5,6 +5,7 @@ import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from .....database import get_db
 from .....dependencies import get_current_user

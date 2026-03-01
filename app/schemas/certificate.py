@@ -4,12 +4,14 @@ Certificate-related Pydantic schemas
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 
 
 # Certificate Template Schemas
 class CertificateTemplateBase(BaseModel):
+
+
     title: str
     description: Optional[str] = None
     design_template: Optional[str] = None
@@ -25,12 +27,13 @@ class CertificateTemplateResponse(CertificateTemplateBase):
     track_id: UUID
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Issued Certificate Schemas
 class IssuedCertificateBase(BaseModel):
+
+
     unique_identifier: str
     issue_date: datetime
     completion_date: Optional[datetime] = None
@@ -46,8 +49,7 @@ class CertificateResponse(IssuedCertificateBase):
     revoked_at: Optional[datetime] = None
     revoked_reason: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Certificate Verification Schemas
@@ -83,9 +85,13 @@ class CertificateAnalyticsResponse(BaseModel):
 
 # Certificate Generation Request Schema
 class CertificateGenerationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     track_progress_id: UUID
 
 
 # Certificate Revocation Schema
 class CertificateRevocationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     reason: str

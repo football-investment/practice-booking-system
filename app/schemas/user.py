@@ -19,6 +19,8 @@ class UserLicenseSimple(BaseModel):
 
 
 class UserBase(BaseModel):
+
+
     name: str
     nickname: Optional[str] = None
     email: EmailStr
@@ -42,6 +44,8 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     name: Optional[str] = None
     nickname: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -54,6 +58,8 @@ class UserUpdate(BaseModel):
 
 
 class UserUpdateSelf(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     name: Optional[str] = None
     nickname: Optional[str] = None
     email: Optional[EmailStr] = None
