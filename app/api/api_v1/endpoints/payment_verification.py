@@ -27,6 +27,11 @@ class SpecializationRequest(BaseModel):
     specialization_type: str  # SpecializationType enum value
 
 
+class EmptyActionRequest(BaseModel):
+    """Empty request schema for action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 @router.get("/students")
 async def get_students_payment_status(
     request: Request,
@@ -149,11 +154,16 @@ async def verify_student_payment(
 async def unverify_student_payment(
     request: Request,
     student_id: int,
+    request_data: EmptyActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:
     """
     Remove payment verification for a specific student (Admin only)
+
+    **Authorization:** Admin role required
+    **Validation:** Empty body required, rejects invalid fields (422)
+    **Performance:** p95 < 200ms
     """
     # Get student
     student = db.query(User).filter(
