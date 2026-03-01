@@ -16,7 +16,7 @@ These are API wrappers around existing web route logic in:
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import date
 
 from app.database import get_db
@@ -36,6 +36,8 @@ router = APIRouter()
 
 class SpecializationUnlockRequest(BaseModel):
     """Request to unlock a specialization (100 credits)"""
+    model_config = ConfigDict(extra='forbid')
+
     specialization: str = Field(
         ...,
         description="Specialization code: LFA_PLAYER, LFA_COACH, INTERNSHIP, GANCUJU_PLAYER"
@@ -44,17 +46,23 @@ class SpecializationUnlockRequest(BaseModel):
 
 class SpecializationSelectRequest(BaseModel):
     """Request to select initial specialization"""
+    model_config = ConfigDict(extra='forbid')
+
     specialization: str = Field(..., description="Specialization code")
 
 
 class SpecializationSwitchRequest(BaseModel):
     """Request to switch to different specialization"""
+    model_config = ConfigDict(extra='forbid')
+
     new_specialization: str = Field(..., description="New specialization code")
     reason: str | None = Field(None, description="Optional reason for switching")
 
 
 class LfaPlayerOnboardingRequest(BaseModel):
     """Request to complete LFA Player onboarding"""
+    model_config = ConfigDict(extra='forbid')
+
     # Extract from web route - add fields as needed
     specialization_code: str = Field(default="LFA_PLAYER")
     # Add other fields from form
@@ -62,6 +70,8 @@ class LfaPlayerOnboardingRequest(BaseModel):
 
 class MotivationSubmitRequest(BaseModel):
     """Request to submit motivation questionnaire"""
+    model_config = ConfigDict(extra='forbid')
+
     motivation_data: Dict[str, Any] = Field(
         ...,
         description="Specialization-specific motivation/preference data"
