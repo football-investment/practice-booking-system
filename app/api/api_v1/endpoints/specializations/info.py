@@ -8,10 +8,12 @@ Handles specialization selection and information for the LFA education platform
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Any, List, Dict
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....database import get_db
 from .....models.specialization import SpecializationType
+from .....services.specialization_service import SpecializationService
+
 router = APIRouter()
 
 class SpecializationResponse(BaseModel):
@@ -22,6 +24,8 @@ class SpecializationResponse(BaseModel):
     icon: str
 
 class SpecializationSetRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     specialization: str
 
 

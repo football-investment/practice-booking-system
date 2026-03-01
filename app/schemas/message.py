@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -17,11 +17,12 @@ class MessageUserInfo(BaseModel):
     nickname: Optional[str] = None
     email: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MessageBase(BaseModel):
+
+
     subject: str
     message: str
     priority: MessagePriority = MessagePriority.NORMAL
@@ -60,6 +61,8 @@ class MessageCreateByNickname(MessageBase):
 
 
 class MessageUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     is_read: Optional[bool] = None
     message: Optional[str] = None
     
@@ -82,8 +85,7 @@ class Message(MessageBase):
     sender: MessageUserInfo
     recipient: MessageUserInfo
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MessageList(BaseModel):
@@ -91,8 +93,7 @@ class MessageList(BaseModel):
     total_count: int
     unread_count: int
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MessageSummary(BaseModel):

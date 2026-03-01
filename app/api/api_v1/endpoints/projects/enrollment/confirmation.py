@@ -9,6 +9,7 @@ This module handles:
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, ConfigDict
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -25,6 +26,11 @@ from app.schemas.project import EnrollmentPriorityResponse
 from app.services.gamification import GamificationService
 
 router = APIRouter()
+
+
+class ProjectActionRequest(BaseModel):
+    """Empty request schema for project action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
 
 
 @router.post("/{project_id}/enrollment-quiz", response_model=EnrollmentPriorityResponse)
@@ -115,6 +121,7 @@ def complete_enrollment_quiz(
 @router.post("/{project_id}/confirm-enrollment")
 def confirm_project_enrollment(
     project_id: int,
+    request_data: ProjectActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:

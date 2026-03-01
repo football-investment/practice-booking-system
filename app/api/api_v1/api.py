@@ -53,13 +53,15 @@ from .endpoints import (
     session_groups,  # 👥 NEW: Add dynamic session group assignment system
     tournaments,  # 🏆 NEW: Add one-day tournament generator system
     tournament_types,  # 🎯 NEW: Add tournament type system
-    game_presets  # 🎮 P3: Add game preset system
+    game_presets,  # 🎮 P3: Add game preset system
+    instructor  # 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints
 )
 
 from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test system
 from .endpoints.sandbox import data as sandbox_data  # 🧪 NEW: Add sandbox data endpoints
 
 from .endpoints.sessions import results as session_results  # 🏆 NEW: Game results management
+from .endpoints.sessions import attendance as sessions_attendance  # PHASE 4: Session attendance operations
 
 from .endpoints.semesters import academy_generator  # 🏫 NEW: Add Academy Season generator
 from .endpoints.enrollments import conflict_check  # ⚠️ NEW: Add enrollment conflict detection
@@ -80,14 +82,17 @@ api_router.include_router(academy_generator.router, prefix="/semesters", tags=["
 api_router.include_router(conflict_check.router, prefix="/enrollments", tags=["enrollments", "conflict-check"])  # ⚠️ Enrollment conflict detection
 api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
+api_router.include_router(sessions.router, prefix="/instructor/sessions", tags=["instructor", "sessions"])  # PHASE 2: Instructor session management (multi-prefix routing)
 api_router.include_router(session_results.router, prefix="/sessions", tags=["sessions", "game-results"])  # 🏆 Game results endpoints
 api_router.include_router(bookings.router, prefix="/bookings", tags=["bookings"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
+api_router.include_router(sessions_attendance.router, prefix="/attendance/sessions", tags=["attendance", "sessions"])  # PHASE 4: Session attendance (alias for test compatibility)
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["gamification"])
 api_router.include_router(quiz.router, prefix="/quizzes", tags=["quizzes"])
+api_router.include_router(quiz.router, prefix="/instructor/quizzes", tags=["instructor", "quizzes"])  # Instructor alias
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
@@ -96,9 +101,16 @@ api_router.include_router(adaptive_learning.router, prefix="/adaptive-learning",
 
 # 🎓 NEW: Add specialization routes
 api_router.include_router(
-    specializations.router, 
-    prefix="/specializations", 
+    specializations.router,
+    prefix="/specializations",
     tags=["specializations"]
+)
+
+# 🎓 ALIAS: Add singular /specialization path (for backward compatibility)
+api_router.include_router(
+    specializations.router,
+    prefix="/specialization",
+    tags=["specialization-alias"]
 )
 
 # 💰 NEW: Add payment verification routes
@@ -283,6 +295,13 @@ api_router.include_router(
     tags=["period-generators", "lfa-player"]
 )
 
+# 🚀 BATCH 10: Add no-prefix alias for period generators (routes already have /lfa-player in paths)
+api_router.include_router(
+    lfa_player_generators.router,
+    prefix="",  # No prefix - routes already define /lfa-player/* paths
+    tags=["period-generators", "lfa-player", "alias"]
+)
+
 # 📍 NEW: Add location management system routes (admin only)
 api_router.include_router(
     locations.router,
@@ -304,6 +323,33 @@ api_router.include_router(
     tags=["instructor-assignments"]
 )
 
+# 📋 BATCH 10: Add /requests prefix alias for instructor assignments (test compatibility)
+api_router.include_router(
+    instructor_assignments.router,
+    prefix="",  # No prefix - routes already have /requests in their paths
+    tags=["instructor-assignments", "alias"]
+)
+
+# 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints
+api_router.include_router(
+    instructor.router,
+    tags=["instructor", "student-assessment"]
+)
+
+# 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints (admin prefix alias)
+api_router.include_router(
+    instructor.router,
+    prefix="/admin",
+    tags=["admin", "instructor", "student-assessment"]
+)
+
+# 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints (lfa-player prefix alias)
+api_router.include_router(
+    instructor.router,
+    prefix="/lfa-player",
+    tags=["lfa-player", "instructor", "student-assessment"]
+)
+
 # 💰 NEW: Add license renewal system routes (Fase 2)
 api_router.include_router(
     license_renewal.router,
@@ -315,6 +361,13 @@ api_router.include_router(
 api_router.include_router(
     campuses.router,
     prefix="/admin",
+    tags=["campuses"]
+)
+
+# Path alias: /campuses for backward compatibility (BATCH 5 - Phase 3)
+api_router.include_router(
+    campuses.router,
+    prefix="/campuses",
     tags=["campuses"]
 )
 

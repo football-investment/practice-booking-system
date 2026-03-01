@@ -9,7 +9,7 @@ POST  /system-events/purge            → delete resolved events older than N da
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -32,8 +32,7 @@ class SystemEventResponse(BaseModel):
     payload_json: Optional[Dict[str, Any]]
     resolved: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def from_orm_safe(cls, obj: Any) -> "SystemEventResponse":
@@ -60,6 +59,18 @@ class PurgeResponse(BaseModel):
     deleted: int
     retention_days: int
     message: str
+
+
+# ── Request Schemas (BATCH 10 Phase 2) ───────────────────────────────────────
+
+class ResolveEventRequest(BaseModel):
+    """Empty request schema for resolve event endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
+class UnresolveEventRequest(BaseModel):
+    """Empty request schema for unresolve event endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
 
 
 # ── Dependency ────────────────────────────────────────────────────────────────
@@ -101,6 +112,7 @@ def list_system_events(
 @router.patch("/{event_id}/resolve", response_model=SystemEventResponse)
 def resolve_event(
     event_id: int,
+    request_data: ResolveEventRequest,
     _: Any = Depends(get_current_admin_user),
     svc: SystemEventService = Depends(get_service),
     db: Session = Depends(get_db),
@@ -119,6 +131,7 @@ def resolve_event(
 @router.patch("/{event_id}/unresolve", response_model=SystemEventResponse)
 def unresolve_event(
     event_id: int,
+    request_data: UnresolveEventRequest,
     _: Any = Depends(get_current_admin_user),
     svc: SystemEventService = Depends(get_service),
     db: Session = Depends(get_db),

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.models.specialization import SpecializationType
+from app.models.user_progress import Specialization
 from app.services.specialization_config_loader import get_config_loader
 
 logger = logging.getLogger(__name__)

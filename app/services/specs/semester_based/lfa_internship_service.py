@@ -38,6 +38,83 @@ class LFAInternshipService(BaseSpecializationService):
     Handles semester-based enrollment, XP progression, and internship position management.
     """
 
+    def __init__(self, db: Session = None):
+        """Initialize LFA Internship service with optional database session"""
+        self.db = db
+
+    def get_license_by_user(self, user_id: int):
+        """Get user's active license with all fields for license endpoints"""
+        try:
+            from app.models.license import UserLicense
+            from app.models.user_progress import UserProgress
+            from datetime import datetime
+
+            license = self.db.query(UserLicense).filter(
+                UserLicense.user_id == user_id,
+                UserLicense.is_active == True,
+                UserLicense.specialization_type == 'INTERNSHIP'
+            ).first()
+            if not license:
+                return None
+
+            # Get XP from UserProgress if exists
+            progress = self.db.query(UserProgress).filter(
+                UserProgress.user_id == user_id,
+                UserProgress.specialization_type == 'INTERNSHIP'
+            ).first()
+
+            current_xp = getattr(progress, 'current_xp', 0) if progress else 0
+
+            return {
+                'id': license.id,
+                'user_id': license.user_id,
+                'current_level': license.current_level,
+                'max_achieved_level': license.max_achieved_level,
+                'current_xp': current_xp,
+                'credit_balance': getattr(license, 'credit_balance', 0),
+                'expires_at': license.expires_at.isoformat() if license.expires_at else None,
+                'is_expired': license.expires_at < datetime.utcnow() if license.expires_at else False,
+                'is_active': license.is_active,
+                'created_at': license.started_at,
+                'updated_at': license.last_advanced_at
+            }
+        except Exception:
+            return None
+
+    def get_credit_balance(self, license_id: int) -> int:
+        """Get credit balance (required by credit endpoints)"""
+        try:
+            from app.models.license import UserLicense
+            license = self.db.query(UserLicense).filter(UserLicense.id == license_id).first()
+            if not license:
+                return 0
+            return getattr(license, 'credit_balance', 0)
+        except Exception:
+            return 0
+
+    def get_transaction_history(self, license_id: int, limit: int = 50):
+        """Get transaction history (required by credit endpoints)"""
+        try:
+            from app.models.credit_transaction import CreditTransaction
+            transactions = self.db.query(CreditTransaction).filter(
+                CreditTransaction.license_id == license_id
+            ).order_by(CreditTransaction.created_at.desc()).limit(limit).all()
+            return [
+                {
+                    'id': tx.id,
+                    'transaction_type': tx.transaction_type,
+                    'amount': tx.amount,
+                    'enrollment_id': getattr(tx, 'enrollment_id', None),
+                    'payment_verified': getattr(tx, 'payment_verified', None),
+                    'payment_reference_code': getattr(tx, 'payment_reference_code', None),
+                    'description': getattr(tx, 'description', None),
+                    'created_at': tx.created_at
+                }
+                for tx in transactions
+            ]
+        except Exception:
+            return []
+
     # ========================================================================
     # AGE REQUIREMENT
     # ========================================================================

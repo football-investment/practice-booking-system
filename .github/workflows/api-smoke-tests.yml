@@ -67,9 +67,10 @@ jobs:
           ADMIN_EMAIL=admin@test.com
           ADMIN_PASSWORD=admin123
           ADMIN_NAME=Test Admin
-          CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8501
           ENABLE_RATE_LIMITING=false
           EOF
+          # NOTE: CORS_ALLOWED_ORIGINS removed - not needed in test mode
+          # get_cors_origins() in app/config.py automatically returns localhost list for ENVIRONMENT=test
 
       - name: Run database migrations
         run: |
@@ -77,17 +78,16 @@ jobs:
 
       - name: Run smoke tests (sequential - stability validation)
         id: sequential_tests
-        continue-on-error: true
         run: |
           pytest tests/integration/api_smoke/ \
             -v \
             --tb=short \
             --timeout=10 \
-            --durations=20
+            --durations=20 \
+            --maxfail=0
 
       - name: Run smoke tests (parallel - performance validation)
         id: parallel_tests
-        continue-on-error: true
         run: |
           pytest tests/integration/api_smoke/ \
             -n auto \

@@ -5,7 +5,7 @@ Unified data transfer objects for tournament reward distribution.
 Used across API endpoints and UI components.
 """
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
 
@@ -19,8 +19,7 @@ class SkillPointsAwarded(BaseModel):
     points: float
     skill_category: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ParticipationReward(BaseModel):
@@ -33,8 +32,7 @@ class ParticipationReward(BaseModel):
     total_xp: int
     credits: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -51,8 +49,7 @@ class BadgeAwarded(BaseModel):
     rarity: str
     metadata: Optional[Dict] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BadgeReward(BaseModel):
@@ -62,8 +59,7 @@ class BadgeReward(BaseModel):
     total_badges_earned: int
     rarest_badge: Optional[str] = None  # Rarity level of rarest badge
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -91,8 +87,7 @@ class TournamentRewardResult(BaseModel):
     distributed_at: datetime
     distributed_by: Optional[int] = None  # Admin/instructor ID
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for API responses"""
@@ -142,8 +137,7 @@ class BulkRewardDistributionResult(BaseModel):
     distributed_at: datetime
     distributed_by: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -164,8 +158,7 @@ class BadgeCondition(BaseModel):
     condition_type: str
     parameters: Dict
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BadgeRule(BaseModel):
@@ -183,8 +176,7 @@ class BadgeRule(BaseModel):
     priority: int = 0  # For resolving conflicts
     is_active: bool = True
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BadgeEvaluationContext(BaseModel):
@@ -216,8 +208,7 @@ class BadgeEvaluationContext(BaseModel):
     tournament_format: str = ""
     measurement_unit: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -252,8 +243,7 @@ class RewardPolicy(BaseModel):
     third_place_skill_points: int = 5
     participant_skill_points: int = 1
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -261,21 +251,23 @@ class RewardPolicy(BaseModel):
 # ============================================================================
 
 class DistributeRewardsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to distribute rewards for a tournament"""
     tournament_id: int
     force_redistribution: bool = False  # Allow re-distribution of rewards
     reward_policy: Optional[RewardPolicy] = None  # Custom policy (optional)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AddSkillMappingRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to add skill mapping to tournament"""
     tournament_id: int
     skill_name: str
     skill_category: str
     weight: float = 1.0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

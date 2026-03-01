@@ -12,7 +12,7 @@ WARNING: tournament_status field in TournamentUpdateRequest bypasses the state m
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db
 from app.api.api_v1.endpoints.auth import get_current_user
@@ -29,6 +29,8 @@ router = APIRouter()
 # ============================================================================
 
 class TournamentUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to update tournament fields (Admin only)"""
     name: Optional[str] = Field(None, description="Tournament name")
     enrollment_cost: Optional[int] = Field(None, ge=0, description="Enrollment cost in credits")

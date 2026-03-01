@@ -8,7 +8,7 @@ This is the clean entry point for tournament workflows.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 import logging
@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class RewardTierConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Reward tier configuration"""
     rank: int
     xp_reward: int
@@ -36,6 +38,8 @@ class RewardTierConfig(BaseModel):
 
 
 class TournamentCreateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for tournament creation"""
     name: str = Field(..., min_length=3, max_length=200, description="Tournament name")
     tournament_type: str = Field(..., description="Tournament type code (league, knockout, hybrid)")
@@ -85,6 +89,8 @@ class TournamentCreateRequest(BaseModel):
 
 
 class TournamentCreateResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Response schema for tournament creation"""
     success: bool
     tournament_id: int

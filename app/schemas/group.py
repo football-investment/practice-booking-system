@@ -6,6 +6,8 @@ from .semester import Semester
 
 
 class GroupBase(BaseModel):
+
+
     name: str
     description: Optional[str] = None
     semester_id: int
@@ -16,6 +18,8 @@ class GroupCreate(GroupBase):
 
 
 class GroupUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     name: Optional[str] = None
     description: Optional[str] = None
     semester_id: Optional[int] = None

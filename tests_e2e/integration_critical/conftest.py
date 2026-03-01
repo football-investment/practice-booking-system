@@ -291,7 +291,7 @@ def test_campus_ids(api_url: str, admin_token: str) -> List[int]:
 
     # 1. Create test location
     location_response = requests.post(
-        f"{api_url}/api/v1/admin/locations",
+        f"{api_url}/api/v1/admin/locations/",  # Trailing slash required by FastAPI
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "INT_TEST_Location",
@@ -309,7 +309,7 @@ def test_campus_ids(api_url: str, admin_token: str) -> List[int]:
     else:
         # Fallback: query for any existing location
         locations_response = requests.get(
-            f"{api_url}/api/v1/admin/locations",
+            f"{api_url}/api/v1/admin/locations/",  # Trailing slash required by FastAPI
             headers={"Authorization": f"Bearer {admin_token}"}
         )
         if locations_response.status_code == 200 and locations_response.json():

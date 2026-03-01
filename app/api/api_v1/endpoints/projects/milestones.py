@@ -12,12 +12,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from pydantic import BaseModel, ConfigDict
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.project import (
-    Project as ProjectModel, 
+    Project as ProjectModel,
     ProjectEnrollment,
     ProjectMilestone,
     ProjectMilestoneProgress,
@@ -30,10 +31,16 @@ from .....services.gamification import GamificationService
 router = APIRouter()
 
 
+class ProjectActionRequest(BaseModel):
+    """Empty request schema for project action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 @router.post("/{project_id}/milestones/{milestone_id}/submit")
 def submit_milestone(
     project_id: int,
     milestone_id: int,
+    request_data: ProjectActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -111,6 +118,7 @@ def submit_milestone(
 def approve_milestone(
     project_id: int,
     milestone_id: int,
+    request_data: ProjectActionRequest,
     feedback: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

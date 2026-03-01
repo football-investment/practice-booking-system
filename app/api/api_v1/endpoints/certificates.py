@@ -64,8 +64,18 @@ def download_certificate_pdf(
     db: Session = Depends(get_db)
 ):
     """Download certificate as PDF"""
+    # Validate UUID format early (P0: prevent 500 error on invalid UUID)
+    try:
+        import uuid as uuid_lib
+        uuid_lib.UUID(certificate_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid certificate ID format. Expected UUID, got: {certificate_id}"
+        )
+
     certificate_service = CertificateService(db)
-    
+
     # Verify ownership or admin access
     certificates = certificate_service.get_user_certificates(str(current_user.id))
     user_certificate_ids = [str(cert.id) for cert in certificates]

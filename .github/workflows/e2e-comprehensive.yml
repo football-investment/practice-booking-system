@@ -128,7 +128,7 @@ jobs:
           BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
           STREAMLIT_SERVER_HEADLESS: true
         run: |
-          streamlit run streamlit_app/Home.py \
+          streamlit run streamlit_app/🏠_Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
             --server.headless true &
           timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
@@ -232,7 +232,7 @@ jobs:
           BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
           STREAMLIT_SERVER_HEADLESS: true
         run: |
-          streamlit run streamlit_app/Home.py \
+          streamlit run streamlit_app/🏠_Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
             --server.headless true &
           timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'
@@ -357,7 +357,7 @@ jobs:
           BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
           STREAMLIT_SERVER_HEADLESS: true
         run: |
-          streamlit run streamlit_app/Home.py \
+          streamlit run streamlit_app/🏠_Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
             --server.headless true &
           timeout 60 bash -c 'until curl -sf http://localhost:${{ env.STREAMLIT_PORT }}/_stcore/health; do sleep 2; done'

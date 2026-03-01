@@ -12,7 +12,7 @@ from .....models.user import User
 
 from fastapi import Query
 from sqlalchemy import func
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .....dependencies import get_current_admin_user
 from .....models.semester import Semester
@@ -26,6 +26,8 @@ router = APIRouter()
 
 # Pydantic models for request/response
 class ReportConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     report_type: str
     filters: Optional[Dict[str, Any]] = {}
     format: Optional[str] = "json"
@@ -89,7 +91,7 @@ def export_sessions_csv(
     attendance_stats = db.query(
         Attendance.session_id,
         func.count(Attendance.id).label('total_attendance'),
-        func.sum(func.case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('present_attendance')
+        func.sum(func.case((Attendance.status == AttendanceStatus.present, 1), else_=0)).label('present_attendance')
     ).filter(Attendance.session_id.in_(session_ids)).group_by(Attendance.session_id).all()
 
     attendance_stats_map = {
@@ -131,7 +133,7 @@ def export_sessions_csv(
             session.title,
             session.date_start,
             session.date_end,
-            session.mode.value,
+            session.session_type.value,
             session.capacity,
             session.location or '',
             session.meeting_link or '',
@@ -193,9 +195,9 @@ def get_system_stats(
     
     # Session mode breakdown
     session_modes = db.query(
-        SessionTypel.mode,
+        SessionTypel.session_type,
         func.count(SessionTypel.id)
-    ).group_by(SessionTypel.mode).all()
+    ).group_by(SessionTypel.session_type).all()
     
     mode_breakdown = {}
     for mode, count in session_modes:
@@ -211,7 +213,7 @@ def get_system_stats(
     # Attendance statistics
     total_attendances = db.query(func.count(Attendance.id)).scalar() or 0
     present_attendances = db.query(func.count(Attendance.id)).filter(
-        Attendance.status == AttendanceStatus.PRESENT
+        Attendance.status == AttendanceStatus.present
     ).scalar() or 0
     
     # Feedback statistics

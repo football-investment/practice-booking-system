@@ -2,7 +2,7 @@
 Pydantic schemas for Instructor Assignment Request System
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from typing import Optional
 from enum import Enum
@@ -21,6 +21,8 @@ class AssignmentRequestStatusEnum(str, Enum):
 # ============================================================================
 
 class InstructorAvailabilityWindowBase(BaseModel):
+
+
     """Base schema for availability window - NO LOCATION (comes from assignment request)"""
     year: int = Field(..., ge=2024, le=2100, description="Year (e.g., 2026)")
     time_period: str = Field(..., max_length=10, description="Q1, Q2, Q3, Q4 or M01-M12")
@@ -42,6 +44,8 @@ class InstructorAvailabilityWindowCreate(InstructorAvailabilityWindowBase):
 
 
 class InstructorAvailabilityWindowUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating availability window"""
     is_available: Optional[bool] = None
     notes: Optional[str] = None
@@ -54,8 +58,7 @@ class InstructorAvailabilityWindowResponse(InstructorAvailabilityWindowBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -63,6 +66,8 @@ class InstructorAvailabilityWindowResponse(InstructorAvailabilityWindowBase):
 # ============================================================================
 
 class InstructorAssignmentRequestBase(BaseModel):
+
+
     """Base schema for assignment request"""
     request_message: Optional[str] = Field(None, description="Message from admin to instructor")
     priority: int = Field(default=0, ge=0, le=10, description="Priority 0-10")
@@ -76,17 +81,23 @@ class InstructorAssignmentRequestCreate(InstructorAssignmentRequestBase):
 
 
 class InstructorAssignmentRequestUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for updating assignment request"""
     status: Optional[AssignmentRequestStatusEnum] = None
     response_message: Optional[str] = None
 
 
 class InstructorAssignmentRequestAccept(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for instructor accepting request"""
     response_message: Optional[str] = Field(None, description="Optional message from instructor")
 
 
 class InstructorAssignmentRequestDecline(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Schema for instructor declining request"""
     response_message: str = Field(..., min_length=1, description="Reason for declining (required)")
 
@@ -103,8 +114,7 @@ class InstructorAssignmentRequestResponse(InstructorAssignmentRequestBase):
     expires_at: Optional[datetime]
     response_message: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================

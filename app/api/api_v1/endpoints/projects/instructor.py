@@ -10,12 +10,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
+from pydantic import BaseModel, ConfigDict
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.project import (
-    Project as ProjectModel, 
+    Project as ProjectModel,
     ProjectEnrollment,
     ProjectMilestone,
     ProjectMilestoneProgress,
@@ -25,6 +26,11 @@ from .....models.project import (
 )
 
 router = APIRouter()
+
+
+class ProjectActionRequest(BaseModel):
+    """Empty request schema for project action endpoints - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
 
 
 @router.get("/instructor/my")
@@ -108,6 +114,7 @@ def get_instructor_projects(
 def instructor_enroll_student(
     project_id: int,
     user_id: int,
+    request_data: ProjectActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -199,11 +206,11 @@ def instructor_enroll_student(
     
     for i, milestone in enumerate(milestones):
         # First milestone starts as IN_PROGRESS, others as PENDING
-        status = MilestoneStatus.IN_PROGRESS.value if i == 0 else MilestoneStatus.PENDING.value
+        milestone_status = MilestoneStatus.IN_PROGRESS.value if i == 0 else MilestoneStatus.PENDING.value
         milestone_progress = ProjectMilestoneProgress(
             enrollment_id=enrollment.id,
             milestone_id=milestone.id,
-            status=status
+            status=milestone_status
         )
         db.add(milestone_progress)
     

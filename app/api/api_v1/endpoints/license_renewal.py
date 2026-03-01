@@ -5,7 +5,7 @@ Admin endpoints for managing license renewals.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -27,6 +27,8 @@ router = APIRouter()
 # ============================================================================
 
 class LicenseRenewalRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to renew a license"""
     license_id: int = Field(..., description="ID of license to renew")
     renewal_months: int = Field(..., description="12 or 24 months", ge=12, le=24)

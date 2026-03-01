@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 
@@ -11,8 +11,7 @@ class Achievement(BaseModel):
     earned_at: str
     semester_count: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserStats(BaseModel):
@@ -25,8 +24,7 @@ class UserStats(BaseModel):
     level: int
     first_semester_date: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentStatus(BaseModel):
@@ -34,8 +32,7 @@ class StudentStatus(BaseModel):
     icon: str
     is_returning: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NextLevel(BaseModel):
@@ -43,8 +40,7 @@ class NextLevel(BaseModel):
     next_level_xp: int
     progress_percentage: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SemesterInfo(BaseModel):
@@ -53,8 +49,7 @@ class SemesterInfo(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserGamificationResponse(BaseModel):

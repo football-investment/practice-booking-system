@@ -7,7 +7,7 @@ Runs end-to-end sandbox tournament test
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -22,6 +22,8 @@ router = APIRouter()
 
 # Request/Response schemas
 class TestConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Optional test configuration"""
     performance_variation: str = Field(default="MEDIUM", pattern="^(LOW|MEDIUM|HIGH)$")
     ranking_distribution: str = Field(default="NORMAL", pattern="^(NORMAL|TOP_HEAVY|BOTTOM_HEAVY)$")
@@ -30,6 +32,8 @@ class TestConfig(BaseModel):
 
 
 class RunTestRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for sandbox test"""
     tournament_type: str = Field(..., description="Tournament type code (league, knockout, hybrid)")
     skills_to_test: list[str] = Field(..., min_items=1, max_items=20, description="Skills to test (1-20)")

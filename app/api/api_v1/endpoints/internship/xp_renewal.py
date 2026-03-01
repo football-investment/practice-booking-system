@@ -4,11 +4,12 @@ Internship XP and license renewal endpoints
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
+from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
 
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -43,17 +44,19 @@ router = APIRouter()
 # ============================================================================
 
 class LicenseCreate(BaseModel):
-    """Request body for creating a new Internship license"""
-    initial_credits: int = Field(default=0, ge=0, description="Starting credit balance")
-    duration_months: int = Field(default=15, ge=1, le=24, description="License duration in months (1-24)")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "initial_credits": 100,
                 "duration_months": 15
             }
         }
+    )
+
+    """Request body for creating a new Internship license"""
+    initial_credits: int = Field(default=0, ge=0, description="Starting credit balance")
+    duration_months: int = Field(default=15, ge=1, le=24, description="License duration in months (1-24)")
 
 
 class LicenseResponse(BaseModel):
@@ -89,17 +92,19 @@ class LicenseResponse(BaseModel):
 
 
 class AddXPRequest(BaseModel):
-    """Request body for adding XP"""
-    xp_amount: int = Field(..., gt=0, description="Amount of XP to add (must be positive)")
-    reason: Optional[str] = Field(None, max_length=500, description="Reason for XP award")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "xp_amount": 500,
                 "reason": "Completed module 3 with excellent performance"
             }
         }
+    )
+
+    """Request body for adding XP"""
+    xp_amount: int = Field(..., gt=0, description="Amount of XP to add (must be positive)")
+    reason: Optional[str] = Field(None, max_length=500, description="Reason for XP award")
 
 
 class XPResponse(BaseModel):
@@ -145,15 +150,17 @@ class ExpiryResponse(BaseModel):
 
 
 class RenewRequest(BaseModel):
-    """Request body for renewing license"""
-    extension_months: int = Field(default=15, ge=1, le=24, description="Months to extend (1-24)")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "extension_months": 12
             }
         }
+    )
+
+    """Request body for renewing license"""
+    extension_months: int = Field(default=15, ge=1, le=24, description="Months to extend (1-24)")
 
 
 class RenewResponse(BaseModel):
@@ -178,14 +185,9 @@ class RenewResponse(BaseModel):
 
 class CreditPurchase(BaseModel):
     """Request body for purchasing credits"""
-    amount: int = Field(..., gt=0, description="Amount of credits to purchase")
-    payment_verified: bool = Field(default=False, description="Whether payment has been verified")
-    payment_proof_url: Optional[str] = Field(None, max_length=500, description="URL to payment proof")
-    payment_reference_code: Optional[str] = Field(None, max_length=100, description="Payment reference code")
-    description: Optional[str] = Field(None, max_length=500, description="Purchase description")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "amount": 50,
                 "payment_verified": True,
@@ -193,22 +195,31 @@ class CreditPurchase(BaseModel):
                 "description": "Monthly credit package"
             }
         }
+    )
+
+    amount: int = Field(..., gt=0, description="Amount of credits to purchase")
+    payment_verified: bool = Field(default=False, description="Whether payment has been verified")
+    payment_proof_url: Optional[str] = Field(None, max_length=500, description="URL to payment proof")
+    payment_reference_code: Optional[str] = Field(None, max_length=100, description="Payment reference code")
+    description: Optional[str] = Field(None, max_length=500, description="Purchase description")
 
 
 class CreditSpend(BaseModel):
     """Request body for spending credits"""
-    enrollment_id: int = Field(..., description="Enrollment ID for the expense")
-    amount: int = Field(..., gt=0, description="Amount of credits to spend")
-    description: Optional[str] = Field(None, max_length=500, description="Spending description")
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra='forbid',
+        json_schema_extra={
             "example": {
                 "enrollment_id": 123,
                 "amount": 25,
                 "description": "Session enrollment fee"
             }
         }
+    )
+
+    enrollment_id: int = Field(..., description="Enrollment ID for the expense")
+    amount: int = Field(..., gt=0, description="Amount of credits to spend")
+    description: Optional[str] = Field(None, max_length=500, description="Spending description")
 
 
 class CreditTransaction(BaseModel):

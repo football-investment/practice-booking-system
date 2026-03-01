@@ -266,7 +266,7 @@ class TestGetTournamentRewards:
         """Get rewards for non-existent tournament"""
         rewards = tournament_xp_service.get_tournament_rewards(
             db=test_db,
-            tournament_id=99999
+            tournament_id=999999999  # Guaranteed non-existent tournament ID
         )
 
         assert isinstance(rewards, dict)
@@ -337,8 +337,11 @@ class TestDistributeRewards:
         # Verify XP was awarded (4 times)
         assert mock_award_xp.call_count == 4
 
-        # Verify credit transactions
-        transactions = test_db.query(CreditTransaction).all()
+        # Verify credit transactions (filter by test users to avoid production DB pollution)
+        test_user_ids = [user1.id, user2.id, user3.id, user4.id]
+        transactions = test_db.query(CreditTransaction).filter(
+            CreditTransaction.user_id.in_(test_user_ids)
+        ).all()
         assert len(transactions) == 3  # Only 1st, 2nd, 3rd get credits
 
         # Verify user credits
@@ -653,8 +656,10 @@ class TestAwardManualReward:
         assert result is True
         mock_award_xp.assert_called_once()
 
-        # No credit transaction should be created
-        transactions = test_db.query(CreditTransaction).all()
+        # No credit transaction should be created (filter by test user to avoid production DB pollution)
+        transactions = test_db.query(CreditTransaction).filter(
+            CreditTransaction.user_id == user.id
+        ).all()
         assert len(transactions) == 0
 
         test_db.refresh(user)
@@ -692,7 +697,7 @@ class TestAwardManualReward:
         result = tournament_xp_service.award_manual_reward(
             db=test_db,
             tournament_id=tournament.id,
-            user_id=99999,
+            user_id=999999999,  # Guaranteed non-existent user ID
             xp_amount=100,
             credits_amount=50,
             reason="Test"
@@ -773,6 +778,8 @@ class TestAwardManualReward:
         assert result is True
         mock_award_xp.assert_not_called()
 
-        # No transaction created
-        transactions = test_db.query(CreditTransaction).all()
+        # No transaction created (filter by test user to avoid production DB pollution)
+        transactions = test_db.query(CreditTransaction).filter(
+            CreditTransaction.user_id == user.id
+        ).all()
         assert len(transactions) == 0

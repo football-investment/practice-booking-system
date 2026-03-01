@@ -2,7 +2,7 @@
 Competency Schemas
 Pydantic models for competency API
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict
 from datetime import datetime
 
@@ -21,8 +21,7 @@ class CompetencyCategoryResponse(BaseModel):
     weight: float = Field(description="Category weight in overall assessment")
     display_order: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -39,8 +38,7 @@ class SkillResponse(BaseModel):
     total_assessments: int
     last_assessed_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -60,8 +58,7 @@ class UserCompetencyResponse(BaseModel):
     total_assessments: int
     last_assessed_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CompetencyBreakdownResponse(BaseModel):
@@ -69,8 +66,7 @@ class CompetencyBreakdownResponse(BaseModel):
     category: Dict
     skills: List[Dict]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -87,8 +83,7 @@ class AssessmentHistoryResponse(BaseModel):
     source_id: int
     assessed_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -106,8 +101,7 @@ class MilestoneResponse(BaseModel):
     specialization_id: str
     achieved_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================
@@ -121,5 +115,4 @@ class RadarChartDataResponse(BaseModel):
     levels: List[str] = Field(description="Category levels")
     colors: List[str] = Field(description="Category colors for visualization")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

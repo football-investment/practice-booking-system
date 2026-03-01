@@ -4,12 +4,14 @@ Track-related Pydantic schemas
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 
 
 # Base Track Schemas
 class TrackBase(BaseModel):
+
+
     name: str
     code: str
     description: Optional[str] = None
@@ -22,6 +24,8 @@ class TrackCreate(TrackBase):
 
 
 class TrackUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     name: Optional[str] = None
     description: Optional[str] = None
     duration_semesters: Optional[int] = None
@@ -36,12 +40,13 @@ class TrackResponse(TrackBase):
     prerequisites: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Module Schemas
 class ModuleBase(BaseModel):
+
+
     name: str
     description: Optional[str] = None
     order_in_track: int = 0
@@ -64,12 +69,13 @@ class ModuleResponse(ModuleBase):
     mandatory_components: int = 0
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Module Component Schemas
 class ModuleComponentBase(BaseModel):
+
+
     type: str  # 'theory', 'quiz', 'project', 'assignment', 'video'
     name: str
     description: Optional[str] = None
@@ -90,12 +96,13 @@ class ModuleComponentResponse(ModuleComponentBase):
     estimated_hours: float = 0
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Track Progress Schemas
 class UserTrackProgressBase(BaseModel):
+
+
     status: str
     completion_percentage: float = 0.0
     current_semester: int = 1
@@ -109,8 +116,7 @@ class UserTrackProgressResponse(UserTrackProgressBase):
     completed_at: Optional[datetime] = None
     certificate_id: Optional[UUID] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Module Progress Schemas
@@ -124,12 +130,13 @@ class UserModuleProgressResponse(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Track Enrollment Schemas
 class TrackEnrollmentRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     track_id: UUID
     semester_id: UUID
 

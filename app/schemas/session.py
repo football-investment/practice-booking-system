@@ -8,6 +8,8 @@ from .group import Group
 
 
 class SessionBase(BaseModel):
+
+
     title: str
     description: Optional[str] = None
     date_start: datetime
@@ -53,6 +55,8 @@ class SessionCreate(SessionBase):
 
 
 class SessionUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: Optional[str] = None
     description: Optional[str] = None
     date_start: Optional[datetime] = None

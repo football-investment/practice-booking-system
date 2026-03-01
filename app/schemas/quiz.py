@@ -1,10 +1,12 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from app.models.quiz import QuestionType, QuizCategory, QuizDifficulty
 
 # Base schemas
 class QuizAnswerOptionBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     option_text: str = Field(..., max_length=500)
     is_correct: bool = False
     order_index: int = 0
@@ -16,8 +18,7 @@ class QuizAnswerOptionResponse(QuizAnswerOptionBase):
     id: int
     question_id: int
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizAnswerOptionPublic(BaseModel):
     """Public version without is_correct field for students taking quiz"""
@@ -25,11 +26,12 @@ class QuizAnswerOptionPublic(BaseModel):
     option_text: str
     order_index: int
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Question schemas
 class QuizQuestionBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     question_text: str
     question_type: QuestionType
     points: int = 1
@@ -40,6 +42,8 @@ class QuizQuestionCreate(QuizQuestionBase):
     answer_options: List[QuizAnswerOptionCreate] = []
 
 class QuizQuestionUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     question_text: Optional[str] = None
     question_type: Optional[QuestionType] = None
     points: Optional[int] = None
@@ -53,8 +57,7 @@ class QuizQuestionResponse(QuizQuestionBase):
     created_at: datetime
     answer_options: List[QuizAnswerOptionResponse] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizQuestionPublic(BaseModel):
     """Public version for students taking quiz - without correct answers"""
@@ -65,11 +68,12 @@ class QuizQuestionPublic(BaseModel):
     order_index: int
     answer_options: List[QuizAnswerOptionPublic] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Quiz schemas
 class QuizBase(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: str = Field(..., max_length=200)
     description: Optional[str] = None
     category: QuizCategory
@@ -83,6 +87,8 @@ class QuizCreate(QuizBase):
     questions: List[QuizQuestionCreate] = []
 
 class QuizUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[QuizCategory] = None
@@ -98,8 +104,7 @@ class QuizResponse(QuizBase):
     updated_at: Optional[datetime] = None
     questions: List[QuizQuestionResponse] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizListItem(BaseModel):
     """Simplified quiz info for list views"""
@@ -114,8 +119,7 @@ class QuizListItem(BaseModel):
     is_active: bool
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizPublic(BaseModel):
     """Public quiz info for students"""
@@ -129,11 +133,12 @@ class QuizPublic(BaseModel):
     passing_score: float
     questions: List[QuizQuestionPublic] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Quiz attempt schemas
 class QuizUserAnswerCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     question_id: int
     selected_option_id: Optional[int] = None  # Multiple choice and True/False
     answer_text: Optional[str] = None  # Fill in the blank
@@ -153,8 +158,7 @@ class QuizUserAnswerResponse(BaseModel):
     is_correct: bool
     answered_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizAttemptResponse(BaseModel):
     id: int
@@ -170,8 +174,7 @@ class QuizAttemptResponse(BaseModel):
     passed: bool
     user_answers: List[QuizUserAnswerResponse] = []
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class QuizAttemptSummary(BaseModel):
     """Simplified attempt info for user's quiz history"""
@@ -185,8 +188,7 @@ class QuizAttemptSummary(BaseModel):
     xp_awarded: int
     time_spent_minutes: Optional[float] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Statistics schemas
 class QuizStatistics(BaseModel):

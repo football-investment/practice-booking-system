@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 from app.database import get_db
@@ -40,6 +40,8 @@ router = APIRouter()
 # ============================================================================
 
 class CancellationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request schema for tournament cancellation"""
     reason: str
     notify_participants: bool = True
@@ -55,6 +57,8 @@ class RefundDetails(BaseModel):
 
 
 class CancellationResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Response schema for tournament cancellation"""
     message: str
     tournament_id: int

@@ -1,13 +1,13 @@
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from datetime import datetime, timezone
+from pydantic import BaseModel, ConfigDict
+from datetime import datetime, timezone, timedelta
 
 from ....database import get_db
 from ....dependencies import get_current_user
 from ....models.user import User
-from ....models.quiz import QuizCategory, QuestionType
+from ....models.quiz import QuizCategory, QuestionType, Quiz, QuizQuestion, QuizAnswerOption, AdaptiveLearningSession
 from ....services.adaptive_learning import AdaptiveLearningService
 
 router = APIRouter()
@@ -15,10 +15,14 @@ router = APIRouter()
 
 # Request/Response schemas
 class StartSessionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     category: QuizCategory
     session_duration_seconds: int = 180  # 3 minutes default
 
 class AnswerQuestionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     question_id: int
     selected_option_id: int = None
     answer_text: str = None
@@ -56,6 +60,14 @@ class SessionSummaryResponse(BaseModel):
     xp_earned: int
     performance_trend: float
     final_difficulty: float
+
+class EndSessionRequest(BaseModel):
+    """Empty request schema for ending session - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+class NextQuestionRequest(BaseModel):
+    """Empty request schema for getting next question - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
 
 class LearningAnalyticsResponse(BaseModel):
     total_questions_attempted: int
@@ -99,6 +111,7 @@ def start_adaptive_learning_session(
 @router.post("/sessions/{session_id}/next-question")
 def get_next_question(
     session_id: int,
+    request: NextQuestionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -211,6 +224,7 @@ def submit_answer(
 @router.post("/sessions/{session_id}/end", response_model=SessionSummaryResponse)
 def end_learning_session(
     session_id: int,
+    request: EndSessionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:

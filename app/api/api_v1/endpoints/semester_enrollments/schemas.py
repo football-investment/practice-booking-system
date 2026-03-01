@@ -1,19 +1,23 @@
 """
 Pydantic schemas for semester enrollment endpoints
 """
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, Literal
 from datetime import datetime
 
 
 class EnrollmentCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to create a new semester enrollment"""
-    user_id: int = Field(..., description="Student user ID")
-    semester_id: int = Field(..., description="Semester ID")
-    user_license_id: int = Field(..., description="UserLicense ID (specialization)")
+    user_id: int = Field(..., ge=1, description="Student user ID (must be positive)")
+    semester_id: int = Field(..., ge=1, description="Semester ID (must be positive)")
+    user_license_id: int = Field(..., ge=1, description="UserLicense ID (must be positive)")
 
 
 class EnrollmentUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to update enrollment"""
     payment_verified: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -38,10 +42,17 @@ class EnrollmentResponse(BaseModel):
 
 
 class EnrollmentRejection(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to reject an enrollment with optional reason"""
-    reason: Optional[str] = Field(None, description="Rejection reason")
+    reason: Optional[str] = Field(None, max_length=1000, description="Optional rejection reason")
 
 
 class CategoryOverride(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to override age category for a student enrollment"""
-    age_category: str = Field(..., description="New age category (PRE, YOUTH, AMATEUR, PRO)")
+    age_category: Literal["PRE", "YOUTH", "AMATEUR", "PRO"] = Field(
+        ...,
+        description="New age category (PRE, YOUTH, AMATEUR, PRO)"
+    )

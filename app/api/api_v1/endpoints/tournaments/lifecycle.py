@@ -8,7 +8,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.database import get_db
 from app.api.api_v1.endpoints.auth import get_current_user
@@ -28,6 +28,8 @@ router = APIRouter()
 # ============================================================================
 
 class TournamentCreateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to create a new tournament in DRAFT status"""
     name: str = Field(..., description="Tournament name")
     specialization_type: SpecializationType = Field(..., description="Specialization type")
@@ -40,6 +42,8 @@ class TournamentCreateRequest(BaseModel):
 
 
 class TournamentCreateResponse(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Response from tournament creation"""
     tournament_id: int
     name: str
@@ -51,6 +55,8 @@ class TournamentCreateResponse(BaseModel):
 
 
 class StatusTransitionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     """Request to change tournament status"""
     new_status: str = Field(..., description="New status to transition to")
     reason: Optional[str] = Field(None, description="Reason for status change")
