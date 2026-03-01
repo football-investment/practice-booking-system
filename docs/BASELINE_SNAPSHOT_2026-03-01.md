@@ -1,7 +1,14 @@
 # Baseline Snapshot Report — 2026-03-01
 **Generated:** 2026-03-01 17:30:00 UTC
-**Status:** STABLE (0 failed tests)
-**Purpose:** Reference point for future regression detection and test coverage tracking
+**Status:** ❄️ **FROZEN (RC0)** — Release Candidate 0
+**Purpose:** Stable reference point for regression detection and controlled feature implementation
+
+> **⚠️ RC0 FREEZE NOTICE:**
+> This baseline is FROZEN as Release Candidate 0 (RC0).
+> See [RELEASE_RC0_BASELINE_FREEZE.md](RELEASE_RC0_BASELINE_FREEZE.md) for:
+> - Approved change policy
+> - Regression thresholds
+> - Sprint 1-2 feature roadmap
 
 ---
 
