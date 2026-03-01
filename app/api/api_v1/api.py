@@ -295,6 +295,13 @@ api_router.include_router(
     tags=["period-generators", "lfa-player"]
 )
 
+# 🚀 BATCH 10: Add /lfa-player prefix alias for period generators (test compatibility)
+api_router.include_router(
+    lfa_player_generators.router,
+    prefix="/lfa-player",
+    tags=["period-generators", "lfa-player", "alias"]
+)
+
 # 📍 NEW: Add location management system routes (admin only)
 api_router.include_router(
     locations.router,
@@ -314,6 +321,13 @@ api_router.include_router(
     instructor_assignments.router,
     prefix="/instructor-assignments",
     tags=["instructor-assignments"]
+)
+
+# 📋 BATCH 10: Add /requests prefix alias for instructor assignments (test compatibility)
+api_router.include_router(
+    instructor_assignments.router,
+    prefix="",  # No prefix - routes already have /requests in their paths
+    tags=["instructor-assignments", "alias"]
 )
 
 # 👨‍🏫 PHASE 2 P1: Add instructor student assessment endpoints
