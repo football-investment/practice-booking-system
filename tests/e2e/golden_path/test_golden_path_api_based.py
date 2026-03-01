@@ -30,7 +30,7 @@ import pytest
 import time
 import requests
 from playwright.sync_api import Page
-from create_tournament_api_helper import (
+from scripts.helpers.create_tournament_api_helper import (
     create_group_knockout_tournament_via_api,
     enroll_participants_via_api,
     generate_sessions_via_api,

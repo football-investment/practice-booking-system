@@ -43,7 +43,6 @@ from typing import Dict, Any, List
 # Import fixtures from reward_policy_fixtures
 from tests.e2e.reward_policy_fixtures import (
     API_BASE_URL,
-        from datetime import datetime, timedelta
     reward_policy_admin_token,
     create_instructor_user,
     create_tournament_via_api,

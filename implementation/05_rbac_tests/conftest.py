@@ -18,8 +18,8 @@ from app.models.user import User, UserRole
 from app.core.auth import create_access_token
 from app.database import get_db
 
-    from jose import jwt
-    from app.core.config import settings
+from jose import jwt
+from app.config import settings
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 DB_URL = "postgresql://postgres:postgres@localhost:5432/lfa_intern_system"

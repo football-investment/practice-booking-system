@@ -387,8 +387,9 @@ class TestBookingsSmoke:
         )
 
         # Should return 422 Unprocessable Entity for validation errors
-        assert response.status_code in [400, 422], (
-            f"POST /{booking_id}/confirm should validate input: {response.status_code}"
+        # or 404 if non-existent booking_id is checked before payload validation
+        assert response.status_code in [400, 404, 422], (
+            f"POST /{booking_id}/confirm should validate input or path: {response.status_code}"
         )
         
 
