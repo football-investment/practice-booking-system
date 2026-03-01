@@ -16,6 +16,10 @@ from .assignments import router as assignments_router
 from .assignments import update_assignment
 from .masters.legacy import update_master_instructor
 from .positions import update_position
+from .masters.direct_hire import create_direct_hire_offer
+from .masters.applications import hire_from_application
+from .applications import create_application
+from .masters.offers import respond_to_offer
 
 # Main router for instructor management
 router = APIRouter()
@@ -56,6 +60,47 @@ router.add_api_route(
     tags=["Instructor Management - Positions"],
     summary="Update Position (Alias)",
     description="Alias for /positions/{position_id} - Backward compatibility"
+)
+
+# POST endpoint aliases (BATCH 7 - Phase 3)
+router.add_api_route(
+    "/direct-hire",
+    create_direct_hire_offer,
+    methods=["POST"],
+    tags=["Instructor Management - Masters"],
+    summary="Create Direct Hire Offer (Alias)",
+    description="Alias for /masters/direct-hire - Backward compatibility"
+)
+
+router.add_api_route(
+    "/hire-from-application",
+    hire_from_application,
+    methods=["POST"],
+    tags=["Instructor Management - Masters"],
+    summary="Hire from Application (Alias)",
+    description="Alias for /masters/hire-from-application - Backward compatibility"
+)
+
+# Root POST endpoint alias for test compatibility
+# 4 tests (create_application, create_assignment, create_position, create_master_instructor_legacy)
+# all POST to /instructor-management instead of specific sub-resources
+router.add_api_route(
+    "/",
+    create_application,
+    methods=["POST"],
+    tags=["Instructor Management - Applications"],
+    summary="Create Application (Root Alias)",
+    description="Alias for /applications/ - Test generator compatibility (BATCH 7)"
+)
+
+# PATCH /offers/{id}/respond alias (BATCH 7)
+router.add_api_route(
+    "/offers/{offer_id}/respond",
+    respond_to_offer,
+    methods=["PATCH"],
+    tags=["Instructor Management - Offers"],
+    summary="Respond to Offer (Alias)",
+    description="Alias for /masters/offers/{offer_id}/respond - Backward compatibility"
 )
 
 __all__ = ["router"]
