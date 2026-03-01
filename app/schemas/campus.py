@@ -8,8 +8,6 @@ from datetime import datetime
 
 
 class CampusBase(BaseModel):
-
-
     """Base campus schema"""
     name: str = Field(..., min_length=1, max_length=200, description="Campus name (e.g., 'Buda Campus', 'Main Field')")
     venue: Optional[str] = Field(None, max_length=200, description="Venue/facility name")
@@ -20,17 +18,25 @@ class CampusBase(BaseModel):
 
 class CampusCreate(CampusBase):
     """Schema for creating a new campus"""
+    model_config = ConfigDict(extra='forbid')
 
 
 class CampusUpdate(BaseModel):
+    """Schema for updating campus (all fields optional)"""
     model_config = ConfigDict(extra='forbid')
 
-    """Schema for updating campus (all fields optional)"""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     venue: Optional[str] = Field(None, max_length=200)
     address: Optional[str] = Field(None, max_length=500)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+class ToggleCampusStatusRequest(BaseModel):
+    """Schema for toggling campus active status"""
+    model_config = ConfigDict(extra='forbid')
+
+    is_active: bool = Field(..., description="Whether to activate (true) or deactivate (false) the campus")
 
 
 class CampusResponse(CampusBase):
