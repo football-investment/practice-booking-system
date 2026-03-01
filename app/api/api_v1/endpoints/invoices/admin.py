@@ -31,11 +31,21 @@ class InvoiceRequestCreate(BaseModel):
     coupon_code: str | None = None
 
 
+class VerifyInvoiceRequest(BaseModel):
+    """Empty request schema for verify invoice endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
+class UnverifyInvoiceRequest(BaseModel):
+    """Empty request schema for unverify invoice endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
 
 @router.post("/{invoice_id}/verify")
 async def verify_invoice_payment(
     request: Request,
     invoice_id: int,
+    request_data: VerifyInvoiceRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:
@@ -188,6 +198,7 @@ async def cancel_invoice(
 async def unverify_invoice_payment(
     request: Request,
     invoice_id: int,
+    request_data: UnverifyInvoiceRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:

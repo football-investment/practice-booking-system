@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
+from pydantic import BaseModel, ConfigDict, Field
 
 from .....database import get_db
 from .....dependencies import get_current_admin_user, get_current_admin_or_instructor_user
@@ -22,6 +23,23 @@ from .....schemas.booking import (
 from .helpers import auto_promote_from_waitlist
 
 router = APIRouter()
+
+
+# ============================================================================
+# Request Schemas (BATCH 10 Phase 2)
+# ============================================================================
+
+class ConfirmBookingRequest(BaseModel):
+    """Empty request schema for confirm booking endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
+class UpdateBookingAttendanceRequest(BaseModel):
+    """Request schema for updating booking attendance"""
+    model_config = ConfigDict(extra='forbid')
+
+    status: str = Field(..., description="Attendance status: present, absent, late, excused")
+    notes: Optional[str] = Field(None, description="Optional notes about attendance")
 
 
 @router.get("/", response_model=BookingList)
@@ -75,6 +93,7 @@ def get_all_bookings(
 @router.post("/{booking_id}/confirm")
 def confirm_booking(
     booking_id: int,
+    request_data: ConfirmBookingRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ) -> Any:
@@ -169,7 +188,7 @@ def admin_cancel_booking(
 @router.patch("/{booking_id}/attendance", response_model=BookingSchema)
 def update_booking_attendance(
     booking_id: int,
-    attendance_data: Dict[str, Any],
+    attendance_data: UpdateBookingAttendanceRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_or_instructor_user)
 ) -> Any:
@@ -185,8 +204,7 @@ def update_booking_attendance(
 
     # Validate attendance status
     valid_statuses = ['present', 'absent', 'late', 'excused']
-    attendance_status = attendance_data.get("status")
-    if attendance_status not in valid_statuses:
+    if attendance_data.status not in valid_statuses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid attendance status. Must be one of: {valid_statuses}"
@@ -194,16 +212,16 @@ def update_booking_attendance(
 
     # Update or create attendance record
     if booking.attendance:
-        booking.attendance.status = AttendanceStatus(attendance_status)
-        booking.attendance.notes = attendance_data.get("notes", booking.attendance.notes)
+        booking.attendance.status = AttendanceStatus(attendance_data.status)
+        booking.attendance.notes = attendance_data.notes if attendance_data.notes else booking.attendance.notes
         booking.attendance.marked_by = current_user.id
     else:
         attendance = Attendance(
             user_id=booking.user_id,
             session_id=booking.session_id,
             booking_id=booking.id,
-            status=AttendanceStatus(attendance_status),
-            notes=attendance_data.get("notes"),
+            status=AttendanceStatus(attendance_data.status),
+            notes=attendance_data.notes,
             marked_by=current_user.id
         )
         db.add(attendance)

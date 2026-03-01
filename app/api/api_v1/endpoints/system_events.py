@@ -61,6 +61,18 @@ class PurgeResponse(BaseModel):
     message: str
 
 
+# ── Request Schemas (BATCH 10 Phase 2) ───────────────────────────────────────
+
+class ResolveEventRequest(BaseModel):
+    """Empty request schema for resolve event endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
+class UnresolveEventRequest(BaseModel):
+    """Empty request schema for unresolve event endpoint - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+
 # ── Dependency ────────────────────────────────────────────────────────────────
 
 def get_service(db: Session = Depends(get_db)) -> SystemEventService:
@@ -100,6 +112,7 @@ def list_system_events(
 @router.patch("/{event_id}/resolve", response_model=SystemEventResponse)
 def resolve_event(
     event_id: int,
+    request_data: ResolveEventRequest,
     _: Any = Depends(get_current_admin_user),
     svc: SystemEventService = Depends(get_service),
     db: Session = Depends(get_db),
@@ -118,6 +131,7 @@ def resolve_event(
 @router.patch("/{event_id}/unresolve", response_model=SystemEventResponse)
 def unresolve_event(
     event_id: int,
+    request_data: UnresolveEventRequest,
     _: Any = Depends(get_current_admin_user),
     svc: SystemEventService = Depends(get_service),
     db: Session = Depends(get_db),
