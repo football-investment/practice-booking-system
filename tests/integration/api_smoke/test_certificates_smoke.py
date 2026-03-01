@@ -46,21 +46,6 @@ class TestCertificatesSmoke:
             f"GET /analytics should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_certificate_analytics_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /analytics validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /my ────────────────────────────
-
     def test_get_my_certificates_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /my
@@ -90,21 +75,6 @@ class TestCertificatesSmoke:
         assert response.status_code in [401, 403], (
             f"GET /my should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_certificates_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /my validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /public/verify/{unique_identifier} ────────────────────────────
 
     def test_public_certificate_verification_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestCertificatesSmoke:
             f"GET /public/verify/{unique_identifier} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_public_certificate_verification_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /public/verify/{unique_identifier} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /verify/{unique_identifier} ────────────────────────────
-
     def test_verify_certificate_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /verify/{unique_identifier}
@@ -181,21 +136,6 @@ class TestCertificatesSmoke:
             f"GET /verify/{unique_identifier} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_verify_certificate_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /verify/{unique_identifier} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /{certificate_id}/download ────────────────────────────
-
     def test_download_certificate_pdf_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /{certificate_id}/download
@@ -225,21 +165,6 @@ class TestCertificatesSmoke:
         assert response.status_code in [401, 403], (
             f"GET /{certificate_id}/download should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_download_certificate_pdf_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /{certificate_id}/download validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /{certificate_id}/revoke ────────────────────────────
 
     def test_revoke_certificate_happy_path(self, api_client: TestClient, admin_token: str):
         """

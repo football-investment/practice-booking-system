@@ -46,21 +46,6 @@ class TestParallelspecializationsSmoke:
             f"GET /available should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_specializations_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /available validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /combinations ────────────────────────────
-
     def test_get_specialization_combinations_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /combinations
@@ -90,21 +75,6 @@ class TestParallelspecializationsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /combinations should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_specialization_combinations_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /combinations validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /dashboard ────────────────────────────
 
     def test_get_specialization_dashboard_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestParallelspecializationsSmoke:
             f"GET /dashboard should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_specialization_dashboard_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /my-specializations ────────────────────────────
-
     def test_get_my_specializations_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /my-specializations
@@ -180,21 +135,6 @@ class TestParallelspecializationsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /my-specializations should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_specializations_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /my-specializations validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /progression-rules ────────────────────────────
 
     def test_get_progression_rules_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -226,21 +166,6 @@ class TestParallelspecializationsSmoke:
             f"GET /progression-rules should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_progression_rules_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /progression-rules validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /semester-info/{semester} ────────────────────────────
-
     def test_get_semester_specialization_info_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /semester-info/{semester}
@@ -271,21 +196,6 @@ class TestParallelspecializationsSmoke:
             f"GET /semester-info/{semester} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_semester_specialization_info_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /semester-info/{semester} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /validate/{specialization} ────────────────────────────
-
     def test_validate_specialization_addition_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /validate/{specialization}
@@ -315,21 +225,6 @@ class TestParallelspecializationsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /validate/{specialization} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_validate_specialization_addition_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /validate/{specialization} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /start ────────────────────────────
 
     def test_start_new_specialization_happy_path(self, api_client: TestClient, admin_token: str):
         """

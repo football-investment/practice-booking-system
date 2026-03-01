@@ -46,21 +46,6 @@ class TestCurriculumadaptiveSmoke:
             f"GET /performance-history should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_performance_history_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /performance-history validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /profile ────────────────────────────
-
     def test_get_learning_profile_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /profile
@@ -91,21 +76,6 @@ class TestCurriculumadaptiveSmoke:
             f"GET /profile should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_learning_profile_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /profile validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /recommendations ────────────────────────────
-
     def test_get_recommendations_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /recommendations
@@ -135,21 +105,6 @@ class TestCurriculumadaptiveSmoke:
         assert response.status_code in [401, 403], (
             f"GET /recommendations should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_recommendations_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /recommendations validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /profile/update ────────────────────────────
 
     def test_update_learning_profile_happy_path(self, api_client: TestClient, admin_token: str):
         """

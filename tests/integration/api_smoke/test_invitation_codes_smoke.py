@@ -46,21 +46,6 @@ class TestInvitationcodesSmoke:
             f"DELETE /admin/invitation-codes/{code_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_invitation_code_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: DELETE /admin/invitation-codes/{code_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for DELETE endpoints")
-        
-
-
-    # ── GET /admin/invitation-codes ────────────────────────────
-
     def test_get_all_invitation_codes_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /admin/invitation-codes
@@ -90,21 +75,6 @@ class TestInvitationcodesSmoke:
         assert response.status_code in [401, 403], (
             f"GET /admin/invitation-codes should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_all_invitation_codes_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /admin/invitation-codes validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /admin/invitation-codes ────────────────────────────
 
     def test_create_invitation_code_happy_path(self, api_client: TestClient, admin_token: str):
         """

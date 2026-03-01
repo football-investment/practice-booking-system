@@ -46,21 +46,6 @@ class TestProgressionSmoke:
             f"GET /progress should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_progress_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /progress validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /skill-audit ────────────────────────────
-
     def test_get_skill_audit_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /skill-audit
@@ -90,21 +75,6 @@ class TestProgressionSmoke:
         assert response.status_code in [401, 403], (
             f"GET /skill-audit should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_skill_audit_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /skill-audit validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /skill-profile ────────────────────────────
 
     def test_get_skill_profile_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestProgressionSmoke:
             f"GET /skill-profile should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_skill_profile_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /skill-profile validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /skill-timeline ────────────────────────────
-
     def test_get_skill_timeline_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /skill-timeline
@@ -181,21 +136,6 @@ class TestProgressionSmoke:
             f"GET /skill-timeline should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_skill_timeline_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /skill-timeline validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /systems ────────────────────────────
-
     def test_get_progression_systems_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /systems
@@ -225,21 +165,6 @@ class TestProgressionSmoke:
         assert response.status_code in [401, 403], (
             f"GET /systems should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_progression_systems_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /systems validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /progress/update ────────────────────────────
 
     def test_update_user_progress_happy_path(self, api_client: TestClient, admin_token: str):
         """

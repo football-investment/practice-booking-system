@@ -46,21 +46,6 @@ class TestCouponsSmoke:
             f"DELETE /admin/coupons/{coupon_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_coupon_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: DELETE /admin/coupons/{coupon_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for DELETE endpoints")
-        
-
-
-    # ── GET /admin/coupons ────────────────────────────
-
     def test_list_all_coupons_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /admin/coupons
@@ -91,21 +76,6 @@ class TestCouponsSmoke:
             f"GET /admin/coupons should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_all_coupons_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /admin/coupons validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /coupons/active ────────────────────────────
-
     def test_list_active_coupons_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /coupons/active
@@ -135,21 +105,6 @@ class TestCouponsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /coupons/active should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_active_coupons_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /coupons/active validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /admin/coupons ────────────────────────────
 
     def test_create_coupon_api_happy_path(self, api_client: TestClient, admin_token: str):
         """

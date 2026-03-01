@@ -46,21 +46,6 @@ class TestSemestergeneratorSmoke:
             f"GET /available-templates should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_templates_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /available-templates validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /generate ────────────────────────────
-
     def test_generate_semesters_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: POST /generate

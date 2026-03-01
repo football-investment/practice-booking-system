@@ -46,21 +46,6 @@ class TestOnboardingSmoke:
             f"GET /onboarding/start should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_onboarding_start_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /onboarding/start validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /specialization/lfa-player/onboarding ────────────────────────────
-
     def test_lfa_player_onboarding_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /specialization/lfa-player/onboarding
@@ -90,21 +75,6 @@ class TestOnboardingSmoke:
         assert response.status_code in [401, 403], (
             f"GET /specialization/lfa-player/onboarding should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_lfa_player_onboarding_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /specialization/lfa-player/onboarding validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /specialization/lfa-player/onboarding-cancel ────────────────────────────
 
     def test_lfa_player_onboarding_cancel_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestOnboardingSmoke:
             f"GET /specialization/lfa-player/onboarding-cancel should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_lfa_player_onboarding_cancel_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /specialization/lfa-player/onboarding-cancel validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /specialization/select ────────────────────────────
-
     def test_specialization_select_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /specialization/select
@@ -180,21 +135,6 @@ class TestOnboardingSmoke:
         assert response.status_code in [401, 403], (
             f"GET /specialization/select should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_specialization_select_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /specialization/select validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /onboarding/set-birthdate ────────────────────────────
 
     def test_onboarding_set_birthdate_happy_path(self, api_client: TestClient, admin_token: str):
         """

@@ -46,21 +46,6 @@ class TestLicenserenewalSmoke:
             f"GET /expiring should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_expiring_licenses_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /expiring validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /status/{license_id} ────────────────────────────
-
     def test_get_license_status_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /status/{license_id}
@@ -90,21 +75,6 @@ class TestLicenserenewalSmoke:
         assert response.status_code in [401, 403], (
             f"GET /status/{license_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_license_status_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /status/{license_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /check-expirations ────────────────────────────
 
     def test_bulk_check_expirations_happy_path(self, api_client: TestClient, admin_token: str):
         """

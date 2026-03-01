@@ -46,21 +46,6 @@ class TestSessiongroupsSmoke:
             f"DELETE /{session_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_session_groups_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: DELETE /{session_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for DELETE endpoints")
-        
-
-
-    # ── GET /{session_id} ────────────────────────────
-
     def test_get_session_groups_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /{session_id}
@@ -90,21 +75,6 @@ class TestSessiongroupsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /{session_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_session_groups_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /{session_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /auto-assign ────────────────────────────
 
     def test_auto_assign_groups_happy_path(self, api_client: TestClient, admin_token: str):
         """

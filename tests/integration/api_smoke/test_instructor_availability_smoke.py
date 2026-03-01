@@ -46,21 +46,6 @@ class TestInstructoravailabilitySmoke:
             f"DELETE /{availability_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_instructor_availability_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: DELETE /{availability_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for DELETE endpoints")
-        
-
-
-    # ── GET /instructor/{instructor_id} ────────────────────────────
-
     def test_get_instructor_availabilities_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /instructor/{instructor_id}
@@ -91,21 +76,6 @@ class TestInstructoravailabilitySmoke:
             f"GET /instructor/{instructor_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_instructor_availabilities_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /instructor/{instructor_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /matrix/{instructor_id}/{year} ────────────────────────────
-
     def test_get_instructor_availability_matrix_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /matrix/{instructor_id}/{year}
@@ -135,21 +105,6 @@ class TestInstructoravailabilitySmoke:
         assert response.status_code in [401, 403], (
             f"GET /matrix/{instructor_id}/{year} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_instructor_availability_matrix_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /matrix/{instructor_id}/{year} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── PATCH /{availability_id} ────────────────────────────
 
     def test_update_instructor_availability_happy_path(self, api_client: TestClient, admin_token: str):
         """

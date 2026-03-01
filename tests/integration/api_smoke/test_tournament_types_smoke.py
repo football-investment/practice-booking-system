@@ -46,21 +46,6 @@ class TestTournamenttypesSmoke:
             f"GET / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_tournament_types_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET / validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /{tournament_type_id} ────────────────────────────
-
     def test_get_tournament_type_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /{tournament_type_id}
@@ -90,21 +75,6 @@ class TestTournamenttypesSmoke:
         assert response.status_code in [401, 403], (
             f"GET /{tournament_type_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_tournament_type_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /{tournament_type_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /{tournament_type_id}/estimate ────────────────────────────
 
     def test_estimate_tournament_duration_happy_path(self, api_client: TestClient, admin_token: str):
         """

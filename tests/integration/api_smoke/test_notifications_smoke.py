@@ -46,21 +46,6 @@ class TestNotificationsSmoke:
             f"DELETE /{notification_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_notification_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: DELETE /{notification_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for DELETE endpoints")
-        
-
-
-    # ── GET /me ────────────────────────────
-
     def test_get_my_notifications_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /me
@@ -90,21 +75,6 @@ class TestNotificationsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /me should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_notifications_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /me validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST / ────────────────────────────
 
     def test_create_notification_happy_path(self, api_client: TestClient, admin_token: str):
         """

@@ -46,21 +46,6 @@ class TestCompetencySmoke:
             f"GET /assessment-history should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_assessment_history_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /assessment-history validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /breakdown/{category_id} ────────────────────────────
-
     def test_get_competency_breakdown_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /breakdown/{category_id}
@@ -90,21 +75,6 @@ class TestCompetencySmoke:
         assert response.status_code in [401, 403], (
             f"GET /breakdown/{category_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_competency_breakdown_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /breakdown/{category_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /categories ────────────────────────────
 
     def test_get_competency_categories_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestCompetencySmoke:
             f"GET /categories should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_competency_categories_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /categories validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /milestones ────────────────────────────
-
     def test_get_user_milestones_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /milestones
@@ -180,21 +135,6 @@ class TestCompetencySmoke:
         assert response.status_code in [401, 403], (
             f"GET /milestones should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_milestones_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /milestones validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /my-competencies ────────────────────────────
 
     def test_get_my_competencies_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -226,21 +166,6 @@ class TestCompetencySmoke:
             f"GET /my-competencies should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_competencies_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /my-competencies validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /radar-chart-data ────────────────────────────
-
     def test_get_radar_chart_data_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /radar-chart-data
@@ -270,16 +195,4 @@ class TestCompetencySmoke:
         assert response.status_code in [401, 403], (
             f"GET /radar-chart-data should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_radar_chart_data_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /radar-chart-data validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
 

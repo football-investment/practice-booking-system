@@ -46,21 +46,6 @@ class TestAdaptivelearningSmoke:
             f"GET /analytics should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_learning_analytics_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /analytics validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /categories ────────────────────────────
-
     def test_get_available_categories_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /categories
@@ -91,21 +76,6 @@ class TestAdaptivelearningSmoke:
             f"GET /categories should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_categories_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /categories validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /leaderboard ────────────────────────────
-
     def test_get_adaptive_leaderboard_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /leaderboard
@@ -135,21 +105,6 @@ class TestAdaptivelearningSmoke:
         assert response.status_code in [401, 403], (
             f"GET /leaderboard should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_adaptive_leaderboard_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /leaderboard validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /sessions/{session_id}/answer ────────────────────────────
 
     def test_submit_answer_happy_path(self, api_client: TestClient, admin_token: str):
         """

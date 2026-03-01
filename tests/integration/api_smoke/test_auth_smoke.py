@@ -46,21 +46,6 @@ class TestAuthSmoke:
             f"GET / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_home_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET / validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /age-verification ────────────────────────────
-
     def test_age_verification_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /age-verification
@@ -90,21 +75,6 @@ class TestAuthSmoke:
         assert response.status_code in [401, 403], (
             f"GET /age-verification should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_age_verification_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /age-verification validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /login ────────────────────────────
 
     def test_login_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestAuthSmoke:
             f"GET /login should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_login_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /login validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /logout ────────────────────────────
-
     def test_logout_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /logout
@@ -181,37 +136,6 @@ class TestAuthSmoke:
             f"GET /logout should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_logout_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /logout validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /me ────────────────────────────
-
-    def test_read_users_me_happy_path(self, api_client: TestClient, admin_token: str):
-        """
-        Happy path: GET /me
-        Source: app/api/api_v1/endpoints/auth.py:read_users_me
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        response = api_client.get("/me", headers=headers)
-        
-
-        # Accept 200, 201, 404 (if resource doesn't exist in test DB)
-        assert response.status_code in [200, 201, 404], (
-            f"GET /me failed: {response.status_code} "
-            f"{response.text}"
-        )
 
     def test_read_users_me_auth_required(self, api_client: TestClient):
         """
@@ -225,21 +149,6 @@ class TestAuthSmoke:
         assert response.status_code in [401, 403], (
             f"GET /me should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_read_users_me_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /me validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /age-verification ────────────────────────────
 
     def test_age_verification_submit_happy_path(self, api_client: TestClient, admin_token: str):
         """

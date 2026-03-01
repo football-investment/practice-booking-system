@@ -46,21 +46,6 @@ class TestDashboardSmoke:
             f"GET /dashboard should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_unknown_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /dashboard-fresh ────────────────────────────
-
     def test_dashboard_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /dashboard-fresh
@@ -91,21 +76,6 @@ class TestDashboardSmoke:
             f"GET /dashboard-fresh should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_dashboard_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard-fresh validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /dashboard/{spec_type} ────────────────────────────
-
     def test_spec_dashboard_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /dashboard/{spec_type}
@@ -135,16 +105,4 @@ class TestDashboardSmoke:
         assert response.status_code in [401, 403], (
             f"GET /dashboard/{spec_type} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_spec_dashboard_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard/{spec_type} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
 
