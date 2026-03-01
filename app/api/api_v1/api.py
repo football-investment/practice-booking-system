@@ -295,10 +295,10 @@ api_router.include_router(
     tags=["period-generators", "lfa-player"]
 )
 
-# 🚀 BATCH 10: Add /lfa-player prefix alias for period generators (test compatibility)
+# 🚀 BATCH 10: Add no-prefix alias for period generators (routes already have /lfa-player in paths)
 api_router.include_router(
     lfa_player_generators.router,
-    prefix="/lfa-player",
+    prefix="",  # No prefix - routes already define /lfa-player/* paths
     tags=["period-generators", "lfa-player", "alias"]
 )
 
