@@ -168,18 +168,18 @@ class TestSemesterenrollmentsSmoke:
             f"POST /enroll should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_enrollment_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST /enroll validates request data
+        Tests: Missing required fields (user_id, semester_id, user_license_id)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+
+        # Invalid payload missing required fields
+        invalid_payload = {}  # Missing all required fields
         response = api_client.post(
-            "/enroll",
+            "/api/v1/semester-enrollments/enroll",
             json=invalid_payload,
             headers=headers
         )
@@ -282,25 +282,28 @@ class TestSemesterenrollmentsSmoke:
             f"POST /{enrollment_id}/approve should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_approve_enrollment_request_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST /{enrollment_id}/approve validates request data
+        Tests: Path parameter validation (enrollment_id must be valid int)
+        NOTE: This endpoint doesn't expect a request body
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+        # Use invalid enrollment_id to trigger 404 (path param validation)
+        enrollment_id = 99999
+
+        # Empty payload (endpoint doesn't expect body)
         response = api_client.post(
-            "/{enrollment_id}/approve",
-            json=invalid_payload,
+            f"/api/v1/semester-enrollments/{enrollment_id}/approve",
+            json={},
             headers=headers
         )
 
-        # Should return 422 Unprocessable Entity for validation errors
-        assert response.status_code in [400, 422], (
-            f"POST /{enrollment_id}/approve should validate input: {response.status_code}"
+        # Expect 404 for non-existent enrollment_id (path validation)
+        # or 403 if authorization fails before checking existence
+        assert response.status_code in [403, 404], (
+            f"POST /{enrollment_id}/approve should validate path param: {response.status_code}"
         )
         
 

@@ -254,18 +254,18 @@ class TestBookingsSmoke:
             f"POST / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_booking_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST / validates request data
+        Tests: Missing required field (session_id)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+
+        # Invalid payload missing required field
+        invalid_payload = {"notes": "Missing session_id"}
         response = api_client.post(
-            "/",
+            "/api/v1/bookings/",
             json=invalid_payload,
             headers=headers
         )
@@ -368,18 +368,20 @@ class TestBookingsSmoke:
             f"POST /{booking_id}/confirm should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_confirm_booking_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST /{booking_id}/confirm validates request data
+        Tests: Invalid field type (notes as int instead of string)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+        # Use dummy booking_id for validation testing
+        booking_id = 99999
+
+        # Invalid payload with wrong type
+        invalid_payload = {"notes": 12345}  # Should be string, not int
         response = api_client.post(
-            "/{booking_id}/confirm",
+            f"/api/v1/bookings/{booking_id}/confirm",
             json=invalid_payload,
             headers=headers
         )
