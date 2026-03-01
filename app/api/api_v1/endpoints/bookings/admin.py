@@ -73,14 +73,11 @@ def get_all_bookings(
     offset = (page - 1) * size
     bookings = query.offset(offset).limit(size).all()
 
-    # Convert to response schema
-    booking_responses = []
-    for booking in bookings:
-        booking_responses.append(BookingWithRelations(
-            **booking.__dict__,
-            user=booking.user,
-            session=booking.session
-        ))
+    # Convert to response schema (Pydantic v2 ORM mode)
+    booking_responses = [
+        BookingWithRelations.model_validate(booking)
+        for booking in bookings
+    ]
 
     return BookingList(
         bookings=booking_responses,
