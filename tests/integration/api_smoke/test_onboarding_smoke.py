@@ -339,10 +339,11 @@ class TestOnboardingSmoke:
 
     @pytest.mark.skip(
         reason=(
-            "PHASE 3 P2 BACKLOG: Endpoint not implemented - "
+            "PHASE 3 P2 BACKLOG (TICKET-SMOKE-002): Endpoint not implemented - "
             "POST /api/v1/onboarding/specialization/lfa-player/onboarding-submit returns 404. "
-            "Feature planned for future sprint. "
-            "Re-enable when LFA player onboarding submission feature is implemented."
+            "Feature planned for Sprint 1 (Week 2). "
+            "Re-enable when LFA player onboarding submission feature is implemented. "
+            "See docs/BACKLOG_P2_MISSING_FEATURES.md for acceptance criteria."
         )
     )
     def test_lfa_player_onboarding_submit_input_validation(
@@ -425,10 +426,11 @@ class TestOnboardingSmoke:
 
     @pytest.mark.skip(
         reason=(
-            "PHASE 3 P2 BACKLOG: Endpoint not implemented - "
+            "PHASE 3 P2 BACKLOG (TICKET-SMOKE-003): Endpoint not implemented - "
             "POST /api/v1/onboarding/specialization/select returns 404. "
-            "Feature planned for future sprint. "
-            "Re-enable when specialization selection feature is implemented."
+            "Feature planned for Sprint 1 (Week 1). "
+            "Re-enable when specialization selection feature is implemented. "
+            "See docs/BACKLOG_P2_MISSING_FEATURES.md for acceptance criteria."
         )
     )
     def test_specialization_select_submit_input_validation(

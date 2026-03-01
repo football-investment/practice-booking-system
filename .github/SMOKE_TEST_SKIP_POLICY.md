@@ -217,17 +217,44 @@ ALLOWED_SKIP_PATTERNS = [
     r"bulk operation - doesn't require request body",
     r"toggle operation",
     r"idempotent verification",
+    r"PHASE \d+ P\d+ BACKLOG.*TICKET-SMOKE-\d{3}",  # NEW: P2 backlog with ticket ID
 ]
 
 FORBIDDEN_SKIP_PATTERNS = [
     r"Input validation requires domain-specific payloads",  # Temporary only - must fix
+    r"Feature not implemented",  # Generic - must reference backlog ticket
+    r"TODO",  # Vague - must have concrete backlog ticket
 ]
 ```
 
 **CI Failure Triggers:**
 - New test added with forbidden skip reason
+- New skip without backlog ticket reference (e.g., `TICKET-SMOKE-XXX`)
 - Existing TIER 1 test still skipped after 2-week deadline
 - Existing TIER 2 test still skipped after 1-month deadline
+
+**NEW RULE (Effective 2026-03-01):**
+All new `@pytest.mark.skip` decorators for missing features MUST include:
+1. Priority tier (e.g., `PHASE 3 P2 BACKLOG`)
+2. Backlog ticket ID (e.g., `TICKET-SMOKE-001`)
+3. Feature description and re-enable condition
+
+**Valid Example:**
+```python
+@pytest.mark.skip(
+    reason=(
+        "PHASE 3 P2 BACKLOG (TICKET-SMOKE-001): Endpoint not implemented - "
+        "PATCH /api/v1/instructor-assignments/requests/{request_id}/cancel returns 404. "
+        "Re-enable when assignment cancellation feature is implemented."
+    )
+)
+```
+
+**Invalid Example (CI REJECTS):**
+```python
+@pytest.mark.skip(reason="Feature not implemented")  # NO TICKET ID - REJECTED
+@pytest.mark.skip(reason="TODO: implement this")     # VAGUE - REJECTED
+```
 
 ---
 

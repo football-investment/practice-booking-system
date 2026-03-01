@@ -576,10 +576,11 @@ class TestInstructorassignmentsSmoke:
 
     @pytest.mark.skip(
         reason=(
-            "PHASE 3 P2 BACKLOG: Endpoint not implemented - "
+            "PHASE 3 P2 BACKLOG (TICKET-SMOKE-001): Endpoint not implemented - "
             "PATCH /api/v1/instructor-assignments/requests/{request_id}/cancel returns 404. "
-            "Feature planned for future sprint. "
-            "Re-enable when assignment cancellation feature is implemented."
+            "Feature planned for Sprint 2 (Week 3). "
+            "Re-enable when assignment cancellation feature is implemented. "
+            "See docs/BACKLOG_P2_MISSING_FEATURES.md for acceptance criteria."
         )
     )
     def test_cancel_assignment_request_input_validation(
