@@ -61,6 +61,14 @@ class SessionSummaryResponse(BaseModel):
     performance_trend: float
     final_difficulty: float
 
+class EndSessionRequest(BaseModel):
+    """Empty request schema for ending session - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
+class NextQuestionRequest(BaseModel):
+    """Empty request schema for getting next question - validates no extra fields"""
+    model_config = ConfigDict(extra='forbid')
+
 class LearningAnalyticsResponse(BaseModel):
     total_questions_attempted: int
     total_attempts: int
@@ -103,6 +111,7 @@ def start_adaptive_learning_session(
 @router.post("/sessions/{session_id}/next-question")
 def get_next_question(
     session_id: int,
+    request: NextQuestionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -215,6 +224,7 @@ def submit_answer(
 @router.post("/sessions/{session_id}/end", response_model=SessionSummaryResponse)
 def end_learning_session(
     session_id: int,
+    request: EndSessionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
