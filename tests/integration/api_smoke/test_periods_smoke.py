@@ -30,7 +30,7 @@ class TestPeriodsSmoke:
         
         # TODO: Add realistic payload for /api/v1/lfa-player/amateur
         payload = {}
-        response = api_client.post('/api/v1/periods/lfa-player/amateur', json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/amateur', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -53,7 +53,7 @@ class TestPeriodsSmoke:
         Auth validation: POST /api/v1/lfa-player/amateur requires authentication
         """
         
-        response = api_client.post('/api/v1/periods/lfa-player/amateur', json={})
+        response = api_client.post('/api/v1/lfa-player/amateur', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -80,7 +80,7 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/periods/lfa-player/amateur',
+            '/api/v1/lfa-player/amateur',
             json=invalid_payload,
             headers=headers
         )
@@ -108,7 +108,7 @@ class TestPeriodsSmoke:
         
         # TODO: Add realistic payload for /api/v1/lfa-player/pre
         payload = {}
-        response = api_client.post('/api/v1/periods/lfa-player/pre', json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/pre', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -131,7 +131,7 @@ class TestPeriodsSmoke:
         Auth validation: POST /api/v1/lfa-player/pre requires authentication
         """
         
-        response = api_client.post('/api/v1/periods/lfa-player/pre', json={})
+        response = api_client.post('/api/v1/lfa-player/pre', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -158,7 +158,7 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/periods/lfa-player/pre',
+            '/api/v1/lfa-player/pre',
             json=invalid_payload,
             headers=headers
         )
@@ -186,7 +186,7 @@ class TestPeriodsSmoke:
         
         # TODO: Add realistic payload for /api/v1/lfa-player/pro
         payload = {}
-        response = api_client.post('/api/v1/periods/lfa-player/pro', json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/pro', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -209,7 +209,7 @@ class TestPeriodsSmoke:
         Auth validation: POST /api/v1/lfa-player/pro requires authentication
         """
         
-        response = api_client.post('/api/v1/periods/lfa-player/pro', json={})
+        response = api_client.post('/api/v1/lfa-player/pro', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -236,7 +236,7 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/periods/lfa-player/pro',
+            '/api/v1/lfa-player/pro',
             json=invalid_payload,
             headers=headers
         )
@@ -264,7 +264,7 @@ class TestPeriodsSmoke:
         
         # TODO: Add realistic payload for /api/v1/lfa-player/youth
         payload = {}
-        response = api_client.post('/api/v1/periods/lfa-player/youth', json=payload, headers=headers)
+        response = api_client.post('/api/v1/lfa-player/youth', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -287,7 +287,7 @@ class TestPeriodsSmoke:
         Auth validation: POST /api/v1/lfa-player/youth requires authentication
         """
         
-        response = api_client.post('/api/v1/periods/lfa-player/youth', json={})
+        response = api_client.post('/api/v1/lfa-player/youth', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -314,7 +314,7 @@ class TestPeriodsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/periods/lfa-player/youth',
+            '/api/v1/lfa-player/youth',
             json=invalid_payload,
             headers=headers
         )

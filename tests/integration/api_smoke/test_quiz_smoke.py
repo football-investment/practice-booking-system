@@ -507,7 +507,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/take', headers=headers)
+        response = api_client.get(f'/api/v1/quizzes/{test_tournament["quiz_id"]}/take', headers=headers)
         
 
         # Accept valid responses:
@@ -531,7 +531,7 @@ class TestQuizSmoke:
         Auth validation: GET /api/v1/quizzes/{quiz_id}/take requires authentication
         """
         
-        response = api_client.get(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/take')
+        response = api_client.get(f'/api/v1/quizzes/{test_tournament["quiz_id"]}/take')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -864,7 +864,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/quizzes/{quiz_id}/submit
         payload = {}
-        response = api_client.post(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/quizzes/{test_tournament["quiz_id"]}/submit', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -888,7 +888,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/quizzes/{quiz_id}/submit requires authentication
         """
         
-        response = api_client.post(f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit', json={})
+        response = api_client.post(f'/api/v1/quizzes/{test_tournament["quiz_id"]}/submit', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -916,7 +916,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/quiz/quizzes/{test_tournament["quiz_id"]}/submit',
+            f'/api/v1/quizzes/{test_tournament["quiz_id"]}/submit',
             json=invalid_payload,
             headers=headers
         )
@@ -945,7 +945,7 @@ class TestQuizSmoke:
         
         # TODO: Add realistic payload for /api/v1/sessions/{session_id}/unlock-quiz
         payload = {}
-        response = api_client.post(f'/api/v1/quiz/sessions/{test_session_id}/unlock-quiz', json=payload, headers=headers)
+        response = api_client.post(f'/api/v1/sessions/{test_session_id}/unlock-quiz', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -969,7 +969,7 @@ class TestQuizSmoke:
         Auth validation: POST /api/v1/sessions/{session_id}/unlock-quiz requires authentication
         """
         
-        response = api_client.post(f'/api/v1/quiz/sessions/{test_session_id}/unlock-quiz', json={})
+        response = api_client.post(f'/api/v1/sessions/{test_session_id}/unlock-quiz', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -997,7 +997,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            f'/api/v1/quiz/sessions/{test_session_id}/unlock-quiz',
+            f'/api/v1/sessions/{test_session_id}/unlock-quiz',
             json=invalid_payload,
             headers=headers
         )
