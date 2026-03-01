@@ -835,7 +835,7 @@ class TestQuizSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/quiz',
+            '/api/v1/quizzes/',
             json=invalid_payload,
             headers=headers
         )

@@ -28,7 +28,7 @@ class TestMotivationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/motivation/motivation-assessment', headers=headers)
+        response = api_client.get('/api/v1/licenses/motivation-assessment', headers=headers)
         
 
         # Accept valid responses:
@@ -51,7 +51,7 @@ class TestMotivationSmoke:
         Auth validation: GET /api/v1/motivation-assessment requires authentication
         """
         
-        response = api_client.get('/api/v1/motivation/motivation-assessment')
+        response = api_client.get('/api/v1/licenses/motivation-assessment')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -97,7 +97,7 @@ class TestMotivationSmoke:
         
         # TODO: Add realistic payload for /api/v1/motivation-assessment
         payload = {}
-        response = api_client.post('/api/v1/motivation/motivation-assessment', json=payload, headers=headers)
+        response = api_client.post('/api/v1/licenses/motivation-assessment', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -120,7 +120,7 @@ class TestMotivationSmoke:
         Auth validation: POST /api/v1/motivation-assessment requires authentication
         """
         
-        response = api_client.post('/api/v1/motivation/motivation-assessment', json={})
+        response = api_client.post('/api/v1/licenses/motivation-assessment', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -147,7 +147,7 @@ class TestMotivationSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/motivation/motivation-assessment',
+            '/api/v1/licenses/motivation-assessment',
             json=invalid_payload,
             headers=headers
         )

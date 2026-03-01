@@ -29,7 +29,7 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f'/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}', headers=headers)
+        response = api_client.delete(f'/api/v1/admin/invitation-codes/{test_tournament["code_id"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -53,7 +53,7 @@ class TestInvitationcodesSmoke:
         Auth validation: DELETE /api/v1/admin/invitation-codes/{code_id} requires authentication
         """
         
-        response = api_client.delete(f'/api/v1/invitation-codes/admin/invitation-codes/{test_tournament["code_id"]}')
+        response = api_client.delete(f'/api/v1/admin/invitation-codes/{test_tournament["code_id"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -98,7 +98,7 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/invitation-codes/admin/invitation-codes', headers=headers)
+        response = api_client.get('/api/v1/admin/invitation-codes', headers=headers)
         
 
         # Accept valid responses:
@@ -121,7 +121,7 @@ class TestInvitationcodesSmoke:
         Auth validation: GET /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.get('/api/v1/invitation-codes/admin/invitation-codes')
+        response = api_client.get('/api/v1/admin/invitation-codes')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -167,7 +167,7 @@ class TestInvitationcodesSmoke:
         
         # TODO: Add realistic payload for /api/v1/admin/invitation-codes
         payload = {}
-        response = api_client.post('/api/v1/invitation-codes/admin/invitation-codes', json=payload, headers=headers)
+        response = api_client.post('/api/v1/admin/invitation-codes', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -190,7 +190,7 @@ class TestInvitationcodesSmoke:
         Auth validation: POST /api/v1/admin/invitation-codes requires authentication
         """
         
-        response = api_client.post('/api/v1/invitation-codes/admin/invitation-codes', json={})
+        response = api_client.post('/api/v1/admin/invitation-codes', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -217,7 +217,7 @@ class TestInvitationcodesSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/invitation-codes/admin/invitation-codes',
+            '/api/v1/admin/invitation-codes',
             json=invalid_payload,
             headers=headers
         )

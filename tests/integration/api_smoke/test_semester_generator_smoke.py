@@ -97,7 +97,7 @@ class TestSemestergeneratorSmoke:
         
         # TODO: Add realistic payload for /api/v1/generate
         payload = {}
-        response = api_client.post('/api/v1/tournament-generator/generate', json=payload, headers=headers)
+        response = api_client.post('/api/v1/admin/semesters/generate', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -120,7 +120,7 @@ class TestSemestergeneratorSmoke:
         Auth validation: POST /api/v1/generate requires authentication
         """
         
-        response = api_client.post('/api/v1/tournament-generator/generate', json={})
+        response = api_client.post('/api/v1/admin/semesters/generate', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -147,7 +147,7 @@ class TestSemestergeneratorSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/tournament-generator/generate',
+            '/api/v1/admin/semesters/generate',
             json=invalid_payload,
             headers=headers
         )

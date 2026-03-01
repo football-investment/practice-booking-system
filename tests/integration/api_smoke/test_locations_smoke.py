@@ -29,7 +29,7 @@ class TestLocationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.delete(f'/api/v1/locations/{test_tournament["location_id"]}', headers=headers)
+        response = api_client.delete(f'/api/v1/admin/locations/{test_tournament["location_id"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -53,7 +53,7 @@ class TestLocationsSmoke:
         Auth validation: DELETE /api/v1/{location_id} requires authentication
         """
         
-        response = api_client.delete(f'/api/v1/locations/{test_tournament["location_id"]}')
+        response = api_client.delete(f'/api/v1/admin/locations/{test_tournament["location_id"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -98,7 +98,7 @@ class TestLocationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get('/api/v1/locations', headers=headers)
+        response = api_client.get('/api/v1/admin/locations/', headers=headers)
         
 
         # Accept valid responses:
@@ -121,7 +121,7 @@ class TestLocationsSmoke:
         Auth validation: GET /api/v1/ requires authentication
         """
         
-        response = api_client.get('/api/v1/locations')
+        response = api_client.get('/api/v1/admin/locations/')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -233,7 +233,7 @@ class TestLocationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        response = api_client.get(f'/api/v1/locations/{test_tournament["location_id"]}', headers=headers)
+        response = api_client.get(f'/api/v1/admin/locations/{test_tournament["location_id"]}', headers=headers)
         
 
         # Accept valid responses:
@@ -257,7 +257,7 @@ class TestLocationsSmoke:
         Auth validation: GET /api/v1/{location_id} requires authentication
         """
         
-        response = api_client.get(f'/api/v1/locations/{test_tournament["location_id"]}')
+        response = api_client.get(f'/api/v1/admin/locations/{test_tournament["location_id"]}')
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -304,7 +304,7 @@ class TestLocationsSmoke:
         
         # TODO: Add realistic payload for /api/v1/
         payload = {}
-        response = api_client.post('/api/v1/locations', json=payload, headers=headers)
+        response = api_client.post('/api/v1/admin/locations/', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -327,7 +327,7 @@ class TestLocationsSmoke:
         Auth validation: POST /api/v1/ requires authentication
         """
         
-        response = api_client.post('/api/v1/locations', json={})
+        response = api_client.post('/api/v1/admin/locations/', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -354,7 +354,7 @@ class TestLocationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/locations',
+            '/api/v1/admin/locations/',
             json=invalid_payload,
             headers=headers
         )
@@ -382,7 +382,7 @@ class TestLocationsSmoke:
 
         
         payload = {}
-        response = api_client.put(f'/api/v1/locations/{test_tournament["location_id"]}', json=payload, headers=headers)
+        response = api_client.put(f'/api/v1/admin/locations/{test_tournament["location_id"]}', json=payload, headers=headers)
         
 
         # Accept valid responses:
@@ -406,7 +406,7 @@ class TestLocationsSmoke:
         Auth validation: PUT /api/v1/{location_id} requires authentication
         """
         
-        response = api_client.put(f'/api/v1/locations/{test_tournament["location_id"]}', json={})
+        response = api_client.put(f'/api/v1/admin/locations/{test_tournament["location_id"]}', json={})
         
 
         # Accept auth-related or error responses (but NOT 200/201 - that's a security issue!):
@@ -434,7 +434,7 @@ class TestLocationsSmoke:
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
-            f'/api/v1/locations/{test_tournament["location_id"]}',
+            f'/api/v1/admin/locations/{test_tournament["location_id"]}',
             json=invalid_payload,
             headers=headers
         )
