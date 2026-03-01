@@ -424,15 +424,6 @@ class TestOnboardingSmoke:
             f"POST /api/v1/specialization/select should require auth or error: {response.status_code}"
         )
 
-    @pytest.mark.skip(
-        reason=(
-            "PHASE 3 P2 BACKLOG (TICKET-SMOKE-003): Endpoint not implemented - "
-            "POST /api/v1/onboarding/specialization/select returns 404. "
-            "Feature planned for Sprint 1 (Week 1). "
-            "Re-enable when specialization selection feature is implemented. "
-            "See docs/BACKLOG_P2_MISSING_FEATURES.md for acceptance criteria."
-        )
-    )
     def test_specialization_select_submit_input_validation(
         self,
         api_client: TestClient,
@@ -440,14 +431,19 @@ class TestOnboardingSmoke:
     ):
         """
         Input validation: POST /api/v1/specialization/select validates request data
+
+        TICKET-SMOKE-003: Specialization Selection API implemented in Sprint 1
+        - Endpoint: POST /api/v1/specialization/select
+        - Validates: specialization enum (INTERNSHIP, LFA_FOOTBALL_PLAYER, LFA_COACH, GANCUJU_PLAYER)
+        - Returns: 422 for invalid/missing fields
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
-            '/api/v1/onboarding/specialization/select',
+            '/api/v1/specialization/select',
             json=invalid_payload,
             headers=headers
         )

@@ -196,51 +196,59 @@ async def unlock_specialization(
     )
 
 
-@router.post("/select", response_model=SpecializationResponse)
-async def select_specialization(
-    request: SpecializationSelectRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Select initial specialization during onboarding
-
-    **Note:** This is an alias/wrapper for the existing POST /me endpoint
-    with onboarding-specific naming for clarity.
-    """
-    # Validate specialization
-    try:
-        spec_type = SpecializationType(request.specialization)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid specialization: {request.specialization}"
-        )
-
-    # Set user specialization
-    current_user.specialization = spec_type
-    db.commit()
-    db.refresh(current_user)
-
-    # Audit log
-    audit_service = AuditService(db)
-    audit_service.log(
-        action=AuditAction.SPECIALIZATION_SELECTED,
-        user_id=current_user.id,
-        details={
-            "specialization": spec_type.value,
-            "context": "onboarding"
-        }
-    )
-
-    return SpecializationResponse(
-        success=True,
-        message=f"Specialization {spec_type.value} selected successfully!",
-        data={
-            "specialization": spec_type.value,
-            "user_id": current_user.id
-        }
-    )
+# DEPRECATED: Replaced by TICKET-SMOKE-003 implementation in select.py
+# Old endpoint had no credit deduction or license creation logic.
+# Sprint 1 implementation (select.py) provides full business logic:
+# - 100 credit unlock cost
+# - UserLicense creation
+# - CreditTransaction logging
+# - Duplicate handling (free if license exists)
+#
+# @router.post("/select", response_model=SpecializationResponse)
+# async def select_specialization(
+#     request: SpecializationSelectRequest,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user)
+# ):
+#     """
+#     Select initial specialization during onboarding
+#
+#     **Note:** This is an alias/wrapper for the existing POST /me endpoint
+#     with onboarding-specific naming for clarity.
+#     """
+#     # Validate specialization
+#     try:
+#         spec_type = SpecializationType(request.specialization)
+#     except ValueError:
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail=f"Invalid specialization: {request.specialization}"
+#         )
+#
+#     # Set user specialization
+#     current_user.specialization = spec_type
+#     db.commit()
+#     db.refresh(current_user)
+#
+#     # Audit log
+#     audit_service = AuditService(db)
+#     audit_service.log(
+#         action=AuditAction.SPECIALIZATION_SELECTED,
+#         user_id=current_user.id,
+#         details={
+#             "specialization": spec_type.value,
+#             "context": "onboarding"
+#         }
+#     )
+#
+#     return SpecializationResponse(
+#         success=True,
+#         message=f"Specialization {spec_type.value} selected successfully!",
+#         data={
+#             "specialization": spec_type.value,
+#             "user_id": current_user.id
+#         }
+#     )
 
 
 @router.post("/switch", response_model=SpecializationResponse)
