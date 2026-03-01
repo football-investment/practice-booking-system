@@ -236,9 +236,11 @@ def test_campus_id(test_db: Session) -> int:
     # Create test location if none exist
     location = test_db.query(Location).filter(Location.is_active == True).first()
     if not location:
+        # FIX: Use UUID for unique city name (prevents "locations_city_key" constraint violation)
+        unique_city = f"TestCity_{uuid.uuid4().hex[:8]}"
         location = Location(
             name="Smoke Test Location",
-            city="Budapest",
+            city=unique_city,  # Unique per test run
             country="Hungary",
             country_code="HU",
             is_active=True
