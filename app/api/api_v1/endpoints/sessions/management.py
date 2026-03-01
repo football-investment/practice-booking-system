@@ -15,7 +15,7 @@ from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.session import Session as SessionModel, SessionType
-from .....models.quiz import QuizAttempt
+from .....models.quiz import QuizAttempt, SessionQuiz
 from .....models.feedback import Feedback
 from .....services.audit_service import AuditService
 from .....models.audit_log import AuditAction
@@ -302,8 +302,11 @@ def unlock_quiz(
             detail="Not your session"
         )
 
-    # Verify session has a quiz
-    if not session.quiz_id:
+    # Verify session has a quiz (check junction table)
+    session_quiz = db.query(SessionQuiz).filter(
+        SessionQuiz.session_id == session_id
+    ).first()
+    if not session_quiz:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session has no quiz assigned"

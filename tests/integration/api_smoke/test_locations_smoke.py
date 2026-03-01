@@ -33,12 +33,13 @@ class TestLocationsSmoke:
         
 
         # Accept valid responses:
-        # - 200/201: Success
+        # - 200/201: Success (with body)
+        # - 204: Success (no content) - STANDARD for DELETE operations
         # - 404: Resource not found (acceptable in test DB)
         # - 405: Method not allowed (endpoint exists but different HTTP method)
         # - 422: Validation error (expected for POST/PATCH/PUT with empty payload)
-        
-        assert response.status_code in [200, 201, 404, 405], (
+
+        assert response.status_code in [200, 201, 204, 404, 405], (
             f'DELETE /api/v1/{test_tournament["location_id"]} failed: {response.status_code} '
             f"{response.text}"
         )
