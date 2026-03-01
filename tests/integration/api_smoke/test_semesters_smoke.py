@@ -46,21 +46,6 @@ class TestSemestersSmoke:
             f"GET /academy-seasons/available-years should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_available_academy_years_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /academy-seasons/available-years validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /generate-academy-season ────────────────────────────
-
     def test_generate_academy_season_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: POST /generate-academy-season

@@ -46,21 +46,6 @@ class TestPublicprofileSmoke:
             f"GET /users/{user_id}/profile/basic should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_basic_profile_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /users/{user_id}/profile/basic validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /users/{user_id}/profile/instructor ────────────────────────────
-
     def test_get_instructor_profile_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /users/{user_id}/profile/instructor
@@ -91,21 +76,6 @@ class TestPublicprofileSmoke:
             f"GET /users/{user_id}/profile/instructor should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_instructor_profile_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /users/{user_id}/profile/instructor validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /users/{user_id}/profile/lfa-player ────────────────────────────
-
     def test_get_lfa_player_profile_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /users/{user_id}/profile/lfa-player
@@ -135,16 +105,4 @@ class TestPublicprofileSmoke:
         assert response.status_code in [401, 403], (
             f"GET /users/{user_id}/profile/lfa-player should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_lfa_player_profile_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /users/{user_id}/profile/lfa-player validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
 

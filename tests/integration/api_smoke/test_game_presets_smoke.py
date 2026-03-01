@@ -46,21 +46,6 @@ class TestGamepresetsSmoke:
             f"DELETE /{preset_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_delete_game_preset_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: DELETE /{preset_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for DELETE endpoints")
-        
-
-
-    # ── GET / ────────────────────────────
-
     def test_list_game_presets_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /
@@ -90,21 +75,6 @@ class TestGamepresetsSmoke:
         assert response.status_code in [401, 403], (
             f"GET / should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_game_presets_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET / validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /code/{code} ────────────────────────────
 
     def test_get_game_preset_by_code_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestGamepresetsSmoke:
             f"GET /code/{code} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_game_preset_by_code_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /code/{code} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /{preset_id} ────────────────────────────
-
     def test_get_game_preset_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /{preset_id}
@@ -180,21 +135,6 @@ class TestGamepresetsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /{preset_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_game_preset_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /{preset_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── PATCH /{preset_id} ────────────────────────────
 
     def test_update_game_preset_happy_path(self, api_client: TestClient, admin_token: str):
         """

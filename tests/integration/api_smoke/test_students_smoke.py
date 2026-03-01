@@ -46,21 +46,6 @@ class TestStudentsSmoke:
             f"GET /dashboard/achievements should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_achievements_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard/achievements validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /dashboard/daily-challenge ────────────────────────────
-
     def test_get_daily_challenge_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /dashboard/daily-challenge
@@ -91,21 +76,6 @@ class TestStudentsSmoke:
             f"GET /dashboard/daily-challenge should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_daily_challenge_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard/daily-challenge validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /dashboard/semester-progress ────────────────────────────
-
     def test_get_semester_progress_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /dashboard/semester-progress
@@ -135,16 +105,4 @@ class TestStudentsSmoke:
         assert response.status_code in [401, 403], (
             f"GET /dashboard/semester-progress should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_semester_progress_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /dashboard/semester-progress validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
 

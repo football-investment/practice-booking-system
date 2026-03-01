@@ -46,21 +46,6 @@ class TestGancujuSmoke:
             f"GET /licenses should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_all_licenses_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /licenses validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /licenses/me ────────────────────────────
-
     def test_get_my_license_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /licenses/me
@@ -91,21 +76,6 @@ class TestGancujuSmoke:
             f"GET /licenses/me should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_license_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /licenses/me validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /licenses/{license_id}/stats ────────────────────────────
-
     def test_get_license_stats_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /licenses/{license_id}/stats
@@ -135,21 +105,6 @@ class TestGancujuSmoke:
         assert response.status_code in [401, 403], (
             f"GET /licenses/{license_id}/stats should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_license_stats_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /licenses/{license_id}/stats validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /competitions ────────────────────────────
 
     def test_record_competition_happy_path(self, api_client: TestClient, admin_token: str):
         """

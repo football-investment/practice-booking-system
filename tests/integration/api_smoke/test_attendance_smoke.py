@@ -46,21 +46,6 @@ class TestAttendanceSmoke:
             f"GET / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_attendance_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET / validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /instructor/overview ────────────────────────────
-
     def test_get_instructor_attendance_overview_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /instructor/overview
@@ -90,21 +75,6 @@ class TestAttendanceSmoke:
         assert response.status_code in [401, 403], (
             f"GET /instructor/overview should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_instructor_attendance_overview_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /instructor/overview validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── PATCH /{attendance_id} ────────────────────────────
 
     def test_update_attendance_happy_path(self, api_client: TestClient, admin_token: str):
         """

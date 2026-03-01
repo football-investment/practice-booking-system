@@ -46,21 +46,6 @@ class TestMotivationSmoke:
             f"GET /motivation-assessment should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_motivation_assessment_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /motivation-assessment validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /motivation-assessment ────────────────────────────
-
     def test_submit_motivation_assessment_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: POST /motivation-assessment

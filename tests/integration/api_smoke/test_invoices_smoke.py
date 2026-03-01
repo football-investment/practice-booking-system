@@ -46,21 +46,6 @@ class TestInvoicesSmoke:
             f"GET /count should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_invoice_count_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /count validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /list ────────────────────────────
-
     def test_list_invoices_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /list
@@ -90,21 +75,6 @@ class TestInvoicesSmoke:
         assert response.status_code in [401, 403], (
             f"GET /list should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_list_invoices_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /list validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /my-invoices ────────────────────────────
 
     def test_get_my_invoices_happy_path(self, api_client: TestClient, admin_token: str):
         """
@@ -136,21 +106,6 @@ class TestInvoicesSmoke:
             f"GET /my-invoices should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_invoices_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /my-invoices validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /summary ────────────────────────────
-
     def test_get_financial_summary_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /summary
@@ -180,21 +135,6 @@ class TestInvoicesSmoke:
         assert response.status_code in [401, 403], (
             f"GET /summary should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_financial_summary_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /summary validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /request ────────────────────────────
 
     def test_create_invoice_request_happy_path(self, api_client: TestClient, admin_token: str):
         """

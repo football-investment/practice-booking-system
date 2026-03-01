@@ -46,21 +46,6 @@ class TestGamificationSmoke:
             f"GET /me should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_my_gamification_data_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /me validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /user/{user_id} ────────────────────────────
-
     def test_get_user_gamification_data_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /user/{user_id}
@@ -90,21 +75,6 @@ class TestGamificationSmoke:
         assert response.status_code in [401, 403], (
             f"GET /user/{user_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_user_gamification_data_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /user/{user_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /refresh/{user_id} ────────────────────────────
 
     def test_refresh_user_achievements_happy_path(self, api_client: TestClient, admin_token: str):
         """

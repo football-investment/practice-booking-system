@@ -46,21 +46,6 @@ class TestProfileSmoke:
             f"GET /profile should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_profile_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /profile validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /profile/edit ────────────────────────────
-
     def test_profile_edit_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /profile/edit
@@ -90,21 +75,6 @@ class TestProfileSmoke:
         assert response.status_code in [401, 403], (
             f"GET /profile/edit should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_profile_edit_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /profile/edit validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /profile/edit ────────────────────────────
 
     def test_profile_edit_submit_happy_path(self, api_client: TestClient, admin_token: str):
         """

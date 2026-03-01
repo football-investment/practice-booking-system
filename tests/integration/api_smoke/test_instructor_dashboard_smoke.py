@@ -46,21 +46,6 @@ class TestInstructordashboardSmoke:
             f"GET /instructor/enrollments should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_instructor_enrollments_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /instructor/enrollments validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /instructor/students/{student_id}/skills/{license_id} ────────────────────────────
-
     def test_instructor_edit_student_skills_page_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /instructor/students/{student_id}/skills/{license_id}
@@ -90,21 +75,6 @@ class TestInstructordashboardSmoke:
         assert response.status_code in [401, 403], (
             f"GET /instructor/students/{student_id}/skills/{license_id} should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_instructor_edit_student_skills_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /instructor/students/{student_id}/skills/{license_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /instructor/students/{student_id}/skills/{license_id} ────────────────────────────
 
     def test_instructor_update_student_skills_happy_path(self, api_client: TestClient, admin_token: str):
         """

@@ -46,21 +46,6 @@ class TestDebugSmoke:
             f"GET /environment should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_get_environment_info_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /environment validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── GET /health ────────────────────────────
-
     def test_unknown_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: GET /health
@@ -90,21 +75,6 @@ class TestDebugSmoke:
         assert response.status_code in [401, 403], (
             f"GET /health should require auth: {response.status_code}"
         )
-
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_unknown_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /health validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /log-error ────────────────────────────
 
     def test_log_frontend_error_happy_path(self, api_client: TestClient, admin_token: str):
         """

@@ -46,21 +46,6 @@ class TestLfacoachroutesSmoke:
             f"GET /instructor/students/{student_id}/certification-status/{license_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_instructor_student_certification_page_input_validation(self, api_client: TestClient, admin_token: str):
-        """
-        Input validation: GET /instructor/students/{student_id}/certification-status/{license_id} validates request data
-        """
-        headers = {"Authorization": f"Bearer {admin_token}"}
-
-        
-        # GET/DELETE don't typically have input validation
-        pytest.skip("No input validation for GET endpoints")
-        
-
-
-    # ── POST /instructor/students/{student_id}/certify/{license_id} ────────────────────────────
-
     def test_instructor_certify_coach_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: POST /instructor/students/{student_id}/certify/{license_id}
