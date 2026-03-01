@@ -135,7 +135,7 @@ def create_campus(
     return campus
 
 
-@router.put("/campuses/{campus_id}", response_model=CampusResponse)
+@router.put("/{campus_id}", response_model=CampusResponse)  # BATCH 12: Fixed duplicate /campuses prefix
 def update_campus(
     campus_id: int,
     campus_data: CampusUpdate,
@@ -180,7 +180,7 @@ def update_campus(
     return campus
 
 
-@router.delete("/campuses/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{campus_id}", status_code=status.HTTP_204_NO_CONTENT)  # BATCH 12: Fixed duplicate /campuses prefix
 def delete_campus(
     campus_id: int,
     db: Session = Depends(get_db),
@@ -204,7 +204,7 @@ def delete_campus(
     return None
 
 
-@router.patch("/campuses/{campus_id}/toggle-status", response_model=CampusResponse)
+@router.patch("/{campus_id}/toggle-status", response_model=CampusResponse)  # BATCH 12: Fixed duplicate /campuses prefix
 def toggle_campus_status(
     campus_id: int,
     request_data: ToggleCampusStatusRequest,
