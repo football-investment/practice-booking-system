@@ -177,15 +177,23 @@ class SpecializationSelectResponse(BaseModel):
 - 333 SKIPPED (by design)
 ```
 
-### GitHub Actions: ⏳ PENDING
-- **Cypress E2E Tests:** ❌ FAILED (backend startup issue, NOT Sprint 1 code)
-- **Test Baseline Check:** Not triggered (requires PR)
+### GitHub Actions: ⏳ 2/3 GREEN RUNS COMPLETE
 
-**Expected CI Results (after PR creation):**
-1. Unit Tests: ✅ Expected PASS
-2. Smoke Suite: ✅ Expected 989+ PASSED
-3. Integration Tests: ✅ Expected 7 new tests PASS
-4. Coverage: ✅ Expected ≥85.6% maintained
+**Test Baseline Check Progress:**
+- **Run #1** (ID 22550673485): ✅ SUCCESS - All 14 jobs passed (created 2026-03-01 19:19:52Z)
+- **Run #2** (ID 22550960401): ✅ SUCCESS - All 14 jobs passed (created 2026-03-01 19:35:33Z)
+- **Run #3**: ⏳ PENDING (awaiting trigger for final validation)
+
+**Other Workflows (Pre-existing Issues):**
+- **Cypress E2E Tests:** ❌ FAILED (backend startup issue, NOT Sprint 1 code)
+- **E2E Integration Critical Suite:** ❌ FAILED (pre-existing, non-blocking)
+- **Skill Weight Pipeline:** ✅ SUCCESS
+
+**Actual CI Results (Runs #1-2):**
+1. Unit Tests: ✅ PASSED (0 failed, 0 errors)
+2. Smoke Suite: ✅ PASSED (baseline maintained)
+3. Integration Tests: ✅ PASSED (7 new tests passing)
+4. Coverage: ✅ PASSED (≥85.6% maintained)
 
 ---
 
@@ -205,6 +213,15 @@ class SpecializationSelectResponse(BaseModel):
    - Fixed teardown session expiration issue
    - Added required UserLicense timestamps (started_at, payment_verified_at)
    - All 7 tests now passing independently
+
+3. `551fb95` - docs(sprint1): Add comprehensive TICKET-SMOKE-003 status documentation
+   - Created SPRINT1_TICKET_SMOKE_003_STATUS.md
+   - Comprehensive implementation and test status
+
+4. `86ca1ae` - docs(sprint1): Update RC0 status, backlog, and release notes for Sprint 1
+   - Updated RC0_SMOKE_SUITE_STATUS.md with Sprint 1 results
+   - Marked TICKET-SMOKE-003 as complete in backlog
+   - Created RELEASE_NOTES_SPRINT1.md
 
 ---
 
