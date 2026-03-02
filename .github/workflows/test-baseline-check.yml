@@ -64,7 +64,19 @@ jobs:
         # (pre-existing issue, not a regression). It is run in full isolation in the
         # cascade-isolation-guard job below. See docs/TECHNICAL_DEBT.md for details.
         pytest tests/unit/ -q --tb=line -v \
-          --deselect tests/unit/tournament/test_core.py::TestDeleteTournament
+          --deselect tests/unit/tournament/test_core.py::TestDeleteTournament \
+          --cov=app \
+          --cov-report=term-missing \
+          --cov-report=xml:coverage.xml \
+          --cov-fail-under=40
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-report-unit
+        path: coverage.xml
+        retention-days: 30
 
     - name: Parse test results
       id: test-results
@@ -1284,6 +1296,7 @@ jobs:
           echo "- E2E smoke tests: All passing" >> $GITHUB_STEP_SUMMARY
           echo "- API module integrity: All imports clean, route count ≥ 71" >> $GITHUB_STEP_SUMMARY
           echo "- Hardcoded FK ID guard: No hardcoded IDs found (test isolation maintained)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Coverage (app/): ≥ 40% enforced** — see \`coverage-report-unit\` artifact for full breakdown" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### E2E Lifecycle Suite (BLOCKING)" >> $GITHUB_STEP_SUMMARY
           echo "- Payment workflow E2E: 3/3 tests passing (0 flake in 20 runs, parallel stable)" >> $GITHUB_STEP_SUMMARY
