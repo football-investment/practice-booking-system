@@ -8,7 +8,7 @@
   "requires_power_of_two": true,
   "session_duration_minutes": 90,
   "break_between_sessions_minutes": 15,
-  "matches_calculation": "n - 1",
+  "matches_calculation": "n",
   "rounds_calculation": "log2(n)",
   "session_naming_pattern": "{round_name} - Match {match_number}",
   "round_names": {
@@ -31,7 +31,7 @@
   },
   "config_notes": [
     "Requires power-of-2 players (4, 8, 16, 32, 64, 128, 256, 512, 1024)",
-    "Total matches = n - 1",
+    "Total matches = n (n-1 bracket + 1 playoff)",
     "Fastest tournament format",
     "Highly competitive - no second chances"
   ],
