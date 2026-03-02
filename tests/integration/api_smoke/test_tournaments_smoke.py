@@ -1103,18 +1103,21 @@ class TestTournamentsSmoke:
             f"PATCH /{test_tournament['tournament_id']} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_tournament_input_validation(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
         """
         Input validation: PATCH /{{test_tournament["tournament_id"]}} validates request data
+        Tests: Field constraints (enrollment_cost >= 0, max_players > 0)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+
+        # Invalid payload violating field constraints
+        invalid_payload = {
+            "enrollment_cost": -100,  # Must be >= 0
+            "max_players": 0  # Must be > 0
+        }
         response = api_client.patch(
-            "/{test_tournament['tournament_id']}",
+            f"/api/v1/tournaments/{test_tournament['tournament_id']}",
             json=invalid_payload,
             headers=headers
         )
@@ -1217,18 +1220,22 @@ class TestTournamentsSmoke:
             f"PATCH /{test_tournament['tournament_id']}/sessions/{session_id}/results should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_record_match_results_input_validation(self, api_client: TestClient, admin_token: str, test_tournament: Dict):
         """
         Input validation: PATCH /{{test_tournament["tournament_id"]}}/sessions/{session_id}/results validates request data
+        Tests: Missing required field (results) and invalid MatchResultEntry structure
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+        # Use a dummy session_id for validation testing
+        session_id = 99999
+
+        # Invalid payload missing required 'results' field
+        invalid_payload = {
+            "match_notes": "Missing required results field"
+        }
         response = api_client.patch(
-            "/{test_tournament['tournament_id']}/sessions/{session_id}/results",
+            f"/api/v1/tournaments/{test_tournament['tournament_id']}/sessions/{session_id}/results",
             json=invalid_payload,
             headers=headers
         )
@@ -1299,7 +1306,7 @@ class TestTournamentsSmoke:
 
     # ── POST / ────────────────────────────
 
-    def test_create_tournament_happy_path(self, api_client: TestClient, admin_token: str, payload_factory):
+    def test_create_tournament_root_happy_path(self, api_client: TestClient, admin_token: str, payload_factory):
         """
         Happy path: POST /
         Source: app/api/api_v1/endpoints/tournaments/lifecycle.py:create_tournament
@@ -1318,11 +1325,11 @@ class TestTournamentsSmoke:
             f"{response.text}"
         )
 
-    def test_create_tournament_auth_required(self, api_client: TestClient):
+    def test_create_tournament_root_auth_required(self, api_client: TestClient):
         """
         Auth validation: POST / requires authentication
         """
-        
+
         response = api_client.post("/api/v1/tournaments/", json={})
         
 
@@ -1331,18 +1338,20 @@ class TestTournamentsSmoke:
             f"POST / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
-    def test_create_tournament_input_validation(self, api_client: TestClient, admin_token: str):
+    def test_create_tournament_root_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST / validates request data
+        Tests: Missing required fields (name, specialization_type, start_date, end_date)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+
+        # Invalid payload missing required fields
+        invalid_payload = {
+            "description": "Missing name, specialization_type, start_date, end_date"
+        }
         response = api_client.post(
-            "/",
+            "/api/v1/tournaments/",
             json=invalid_payload,
             headers=headers
         )

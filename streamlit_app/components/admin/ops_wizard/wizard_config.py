@@ -177,7 +177,7 @@ def get_group_knockout_config(player_count: int) -> dict | None:
 def estimate_session_count(tournament_type: str, player_count: int) -> int:
     """Estimate total session count."""
     if tournament_type == "knockout":
-        return player_count - 1
+        return player_count  # N-1 bracket + 1 playoff (3rd place mandatory)
     elif tournament_type == "league":
         return (player_count * (player_count - 1)) // 2
     elif tournament_type == "group_knockout":
@@ -185,7 +185,7 @@ def estimate_session_count(tournament_type: str, player_count: int) -> int:
         if config:
             group_matches = config["groups"] * (config["players_per_group"] * (config["players_per_group"] - 1)) // 2
             knockout_participants = config["groups"] * config["qualifiers"]
-            knockout_matches = knockout_participants - 1
+            knockout_matches = knockout_participants  # Includes bronze match (3rd place mandatory)
             return group_matches + knockout_matches
     return 0
 

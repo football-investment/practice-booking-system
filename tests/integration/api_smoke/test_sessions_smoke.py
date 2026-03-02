@@ -407,18 +407,23 @@ class TestSessionsSmoke:
             f"PATCH /{session_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_session_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: PATCH /{session_id} validates request data
+        Tests: Invalid field types (title as int, capacity as string)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+        # Use dummy session_id for validation testing
+        session_id = 99999
+
+        # Invalid payload with wrong types
+        invalid_payload = {
+            "title": 12345,  # Should be string, not int
+            "capacity": "not_a_number"  # Should be int, not string
+        }
         response = api_client.patch(
-            "/{session_id}",
+            f"/api/v1/sessions/{session_id}",
             json=invalid_payload,
             headers=headers
         )
@@ -576,18 +581,18 @@ class TestSessionsSmoke:
             f"POST / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_session_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST / validates request data
+        Tests: Missing required fields (title, date_start, date_end, semester_id)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+
+        # Invalid payload missing required fields
+        invalid_payload = {"description": "Missing title, dates, semester_id"}
         response = api_client.post(
-            "/",
+            "/api/v1/sessions/",
             json=invalid_payload,
             headers=headers
         )

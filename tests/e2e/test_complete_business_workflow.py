@@ -22,10 +22,6 @@ import random
 from playwright.sync_api import Page, expect
 from tests.e2e.reward_policy_fixtures import (
     create_admin_token,
-        from datetime import datetime
-        import requests
-
-        # Try to create tournament as instructor (should fail with 403)
     create_instructor_user,
     create_multiple_instructors,
     create_first_team_players,

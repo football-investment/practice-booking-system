@@ -433,18 +433,20 @@ class TestUsersSmoke:
             f"PATCH /{user_id} should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_update_user_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: PATCH /{user_id} validates request data
+        Tests: Invalid email format (EmailStr validation)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+        # Use dummy user_id for validation testing
+        user_id = 99999
+
+        # Invalid payload with malformed email
+        invalid_payload = {"email": "not-a-valid-email"}  # Missing @ and domain
         response = api_client.patch(
-            "/{user_id}",
+            f"/api/v1/users/{user_id}",
             json=invalid_payload,
             headers=headers
         )
@@ -490,18 +492,18 @@ class TestUsersSmoke:
             f"POST / should require auth: {response.status_code}"
         )
 
-    @pytest.mark.skip(reason="Input validation requires domain-specific payloads")
     def test_create_user_input_validation(self, api_client: TestClient, admin_token: str):
         """
         Input validation: POST / validates request data
+        Tests: Missing required fields (name, email, password)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # Invalid payload (empty or malformed)
-        invalid_payload = {"invalid_field": "invalid_value"}
+
+        # Invalid payload missing required fields
+        invalid_payload = {"nickname": "Missing name, email, password"}
         response = api_client.post(
-            "/",
+            "/api/v1/users/",
             json=invalid_payload,
             headers=headers
         )
