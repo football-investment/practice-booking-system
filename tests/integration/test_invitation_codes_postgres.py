@@ -177,7 +177,6 @@ def test_pg2_verify_codes_in_database(postgres_db: Session):
 
 @pytest.mark.integration
 @pytest.mark.postgres
-@pytest.mark.skip(reason="Manual cleanup only - run explicitly when needed")
 def test_pg_cleanup_api_test_data(postgres_db: Session):
     """
     Manual Cleanup: Remove all api.* test data from PostgreSQL

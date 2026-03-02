@@ -120,10 +120,12 @@ class TestTournamentAttendanceAPI:
 
         assert response.status_code == 400
         data = response.json()
-        assert "Tournaments only support" in data["detail"]
-        assert "present" in data["detail"]
-        assert "absent" in data["detail"]
-        assert "late" in data["detail"]
+        # Custom exception handler wraps errors in {"error": {"message": ...}}
+        error_msg = data.get("error", {}).get("message") or data.get("detail", "")
+        assert "Tournaments only support" in error_msg
+        assert "present" in error_msg
+        assert "absent" in error_msg
+        assert "late" in error_msg
 
     def test_tournament_attendance_excused_fails(
         self,
@@ -156,8 +158,10 @@ class TestTournamentAttendanceAPI:
 
         assert response.status_code == 400
         data = response.json()
-        assert "Tournaments only support" in data["detail"]
-        assert "excused" in data["detail"]
+        # Custom exception handler wraps errors in {"error": {"message": ...}}
+        error_msg = data.get("error", {}).get("message") or data.get("detail", "")
+        assert "Tournaments only support" in error_msg
+        assert "excused" in error_msg
 
 
 # ============================================================================
