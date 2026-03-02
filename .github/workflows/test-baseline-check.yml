@@ -98,6 +98,81 @@ jobs:
         echo "See test-infra-stable-baseline tag for reference."
         exit 1
 
+  api-tests:
+    name: "API Tests (Baseline: 0 failed, 0 errors)"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install pytest pytest-mock
+        pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
+    - name: Run API tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        pytest tests/api/ -q --tb=short -v
+
+    - name: Parse API test results
+      id: api-test-results
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        RESULTS=$(pytest tests/api/ -q --tb=no 2>&1 | tail -1)
+        echo "results=$RESULTS" >> $GITHUB_OUTPUT
+
+        if echo "$RESULTS" | grep -qE "[0-9]+ failed"; then
+          echo "❌ API Tests FAILED - merge blocked"
+          exit 1
+        fi
+        if echo "$RESULTS" | grep -qE "[0-9]+ error"; then
+          echo "❌ API Tests have ERRORS - merge blocked"
+          exit 1
+        fi
+
+        echo "✅ All API tests passed"
+
+    - name: API baseline validation
+      if: failure()
+      run: |
+        echo "::error::API test baseline violated. Required: 0 failed, 0 errors"
+        exit 1
+
   cascade-isolation-guard:
     # Runs TestDeleteTournament in a clean, isolated process.
     # This class is excluded from the full unit-tests job to avoid test-ordering

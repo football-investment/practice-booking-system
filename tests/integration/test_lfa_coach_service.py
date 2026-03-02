@@ -13,7 +13,17 @@ import pytest
 from datetime import date, datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.dialects import sqlite as sqlite_dialect
 from app.database import Base
+
+# Register PostgreSQL type → SQLite fallbacks
+_stc = sqlite_dialect.base.SQLiteTypeCompiler
+if not hasattr(_stc, 'visit_JSONB'):
+    _stc.visit_JSONB = _stc.visit_JSON
+if not hasattr(_stc, 'visit_ARRAY'):
+    _stc.visit_ARRAY = lambda self, type_, **kw: 'TEXT'
+if not hasattr(_stc, 'visit_UUID'):
+    _stc.visit_UUID = lambda self, type_, **kw: 'VARCHAR(36)'
 from app.models.user import User
 from app.models.license import UserLicense
 from app.models.semester import Semester
@@ -56,6 +66,7 @@ def young_coach_user(db_session):
         id=1,
         email="young.coach@test.com",
         name="Young Coach",
+        password_hash="hashed_test_password",
         date_of_birth=date(2011, 6, 15),  # ~14 years old
         role="student"
     )
@@ -71,6 +82,7 @@ def experienced_coach_user(db_session):
         id=2,
         email="experienced.coach@test.com",
         name="Experienced Coach",
+        password_hash="hashed_test_password",
         date_of_birth=date(2000, 3, 10),  # ~25 years old
         role="instructor"
     )
@@ -86,6 +98,7 @@ def too_young_user(db_session):
         id=3,
         email="too.young@test.com",
         name="Too Young",
+        password_hash="hashed_test_password",
         date_of_birth=date(2013, 1, 1),  # ~12 years old
         role="student"
     )
