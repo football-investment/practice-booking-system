@@ -33,15 +33,14 @@ from app.models.invitation_code import InvitationCode
 @pytest.fixture
 def admin_token(client: TestClient, admin_user) -> str:
     """Get admin authentication token"""
-    # Admin user created by admin_user fixture
     response = client.post(
         "/api/v1/auth/login",
         json={
-            "email": "admin@lfa.com",
+            "email": admin_user.email,
             "password": "admin123"
         }
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Admin login failed: {response.text}"
     return response.json()["access_token"]
 
 

@@ -145,7 +145,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        pytest tests/api/ -q --tb=short -v
+        pytest tests/api/ -q --tb=short -v --maxfail=0
 
     - name: Parse API test results
       id: api-test-results
