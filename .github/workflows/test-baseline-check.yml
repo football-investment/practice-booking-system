@@ -140,32 +140,24 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: alembic upgrade head
 
+    - name: Verify test collection
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        COUNT=$(pytest tests/api/ --collect-only -q 2>&1 | grep -E "^[0-9]+ test" | grep -oE "^[0-9]+")
+        echo "Collected $COUNT tests in tests/api/"
+        if [ -z "$COUNT" ] || [ "$COUNT" -lt 1 ]; then
+          echo "::error::No tests collected from tests/api/ — suite may be empty or broken"
+          exit 1
+        fi
+
     - name: Run API tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        pytest tests/api/ -q --tb=short -v --maxfail=0
-
-    - name: Parse API test results
-      id: api-test-results
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
-        SECRET_KEY: test-secret-key-for-ci-only-not-production
-      run: |
-        RESULTS=$(pytest tests/api/ -q --tb=no 2>&1 | tail -1)
-        echo "results=$RESULTS" >> $GITHUB_OUTPUT
-
-        if echo "$RESULTS" | grep -qE "[0-9]+ failed"; then
-          echo "❌ API Tests FAILED - merge blocked"
-          exit 1
-        fi
-        if echo "$RESULTS" | grep -qE "[0-9]+ error"; then
-          echo "❌ API Tests have ERRORS - merge blocked"
-          exit 1
-        fi
-
-        echo "✅ All API tests passed"
+        pytest tests/api/ -v --tb=short --maxfail=0
 
     - name: API baseline validation
       if: failure()
