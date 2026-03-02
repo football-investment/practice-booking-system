@@ -128,6 +128,7 @@ def tournament_seeking_instructor(test_db: Session) -> Semester:
         end_date=tournament_date,
         is_active=True,
         status=SemesterStatus.SEEKING_INSTRUCTOR,  # ❌ BLOCKED
+        tournament_status="SEEKING_INSTRUCTOR",
         master_instructor_id=None,
         specialization_type=SpecializationType.LFA_PLAYER_AMATEUR.value,
         age_group="AMATEUR",
@@ -168,6 +169,7 @@ def tournament_instructor_assigned(test_db: Session, instructor_user: User) -> S
         end_date=tournament_date,
         is_active=True,
         status=SemesterStatus.INSTRUCTOR_ASSIGNED,  # ❌ BLOCKED (admin hasn't opened enrollment yet)
+        tournament_status="INSTRUCTOR_ASSIGNED",
         master_instructor_id=instructor_user.id,
         specialization_type=SpecializationType.LFA_PLAYER_AMATEUR.value,
         age_group="AMATEUR",
@@ -207,7 +209,8 @@ def tournament_ready_for_enrollment(test_db: Session, instructor_user: User) -> 
         start_date=tournament_date,
         end_date=tournament_date,
         is_active=True,
-        status=SemesterStatus.READY_FOR_ENROLLMENT,  # ✅ ALLOWED
+        status=SemesterStatus.READY_FOR_ENROLLMENT,
+        tournament_status="ENROLLMENT_OPEN",  # ✅ ALLOWED — endpoint checks tournament_status
         master_instructor_id=instructor_user.id,
         specialization_type=SpecializationType.LFA_PLAYER_AMATEUR.value,
         age_group="AMATEUR",
@@ -276,7 +279,7 @@ def test_01_enrollment_blocked_seeking_instructor(
     assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.text}"
     data = response.json()
     error_message = data.get("error", {}).get("message", data.get("detail", ""))
-    assert "not ready for enrollment" in error_message.lower()
+    assert "not accepting enrollments" in error_message.lower()
     assert "SEEKING_INSTRUCTOR" in error_message
 
 
@@ -298,7 +301,7 @@ def test_02_enrollment_blocked_instructor_assigned(
     assert response.status_code == 400, f"Expected 400, got {response.status_code}: {response.text}"
     data = response.json()
     error_message = data.get("error", {}).get("message", data.get("detail", ""))
-    assert "not ready for enrollment" in error_message.lower()
+    assert "not accepting enrollments" in error_message.lower()
     assert "INSTRUCTOR_ASSIGNED" in error_message
 
 
