@@ -380,14 +380,11 @@ class TestUpdateTournamentStats:
 
         assert stats.total_participants == 2  # Only active ones
 
-    @pytest.mark.xfail(reason="Business logic issue: Cannot create stats for nonexistent tournament (foreign key violation)")
     def test_update_stats_nonexistent_tournament(self, test_db: Session):
-        """Edge case: Tournament doesn't exist"""
-        stats = stats_service.update_tournament_stats(test_db, 99999)
+        """Edge case: Tournament doesn't exist — returns None without touching DB."""
+        result = stats_service.update_tournament_stats(test_db, 99999)
 
-        # Should create empty stats
-        assert stats.total_participants == 0
-        assert stats.total_teams == 0
+        assert result is None
 
 
 class TestGetTournamentAnalytics:

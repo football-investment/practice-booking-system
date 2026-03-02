@@ -87,7 +87,7 @@ class TestCreateTournamentSemester:
 
     def test_create_with_location_id(self, test_db: Session, tournament_date: date, location_factory):
         """Create tournament with location fallback."""
-        location = location_factory(city="Test City", country="Hungary")
+        location = location_factory(country="Hungary")
 
         semester = create_tournament_semester(
             db=test_db,

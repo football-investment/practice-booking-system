@@ -344,7 +344,8 @@ class TestRaceB02CapacityOverbooking:
             "no-op on MagicMock → both calls still see confirmed_count=0 from the "
             "separate mock DBs. The lock assertion in "
             "test_b02_session_locked_with_for_update_before_confirmed_count proves "
-            "the fix. Real-DB concurrency proof belongs in tests/database/."
+            "the fix. Real-DB concurrency proof belongs in tests/database/. "
+            "Requires real DB concurrency test (future tests/database suite)."
         ),
     )
     def test_b02_race_window_produces_overbooking_documents_the_unsafe_state(self):

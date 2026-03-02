@@ -525,6 +525,24 @@ _SEED_BASELINES = [
     (97.5, "near_ceiling"),  # close to MAX_SKILL_CAP (99)
 ]
 
+# Variant used by test_step_ratio_consistent_across_seeds:
+# near_ceiling always produces min_delta < 1.0 (rounding dominates at this baseline),
+# making the ratio assertion undefined. Marked with a static skip so pytest reports it
+# as a skip rather than running the guard inside the test body.
+_RATIO_SEED_BASELINES = [
+    pytest.param(41.5, "near_floor", id="near_floor"),
+    pytest.param(50.0, "default", id="default"),
+    pytest.param(60.0, "average", id="average"),
+    pytest.param(75.0, "advanced", id="advanced"),
+    pytest.param(
+        97.5, "near_ceiling",
+        id="near_ceiling",
+        marks=pytest.mark.skip(
+            reason="near_ceiling: min_delta always < 1.0 at this baseline — rounding dominates, ratio assertion undefined"
+        ),
+    ),
+]
+
 
 @pytest.mark.unit
 @pytest.mark.tournament
@@ -580,11 +598,12 @@ class TestMultiSeedVariation:
                 f"[{label}] placement={placement}: {new_val} outside [{MIN_SKILL_VALUE}, {MAX_SKILL_CAP}]"
             )
 
-    @pytest.mark.parametrize("prev,label", _SEED_BASELINES, ids=[l for _, l in _SEED_BASELINES])
+    @pytest.mark.parametrize("prev,label", _RATIO_SEED_BASELINES)
     def test_step_ratio_consistent_across_seeds(self, prev, label):
         """
         The dom/min delta ratio converges to step_dom/step_min regardless of prev_value
         (unless clamped). Skip check when either delta rounds to zero.
+        near_ceiling is statically skipped via _RATIO_SEED_BASELINES (min_delta < 1.0 always).
         """
         dom_new = calculate_skill_value_from_placement(
             baseline=prev, placement=1, total_players=4, tournament_count=1,
@@ -599,13 +618,6 @@ class TestMultiSeedVariation:
 
         if min_delta == 0 or dom_delta == 0:
             pytest.skip(f"[{label}] Delta rounded to zero (clamp boundary) — ratio undefined")
-
-        # When deltas are small (< 1.0), 1-decimal rounding introduces >15% relative
-        # error by design. The ratio invariant is meaningful only at mid-range values.
-        if abs(min_delta) < 1.0:
-            pytest.skip(
-                f"[{label}] min_delta={min_delta} < 1.0 — rounding dominates at this baseline"
-            )
 
         expected_ratio = _ema_step(REACT["acceleration"]) / _ema_step(REACT["agility"])
         actual_ratio = dom_delta / min_delta
