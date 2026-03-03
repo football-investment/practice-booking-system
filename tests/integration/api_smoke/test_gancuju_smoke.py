@@ -114,8 +114,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /competitions
-        payload = {}
+        payload = {"won": True, "competition_name": "Smoke Test Competition", "opponent": "Test Opponent"}
         response = api_client.post("/competitions", json=payload, headers=headers)
         
 
@@ -170,8 +169,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses
-        payload = {}
+        payload = {"starting_level": 1}
         response = api_client.post("/licenses", json=payload, headers=headers)
         
 
@@ -202,9 +200,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/demote
-        payload = {}
-        response = api_client.post("/licenses/{license_id}/demote", json=payload, headers=headers)
+        response = api_client.post("/licenses/{license_id}/demote", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -258,9 +254,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/promote
-        payload = {}
-        response = api_client.post("/licenses/{license_id}/promote", json=payload, headers=headers)
+        response = api_client.post("/licenses/{license_id}/promote", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -314,8 +308,7 @@ class TestGancujuSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /teaching-hours
-        payload = {}
+        payload = {"hours": 2, "session_description": "Smoke test teaching session"}
         response = api_client.post("/teaching-hours", json=payload, headers=headers)
         
 

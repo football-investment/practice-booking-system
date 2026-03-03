@@ -144,7 +144,6 @@ class TestCoachSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses
         payload = {}
         response = api_client.post("/licenses", json=payload, headers=headers)
         
@@ -176,9 +175,7 @@ class TestCoachSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/promote
-        payload = {}
-        response = api_client.post("/licenses/{license_id}/promote", json=payload, headers=headers)
+        response = api_client.post("/licenses/{license_id}/promote", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -232,9 +229,7 @@ class TestCoachSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/renew
-        payload = {}
-        response = api_client.post("/licenses/{license_id}/renew", json=payload, headers=headers)
+        response = api_client.post("/licenses/{license_id}/renew", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -288,8 +283,7 @@ class TestCoachSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /practice-hours
-        payload = {}
+        payload = {"hours": 2}
         response = api_client.post("/practice-hours", json=payload, headers=headers)
         
 
@@ -344,8 +338,7 @@ class TestCoachSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /theory-hours
-        payload = {}
+        payload = {"hours": 1}
         response = api_client.post("/theory-hours", json=payload, headers=headers)
         
 

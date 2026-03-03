@@ -354,10 +354,9 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {"title": "Smoke Test Quiz", "category": "GENERAL"}
         response = api_client.post("/", json=payload, headers=headers)
-        
+
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422], (
@@ -410,8 +409,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /quizzes/{quiz_id}/submit
-        payload = {}
+        payload = {"answers": []}
         response = api_client.post("/quizzes/{quiz_id}/submit", json=payload, headers=headers)
         
 
@@ -466,9 +464,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/unlock-quiz
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/unlock-quiz", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/unlock-quiz", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -522,8 +518,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /start
-        payload = {}
+        payload = {"quiz_id": 9999}
         response = api_client.post("/start", json=payload, headers=headers)
         
 
@@ -578,8 +573,7 @@ class TestQuizSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /submit
-        payload = {}
+        payload = {"attempt_id": 9999, "answers": []}
         response = api_client.post("/submit", json=payload, headers=headers)
         
 

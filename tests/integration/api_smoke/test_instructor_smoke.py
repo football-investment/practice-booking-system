@@ -54,8 +54,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /instructor/specialization/toggle
-        payload = {}
+        payload = {"specialization": "LFA_PLAYER", "is_active": True}
         response = api_client.post("/instructor/specialization/toggle", json=payload, headers=headers)
         
 
@@ -110,8 +109,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /quizzes/{quiz_id}/submit
-        payload = {}
+        payload = {"answers": []}
         response = api_client.post("/quizzes/{quiz_id}/submit", json=payload, headers=headers)
         
 
@@ -166,8 +164,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/evaluate-instructor
-        payload = {}
+        payload = {"rating": 5, "comment": "Smoke test evaluation"}
         response = api_client.post("/sessions/{session_id}/evaluate-instructor", json=payload, headers=headers)
         
 
@@ -222,8 +219,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/evaluate-student/{student_id}
-        payload = {}
+        payload = {"performance_score": 75, "notes": "Smoke test student evaluation"}
         response = api_client.post("/sessions/{session_id}/evaluate-student/{student_id}", json=payload, headers=headers)
         
 
@@ -278,9 +274,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/start
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/start", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/start", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -334,9 +328,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/stop
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/stop", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/stop", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -390,9 +382,7 @@ class TestInstructorSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/unlock-quiz
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/unlock-quiz", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/unlock-quiz", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

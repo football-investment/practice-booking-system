@@ -414,10 +414,9 @@ class TestProjectsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {"title": "Smoke Test Project", "semester_id": 9999}
         response = api_client.post("/", json=payload, headers=headers)
-        
+
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422], (
@@ -469,10 +468,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/confirm-enrollment
-        payload = {}
-        response = api_client.post("/{project_id}/confirm-enrollment", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/confirm-enrollment", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -525,10 +522,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/enroll
-        payload = {}
-        response = api_client.post("/{project_id}/enroll", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/enroll", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -581,10 +576,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/enrollment-quiz
-        payload = {}
-        response = api_client.post("/{project_id}/enrollment-quiz", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/enrollment-quiz", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -637,10 +630,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/instructor/enroll/{user_id}
-        payload = {}
-        response = api_client.post("/{project_id}/instructor/enroll/{user_id}", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/instructor/enroll/{user_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -693,10 +684,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/milestones/{milestone_id}/approve
-        payload = {}
-        response = api_client.post("/{project_id}/milestones/{milestone_id}/approve", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/milestones/{milestone_id}/approve", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -749,10 +738,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/milestones/{milestone_id}/reject
-        payload = {}
-        response = api_client.post("/{project_id}/milestones/{milestone_id}/reject", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/milestones/{milestone_id}/reject", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -805,10 +792,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/milestones/{milestone_id}/submit
-        payload = {}
-        response = api_client.post("/{project_id}/milestones/{milestone_id}/submit", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/milestones/{milestone_id}/submit", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -861,10 +846,8 @@ class TestProjectsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{project_id}/quizzes
-        payload = {}
-        response = api_client.post("/{project_id}/quizzes", json=payload, headers=headers)
+
+        response = api_client.post("/{project_id}/quizzes", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

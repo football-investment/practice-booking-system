@@ -555,8 +555,14 @@ class TestSessionsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "title": "Smoke Test Session",
+            "date_start": "2026-06-01T14:00:00",
+            "date_end": "2026-06-01T16:00:00",
+            "semester_id": 9999,
+            "session_type": "on_site",
+            "capacity": 20
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 

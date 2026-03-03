@@ -139,8 +139,12 @@ class TestAttendanceSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "user_id": 9999,
+            "session_id": 9999,
+            "status": "present",
+            "notes": "Smoke test attendance"
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -363,8 +367,7 @@ class TestAttendanceSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{booking_id}/checkin
-        payload = {}
+        payload = {"notes": "Smoke test check-in"}
         response = api_client.post("/{booking_id}/checkin", json=payload, headers=headers)
         
 

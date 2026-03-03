@@ -778,9 +778,10 @@ class TestInstructormanagementSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "position_id": 9999,
+            "application_message": "Smoke test application message - meets the minimum fifty character requirement for the field."
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -834,9 +835,16 @@ class TestInstructormanagementSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "location_id": 9999,
+            "specialization_type": "LFA_PLAYER",
+            "age_group": "YOUTH",
+            "year": 2026,
+            "time_period_start": "Q1",
+            "time_period_end": "Q2",
+            "description": "Smoke test position description for API testing.",
+            "application_deadline": "2026-12-31T00:00:00"
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -890,9 +898,15 @@ class TestInstructormanagementSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "location_id": 9999,
+            "instructor_id": 9999,
+            "specialization_type": "LFA_PLAYER",
+            "age_group": "YOUTH",
+            "year": 2026,
+            "time_period_start": "Q1",
+            "time_period_end": "Q2"
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -946,9 +960,7 @@ class TestInstructormanagementSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {"location_id": 9999, "instructor_id": 9999}
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -1003,8 +1015,12 @@ class TestInstructormanagementSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /direct-hire
-        payload = {}
+        payload = {
+            "location_id": 9999,
+            "instructor_id": 9999,
+            "contract_start": "2026-06-01T00:00:00",
+            "contract_end": "2026-12-31T00:00:00"
+        }
         response = api_client.post("/direct-hire", json=payload, headers=headers)
         
 
@@ -1059,8 +1075,11 @@ class TestInstructormanagementSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /hire-from-application
-        payload = {}
+        payload = {
+            "application_id": 9999,
+            "contract_start": "2026-06-01T00:00:00",
+            "contract_end": "2026-12-31T00:00:00"
+        }
         response = api_client.post("/hire-from-application", json=payload, headers=headers)
         
 

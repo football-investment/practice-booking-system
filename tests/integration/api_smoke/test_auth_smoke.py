@@ -214,8 +214,7 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /change-password
-        payload = {}
+        payload = {"old_password": "wrong_password_smoke_test", "new_password": "NewPass456!"}
         response = api_client.post("/change-password", json=payload, headers=headers)
         
 
@@ -270,10 +269,9 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /login
-        payload = {}
+        payload = {"email": "smoke.admin@example.com", "password": "admin123"}
         response = api_client.post("/login", json=payload, headers=headers)
-        
+
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422], (
@@ -326,10 +324,9 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /login
-        payload = {}
+        payload = {"email": "smoke.admin@example.com", "password": "admin123"}
         response = api_client.post("/login", json=payload, headers=headers)
-        
+
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422], (
@@ -382,9 +379,11 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /login/form
-        payload = {}
-        response = api_client.post("/login/form", json=payload, headers=headers)
+        response = api_client.post(
+            "/login/form",
+            data={"username": "smoke.admin@example.com", "password": "admin123"},
+            headers=headers
+        )
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -438,9 +437,7 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /logout
-        payload = {}
-        response = api_client.post("/logout", json=payload, headers=headers)
+        response = api_client.post("/logout", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -470,8 +467,7 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /refresh
-        payload = {}
+        payload = {"refresh_token": "invalid.refresh.token.smoke.test"}
         response = api_client.post("/refresh", json=payload, headers=headers)
         
 
@@ -526,8 +522,23 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /register-with-invitation
-        payload = {}
+        payload = {
+            "email": "smoke.reg.test@example.com",
+            "password": "RegPass123!",
+            "name": "Smoke Reg Test",
+            "first_name": "Smoke",
+            "last_name": "Reg",
+            "nickname": "smokereg",
+            "phone": "+36301234567",
+            "date_of_birth": "2005-06-15T00:00:00",
+            "nationality": "Hungarian",
+            "gender": "Male",
+            "street_address": "123 Test Street",
+            "city": "Budapest",
+            "postal_code": "1000",
+            "country": "Hungary",
+            "invitation_code": "SMOKE-TEST-INVALID-CODE"
+        }
         response = api_client.post("/register-with-invitation", json=payload, headers=headers)
         
 

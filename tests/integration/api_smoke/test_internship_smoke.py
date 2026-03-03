@@ -144,8 +144,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /credits/purchase
-        payload = {}
+        payload = {"amount": 10}
         response = api_client.post("/credits/purchase", json=payload, headers=headers)
         
 
@@ -200,8 +199,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /credits/spend
-        payload = {}
+        payload = {"enrollment_id": 9999, "amount": 5}
         response = api_client.post("/credits/spend", json=payload, headers=headers)
         
 
@@ -256,7 +254,6 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses
         payload = {}
         response = api_client.post("/licenses", json=payload, headers=headers)
         
@@ -288,9 +285,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses/{license_id}/renew
-        payload = {}
-        response = api_client.post("/licenses/{license_id}/renew", json=payload, headers=headers)
+        response = api_client.post("/licenses/{license_id}/renew", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -344,8 +339,7 @@ class TestInternshipSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /xp
-        payload = {}
+        payload = {"xp_amount": 10}
         response = api_client.post("/xp", json=payload, headers=headers)
         
 

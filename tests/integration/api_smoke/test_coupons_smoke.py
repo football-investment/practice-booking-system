@@ -114,8 +114,12 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/coupons
-        payload = {}
+        payload = {
+            "code": "SMOKE-TEST-COUPON",
+            "type": "PERCENT",
+            "discount_value": 10.0,
+            "description": "Smoke test coupon"
+        }
         response = api_client.post("/admin/coupons", json=payload, headers=headers)
         
 
@@ -170,8 +174,12 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/coupons/web
-        payload = {}
+        payload = {
+            "code": "SMOKE-WEB-COUPON",
+            "type": "PERCENT",
+            "discount_value": 15.0,
+            "description": "Smoke test web coupon"
+        }
         response = api_client.post("/admin/coupons/web", json=payload, headers=headers)
         
 
@@ -226,9 +234,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/coupons/{coupon_id}/toggle
-        payload = {}
-        response = api_client.post("/admin/coupons/{coupon_id}/toggle", json=payload, headers=headers)
+        response = api_client.post("/admin/coupons/{coupon_id}/toggle", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -282,8 +288,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /coupons/apply
-        payload = {}
+        payload = {"code": "SMOKE-TEST-COUPON"}
         response = api_client.post("/coupons/apply", json=payload, headers=headers)
         
 
@@ -338,9 +343,7 @@ class TestCouponsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /coupons/validate/{code}
-        payload = {}
-        response = api_client.post("/coupons/validate/{code}", json=payload, headers=headers)
+        response = api_client.post("/coupons/validate/{code}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

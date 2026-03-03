@@ -144,8 +144,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /enroll
-        payload = {}
+        payload = {"user_id": 9999, "semester_id": 9999, "user_license_id": 9999}
         response = api_client.post("/enroll", json=payload, headers=headers)
         
 
@@ -202,8 +201,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /verify-by-code
-        payload = {}
+        payload = {"payment_code": "SMOKE-TEST-CODE-INVALID"}
         response = api_client.post("/verify-by-code", json=payload, headers=headers)
         
 
@@ -258,9 +256,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{enrollment_id}/approve
-        payload = {}
-        response = api_client.post("/{enrollment_id}/approve", json=payload, headers=headers)
+        response = api_client.post("/{enrollment_id}/approve", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -319,8 +315,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{enrollment_id}/override-category
-        payload = {}
+        payload = {"age_category": "YOUTH"}
         response = api_client.post("/{enrollment_id}/override-category", json=payload, headers=headers)
         
 
@@ -375,8 +370,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{enrollment_id}/reject
-        payload = {}
+        payload = {"reason": "Does not meet prerequisite requirements"}
         response = api_client.post("/{enrollment_id}/reject", json=payload, headers=headers)
         
 
@@ -431,9 +425,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{enrollment_id}/toggle-active
-        payload = {}
-        response = api_client.post("/{enrollment_id}/toggle-active", json=payload, headers=headers)
+        response = api_client.post("/{enrollment_id}/toggle-active", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -487,9 +479,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{enrollment_id}/unverify-payment
-        payload = {}
-        response = api_client.post("/{enrollment_id}/unverify-payment", json=payload, headers=headers)
+        response = api_client.post("/{enrollment_id}/unverify-payment", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -543,9 +533,7 @@ class TestSemesterenrollmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{enrollment_id}/verify-payment
-        payload = {}
-        response = api_client.post("/{enrollment_id}/verify-payment", json=payload, headers=headers)
+        response = api_client.post("/{enrollment_id}/verify-payment", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

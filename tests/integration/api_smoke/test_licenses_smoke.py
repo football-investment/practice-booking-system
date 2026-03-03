@@ -564,9 +564,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/sync/all
-        payload = {}
-        response = api_client.post("/admin/sync/all", json=payload, headers=headers)
+        response = api_client.post("/admin/sync/all", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -596,9 +594,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/sync/user/{user_id}
-        payload = {}
-        response = api_client.post("/admin/sync/user/{user_id}", json=payload, headers=headers)
+        response = api_client.post("/admin/sync/user/{user_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -652,9 +648,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/sync/user/{user_id}/all
-        payload = {}
-        response = api_client.post("/admin/sync/user/{user_id}/all", json=payload, headers=headers)
+        response = api_client.post("/admin/sync/user/{user_id}/all", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -708,8 +702,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /advance
-        payload = {}
+        payload = {"specialization": "LFA_PLAYER", "target_level": 2}
         response = api_client.post("/advance", json=payload, headers=headers)
         
 
@@ -764,9 +757,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /assessments/{assessment_id}/archive
-        payload = {}
-        response = api_client.post("/assessments/{assessment_id}/archive", json=payload, headers=headers)
+        response = api_client.post("/assessments/{assessment_id}/archive", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -820,9 +811,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /assessments/{assessment_id}/validate
-        payload = {}
-        response = api_client.post("/assessments/{assessment_id}/validate", json=payload, headers=headers)
+        response = api_client.post("/assessments/{assessment_id}/validate", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -876,8 +865,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /instructor/advance
-        payload = {}
+        payload = {"user_id": 9999, "specialization": "LFA_PLAYER", "target_level": 2}
         response = api_client.post("/instructor/advance", json=payload, headers=headers)
         
 
@@ -932,8 +920,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{license_id}/skills/{skill_name}/assess
-        payload = {}
+        payload = {"score": 75, "notes": "Smoke test assessment"}
         response = api_client.post("/{license_id}/skills/{skill_name}/assess", json=payload, headers=headers)
         
 
@@ -988,9 +975,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{license_id}/unverify-payment
-        payload = {}
-        response = api_client.post("/{license_id}/unverify-payment", json=payload, headers=headers)
+        response = api_client.post("/{license_id}/unverify-payment", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -1044,9 +1029,7 @@ class TestLicensesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{license_id}/verify-payment
-        payload = {}
-        response = api_client.post("/{license_id}/verify-payment", json=payload, headers=headers)
+        response = api_client.post("/{license_id}/verify-payment", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
