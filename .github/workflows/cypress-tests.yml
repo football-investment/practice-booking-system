@@ -60,27 +60,35 @@ jobs:
           pip install -r requirements-test.txt
           pip check
 
-      - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_test
-          SECRET_KEY: ci-test-secret-key-not-for-production
+      - name: Write .env (consistent settings for all subprocesses)
         run: |
-          alembic upgrade head
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Seed E2E test users
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_test
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
-          curl -f http://localhost:8000/docs || exit 1
+          timeout 45 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
 
       - name: Start Streamlit frontend
         run: |
-          streamlit run streamlit_app/🏠_Home.py --server.port 8501 --server.headless true &
-          sleep 10
-          curl -f http://localhost:8501 || exit 1
+          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Install Cypress dependencies
         working-directory: tests_cypress

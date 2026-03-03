@@ -25,7 +25,7 @@ _USERS = [
     {
         "email":     "admin@lfa.com",
         "name":      "LFA Admin",
-        "password":  "AdminPass123!",
+        "password":  "admin123",
         "role":      UserRole.ADMIN,
     },
     {

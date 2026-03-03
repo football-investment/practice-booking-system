@@ -102,7 +102,7 @@ jobs:
           TESTING=true
           DEBUG=false
           ADMIN_EMAIL=admin@lfa.com
-          ADMIN_PASSWORD=AdminPass123!
+          ADMIN_PASSWORD=admin123
           ADMIN_NAME=CI Admin
           ENABLE_RATE_LIMITING=false
           EOF
@@ -154,7 +154,7 @@ jobs:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:         admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:      AdminPass123!
+          CYPRESS_ADMIN_PASSWORD:      admin123
           CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
           CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
@@ -210,7 +210,7 @@ jobs:
           TESTING=true
           DEBUG=false
           ADMIN_EMAIL=admin@lfa.com
-          ADMIN_PASSWORD=AdminPass123!
+          ADMIN_PASSWORD=admin123
           ADMIN_NAME=CI Admin
           ENABLE_RATE_LIMITING=false
           EOF
@@ -262,7 +262,7 @@ jobs:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:         admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:      AdminPass123!
+          CYPRESS_ADMIN_PASSWORD:      admin123
           CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
           CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
@@ -339,7 +339,7 @@ jobs:
           TESTING=true
           DEBUG=false
           ADMIN_EMAIL=admin@lfa.com
-          ADMIN_PASSWORD=AdminPass123!
+          ADMIN_PASSWORD=admin123
           ADMIN_NAME=CI Admin
           ENABLE_RATE_LIMITING=false
           EOF
@@ -392,7 +392,7 @@ jobs:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:         admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:      AdminPass123!
+          CYPRESS_ADMIN_PASSWORD:      admin123
           CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
           CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com

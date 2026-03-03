@@ -77,7 +77,7 @@ jobs:
           TESTING=true
           DEBUG=false
           ADMIN_EMAIL=admin@lfa.com
-          ADMIN_PASSWORD=AdminPass123!
+          ADMIN_PASSWORD=admin123
           ADMIN_NAME=CI Admin
           ENABLE_RATE_LIMITING=false
           EOF
@@ -118,7 +118,7 @@ jobs:
           CYPRESS_BASE_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:        http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:    admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD: Admin1234!
+          CYPRESS_ADMIN_PASSWORD: admin123
         run: npx cypress run --env grepTags=@smoke --browser chrome --headless
 
       - name: Upload screenshots on failure
@@ -173,7 +173,7 @@ jobs:
           TESTING=true
           DEBUG=false
           ADMIN_EMAIL=admin@lfa.com
-          ADMIN_PASSWORD=AdminPass123!
+          ADMIN_PASSWORD=admin123
           ADMIN_NAME=CI Admin
           ENABLE_RATE_LIMITING=false
           EOF
@@ -214,11 +214,11 @@ jobs:
           CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:        admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:     Admin1234!
-          CYPRESS_INSTRUCTOR_EMAIL:   instructor@lfa.com
-          CYPRESS_INSTRUCTOR_PASSWORD: password123
-          CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com
-          CYPRESS_PLAYER_PASSWORD:    password123
+          CYPRESS_ADMIN_PASSWORD:      admin123
+          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
+          CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
         run: |
           npx cypress run \
             --spec 'cypress/e2e/admin/dashboard_navigation.cy.js,cypress/e2e/admin/tournament_manager.cy.js,cypress/e2e/admin/tournament_monitor.cy.js,cypress/e2e/auth/registration.cy.js,cypress/e2e/instructor/dashboard.cy.js,cypress/e2e/instructor/tournament_applications.cy.js,cypress/e2e/student/credits.cy.js,cypress/e2e/student/dashboard.cy.js,cypress/e2e/student/enrollment_flow.cy.js,cypress/e2e/student/skill_update.cy.js,cypress/e2e/player/credits.cy.js,cypress/e2e/player/specialization_hub.cy.js' \
@@ -277,7 +277,7 @@ jobs:
           TESTING=true
           DEBUG=false
           ADMIN_EMAIL=admin@lfa.com
-          ADMIN_PASSWORD=AdminPass123!
+          ADMIN_PASSWORD=admin123
           ADMIN_NAME=CI Admin
           ENABLE_RATE_LIMITING=false
           EOF
@@ -319,11 +319,11 @@ jobs:
           CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:        admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:     Admin1234!
-          CYPRESS_INSTRUCTOR_EMAIL:   instructor@lfa.com
-          CYPRESS_INSTRUCTOR_PASSWORD: password123
-          CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com
-          CYPRESS_PLAYER_PASSWORD:    password123
+          CYPRESS_ADMIN_PASSWORD:      admin123
+          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
+          CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
         run: |
           npx cypress run \
             --browser chrome \
