@@ -55,22 +55,39 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: alembic upgrade head
 
-    - name: Run unit tests
+    - name: Run unit + integration tests with coverage
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        pytest tests/unit/ -q --tb=line -v \
+        pytest tests/unit/ tests/integration/tournament/ -q --tb=line -v \
           --cov=app \
           --cov-report=term-missing \
-          --cov-report=xml:coverage.xml \
           --cov-fail-under=40
+
+    - name: Run api_smoke tests (coverage append — non-blocking)
+      continue-on-error: true
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        pytest tests/integration/api_smoke/ -q --tb=line \
+          --cov=app \
+          --cov-append
+
+    - name: Generate combined coverage report
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        python -m coverage xml -o coverage.xml
+        python -m coverage report --show-missing --fail-under=43
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: coverage-report-unit
+        name: coverage-report-combined
         path: coverage.xml
         retention-days: 30
 
