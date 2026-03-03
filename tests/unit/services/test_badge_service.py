@@ -406,7 +406,7 @@ class TestCheckAndUnlockAchievements:
 
         with patch("app.services.gamification.badge_service.award_xp") as mock_xp:
             check_and_unlock_achievements(db, user_id=42, trigger_action="login")
-            mock_xp.assert_called_once_with(db, 1, 100, f"Achievement: {a.name}")
+            mock_xp.assert_called_once_with(db, 42, 100, f"Achievement: {a.name}")
 
     def test_xp_not_awarded_when_xp_reward_zero(self):
         from app.services.gamification.badge_service import check_and_unlock_achievements
