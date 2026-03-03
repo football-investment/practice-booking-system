@@ -1,5 +1,5 @@
 """
-Integration tests for ResultProcessor — Round 2A: INDIVIDUAL_RANKING path
+Integration tests for ResultProcessor — Round 2A + 2B: IR and HEAD_TO_HEAD paths
 
 Uses real PostgreSQL with SAVEPOINT isolation (test_db fixture).
 
@@ -332,3 +332,283 @@ class TestProcessMatchResultsIR:
             .count()
         )
         assert count == 0, "No DB rows should be written on validation failure"
+
+
+# ============================================================================
+# Round 2B — HEAD_TO_HEAD fixtures (minimal, local, no conftest changes)
+# ============================================================================
+
+@pytest.fixture
+def h2h_tournament_type(test_db: Session):
+    """
+    TournamentType with format="HEAD_TO_HEAD".
+    Required so that Semester.format property resolves to "HEAD_TO_HEAD"
+    via Priority 1: tournament_config_obj.tournament_type.format.
+    """
+    from app.models.tournament_type import TournamentType
+    tt = TournamentType(
+        code=f"h2h-test-{uuid.uuid4().hex[:6]}",
+        display_name="H2H Integration Test Type",
+        format="HEAD_TO_HEAD",
+        config={},
+    )
+    test_db.add(tt)
+    test_db.commit()
+    test_db.refresh(tt)
+    return tt
+
+
+@pytest.fixture
+def h2h_tournament(test_db: Session, h2h_tournament_type) -> Semester:
+    """
+    Semester + TournamentConfiguration → Semester.format == "HEAD_TO_HEAD".
+
+    Chain:
+      Semester.tournament_config_obj → TournamentConfiguration
+      TournamentConfiguration.tournament_type → TournamentType(format="HEAD_TO_HEAD")
+      → Semester.format property returns "HEAD_TO_HEAD"
+    """
+    from app.models.tournament_configuration import TournamentConfiguration
+    sem = Semester(
+        code=f"H2H-{uuid.uuid4().hex[:8]}",
+        name="H2H Integration Test Tournament",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=90),
+        status=SemesterStatus.ONGOING,
+    )
+    test_db.add(sem)
+    test_db.commit()
+    test_db.refresh(sem)
+
+    config = TournamentConfiguration(
+        semester_id=sem.id,
+        tournament_type_id=h2h_tournament_type.id,
+    )
+    test_db.add(config)
+    test_db.commit()
+    test_db.refresh(sem)  # reload relationships so Semester.format resolves
+    return sem
+
+
+@pytest.fixture
+def h2h_session(test_db: Session, h2h_tournament: Semester, instructor_user: User) -> SessionModel:
+    """
+    Tournament session for H2H tests.
+    tournament_phase=None → KnockoutProgressionService is explicitly skipped.
+    match_format="HEAD_TO_HEAD" → process_results uses the H2H processor.
+    """
+    session_start = datetime.now() + timedelta(days=1)
+    sess = SessionModel(
+        title="H2H Integration Test Session",
+        date_start=session_start,
+        date_end=session_start + timedelta(hours=2),
+        session_type=SessionType.on_site,
+        capacity=20,
+        instructor_id=instructor_user.id,
+        semester_id=h2h_tournament.id,
+        is_tournament_game=True,
+        match_format="HEAD_TO_HEAD",
+        tournament_phase=None,  # explicit: KnockoutProgressionService never invoked
+    )
+    test_db.add(sess)
+    test_db.commit()
+    test_db.refresh(sess)
+    return sess
+
+
+@pytest.fixture
+def two_h2h_students(test_db: Session):
+    """Two STUDENT users for H2H match participants."""
+    users = []
+    for i in range(2):
+        u = User(
+            email=f"h2h-student-{i}-{uuid.uuid4().hex[:6]}@test.com",
+            name=f"H2H Student {i}",
+            password_hash=get_password_hash("test"),
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        test_db.add(u)
+        users.append(u)
+    test_db.commit()
+    for u in users:
+        test_db.refresh(u)
+    return users
+
+
+# ============================================================================
+# TestProcessMatchResultsH2H — HEAD_TO_HEAD orchestration
+# ============================================================================
+
+@pytest.mark.integration
+class TestProcessMatchResultsH2H:
+    """
+    Validates the full DB-writing pipeline for HEAD_TO_HEAD tournaments.
+
+    tournament_phase=None → KnockoutProgressionService is never invoked.
+    PointsCalculatorService runs against real DB using DEFAULT_RANKING_POINTS
+    (rank 1 = 3 pts, rank 2 = 2 pts) — no mock, no patching.
+
+    Assertions target final DB state only.
+    """
+
+    def test_win_loss_creates_ranking_rows_with_correct_counters(
+        self,
+        test_db: Session,
+        h2h_tournament: Semester,
+        h2h_session: SessionModel,
+        two_h2h_students: list,
+    ):
+        """
+        WIN_LOSS format happy path:
+          - 2 TournamentRanking rows created
+          - winner.wins == 1, winner.losses == 0
+          - loser.losses == 1, loser.wins == 0
+          - winner.points > loser.points  (3.0 vs 2.0 from DEFAULT_RANKING_POINTS)
+        """
+        winner, loser = two_h2h_students
+        raw_results = [
+            {"user_id": winner.id, "result": "WIN"},
+            {"user_id": loser.id,  "result": "LOSS"},
+        ]
+
+        proc = ResultProcessor(db=test_db)
+        proc.process_match_results(
+            db=test_db,
+            session=h2h_session,
+            tournament=h2h_tournament,
+            raw_results=raw_results,
+        )
+
+        rankings = (
+            test_db.query(TournamentRanking)
+            .filter(TournamentRanking.tournament_id == h2h_tournament.id)
+            .all()
+        )
+        assert len(rankings) == 2
+
+        by_user = {r.user_id: r for r in rankings}
+        assert winner.id in by_user
+        assert loser.id in by_user
+
+        # Wins / losses counters
+        assert by_user[winner.id].wins   == 1
+        assert by_user[winner.id].losses == 0
+        assert by_user[loser.id].losses  == 1
+        assert by_user[loser.id].wins    == 0
+
+        # Points: PointsCalculatorService rank1=3pts, rank2=2pts
+        assert by_user[winner.id].points > by_user[loser.id].points
+
+    def test_score_based_game_results_json_contains_h2h_format(
+        self,
+        test_db: Session,
+        h2h_tournament: Semester,
+        h2h_session: SessionModel,
+        two_h2h_students: list,
+    ):
+        """
+        SCORE_BASED format:
+          - session.game_results updated with valid JSON
+          - game_results["tournament_format"] == "HEAD_TO_HEAD"
+          - participants list present with result/score fields
+          - higher score player wins (rank 1)
+        """
+        player_a, player_b = two_h2h_students
+        raw_results = [
+            {"user_id": player_a.id, "score": 3, "opponent_score": 1},
+            {"user_id": player_b.id, "score": 1, "opponent_score": 3},
+        ]
+
+        proc = ResultProcessor(db=test_db)
+        proc.process_match_results(
+            db=test_db,
+            session=h2h_session,
+            tournament=h2h_tournament,
+            raw_results=raw_results,
+        )
+
+        test_db.refresh(h2h_session)
+        assert h2h_session.game_results is not None
+
+        data = json.loads(h2h_session.game_results)
+
+        # Required keys
+        for key in ("recorded_at", "tournament_format", "match_format",
+                    "participants", "derived_rankings"):
+            assert key in data, f"Missing key in game_results: {key!r}"
+
+        # Format markers
+        assert data["tournament_format"] == "HEAD_TO_HEAD"
+        assert data["match_format"]       == "HEAD_TO_HEAD"
+
+        # participants: built for SCORE_BASED 1v1 — contains result strings
+        assert isinstance(data["participants"], list)
+        assert len(data["participants"]) == 2
+
+        results_in_participants = {p["result"] for p in data["participants"]}
+        assert "win"  in results_in_participants
+        assert "loss" in results_in_participants
+
+        # player_a (score=3) must be the winner
+        by_user = {p["user_id"]: p for p in data["participants"]}
+        assert by_user[player_a.id]["result"] == "win"
+        assert by_user[player_b.id]["result"] == "loss"
+
+    def test_idempotent_reprocessing_accumulates_wins_and_points(
+        self,
+        test_db: Session,
+        h2h_tournament: Semester,
+        h2h_session: SessionModel,
+        two_h2h_students: list,
+    ):
+        """
+        H2H: points and wins/losses ACCUMULATE across calls (unlike IR where points
+        are SET). Second call with the same winner adds another win and 3 more points.
+
+        Final state after 2 identical submissions:
+          - Still 2 rows (no duplicates)
+          - winner.wins == 2, loser.losses == 2
+          - winner.points == 6.0 (3+3), loser.points == 4.0 (2+2)
+          - winner.points still > loser.points (invariant preserved)
+        """
+        winner, loser = two_h2h_students
+        raw_results = [
+            {"user_id": winner.id, "result": "WIN"},
+            {"user_id": loser.id,  "result": "LOSS"},
+        ]
+
+        proc = ResultProcessor(db=test_db)
+
+        # First submission
+        proc.process_match_results(
+            db=test_db,
+            session=h2h_session,
+            tournament=h2h_tournament,
+            raw_results=raw_results,
+        )
+        # Second submission — same match data
+        proc.process_match_results(
+            db=test_db,
+            session=h2h_session,
+            tournament=h2h_tournament,
+            raw_results=raw_results,
+        )
+
+        rankings = (
+            test_db.query(TournamentRanking)
+            .filter(TournamentRanking.tournament_id == h2h_tournament.id)
+            .all()
+        )
+        # No duplicate rows created
+        assert len(rankings) == 2
+
+        by_user = {r.user_id: r for r in rankings}
+        # Counters accumulated
+        assert by_user[winner.id].wins   == 2
+        assert by_user[loser.id].losses  == 2
+        # Points accumulated: 3+3=6 vs 2+2=4
+        assert by_user[winner.id].points == Decimal("6")
+        assert by_user[loser.id].points  == Decimal("4")
+        # Invariant: winner still ahead
+        assert by_user[winner.id].points > by_user[loser.id].points
