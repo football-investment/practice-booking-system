@@ -16,5 +16,6 @@ safety==2.3.5
 bandit==1.7.5
 
 # Playwright E2E (used by e2e-fast-suite and test_tournament_monitor_e2e)
-playwright==1.40.0
-pytest-playwright==0.4.4
+# 1.44+ required for Ubuntu 24.04 (Noble) libasound2t64 package name support
+playwright==1.49.0
+pytest-playwright==0.5.0
