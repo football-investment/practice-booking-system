@@ -230,7 +230,7 @@ class TestGetUserLearningAnalytics:
     def test_no_performances_returns_zeros(self):
         svc, db = _svc()
         _q(db, all_=[])
-        result = svc.get_user_learning_analytics(user_id=1)
+        result = svc.get_user_learning_analytics(user_id=42)
         assert result["total_questions_attempted"] == 0
         assert result["total_attempts"] == 0
         assert result["overall_success_rate"] == 0.0
@@ -247,7 +247,7 @@ class TestGetUserLearningAnalytics:
         p1.last_attempted_at = datetime.now(timezone.utc) - timedelta(days=1)  # recent
         p1.success_rate = 0.8
         _q(db, all_=[p1])
-        result = svc.get_user_learning_analytics(user_id=1)
+        result = svc.get_user_learning_analytics(user_id=42)
         assert result["total_questions_attempted"] == 1
         assert result["total_attempts"] == 5
         assert abs(result["overall_success_rate"] - 4/5) < 0.01
@@ -302,7 +302,7 @@ class TestGetMasteryUpdate:
     def test_no_performance_returns_zero_dict(self):
         svc, db = _svc()
         _q(db, first=None)
-        result = svc._get_mastery_update(user_id=1, question_id=1)
+        result = svc._get_mastery_update(user_id=42, question_id=1)
         assert result == {"mastery_level": 0.0, "success_rate": 0.0, "next_review": None}
 
     def test_with_performance_returns_values(self):
@@ -312,7 +312,7 @@ class TestGetMasteryUpdate:
         perf.success_rate = 0.75
         perf.next_review_at = None  # no scheduled review
         _q(db, first=perf)
-        result = svc._get_mastery_update(user_id=1, question_id=1)
+        result = svc._get_mastery_update(user_id=42, question_id=1)
         assert result["mastery_level"] == 0.7
         assert result["success_rate"] == 0.75
         assert result["next_review"] is None
@@ -325,7 +325,7 @@ class TestGetMasteryUpdate:
         perf.success_rate = 0.5
         perf.next_review_at = review_time
         _q(db, first=perf)
-        result = svc._get_mastery_update(user_id=1, question_id=1)
+        result = svc._get_mastery_update(user_id=42, question_id=1)
         assert result["next_review"] == review_time.isoformat()
 
 
@@ -338,7 +338,7 @@ class TestStartAdaptiveSession:
     def test_creates_session_and_commits(self):
         svc, db = _svc()
         with patch.object(svc, "_calculate_target_difficulty", return_value=0.5):
-            result = svc.start_adaptive_session(user_id=1, category=QuizCategory.GENERAL)
+            result = svc.start_adaptive_session(user_id=42, category=QuizCategory.GENERAL)
         # Service should call db.add, db.commit, db.refresh
         db.add.assert_called_once()
         db.commit.assert_called_once()
@@ -370,28 +370,28 @@ class TestCalculateTargetDifficulty:
         svc, db = _svc()
         with patch.object(svc, "get_user_learning_analytics",
                           return_value=self._analytics(0.9)):
-            result = svc._calculate_target_difficulty(user_id=1, category=QuizCategory.GENERAL)
+            result = svc._calculate_target_difficulty(user_id=42, category=QuizCategory.GENERAL)
         assert result == max(0.1, min(0.9, 0.5 + 0.2))  # 0.7
 
     def test_low_success_rate_decreases_difficulty(self):
         svc, db = _svc()
         with patch.object(svc, "get_user_learning_analytics",
                           return_value=self._analytics(0.4)):
-            result = svc._calculate_target_difficulty(user_id=1, category=QuizCategory.GENERAL)
+            result = svc._calculate_target_difficulty(user_id=42, category=QuizCategory.GENERAL)
         assert result == max(0.1, min(0.9, 0.5 - 0.2))  # 0.3
 
     def test_middle_success_rate_returns_base(self):
         svc, db = _svc()
         with patch.object(svc, "get_user_learning_analytics",
                           return_value=self._analytics(0.7, velocity=0.0)):
-            result = svc._calculate_target_difficulty(user_id=1, category=QuizCategory.GENERAL)
+            result = svc._calculate_target_difficulty(user_id=42, category=QuizCategory.GENERAL)
         assert result == 0.5
 
     def test_learning_velocity_adjusts_base(self):
         svc, db = _svc()
         with patch.object(svc, "get_user_learning_analytics",
                           return_value=self._analytics(0.7, velocity=1.0)):
-            result = svc._calculate_target_difficulty(user_id=1, category=QuizCategory.GENERAL)
+            result = svc._calculate_target_difficulty(user_id=42, category=QuizCategory.GENERAL)
         # base=0.5, velocity=1.0 → 0.5 + 0.1 = 0.6
         assert abs(result - 0.6) < 1e-9
 
@@ -406,7 +406,7 @@ class TestUpdateUserQuestionPerformance:
         svc, db = _svc()
         _q(db, first=None)  # No existing record
         svc._update_user_question_performance(
-            user_id=1, question_id=1, is_correct=True, time_spent=30.0
+            user_id=42, question_id=1, is_correct=True, time_spent=30.0
         )
         db.add.assert_called_once()
 
@@ -418,7 +418,7 @@ class TestUpdateUserQuestionPerformance:
         perf.mastery_level = 0.6
         _q(db, first=perf)
         svc._update_user_question_performance(
-            user_id=1, question_id=1, is_correct=True, time_spent=30.0
+            user_id=42, question_id=1, is_correct=True, time_spent=30.0
         )
         # total_attempts should be incremented
         assert perf.total_attempts == 6
@@ -433,7 +433,7 @@ class TestUpdateUserQuestionPerformance:
         perf.mastery_level = 0.2
         _q(db, first=perf)
         svc._update_user_question_performance(
-            user_id=1, question_id=1, is_correct=False, time_spent=20.0
+            user_id=42, question_id=1, is_correct=False, time_spent=20.0
         )
         assert perf.total_attempts == 4
         assert perf.correct_attempts == 1  # unchanged
@@ -520,7 +520,7 @@ class TestRecordAnswer:
                                                     "success_rate": 0.0,
                                                     "next_review": None}):
                         result = svc.record_answer(
-                            user_id=1, session_id=99, question_id=1,
+                            user_id=42, session_id=99, question_id=1,
                             is_correct=False, time_spent_seconds=30.0
                         )
         assert result["xp_earned"] == 5

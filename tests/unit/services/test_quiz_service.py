@@ -91,7 +91,7 @@ def _make_quiz(id=1, title="Test Quiz", is_active=True, time_limit_minutes=30,
     return q
 
 
-def _make_attempt(id=1, user_id=1, quiz_id=1, completed_at=None,
+def _make_attempt(id=1, user_id=42, quiz_id=1, completed_at=None,
                   started_at=None, score=None, passed=False,
                   xp_awarded=0, total_questions=1, correct_answers=0):
     a = MagicMock()
@@ -135,14 +135,14 @@ class TestGetAvailableQuizzes:
     def test_returns_empty_list_when_all_completed(self):
         svc, db = _make_svc()
         _q(db, all_=[])
-        result = svc.get_available_quizzes(user_id=1)
+        result = svc.get_available_quizzes(user_id=42)
         assert result == []
 
     def test_returns_available_quizzes(self):
         svc, db = _make_svc()
         quizzes = [_make_quiz(id=1), _make_quiz(id=2)]
         _q(db, all_=quizzes)
-        result = svc.get_available_quizzes(user_id=1)
+        result = svc.get_available_quizzes(user_id=42)
         assert result == quizzes
 
 
@@ -177,7 +177,7 @@ class TestStartQuizAttempt:
         completed = _make_attempt(completed_at=datetime.now(timezone.utc))
         _q(db, first=completed)  # First query returns completed attempt
         with pytest.raises(ValueError, match="already completed"):
-            svc.start_quiz_attempt(user_id=1, quiz_id=1)
+            svc.start_quiz_attempt(user_id=42, quiz_id=1)
 
     def test_returns_ongoing_attempt_when_exists(self):
         svc, db = _make_svc()
@@ -186,7 +186,7 @@ class TestStartQuizAttempt:
             {"first": None},     # check completed → not found
             {"first": ongoing},  # check ongoing → found
         ])
-        result = svc.start_quiz_attempt(user_id=1, quiz_id=1)
+        result = svc.start_quiz_attempt(user_id=42, quiz_id=1)
         assert result is ongoing
 
     def test_raises_when_quiz_not_found(self):
@@ -197,7 +197,7 @@ class TestStartQuizAttempt:
             {"first": None},  # get_quiz_by_id → quiz not found
         ])
         with pytest.raises(ValueError, match="Quiz not found"):
-            svc.start_quiz_attempt(user_id=1, quiz_id=999)
+            svc.start_quiz_attempt(user_id=42, quiz_id=999)
 
     def test_raises_when_quiz_inactive(self):
         svc, db = _make_svc()
@@ -208,7 +208,7 @@ class TestStartQuizAttempt:
             {"first": inactive},  # get_quiz_by_id → inactive quiz
         ])
         with pytest.raises(ValueError, match="not active"):
-            svc.start_quiz_attempt(user_id=1, quiz_id=1)
+            svc.start_quiz_attempt(user_id=42, quiz_id=1)
 
     def test_creates_new_attempt_happy_path(self):
         svc, db = _make_svc()
@@ -218,7 +218,7 @@ class TestStartQuizAttempt:
             {"first": None},   # check ongoing
             {"first": quiz},   # get_quiz_by_id → found + active
         ])
-        result = svc.start_quiz_attempt(user_id=1, quiz_id=1)
+        result = svc.start_quiz_attempt(user_id=42, quiz_id=1)
         db.add.assert_called_once()
         db.commit.assert_called_once()
 
@@ -246,7 +246,7 @@ class TestSubmitQuizAttempt:
         submission = MagicMock()
         submission.attempt_id = 1
         with pytest.raises(ValueError, match="not found"):
-            svc.submit_quiz_attempt(user_id=1, submission=submission)
+            svc.submit_quiz_attempt(user_id=42, submission=submission)
 
     def test_raises_when_time_limit_exceeded(self):
         svc, db = _make_svc()
@@ -263,7 +263,7 @@ class TestSubmitQuizAttempt:
         submission = MagicMock()
         submission.attempt_id = 1
         with pytest.raises(ValueError, match="Time limit exceeded"):
-            svc.submit_quiz_attempt(user_id=1, submission=submission)
+            svc.submit_quiz_attempt(user_id=42, submission=submission)
 
 
 # ===========================================================================
@@ -275,13 +275,13 @@ class TestGetUserQuizAttempts:
     def test_returns_empty_list(self):
         svc, db = _make_svc()
         _q(db, all_=[])
-        assert svc.get_user_quiz_attempts(user_id=1) == []
+        assert svc.get_user_quiz_attempts(user_id=42) == []
 
     def test_returns_attempts(self):
         svc, db = _make_svc()
         attempts = [_make_attempt(id=1), _make_attempt(id=2)]
         _q(db, all_=attempts)
-        result = svc.get_user_quiz_attempts(user_id=1)
+        result = svc.get_user_quiz_attempts(user_id=42)
         assert result == attempts
 
 
@@ -294,7 +294,7 @@ class TestGetUserQuizStatistics:
     def test_empty_user_has_zero_stats(self):
         svc, db = _make_svc()
         _q(db, all_=[])  # No attempts at all
-        stats = svc.get_user_quiz_statistics(user_id=1)
+        stats = svc.get_user_quiz_statistics(user_id=42)
         assert stats.total_quizzes_attempted == 0
         assert stats.total_quizzes_completed == 0
         assert stats.total_quizzes_passed == 0
@@ -321,7 +321,7 @@ class TestGetUserQuizStatistics:
             {"all_": [attempt]},  # query(QuizAttempt).filter().all()
             {"first": quiz},      # get_quiz_by_id inside favorite_category loop
         ])
-        stats = svc.get_user_quiz_statistics(user_id=1)
+        stats = svc.get_user_quiz_statistics(user_id=42)
         assert stats.total_quizzes_attempted == 1
         assert stats.total_quizzes_completed == 1
         assert stats.total_quizzes_passed == 1
@@ -380,13 +380,13 @@ class TestGetUserOngoingAttempt:
         svc, db = _make_svc()
         ongoing = _make_attempt(id=3, completed_at=None)
         _q(db, first=ongoing)
-        result = svc.get_user_ongoing_attempt(user_id=1, quiz_id=1)
+        result = svc.get_user_ongoing_attempt(user_id=42, quiz_id=1)
         assert result is ongoing
 
     def test_returns_none_when_no_ongoing(self):
         svc, db = _make_svc()
         _q(db, first=None)
-        result = svc.get_user_ongoing_attempt(user_id=1, quiz_id=1)
+        result = svc.get_user_ongoing_attempt(user_id=42, quiz_id=1)
         assert result is None
 
 
@@ -400,12 +400,12 @@ class TestIsQuizCompletedByUser:
         svc, db = _make_svc()
         completed = _make_attempt(completed_at=datetime.now(timezone.utc))
         _q(db, first=completed)
-        assert svc.is_quiz_completed_by_user(user_id=1, quiz_id=1) is True
+        assert svc.is_quiz_completed_by_user(user_id=42, quiz_id=1) is True
 
     def test_returns_false_when_not_completed(self):
         svc, db = _make_svc()
         _q(db, first=None)
-        assert svc.is_quiz_completed_by_user(user_id=1, quiz_id=1) is False
+        assert svc.is_quiz_completed_by_user(user_id=42, quiz_id=1) is False
 
 
 # NOTE: get_quiz_leaderboard is excluded — it references User.full_name which
@@ -545,7 +545,7 @@ class TestSubmitQuizAttemptHappyPath:
             {"first": None},             # query 5: ProjectQuiz → None
         ])
 
-        result = svc.submit_quiz_attempt(user_id=1, submission=self._make_mc_submission())
+        result = svc.submit_quiz_attempt(user_id=42, submission=self._make_mc_submission())
 
         db.commit.assert_called()
         svc.gamification_service.award_xp.assert_called_once()  # xp awarded (passed=True)
@@ -571,7 +571,7 @@ class TestSubmitQuizAttemptHappyPath:
             {"first": None},       # ProjectQuiz lookup
         ])
 
-        result = svc.submit_quiz_attempt(user_id=1, submission=self._make_mc_submission())
+        result = svc.submit_quiz_attempt(user_id=42, submission=self._make_mc_submission())
 
         # score = 0/1 * 100 = 0 → < 70 → not passed → no XP
         svc.gamification_service.award_xp.assert_not_called()
@@ -600,7 +600,7 @@ class TestSubmitQuizAttemptHappyPath:
         ])
 
         result = svc.submit_quiz_attempt(
-            user_id=1,
+            user_id=42,
             submission=self._make_fib_submission(text="paris"),  # lowercase
         )
 

@@ -78,7 +78,7 @@ class TestComputeOpponentFactor:
     def test_no_opponents_returns_one(self):
         db = _db()
         _q(db, all_=[])  # No opponents in tournament
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=60.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=60.0)
         assert result == 1.0
 
     def test_opponent_with_no_license_returns_one(self):
@@ -89,7 +89,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},  # opponents
             {"first": None},  # license not found
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=60.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=60.0)
         assert result == 1.0  # no baseline_avgs → neutral
 
     def test_opponent_with_non_dict_football_skills_returns_one(self):
@@ -100,7 +100,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},
             {"first": lic},
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=60.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=60.0)
         assert result == 1.0
 
     def test_player_baseline_zero_returns_one(self):
@@ -111,7 +111,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},
             {"first": lic},
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=0.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=0.0)
         assert result == 1.0
 
     def test_opponent_with_scalar_skills_normal_case(self):
@@ -123,7 +123,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},
             {"first": lic},
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=60.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=60.0)
         assert result == round(80.0 / 60.0, 4)
 
     def test_opponent_with_dict_format_skills(self):
@@ -135,7 +135,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},
             {"first": lic},
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=50.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=50.0)
         # baseline = 75.0, avg_opponent = 75.0, factor = 75/50 = 1.5
         assert result == 1.5
 
@@ -148,7 +148,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},
             {"first": lic},
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=10.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=10.0)
         assert result == 2.0
 
     def test_opponent_factor_clamped_to_half(self):
@@ -160,7 +160,7 @@ class TestComputeOpponentFactor:
             {"all_": [opp]},
             {"first": lic},
         ])
-        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=1, player_baseline_avg=200.0)
+        result = _compute_opponent_factor(db, tournament_id=1, player_user_id=42, player_baseline_avg=200.0)
         assert result == 0.5
 
 
@@ -254,7 +254,7 @@ class TestGetBaselineSkills:
     def test_no_license_returns_all_defaults(self):
         db = _db()
         _q(db, first=None)  # No license
-        result = get_baseline_skills(db, user_id=1)
+        result = get_baseline_skills(db, user_id=42)
         # All skills should equal DEFAULT_BASELINE
         assert all(v == DEFAULT_BASELINE for v in result.values())
         assert len(result) > 0  # Has entries for all skill keys
@@ -264,7 +264,7 @@ class TestGetBaselineSkills:
         lic = MagicMock()
         lic.football_skills = {}  # Empty dict → falsy
         _q(db, first=lic)
-        result = get_baseline_skills(db, user_id=1)
+        result = get_baseline_skills(db, user_id=42)
         assert all(v == DEFAULT_BASELINE for v in result.values())
 
     def test_license_with_non_dict_football_skills_returns_defaults(self):
@@ -272,7 +272,7 @@ class TestGetBaselineSkills:
         lic = MagicMock()
         lic.football_skills = "corrupted_string"
         _q(db, first=lic)
-        result = get_baseline_skills(db, user_id=1)
+        result = get_baseline_skills(db, user_id=42)
         assert all(v == DEFAULT_BASELINE for v in result.values())
 
     def test_license_with_scalar_format_skills(self):
@@ -281,7 +281,7 @@ class TestGetBaselineSkills:
         # Old format: {"ball_control": 70, "dribbling": 65}
         lic.football_skills = {"ball_control": 70, "dribbling": 65}
         _q(db, first=lic)
-        result = get_baseline_skills(db, user_id=1)
+        result = get_baseline_skills(db, user_id=42)
         # Skills explicitly set should have their values
         assert result["ball_control"] == 70.0
         assert result["dribbling"] == 65.0
@@ -296,7 +296,7 @@ class TestGetBaselineSkills:
             "passing": {"baseline": 75.0, "current_level": 80.0},
         }
         _q(db, first=lic)
-        result = get_baseline_skills(db, user_id=1)
+        result = get_baseline_skills(db, user_id=42)
         assert result["passing"] == 75.0
 
     def test_missing_skill_gets_default_baseline(self):
@@ -305,7 +305,7 @@ class TestGetBaselineSkills:
         # Only one skill present; all others should fall back to DEFAULT_BASELINE
         lic.football_skills = {"ball_control": 80.0}
         _q(db, first=lic)
-        result = get_baseline_skills(db, user_id=1)
+        result = get_baseline_skills(db, user_id=42)
         assert result["ball_control"] == 80.0
         # A skill not in football_skills → DEFAULT_BASELINE
         missing_skill_values = [v for k, v in result.items() if k != "ball_control"]

@@ -49,7 +49,7 @@ class TestValidateConsistency:
     def test_neither_exists_is_consistent(self):
         coupler, db = _coupler()
         _multi_q(db, [None, None])
-        result = coupler.validate_consistency(user_id=1, specialization="PLAYER")
+        result = coupler.validate_consistency(user_id=42, specialization="PLAYER")
         assert result["consistent"] is True
         assert result["progress_exists"] is False
         assert result["license_exists"] is False
@@ -60,7 +60,7 @@ class TestValidateConsistency:
         license_mock = MagicMock()
         license_mock.current_level = 3
         _multi_q(db, [None, license_mock])
-        result = coupler.validate_consistency(user_id=1, specialization="PLAYER")
+        result = coupler.validate_consistency(user_id=42, specialization="PLAYER")
         assert result["consistent"] is False
         assert result["license_exists"] is True
         assert result["progress_exists"] is False
@@ -72,7 +72,7 @@ class TestValidateConsistency:
         progress_mock = MagicMock()
         progress_mock.current_level = 2
         _multi_q(db, [progress_mock, None])
-        result = coupler.validate_consistency(user_id=1, specialization="COACH")
+        result = coupler.validate_consistency(user_id=42, specialization="COACH")
         assert result["consistent"] is False
         assert result["progress_exists"] is True
         assert result["license_exists"] is False
@@ -86,7 +86,7 @@ class TestValidateConsistency:
         license_mock = MagicMock()
         license_mock.current_level = 4
         _multi_q(db, [progress_mock, license_mock])
-        result = coupler.validate_consistency(user_id=1, specialization="PLAYER")
+        result = coupler.validate_consistency(user_id=42, specialization="PLAYER")
         assert result["consistent"] is True
         assert result["progress_exists"] is True
         assert result["license_exists"] is True
@@ -99,7 +99,7 @@ class TestValidateConsistency:
         license_mock = MagicMock()
         license_mock.current_level = 3
         _multi_q(db, [progress_mock, license_mock])
-        result = coupler.validate_consistency(user_id=1, specialization="INTERNSHIP")
+        result = coupler.validate_consistency(user_id=42, specialization="INTERNSHIP")
         assert result["consistent"] is False
         assert result["progress_level"] == 5
         assert result["license_level"] == 3
@@ -111,5 +111,5 @@ class TestValidateConsistency:
         """Lowercase input is uppercased internally — no error raised."""
         coupler, db = _coupler()
         _multi_q(db, [None, None])
-        result = coupler.validate_consistency(user_id=1, specialization="player")
+        result = coupler.validate_consistency(user_id=42, specialization="player")
         assert result["consistent"] is True

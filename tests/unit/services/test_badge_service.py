@@ -100,7 +100,7 @@ class TestAwardAchievement:
 
         result = award_achievement(
             db=db,
-            user_id=1,
+            user_id=42,
             badge_type=BadgeType.RETURNING_STUDENT,
             title="Title",
             description="Desc",
@@ -118,7 +118,7 @@ class TestAwardAchievement:
 
         result = award_achievement(
             db=db,
-            user_id=1,
+            user_id=42,
             badge_type=BadgeType.RETURNING_STUDENT,
             title="Returning Student",
             description="2 semesters",
@@ -179,7 +179,7 @@ class TestCheckAndAwardSemesterAchievements:
 
         with patch("app.services.gamification.badge_service.calculate_user_stats",
                    return_value=stats):
-            return check_and_award_semester_achievements(db, user_id=1)
+            return check_and_award_semester_achievements(db, user_id=42)
 
     def test_one_semester_no_achievements(self):
         result = self._run(semesters=1)
@@ -249,7 +249,7 @@ class TestCheckNewcomerWelcome:
         user.created_at = datetime.now(timezone.utc) - timedelta(hours=25)
         _mock_query(db, return_first=user)
 
-        result = check_newcomer_welcome(db, user_id=1)
+        result = check_newcomer_welcome(db, user_id=42)
         assert result == []
 
     def test_user_created_within_24h_award_given(self):
@@ -268,7 +268,7 @@ class TestCheckNewcomerWelcome:
         db.query.return_value.filter.return_value.first.side_effect = first_side_effect
 
         with patch("app.services.gamification.badge_service.award_xp"):
-            result = check_newcomer_welcome(db, user_id=1)
+            result = check_newcomer_welcome(db, user_id=42)
 
         assert len(result) >= 1
 
@@ -289,7 +289,7 @@ class TestCheckNewcomerWelcome:
         db.query.return_value.filter.return_value.first.side_effect = first_side_effect
 
         with patch("app.services.gamification.badge_service.award_xp"):
-            result = check_newcomer_welcome(db, user_id=1)
+            result = check_newcomer_welcome(db, user_id=42)
 
         assert len(result) >= 1
 
@@ -310,7 +310,7 @@ class TestCheckNewcomerWelcome:
 
         db.query.return_value.filter.return_value.first.side_effect = first_side_effect
 
-        result = check_newcomer_welcome(db, user_id=1)
+        result = check_newcomer_welcome(db, user_id=42)
         # award_achievement returns existing → still returned
         assert len(result) == 0   # no new award created
 
@@ -344,7 +344,7 @@ class TestCheckAndUnlockAchievements:
 
         with patch("app.services.gamification.badge_service.award_xp"):
             return check_and_unlock_achievements(
-                db, user_id=1, trigger_action=trigger, context=context or {})
+                db, user_id=42, trigger_action=trigger, context=context or {})
 
     def test_no_active_achievements_returns_empty(self):
         result = self._run(achievements=[])
@@ -405,7 +405,7 @@ class TestCheckAndUnlockAchievements:
         db.query.side_effect = query_side_effect
 
         with patch("app.services.gamification.badge_service.award_xp") as mock_xp:
-            check_and_unlock_achievements(db, user_id=1, trigger_action="login")
+            check_and_unlock_achievements(db, user_id=42, trigger_action="login")
             mock_xp.assert_called_once_with(db, 1, 100, f"Achievement: {a.name}")
 
     def test_xp_not_awarded_when_xp_reward_zero(self):
@@ -424,7 +424,7 @@ class TestCheckAndUnlockAchievements:
         db.query.side_effect = query_side_effect
 
         with patch("app.services.gamification.badge_service.award_xp") as mock_xp:
-            check_and_unlock_achievements(db, user_id=1, trigger_action="login")
+            check_and_unlock_achievements(db, user_id=42, trigger_action="login")
             mock_xp.assert_not_called()
 
     def test_no_unlock_means_no_commit(self):
@@ -440,7 +440,7 @@ class TestCheckAndUnlockAchievements:
             return q
 
         db.query.side_effect = query_side_effect
-        check_and_unlock_achievements(db, user_id=1, trigger_action="login")
+        check_and_unlock_achievements(db, user_id=42, trigger_action="login")
         db.commit.assert_not_called()
 
 
@@ -465,7 +465,7 @@ class TestCheckAchievementRequirements:
         with patch("app.services.gamification.badge_service._get_user_action_count",
                    return_value=action_count):
             return _check_achievement_requirements(
-                db, user_id=1, achievement=achievement,
+                db, user_id=42, achievement=achievement,
                 trigger_action=trigger, context=context or {})
 
     def test_no_requirements_returns_true(self):
@@ -536,7 +536,7 @@ class TestGetUserActionCount:
         from app.services.gamification.badge_service import _get_user_action_count
         db = _db()
         db.query.return_value.filter.return_value.count.return_value = audit_count
-        return _get_user_action_count(db, user_id=1, action=action)
+        return _get_user_action_count(db, user_id=42, action=action)
 
     def test_unknown_action_returns_zero(self):
         assert self._call("nonexistent_action_xyz") == 0

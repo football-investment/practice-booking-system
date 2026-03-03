@@ -93,7 +93,7 @@ class TestCreateAssessmentValidation:
         svc, db = _svc()
         with pytest.raises(ValueError, match="Invalid skill name"):
             svc.create_assessment(
-                user_license_id=1,
+                user_license_id=99,
                 skill_name="not_a_real_skill",
                 points_earned=5,
                 points_total=10,
@@ -105,7 +105,7 @@ class TestCreateAssessmentValidation:
         svc, db = _svc()
         with pytest.raises(ValueError, match="cannot be negative"):
             svc.create_assessment(
-                user_license_id=1,
+                user_license_id=99,
                 skill_name=VALID_SKILL,
                 points_earned=-1,
                 points_total=10,
@@ -117,7 +117,7 @@ class TestCreateAssessmentValidation:
         svc, db = _svc()
         with pytest.raises(ValueError, match="must be greater than 0"):
             svc.create_assessment(
-                user_license_id=1,
+                user_license_id=99,
                 skill_name=VALID_SKILL,
                 points_earned=0,
                 points_total=0,
@@ -129,7 +129,7 @@ class TestCreateAssessmentValidation:
         svc, db = _svc()
         with pytest.raises(ValueError, match="cannot exceed total points"):
             svc.create_assessment(
-                user_license_id=1,
+                user_license_id=99,
                 skill_name=VALID_SKILL,
                 points_earned=11,
                 points_total=10,
@@ -239,7 +239,7 @@ class TestRecalculateSkillAverage:
         q.filter.return_value = q
         q.all.return_value = []  # no assessments
         db.query.return_value = q
-        result = svc.recalculate_skill_average(user_license_id=1, skill_name=VALID_SKILL)
+        result = svc.recalculate_skill_average(user_license_id=99, skill_name=VALID_SKILL)
         assert result == 0.0
 
 
@@ -252,7 +252,7 @@ class TestGetCurrentAverages:
     def test_no_license_returns_all_zeros(self):
         svc, db = _svc()
         _filter_first_q(db, None)
-        result = svc.get_current_averages(user_license_id=1)
+        result = svc.get_current_averages(user_license_id=99)
         assert isinstance(result, dict)
         assert all(v == 0.0 for v in result.values())
         assert len(result) > 0
@@ -262,7 +262,7 @@ class TestGetCurrentAverages:
         license = MagicMock()
         license.football_skills = None
         _filter_first_q(db, license)
-        result = svc.get_current_averages(user_license_id=1)
+        result = svc.get_current_averages(user_license_id=99)
         assert all(v == 0.0 for v in result.values())
 
     def test_license_with_scalar_skills_returns_values(self):
@@ -270,7 +270,7 @@ class TestGetCurrentAverages:
         license = MagicMock()
         license.football_skills = {VALID_SKILL: 75.0, ANOTHER_VALID_SKILL: 80.0}
         _filter_first_q(db, license)
-        result = svc.get_current_averages(user_license_id=1)
+        result = svc.get_current_averages(user_license_id=99)
         assert result[VALID_SKILL] == 75.0
         assert result[ANOTHER_VALID_SKILL] == 80.0
 
@@ -279,7 +279,7 @@ class TestGetCurrentAverages:
         license = MagicMock()
         license.football_skills = {VALID_SKILL: 60.0}  # only one skill set
         _filter_first_q(db, license)
-        result = svc.get_current_averages(user_license_id=1)
+        result = svc.get_current_averages(user_license_id=99)
         assert result[VALID_SKILL] == 60.0
         missing = [v for k, v in result.items() if k != VALID_SKILL]
         assert all(v == 0.0 for v in missing)
@@ -297,7 +297,7 @@ class TestGetAssessmentCounts:
         q.filter.return_value = q
         q.scalar.return_value = 3
         db.query.return_value = q
-        result = svc.get_assessment_counts(user_license_id=1)
+        result = svc.get_assessment_counts(user_license_id=99)
         assert isinstance(result, dict)
         assert all(v == 3 for v in result.values())
         assert len(result) == len(get_all_skill_keys())
@@ -308,5 +308,5 @@ class TestGetAssessmentCounts:
         q.filter.return_value = q
         q.scalar.return_value = None
         db.query.return_value = q
-        result = svc.get_assessment_counts(user_license_id=1)
+        result = svc.get_assessment_counts(user_license_id=99)
         assert all(v == 0 for v in result.values())

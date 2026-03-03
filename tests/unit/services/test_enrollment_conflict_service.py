@@ -220,7 +220,7 @@ class TestCheckSessionTimeConflictEarlyReturns:
         db = _db()
         _q(db, first=None)  # semester not found
         result = EnrollmentConflictService.check_session_time_conflict(
-            user_id=1, semester_id=99, db=db
+            user_id=42, semester_id=99, db=db
         )
         assert result["has_conflict"] is False
         assert len(result["warnings"]) > 0
@@ -234,7 +234,7 @@ class TestCheckSessionTimeConflictEarlyReturns:
             {"all_": []},          # no existing enrollments
         ])
         result = EnrollmentConflictService.check_session_time_conflict(
-            user_id=1, semester_id=1, db=db
+            user_id=42, semester_id=1, db=db
         )
         assert result["has_conflict"] is False
         assert result["conflicts"] == []
@@ -249,7 +249,7 @@ class TestCheckSessionTimeConflictEarlyReturns:
             {"all_": []},              # no future sessions in target semester
         ])
         result = EnrollmentConflictService.check_session_time_conflict(
-            user_id=1, semester_id=1, db=db
+            user_id=42, semester_id=1, db=db
         )
         assert result["has_conflict"] is False
         assert any("No future sessions" in w for w in result["warnings"])
