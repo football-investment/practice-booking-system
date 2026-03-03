@@ -94,13 +94,14 @@ class PayloadRules:
     @staticmethod
     def _rule_batch_enroll(payload: Dict, context: Dict) -> Dict:
         """
-        Rule: player_ids array is required.
+        Rule: player_ids array is required and must contain real student IDs.
 
-        Strategy: Use test_student_id from context if available
+        Strategy: Always use test_student_id from context so the endpoint
+        can find the player (by role+id) and proceed past the player check
+        to execute the license and enrollment logic.
         """
-        if "player_ids" not in payload or not payload.get("player_ids"):
-            student_id = context.get("student_id", 1)
-            payload["player_ids"] = [student_id]
+        student_id = context.get("student_id", 1)
+        payload["player_ids"] = [student_id]
 
         return payload
 
@@ -229,6 +230,10 @@ class PayloadRules:
         # Use enrolled students from context to bypass @lfa-seed.hu requirement
         if "enrolled_student_ids" in context and context["enrolled_student_ids"]:
             payload["player_ids"] = context["enrolled_student_ids"]
-            payload["player_count"] = 0  # Ignored when player_ids provided
+            payload["player_count"] = 0  # Ignored when player_ids provided; _effective_count = len(player_ids)
+
+        # campus_ids required by ops_scenario Step 4 (ops_scenario.py:1418)
+        if "campus_id" in context and context["campus_id"]:
+            payload["campus_ids"] = [context["campus_id"]]
 
         return payload

@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone
 
+import traceback
+
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User

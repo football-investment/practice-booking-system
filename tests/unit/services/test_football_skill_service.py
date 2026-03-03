@@ -1,317 +1,312 @@
 """
-Unit Tests: FootballSkillService.award_skill_points()
+Unit tests for app/services/football_skill_service.py (FootballSkillService)
 
-Tests the centralized skill reward method in isolation.
+Covers:
+  create_assessment (validation-only, before DB/lock):
+    invalid skill name → ValueError
+    negative points_earned → ValueError
+    zero points_total → ValueError
+    points_earned > points_total → ValueError
+
+  validate_assessment:
+    assessment not found → ValueError
+    already VALIDATED → idempotent return
+    invalid state transition (ARCHIVED → VALIDATED) → ValueError
+    happy path ASSESSED → VALIDATED
+
+  archive_assessment:
+    assessment not found → ValueError
+    already ARCHIVED → idempotent return
+    invalid state transition (NOT_ASSESSED → ARCHIVED) → ValueError
+    happy path ASSESSED → ARCHIVED
+    happy path VALIDATED → ARCHIVED
+
+  recalculate_skill_average:
+    no assessments → returns 0.0 (early return before lock_timer)
+
+  get_current_averages:
+    no license → all zeros dict
+    license with no football_skills → all zeros
+    license with scalar skills → returns values
+    missing skill defaults to 0.0
+
+  get_assessment_counts:
+    counts per skill, None scalar defaults to 0
 """
-
 import pytest
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from unittest.mock import MagicMock, patch
 
 from app.services.football_skill_service import FootballSkillService
-from app.models.skill_reward import SkillReward
+from app.services.skill_state_machine import SkillAssessmentState
+from app.skills_config import get_all_skill_keys
 
 
-class TestFootballSkillServiceAwardSkillPoints:
-    """Unit tests for FootballSkillService.award_skill_points()"""
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    def test_award_skill_points_success(self, postgres_db: Session, user_factory):
-        """Test awarding skill points to a user"""
-        service = FootballSkillService(postgres_db)
+VALID_SKILL = "ball_control"
+ANOTHER_VALID_SKILL = "dribbling"
 
-        # Create test user dynamically
-        user = user_factory(name="Skill Test User")
 
-        (reward, created) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_TOURNAMENT",
-            source_id=999,
-            skill_name="passing",
-            points_awarded=10
-        )
+def _svc():
+    """Return (service, mock_db)."""
+    db = MagicMock()
+    return FootballSkillService(db), db
 
-        assert created is True, "Reward should be marked as created"
-        assert reward.id is not None, "Reward should have an ID"
-        assert reward.points_awarded == 10
-        assert reward.skill_name == "passing"
 
-        # Cleanup
-        postgres_db.delete(reward)
-        postgres_db.commit()
+def _wfu_q(db, result):
+    """Wire db.query().filter().with_for_update().first() → result."""
+    q = MagicMock()
+    q.filter.return_value = q
+    q.with_for_update.return_value = q
+    q.first.return_value = result
+    db.query.return_value = q
+    return q
 
-    def test_award_skill_points_duplicate_protection(self, postgres_db: Session, user_factory):
-        """Test that duplicate (user, source, skill) returns existing reward"""
-        service = FootballSkillService(postgres_db)
 
-        # Create test user dynamically
-        user = user_factory(name="Duplicate Protection Test User")
+def _filter_first_q(db, result):
+    """Wire db.query().filter().first() → result."""
+    q = MagicMock()
+    q.filter.return_value = q
+    q.first.return_value = result
+    db.query.return_value = q
+    return q
 
-        # First call - should create
-        (reward1, created1) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_TOURNAMENT",
-            source_id=998,
-            skill_name="finishing",
-            points_awarded=15
-        )
 
-        assert created1 is True
-        reward1_id = reward1.id
+def _mock_assessment(status=SkillAssessmentState.ASSESSED, points_earned=7, points_total=10):
+    a = MagicMock()
+    a.status = status
+    a.points_earned = points_earned
+    a.points_total = points_total
+    a.id = 1
+    return a
 
-        # Second call with same (user, source, skill) - should return existing
-        (reward2, created2) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_TOURNAMENT",  # Same source
-            source_id=998,  # Same ID
-            skill_name="finishing",  # Same skill
-            points_awarded=20  # Different points (doesn't matter)
-        )
 
-        assert created2 is False, "Second call should return existing reward"
-        assert reward2.id == reward1_id, "Should return same reward"
-        assert reward2.points_awarded == 15, "Should have original points, not new ones"
+# ===========================================================================
+# create_assessment — validation-only paths (before DB/lock)
+# ===========================================================================
 
-        # Verify only ONE reward in database
-        count = postgres_db.query(SkillReward).filter(
-            SkillReward.user_id == user.id,
-            SkillReward.source_type == "TEST_TOURNAMENT",
-            SkillReward.source_id == 998,
-            SkillReward.skill_name == "finishing"
-        ).count()
-        assert count == 1, f"Expected 1 reward, found {count}"
-
-        # Cleanup
-        postgres_db.delete(reward1)
-        postgres_db.commit()
-
-    def test_award_skill_points_different_skills_same_source(self, postgres_db: Session, user_factory):
-        """Test that same user can receive different skill rewards from same source"""
-        service = FootballSkillService(postgres_db)
-
-        # Create test user dynamically
-        user = user_factory(name="Different Skills Test User")
-
-        # Award Passing
-        (reward1, created1) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_TOURNAMENT",
-            source_id=997,
-            skill_name="passing",
-            points_awarded=10
-        )
-
-        # Award Shooting (different skill, same source)
-        (reward2, created2) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_TOURNAMENT",
-            source_id=997,  # Same source
-            skill_name="finishing",  # Different skill
-            points_awarded=12
-        )
-
-        assert created1 is True
-        assert created2 is True, "Different skill should create new reward"
-        assert reward1.id != reward2.id
-
-        # Cleanup
-        postgres_db.delete(reward1)
-        postgres_db.delete(reward2)
-        postgres_db.commit()
-
-    def test_award_skill_points_validation_invalid_skill(self, postgres_db: Session, user_factory):
-        """Test that invalid skill names are rejected"""
-        service = FootballSkillService(postgres_db)
-
-        # Create test user dynamically
-        user = user_factory(name="Invalid Skill Test User")
-
-        with pytest.raises(ValueError) as exc_info:
-            service.award_skill_points(
-                user_id=user.id,
-                source_type="TEST_TOURNAMENT",
-                source_id=996,
-                skill_name="InvalidSkill",  # Not in VALID_SKILLS
-                points_awarded=10
+@pytest.mark.unit
+class TestCreateAssessmentValidation:
+    def test_invalid_skill_name_raises_value_error(self):
+        svc, db = _svc()
+        with pytest.raises(ValueError, match="Invalid skill name"):
+            svc.create_assessment(
+                user_license_id=1,
+                skill_name="not_a_real_skill",
+                points_earned=5,
+                points_total=10,
+                assessed_by=99
             )
+        db.query.assert_not_called()
 
-        assert "Invalid skill name" in str(exc_info.value)
-        assert "InvalidSkill" in str(exc_info.value)
-
-    def test_award_skill_points_allows_negative_points(self, postgres_db: Session, user_factory):
-        """Test that negative points are allowed (for skill decrease)"""
-        service = FootballSkillService(postgres_db)
-
-        # Create test user dynamically
-        user = user_factory(name="Negative Points Test User")
-
-        # Negative points should work (skill decrease for bottom players)
-        (reward, created) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_TOURNAMENT",
-            source_id=995,
-            skill_name="passing",
-            points_awarded=-10  # Negative for penalty!
-        )
-
-        assert created is True, "Should create reward with negative points"
-        assert reward.points_awarded == -10, "Should store negative points"
-
-        # Cleanup
-        postgres_db.delete(reward)
-        postgres_db.commit()
-
-    def test_award_skill_points_validation_zero_points(self, postgres_db: Session, user_factory):
-        """Test that zero points are rejected"""
-        service = FootballSkillService(postgres_db)
-
-        # Create test user dynamically
-        user = user_factory(name="Zero Points Test User")
-
-        with pytest.raises(ValueError) as exc_info:
-            service.award_skill_points(
-                user_id=user.id,
-                source_type="TEST_TOURNAMENT",
-                source_id=994,
-                skill_name="passing",
-                points_awarded=0  # Zero!
+    def test_negative_points_earned_raises_value_error(self):
+        svc, db = _svc()
+        with pytest.raises(ValueError, match="cannot be negative"):
+            svc.create_assessment(
+                user_license_id=1,
+                skill_name=VALID_SKILL,
+                points_earned=-1,
+                points_total=10,
+                assessed_by=99
             )
+        db.query.assert_not_called()
 
-        assert "Points awarded cannot be zero" in str(exc_info.value)
-
-    def test_award_skill_points_all_valid_skills(self, postgres_db: Session, user_factory):
-        """Test awarding points for all valid skills"""
-        service = FootballSkillService(postgres_db)
-
-        # Create test user dynamically
-        user = user_factory(name="All Valid Skills Test User")
-
-        # Get all valid skills
-        valid_skills = service.VALID_SKILLS
-
-        assert len(valid_skills) > 0, "Should have at least one valid skill"
-
-        # Try awarding first 3 skills (don't test all to avoid cluttering DB)
-        for i, skill_name in enumerate(valid_skills[:3]):
-            (reward, created) = service.award_skill_points(
-                user_id=user.id,
-                source_type="TEST_ALL_SKILLS",
-                source_id=990 + i,
-                skill_name=skill_name,
-                points_awarded=5
+    def test_zero_points_total_raises_value_error(self):
+        svc, db = _svc()
+        with pytest.raises(ValueError, match="must be greater than 0"):
+            svc.create_assessment(
+                user_license_id=1,
+                skill_name=VALID_SKILL,
+                points_earned=0,
+                points_total=0,
+                assessed_by=99
             )
+        db.query.assert_not_called()
 
-            assert created is True, f"Should create reward for {skill_name}"
-            assert reward.skill_name == skill_name
+    def test_points_earned_exceeds_total_raises_value_error(self):
+        svc, db = _svc()
+        with pytest.raises(ValueError, match="cannot exceed total points"):
+            svc.create_assessment(
+                user_license_id=1,
+                skill_name=VALID_SKILL,
+                points_earned=11,
+                points_total=10,
+                assessed_by=99
+            )
+        db.query.assert_not_called()
 
-            # Cleanup
-            postgres_db.delete(reward)
 
-        postgres_db.commit()
+# ===========================================================================
+# validate_assessment
+# ===========================================================================
 
-    def test_race_condition_handling(self, postgres_db: Session, user_factory):
-        """
-        Test that race condition (concurrent creates) is handled gracefully.
-        """
-        service = FootballSkillService(postgres_db)
+@pytest.mark.unit
+class TestValidateAssessment:
+    def test_assessment_not_found_raises_value_error(self):
+        svc, db = _svc()
+        _wfu_q(db, None)
+        with pytest.raises(ValueError, match="not found"):
+            svc.validate_assessment(assessment_id=99, validated_by=1)
 
-        # Create test user dynamically
-        user = user_factory(name="Race Condition Skill Test User")
+    def test_already_validated_returns_idempotent(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.VALIDATED)
+        _wfu_q(db, assessment)
+        result = svc.validate_assessment(assessment_id=1, validated_by=1)
+        assert result is assessment
+        # Status should remain VALIDATED (idempotent)
+        assert assessment.status == SkillAssessmentState.VALIDATED
 
-        # First request creates reward
-        (reward1, created1) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_RACE_SKILL",
-            source_id=989,
-            skill_name="dribbling",
-            points_awarded=8
-        )
+    def test_invalid_transition_archived_to_validated_raises(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.ARCHIVED)
+        _wfu_q(db, assessment)
+        with pytest.raises(ValueError, match="Invalid state transition"):
+            svc.validate_assessment(assessment_id=1, validated_by=1)
 
-        assert created1 is True
+    def test_happy_path_assessed_to_validated(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.ASSESSED)
+        assessment.previous_status = None
+        _wfu_q(db, assessment)
+        result = svc.validate_assessment(assessment_id=1, validated_by=42)
+        assert result is assessment
+        assert assessment.status == SkillAssessmentState.VALIDATED
+        assert assessment.validated_by == 42
+        db.flush.assert_called_once()
 
-        # Commit to database
-        postgres_db.commit()
 
-        # Second request (simulating race condition) - should get existing
-        (reward2, created2) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TEST_RACE_SKILL",
-            source_id=989,
-            skill_name="dribbling",
-            points_awarded=10
-        )
+# ===========================================================================
+# archive_assessment
+# ===========================================================================
 
-        assert created2 is False, "Second request should get existing reward"
-        assert reward2.id == reward1.id
+@pytest.mark.unit
+class TestArchiveAssessment:
+    def test_assessment_not_found_raises_value_error(self):
+        svc, db = _svc()
+        _wfu_q(db, None)
+        with pytest.raises(ValueError, match="not found"):
+            svc.archive_assessment(assessment_id=99, archived_by=1, reason="test")
 
-        # Cleanup
-        postgres_db.delete(reward1)
-        postgres_db.commit()
+    def test_already_archived_returns_idempotent(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.ARCHIVED)
+        _wfu_q(db, assessment)
+        result = svc.archive_assessment(assessment_id=1, archived_by=1, reason="no-op")
+        assert result is assessment
+        assert assessment.status == SkillAssessmentState.ARCHIVED
 
-    def test_award_skill_points_different_users_same_source(self, postgres_db: Session, user_factory):
-        """Test that different users can receive rewards from same source"""
-        service = FootballSkillService(postgres_db)
+    def test_invalid_transition_not_assessed_to_archived_raises(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.NOT_ASSESSED)
+        _wfu_q(db, assessment)
+        with pytest.raises(ValueError, match="Invalid state transition"):
+            svc.archive_assessment(assessment_id=1, archived_by=1, reason="test")
 
-        # Create two test users dynamically
-        user1 = user_factory(name="User 1")
-        user2 = user_factory(name="User 2")
+    def test_happy_path_assessed_to_archived(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.ASSESSED)
+        assessment.previous_status = None
+        _wfu_q(db, assessment)
+        result = svc.archive_assessment(assessment_id=1, archived_by=7, reason="Replaced")
+        assert result is assessment
+        assert assessment.status == SkillAssessmentState.ARCHIVED
+        assert assessment.archived_by == 7
+        assert assessment.archived_reason == "Replaced"
+        db.flush.assert_called_once()
 
-        # User 1 gets reward
-        (reward1, created1) = service.award_skill_points(
-            user_id=user1.id,
-            source_type="TEST_MULTI_USER",
-            source_id=988,
-            skill_name="passing",
-            points_awarded=10
-        )
+    def test_happy_path_validated_to_archived(self):
+        svc, db = _svc()
+        assessment = _mock_assessment(status=SkillAssessmentState.VALIDATED)
+        assessment.previous_status = None
+        _wfu_q(db, assessment)
+        result = svc.archive_assessment(assessment_id=2, archived_by=3, reason="Superseded")
+        assert result is assessment
+        assert assessment.status == SkillAssessmentState.ARCHIVED
 
-        # User 2 gets reward (different user, same source+skill)
-        (reward2, created2) = service.award_skill_points(
-            user_id=user2.id,  # Different user
-            source_type="TEST_MULTI_USER",
-            source_id=988,  # Same source
-            skill_name="passing",  # Same skill
-            points_awarded=12
-        )
 
-        assert created1 is True
-        assert created2 is True, "Different user should create new reward"
-        assert reward1.id != reward2.id
+# ===========================================================================
+# recalculate_skill_average — early return path (no lock needed)
+# ===========================================================================
 
-        # Cleanup
-        postgres_db.delete(reward1)
-        postgres_db.delete(reward2)
-        postgres_db.commit()
+@pytest.mark.unit
+class TestRecalculateSkillAverage:
+    def test_no_assessments_returns_zero(self):
+        svc, db = _svc()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.all.return_value = []  # no assessments
+        db.query.return_value = q
+        result = svc.recalculate_skill_average(user_license_id=1, skill_name=VALID_SKILL)
+        assert result == 0.0
 
-    def test_award_skill_points_different_sources_same_user_skill(self, postgres_db: Session, user_factory):
-        """Test that same user+skill can receive rewards from different sources"""
-        service = FootballSkillService(postgres_db)
 
-        # Create test user dynamically
-        user = user_factory(name="Different Sources Test User")
+# ===========================================================================
+# get_current_averages
+# ===========================================================================
 
-        # Tournament 1
-        (reward1, created1) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TOURNAMENT",
-            source_id=100,
-            skill_name="finishing",
-            points_awarded=10
-        )
+@pytest.mark.unit
+class TestGetCurrentAverages:
+    def test_no_license_returns_all_zeros(self):
+        svc, db = _svc()
+        _filter_first_q(db, None)
+        result = svc.get_current_averages(user_license_id=1)
+        assert isinstance(result, dict)
+        assert all(v == 0.0 for v in result.values())
+        assert len(result) > 0
 
-        # Tournament 2 (different source)
-        (reward2, created2) = service.award_skill_points(
-            user_id=user.id,
-            source_type="TOURNAMENT",
-            source_id=101,  # Different source_id
-            skill_name="finishing",
-            points_awarded=15
-        )
+    def test_license_no_football_skills_returns_all_zeros(self):
+        svc, db = _svc()
+        license = MagicMock()
+        license.football_skills = None
+        _filter_first_q(db, license)
+        result = svc.get_current_averages(user_license_id=1)
+        assert all(v == 0.0 for v in result.values())
 
-        assert created1 is True
-        assert created2 is True, "Different source should create new reward"
-        assert reward1.id != reward2.id
+    def test_license_with_scalar_skills_returns_values(self):
+        svc, db = _svc()
+        license = MagicMock()
+        license.football_skills = {VALID_SKILL: 75.0, ANOTHER_VALID_SKILL: 80.0}
+        _filter_first_q(db, license)
+        result = svc.get_current_averages(user_license_id=1)
+        assert result[VALID_SKILL] == 75.0
+        assert result[ANOTHER_VALID_SKILL] == 80.0
 
-        # Cleanup
-        postgres_db.delete(reward1)
-        postgres_db.delete(reward2)
-        postgres_db.commit()
+    def test_missing_skill_defaults_to_zero(self):
+        svc, db = _svc()
+        license = MagicMock()
+        license.football_skills = {VALID_SKILL: 60.0}  # only one skill set
+        _filter_first_q(db, license)
+        result = svc.get_current_averages(user_license_id=1)
+        assert result[VALID_SKILL] == 60.0
+        missing = [v for k, v in result.items() if k != VALID_SKILL]
+        assert all(v == 0.0 for v in missing)
+
+
+# ===========================================================================
+# get_assessment_counts
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetAssessmentCounts:
+    def test_counts_per_skill(self):
+        svc, db = _svc()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.scalar.return_value = 3
+        db.query.return_value = q
+        result = svc.get_assessment_counts(user_license_id=1)
+        assert isinstance(result, dict)
+        assert all(v == 3 for v in result.values())
+        assert len(result) == len(get_all_skill_keys())
+
+    def test_none_scalar_defaults_to_zero(self):
+        svc, db = _svc()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.scalar.return_value = None
+        db.query.return_value = q
+        result = svc.get_assessment_counts(user_license_id=1)
+        assert all(v == 0 for v in result.values())

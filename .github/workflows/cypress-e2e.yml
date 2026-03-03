@@ -68,32 +68,35 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=Admin1234!
+          ADMIN_NAME=CI Admin
+          CORS_ALLOWED_ORIGINS=http://localhost:8501,http://localhost:8000
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-        run: python scripts/seed_test_data.py || true
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
-          ENVIRONMENT:  test
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
-          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+          timeout 45 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
 
       - name: Start Streamlit app
-        env:
-          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
-          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
-          STREAMLIT_SERVER_HEADLESS: true
         run: |
+          BACKEND_URL=http://localhost:${{ env.BACKEND_PORT }} \
           streamlit run streamlit_app/Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
             --server.headless true &
@@ -116,7 +119,7 @@ jobs:
           CYPRESS_BASE_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:        http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:    admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD: password123
+          CYPRESS_ADMIN_PASSWORD: Admin1234!
         run: npx cypress run --env grepTags=@smoke --browser chrome --headless
 
       - name: Upload screenshots on failure
@@ -162,32 +165,35 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=Admin1234!
+          ADMIN_NAME=CI Admin
+          CORS_ALLOWED_ORIGINS=http://localhost:8501,http://localhost:8000
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-        run: python scripts/seed_test_data.py || true
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
-          ENVIRONMENT:  test
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
-          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+          timeout 45 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
 
       - name: Start Streamlit app
-        env:
-          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
-          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
-          STREAMLIT_SERVER_HEADLESS: true
         run: |
+          BACKEND_URL=http://localhost:${{ env.BACKEND_PORT }} \
           streamlit run streamlit_app/Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
             --server.headless true &
@@ -210,7 +216,7 @@ jobs:
           CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:        admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:     password123
+          CYPRESS_ADMIN_PASSWORD:     Admin1234!
           CYPRESS_INSTRUCTOR_EMAIL:   instructor@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: password123
           CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com
@@ -264,32 +270,35 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=Admin1234!
+          ADMIN_NAME=CI Admin
+          CORS_ALLOWED_ORIGINS=http://localhost:8501,http://localhost:8000
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY: ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
       - name: Seed test data
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-        run: python scripts/seed_test_data.py || true
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
-          ENVIRONMENT:  test
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
-          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+          timeout 45 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
 
       - name: Start Streamlit app
-        env:
-          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
-          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
-          STREAMLIT_SERVER_HEADLESS: true
         run: |
+          BACKEND_URL=http://localhost:${{ env.BACKEND_PORT }} \
           streamlit run streamlit_app/Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
             --server.headless true &
@@ -313,7 +322,7 @@ jobs:
           CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
           CYPRESS_ADMIN_EMAIL:        admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:     password123
+          CYPRESS_ADMIN_PASSWORD:     Admin1234!
           CYPRESS_INSTRUCTOR_EMAIL:   instructor@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: password123
           CYPRESS_PLAYER_EMAIL:       junior.intern@lfa.com

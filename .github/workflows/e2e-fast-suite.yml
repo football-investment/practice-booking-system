@@ -49,15 +49,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-test.txt
 
       - name: Install Playwright browsers
         run: |
-          playwright install chromium
-          playwright install-deps chromium
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
 
       - name: Set up database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: |
           # Run migrations
           alembic upgrade head
@@ -68,20 +70,21 @@ jobs:
       - name: Start FastAPI backend
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-test-secret-key-not-for-production
+          ENVIRONMENT: test
+          TESTING: "true"
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
-
-          # Health check
-          curl --fail http://localhost:8000/health || exit 1
+          timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
 
       - name: Start Streamlit frontend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          BACKEND_URL: http://localhost:8000
+          STREAMLIT_SERVER_HEADLESS: "true"
         run: |
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          sleep 10
-
-          # Health check
-          curl --fail http://localhost:8501 || exit 1
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Run Fast Suite
         run: |

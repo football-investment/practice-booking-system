@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import traceback
 
 from ...database import get_db

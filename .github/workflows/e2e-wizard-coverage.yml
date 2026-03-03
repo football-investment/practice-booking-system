@@ -56,6 +56,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -69,21 +83,24 @@ jobs:
           pip install -r requirements-test.txt
           pip install pytest pytest-playwright pytest-mock
           pip check
-          playwright install chromium
+          python -m playwright install chromium
 
       - name: Run DB migrations
         run: alembic upgrade head
 
       - name: Seed test data
-        run: python scripts/migrations/comprehensive_test_seed.py || true
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
 
       - name: Start backend + Streamlit
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
           # Wait for both services to be ready
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
-          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Wizard Flow tests
         run: |
@@ -137,6 +154,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -150,20 +181,23 @@ jobs:
           pip install -r requirements-test.txt
           pip install pytest pytest-playwright pytest-mock
           pip check
-          playwright install chromium
+          python -m playwright install chromium
 
       - name: Run DB migrations
         run: alembic upgrade head
 
       - name: Seed test data
-        run: python scripts/migrations/comprehensive_test_seed.py || true
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
 
       - name: Start backend + Streamlit
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
-          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Safety Confirmation + Slider tests
         run: |
@@ -221,6 +255,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -234,20 +282,23 @@ jobs:
           pip install -r requirements-test.txt
           pip install pytest pytest-playwright pytest-mock
           pip check
-          playwright install chromium
+          python -m playwright install chromium
 
       - name: Run DB migrations
         run: alembic upgrade head
 
       - name: Seed test data
-        run: python scripts/migrations/comprehensive_test_seed.py || true
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
 
       - name: Start backend + Streamlit
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
-          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Boundary Wizard Parametrized UI tests
         run: |
@@ -299,6 +350,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -317,12 +382,15 @@ jobs:
         run: alembic upgrade head
 
       - name: Seed test data
-        run: python scripts/migrations/comprehensive_test_seed.py || true
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
 
       - name: Start backend
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
 
       - name: API Boundary tests (non-slow)
         run: |
@@ -393,6 +461,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -406,20 +488,23 @@ jobs:
           pip install -r requirements-test.txt
           pip install pytest pytest-playwright pytest-mock
           pip check
-          playwright install chromium
+          python -m playwright install chromium
 
       - name: Run DB migrations
         run: alembic upgrade head
 
       - name: Seed test data
-        run: python scripts/migrations/comprehensive_test_seed.py || true
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
 
       - name: Start backend + Streamlit
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
-          timeout 60 bash -c 'until curl -sf http://localhost:8501/healthz > /dev/null; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: P1 Critical Coverage tests
         run: |

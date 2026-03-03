@@ -8,7 +8,7 @@ Phase 1 Enhancement: Real test data fixtures for path parameter resolution
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from app.main import app
@@ -126,7 +126,7 @@ _DOMAIN_PREFIX_MAP: dict[str, str] = {
     "spec_info":             "/api/v1/spec-info",
     "specialization":        "/api/v1/specializations",
     "specializations":       "/api/v1/specializations",
-    "student_features":      "/api/v1/students",
+    "student_features":      "",                       # Streamlit UI routes (/about-specializations etc.)
     "students":              "/api/v1/students",
     "system_events":         "/api/v1/system-events",
     "tournament_types":      "/api/v1/tournament-types",
@@ -245,11 +245,18 @@ def student_token(test_db: Session):
             email="smoke.student@example.com",
             password_hash=get_password_hash("student123"),
             role=UserRole.STUDENT,
-            is_active=True
+            is_active=True,
+            date_of_birth=date(2000, 1, 1),
+            credit_balance=5000
         )
         test_db.add(student)
         test_db.commit()
         test_db.refresh(student)
+    else:
+        # Ensure date_of_birth is set so enroll endpoint passes the dob check (line 143)
+        if not student.date_of_birth:
+            student.date_of_birth = date(2000, 1, 1)
+            test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
@@ -328,8 +335,8 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     - Tournament entity (Semester)
     - Campus schedule config
     - Reward config
-    - 2 Students with PLAYER licenses
-    - 2 Enrollments (APPROVED, is_active=True)
+    - 4 Students with LFA_FOOTBALL_PLAYER licenses (knockout min_players=4)
+    - 4 Enrollments (APPROVED, is_active=True)
     - 1 Session (tournament_round=1)
 
     Note: MatchStructure/MatchResult not included (tables don't exist in DB).
@@ -412,19 +419,53 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         test_db.commit()
         test_db.refresh(student2)
 
-    # Create UserLicense + Enrollment for both students
+    # Create student 3
+    student3_email = f"smoke.student3.{timestamp}@example.com"
+    student3 = test_db.query(User).filter(User.email == student3_email).first()
+    if not student3:
+        student3 = User(
+            name="Smoke Test Student 3",
+            email=student3_email,
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=1000
+        )
+        test_db.add(student3)
+        test_db.commit()
+        test_db.refresh(student3)
+
+    # Create student 4
+    student4_email = f"smoke.student4.{timestamp}@example.com"
+    student4 = test_db.query(User).filter(User.email == student4_email).first()
+    if not student4:
+        student4 = User(
+            name="Smoke Test Student 4",
+            email=student4_email,
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=1000
+        )
+        test_db.add(student4)
+        test_db.commit()
+        test_db.refresh(student4)
+
+    # Create UserLicense + Enrollment for all 4 students
+    # License type must be LFA_FOOTBALL_PLAYER — ops_scenario enrollment loop
+    # filters by specialization_type == "LFA_FOOTBALL_PLAYER" (ops_scenario.py:1380)
     enrolled_student_ids = []
-    for student in [student1, student2]:
-        # Check if PLAYER license exists
+    for student in [student1, student2, student3, student4]:
+        # Check if LFA_FOOTBALL_PLAYER license exists
         user_license = test_db.query(UserLicense).filter(
             UserLicense.user_id == student.id,
-            UserLicense.specialization_type == "PLAYER"
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
         ).first()
 
         if not user_license:
             user_license = UserLicense(
                 user_id=student.id,
-                specialization_type="PLAYER",
+                specialization_type="LFA_FOOTBALL_PLAYER",
                 current_level=1,
                 max_achieved_level=1,
                 started_at=datetime.now(timezone.utc),
@@ -478,6 +519,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         "name": tournament.name,
         "session_ids": [session.id],
         "enrolled_student_ids": enrolled_student_ids,
+        "campus_id": test_campus_id,
         "has_reward_config": True,
         "has_campus_schedule": True,
         "has_sessions": True,

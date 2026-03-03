@@ -235,27 +235,29 @@ def _navigate_wizard_to_step(
     sb = _sidebar(page)
 
     # Wait for location dropdown to appear (labeled "Location *" or "Helyszín (város) *")
-    location_selector = sb.locator("div[data-testid='stSelectbox']").filter(
+    # Use tag-agnostic selector — Streamlit's wrapper element may be div or section
+    location_selector = sb.locator("[data-testid='stSelectbox']").filter(
         has_text="Location"
     ).first.or_(
-        sb.locator("div[data-testid='stSelectbox']").filter(has_text="Helyszín").first
+        sb.locator("[data-testid='stSelectbox']").filter(has_text="Helyszín").first
     )
     location_selector.wait_for(state="visible", timeout=5000)
     # Location selectbox defaults to first option — no action needed
 
     # Wait for campus multiselect to appear and select first campus
-    campus_multiselect = sb.locator("div[data-testid='stMultiSelect']").filter(
+    campus_multiselect = sb.locator("[data-testid='stMultiSelect']").filter(
         has_text="Venues"
     ).first.or_(
-        sb.locator("div[data-testid='stMultiSelect']").filter(has_text="Pályák").first
+        sb.locator("[data-testid='stMultiSelect']").filter(has_text="Pályák").first
     )
     campus_multiselect.wait_for(state="visible", timeout=5000)
 
-    # Click the multiselect to open dropdown, then click first option
+    # Click the multiselect to open dropdown, then click first option.
+    # Use role-based selector (not tag-based): Streamlit/react-select uses div[role='option'],
+    # but the exact element type may vary across Streamlit versions. [role='option'] is stable.
     campus_multiselect.click()
     time.sleep(0.3)
-    # First campus option in the dropdown list
-    page.locator("li[role='option']").first.click()
+    page.locator("[role='option']").first.click()
     time.sleep(0.3)
 
     _click_next(page)
@@ -287,6 +289,63 @@ def _navigate_wizard_to_step(
 
 # ── OPS API helper ────────────────────────────────────────────────────────────
 
+def _get_or_create_campus_ids(api_url: str, token: str) -> list:
+    """
+    Return a list with at least one valid campus ID.
+
+    Strategy (mirrors integration_critical conftest.test_campus_ids):
+    1. GET /campuses — return first ID if any exist
+    2. Create a test location + campus, return the new campus ID
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Use any existing campus
+    resp = requests.get(f"{api_url}/api/v1/campuses", headers=headers, timeout=10)
+    if resp.status_code == 200:
+        campuses = resp.json()
+        if campuses:
+            return [campuses[0]["id"]]
+
+    # 2. Create test location
+    loc_resp = requests.post(
+        f"{api_url}/api/v1/admin/locations",
+        headers=headers,
+        json={"name": "E2E Test Location", "city": "Test City",
+              "address": "1 Test St", "country": "HU", "is_active": True},
+        timeout=10,
+    )
+    if loc_resp.status_code in (200, 201):
+        location_id = loc_resp.json()["id"]
+    else:
+        list_resp = requests.get(f"{api_url}/api/v1/admin/locations",
+                                 headers=headers, timeout=10)
+        if list_resp.status_code == 200 and list_resp.json():
+            location_id = list_resp.json()[0]["id"]
+        else:
+            raise AssertionError(f"Cannot create/find location: {loc_resp.text}")
+
+    # 3. Create campus under that location
+    camp_resp = requests.post(
+        f"{api_url}/api/v1/admin/locations/{location_id}/campuses",
+        headers=headers,
+        json={"name": "E2E Test Campus", "venue": "Test Venue",
+              "address": "2 Campus Rd", "is_active": True},
+        timeout=10,
+    )
+    if camp_resp.status_code in (200, 201):
+        return [camp_resp.json()["id"]]
+
+    # Campus already exists — re-query
+    list_resp = requests.get(
+        f"{api_url}/api/v1/admin/locations/{location_id}/campuses",
+        headers=headers, timeout=10,
+    )
+    if list_resp.status_code == 200 and list_resp.json():
+        return [list_resp.json()[0]["id"]]
+
+    raise AssertionError(f"Cannot obtain a campus ID: {camp_resp.text}")
+
+
 def _trigger_ops_tournament(
     api_url: str,
     token: str,
@@ -295,15 +354,23 @@ def _trigger_ops_tournament(
     tournament_format: str = "HEAD_TO_HEAD",
     tournament_type_code: str = "knockout",
     scoring_type: str = None,
+    campus_ids: list = None,
 ) -> dict:
     """
     Trigger an OPS tournament via API and return the response dict.
     Uses smoke_test scenario (small player count, fast) by default.
+
+    campus_ids is required by the API (min_length=1). If not provided,
+    _get_or_create_campus_ids() fetches/creates a valid campus dynamically.
     """
+    if campus_ids is None:
+        campus_ids = _get_or_create_campus_ids(api_url, token)
+
     payload = {
         "scenario": scenario,
         "player_count": player_count,
         "tournament_format": tournament_format,
+        "campus_ids": campus_ids,
         "dry_run": False,
         "confirmed": True,
     }

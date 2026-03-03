@@ -9,9 +9,20 @@ from sqlalchemy import func
 from pathlib import Path
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import joinedload
+
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user_optional
 from ...models.user import User, UserRole
+from ...models.semester import Semester
+from ...models.license import UserLicense
+from ...models.semester_enrollment import SemesterEnrollment
+from ...models.achievement import Achievement
+from ...models.gamification import UserAchievement
+from ...models.invoice_request import InvoiceRequest
+from ...models.quiz import AdaptiveLearningSession
+from ...models.session import Session as SessionModel
+from ...services.gamification import GamificationService
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

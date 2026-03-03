@@ -9,9 +9,14 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
 
+from zoneinfo import ZoneInfo
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...models.session import Session as SessionModel
+from ...models.booking import Booking
+from ...models.attendance import Attendance, AttendanceHistory, AttendanceStatus, ConfirmationStatus
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -35,7 +40,7 @@ async def mark_attendance(
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
     # Verify session exists and instructor owns it
-    session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session or session.instructor_id != user.id:
         return RedirectResponse(url=f"/sessions/{session_id}?error=unauthorized", status_code=303)
 
@@ -174,7 +179,7 @@ async def confirm_attendance(
         return RedirectResponse(url=f"/sessions/{session_id}?error=no_attendance", status_code=303)
 
     # Check if session has ended - student can only confirm/dispute until session end
-    session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if session:
         budapest_tz = ZoneInfo("Europe/Budapest")
         now = datetime.now(budapest_tz)

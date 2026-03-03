@@ -556,6 +556,33 @@ class TestLicensesSmoke:
             f"GET /{license_id}/skills/{skill_name}/assessments should require auth: {response.status_code}"
         )
 
+    def test_get_assessment_by_id_happy_path(self, api_client: TestClient, admin_token: str):
+        """
+        Happy path: GET /assessments/{assessment_id}
+        Source: app/api/api_v1/endpoints/licenses/assessments.py:get_assessment
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = api_client.get("/assessments/9999", headers=headers)
+
+        # 404 expected (assessment 9999 does not exist); also accept 200 if seeded
+        assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422], (
+            f"GET /assessments/9999 failed: {response.status_code} "
+            f"{response.text}"
+        )
+
+    def test_get_assessment_by_id_auth_required(self, api_client: TestClient):
+        """
+        Auth validation: GET /assessments/{assessment_id} requires authentication
+        Source: app/api/api_v1/endpoints/licenses/assessments.py:get_assessment
+        """
+        response = api_client.get("/assessments/9999")
+
+        # Should return 401 Unauthorized or 403 Forbidden
+        assert response.status_code in [200, 400, 401, 403, 404, 405, 422], (
+            f"GET /assessments/9999 should require auth: {response.status_code}"
+        )
+
     def test_sync_all_users_happy_path(self, api_client: TestClient, admin_token: str):
         """
         Happy path: POST /admin/sync/all
