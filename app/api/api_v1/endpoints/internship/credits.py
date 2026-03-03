@@ -10,6 +10,7 @@ from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.credit_transaction import CreditTransaction
+from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
 
 """
 from fastapi import APIRouter, Depends, HTTPException, Query

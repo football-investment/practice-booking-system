@@ -12,6 +12,8 @@ from pydantic import BaseModel
 
 from .....database import get_db
 from .....models.specialization import SpecializationType
+from .....services.specialization import SpecializationService
+
 router = APIRouter()
 
 class SpecializationResponse(BaseModel):

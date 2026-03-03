@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from datetime import datetime
 import csv
+import io
 
 from .....database import get_db
 from .....models.user import User
@@ -89,7 +90,7 @@ def export_sessions_csv(
     attendance_stats = db.query(
         Attendance.session_id,
         func.count(Attendance.id).label('total_attendance'),
-        func.sum(func.case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('present_attendance')
+        func.sum(func.case((Attendance.status == AttendanceStatus.present, 1), else_=0)).label('present_attendance')
     ).filter(Attendance.session_id.in_(session_ids)).group_by(Attendance.session_id).all()
 
     attendance_stats_map = {
@@ -131,7 +132,7 @@ def export_sessions_csv(
             session.title,
             session.date_start,
             session.date_end,
-            session.mode.value,
+            session.session_type.value if session.session_type else '',
             session.capacity,
             session.location or '',
             session.meeting_link or '',
@@ -191,15 +192,15 @@ def get_system_stats(
     for status, count in booking_statuses:
         booking_breakdown[status.value] = count
     
-    # Session mode breakdown
+    # Session type breakdown
     session_modes = db.query(
-        SessionTypel.mode,
+        SessionTypel.session_type,
         func.count(SessionTypel.id)
-    ).group_by(SessionTypel.mode).all()
-    
+    ).group_by(SessionTypel.session_type).all()
+
     mode_breakdown = {}
     for mode, count in session_modes:
-        mode_breakdown[mode.value] = count
+        mode_breakdown[mode.value if mode else 'unknown'] = count
     
     # Calculate utilization rates
     confirmed_bookings = db.query(func.count(Booking.id)).filter(
@@ -211,7 +212,7 @@ def get_system_stats(
     # Attendance statistics
     total_attendances = db.query(func.count(Attendance.id)).scalar() or 0
     present_attendances = db.query(func.count(Attendance.id)).filter(
-        Attendance.status == AttendanceStatus.PRESENT
+        Attendance.status == AttendanceStatus.present
     ).scalar() or 0
     
     # Feedback statistics

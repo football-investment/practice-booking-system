@@ -15,7 +15,9 @@ from pydantic import BaseModel, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
-from .....models.user import User
+import logging
+from sqlalchemy import text
+from .....models.user import User, UserRole
 from .....services.specs.session_based.lfa_player_service import LFAPlayerService
 
 router = APIRouter()
@@ -132,7 +134,7 @@ def list_all_licenses(
     try:
         service = LFAPlayerService(db)
         # Get all licenses from database
-        query = "SELECT * FROM lfa_player_licenses WHERE is_active = TRUE ORDER BY id DESC"
+        query = text("SELECT * FROM lfa_player_licenses WHERE is_active = TRUE ORDER BY id DESC")
         licenses = db.execute(query).fetchall()
 
         result = []

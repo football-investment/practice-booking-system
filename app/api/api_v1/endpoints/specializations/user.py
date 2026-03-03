@@ -14,6 +14,7 @@ from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
 from .....models.specialization import SpecializationType
+from .....services.specialization import SpecializationService
 
 router = APIRouter()
 

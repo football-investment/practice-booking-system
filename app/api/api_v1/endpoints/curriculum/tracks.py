@@ -2,6 +2,7 @@
 Curriculum track and progress endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .....database import get_db

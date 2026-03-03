@@ -4,12 +4,14 @@ Coach license management endpoints
 import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
+from .....services.specs.semester_based.lfa_coach_service import LFACoachService
 
 logger = logging.getLogger(__name__)
 
