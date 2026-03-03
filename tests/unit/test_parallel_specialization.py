@@ -611,3 +611,175 @@ class TestValidateSpecializationAddition:
         meta = {"specialization_type": "PLAYER", "can_start": True, "reason": "OK"}
         result = self._validate([meta], "player")
         assert result["valid"] is True
+
+
+# ============================================================================
+# TestEvaluateSpecializationType
+# ============================================================================
+
+class TestEvaluateSpecializationType:
+    """
+    Unit tests for _evaluate_specialization_type — the extracted helper.
+
+    All external calls (license_service, check_age_requirement,
+    check_payment_requirement) are replaced with mocks/patch.object so the
+    helper's own branching logic is exercised in complete isolation.
+    """
+
+    # ----- shared fixtures -----
+    _AGE_OK   = {"meets_requirement": True,  "user_age": 25, "required_age": 5,  "reason": "Életkor követelmény teljesítve (25 év)"}
+    _AGE_FAIL = {"meets_requirement": False, "user_age": 3,  "required_age": 5,  "reason": "Minimum életkor: 5 év (jelenlegi: 3 év)"}
+    _PAY_OK   = {"payment_verified": True,  "reason": "Alapbefizetés ellenőrizve és jóváhagyva"}
+    _PAY_FAIL = {"payment_verified": False, "reason": "Alapbefizetés szükséges"}
+    _META     = {"specialization_type": "PLAYER", "level_number": 1, "title": "Player L1"}
+    _SUCCESS  = "Player specializáció (min. 5 év) - minden követelmény teljesített"
+
+    def _eval(
+        self,
+        spec_type="PLAYER",
+        current_spec_codes=None,
+        age_result=None,
+        pay_result=None,
+        meta_result=None,
+        success_reason=None,
+        semester=1,
+    ):
+        """Helper: build a mocked service and call _evaluate_specialization_type."""
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        svc.license_service.get_license_metadata_by_level.return_value = meta_result
+        age_result  = age_result  if age_result  is not None else self._AGE_OK
+        pay_result  = pay_result  if pay_result  is not None else self._PAY_OK
+        success_reason = success_reason or self._SUCCESS
+        with _patch.object(svc, "check_age_requirement",    return_value=age_result):
+            with _patch.object(svc, "check_payment_requirement", return_value=pay_result):
+                return svc._evaluate_specialization_type(
+                    user_id=1,
+                    spec_type=spec_type,
+                    semester=semester,
+                    current_spec_codes=current_spec_codes or [],
+                    success_reason=success_reason,
+                )
+
+    # ----- early-exit guards -----
+
+    def test_already_enrolled_returns_none(self):
+        """spec_type in current_spec_codes → immediate None, no DB call made."""
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        result = svc._evaluate_specialization_type(
+            user_id=1,
+            spec_type="PLAYER",
+            semester=1,
+            current_spec_codes=["PLAYER", "COACH"],
+            success_reason=self._SUCCESS,
+        )
+        assert result is None
+        svc.license_service.get_license_metadata_by_level.assert_not_called()
+
+    def test_metadata_none_returns_none(self):
+        """No LicenseMetadata for the spec → None returned, age/payment never called."""
+        result = self._eval(meta_result=None)
+        assert result is None
+
+    # ----- failure-reason branches -----
+
+    def test_age_fail_reason_contains_age_prefix(self):
+        """Age check fails → reason starts with spec display name, contains 'Korhatár:'."""
+        result = self._eval(age_result=self._AGE_FAIL, pay_result=self._PAY_OK, meta_result=self._META)
+        assert result is not None
+        assert result["can_start"] is False
+        assert "Korhatár:" in result["reason"]
+        assert "Minimum életkor: 5 év" in result["reason"]
+
+    def test_payment_fail_reason_contains_payment_prefix(self):
+        """Payment check fails → reason contains 'Befizetés:'."""
+        result = self._eval(age_result=self._AGE_OK, pay_result=self._PAY_FAIL, meta_result=self._META)
+        assert result is not None
+        assert result["can_start"] is False
+        assert "Befizetés:" in result["reason"]
+        assert "Alapbefizetés szükséges" in result["reason"]
+
+    def test_both_fail_reason_joins_with_semicolon(self):
+        """Both age and payment fail → reason contains both parts joined by '; '."""
+        result = self._eval(age_result=self._AGE_FAIL, pay_result=self._PAY_FAIL, meta_result=self._META)
+        assert result is not None
+        assert result["can_start"] is False
+        assert "Korhatár:" in result["reason"]
+        assert "Befizetés:" in result["reason"]
+        # Both parts must appear in a single '; '-separated string
+        assert "; " in result["reason"]
+
+    def test_both_fail_reason_starts_with_display_name(self):
+        """Reason prefix must be the human-readable spec display name."""
+        result = self._eval(spec_type="COACH", age_result=self._AGE_FAIL, pay_result=self._PAY_FAIL, meta_result=self._META)
+        assert result["reason"].startswith("Coach specializáció")
+
+    def test_both_fail_internship_display_name(self):
+        """INTERNSHIP display name is 'Gyakornoki program' in failure reason."""
+        result = self._eval(spec_type="INTERNSHIP", age_result=self._AGE_FAIL, pay_result=self._PAY_FAIL, meta_result=self._META)
+        assert result["reason"].startswith("Gyakornoki program")
+
+    # ----- success path -----
+
+    def test_can_start_true_when_both_checks_pass(self):
+        """Both checks pass → can_start=True, requirement_met=True."""
+        result = self._eval(age_result=self._AGE_OK, pay_result=self._PAY_OK, meta_result=self._META)
+        assert result is not None
+        assert result["can_start"] is True
+        assert result["requirement_met"] is True
+
+    def test_can_start_true_uses_provided_success_reason(self):
+        """success_reason is passed through verbatim when can_start=True."""
+        custom = "Egyedi siker szöveg"
+        result = self._eval(age_result=self._AGE_OK, pay_result=self._PAY_OK, meta_result=self._META, success_reason=custom)
+        assert result["reason"] == custom
+
+    def test_result_dict_includes_meta_keys(self):
+        """Return value spreads meta dict — all metadata keys must be present."""
+        result = self._eval(age_result=self._AGE_OK, pay_result=self._PAY_OK, meta_result=self._META)
+        for key in self._META:
+            assert key in result, f"Missing meta key: {key}"
+
+    def test_result_dict_includes_check_sub_dicts(self):
+        """age_requirement and payment_requirement sub-dicts preserved in result."""
+        result = self._eval(age_result=self._AGE_OK, pay_result=self._PAY_OK, meta_result=self._META)
+        assert result["age_requirement"]     == self._AGE_OK
+        assert result["payment_requirement"] == self._PAY_OK
+
+    # ----- sem_key distinction via outer method -----
+
+    def test_semester1_success_reason_contains_extra_context(self):
+        """
+        Semester 1 success reason includes 'alapképzés' / 'edzői képzés' extra context.
+        Verified via get_available_specializations_for_semester(semester=1).
+        """
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        svc.license_service.get_license_metadata_by_level.return_value = self._META
+        with _patch.object(svc, "get_user_active_specializations", return_value=[]):
+            with _patch.object(svc, "check_age_requirement",    return_value=self._AGE_OK):
+                with _patch.object(svc, "check_payment_requirement", return_value=self._PAY_OK):
+                    result_sem1 = svc.get_available_specializations_for_semester(user_id=1, semester=1)
+
+        assert len(result_sem1) == 3
+        player_entry = next(e for e in result_sem1 if e["specialization_type"] == "PLAYER")
+        assert "alapképzés" in player_entry["reason"]
+
+    def test_semester2_success_reason_lacks_extra_context(self):
+        """
+        Semester 2+ success reason omits the 'alapképzés' / 'edzői képzés' qualifier.
+        Verified via get_available_specializations_for_semester(semester=2).
+        """
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        svc.license_service.get_license_metadata_by_level.return_value = self._META
+        with _patch.object(svc, "get_user_active_specializations", return_value=[]):
+            with _patch.object(svc, "check_age_requirement",    return_value=self._AGE_OK):
+                with _patch.object(svc, "check_payment_requirement", return_value=self._PAY_OK):
+                    result_sem2 = svc.get_available_specializations_for_semester(user_id=1, semester=2)
+
+        assert len(result_sem2) == 3
+        player_entry = next(e for e in result_sem2 if e["specialization_type"] == "PLAYER")
+        assert "alapképzés" not in player_entry["reason"]
+        assert "min. 5 év" in player_entry["reason"]
