@@ -84,8 +84,9 @@ class TestSessiongroupsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /auto-assign
-        payload = {}
+        payload = {
+            "session_id": 9999
+        }
         response = api_client.post("/auto-assign", json=payload, headers=headers)
         
 
@@ -140,8 +141,11 @@ class TestSessiongroupsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /move-student
-        payload = {}
+        payload = {
+            "student_id": 9999,
+            "from_group_id": 9999,
+            "to_group_id": 9998
+        }
         response = api_client.post("/move-student", json=payload, headers=headers)
         
 

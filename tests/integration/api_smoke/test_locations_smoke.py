@@ -143,9 +143,8 @@ class TestLocationsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"name": "Smoke Test Location", "city": "Budapest", "country": "Hungary"}
         response = api_client.post("/", json=payload, headers=headers)
         
 

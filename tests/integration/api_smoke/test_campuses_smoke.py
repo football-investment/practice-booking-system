@@ -198,10 +198,8 @@ class TestCampusesSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /locations/{location_id}/campuses
-        payload = {}
-        response = api_client.post("/locations/{location_id}/campuses", json=payload, headers=headers)
+
+        response = api_client.post("/locations/{location_id}/campuses", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

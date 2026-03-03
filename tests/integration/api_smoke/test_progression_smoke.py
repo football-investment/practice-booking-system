@@ -173,9 +173,8 @@ class TestProgressionSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /progress/update
-        payload = {}
+
+        payload = {"track": "internship", "level": "junior"}
         response = api_client.post("/progress/update", json=payload, headers=headers)
         
 

@@ -83,10 +83,8 @@ class TestEnrollmentsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /validate
-        payload = {}
-        response = api_client.post("/validate", json=payload, headers=headers)
+
+        response = api_client.post("/validate?semester_id=9999", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

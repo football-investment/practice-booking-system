@@ -84,8 +84,11 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /admin/invitation-codes
-        payload = {}
+        payload = {
+            "max_uses": 1,
+            "valid_days": 30,
+            "specialization_type": "LFA_FOOTBALL_PLAYER"
+        }
         response = api_client.post("/admin/invitation-codes", json=payload, headers=headers)
         
 
@@ -140,8 +143,9 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /invitation-codes/redeem
-        payload = {}
+        payload = {
+            "code": "SMOKETEST9999"
+        }
         response = api_client.post("/invitation-codes/redeem", json=payload, headers=headers)
         
 
@@ -196,8 +200,9 @@ class TestInvitationcodesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /invitation-codes/validate
-        payload = {}
+        payload = {
+            "code": "SMOKETEST9999"
+        }
         response = api_client.post("/invitation-codes/validate", json=payload, headers=headers)
         
 

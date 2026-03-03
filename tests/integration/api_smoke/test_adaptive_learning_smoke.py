@@ -114,9 +114,7 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/answer
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/answer", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/answer", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -170,9 +168,7 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/end
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/end", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/end", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -226,9 +222,7 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /sessions/{session_id}/next-question
-        payload = {}
-        response = api_client.post("/sessions/{session_id}/next-question", json=payload, headers=headers)
+        response = api_client.post("/sessions/{session_id}/next-question", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -282,8 +276,10 @@ class TestAdaptivelearningSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /start-session
-        payload = {}
+        payload = {
+            "category": "GENERAL",
+            "session_duration_seconds": 180
+        }
         response = api_client.post("/start-session", json=payload, headers=headers)
         
 

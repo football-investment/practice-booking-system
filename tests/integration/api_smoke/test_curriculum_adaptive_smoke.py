@@ -114,8 +114,10 @@ class TestCurriculumadaptiveSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /profile/update
-        payload = {}
+        payload = {
+            "preferred_difficulty": 0.5,
+            "daily_goal_minutes": 30
+        }
         response = api_client.post("/profile/update", json=payload, headers=headers)
         
 
@@ -146,9 +148,7 @@ class TestCurriculumadaptiveSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /recommendations/{recommendation_id}/dismiss
-        payload = {}
-        response = api_client.post("/recommendations/{recommendation_id}/dismiss", json=payload, headers=headers)
+        response = api_client.post("/recommendations/{recommendation_id}/dismiss", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -202,8 +202,9 @@ class TestCurriculumadaptiveSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /snapshot
-        payload = {}
+        payload = {
+            "notes": "Smoke test snapshot"
+        }
         response = api_client.post("/snapshot", json=payload, headers=headers)
         
 

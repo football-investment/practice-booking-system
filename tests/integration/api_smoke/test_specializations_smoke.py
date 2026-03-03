@@ -324,8 +324,9 @@ class TestSpecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /me
-        payload = {}
+        payload = {
+            "specialization": "LFA_FOOTBALL_PLAYER"
+        }
         response = api_client.post("/me", json=payload, headers=headers)
         
 
@@ -380,8 +381,10 @@ class TestSpecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /update-hours
-        payload = {}
+        payload = {
+            "theory_hours_increment": 1,
+            "practice_hours_increment": 1
+        }
         response = api_client.post("/update-hours", json=payload, headers=headers)
         
 
@@ -436,9 +439,7 @@ class TestSpecializationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /update-progress/{specialization_id}
-        payload = {}
-        response = api_client.post("/update-progress/{specialization_id}", json=payload, headers=headers)
+        response = api_client.post("/update-progress/{specialization_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

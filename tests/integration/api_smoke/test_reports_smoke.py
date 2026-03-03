@@ -203,9 +203,8 @@ class TestReportsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /custom
-        payload = {}
+
+        payload = {"report_type": "semester"}
         response = api_client.post("/custom", json=payload, headers=headers)
         
 

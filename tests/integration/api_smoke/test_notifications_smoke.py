@@ -83,9 +83,8 @@ class TestNotificationsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"user_id": 9999, "title": "Smoke Test Notification", "message": "Smoke test notification message."}
         response = api_client.post("/", json=payload, headers=headers)
         
 

@@ -84,8 +84,10 @@ class TestProfileSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /profile/edit
-        payload = {}
+        payload = {
+            "name": "Smoke Test User",
+            "nickname": "smoketest"
+        }
         response = api_client.post("/profile/edit", json=payload, headers=headers)
         
 

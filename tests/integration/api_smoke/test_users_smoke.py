@@ -443,8 +443,12 @@ class TestUsersSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "name": "Smoke Test User",
+            "email": "smoketest9999@example.com",
+            "password": "SmokeTest123!",
+            "role": "STUDENT"
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -500,8 +504,10 @@ class TestUsersSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /request-invoice
-        payload = {}
+        payload = {
+            "credit_amount": 10,
+            "amount_eur": 99.0
+        }
         response = api_client.post("/request-invoice", json=payload, headers=headers)
         
 
@@ -556,9 +562,7 @@ class TestUsersSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{user_id}/reset-password
-        payload = {}
-        response = api_client.post("/{user_id}/reset-password", json=payload, headers=headers)
+        response = api_client.post("/{user_id}/reset-password", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

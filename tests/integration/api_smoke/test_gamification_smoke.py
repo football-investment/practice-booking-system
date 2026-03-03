@@ -83,10 +83,8 @@ class TestGamificationSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /refresh/{user_id}
-        payload = {}
-        response = api_client.post("/refresh/{user_id}", json=payload, headers=headers)
+
+        response = api_client.post("/refresh/{user_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

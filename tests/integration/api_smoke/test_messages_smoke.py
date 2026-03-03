@@ -204,8 +204,11 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "recipient_id": 9999,
+            "subject": "Smoke Test Message",
+            "content": "This is a smoke test message."
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -260,8 +263,9 @@ class TestMessagesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /by-nickname
-        payload = {}
+        payload = {
+            "nickname": "smoke_test_user"
+        }
         response = api_client.post("/by-nickname", json=payload, headers=headers)
         
 

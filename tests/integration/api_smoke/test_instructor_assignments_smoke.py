@@ -394,8 +394,11 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /availability
-        payload = {}
+        payload = {
+            "day_of_week": 1,
+            "start_time": "09:00",
+            "end_time": "17:00"
+        }
         response = api_client.post("/availability", json=payload, headers=headers)
         
 
@@ -450,8 +453,10 @@ class TestInstructorassignmentsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /requests
-        payload = {}
+        payload = {
+            "session_id": 9999,
+            "message": "Smoke test assignment request"
+        }
         response = api_client.post("/requests", json=payload, headers=headers)
         
 

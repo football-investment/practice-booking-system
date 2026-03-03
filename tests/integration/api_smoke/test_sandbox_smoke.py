@@ -113,9 +113,8 @@ class TestSandboxSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /run-test
-        payload = {}
+
+        payload = {"tournament_type": "knockout", "skills_to_test": ["passing"], "player_count": 4}
         response = api_client.post("/run-test", json=payload, headers=headers)
         
 

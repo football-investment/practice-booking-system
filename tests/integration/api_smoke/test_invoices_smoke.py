@@ -144,8 +144,10 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /request
-        payload = {}
+        payload = {
+            "credit_amount": 10,
+            "amount_eur": 99.0
+        }
         response = api_client.post("/request", json=payload, headers=headers)
         
 
@@ -200,9 +202,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{invoice_id}/cancel
-        payload = {}
-        response = api_client.post("/{invoice_id}/cancel", json=payload, headers=headers)
+        response = api_client.post("/{invoice_id}/cancel", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -256,9 +256,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{invoice_id}/unverify
-        payload = {}
-        response = api_client.post("/{invoice_id}/unverify", json=payload, headers=headers)
+        response = api_client.post("/{invoice_id}/unverify", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -312,9 +310,7 @@ class TestInvoicesSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{invoice_id}/verify
-        payload = {}
-        response = api_client.post("/{invoice_id}/verify", json=payload, headers=headers)
+        response = api_client.post("/{invoice_id}/verify", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

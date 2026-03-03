@@ -53,9 +53,8 @@ class TestSemestergeneratorSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /generate
-        payload = {}
+
+        payload = {"year": 2026, "specialization": "LFA_PLAYER", "age_group": "YOUTH", "location_id": 9999}
         response = api_client.post("/generate", json=payload, headers=headers)
         
 

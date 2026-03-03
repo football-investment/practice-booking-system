@@ -353,10 +353,8 @@ class TestAdminSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /admin/students/{student_id}/motivation/{specialization}
-        payload = {}
-        response = api_client.post("/admin/students/{student_id}/motivation/{specialization}", json=payload, headers=headers)
+
+        response = api_client.post("/admin/students/{student_id}/motivation/{specialization}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -409,10 +407,8 @@ class TestAdminSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /instructor/students/{student_id}/skills/{license_id}
-        payload = {}
-        response = api_client.post("/instructor/students/{student_id}/skills/{license_id}", json=payload, headers=headers)
+
+        response = api_client.post("/instructor/students/{student_id}/skills/{license_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

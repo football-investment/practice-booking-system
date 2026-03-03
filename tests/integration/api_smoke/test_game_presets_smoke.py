@@ -198,9 +198,8 @@ class TestGamepresetsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"code": "smoke_test_preset", "name": "Smoke Test Preset", "game_config": {"version": "1.0", "format_config": {}, "skill_config": {}, "simulation_config": {}}}
         response = api_client.post("/", json=payload, headers=headers)
         
 

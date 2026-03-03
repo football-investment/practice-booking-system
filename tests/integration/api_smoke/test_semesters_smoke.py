@@ -54,8 +54,10 @@ class TestSemestersSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /generate-academy-season
-        payload = {}
+        payload = {
+            "year": 2026,
+            "location_id": 9999
+        }
         response = api_client.post("/generate-academy-season", json=payload, headers=headers)
         
 

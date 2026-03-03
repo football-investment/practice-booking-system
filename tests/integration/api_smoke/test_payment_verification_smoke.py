@@ -84,9 +84,7 @@ class TestPaymentverificationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /students/{student_id}/add-specialization
-        payload = {}
-        response = api_client.post("/students/{student_id}/add-specialization", json=payload, headers=headers)
+        response = api_client.post("/students/{student_id}/add-specialization", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -140,9 +138,7 @@ class TestPaymentverificationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /students/{student_id}/remove-specialization
-        payload = {}
-        response = api_client.post("/students/{student_id}/remove-specialization", json=payload, headers=headers)
+        response = api_client.post("/students/{student_id}/remove-specialization", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -196,9 +192,7 @@ class TestPaymentverificationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /students/{student_id}/unverify
-        payload = {}
-        response = api_client.post("/students/{student_id}/unverify", json=payload, headers=headers)
+        response = api_client.post("/students/{student_id}/unverify", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -252,9 +246,7 @@ class TestPaymentverificationSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /students/{student_id}/verify
-        payload = {}
-        response = api_client.post("/students/{student_id}/verify", json=payload, headers=headers)
+        response = api_client.post("/students/{student_id}/verify", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

@@ -144,8 +144,10 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /enroll
-        payload = {}
+        payload = {
+            "track_id": "00000000-0000-0000-0000-000000009999",
+            "semester_id": "00000000-0000-0000-0000-000000009999"
+        }
         response = api_client.post("/enroll", json=payload, headers=headers)
         
 
@@ -200,9 +202,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{track_progress_id}/modules/{module_id}/complete
-        payload = {}
-        response = api_client.post("/{track_progress_id}/modules/{module_id}/complete", json=payload, headers=headers)
+        response = api_client.post("/{track_progress_id}/modules/{module_id}/complete", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -232,9 +232,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{track_progress_id}/modules/{module_id}/start
-        payload = {}
-        response = api_client.post("/{track_progress_id}/modules/{module_id}/start", json=payload, headers=headers)
+        response = api_client.post("/{track_progress_id}/modules/{module_id}/start", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -264,9 +262,7 @@ class TestTracksSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{track_progress_id}/start
-        payload = {}
-        response = api_client.post("/{track_progress_id}/start", json=payload, headers=headers)
+        response = api_client.post("/{track_progress_id}/start", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

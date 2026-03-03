@@ -168,9 +168,8 @@ class TestInstructoravailabilitySmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"instructor_id": 9999, "specialization_type": "LFA_PLAYER_YOUTH", "time_period_code": "Q2", "year": 2026}
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -224,10 +223,9 @@ class TestInstructoravailabilitySmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /bulk-upsert
-        payload = {}
-        response = api_client.post("/bulk-upsert", json=payload, headers=headers)
+
+        payload = {"Q2": {"LFA_PLAYER_YOUTH": True}}
+        response = api_client.post("/bulk-upsert?instructor_id=9999&year=2026", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

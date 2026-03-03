@@ -53,10 +53,8 @@ class TestLfacoachroutesSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /instructor/students/{student_id}/certify/{license_id}
-        payload = {}
-        response = api_client.post("/instructor/students/{student_id}/certify/{license_id}", json=payload, headers=headers)
+
+        response = api_client.post("/instructor/students/{student_id}/certify/{license_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -109,10 +107,8 @@ class TestLfacoachroutesSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /instructor/students/{student_id}/track-teaching-hours/{license_id}
-        payload = {}
-        response = api_client.post("/instructor/students/{student_id}/track-teaching-hours/{license_id}", json=payload, headers=headers)
+
+        response = api_client.post("/instructor/students/{student_id}/track-teaching-hours/{license_id}", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

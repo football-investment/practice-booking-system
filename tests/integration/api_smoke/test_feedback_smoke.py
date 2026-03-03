@@ -258,9 +258,8 @@ class TestFeedbackSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"session_id": 9999, "rating": 4.5}
         response = api_client.post("/", json=payload, headers=headers)
         
 

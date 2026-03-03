@@ -158,8 +158,9 @@ class TestAuthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /age-verification
-        payload = {}
+        payload = {
+            "date_of_birth": "2000-01-01"
+        }
         response = api_client.post("/age-verification", json=payload, headers=headers)
         
 

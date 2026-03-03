@@ -324,9 +324,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /exercise/submission/{submission_id}/grade
-        payload = {}
-        response = api_client.post("/exercise/submission/{submission_id}/grade", json=payload, headers=headers)
+        response = api_client.post("/exercise/submission/{submission_id}/grade", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -380,9 +378,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /exercise/submission/{submission_id}/upload
-        payload = {}
-        response = api_client.post("/exercise/submission/{submission_id}/upload", json=payload, headers=headers)
+        response = api_client.post("/exercise/submission/{submission_id}/upload", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -412,9 +408,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /exercise/{exercise_id}/submit
-        payload = {}
-        response = api_client.post("/exercise/{exercise_id}/submit", json=payload, headers=headers)
+        response = api_client.post("/exercise/{exercise_id}/submit", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -468,9 +462,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /module/{module_id}/complete
-        payload = {}
-        response = api_client.post("/module/{module_id}/complete", json=payload, headers=headers)
+        response = api_client.post("/module/{module_id}/complete", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -524,9 +516,7 @@ class TestCurriculumSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /module/{module_id}/view
-        payload = {}
-        response = api_client.post("/module/{module_id}/view", json=payload, headers=headers)
+        response = api_client.post("/module/{module_id}/view", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

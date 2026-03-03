@@ -83,10 +83,8 @@ class TestLicenserenewalSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /check-expirations
-        payload = {}
-        response = api_client.post("/check-expirations", json=payload, headers=headers)
+
+        response = api_client.post("/check-expirations", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -115,9 +113,8 @@ class TestLicenserenewalSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /renew
-        payload = {}
+
+        payload = {"license_id": 9999, "renewal_months": 12}
         response = api_client.post("/renew", json=payload, headers=headers)
         
 

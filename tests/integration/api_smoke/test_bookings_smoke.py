@@ -229,8 +229,10 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /
-        payload = {}
+        payload = {
+            "session_id": 9999,
+            "notes": "Smoke test booking"
+        }
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -286,9 +288,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{booking_id}/cancel
-        payload = {}
-        response = api_client.post("/{booking_id}/cancel", json=payload, headers=headers)
+        response = api_client.post("/{booking_id}/cancel", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
@@ -342,9 +342,7 @@ class TestBookingsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /{booking_id}/confirm
-        payload = {}
-        response = api_client.post("/{booking_id}/confirm", json=payload, headers=headers)
+        response = api_client.post("/{booking_id}/confirm", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

@@ -113,8 +113,7 @@ class TestSpecializationSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /specialization/motivation-submit
+
         payload = {}
         response = api_client.post("/specialization/motivation-submit", json=payload, headers=headers)
         
@@ -169,8 +168,7 @@ class TestSpecializationSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /specialization/switch
+
         payload = {}
         response = api_client.post("/specialization/switch", json=payload, headers=headers)
         
@@ -225,8 +223,7 @@ class TestSpecializationSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /specialization/unlock
+
         payload = {}
         response = api_client.post("/specialization/unlock", json=payload, headers=headers)
         

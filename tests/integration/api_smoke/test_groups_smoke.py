@@ -198,9 +198,8 @@ class TestGroupsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"name": "Smoke Test Group", "semester_id": 9999}
         response = api_client.post("/", json=payload, headers=headers)
         
 
@@ -254,10 +253,8 @@ class TestGroupsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{group_id}/users
-        payload = {}
-        response = api_client.post("/{group_id}/users", json=payload, headers=headers)
+
+        response = api_client.post("/{group_id}/users", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

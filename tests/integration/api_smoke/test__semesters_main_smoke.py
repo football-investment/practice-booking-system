@@ -198,9 +198,8 @@ class TestsemestersmainSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /
-        payload = {}
+
+        payload = {"code": "SMOKE-2026-001", "name": "Smoke Test Semester", "start_date": "2026-06-01", "end_date": "2026-08-31"}
         response = api_client.post("/", json=payload, headers=headers)
         
 

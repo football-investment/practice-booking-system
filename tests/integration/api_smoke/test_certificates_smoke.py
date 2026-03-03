@@ -173,10 +173,8 @@ class TestCertificatesSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{certificate_id}/revoke
-        payload = {}
-        response = api_client.post("/{certificate_id}/revoke", json=payload, headers=headers)
+
+        response = api_client.post("/{certificate_id}/revoke", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

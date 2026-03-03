@@ -83,9 +83,8 @@ class TestDebugSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /log-error
-        payload = {}
+
+        payload = {"error": "Smoke test error", "component": "smoke_test"}
         response = api_client.post("/log-error", json=payload, headers=headers)
         
 

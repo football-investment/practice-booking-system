@@ -144,7 +144,6 @@ class TestHealthSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /check-now
         payload = {}
         response = api_client.post("/check-now", json=payload, headers=headers)
         

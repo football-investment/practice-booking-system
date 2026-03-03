@@ -53,9 +53,8 @@ class TestMotivationSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /motivation-assessment
-        payload = {}
+
+        payload = {"specialization_type": "GANCUJU", "character_type": "warrior"}
         response = api_client.post("/motivation-assessment", json=payload, headers=headers)
         
 

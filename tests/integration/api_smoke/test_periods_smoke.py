@@ -24,8 +24,11 @@ class TestPeriodsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/amateur
-        payload = {}
+        payload = {
+            "year": 2026,
+            "location_id": 9999,
+            "force_overwrite": False
+        }
         response = api_client.post("/lfa-player/amateur", json=payload, headers=headers)
         
 
@@ -80,8 +83,12 @@ class TestPeriodsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/pre
-        payload = {}
+        payload = {
+            "year": 2026,
+            "month": 3,
+            "location_id": 9999,
+            "force_overwrite": False
+        }
         response = api_client.post("/lfa-player/pre", json=payload, headers=headers)
         
 
@@ -136,8 +143,11 @@ class TestPeriodsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/pro
-        payload = {}
+        payload = {
+            "year": 2026,
+            "location_id": 9999,
+            "force_overwrite": False
+        }
         response = api_client.post("/lfa-player/pro", json=payload, headers=headers)
         
 
@@ -192,8 +202,12 @@ class TestPeriodsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /lfa-player/youth
-        payload = {}
+        payload = {
+            "year": 2026,
+            "quarter": 1,
+            "location_id": 9999,
+            "force_overwrite": False
+        }
         response = api_client.post("/lfa-player/youth", json=payload, headers=headers)
         
 

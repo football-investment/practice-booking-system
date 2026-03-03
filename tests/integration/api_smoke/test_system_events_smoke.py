@@ -133,10 +133,8 @@ class TestSystemeventsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /purge
-        payload = {}
-        response = api_client.post("/purge", json=payload, headers=headers)
+
+        response = api_client.post("/purge", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

@@ -144,8 +144,10 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /credits/purchase
-        payload = {}
+        payload = {
+            "amount": 10,
+            "payment_verified": False
+        }
         response = api_client.post("/credits/purchase", json=payload, headers=headers)
         
 
@@ -200,8 +202,10 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /credits/spend
-        payload = {}
+        payload = {
+            "enrollment_id": 9999,
+            "amount": 5
+        }
         response = api_client.post("/credits/spend", json=payload, headers=headers)
         
 
@@ -256,8 +260,10 @@ class TestLfaplayerSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /licenses
-        payload = {}
+        payload = {
+            "age_group": "YOUTH",
+            "initial_credits": 0
+        }
         response = api_client.post("/licenses", json=payload, headers=headers)
         
 

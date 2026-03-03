@@ -83,10 +83,8 @@ class TestTournamenttypesSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /{tournament_type_id}/estimate
-        payload = {}
-        response = api_client.post("/{tournament_type_id}/estimate", json=payload, headers=headers)
+
+        response = api_client.post("/{tournament_type_id}/estimate", headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)

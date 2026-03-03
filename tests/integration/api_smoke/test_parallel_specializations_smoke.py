@@ -233,9 +233,8 @@ class TestParallelspecializationsSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        # TODO: Add realistic payload for /start
-        payload = {}
+
+        payload = {"specialization": "PLAYER"}
         response = api_client.post("/start", json=payload, headers=headers)
         
 

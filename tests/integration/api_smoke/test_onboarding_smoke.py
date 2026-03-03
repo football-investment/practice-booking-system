@@ -144,8 +144,9 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /onboarding/set-birthdate
-        payload = {}
+        payload = {
+            "date_of_birth": "2000-01-01"
+        }
         response = api_client.post("/onboarding/set-birthdate", json=payload, headers=headers)
         
 
@@ -200,8 +201,9 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /specialization/lfa-player/onboarding-submit
-        payload = {}
+        payload = {
+            "primary_goal": "improve_skills"
+        }
         response = api_client.post("/specialization/lfa-player/onboarding-submit", json=payload, headers=headers)
         
 
@@ -232,8 +234,9 @@ class TestOnboardingSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
         
-        # TODO: Add realistic payload for /specialization/select
-        payload = {}
+        payload = {
+            "specialization": "LFA_FOOTBALL_PLAYER"
+        }
         response = api_client.post("/specialization/select", json=payload, headers=headers)
         
 
