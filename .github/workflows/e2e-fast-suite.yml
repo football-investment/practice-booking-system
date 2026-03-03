@@ -54,37 +54,40 @@ jobs:
       - name: Install Playwright browsers
         run: python -m playwright install --with-deps chromium
 
-      - name: Set up database
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-          SECRET_KEY: ci-test-secret-key-not-for-production
+      - name: Write .env (consistent settings for all subprocesses)
         run: |
-          # Run migrations
-          alembic upgrade head
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
 
-          # Verify migration state
+      - name: Run Alembic migrations
+        run: |
+          alembic upgrade head
           alembic current -v
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-          SECRET_KEY: ci-test-secret-key-not-for-production
-          ENVIRONMENT: test
-          TESTING: "true"
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
 
       - name: Start Streamlit frontend
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
           BACKEND_URL: http://localhost:8000
-          STREAMLIT_SERVER_HEADLESS: "true"
         run: |
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
           timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Run Fast Suite
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
         run: |
           pytest tests_e2e/ \
             -m "not scale_suite" \

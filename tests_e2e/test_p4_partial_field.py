@@ -113,7 +113,7 @@ _BASE_URL = os.environ.get("BASE_URL", "http://localhost:8501")
 _ADMIN_EMAIL    = "admin@lfa.com"
 _ADMIN_PASSWORD = "admin123"
 
-MONITOR_PATH  = "/Tournament_Monitor"
+MONITOR_PATH = "/Tournament_Manager"
 _LOAD_TIMEOUT  = 30_000
 _SLOW_TIMEOUT  = 120_000   # 8p GK accelerated + st.rerun() overhead
 _LARGE_TIMEOUT = 200_000   # 64p knockout accelerated (63 sessions synchronous)

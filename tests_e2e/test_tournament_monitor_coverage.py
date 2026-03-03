@@ -34,7 +34,7 @@ from playwright.sync_api import Page, expect
 
 ADMIN_EMAIL = "admin@lfa.com"
 ADMIN_PASSWORD = "admin123"
-MONITOR_PATH = "/Tournament_Monitor"
+MONITOR_PATH = "/Tournament_Manager"
 
 _LOAD_TIMEOUT = 30_000
 _STREAMLIT_SETTLE = 2
@@ -249,9 +249,12 @@ class TestPlayerCountBoundaryAPI:
     def test_api_above_maximum_rejected(self, api_url: str):
         """player_count=1025 is above le=1024 — API must return 422."""
         token = _get_admin_token(api_url)
+        # Provide explicit player_ids to bypass pool lookup; Pydantic rejects
+        # player_count=1025 (le=1024) before any player resolution.
         resp = _ops_post(api_url, token, {
             "scenario": "large_field_monitor",
             "player_count": 1025,
+            "player_ids": [1],  # bypass auto-injection: Pydantic will reject first
             "tournament_format": "HEAD_TO_HEAD",
             "tournament_type_code": "knockout",
             "dry_run": False,

@@ -35,7 +35,7 @@ from playwright.sync_api import Page, expect
 
 ADMIN_EMAIL = "admin@lfa.com"
 ADMIN_PASSWORD = "admin123"
-MONITOR_PATH = "/Tournament_Monitor"
+MONITOR_PATH = "/Tournament_Manager"
 
 # Timeouts
 _LOAD_TIMEOUT = 30_000       # 30s for page loads

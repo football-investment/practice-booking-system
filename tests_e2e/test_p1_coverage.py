@@ -36,11 +36,13 @@ import pytest
 import requests
 from playwright.sync_api import Page, expect
 
+_CAMPUS_ID_CACHE = None
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 ADMIN_EMAIL = "admin@lfa.com"
 ADMIN_PASSWORD = "admin123"
-MONITOR_PATH = "/Tournament_Monitor"
+MONITOR_PATH = "/Tournament_Manager"
 
 _LOAD_TIMEOUT = 30_000
 _STREAMLIT_SETTLE = 2
@@ -72,7 +74,22 @@ def _get_admin_user(api_url: str, token: str) -> dict:
 
 
 def _ops_post(api_url: str, token: str, payload: dict, timeout: int = 120) -> requests.Response:
-    """Raw POST to /ops/run-scenario — returns Response for assertion flexibility."""
+    """Raw POST to /ops/run-scenario — auto-injects campus_ids if missing."""
+    global _CAMPUS_ID_CACHE
+    if "campus_ids" not in payload:
+        if _CAMPUS_ID_CACHE is None:
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
+            from app.models.campus import Campus
+            from app.config import settings
+            engine = create_engine(settings.DATABASE_URL)
+            db = sessionmaker(bind=engine)()
+            try:
+                campus = db.query(Campus).filter(Campus.is_active == True).first()
+                _CAMPUS_ID_CACHE = campus.id if campus else 1
+            finally:
+                db.close()
+        payload["campus_ids"] = [_CAMPUS_ID_CACHE]
     return requests.post(
         f"{api_url}/api/v1/tournaments/ops/run-scenario",
         headers={"Authorization": f"Bearer {token}"},

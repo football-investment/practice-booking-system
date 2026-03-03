@@ -63,7 +63,7 @@ from sqlalchemy.orm import Session as DBSession
 
 ADMIN_EMAIL = "admin@lfa.com"
 ADMIN_PASSWORD = "admin123"
-MONITOR_PATH = "/Tournament_Monitor"
+MONITOR_PATH = "/Tournament_Manager"
 
 _LOAD_TIMEOUT = 45_000
 _STREAMLIT_SETTLE = 3

@@ -49,7 +49,7 @@ _BASE_URL = os.environ.get("BASE_URL", "http://localhost:8501")
 _ADMIN_EMAIL    = "admin@lfa.com"
 _ADMIN_PASSWORD = "admin123"
 
-MONITOR_PATH  = "/Tournament_Monitor"
+MONITOR_PATH = "/Tournament_Manager"
 _LOAD_TIMEOUT = 30_000
 _SLOW_TIMEOUT = 90_000   # accelerated mode may take up to ~90 s end-to-end
 _SETTLE       = 2        # seconds after networkidle to let Streamlit re-render
