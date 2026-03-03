@@ -263,6 +263,7 @@ def test_campus_id(test_db: Session) -> int:
         location = Location(
             name="Smoke Test Location",
             city="Budapest",
+            country="Hungary",
             is_active=True
         )
         test_db.add(location)
