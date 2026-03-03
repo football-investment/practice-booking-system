@@ -65,8 +65,7 @@ jobs:
           --cov-report=term-missing \
           --cov-fail-under=40
 
-    - name: Run api_smoke tests (coverage append — non-blocking)
-      continue-on-error: true
+    - name: Run api_smoke tests (coverage append)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
