@@ -144,7 +144,7 @@ class TestLocationsSmoke:
         headers = {"Authorization": f"Bearer {admin_token}"}
 
 
-        payload = {"name": "Smoke Test Location", "city": "Budapest", "country": "Hungary", "location_code": "SMOKE-TEST-LOC"}
+        payload = {"name": "Smoke Test Location", "city": "Budapest", "country": "Hungary", "location_code": "SMK-TST-01"}
         response = api_client.post("/", json=payload, headers=headers)
         
 
