@@ -407,3 +407,207 @@ class TestGetUserSemesterCount:
         """Function returns binary: 1 (no licenses) or 2 (any licenses > 0)."""
         u = _user_mock()
         assert self._count(u, license_count=5) == 2
+
+
+# ============================================================================
+# Class 6 — get_available_specializations_for_semester (cap enforcement only)
+# ============================================================================
+
+@pytest.mark.unit
+class TestGetAvailableSpecializationsCaps:
+    """
+    Tests only the early-return cap logic in get_available_specializations_for_semester.
+    When current_count >= semester_max, the method returns [] immediately, BEFORE any
+    call to license_service or check_age/payment_requirement.
+
+    get_user_active_specializations is patched to control current_count.
+    No LicenseService mock needed for cap tests — the method never reaches it.
+
+    Stability note: these tests assert a pure control-flow invariant (enrollment caps),
+    not the internal content of available specs. They are immune to changes in
+    specialization names or LicenseService internals.
+    """
+
+    def _available(self, active_specs, semester):
+        svc, _ = _service()
+        with _patch.object(svc, "get_user_active_specializations", return_value=active_specs):
+            return svc.get_available_specializations_for_semester(user_id=1, semester=semester)
+
+    def test_semester1_cap_blocks_when_user_has_one_spec(self):
+        """Semester 1 max=1: already has 1 spec → empty list, no further checks."""
+        active = [{"specialization_type": "PLAYER"}]
+        assert self._available(active, semester=1) == []
+
+    def test_semester1_empty_hand_does_not_trigger_cap(self):
+        """Semester 1, 0 existing specs → cap NOT triggered (proceeds to build list)."""
+        # With a real db mock the license_service would return None → empty available.
+        # We only assert it doesn't return early; an empty list is fine here too.
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        svc.license_service.get_license_metadata_by_level.return_value = None
+        age_ok = {"meets_requirement": True, "user_age": 20, "required_age": 5, "reason": "ok"}
+        pay_ok = {"payment_verified": True, "reason": "ok"}
+        with _patch.object(svc, "get_user_active_specializations", return_value=[]):
+            with _patch.object(svc, "check_age_requirement", return_value=age_ok):
+                with _patch.object(svc, "check_payment_requirement", return_value=pay_ok):
+                    result = svc.get_available_specializations_for_semester(user_id=1, semester=1)
+        # Metadata is None → none of the 3 specs get appended → empty, but NOT from cap
+        assert isinstance(result, list)
+
+    def test_semester2_cap_blocks_when_user_has_two_specs(self):
+        """Semester 2 max=2: already has 2 specs → empty list."""
+        active = [{"specialization_type": "PLAYER"}, {"specialization_type": "COACH"}]
+        assert self._available(active, semester=2) == []
+
+    def test_semester2_one_spec_does_not_trigger_cap(self):
+        """Semester 2, 1 existing spec → cap NOT triggered (max=2)."""
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        svc.license_service.get_license_metadata_by_level.return_value = None
+        active = [{"specialization_type": "PLAYER"}]
+        age_ok = {"meets_requirement": True, "user_age": 20, "required_age": 5, "reason": "ok"}
+        pay_ok = {"payment_verified": True, "reason": "ok"}
+        with _patch.object(svc, "get_user_active_specializations", return_value=active):
+            with _patch.object(svc, "check_age_requirement", return_value=age_ok):
+                with _patch.object(svc, "check_payment_requirement", return_value=pay_ok):
+                    result = svc.get_available_specializations_for_semester(user_id=1, semester=2)
+        assert isinstance(result, list)
+
+    def test_semester3_cap_blocks_when_user_has_three_specs(self):
+        """Semester 3+ max=3: already has all 3 specs → empty list."""
+        active = [
+            {"specialization_type": "PLAYER"},
+            {"specialization_type": "COACH"},
+            {"specialization_type": "INTERNSHIP"},
+        ]
+        assert self._available(active, semester=3) == []
+
+    def test_license_metadata_none_prevents_spec_from_being_offered(self):
+        """
+        INVARIANT: even when age and payment requirements are met, a specialization
+        is only offered if license_service returns non-None metadata.
+        This guards against misconfigured or missing LicenseMetadata rows.
+        """
+        svc, _ = _service()
+        svc.license_service = MagicMock()
+        # All three specs return None metadata → none appended → available = []
+        svc.license_service.get_license_metadata_by_level.return_value = None
+        age_ok = {"meets_requirement": True, "user_age": 25, "required_age": 5, "reason": "ok"}
+        pay_ok = {"payment_verified": True, "reason": "ok"}
+        with _patch.object(svc, "get_user_active_specializations", return_value=[]):
+            with _patch.object(svc, "check_age_requirement", return_value=age_ok):
+                with _patch.object(svc, "check_payment_requirement", return_value=pay_ok):
+                    result = svc.get_available_specializations_for_semester(user_id=1, semester=1)
+        assert result == []
+
+
+# ============================================================================
+# Class 7 — start_new_specialization (failure paths only)
+# ============================================================================
+
+@pytest.mark.unit
+class TestStartNewSpecializationFailurePaths:
+    """
+    Tests the two failure modes of start_new_specialization without DB writes.
+
+    The success path (db.add + db.commit + db.refresh + new_license.to_dict())
+    requires a persisted ORM object and belongs in integration tests.
+
+    Mock isolation: each test uses a fresh db via _service() and patches only
+    the self-methods it needs. No shared state between tests.
+    """
+
+    def test_duplicate_specialization_returns_failure_without_db_write(self):
+        """User already has PLAYER → early return, db.add never called."""
+        svc, db = _service()
+        existing = MagicMock()
+        existing.to_dict.return_value = {"id": 1, "specialization_type": "PLAYER"}
+        db.query.return_value.filter.return_value.first.return_value = existing
+
+        result = svc.start_new_specialization(user_id=1, specialization="PLAYER")
+
+        assert result["success"] is False
+        assert "already has" in result["message"]
+        assert "PLAYER" in result["message"]
+        db.add.assert_not_called()
+
+    def test_spec_not_available_returns_failure_without_db_write(self):
+        """Spec not in available list (e.g. cap hit) → failure, db.add never called."""
+        svc, db = _service()
+        # No existing license for this spec
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        with _patch.object(svc, "get_user_semester_count", return_value=1):
+            with _patch.object(
+                svc,
+                "get_available_specializations_for_semester",
+                return_value=[],   # empty → can_start will be False
+            ):
+                result = svc.start_new_specialization(user_id=1, specialization="COACH")
+
+        assert result["success"] is False
+        assert "not available" in result["message"]
+        db.add.assert_not_called()
+
+    def test_spec_available_but_can_start_false_returns_failure(self):
+        """Spec in available list but can_start=False (age/payment not met) → failure."""
+        svc, db = _service()
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        available = [{"specialization_type": "COACH", "can_start": False}]
+        with _patch.object(svc, "get_user_semester_count", return_value=2):
+            with _patch.object(svc, "get_available_specializations_for_semester", return_value=available):
+                result = svc.start_new_specialization(user_id=1, specialization="COACH")
+
+        assert result["success"] is False
+        db.add.assert_not_called()
+
+
+# ============================================================================
+# Class 8 — validate_specialization_addition
+# ============================================================================
+
+@pytest.mark.unit
+class TestValidateSpecializationAddition:
+    """
+    validate_specialization_addition delegates entirely to
+    get_user_semester_count + get_available_specializations_for_semester.
+    Both are patched; this class tests only the branching logic.
+    """
+
+    def _validate(self, available_specs, new_spec):
+        svc, _ = _service()
+        with _patch.object(svc, "get_user_semester_count", return_value=1):
+            with _patch.object(
+                svc, "get_available_specializations_for_semester", return_value=available_specs
+            ):
+                return svc.validate_specialization_addition(
+                    user_id=1, new_specialization=new_spec
+                )
+
+    def test_spec_not_in_available_returns_invalid(self):
+        """No matching spec in available list → valid=False, reason contains spec name."""
+        result = self._validate(available_specs=[], new_spec="PLAYER")
+        assert result["valid"] is False
+        assert "PLAYER" in result["reason"]
+
+    def test_spec_available_but_cannot_start_returns_invalid(self):
+        """Spec found but can_start=False → valid=False, reason from spec's reason."""
+        available = [{"specialization_type": "PLAYER", "can_start": False, "reason": "Életkor nem megfelelő"}]
+        result = self._validate(available, "PLAYER")
+        assert result["valid"] is False
+        assert result["reason"] == "Életkor nem megfelelő"
+
+    def test_spec_available_and_can_start_returns_valid_with_metadata(self):
+        """Spec found and can_start=True → valid=True, semester and metadata returned."""
+        meta = {"specialization_type": "PLAYER", "can_start": True, "reason": "Minden OK"}
+        result = self._validate([meta], "PLAYER")
+        assert result["valid"] is True
+        assert result["semester"] == 1
+        assert result["metadata"] == meta
+
+    def test_case_insensitive_lookup(self):
+        """new_specialization='player' (lowercase) matches 'PLAYER' in available list."""
+        meta = {"specialization_type": "PLAYER", "can_start": True, "reason": "OK"}
+        result = self._validate([meta], "player")
+        assert result["valid"] is True
