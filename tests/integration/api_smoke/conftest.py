@@ -20,6 +20,41 @@ from app.models.location import Location
 from app.core.security import get_password_hash
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _seed_tournament_types_once():
+    """Seed tournament_types table from JSON configs if empty (idempotent, session-scoped)."""
+    import json
+    import os
+    from app.models.tournament_type import TournamentType
+
+    db = next(get_db())
+    try:
+        if db.query(TournamentType).count() == 0:
+            base_path = os.path.join(
+                os.path.dirname(__file__), "..", "..", "..", "app", "tournament_types"
+            )
+            for filename in ["league.json", "knockout.json", "group_knockout.json", "swiss.json"]:
+                config_path = os.path.join(base_path, filename)
+                if not os.path.exists(config_path):
+                    continue
+                with open(config_path) as f:
+                    config = json.load(f)
+                db.add(TournamentType(
+                    code=config["code"],
+                    display_name=config["display_name"],
+                    description=config.get("description"),
+                    format=config.get("format", "HEAD_TO_HEAD"),
+                    min_players=config.get("min_players", 4),
+                    max_players=config.get("max_players"),
+                    requires_power_of_two=config.get("requires_power_of_two", False),
+                    session_duration_minutes=config.get("session_duration_minutes", 90),
+                    break_between_sessions_minutes=config.get("break_between_sessions_minutes", 15),
+                    config=config,
+                ))
+            db.commit()
+    finally:
+        db.close()
+
 
 # ── Domain → API prefix map ───────────────────────────────────────────────────
 # Auto-generated smoke tests use paths relative to the router prefix, e.g.
