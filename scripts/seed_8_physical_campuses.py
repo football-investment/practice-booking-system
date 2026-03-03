@@ -40,6 +40,7 @@ def seed_8_campuses(db: Session) -> None:
     if not budapest:
         print("❌ Budapest location not found. Creating...")
         budapest = Location(
+            name="Budapest",
             city="Budapest",
             country="Hungary",
             is_active=True,

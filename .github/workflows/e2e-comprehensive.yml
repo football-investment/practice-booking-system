@@ -104,7 +104,6 @@ jobs:
           ADMIN_EMAIL=admin@lfa.com
           ADMIN_PASSWORD=AdminPass123!
           ADMIN_NAME=CI Admin
-          CORS_ALLOWED_ORIGINS=http://localhost:8501,http://localhost:8000
           ENABLE_RATE_LIMITING=false
           EOF
 
@@ -213,7 +212,6 @@ jobs:
           ADMIN_EMAIL=admin@lfa.com
           ADMIN_PASSWORD=AdminPass123!
           ADMIN_NAME=CI Admin
-          CORS_ALLOWED_ORIGINS=http://localhost:8501,http://localhost:8000
           ENABLE_RATE_LIMITING=false
           EOF
 
@@ -343,7 +341,6 @@ jobs:
           ADMIN_EMAIL=admin@lfa.com
           ADMIN_PASSWORD=AdminPass123!
           ADMIN_NAME=CI Admin
-          CORS_ALLOWED_ORIGINS=http://localhost:8501,http://localhost:8000
           ENABLE_RATE_LIMITING=false
           EOF
 
