@@ -3,7 +3,7 @@
 Manages multiple simultaneous specializations per user with semester-based progression
 """
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone, date
 
 from ..models.user import User
@@ -20,8 +20,29 @@ class ParallelSpecializationService:
     # Age requirements for each specialization
     AGE_REQUIREMENTS = {
         'PLAYER': 5,    # Player: 5+ years
-        'COACH': 14,    # Coach: 14+ years  
+        'COACH': 14,    # Coach: 14+ years
         'INTERNSHIP': 18 # Internship: 18+ years
+    }
+
+    # Ordered list of all specialization types offered in every semester
+    _SPEC_TYPES = ['PLAYER', 'COACH', 'INTERNSHIP']
+
+    # Human-readable display name used in failure reason strings
+    _SPEC_DISPLAY_NAMES = {
+        'PLAYER': 'Player specializáció',
+        'COACH': 'Coach specializáció',
+        'INTERNSHIP': 'Gyakornoki program',
+    }
+
+    # Success reason strings: keyed by (spec_type, sem_key) where
+    # sem_key=1 for semester 1 (has extra context) and 0 for semester 2+
+    _SUCCESS_REASONS = {
+        ('PLAYER',     1): 'Player specializáció - alapképzés (min. 5 év) - minden követelmény teljesített',
+        ('COACH',      1): 'Coach specializáció - edzői képzés (min. 14 év) - minden követelmény teljesített',
+        ('INTERNSHIP', 1): 'Gyakornoki program (min. 18 év) - minden követelmény teljesített',
+        ('PLAYER',     0): 'Player specializáció (min. 5 év) - minden követelmény teljesített',
+        ('COACH',      0): 'Coach specializáció (min. 14 év) - minden követelmény teljesített',
+        ('INTERNSHIP', 0): 'Gyakornoki program (min. 18 év) - minden követelmény teljesített',
     }
     
     def calculate_age(self, birth_date: date) -> int:
@@ -117,294 +138,80 @@ class ParallelSpecializationService:
         return 2 if licenses > 0 else 1
 
     def get_available_specializations_for_semester(self, user_id: int, semester: int) -> List[Dict[str, Any]]:
-        """Get available specializations based on semester and current progress"""
+        """Get available specializations based on semester and current progress.
+
+        Enrollment caps per semester: 1 → max 1, 2 → max 2, 3+ → max 3.
+        Returns an empty list immediately when the user has reached the cap.
+        """
         current_licenses = self.get_user_active_specializations(user_id)
         current_spec_codes = [spec['specialization_type'] for spec in current_licenses]
         current_count = len(current_spec_codes)
-        
+
+        max_specs = {1: 1, 2: 2}.get(semester, 3)
+        if current_count >= max_specs:
+            return []
+
+        # Semester 1 uses slightly different success-reason strings (extra context)
+        sem_key = 1 if semester == 1 else 0
+
         available = []
-        
-        # Semester 1: Maximum 1 specialization (Player OR Coach OR Internship)
-        if semester == 1:
-            # If already has one specialization, no more can be added
-            if current_count >= 1:
-                return available
-                
-            if 'PLAYER' not in current_spec_codes:
-                player_meta = self.license_service.get_license_metadata_by_level('PLAYER', 1)
-                age_check = self.check_age_requirement(user_id, 'PLAYER')
-                payment_check = self.check_payment_requirement(user_id, 'PLAYER', semester)
-                
-                # Both age and payment requirements must be met
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Player specializáció - alapképzés (min. 5 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Player specializáció - {"; ".join(reason_parts)}'
-                
-                if player_meta:
-                    available.append({
-                        **player_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-            
-            if 'COACH' not in current_spec_codes:
-                coach_meta = self.license_service.get_license_metadata_by_level('COACH', 1)
-                age_check = self.check_age_requirement(user_id, 'COACH')
-                payment_check = self.check_payment_requirement(user_id, 'COACH', semester)
-                
-                # Both age and payment requirements must be met
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Coach specializáció - edzői képzés (min. 14 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Coach specializáció - {"; ".join(reason_parts)}'
-                
-                if coach_meta:
-                    available.append({
-                        **coach_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-            
-            if 'INTERNSHIP' not in current_spec_codes:
-                intern_meta = self.license_service.get_license_metadata_by_level('INTERNSHIP', 1)
-                age_check = self.check_age_requirement(user_id, 'INTERNSHIP')
-                payment_check = self.check_payment_requirement(user_id, 'INTERNSHIP', semester)
-                
-                # Both age and payment requirements must be met
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Gyakornoki program (min. 18 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Gyakornoki program - {"; ".join(reason_parts)}'
-                
-                if intern_meta:
-                    available.append({
-                        **intern_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
+        for spec_type in self._SPEC_TYPES:
+            success_reason = self._SUCCESS_REASONS[(spec_type, sem_key)]
+            entry = self._evaluate_specialization_type(
+                user_id, spec_type, semester, current_spec_codes, success_reason
+            )
+            if entry is not None:
+                available.append(entry)
 
-        # Semester 2: Maximum 2 specializations (Player + Coach OR Player + Internship)
-        elif semester == 2:
-            # If already has 2 specializations, no more can be added
-            if current_count >= 2:
-                return available
-            # Player always available
-            if 'PLAYER' not in current_spec_codes:
-                player_meta = self.license_service.get_license_metadata_by_level('PLAYER', 1)
-                age_check = self.check_age_requirement(user_id, 'PLAYER')
-                payment_check = self.check_payment_requirement(user_id, 'PLAYER', semester)
-                
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Player specializáció (min. 5 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Player specializáció - {"; ".join(reason_parts)}'
-                
-                if player_meta:
-                    available.append({
-                        **player_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-            
-            # Coach always available
-            if 'COACH' not in current_spec_codes:
-                coach_meta = self.license_service.get_license_metadata_by_level('COACH', 1)
-                age_check = self.check_age_requirement(user_id, 'COACH')
-                payment_check = self.check_payment_requirement(user_id, 'COACH', semester)
-                
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Coach specializáció (min. 14 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Coach specializáció - {"; ".join(reason_parts)}'
-                
-                if coach_meta:
-                    available.append({
-                        **coach_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-            
-            # Internship always available
-            if 'INTERNSHIP' not in current_spec_codes:
-                intern_meta = self.license_service.get_license_metadata_by_level('INTERNSHIP', 1)
-                age_check = self.check_age_requirement(user_id, 'INTERNSHIP')
-                payment_check = self.check_payment_requirement(user_id, 'INTERNSHIP', semester)
-                
-                # Both age and payment requirements must be met
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Gyakornoki program (min. 18 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Gyakornoki program - {"; ".join(reason_parts)}'
-                
-                if intern_meta:
-                    available.append({
-                        **intern_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-
-        # Semester 3+: Maximum 3 specializations (all three possible)
-        elif semester >= 3:
-            # If already has 3 specializations, no more can be added
-            if current_count >= 3:
-                return available
-                
-            # Player always available
-            if 'PLAYER' not in current_spec_codes:
-                player_meta = self.license_service.get_license_metadata_by_level('PLAYER', 1)
-                age_check = self.check_age_requirement(user_id, 'PLAYER')
-                payment_check = self.check_payment_requirement(user_id, 'PLAYER', semester)
-                
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Player specializáció (min. 5 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Player specializáció - {"; ".join(reason_parts)}'
-                
-                if player_meta:
-                    available.append({
-                        **player_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-            
-            # Coach always available
-            if 'COACH' not in current_spec_codes:
-                coach_meta = self.license_service.get_license_metadata_by_level('COACH', 1)
-                age_check = self.check_age_requirement(user_id, 'COACH')
-                payment_check = self.check_payment_requirement(user_id, 'COACH', semester)
-                
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Coach specializáció (min. 14 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Coach specializáció - {"; ".join(reason_parts)}'
-                
-                if coach_meta:
-                    available.append({
-                        **coach_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-            
-            # Internship always available
-            if 'INTERNSHIP' not in current_spec_codes:
-                intern_meta = self.license_service.get_license_metadata_by_level('INTERNSHIP', 1)
-                age_check = self.check_age_requirement(user_id, 'INTERNSHIP')
-                payment_check = self.check_payment_requirement(user_id, 'INTERNSHIP', semester)
-                
-                # Both age and payment requirements must be met
-                can_start = age_check['meets_requirement'] and payment_check['payment_verified']
-                
-                reason_parts = []
-                if not age_check['meets_requirement']:
-                    reason_parts.append(f"Korhatár: {age_check['reason']}")
-                if not payment_check['payment_verified']:
-                    reason_parts.append(f"Befizetés: {payment_check['reason']}")
-                
-                if can_start:
-                    reason = f'Gyakornoki program (min. 18 év) - minden követelmény teljesített'
-                else:
-                    reason = f'Gyakornoki program - {"; ".join(reason_parts)}'
-                
-                if intern_meta:
-                    available.append({
-                        **intern_meta,
-                        'can_start': can_start,
-                        'requirement_met': can_start,
-                        'reason': reason,
-                        'age_requirement': age_check,
-                        'payment_requirement': payment_check
-                    })
-        
         return available
+
+    def _evaluate_specialization_type(
+        self,
+        user_id: int,
+        spec_type: str,
+        semester: int,
+        current_spec_codes: List[str],
+        success_reason: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Evaluate a single specialization type for availability.
+
+        Returns a dict ready to append to the available list, or None when:
+          - the user is already enrolled in this specialization, or
+          - no LicenseMetadata row exists for spec_type at level 1.
+
+        Age and payment checks are only performed when metadata exists,
+        avoiding unnecessary DB queries for unconfigured specializations.
+        """
+        if spec_type in current_spec_codes:
+            return None
+
+        meta = self.license_service.get_license_metadata_by_level(spec_type, 1)
+        if not meta:
+            return None
+
+        age_check = self.check_age_requirement(user_id, spec_type)
+        payment_check = self.check_payment_requirement(user_id, spec_type, semester)
+        can_start = age_check['meets_requirement'] and payment_check['payment_verified']
+
+        if can_start:
+            reason = success_reason
+        else:
+            reason_parts = []
+            if not age_check['meets_requirement']:
+                reason_parts.append(f"Korhatár: {age_check['reason']}")
+            if not payment_check['payment_verified']:
+                reason_parts.append(f"Befizetés: {payment_check['reason']}")
+            display = self._SPEC_DISPLAY_NAMES.get(spec_type, spec_type)
+            reason = f'{display} - {"; ".join(reason_parts)}'
+
+        return {
+            **meta,
+            'can_start': can_start,
+            'requirement_met': can_start,
+            'reason': reason,
+            'age_requirement': age_check,
+            'payment_requirement': payment_check,
+        }
 
     def get_user_active_specializations(self, user_id: int) -> List[Dict[str, Any]]:
         """Get all active specializations for a user"""
