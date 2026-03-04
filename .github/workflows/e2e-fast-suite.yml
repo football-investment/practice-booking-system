@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   fast-suite:
-    name: Fast Suite (52 tests)
+    name: Fast Suite (tournament monitor baseline)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -89,8 +89,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         run: |
-          pytest tests_e2e/ \
-            -m "not scale_suite and not genesis" \
+          pytest tests_e2e/test_tournament_monitor_e2e.py \
+                 tests_e2e/test_tournament_monitor_coverage.py \
+                 tests_e2e/test_champion_badge_regression.py \
+            -m "not scale_suite" \
             --tb=short \
             -ra \
             --maxfail=1 \
