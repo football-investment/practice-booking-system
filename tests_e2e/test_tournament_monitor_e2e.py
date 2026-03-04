@@ -143,7 +143,7 @@ def _poll_ops_tournament_created(
     timeout_s: int = 60,
 ) -> bool:
     """
-    Poll /api/v1/tournaments until a new OPS- tournament appears.
+    Poll /api/v1/tournaments/admin/list until a new OPS- tournament appears.
 
     Returns True as soon as the API confirms the tournament exists.
     Returns False if timeout is exceeded.
@@ -159,14 +159,12 @@ def _poll_ops_tournament_created(
     while time.time() < deadline:
         try:
             resp = requests.get(
-                f"{api_url}/api/v1/tournaments",
+                f"{api_url}/api/v1/tournaments/admin/list",
                 headers={"Authorization": f"Bearer {token}"},
-                params={"limit": 20},
                 timeout=10,
             )
             if resp.status_code == 200:
-                data = resp.json()
-                items = data if isinstance(data, list) else data.get("items", [])
+                items = resp.json()
                 ops_count = sum(
                     1 for t in items
                     if str(t.get("name", "") or t.get("tournament_name", "")).startswith("OPS-")
@@ -183,14 +181,12 @@ def _get_ops_tournament_count(api_url: str, token: str) -> int:
     """Return the current number of OPS- prefixed tournaments in the system."""
     try:
         resp = requests.get(
-            f"{api_url}/api/v1/tournaments",
+            f"{api_url}/api/v1/tournaments/admin/list",
             headers={"Authorization": f"Bearer {token}"},
-            params={"limit": 100},
             timeout=10,
         )
         if resp.status_code == 200:
-            data = resp.json()
-            items = data if isinstance(data, list) else data.get("items", [])
+            items = resp.json()
             return sum(
                 1 for t in items
                 if str(t.get("name", "") or t.get("tournament_name", "")).startswith("OPS-")
@@ -931,10 +927,14 @@ class TestOpsLaunch:
         api_confirmed = _poll_ops_tournament_created(
             api_url, token_for_poll, before_count=ops_count_before, timeout_s=60
         )
-        assert api_confirmed, (
-            "OPS tournament did not appear in API within 60s after clicking Launch. "
-            "This indicates execute_launch() or trigger_ops_scenario() failed."
-        )
+        if not api_confirmed:
+            # Capture sidebar text to diagnose Streamlit error state
+            time.sleep(2)
+            sidebar_text = sb.inner_text()
+            assert False, (
+                f"OPS tournament did not appear in API within 60s after clicking Launch. "
+                f"Sidebar state after launch (first 800 chars): {sidebar_text[:800]!r}"
+            )
 
         # ── STEP 2: Wizard reset (UI success signal) ──────────────────────────
         # After execute_launch() succeeds, it calls st.rerun() which resets the
