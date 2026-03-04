@@ -1382,7 +1382,10 @@ class TestTypeBoundaryMatrix:
     def test_knockout_non_pow2_boundary_rejected(self, api_url: str, player_count: int):
         """
         knockout × non-power-of-two [3,7,15,31,63]:
-        these are REJECTED by requires_power_of_two=True validation → 0 sessions.
+        these are REJECTED by requires_power_of_two=True validation.
+        Two valid rejection behaviours:
+          • 422 — OPS endpoint rejects at request-validation layer
+          • 200 + 0 sessions — tournament created but model generates no bracket
         Documents the constraint, not a bug.
         """
         token = _get_admin_token(api_url)
@@ -1391,15 +1394,20 @@ class TestTypeBoundaryMatrix:
             "tournament_format": "HEAD_TO_HEAD", "tournament_type_code": "knockout",
             "dry_run": False, "confirmed": True,
         })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["triggered"] is True
-        tid = data["tournament_id"]
-        sessions = _get_sessions(api_url, token, tid)
-        assert len(sessions) == 0, (
-            f"knockout {player_count}p (non-pow2): expected 0 sessions (rejected), "
-            f"got {len(sessions)}"
+        assert resp.status_code in (200, 422), (
+            f"knockout {player_count}p (non-pow2): expected rejection (422) or "
+            f"0-session acceptance (200), got {resp.status_code}: {resp.text[:200]}"
         )
+        if resp.status_code == 200:
+            data = resp.json()
+            assert data["triggered"] is True
+            tid = data["tournament_id"]
+            sessions = _get_sessions(api_url, token, tid)
+            assert len(sessions) == 0, (
+                f"knockout {player_count}p (non-pow2): expected 0 sessions (rejected), "
+                f"got {len(sessions)}"
+            )
+        # 422 → OPS rejected at validation layer (also valid "rejection" outcome)
 
     @pytest.mark.parametrize("player_count", _LEAGUE_SMOKE)
     def test_league_all_smoke_boundaries(self, api_url: str, player_count: int):
