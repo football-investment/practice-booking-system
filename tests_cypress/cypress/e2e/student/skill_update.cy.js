@@ -24,6 +24,12 @@
 describe('Student / Skills Profile & Post-Finalize Validation', () => {
   beforeEach(() => {
     cy.loginAsPlayer();
+    // After login the player is redirected to Specialization_Hub via st.switch_page().
+    // cy.waitForStreamlit() (inside loginAsPlayer) returns after spinner + 500 ms,
+    // which may fire before the new page finishes rendering.  Waiting for the
+    // Refresh sidebar button guarantees the hub content is fully in the DOM
+    // before the conditional tab check below.
+    cy.waitForSidebarButton('🔄 Refresh');
     // Conditionally click Skills tab if it exists (only on LFA_Player_Dashboard)
     cy.get('body').then(($body) => {
       const hasSkillsTab = $body.find('[data-testid="stTab"]').filter((_, el) =>

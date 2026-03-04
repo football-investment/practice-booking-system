@@ -15,7 +15,10 @@
 describe('Player / Specialization Hub', () => {
   beforeEach(() => {
     cy.loginAsPlayer();
-    cy.navigateTo('/Specialization_Hub');
+    // After login the player is already on Specialization_Hub (redirected via
+    // st.switch_page()).  cy.navigateTo here would open a new unauthenticated
+    // WebSocket connection because the URL no longer carries session params.
+    // Just wait for the hub to be fully rendered instead.
     cy.waitForSidebarButton('🔄 Refresh');  // Wait for sidebar buttons to render
   });
 

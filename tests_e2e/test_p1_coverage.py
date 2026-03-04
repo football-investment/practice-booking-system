@@ -281,8 +281,8 @@ def _navigate_to_step8_hth_for_error_test(
     _click_next(page)
 
     # Step 3: Knockout
+    # Campus selector bypassed via _e2e_bypass_list=1 URL param — no multiselect rendered
     expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
-    _select_first_campus(page)
     _click_next(page)
 
     # Step 4: Game Preset passthrough (presets list may be empty — that's fine)

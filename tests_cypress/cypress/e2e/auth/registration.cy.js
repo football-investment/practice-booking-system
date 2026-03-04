@@ -19,6 +19,13 @@ describe('Auth / Registration', () => {
     cy.visit('/');
     cy.waitForStreamlit();
 
+    // Wait for at least one auth button to be fully rendered before checking state.
+    // In a warm Streamlit server the 500ms stabilisation pause in waitForStreamlit
+    // is sometimes insufficient — the body text check below would then run before
+    // the buttons are in the DOM and the conditional click would be skipped.
+    cy.contains('[data-testid="stButton"] button', /Register with Invitation Code|Back to Login/, { timeout: 15000 })
+      .should('be.visible');
+
     // Open the registration form (click only if not already open)
     cy.get('body').then($body => {
       if ($body.text().includes('📝 Register with Invitation Code') &&

@@ -14,7 +14,11 @@
 describe('Player / My Credits', () => {
   beforeEach(() => {
     cy.loginAsPlayer();
-    cy.navigateTo('/My_Credits');
+    // After login, player lands on Specialization_Hub via st.switch_page().
+    // The URL no longer has ?session_token=... params, so cy.navigateTo would
+    // open a new unauthenticated WebSocket connection.  Use sidebar navigation
+    // instead to stay within the same Streamlit session.
+    cy.clickSidebarButton('💰 My Credits');
     cy.waitForSidebarButton('🔄 Refresh');  // Wait for sidebar buttons to render
   });
 

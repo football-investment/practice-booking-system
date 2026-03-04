@@ -2,6 +2,7 @@
 import streamlit as st
 from ..wizard_config import SCENARIO_CONFIG, TOURNAMENT_TYPE_CONFIG
 from api_helpers_general import get_locations, get_campuses_by_location
+from config import ENVIRONMENT
 
 
 def _render_campus_selector(token: str) -> bool:
@@ -9,6 +10,15 @@ def _render_campus_selector(token: str) -> bool:
     Location → campus cascade selector.
     Returns True if at least 1 campus is selected (step valid).
     """
+    # E2E test bypass: when running with an invalid token for error-state tests,
+    # skip the location/campus API calls (which would fail with 401) and
+    # pre-populate session state with a dummy campus ID.
+    # Only active in non-production environments when _e2e_bypass_list=1.
+    if ENVIRONMENT != "production" and st.query_params.get("_e2e_bypass_list") == "1":
+        st.session_state["wizard_campus_ids_saved"] = [999]
+        st.session_state["wizard_campus_labels_saved"] = ["E2E Bypass Campus"]
+        return True
+
     st.markdown("---")
     st.subheader("Location & Venues")
 
