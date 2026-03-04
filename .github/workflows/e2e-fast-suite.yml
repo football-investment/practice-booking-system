@@ -73,6 +73,14 @@ jobs:
           alembic upgrade head
           alembic current -v
 
+      - name: Seed CI users and required data
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
+
       - name: Start FastAPI backend
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
