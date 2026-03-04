@@ -18,14 +18,18 @@ Markers:
     smoke        – fast CI regression
 """
 
+import json
 import os
 import re
 import time
+import urllib.parse
+import requests
 import pytest
 from playwright.sync_api import sync_playwright, Page
 
 
 BASE_URL = os.environ.get("CHAMPION_TEST_URL", "http://localhost:8501")
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 # rdias@manchestercity.com is the canonical CI student user (created by seed_e2e_users.py).
 # junior.intern@lfa.com only exists in create_fresh_database.py (dev-only script).
 TEST_USER_EMAIL = os.environ.get("CHAMPION_TEST_USER", "rdias@manchestercity.com")
@@ -187,6 +191,26 @@ def _assert_champion_never_shows_no_ranking_data(page: Page) -> None:
 # Main regression test  (build blocker)
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _get_token_and_user(email: str, password: str) -> tuple:
+    """Get JWT token and user dict via API login."""
+    resp = requests.post(
+        f"{API_URL}/api/v1/auth/login",
+        json={"email": email, "password": password},
+        timeout=15,
+    )
+    assert resp.status_code == 200, (
+        f"Login failed for {email}: {resp.status_code} {resp.text[:200]}"
+    )
+    token = resp.json()["access_token"]
+    user_resp = requests.get(
+        f"{API_URL}/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=10,
+    )
+    assert user_resp.status_code == 200, f"Failed to fetch user: {user_resp.text}"
+    return token, user_resp.json()
+
+
 @pytest.mark.golden_path
 @pytest.mark.e2e
 @pytest.mark.smoke
@@ -195,6 +219,9 @@ def test_champion_badge_no_ranking_data_regression():
     """
     CRITICAL regression guard: CHAMPION badge must never display
     "No ranking data".  This test blocks deployment on failure.
+
+    Auth strategy: URL-param token injection (same as tournament_monitor tests).
+    Avoids the brittle form-based login which is unreliable under CI load.
     """
     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
@@ -204,31 +231,29 @@ def test_champion_badge_no_ranking_data_regression():
         page = ctx.new_page()
 
         try:
-            # 1 – Load app
-            print(f"🌐 {BASE_URL}")
-            page.goto(BASE_URL, timeout=TIMEOUT_MS)
-            # Use domcontentloaded instead of networkidle — Streamlit's WebSocket
-            # keeps connections active, so networkidle may never fire.
-            page.wait_for_load_state("domcontentloaded", timeout=TIMEOUT_MS)
-            time.sleep(4)  # 4s — Streamlit renders asynchronously after DOM load
+            # 1 – Authenticate via API (not via UI form — avoids load-sensitive timing)
+            print(f"🔐 Authenticating as {TEST_USER_EMAIL} via API ...")
+            token, user = _get_token_and_user(TEST_USER_EMAIL, TEST_USER_PASSWORD)
+            params = urllib.parse.urlencode({"token": token, "user": json.dumps(user)})
+            auth_url = f"{BASE_URL}/LFA_Player_Dashboard?{params}"
 
-            # 2 – Login
-            print(f"🔐 Logging in as {TEST_USER_EMAIL} ...")
-            _login(page)
+            # 2 – Load app with token injected in URL params
+            # restore_session_from_url() (non-production env) reads token + user
+            # from URL params and sets st.session_state — no login form needed.
+            print(f"🌐 {BASE_URL} (with URL-param auth)")
+            page.goto(auth_url, timeout=TIMEOUT_MS)
+            page.wait_for_selector("[data-testid='stApp']", state="visible", timeout=TIMEOUT_MS)
+            time.sleep(3)  # 3s — Streamlit re-renders after session injection
 
-            # 3 – Navigate to page with badges
-            print("🗺️  Navigating to performance / achievement page ...")
-            _navigate_to_performance_page(page)
-
-            # 4 – Expand all accordions to reveal badge cards
+            # 3 – Expand all accordions to reveal badge cards
             print("📂 Expanding accordions ...")
             _expand_accordions(page)
             time.sleep(2)
 
-            # 5 – Take a PASS screenshot for evidence
+            # 4 – Take a PASS screenshot for evidence
             _save_screenshot(page, "PASS")
 
-            # 6 – Core assertion
+            # 5 – Core assertion
             print("🔍 Running CHAMPION guard assertion ...")
             _assert_champion_never_shows_no_ranking_data(page)
 
