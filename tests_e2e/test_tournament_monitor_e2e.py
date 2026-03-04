@@ -493,7 +493,7 @@ class TestWizardFlow:
             timeout=_LOAD_TIMEOUT
         )
         # Streamlit slider renders as role="slider"; use label to disambiguate from auto-refresh slider
-        expect(sb.get_by_role("slider", name="Number of players to enroll")).to_be_visible()
+        expect(sb.get_by_role("slider", name="Target player count")).to_be_visible()
         expect(sb.get_by_role("button", name="← Back")).to_be_visible()
         expect(sb.get_by_role("button", name="Next →")).to_be_enabled()
 

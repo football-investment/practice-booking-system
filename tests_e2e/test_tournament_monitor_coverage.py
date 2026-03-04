@@ -968,7 +968,7 @@ class TestSliderStatePersistence:
         # Step 5: Player count
         expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
-        slider = sb.get_by_role("slider", name="Number of players to enroll")
+        slider = sb.get_by_role("slider", name="Target player count")
         expect(slider).to_be_visible()
 
         val_str = slider.get_attribute("aria-valuenow")
@@ -1004,7 +1004,7 @@ class TestSliderStatePersistence:
         # Step 5: Player count
         expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
-        slider = sb.get_by_role("slider", name="Number of players to enroll")
+        slider = sb.get_by_role("slider", name="Target player count")
         expect(slider).to_be_visible()
 
         val_str = slider.get_attribute("aria-valuenow")
@@ -1043,7 +1043,7 @@ class TestSliderStatePersistence:
         expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Record current slider value
-        slider = sb.get_by_role("slider", name="Number of players to enroll")
+        slider = sb.get_by_role("slider", name="Target player count")
         val_before_str = slider.get_attribute("aria-valuenow")
         assert val_before_str is not None
         val_before = int(val_before_str)
