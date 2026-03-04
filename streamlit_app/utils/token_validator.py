@@ -3,7 +3,8 @@ Token Validation Utilities
 Handles JWT token expiration checking without requiring SECRET_KEY
 """
 
-import jwt
+from jose import jwt
+from jose.exceptions import JWTError
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -24,7 +25,7 @@ def is_token_expired(token: str) -> bool:
 
     try:
         # Decode without verification to check expiration
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.get_unverified_claims(token)
         exp = payload.get('exp')
 
         if not exp:
@@ -35,7 +36,7 @@ def is_token_expired(token: str) -> bool:
         current_timestamp = datetime.now(timezone.utc).timestamp()
         return current_timestamp > exp
 
-    except jwt.DecodeError:
+    except JWTError:
         # Token is malformed
         return True
     except Exception:
@@ -57,7 +58,7 @@ def get_token_expiry_time(token: str) -> Optional[datetime]:
         return None
 
     try:
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.get_unverified_claims(token)
         exp = payload.get('exp')
 
         if not exp:

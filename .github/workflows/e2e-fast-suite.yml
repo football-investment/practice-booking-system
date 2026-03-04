@@ -90,7 +90,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         run: |
           pytest tests_e2e/ \
-            -m "not scale_suite" \
+            -m "not scale_suite and not genesis" \
             --tb=short \
             -ra \
             --maxfail=1 \

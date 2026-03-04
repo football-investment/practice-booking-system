@@ -106,8 +106,8 @@ jobs:
           CYPRESS_adminPassword: admin123
           CYPRESS_instructorEmail: instructor@lfa.com
           CYPRESS_instructorPassword: instructor123
-          CYPRESS_playerEmail: player@lfa.com
-          CYPRESS_playerPassword: player123
+          CYPRESS_playerEmail: rdias@manchestercity.com
+          CYPRESS_playerPassword: TestPlayer2026
 
       - name: Upload screenshots on failure
         uses: actions/upload-artifact@v4
