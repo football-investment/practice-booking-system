@@ -78,6 +78,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         run: |
           python scripts/seed_e2e_users.py
+          python scripts/seed_lfa_test_users.py
           python scripts/seed_8_physical_campuses.py
           python scripts/seed_tournament_types.py
 
