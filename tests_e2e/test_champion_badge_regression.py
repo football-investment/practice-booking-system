@@ -26,8 +26,10 @@ from playwright.sync_api import sync_playwright, Page
 
 
 BASE_URL = os.environ.get("CHAMPION_TEST_URL", "http://localhost:8501")
-TEST_USER_EMAIL = "junior.intern@lfa.com"
-TEST_USER_PASSWORD = "password123"
+# rdias@manchestercity.com is the canonical CI student user (created by seed_e2e_users.py).
+# junior.intern@lfa.com only exists in create_fresh_database.py (dev-only script).
+TEST_USER_EMAIL = os.environ.get("CHAMPION_TEST_USER", "rdias@manchestercity.com")
+TEST_USER_PASSWORD = os.environ.get("CHAMPION_TEST_PASS", "TestPlayer2026")
 SCREENSHOT_DIR = "tests_e2e/screenshots"
 TIMEOUT_MS = 30_000
 
@@ -38,8 +40,9 @@ TIMEOUT_MS = 30_000
 
 def _login(page: Page) -> None:
     """Fill and submit login form; raise if credentials are rejected."""
-    # Email (Streamlit renders text inputs as type=text by default)
-    email_input = page.locator("input").first
+    # Email (Streamlit renders text inputs as type=text by default).
+    # Use the stTextInput data-testid for reliable selection even under load.
+    email_input = page.locator("[data-testid='stTextInput'] input").first
     email_input.wait_for(state="visible", timeout=TIMEOUT_MS)
     email_input.fill(TEST_USER_EMAIL)
     time.sleep(0.3)
@@ -204,8 +207,10 @@ def test_champion_badge_no_ranking_data_regression():
             # 1 – Load app
             print(f"🌐 {BASE_URL}")
             page.goto(BASE_URL, timeout=TIMEOUT_MS)
-            page.wait_for_load_state("networkidle", timeout=TIMEOUT_MS)
-            time.sleep(2)
+            # Use domcontentloaded instead of networkidle — Streamlit's WebSocket
+            # keeps connections active, so networkidle may never fire.
+            page.wait_for_load_state("domcontentloaded", timeout=TIMEOUT_MS)
+            time.sleep(4)  # 4s — Streamlit renders asynchronously after DOM load
 
             # 2 – Login
             print(f"🔐 Logging in as {TEST_USER_EMAIL} ...")
