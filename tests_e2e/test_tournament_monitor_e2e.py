@@ -96,7 +96,7 @@ def _go_to_monitor_authenticated(page: Page, base_url: str, api_url: str) -> Non
 
 def _sidebar(page: Page):
     """Return the sidebar locator."""
-    return page.locator("section[data-testid='stSidebar']")
+    return page.locator("[data-testid='stSidebar']")
 
 
 def _click_next(page: Page) -> None:
@@ -402,7 +402,7 @@ class TestWizardFlow:
     ):
         """Step 1: 3 scenario options visible, Next button enabled."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
 
         # Step label (partial match — full text is "Step 1 of 8: Select Test Scenario")
         expect(sidebar.get_by_text("Step 1 of 8", exact=False)).to_be_visible(
@@ -954,7 +954,7 @@ class TestMonitoringPanel:
     ):
         """Sidebar contains the OPS Wizard section."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         expect(sidebar.get_by_text("OPS WIZARD", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
         )
@@ -964,7 +964,7 @@ class TestMonitoringPanel:
     ):
         """Sidebar contains Monitoring Controls section."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         expect(sidebar.get_by_text("MONITORING CONTROLS", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
         )
@@ -977,7 +977,7 @@ class TestMonitoringPanel:
         Regression: slider used to show stale value 5120.
         """
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
 
         slider = sidebar.get_by_role("slider", name="Auto-refresh (seconds)")
         expect(slider).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -994,7 +994,7 @@ class TestMonitoringPanel:
     ):
         """'Refresh now' button visible in sidebar."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         expect(
             sidebar.get_by_role("button", name="Refresh now")
         ).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -1013,7 +1013,7 @@ class TestMonitoringPanel:
     ):
         """'Enable auto-refresh' checkbox visible in sidebar (pre-Iteration-3 UI)."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         expect(
             sidebar.get_by_text("Enable auto-refresh", exact=False)
         ).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -1025,7 +1025,7 @@ class TestMonitoringPanel:
         _go_to_monitor_authenticated(page, base_url, api_url)
 
         # Clear any tracked tests first
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         clear_btn = sidebar.get_by_role("button", name="Clear All Tracked Tests")
         if clear_btn.is_visible():
             clear_btn.click()
@@ -1042,7 +1042,7 @@ class TestMonitoringPanel:
     ):
         """'Tracked Tests' metric visible in sidebar monitoring controls."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         expect(
             sidebar.get_by_text("Tracked Tests", exact=False)
         ).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -1052,7 +1052,7 @@ class TestMonitoringPanel:
     ):
         """Sidebar shows 'Welcome, <name>' greeting for admin."""
         _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("section[data-testid='stSidebar']")
+        sidebar = page.locator("[data-testid='stSidebar']")
         expect(sidebar.get_by_text("Welcome,", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
         )

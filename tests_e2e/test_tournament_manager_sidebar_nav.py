@@ -90,7 +90,7 @@ def _inject_auth_url(base_url: str, path: str, token: str, user: dict) -> str:
 
 def _sidebar(page: Page):
     """Return the Streamlit sidebar locator."""
-    return page.locator("section[data-testid='stSidebar']")
+    return page.locator("[data-testid='stSidebar']")
 
 
 def _go_to_dashboard(page: Page, base_url: str, api_url: str,

@@ -152,7 +152,7 @@ def _go_to_monitor_with_invalid_token(page: Page, base_url: str, api_url: str) -
 
 
 def _sidebar(page: Page):
-    return page.locator("section[data-testid='stSidebar']")
+    return page.locator("[data-testid='stSidebar']")
 
 
 def _click_next(page: Page) -> None:
@@ -351,6 +351,7 @@ def _navigate_to_step8_hth_large(
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed
 class TestSimulationModeAPI:
     """
     P1.1: Verify that each simulation_mode value produces the correct backend behaviour.

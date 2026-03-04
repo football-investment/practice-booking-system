@@ -24,8 +24,8 @@ jobs:
       postgres:
         image: postgres:14
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_db
         options: >-
           --health-cmd pg_isready
@@ -57,7 +57,7 @@ jobs:
       - name: Write .env (consistent settings for all subprocesses)
         run: |
           cat > .env <<'EOF'
-          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db
           SECRET_KEY=ci-test-secret-key-not-for-production
           ENVIRONMENT=test
           TESTING=true
@@ -87,7 +87,7 @@ jobs:
 
       - name: Run Fast Suite
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         run: |
           pytest tests_e2e/ \
             -m "not scale_suite" \

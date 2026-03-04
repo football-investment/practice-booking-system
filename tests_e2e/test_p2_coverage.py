@@ -97,7 +97,7 @@ def _go_to_monitor(page: Page, base_url: str, api_url: str) -> None:
 
 def _sb(page: Page):
     """Return the sidebar locator."""
-    return page.locator("section[data-testid='stSidebar']")
+    return page.locator("[data-testid='stSidebar']")
 
 
 def _click_next(page: Page) -> None:

@@ -234,7 +234,7 @@ def test_t7_my_profile_tab(_dashboard_page):
 @pytest.mark.e2e
 def test_s1_sidebar_tournament_manager_button(_dashboard_page):
     """S1 — Sidebar '🏆 Tournament Manager' button is present."""
-    sidebar = _dashboard_page.locator("section[data-testid='stSidebar']")
+    sidebar = _dashboard_page.locator("[data-testid='stSidebar']")
     btn = sidebar.get_by_role(
         "button", name=re.compile("Tournament Manager", re.IGNORECASE)
     )
@@ -245,7 +245,7 @@ def test_s1_sidebar_tournament_manager_button(_dashboard_page):
 @pytest.mark.e2e
 def test_s2_sidebar_refresh_button(_dashboard_page):
     """S2 — Sidebar 'Refresh' button is present."""
-    sidebar = _dashboard_page.locator("section[data-testid='stSidebar']")
+    sidebar = _dashboard_page.locator("[data-testid='stSidebar']")
     btn = sidebar.get_by_role("button", name=re.compile("Refresh", re.IGNORECASE))
     expect(btn).to_be_visible(timeout=_LOAD_TIMEOUT)
 
@@ -254,6 +254,6 @@ def test_s2_sidebar_refresh_button(_dashboard_page):
 @pytest.mark.e2e
 def test_s3_sidebar_logout_button(_dashboard_page):
     """S3 — Sidebar 'Logout' button is present."""
-    sidebar = _dashboard_page.locator("section[data-testid='stSidebar']")
+    sidebar = _dashboard_page.locator("[data-testid='stSidebar']")
     btn = sidebar.get_by_role("button", name=re.compile("Logout", re.IGNORECASE))
     expect(btn).to_be_visible(timeout=_LOAD_TIMEOUT)

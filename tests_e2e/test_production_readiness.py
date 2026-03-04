@@ -186,7 +186,7 @@ def _get_rankings(api_url: str, token: str, tid: int) -> list:
 # ── Playwright helpers ─────────────────────────────────────────────────────────
 
 def _sidebar(page: Page):
-    return page.locator("section[data-testid='stSidebar']")
+    return page.locator("[data-testid='stSidebar']")
 
 
 def _click_next(page: Page) -> None:

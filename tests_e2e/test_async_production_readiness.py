@@ -380,7 +380,7 @@ def _complete_tournament(api_url: str, token: str, tid: int) -> dict:
 # ── Playwright helpers ─────────────────────────────────────────────────────────
 
 def _sidebar(page: Page):
-    return page.locator("section[data-testid='stSidebar']")
+    return page.locator("[data-testid='stSidebar']")
 
 
 def _go_to_monitor(page: Page, base_url: str, api_url: str) -> None:
