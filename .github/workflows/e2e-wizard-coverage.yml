@@ -377,6 +377,7 @@ jobs:
           pip install -r requirements-test.txt
           pip install pytest pytest-playwright pytest-mock
           pip check
+          python -m playwright install chromium
 
       - name: Run DB migrations
         run: alembic upgrade head
