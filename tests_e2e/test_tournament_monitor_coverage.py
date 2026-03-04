@@ -99,8 +99,18 @@ def _ops_post(api_url: str, token: str, payload: dict, timeout: int = 120) -> re
 
         payload["campus_ids"] = [_CAMPUS_ID_CACHE]
 
-    # Add player_ids if not provided and player_count specified
-    if "player_ids" not in payload and "player_count" in payload:
+    # Add player_ids if not provided and player_count specified.
+    # Skip when the safety gate will fire before player lookup:
+    #   player_count >= 128 AND confirmed=False → API returns 422 before reading players.
+    # For player_count < 128 with confirmed=False the API proceeds normally (needs players).
+    _pc = payload.get("player_count", 0)
+    _confirmed = payload.get("confirmed", True)
+    needs_players = (
+        "player_ids" not in payload
+        and "player_count" in payload
+        and not (_pc >= 128 and not _confirmed)
+    )
+    if needs_players:
         player_count = payload["player_count"]
 
         # Select from appropriate pool
