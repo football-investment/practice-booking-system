@@ -867,6 +867,8 @@ class TestOpsLaunch:
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(
             timeout=_LOAD_TIMEOUT
         )
+        # Campus selection is required — Next → is disabled until campus_valid=True.
+        _select_first_campus(page)
         _click_next(page)
 
         # ── Step 4: Game Preset (optional, default None) ──────────────────────

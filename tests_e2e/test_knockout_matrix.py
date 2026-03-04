@@ -84,6 +84,47 @@ def _headers(token: str) -> Dict[str, str]:
 
 # ── OPS lifecycle helpers ──────────────────────────────────────────────────────
 
+def _get_or_create_campus_ids(token: str) -> list:
+    """Return a list with at least one valid campus ID (required by OPS endpoint)."""
+    headers = _headers(token)
+    resp = requests.get(f"{_API_URL}/api/v1/campuses", headers=headers, timeout=10)
+    if resp.status_code == 200:
+        campuses = resp.json()
+        if campuses:
+            return [campuses[0]["id"]]
+
+    # Create test location + campus if none exist
+    loc_resp = requests.post(
+        f"{_API_URL}/api/v1/admin/locations",
+        headers=headers,
+        json={"name": "Matrix Test Location", "city": "Test City",
+              "address": "1 Test St", "country": "HU", "is_active": True},
+        timeout=10,
+    )
+    if loc_resp.status_code in (200, 201):
+        location_id = loc_resp.json()["id"]
+    else:
+        list_resp = requests.get(f"{_API_URL}/api/v1/admin/locations",
+                                 headers=headers, timeout=10)
+        location_id = list_resp.json()[0]["id"]
+
+    camp_resp = requests.post(
+        f"{_API_URL}/api/v1/admin/locations/{location_id}/campuses",
+        headers=headers,
+        json={"name": "Matrix Test Campus", "venue": "Test Venue",
+              "address": "2 Campus Rd", "is_active": True},
+        timeout=10,
+    )
+    if camp_resp.status_code in (200, 201):
+        return [camp_resp.json()["id"]]
+
+    list_resp = requests.get(
+        f"{_API_URL}/api/v1/admin/locations/{location_id}/campuses",
+        headers=headers, timeout=10,
+    )
+    return [list_resp.json()[0]["id"]]
+
+
 def _run_ops_scenario(
     token: str,
     player_count: int,
@@ -95,6 +136,7 @@ def _run_ops_scenario(
     simulation_mode="manual" → sessions created, no results simulated yet.
     """
     name = f"KO-MATRIX-{player_count}p-{int(time.time())}"
+    campus_ids = _get_or_create_campus_ids(token)
     payload = {
         "scenario": "large_field_monitor",
         "player_count": player_count,
@@ -102,6 +144,7 @@ def _run_ops_scenario(
         "tournament_format": "HEAD_TO_HEAD",
         "simulation_mode": simulation_mode,
         "tournament_name": name,
+        "campus_ids": campus_ids,
         "dry_run": False,
         "confirmed": player_count >= 128,
     }
