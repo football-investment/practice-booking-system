@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import streamlit as st
 
-from config import API_BASE_URL
+from config import API_BASE_URL, ENVIRONMENT
 
 from api_helpers_monitor import (
     get_all_tournaments_admin,
@@ -439,7 +439,17 @@ def render_tournament_manager(token: str, perms: TournamentManagerPermissions) -
         if "_ops_tracked_tournaments" not in st.session_state:
             st.session_state["_ops_tracked_tournaments"] = []
 
-        ok, err, all_tournaments = get_all_tournaments_admin(token)
+        # E2E test support: bypass tournament-list API call when an invalid
+        # token is intentionally injected to trigger launch-failure scenarios.
+        # Only active in development/test environments (not production).
+        _e2e_bypass = (
+            ENVIRONMENT != "production"
+            and st.query_params.get("_e2e_bypass_list") == "1"
+        )
+        if _e2e_bypass:
+            ok, err, all_tournaments = True, None, []
+        else:
+            ok, err, all_tournaments = get_all_tournaments_admin(token)
         if not ok:
             if err == "SESSION_EXPIRED":
                 # Token expired → clear session and force re-login

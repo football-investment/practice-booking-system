@@ -190,8 +190,9 @@ describe('Error States / HTTP 409 Conflict', () => {
         },
       }).as('resultConflict');
 
-      cy.navigateTo('/Tournament_Monitor');
-      cy.waitForStreamlit();
+      // Navigate via sidebar button to preserve WebSocket session
+      // (cy.navigateTo creates a new WebSocket connection, losing the auth token)
+      cy.clickSidebarButton('📡 Tournament Monitor');
 
       cy.get('[data-testid="stApp"]').should('be.visible');
       cy.get('body').should('not.contain.text', 'Traceback');

@@ -145,7 +145,15 @@ def _go_to_monitor_with_invalid_token(page: Page, base_url: str, api_url: str) -
     # Swap in a syntactically-valid but expired/unsigned JWT so the backend
     # returns 401 when execute_launch() posts to /ops/run-scenario.
     bad_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxfQ.INVALID"
-    params = urllib.parse.urlencode({"token": bad_token, "user": json.dumps(user)})
+    # _e2e_bypass_list=1 skips get_all_tournaments_admin() so the tournament list
+    # API call (which would 401 with bad_token) doesn't block wizard rendering.
+    # The wizard can then be navigated to Step 8, where execute_launch() uses
+    # bad_token → gets real 401 → shows st.error("❌ Launch failed: ...").
+    params = urllib.parse.urlencode({
+        "token": bad_token,
+        "user": json.dumps(user),
+        "_e2e_bypass_list": "1",
+    })
     page.goto(f"{base_url}{MONITOR_PATH}?{params}", timeout=_LOAD_TIMEOUT)
     page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(_STREAMLIT_SETTLE)

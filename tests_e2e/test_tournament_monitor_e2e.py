@@ -117,6 +117,25 @@ def _click_back(page: Page) -> None:
     time.sleep(_STREAMLIT_SETTLE)
 
 
+def _select_first_campus(page: Page) -> None:
+    """Select the first available campus at Step 3 (required to enable Next →).
+
+    Step 3 renders a campus cascade multiselect (location → campus).
+    The Next → button is disabled until at least one campus is selected.
+    """
+    sb = _sidebar(page)
+    campus_multiselect = sb.locator("[data-testid='stMultiSelect']").filter(
+        has_text="Venues"
+    ).first.or_(
+        sb.locator("[data-testid='stMultiSelect']").filter(has_text="Campuses").first
+    )
+    campus_multiselect.wait_for(state="visible", timeout=10_000)
+    campus_multiselect.click()
+    time.sleep(0.3)
+    page.locator("[role='option']").first.click()
+    time.sleep(0.3)
+
+
 def _poll_ops_tournament_created(
     api_url: str,
     token: str,
@@ -677,6 +696,9 @@ class TestWizardFlow:
         if league_option.is_visible():
             league_option.click()
             time.sleep(0.5)
+
+        # Campus selection required before Next → is enabled
+        _select_first_campus(page)
 
         # Step 3 → 4 (Game Preset) — must NOT go back to Step 1 or 2
         _click_next(page)

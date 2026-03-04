@@ -1057,7 +1057,7 @@ class TestSliderStatePersistence:
         expect(sb.get_by_text("Step 5 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
 
         # Slider must show the SAME value as before (saved in wizard_player_count_saved)
-        slider_after = sb.get_by_role("slider", name="Number of players to enroll")
+        slider_after = sb.get_by_role("slider", name="Target player count")
         val_after_str = slider_after.get_attribute("aria-valuenow")
         assert val_after_str is not None
         val_after = int(val_after_str)
