@@ -172,6 +172,27 @@ def _click_back(page: Page) -> None:
     time.sleep(_STREAMLIT_SETTLE)
 
 
+def _select_first_campus(page: Page) -> None:
+    """Select first available campus at step 3 (required to enable Next →).
+
+    Step 3 (both H2H and Individual paths) shows a location → campus cascade
+    selector. Campus must be selected before the Next → button becomes enabled.
+    The location selectbox defaults to the first location automatically; only
+    the campus multiselect needs an explicit click-and-pick interaction.
+    """
+    sb = _sidebar(page)
+    campus_multiselect = sb.locator("[data-testid='stMultiSelect']").filter(
+        has_text="Venues"
+    ).first.or_(
+        sb.locator("[data-testid='stMultiSelect']").filter(has_text="Campuses").first
+    )
+    campus_multiselect.wait_for(state="visible", timeout=10_000)
+    campus_multiselect.click()
+    time.sleep(0.3)
+    page.locator("[role='option']").first.click()
+    time.sleep(0.3)
+
+
 # ── Group E: Boundary Value Analysis (API-level, parametrized) ─────────────────
 
 @pytest.mark.e2e
@@ -706,6 +727,7 @@ class TestSafetyConfirmationUI:
 
         # Step 3: Knockout
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _select_first_campus(page)
         _click_next(page)
 
         # Step 4: Game Preset (new optional step — just pass through)
@@ -752,6 +774,7 @@ class TestSafetyConfirmationUI:
         _click_next(page)
 
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _select_first_campus(page)
         _click_next(page)
 
         # Step 4: Game Preset (new optional step — just pass through)
@@ -879,6 +902,7 @@ class TestSafetyConfirmationUI:
         expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _select_first_campus(page)
         _click_next(page)
         # Step 4: Game Preset (new optional step — just pass through)
         expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -936,6 +960,7 @@ class TestSliderStatePersistence:
         expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _select_first_campus(page)
         _click_next(page)
         # Step 4: Game Preset (new optional step — just pass through)
         expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -971,6 +996,7 @@ class TestSliderStatePersistence:
         expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _select_first_campus(page)
         _click_next(page)
         # Step 4: Game Preset (new optional step — just pass through)
         expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -1008,6 +1034,7 @@ class TestSliderStatePersistence:
         expect(sb.get_by_text("Step 2 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
         _click_next(page)
         expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+        _select_first_campus(page)
         _click_next(page)
         # Step 4: Game Preset (new optional step — just pass through)
         expect(sb.get_by_text("Step 4 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
