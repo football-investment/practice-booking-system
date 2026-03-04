@@ -936,11 +936,14 @@ class TestOpsLaunch:
                 f"Sidebar state after launch (first 800 chars): {sidebar_text[:800]!r}"
             )
 
-        # ── STEP 2: Wizard reset (UI success signal) ──────────────────────────
-        # After execute_launch() succeeds, it calls st.rerun() which resets the
-        # wizard to Step 1.  Playwright's expect() retries automatically —
-        # no sleep needed.  Timeout 30s covers WebSocket round-trip + render time.
-        expect(sb.get_by_text("Step 1 of 8", exact=False)).to_be_visible(
+        # ── STEP 2: Success screen visible (UI success signal) ────────────────
+        # After execute_launch() succeeds, render_wizard() detects wizard_launch_result
+        # in session state and calls render_launch_success() instead of Step 1.
+        # The success screen shows a "Launch another tournament" button.
+        # (wizard_launch_result is NOT cleared by reset_wizard_state — intentional.)
+        # Playwright's expect() retries automatically — no sleep needed.
+        # Timeout 30s covers WebSocket round-trip + Streamlit render time.
+        expect(sb.get_by_text("Launch another tournament", exact=False)).to_be_visible(
             timeout=30_000
         )
 
