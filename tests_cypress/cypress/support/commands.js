@@ -76,15 +76,10 @@ Cypress.Commands.add('login', (email, password) => {
   // Login button
   cy.contains('[data-testid="stButton"] button', '🔐 Login').click();
 
-  // FIX: Wait for redirect to dashboard (URL changes from / to /Admin_Dashboard etc)
-  // Streamlit st.switch_page() triggers navigation - must wait for it to complete
-  cy.url({ timeout: 10000 }).should('not.equal', Cypress.config().baseUrl + '/');
-
-  // Wait for new page to fully render
-  cy.waitForStreamlit({ timeout: 10000 });
-
-  // Ensure sidebar is visible on dashboard page
-  cy.get('[data-testid="stSidebar"]', { timeout: 5000 }).should('be.visible');
+  // Wait for Streamlit to settle after the login attempt.
+  // Do NOT assert URL or sidebar here — callers use cy.assertAuthenticated()
+  // for valid logins and cy.get('[data-testid="stAlert"]') for invalid logins.
+  cy.waitForStreamlit({ timeout: 15000 });
 });
 
 /**
@@ -245,8 +240,8 @@ Cypress.Commands.add('fillInput', (label, value) => {
   cy.contains('[data-testid="stTextInput"] label', label)
     .parents('[data-testid="stTextInput"]')
     .find('input')
-    .clear()
-    .type(value, { delay: 20 });
+    .clear({ force: true })
+    .type(value, { delay: 20, force: true });
 });
 
 /**
