@@ -388,10 +388,12 @@ jobs:
           python scripts/seed_8_physical_campuses.py
           python scripts/seed_tournament_types.py
 
-      - name: Start backend
+      - name: Start backend + Streamlit
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          streamlit run streamlit_app/🏠_Home.py --server.port 8501 --server.headless true &
           timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: API Boundary tests (non-slow)
         run: |
