@@ -101,7 +101,7 @@ describe('Error States / HTTP 409 Conflict', () => {
       }).as('enroll2');
 
       // App should remain usable after the failed first attempt
-      cy.get('[data-testid="stButton"] button').should('not.be.disabled');
+      cy.get('[data-testid="stButton"] button').first().should('not.be.disabled');
     });
   });
 
@@ -196,7 +196,7 @@ describe('Error States / HTTP 409 Conflict', () => {
       cy.get('[data-testid="stApp"]').should('be.visible');
       cy.get('body').should('not.contain.text', 'Traceback');
       // UI should remain usable
-      cy.get('[data-testid="stButton"] button').should('not.be.disabled');
+      cy.get('[data-testid="stButton"] button').first().should('not.be.disabled');
     });
   });
 

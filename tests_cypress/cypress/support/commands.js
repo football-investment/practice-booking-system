@@ -124,7 +124,20 @@ Cypress.Commands.add('logout', () => {
  * @param {string} pagePath  e.g. '/Admin_Dashboard', '/Tournament_Manager'
  */
 Cypress.Commands.add('navigateTo', (pagePath) => {
-  cy.visit(pagePath);
+  // Preserve session token URL params across Streamlit page navigations.
+  // Streamlit uses query params (session_token, session_user) to restore
+  // session state when a new WebSocket connection is opened (i.e. on cy.visit).
+  // Without this, the new Streamlit session has no token and shows "Not authenticated".
+  cy.url().then((currentUrl) => {
+    const url = new URL(currentUrl);
+    const token = url.searchParams.get('session_token');
+    const user = url.searchParams.get('session_user');
+    let targetUrl = pagePath;
+    if (token && user) {
+      targetUrl += `?session_token=${encodeURIComponent(token)}&session_user=${encodeURIComponent(user)}`;
+    }
+    cy.visit(targetUrl);
+  });
   cy.waitForStreamlit();
 });
 

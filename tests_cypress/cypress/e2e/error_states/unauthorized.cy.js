@@ -25,8 +25,8 @@ describe('Error States / Unauthorized & Forbidden', () => {
     });
 
     it('@smoke 401 from login API shows user-readable error', () => {
-      cy.stub401Login(API());
-
+      // Note: Streamlit login is server-to-server (Python → FastAPI), so
+      // cy.intercept() cannot capture it. Use real bad credentials instead.
       cy.get('[data-testid="stTextInput"]').first().find('input')
         .clear().type('bad@example.com');
       cy.get('[data-testid="stTextInput"]').find('input[type="password"]')
@@ -34,7 +34,6 @@ describe('Error States / Unauthorized & Forbidden', () => {
       cy.contains('[data-testid="stButton"] button', '🔐 Login').click();
 
       cy.waitForStreamlit();
-      cy.wait('@loginFailed');
 
       // Error alert must appear
       cy.get('[data-testid="stAlert"]').should('be.visible');
@@ -48,8 +47,6 @@ describe('Error States / Unauthorized & Forbidden', () => {
     });
 
     it('401 error message does not expose internal API detail verbatim', () => {
-      cy.stub401Login(API());
-
       cy.get('[data-testid="stTextInput"]').first().find('input')
         .clear().type('test@example.com');
       cy.get('[data-testid="stTextInput"]').find('input[type="password"]')
@@ -68,9 +65,7 @@ describe('Error States / Unauthorized & Forbidden', () => {
     });
 
     it('user can retry login after 401 error', () => {
-      // First attempt: 401
-      cy.stub401Login(API());
-
+      // First attempt: wrong credentials (real 401 from server)
       cy.get('[data-testid="stTextInput"]').first().find('input')
         .clear().type('bad@example.com');
       cy.get('[data-testid="stTextInput"]').find('input[type="password"]')
@@ -81,7 +76,7 @@ describe('Error States / Unauthorized & Forbidden', () => {
       // Login form must still be present (recoverable)
       cy.assertUnauthenticated();
 
-      // Second attempt: real credentials (stub cleared)
+      // Second attempt: real credentials
       cy.fixture('users').then((users) => {
         cy.login(users.admin.email, users.admin.password);
         cy.assertAuthenticated();
