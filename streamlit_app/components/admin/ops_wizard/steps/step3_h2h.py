@@ -1,7 +1,7 @@
 """OPS Wizard — Step 3b: Tournament Type Selection (HEAD_TO_HEAD path)"""
 import streamlit as st
 from ..wizard_config import SCENARIO_CONFIG, TOURNAMENT_TYPE_CONFIG
-from streamlit_app.api_helpers_general import get_locations, get_campuses_by_location
+from api_helpers_general import get_locations, get_campuses_by_location
 
 
 def _render_campus_selector(token: str) -> bool:
