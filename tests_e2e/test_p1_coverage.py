@@ -167,6 +167,21 @@ def _click_back(page: Page) -> None:
     time.sleep(_STREAMLIT_SETTLE)
 
 
+def _select_first_campus(page: Page) -> None:
+    """Select first available campus at step 3 (required to enable Next →)."""
+    sb = _sidebar(page)
+    campus_multiselect = sb.locator("[data-testid='stMultiSelect']").filter(
+        has_text="Venues"
+    ).first.or_(
+        sb.locator("[data-testid='stMultiSelect']").filter(has_text="Campuses").first
+    )
+    campus_multiselect.wait_for(state="visible", timeout=10_000)
+    campus_multiselect.click()
+    time.sleep(0.3)
+    page.locator("[role='option']").first.click()
+    time.sleep(0.3)
+
+
 def _navigate_to_step8_individual_ranking_large(
     page: Page, base_url: str, api_url: str
 ) -> None:
@@ -202,6 +217,7 @@ def _navigate_to_step8_individual_ranking_large(
     expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
     sb.get_by_text("Score Based", exact=False).first.click()
     time.sleep(0.3)
+    _select_first_campus(page)
     _click_next(page)
 
     # Step 4: Game Preset (optional, passthrough)
@@ -258,6 +274,7 @@ def _navigate_to_step8_hth_for_error_test(
 
     # Step 3: Knockout
     expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+    _select_first_campus(page)
     _click_next(page)
 
     # Step 4: Game Preset passthrough (presets list may be empty — that's fine)
@@ -312,6 +329,7 @@ def _navigate_to_step8_hth_large(
 
     # Step 3: Knockout
     expect(sb.get_by_text("Step 3 of 8", exact=False)).to_be_visible(timeout=_LOAD_TIMEOUT)
+    _select_first_campus(page)
     _click_next(page)
 
     # Step 4: Game Preset passthrough
