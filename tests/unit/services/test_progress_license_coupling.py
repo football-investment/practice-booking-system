@@ -196,7 +196,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level():
             result = coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=3
+                user_id=42, specialization="PLAYER", new_level=3
             )
         assert result["success"] is True
         assert result["progression_created"] is False
@@ -209,7 +209,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level():
             result = coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=3,
+                user_id=42, specialization="PLAYER", new_level=3,
                 xp_change=50, sessions_change=1
             )
         assert result["success"] is True
@@ -221,7 +221,7 @@ class TestUpdateLevelAtomic:
         license_ = _mock_license_obj(level=3, max_level=3)
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level():
-            coupler.update_level_atomic(user_id=1, specialization="PLAYER", new_level=5)
+            coupler.update_level_atomic(user_id=42, specialization="PLAYER", new_level=5)
         assert license_.max_achieved_level == 5
 
     def test_max_achieved_not_downgraded(self):
@@ -230,7 +230,7 @@ class TestUpdateLevelAtomic:
         license_ = _mock_license_obj(level=5, max_level=7)
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level(max_val=8):
-            coupler.update_level_atomic(user_id=1, specialization="PLAYER", new_level=4)
+            coupler.update_level_atomic(user_id=42, specialization="PLAYER", new_level=4)
         # max_achieved stays 7, not downgraded to 4
         assert license_.max_achieved_level == 7
 
@@ -240,7 +240,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level():
             coupler.update_level_atomic(
-                user_id=1, specialization="COACH", new_level=2,
+                user_id=42, specialization="COACH", new_level=2,
                 theory_hours_change=3, practice_hours_change=2
             )
         assert progress.theory_hours_completed == 13
@@ -253,7 +253,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level():
             coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=2,
+                user_id=42, specialization="PLAYER", new_level=2,
                 theory_hours_change=99, practice_hours_change=99
             )
         # theory/practice must NOT change for non-COACH
@@ -266,7 +266,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level(max_val=8):
             result = coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=0
+                user_id=42, specialization="PLAYER", new_level=0
             )
         assert result["success"] is False
         assert result["error_type"] == "validation_error"
@@ -278,7 +278,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level(max_val=8):
             result = coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=9
+                user_id=42, specialization="PLAYER", new_level=9
             )
         assert result["success"] is False
         assert result["error_type"] == "validation_error"
@@ -308,7 +308,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(real_progress, license_)
         with self._patch_max_level():
             result = coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=2, xp_change=-50
+                user_id=42, specialization="PLAYER", new_level=2, xp_change=-50
             )
         assert result["success"] is False
         assert result["error_type"] == "validation_error"
@@ -326,7 +326,7 @@ class TestUpdateLevelAtomic:
 
         coupler.acquire_locks = _fail_locks
         result = coupler.update_level_atomic(
-            user_id=1, specialization="PLAYER", new_level=2
+            user_id=42, specialization="PLAYER", new_level=2
         )
         assert result["success"] is False
         assert result["error_type"] == "database_error"
@@ -343,7 +343,7 @@ class TestUpdateLevelAtomic:
 
         coupler.acquire_locks = _fail_locks
         result = coupler.update_level_atomic(
-            user_id=1, specialization="PLAYER", new_level=2
+            user_id=42, specialization="PLAYER", new_level=2
         )
         assert result["success"] is False
         assert result["error_type"] == "unknown_error"
@@ -355,7 +355,7 @@ class TestUpdateLevelAtomic:
         coupler, db = _coupler_with_locks(progress, license_)
         with self._patch_max_level():
             result = coupler.update_level_atomic(
-                user_id=1, specialization="PLAYER", new_level=2,
+                user_id=42, specialization="PLAYER", new_level=2,
                 xp_change=50, sessions_change=3, projects_change=1
             )
         assert result["success"] is True
@@ -376,7 +376,7 @@ class TestSyncExistingRecordsAtomic:
         license_ = _mock_license_obj(level=4)
         coupler, db = _coupler_with_locks(progress, license_)
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="PLAYER", source="progress"
+            user_id=42, specialization="PLAYER", source="progress"
         )
         assert result["success"] is True
         assert result["action"] == "none"
@@ -387,7 +387,7 @@ class TestSyncExistingRecordsAtomic:
         license_ = _mock_license_obj(level=3, max_level=3)
         coupler, db = _coupler_with_locks(progress, license_)
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="PLAYER", source="progress"
+            user_id=42, specialization="PLAYER", source="progress"
         )
         assert result["success"] is True
         assert license_.current_level == 5
@@ -399,7 +399,7 @@ class TestSyncExistingRecordsAtomic:
         license_ = _mock_license_obj(level=3)
         coupler, db = _coupler_with_locks(progress, license_)
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="COACH", source="license"
+            user_id=42, specialization="COACH", source="license"
         )
         assert result["success"] is True
         assert result["action"] == "none"
@@ -410,7 +410,7 @@ class TestSyncExistingRecordsAtomic:
         license_ = _mock_license_obj(level=6)
         coupler, db = _coupler_with_locks(progress, license_)
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="INTERNSHIP", source="license"
+            user_id=42, specialization="INTERNSHIP", source="license"
         )
         assert result["success"] is True
         assert progress.current_level == 6
@@ -422,7 +422,7 @@ class TestSyncExistingRecordsAtomic:
         license_ = _mock_license_obj(level=3)
         coupler, db = _coupler_with_locks(progress, license_)
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="PLAYER", source="invalid_source"
+            user_id=42, specialization="PLAYER", source="invalid_source"
         )
         assert result["success"] is False
         db.rollback.assert_called_once()
@@ -439,7 +439,7 @@ class TestSyncExistingRecordsAtomic:
 
         coupler.acquire_locks = _boom
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="PLAYER", source="progress"
+            user_id=42, specialization="PLAYER", source="progress"
         )
         assert result["success"] is False
         db.rollback.assert_called_once()
@@ -450,7 +450,7 @@ class TestSyncExistingRecordsAtomic:
         license_ = _mock_license_obj(level=5)
         coupler, db = _coupler_with_locks(progress, license_)
         result = coupler.sync_existing_records_atomic(
-            user_id=1, specialization="PLAYER", source="license"
+            user_id=42, specialization="PLAYER", source="license"
         )
         # After sync: progress.current_level = 5 (set by sync)
         assert result["final_level"] == progress.current_level

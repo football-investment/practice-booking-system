@@ -30,7 +30,7 @@ def _svc():
     return LicenseService(db), db
 
 
-def _mock_license(user_id=1, spec="COACH", level=3, max_level=3, lic_id=10):
+def _mock_license(user_id=42, spec="COACH", level=3, max_level=3, lic_id=10):
     lic = MagicMock()
     lic.id = lic_id
     lic.user_id = user_id
@@ -104,7 +104,7 @@ class TestGetOrCreateUserLicense:
         svc, db = _svc()
         existing = _mock_license()
         db.query.return_value.filter.return_value.first.return_value = existing
-        result = svc.get_or_create_user_license(user_id=1, specialization="coach")
+        result = svc.get_or_create_user_license(user_id=42, specialization="coach")
         assert result is existing
         db.add.assert_not_called()
         db.commit.assert_not_called()
@@ -112,7 +112,7 @@ class TestGetOrCreateUserLicense:
     def test_creates_license_when_not_found(self):
         svc, db = _svc()
         db.query.return_value.filter.return_value.first.return_value = None
-        result = svc.get_or_create_user_license(user_id=1, specialization="coach")
+        result = svc.get_or_create_user_license(user_id=42, specialization="coach")
         db.add.assert_called_once()
         db.commit.assert_called_once()
         db.refresh.assert_called_once()
@@ -121,13 +121,13 @@ class TestGetOrCreateUserLicense:
         svc, db = _svc()
         existing = _mock_license(spec="COACH")
         db.query.return_value.filter.return_value.first.return_value = existing
-        result = svc.get_or_create_user_license(user_id=1, specialization="coach")
+        result = svc.get_or_create_user_license(user_id=42, specialization="coach")
         assert result is existing  # Should still work after upper()
 
     def test_new_license_starts_at_level_1(self):
         svc, db = _svc()
         db.query.return_value.filter.return_value.first.return_value = None
-        svc.get_or_create_user_license(user_id=1, specialization="COACH")
+        svc.get_or_create_user_license(user_id=42, specialization="COACH")
         # The UserLicense created should have current_level=1
         added_obj = db.add.call_args[0][0]
         assert added_obj.current_level == 1
@@ -143,7 +143,7 @@ class TestAdvanceLicenseValidation:
         mock_lic = _mock_license(level=3)
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             result = svc.advance_license(
-                user_id=1, specialization="COACH",
+                user_id=42, specialization="COACH",
                 target_level=5,  # skips a level
                 advanced_by=99
             )
@@ -156,7 +156,7 @@ class TestAdvanceLicenseValidation:
         mock_lic = _mock_license(level=4)
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             result = svc.advance_license(
-                user_id=1, specialization="COACH",
+                user_id=42, specialization="COACH",
                 target_level=3,  # lower than current
                 advanced_by=99
             )
@@ -168,7 +168,7 @@ class TestAdvanceLicenseValidation:
         mock_lic = _mock_license(level=3)
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             result = svc.advance_license(
-                user_id=1, specialization="COACH",
+                user_id=42, specialization="COACH",
                 target_level=3,  # same = not higher
                 advanced_by=99
             )
@@ -179,7 +179,7 @@ class TestAdvanceLicenseValidation:
         mock_lic = _mock_license(level=8)
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             result = svc.advance_license(
-                user_id=1, specialization="COACH",
+                user_id=42, specialization="COACH",
                 target_level=9,  # max is 8
                 advanced_by=99
             )
@@ -191,7 +191,7 @@ class TestAdvanceLicenseValidation:
         mock_lic = _mock_license(level=3)
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             result = svc.advance_license(
-                user_id=1, specialization="COACH",
+                user_id=42, specialization="COACH",
                 target_level=5, advanced_by=99
             )
         assert "license" in result
@@ -224,7 +224,7 @@ class TestAdvanceLicenseSuccess:
                     mock_sync_cls.return_value = mock_sync_svc
 
                     result = svc.advance_license(
-                        user_id=1, specialization="COACH",
+                        user_id=42, specialization="COACH",
                         target_level=4, advanced_by=99
                     )
         return result, db, mock_sync_db
@@ -269,7 +269,7 @@ class TestAdvanceLicenseSuccess:
             with patch('app.database.SessionLocal'):
                 with patch('app.services.license_service.ProgressLicenseSyncService'):
                     svc.advance_license(
-                        user_id=1, specialization="COACH",
+                        user_id=42, specialization="COACH",
                         target_level=4, advanced_by=99
                     )
         assert mock_lic.current_level == 4
@@ -283,7 +283,7 @@ class TestAdvanceLicenseSuccess:
             with patch('app.database.SessionLocal'):
                 with patch('app.services.license_service.ProgressLicenseSyncService'):
                     svc.advance_license(
-                        user_id=1, specialization="COACH",
+                        user_id=42, specialization="COACH",
                         target_level=4, advanced_by=99
                     )
         assert mock_lic.max_achieved_level == 4
@@ -296,7 +296,7 @@ class TestGetUserLicenses:
     def test_empty_returns_empty_list(self):
         svc, db = _svc()
         db.query.return_value.filter.return_value.all.return_value = []
-        result = svc.get_user_licenses(user_id=1)
+        result = svc.get_user_licenses(user_id=42)
         assert result == []
 
     def test_license_at_max_level_no_next_meta(self):
@@ -306,7 +306,7 @@ class TestGetUserLicenses:
         db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
 
         with patch.object(svc, 'get_license_metadata_by_level', return_value={'level': 8}):
-            result = svc.get_user_licenses(user_id=1)
+            result = svc.get_user_licenses(user_id=42)
 
         assert len(result) == 1
         assert 'next_level_metadata' not in result[0]
@@ -318,7 +318,7 @@ class TestGetUserLicenses:
         db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
 
         with patch.object(svc, 'get_license_metadata_by_level', return_value={'level': 3}):
-            result = svc.get_user_licenses(user_id=1)
+            result = svc.get_user_licenses(user_id=42)
 
         assert 'next_level_metadata' in result[0]
 
@@ -364,7 +364,7 @@ class TestGetUserLicenseDashboard:
         with patch.object(svc, 'get_user_licenses', return_value=[]):
             with patch.object(svc, 'get_all_license_metadata', return_value=[{'level_number': 1}]):
                 with patch.object(svc, '_get_recent_license_activity', return_value=[]):
-                    result = svc.get_user_license_dashboard(user_id=1)
+                    result = svc.get_user_license_dashboard(user_id=42)
 
         assert "user" in result
         assert "licenses" in result
@@ -382,7 +382,7 @@ class TestGetUserLicenseDashboard:
         with patch.object(svc, 'get_user_licenses', return_value=[{'current_level': 3}]):
             with patch.object(svc, 'get_all_license_metadata', return_value=[]):
                 with patch.object(svc, '_get_recent_license_activity', return_value=[]):
-                    result = svc.get_user_license_dashboard(user_id=1)
+                    result = svc.get_user_license_dashboard(user_id=42)
 
         # total_possible_levels = sum of max_levels for all LicenseType = 8+8+3 = 19
         assert result["overall_progress"]["current_levels"] == 3
@@ -399,7 +399,7 @@ class TestGetUserLicenseDashboard:
         with patch.object(svc, 'get_user_licenses', return_value=[]):
             with patch.object(svc, 'get_all_license_metadata', return_value=[]):
                 with patch.object(svc, '_get_recent_license_activity', return_value=[]):
-                    result = svc.get_user_license_dashboard(user_id=1)
+                    result = svc.get_user_license_dashboard(user_id=42)
 
         assert result["user"]["specialization"] is None
 
@@ -433,7 +433,7 @@ class TestGetRecentLicenseActivity:
     def test_empty_progressions_returns_empty(self):
         svc, db = _svc()
         db.query.return_value.join.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-        result = svc._get_recent_license_activity(user_id=1)
+        result = svc._get_recent_license_activity(user_id=42)
         assert result == []
 
     def test_returns_activity_dicts(self):
@@ -451,7 +451,7 @@ class TestGetRecentLicenseActivity:
         db.query.return_value.filter.return_value.first.return_value = mock_lic
 
         with patch.object(svc, 'get_license_metadata_by_level', return_value={'level': 1}):
-            result = svc._get_recent_license_activity(user_id=1)
+            result = svc._get_recent_license_activity(user_id=42)
 
         assert len(result) == 1
         assert result[0]["specialization"] == "COACH"
@@ -467,7 +467,7 @@ class TestGetLicenseRequirementsCheck:
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             with patch.object(svc, 'get_license_metadata_by_level', return_value=None):
                 result = svc.get_license_requirements_check(
-                    user_id=1, specialization="COACH", target_level=99
+                    user_id=42, specialization="COACH", target_level=99
                 )
         assert "error" in result
         assert "not found" in result["error"].lower()
@@ -478,7 +478,7 @@ class TestGetLicenseRequirementsCheck:
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             with patch.object(svc, 'get_license_metadata_by_level', return_value={'advancement_criteria': {}}):
                 result = svc.get_license_requirements_check(
-                    user_id=1, specialization="COACH",
+                    user_id=42, specialization="COACH",
                     target_level=2  # lower than current (4) → validation fails
                 )
         assert "error" in result
@@ -490,7 +490,7 @@ class TestGetLicenseRequirementsCheck:
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             with patch.object(svc, 'get_license_metadata_by_level', return_value=meta):
                 result = svc.get_license_requirements_check(
-                    user_id=1, specialization="COACH", target_level=4
+                    user_id=42, specialization="COACH", target_level=4
                 )
         assert result["user_id"] == 1
         assert result["target_level"] == 4
@@ -504,7 +504,7 @@ class TestGetLicenseRequirementsCheck:
         with patch.object(svc, 'get_or_create_user_license', return_value=mock_lic):
             with patch.object(svc, 'get_license_metadata_by_level', return_value=meta):
                 result = svc.get_license_requirements_check(
-                    user_id=1, specialization="COACH", target_level=4
+                    user_id=42, specialization="COACH", target_level=4
                 )
         # Empty requirements → vacuously True (all() of empty = True)
         assert result["all_requirements_met"] is True
@@ -517,7 +517,7 @@ class TestGetLicenseRequirementsCheck:
             with patch.object(svc, 'get_license_metadata_by_level', return_value=meta):
                 with patch.object(svc, '_check_requirement', return_value={'met': False}):
                     result = svc.get_license_requirements_check(
-                        user_id=1, specialization="COACH", target_level=4
+                        user_id=42, specialization="COACH", target_level=4
                     )
         assert result["can_advance"] is False
 
@@ -528,7 +528,7 @@ class TestCheckRequirement:
 
     def test_returns_structured_dict(self):
         svc, _ = _svc()
-        result = svc._check_requirement(user_id=1, req_type="min_sessions", req_value=5)
+        result = svc._check_requirement(user_id=42, req_type="min_sessions", req_value=5)
         assert result["type"] == "min_sessions"
         assert result["required"] == 5
         assert "met" in result
@@ -536,7 +536,7 @@ class TestCheckRequirement:
 
     def test_includes_description(self):
         svc, _ = _svc()
-        result = svc._check_requirement(user_id=1, req_type="min_xp", req_value=100)
+        result = svc._check_requirement(user_id=42, req_type="min_xp", req_value=100)
         assert "description" in result
 
 

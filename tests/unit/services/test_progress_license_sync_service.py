@@ -94,7 +94,7 @@ class TestSyncProgressToLicense:
     def test_no_progress_returns_failure(self):
         svc, db = _svc()
         db.query.side_effect = [_q(None)]
-        result = svc.sync_progress_to_license(user_id=1, specialization="PLAYER")
+        result = svc.sync_progress_to_license(user_id=42, specialization="PLAYER")
         assert result["success"] is False
         assert result["action"] == "none"
         db.commit.assert_not_called()
@@ -106,7 +106,7 @@ class TestSyncProgressToLicense:
         progress.created_at = None
         progress.last_activity = None
         db.query.side_effect = [_q(progress), _q(None)]
-        result = svc.sync_progress_to_license(user_id=1, specialization="PLAYER")
+        result = svc.sync_progress_to_license(user_id=42, specialization="PLAYER")
         assert result["success"] is True
         assert result["action"] == "created"
         assert result["progress_level"] == 3
@@ -121,7 +121,7 @@ class TestSyncProgressToLicense:
         license_ = MagicMock()
         license_.current_level = 4
         db.query.side_effect = [_q(progress), _q(license_)]
-        result = svc.sync_progress_to_license(user_id=1, specialization="PLAYER")
+        result = svc.sync_progress_to_license(user_id=42, specialization="PLAYER")
         assert result["success"] is True
         assert result["action"] == "none"
         assert result["synced"] is True
@@ -138,7 +138,7 @@ class TestSyncProgressToLicense:
         license_.max_achieved_level = 4
         license_.id = 20
         db.query.side_effect = [_q(progress), _q(license_)]
-        result = svc.sync_progress_to_license(user_id=1, specialization="PLAYER")
+        result = svc.sync_progress_to_license(user_id=42, specialization="PLAYER")
         assert result["success"] is True
         assert result["action"] == "updated"
         assert license_.current_level == 5
@@ -158,14 +158,14 @@ class TestSyncProgressToLicense:
         license_.max_achieved_level = 5
         license_.id = 20
         db.query.side_effect = [_q(progress), _q(license_)]
-        svc.sync_progress_to_license(user_id=1, specialization="COACH")
+        svc.sync_progress_to_license(user_id=42, specialization="COACH")
         assert license_.max_achieved_level == 6
 
     def test_lowercase_specialization_normalised(self):
         """Lowercase 'player' is uppercased — treated as PLAYER."""
         svc, db = _svc()
         db.query.side_effect = [_q(None)]
-        result = svc.sync_progress_to_license(user_id=1, specialization="player")
+        result = svc.sync_progress_to_license(user_id=42, specialization="player")
         assert result["success"] is False  # no progress — but no exception
 
 
@@ -179,7 +179,7 @@ class TestSyncLicenseToProgress:
     def test_no_license_returns_failure(self):
         svc, db = _svc()
         db.query.side_effect = [_q(None)]
-        result = svc.sync_license_to_progress(user_id=1, specialization="PLAYER")
+        result = svc.sync_license_to_progress(user_id=42, specialization="PLAYER")
         assert result["success"] is False
         assert result["action"] == "none"
 
@@ -189,7 +189,7 @@ class TestSyncLicenseToProgress:
         license_.current_level = 4
         license_.last_advanced_at = None
         db.query.side_effect = [_q(license_), _q(None)]
-        result = svc.sync_license_to_progress(user_id=1, specialization="PLAYER")
+        result = svc.sync_license_to_progress(user_id=42, specialization="PLAYER")
         assert result["success"] is True
         assert result["action"] == "created"
         assert result["license_level"] == 4
@@ -204,7 +204,7 @@ class TestSyncLicenseToProgress:
         progress = MagicMock()
         progress.current_level = 3
         db.query.side_effect = [_q(license_), _q(progress)]
-        result = svc.sync_license_to_progress(user_id=1, specialization="COACH")
+        result = svc.sync_license_to_progress(user_id=42, specialization="COACH")
         assert result["success"] is True
         assert result["action"] == "none"
         db.commit.assert_not_called()
@@ -216,7 +216,7 @@ class TestSyncLicenseToProgress:
         progress = MagicMock()
         progress.current_level = 2
         db.query.side_effect = [_q(license_), _q(progress)]
-        result = svc.sync_license_to_progress(user_id=1, specialization="INTERNSHIP")
+        result = svc.sync_license_to_progress(user_id=42, specialization="INTERNSHIP")
         assert result["success"] is True
         assert result["action"] == "updated"
         assert progress.current_level == 7
@@ -227,7 +227,7 @@ class TestSyncLicenseToProgress:
     def test_lowercase_specialization_normalised(self):
         svc, db = _svc()
         db.query.side_effect = [_q(None)]
-        result = svc.sync_license_to_progress(user_id=1, specialization="internship")
+        result = svc.sync_license_to_progress(user_id=42, specialization="internship")
         assert result["success"] is False  # no license — but no exception
 
 
@@ -410,7 +410,7 @@ class TestSyncUserAllSpecializations:
         svc, db = _svc()
         with patch.object(svc, "sync_progress_to_license",
                           return_value={"success": True}) as mock_sync:
-            svc.sync_user_all_specializations(user_id=1,
+            svc.sync_user_all_specializations(user_id=42,
                                               sync_direction="progress_to_license")
         assert mock_sync.call_count == 3
         called_specs = {c.args[1] for c in mock_sync.call_args_list}
@@ -428,17 +428,17 @@ class TestSyncUserAllSpecializations:
         svc, db = _svc()
         with patch.object(svc, "sync_progress_to_license",
                           return_value={"success": True}):
-            result = svc.sync_user_all_specializations(user_id=1)
+            result = svc.sync_user_all_specializations(user_id=42)
         assert "PLAYER" in result["results"]
         assert "COACH" in result["results"]
         assert "INTERNSHIP" in result["results"]
-        assert result["user_id"] == 1
+        assert result["user_id"] == 42
 
     def test_exception_per_specialization_caught(self):
         svc, db = _svc()
         with patch.object(svc, "sync_progress_to_license",
                           side_effect=RuntimeError("boom")):
-            result = svc.sync_user_all_specializations(user_id=1)
+            result = svc.sync_user_all_specializations(user_id=42)
         for spec_result in result["results"].values():
             assert spec_result["success"] is False
 

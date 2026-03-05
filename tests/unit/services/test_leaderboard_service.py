@@ -182,7 +182,7 @@ class TestGetUserRank:
         q.filter.return_value = q
         q.first.return_value = stats
         db.query.return_value = q
-        result = get_user_rank(db, user_id=1)
+        result = get_user_rank(db, user_id=42)
         assert result is None
 
     def test_user_not_found_returns_none(self):
@@ -209,7 +209,7 @@ class TestGetUserRank:
         user = _mock_user(uid=1)
         # users_above=0, total_users=5
         self._setup_rank(db, stats, user, users_above_count=0, total_users_count=5)
-        result = get_user_rank(db, user_id=1)
+        result = get_user_rank(db, user_id=42)
         assert result is not None
         assert result["rank"] == 1
         assert result["total_users"] == 5
@@ -244,7 +244,7 @@ class TestGetUserRank:
         stats = _mock_stats(uid=1, xp=100, level=1)
         user = _mock_user(uid=1)
         self._setup_rank(db, stats, user, users_above_count=0, total_users_count=1)
-        result = get_user_rank(db, user_id=1)
+        result = get_user_rank(db, user_id=42)
         assert result["rank"] == 1
         assert result["percentile"] == 0.0
 
@@ -266,7 +266,7 @@ class TestGetUserRank:
         user = _mock_user()
         # users_above=1, total_users=4 → rank=2 → percentile=(4-2)/(4-1)*100=66.666...
         self._setup_rank(db, stats, user, users_above_count=1, total_users_count=4)
-        result = get_user_rank(db, user_id=1)
+        result = get_user_rank(db, user_id=42)
         assert result["percentile"] == 66.7
 
 

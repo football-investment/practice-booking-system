@@ -20,7 +20,7 @@ from app.models.specialization import SpecializationType
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _mock_user(specialization=SpecializationType.LFA_COACH, user_id=1):
+def _mock_user(specialization=SpecializationType.LFA_COACH, user_id=42):
     u = MagicMock()
     u.id = user_id
     u.specialization = specialization
