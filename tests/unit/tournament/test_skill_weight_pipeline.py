@@ -525,22 +525,17 @@ _SEED_BASELINES = [
     (97.5, "near_ceiling"),  # close to MAX_SKILL_CAP (99)
 ]
 
-# Variant used by test_step_ratio_consistent_across_seeds:
-# near_ceiling always produces min_delta < 1.0 (rounding dominates at this baseline),
-# making the ratio assertion undefined. Marked with a static skip so pytest reports it
-# as a skip rather than running the guard inside the test body.
+# Variant used by test_step_ratio_consistent_across_seeds.
+# near_ceiling (prev=97.5) is included but uses an ordering assertion instead of the
+# dom/min ratio check: at MAX_SKILL_CAP proximity the EMA compression changes the
+# effective slope, so the ratio diverges from step_dom/step_min. The ordering
+# invariant (dom_delta > agil_delta) remains valid and is asserted instead.
 _RATIO_SEED_BASELINES = [
     pytest.param(41.5, "near_floor", id="near_floor"),
     pytest.param(50.0, "default", id="default"),
     pytest.param(60.0, "average", id="average"),
     pytest.param(75.0, "advanced", id="advanced"),
-    pytest.param(
-        97.5, "near_ceiling",
-        id="near_ceiling",
-        marks=pytest.mark.skip(
-            reason="near_ceiling: min_delta always < 1.0 at this baseline — rounding dominates, ratio assertion undefined"
-        ),
-    ),
+    pytest.param(97.5, "near_ceiling", id="near_ceiling"),
 ]
 
 
@@ -602,8 +597,9 @@ class TestMultiSeedVariation:
     def test_step_ratio_consistent_across_seeds(self, prev, label):
         """
         The dom/min delta ratio converges to step_dom/step_min regardless of prev_value
-        (unless clamped). Skip check when either delta rounds to zero.
-        near_ceiling is statically skipped via _RATIO_SEED_BASELINES (min_delta < 1.0 always).
+        (unless near MAX_SKILL_CAP). Skip check when either delta rounds to zero.
+        For near_ceiling (prev=97.5): EMA compression changes the effective slope so the
+        ratio diverges — assert the ordering invariant (dom_delta > agil_delta) instead.
         """
         dom_new = calculate_skill_value_from_placement(
             baseline=prev, placement=1, total_players=4, tournament_count=1,
@@ -618,6 +614,17 @@ class TestMultiSeedVariation:
 
         if min_delta == 0 or dom_delta == 0:
             pytest.skip(f"[{label}] Delta rounded to zero (clamp boundary) — ratio undefined")
+
+        if label == "near_ceiling":
+            # Near MAX_SKILL_CAP the EMA slope compresses differently for each weight,
+            # causing the dom/min ratio to diverge from the step_dom/step_min target.
+            # Assert the ordering invariant: dominant weight always produces a larger
+            # positive delta than the minor weight at 1st place.
+            assert dom_delta > 0, f"[near_ceiling] dom_delta must be positive, got {dom_delta}"
+            assert dom_delta > min_delta, (
+                f"[near_ceiling] dom_delta ({dom_delta}) must exceed agil_delta ({min_delta})"
+            )
+            return
 
         expected_ratio = _ema_step(REACT["acceleration"]) / _ema_step(REACT["agility"])
         actual_ratio = dom_delta / min_delta
