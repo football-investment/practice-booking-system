@@ -5,6 +5,26 @@ Validates user eligibility for specializations based on:
 - Age requirements
 - Parental consent (for minors in LFA_COACH)
 - Age group matching (for LFA_FOOTBALL_PLAYER and LFA_COACH)
+
+Architecture note — intentional mixed validation model
+======================================================
+This validator intentionally mixes config-driven and hardcoded policy rules.
+
+  Config-driven rules (from config/specializations/*.json):
+    - min_age per specialization  (Step 1 → _validate_min_age)
+    - age_groups definitions      (Step 3 → _validate_age_group)
+    - display names, XP ranges, level requirements
+
+  Hardcoded policy rules (non-configurable regulatory constraints):
+    - LFA_COACH entry age == 14   (Step 2a in validate_user_for_specialization)
+    - Parental consent under 18   (Step 2b — is_minor property)
+
+Hardcoded constants represent regulatory constraints, not platform configuration.
+Changing them requires deliberate code + test change, not a JSON edit.
+The config-sync guardrail test (TestLFACoachConfigSync) detects drift between
+the two sources and fails CI if they diverge.
+
+Do NOT "unify" these two models without explicit stakeholder sign-off.
 """
 
 import logging
