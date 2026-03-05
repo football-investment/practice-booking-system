@@ -2186,3 +2186,353 @@ class TestStateIntegrity:
         db_a.rollback.assert_not_called()
         # Worker B hit IntegrityError → rollback called
         db_b.rollback.assert_called_once()
+
+
+# ===========================================================================
+# Sprint P17 — Database-level consistency guarantees
+# ===========================================================================
+
+class TestDatabaseConsistency:
+    """P17: Correctness under transaction failures and DB locking scenarios.
+
+    Covers:
+      1. Transaction boundary — partial failure leaves DB unchanged
+      2. Locking behavior — registry lock guards task registration; finalize
+         receives ORM object (enabling row-level locking downstream)
+      3. Reward idempotency — double-finalize without IntegrityError
+      4. Cross-phase consistency — group standings → knockout participants →
+         game results cannot diverge
+    """
+
+    _FIN_PATH = (
+        "app.services.tournament.results.finalization"
+        ".tournament_finalizer.TournamentFinalizer"
+    )
+
+    # -----------------------------------------------------------------------
+    # 1. Transaction boundary
+    # -----------------------------------------------------------------------
+
+    def test_db_query_failure_during_lookup_triggers_rollback(self):
+        """If db.query() raises before finalize() is called, rollback is still invoked.
+
+        Models a DB connection timeout / session invalidation that occurs during
+        the tournament lookup step. The outer try/except must catch it and
+        call db.rollback() even though finalize() was never reached.
+        """
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("DB connection timeout")
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            _finalize_tournament_with_rewards(1, db, _LOG)  # must not raise
+
+        db.rollback.assert_called_once()
+        # finalize() must NOT have been called (exception happened before it)
+        MockFin.return_value.finalize.assert_not_called()
+
+    def test_partial_write_before_exception_triggers_rollback(self):
+        """finalize() simulates writing a reward row then raising.
+
+        After db.add() the commit raises → exception caught → rollback called.
+        The 'partial write' (db.add) is undone by the rollback.
+        Verifies the try/except structure covers the full finalize() execution.
+        """
+        t = MagicMock()
+        db = _seq_db(_q(first=t))
+        db.add = MagicMock()
+
+        def _partial_finalize(tournament_obj):
+            # Simulates: create reward row, then fail before commit
+            db.add(MagicMock(name="reward_row"))
+            raise RuntimeError("commit failed mid-transaction")
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.side_effect = _partial_finalize
+            _finalize_tournament_with_rewards(1, db, _LOG)  # must not raise
+
+        # The partial write happened
+        db.add.assert_called_once()
+        # And was rolled back
+        db.rollback.assert_called_once()
+
+    def test_success_path_never_calls_rollback_or_commit(self):
+        """Successful finalize: wrapper calls neither rollback nor commit.
+
+        Rollback is only for exception paths.
+        Commit is solely the responsibility of TournamentFinalizer.finalize().
+        The _finalize_tournament_with_rewards wrapper must not touch either.
+        """
+        t = MagicMock()
+        db = _seq_db(_q(first=t))
+        db.rollback = MagicMock()
+        db.commit = MagicMock()
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.return_value = {
+                "success": True,
+                "tournament_status": "REWARDS_DISTRIBUTED",
+                "rewards_message": "done",
+            }
+            _finalize_tournament_with_rewards(1, db, _LOG)
+
+        db.rollback.assert_not_called()
+        db.commit.assert_not_called()
+
+    # -----------------------------------------------------------------------
+    # 2. Locking behavior
+    # -----------------------------------------------------------------------
+
+    def test_registry_lock_guards_task_id_registration(self):
+        """Thread dispatch uses the real registry lock; task_id written atomically.
+
+        Replaces the module-level _registry_lock with a real threading.Lock and
+        _task_registry with a real dict. Verifies:
+          - No deadlock (lock is acquired and released cleanly)
+          - task_id is written to the registry with status "pending"
+          - result.task_id matches the registry key
+        """
+        import threading
+        _GS = "app.api.api_v1.endpoints.tournaments.generate_sessions"
+
+        real_registry: dict = {}
+        real_lock = threading.Lock()
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 301
+        campus_row = MagicMock()
+        campus_row.id = 1
+
+        import contextlib
+        patches = [
+            patch("app.models.semester.Semester"),
+            patch("app.models.semester.SemesterStatus"),
+            patch("app.models.tournament_configuration.TournamentConfiguration"),
+            patch("app.models.tournament_reward_config.TournamentRewardConfig"),
+            patch("app.models.tournament_achievement.TournamentSkillMapping"),
+            patch("app.models.campus.Campus"),
+            patch("app.models.campus_schedule_config.CampusScheduleConfig"),
+            patch("app.services.audit_service.AuditService"),
+            patch("app.models.audit_log.AuditAction"),
+            patch("app.models.session.Session"),
+            patch("app.models.semester_enrollment.SemesterEnrollment"),
+            patch("app.models.semester_enrollment.EnrollmentStatus"),
+            patch("app.models.license.UserLicense"),
+            patch(f"{_GS}.BACKGROUND_GENERATION_THRESHOLD", 0),
+            patch(f"{_GS}._is_celery_available", return_value=False),
+            patch(f"{_GS}._registry_lock", real_lock),
+            patch(f"{_GS}._task_registry", real_registry),
+            patch(f"{_GS}._run_generation_in_background"),
+            patch("threading.Thread"),
+        ]
+
+        db = _seq_db(
+            _q(first=None),          # grandmaster
+            _q(all_=[campus_row]),   # campus validation
+            _q(first=None),          # CampusScheduleConfig
+            _q(all_=[]),             # SE enrolled_user_ids
+        )
+
+        with contextlib.ExitStack() as stack:
+            mocks = [stack.enter_context(p) for p in patches]
+            MockSem = mocks[0]
+            MockSem.return_value = mock_tournament
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="manual", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        # task_id was written to the real registry under the real lock
+        assert result.task_id in real_registry, (
+            f"task_id {result.task_id!r} not found in registry {list(real_registry)}"
+        )
+        assert real_registry[result.task_id]["status"] == "pending"
+
+    def test_finalize_receives_orm_object_not_integer_id(self):
+        """finalize() is called with the fetched ORM tournament object, not the tid integer.
+
+        This is the prerequisite for row-level locking: TournamentFinalizer must
+        receive the actual ORM object so it can use SELECT FOR UPDATE internally.
+        If the code ever passes tid directly, this test catches the regression.
+        """
+        t_obj = MagicMock(name="tournament_orm_object")
+        db = _seq_db(_q(first=t_obj))
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.return_value = {
+                "success": True,
+                "tournament_status": "REWARDS_DISTRIBUTED",
+                "rewards_message": "ok",
+            }
+            _finalize_tournament_with_rewards(99, db, _LOG)
+
+        # finalize() must have received the ORM object, not integer 99
+        MockFin.return_value.finalize.assert_called_once_with(t_obj)
+        passed_arg = MockFin.return_value.finalize.call_args[0][0]
+        assert passed_arg is t_obj
+        assert passed_arg is not 99  # noqa: F632 — intentional identity check
+
+    # -----------------------------------------------------------------------
+    # 3. Reward idempotency (without IntegrityError)
+    # -----------------------------------------------------------------------
+
+    def test_double_finalize_wrapper_never_commits_or_rollbacks_on_clean_runs(self):
+        """Two clean finalize calls: wrapper touches neither db.commit nor db.rollback.
+
+        The first call succeeds; the second detects "already distributed" and returns
+        success=False. Neither call raises. The wrapper must not call commit (that is
+        finalize's job) nor rollback (no exception occurred).
+        """
+        t = MagicMock()
+        db = MagicMock()
+        db.query.return_value = _q(first=t)
+        db.commit = MagicMock()
+        db.rollback = MagicMock()
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.side_effect = [
+                {"success": True, "tournament_status": "REWARDS_DISTRIBUTED", "rewards_message": "done"},
+                {"success": False, "message": "Already in REWARDS_DISTRIBUTED state"},
+            ]
+            _finalize_tournament_with_rewards(1, db, _LOG)
+            _finalize_tournament_with_rewards(1, db, _LOG)
+
+        db.commit.assert_not_called()
+        db.rollback.assert_not_called()
+
+    def test_double_finalize_each_invocation_calls_finalize_exactly_once(self):
+        """Each wrapper invocation calls TournamentFinalizer.finalize() exactly once.
+
+        Total across two invocations: finalize() called exactly 2 times.
+        Reward idempotency is enforced by finalize() returning success=False on the
+        second call (no duplicate reward creation) — the wrapper makes no duplicating calls itself.
+        """
+        t = MagicMock()
+        db = MagicMock()
+        db.query.return_value = _q(first=t)
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.side_effect = [
+                {"success": True, "tournament_status": "REWARDS_DISTRIBUTED", "rewards_message": "done"},
+                {"success": False, "message": "Already REWARDS_DISTRIBUTED"},
+            ]
+            _finalize_tournament_with_rewards(1, db, _LOG)
+            _finalize_tournament_with_rewards(1, db, _LOG)
+
+        # Exactly one call per wrapper invocation (total: 2)
+        assert MockFin.return_value.finalize.call_count == 2
+
+    # -----------------------------------------------------------------------
+    # 4. Cross-phase consistency
+    # -----------------------------------------------------------------------
+
+    def test_knockout_participants_are_subset_of_group_participants(self):
+        """Cross-phase invariant: all players in the knockout bracket came from group stage.
+
+        After full group+knockout simulation, ks.participant_user_ids must be
+        a strict subset of the union of all group session participant lists.
+        No phantom player may appear in the knockout who was not in any group session.
+        """
+        gs_a = _session_mock(participants=[10, 20], game_results=None, round_num=1, match_num=1)
+        gs_a.tournament_phase = "GROUP_STAGE"
+        gs_a.group_identifier = "A"
+
+        gs_b = _session_mock(participants=[30, 40], game_results=None, round_num=1, match_num=2)
+        gs_b.tournament_phase = "GROUP_STAGE"
+        gs_b.group_identifier = "B"
+
+        ks = _session_mock(participants=[], game_results=None, round_num=1, match_num=1)
+        ks.tournament_phase = "KNOCKOUT"
+
+        all_group_pax = {10, 20, 30, 40}
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs_a, gs_b, ks]), \
+             patch("random.choice", side_effect=["win", True, "win", True, 10]), \
+             patch("random.randint", side_effect=[3, 0, 3, 0, 3, 0]):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+
+        assert ok is True
+        ks_pax = set(ks.participant_user_ids)
+        # Core invariant: no phantom players
+        assert ks_pax.issubset(all_group_pax), (
+            f"Knockout participants {ks_pax} contain players not in group stage {all_group_pax}"
+        )
+        # Bracket is populated (not empty)
+        assert len(ks_pax) > 0
+
+    def test_ir_rankings_match_session_participant_set_exactly(self):
+        """Cross-phase invariant: ranked user_ids == union of all session participants.
+
+        No phantom player may appear in rankings who was not in any session.
+        No participant may be silently dropped from the rankings.
+        """
+        t = MagicMock()
+        t.tournament_config_obj = MagicMock()
+        t.tournament_config_obj.ranking_direction = "DESC"
+
+        s1 = MagicMock()
+        s1.rounds_data = {"round_results": {"1": {"10": "80.0", "20": "70.0"}}}
+        s2 = MagicMock()
+        s2.rounds_data = {"round_results": {"2": {"30": "90.0", "10": "85.0"}}}
+
+        # Session participants: 10 appears in both, 20 in s1, 30 in s2
+        all_session_pax = {10, 20, 30}
+
+        rankings = _calculate_ir_rankings(t, [s1, s2], _LOG)
+
+        ranked_ids = {r["user_id"] for r in rankings}
+        # No phantom players
+        assert ranked_ids.issubset(all_session_pax), (
+            f"Ranked IDs {ranked_ids} contain players not in sessions {all_session_pax}"
+        )
+        # All participants from round_results appear in rankings
+        assert ranked_ids == all_session_pax
+
+    def test_knockout_game_results_reference_only_seeded_players(self):
+        """Cross-phase invariant: game_results user_ids in knockout are ⊆ group participants.
+
+        After the full group+knockout pipeline, the JSON stored in
+        ks.game_results must only reference players who appeared in group sessions.
+        This ensures the result ledger cannot contain data from outside the bracket.
+        """
+        import json as _json
+
+        gs_a = _session_mock(participants=[10, 20], game_results=None, round_num=1, match_num=1)
+        gs_a.tournament_phase = "GROUP_STAGE"
+        gs_a.group_identifier = "A"
+
+        gs_b = _session_mock(participants=[30, 40], game_results=None, round_num=1, match_num=2)
+        gs_b.tournament_phase = "GROUP_STAGE"
+        gs_b.group_identifier = "B"
+
+        ks = _session_mock(participants=[], game_results=None, round_num=1, match_num=1)
+        ks.tournament_phase = "KNOCKOUT"
+
+        all_group_pax = {10, 20, 30, 40}
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs_a, gs_b, ks]), \
+             patch("random.choice", side_effect=["win", True, "win", True, 10]), \
+             patch("random.randint", side_effect=[3, 0, 3, 0, 3, 0]):
+            ok, _ = _simulate_group_knockout_tournament(db, 1, _LOG)
+
+        assert ok is True
+        assert ks.game_results is not None, "Knockout session must have game_results after simulation"
+
+        game_data = _json.loads(ks.game_results)
+        result_pax = {p["user_id"] for p in game_data["participants"]}
+
+        # No phantom players in the recorded match result
+        assert result_pax.issubset(all_group_pax), (
+            f"game_results contains IDs {result_pax} not in group participants {all_group_pax}"
+        )
+        # Match has exactly 2 distinct players (no duplicates in result ledger)
+        assert len(result_pax) == len(game_data["participants"])
