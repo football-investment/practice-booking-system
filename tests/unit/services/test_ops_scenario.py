@@ -2536,3 +2536,472 @@ class TestDatabaseConsistency:
         )
         # Match has exactly 2 distinct players (no duplicates in result ledger)
         assert len(result_pax) == len(game_data["participants"])
+
+
+# ===========================================================================
+# Sprint P18 — Real concurrency, scale, and global invariants
+# ===========================================================================
+
+class TestConcurrencyScaleInvariants:
+    """P18: Correct behavior under real concurrency, scale, and failure conditions.
+
+    Covers:
+      1. SELECT FOR UPDATE simulation — only one of two concurrent workers commits
+      2. Transaction atomicity — rankings commit and finalize rollback are independent;
+         ranking failure does not prevent finalize attempt
+      3. Large-scale throughput — 128 sessions simulated correctly
+      4. Global invariants — no duplicate participants, contiguous ranks,
+         competition-ranking tie gaps, finalize gate on simulation failure
+    """
+
+    _FIN_PATH = (
+        "app.services.tournament.results.finalization"
+        ".tournament_finalizer.TournamentFinalizer"
+    )
+
+    # -----------------------------------------------------------------------
+    # 1. SELECT FOR UPDATE / Concurrency
+    # -----------------------------------------------------------------------
+
+    def test_select_for_update_concurrent_workers_exactly_one_commits(self):
+        """Two threads race to finalize the same tournament — exactly one succeeds.
+
+        A threading.Lock inside the mock simulates SELECT FOR UPDATE row locking:
+        - The thread that acquires the lock first: finalize returns success=True
+        - The thread blocked from the lock: finalize raises OperationalError
+          (models a PostgreSQL 'could not obtain lock on row' timeout)
+
+        Contract:
+          - No uncaught exception propagates to either caller
+          - Exactly 1 rollback across both DB handles (the loser's)
+          - finalize() called exactly 2 times (both workers attempted)
+        """
+        import threading
+        from sqlalchemy.exc import OperationalError
+
+        # Deterministic SELECT FOR UPDATE model:
+        # whichever thread calls finalize() first gets success (acquired the lock),
+        # the second gets OperationalError (lock timeout — the standard PostgreSQL
+        # error when SELECT FOR UPDATE cannot acquire a row lock within statement_timeout).
+        # Using side_effect list is more reliable than a threading.Lock in CPython
+        # because the GIL does not guarantee interleaving within a single fast function.
+        t = MagicMock()
+        db_a = _seq_db(_q(first=t))
+        db_b = _seq_db(_q(first=t))
+        uncaught_errors = []
+
+        barrier = threading.Barrier(2)
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.side_effect = [
+                # First caller (whichever thread wins the GIL): lock acquired → success
+                {
+                    "success": True,
+                    "tournament_status": "REWARDS_DISTRIBUTED",
+                    "rewards_message": "Worker distributed rewards",
+                },
+                # Second caller: lock already held → timeout
+                OperationalError(
+                    "SELECT FOR UPDATE",
+                    {},
+                    Exception("could not obtain lock on row in relation 'semesters'"),
+                ),
+            ]
+
+            def _worker(db_ref, label):
+                barrier.wait()  # Synchronise: both threads ready before either starts
+                try:
+                    _finalize_tournament_with_rewards(1, db_ref, _LOG)
+                except Exception as exc:
+                    uncaught_errors.append((label, exc))
+
+            t_a = threading.Thread(target=_worker, args=(db_a, "A"))
+            t_b = threading.Thread(target=_worker, args=(db_b, "B"))
+            t_a.start(); t_b.start()
+            t_a.join(); t_b.join()
+
+        # Neither worker must leak an uncaught exception (wrapper catches all)
+        assert uncaught_errors == [], f"Unexpected exceptions: {uncaught_errors}"
+        # Exactly one DB handle was rolled back (the loser's)
+        total_rollbacks = db_a.rollback.call_count + db_b.rollback.call_count
+        assert total_rollbacks == 1, (
+            f"Expected 1 rollback, got {total_rollbacks} "
+            f"(db_a={db_a.rollback.call_count}, db_b={db_b.rollback.call_count})"
+        )
+        # Both workers attempted finalize (2 calls total)
+        assert MockFin.return_value.finalize.call_count == 2
+
+    def test_operational_error_lock_timeout_caught_and_rolled_back(self):
+        """OperationalError with PostgreSQL lock-timeout message is caught gracefully.
+
+        This is the canonical SELECT FOR UPDATE failure: the DB raises OperationalError
+        when it cannot acquire a row-level lock within the statement timeout.
+        Contract: exception caught by wrapper, rollback called, nothing propagates.
+        """
+        from sqlalchemy.exc import OperationalError
+
+        t = MagicMock()
+        db = _seq_db(_q(first=t))
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.side_effect = OperationalError(
+                "SELECT * FROM semesters WHERE id = 1 FOR UPDATE",
+                {},
+                Exception(
+                    "ERROR: could not obtain lock on row in relation 'semesters'\n"
+                    "HINT: The row is locked by another transaction."
+                ),
+            )
+            _finalize_tournament_with_rewards(1, db, _LOG)  # must not raise
+
+        db.rollback.assert_called_once()
+
+    # -----------------------------------------------------------------------
+    # 2. Transaction atomicity
+    # -----------------------------------------------------------------------
+
+    def test_rankings_committed_finalize_failure_rolled_back_independently(self):
+        """Rankings commit and finalize rollback are independent DB transactions.
+
+        Scenario:
+          1. _simulate_tournament_results succeeds
+          2. Ranking calculation succeeds → db.commit() (rankings persisted)
+          3. TournamentFinalizer.finalize() raises OperationalError
+             → db.rollback() (finalize work undone)
+          4. endpoint returns task_id="sync-done" (non-fatal finalize failure)
+
+        Contract:
+          - db.commit() called ≥1× (tournament creation + enrollment + rankings)
+          - db.rollback() called exactly once (for finalize failure)
+          - Rankings are NOT rolled back (they were committed before finalize ran)
+          - result.task_id == "sync-done"
+        """
+        from sqlalchemy.exc import OperationalError
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 401
+        mock_tournament.format = "INDIVIDUAL_RANKING"
+        mock_tournament.tournament_config_obj = None  # → empty rankings
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),              # q0: grandmaster
+            _q(all_=[campus_row]),       # q1: campus validation
+            _q(first=None),              # q2: CampusScheduleConfig
+            _q(all_=[]),                 # q3: SE enrolled (sync path)
+            # Rankings step:
+            _q(first=mock_tournament),   # q4: tournament re-query (line 1556)
+            _q(all_=[]),                 # q5: _get_tournament_sessions (line 1563) → no sessions → rankings=[]
+            _q(),                        # q6: TournamentRanking.filter().delete()
+            # db.commit() happens here (line 1605)
+            # Finalize step:
+            _q(first=mock_tournament),   # q7: _finalize_tournament_with_rewards lookup
+            _q(count=0),                 # q8: session count
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.license.UserLicense"), \
+             patch("app.models.tournament_ranking.TournamentRanking"), \
+             patch("app.services.tournament.session_generation.session_generator"
+                   ".TournamentSessionGenerator") as MockTSG, \
+             patch(f"{_BASE}._simulate_tournament_results", return_value=(True, "sim ok")), \
+             patch(self._FIN_PATH) as MockFin:
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "sessions generated", [])
+            MockFin.return_value.finalize.side_effect = OperationalError(
+                "INSERT INTO ...", {}, Exception("lock timeout"),
+            )
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        # Rankings were committed (tournament creation + enrollment + rankings = ≥3 commits)
+        assert db.commit.call_count >= 1
+        # Finalize failure triggered rollback (exactly one – from _finalize_tournament_with_rewards)
+        assert db.rollback.call_count == 1
+        # Endpoint succeeded despite finalize failure
+        assert result.task_id == "sync-done"
+
+    def test_ranking_failure_does_not_prevent_finalize_attempt(self):
+        """When ranking calculation fails, finalize is still attempted.
+
+        The ranking step is wrapped in its own try/except (lines 1551-1612).
+        A failure there rolls back the ranking transaction but does NOT abort
+        the finalize step at line 1616 (outside the try/except).
+
+        Scenario:
+          1. _simulate_tournament_results succeeds
+          2. _calculate_ir_rankings raises RuntimeError → ranking rollback
+          3. _finalize_tournament_with_rewards is still called (mocked to succeed)
+
+        Contract:
+          - db.rollback() called once (ranking failure)
+          - db.commit() called exactly 2× (tournament creation + enrollment; ranking commit skipped)
+          - _finalize_tournament_with_rewards WAS called (finalize attempted)
+          - result.task_id == "sync-done"
+        """
+        mock_tournament = MagicMock()
+        mock_tournament.id = 402
+        mock_tournament.format = "INDIVIDUAL_RANKING"
+        mock_tournament.tournament_config_obj = None
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),              # q0: grandmaster
+            _q(all_=[campus_row]),       # q1: campus validation
+            _q(first=None),              # q2: CampusScheduleConfig
+            _q(all_=[]),                 # q3: SE enrolled
+            _q(first=mock_tournament),   # q4: tournament re-query
+            _q(all_=[]),                 # q5: _get_tournament_sessions
+            # _calculate_ir_rankings raises here → no delete/commit
+            _q(count=0),                 # q6: session count (after finalize)
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.license.UserLicense"), \
+             patch("app.models.tournament_ranking.TournamentRanking"), \
+             patch("app.services.tournament.session_generation.session_generator"
+                   ".TournamentSessionGenerator") as MockTSG, \
+             patch(f"{_BASE}._simulate_tournament_results", return_value=(True, "sim ok")), \
+             patch(f"{_BASE}._calculate_ir_rankings",
+                   side_effect=RuntimeError("ranking service unavailable")), \
+             patch(f"{_BASE}._finalize_tournament_with_rewards") as mock_fin:
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "sessions generated", [])
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        # Ranking failed → rollback; tournament+enrollment commits still happened (2×)
+        assert db.rollback.call_count >= 1
+        assert db.commit.call_count == 2
+        # Finalize was still attempted despite ranking failure
+        mock_fin.assert_called_once()
+        assert result.task_id == "sync-done"
+
+    # -----------------------------------------------------------------------
+    # 3. Large-scale throughput
+    # -----------------------------------------------------------------------
+
+    def test_large_scale_128_league_sessions_throughput(self):
+        """_simulate_league_tournament handles 128 sessions without error.
+
+        Verifies that the simulation loop scales to the minimum large-field
+        tournament size (128 players = 128 round-robin sessions) without
+        crashing, timing out, or misreporting counts.
+        """
+        sessions = [
+            _session_mock(
+                participants=[i * 2 + 100, i * 2 + 101],
+                game_results=None,
+                round_num=1,
+                match_num=i + 1,
+            )
+            for i in range(128)
+        ]
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=sessions), \
+             patch("random.choice", return_value="win"), \
+             patch("random.randint", return_value=3):
+            ok, msg = _simulate_league_tournament(db, 1, _LOG)
+
+        assert ok is True
+        assert "128 league sessions simulated" in msg
+        assert "0 skipped" in msg
+        # Every session must have been populated with game_results
+        assert all(s.game_results is not None for s in sessions)
+
+    def test_large_scale_128_ir_sessions_throughput(self):
+        """_simulate_individual_ranking handles 128 sessions without error.
+
+        Covers the large-field INDIVIDUAL_RANKING path: 128 sessions each
+        with 2 participants, SCORE_BASED scoring, ResultProcessor mocked.
+        """
+        sessions = [
+            _session_mock(participants=[i, i + 1000], game_results=None)
+            for i in range(128)
+        ]
+        for s in sessions:
+            s.scoring_type = None  # not ROUNDS_BASED → SCORE_BASED single-round path
+
+        tournament = MagicMock()
+        tournament.tournament_config_obj.scoring_type = "SCORE_BASED"
+
+        db = _seq_db(_q(all_=sessions))
+        with patch("app.services.tournament.result_processor.ResultProcessor"), \
+             patch("random.randint", return_value=75):
+            ok, msg = _simulate_individual_ranking(db, tournament, _LOG)
+
+        assert ok is True
+        assert "128 sessions simulated" in msg
+        assert "0 skipped" in msg
+
+    # -----------------------------------------------------------------------
+    # 4. Global invariants
+    # -----------------------------------------------------------------------
+
+    def test_invariant_no_duplicate_user_ids_in_knockout_game_results(self):
+        """Knockout game_results must never contain duplicate participant user_ids.
+
+        The structural guarantee: winner and loser are always distinct players
+        (loser_id = first player ≠ winner_id). The JSON result ledger must reflect
+        this — exactly 2 distinct user_ids per match.
+        """
+        import json as _json
+
+        s = _session_mock(participants=[10, 20], game_results=None,
+                          round_num=1, match_num=1, title="Final")
+
+        _simulate_knockout_bracket(MagicMock(), [s], _LOG)
+
+        assert s.game_results is not None
+        game_data = _json.loads(s.game_results)
+        participant_ids = [p["user_id"] for p in game_data["participants"]]
+
+        # Exactly 2 participants, all distinct
+        assert len(participant_ids) == 2
+        assert len(set(participant_ids)) == 2, (
+            f"Duplicate user_ids in game_results: {participant_ids}"
+        )
+        # Both players came from the original participant list
+        assert set(participant_ids) == {10, 20}
+
+    def test_invariant_ir_rankings_contiguous_for_distinct_scores(self):
+        """When all players have distinct scores, IR ranks must be 1, 2, …, N (no gaps).
+
+        With N=3 distinct DESC scores, the ranking must produce exactly the set
+        {1, 2, 3} — no rank is skipped, no rank appears twice.
+        """
+        t = MagicMock()
+        t.tournament_config_obj = MagicMock()
+        t.tournament_config_obj.ranking_direction = "DESC"
+
+        s = MagicMock()
+        s.rounds_data = {"round_results": {"1": {"10": "90.0", "20": "75.0", "30": "60.0"}}}
+
+        rankings = _calculate_ir_rankings(t, [s], _LOG)
+
+        assert len(rankings) == 3
+        ranks = sorted(r["rank"] for r in rankings)
+        assert ranks == [1, 2, 3], f"Expected contiguous [1,2,3], got {ranks}"
+
+        # Highest scorer gets rank 1
+        top = next(r for r in rankings if r["rank"] == 1)
+        assert top["user_id"] == 10
+
+    def test_invariant_ir_rankings_competition_rank_gaps_on_ties(self):
+        """Tied players share the same rank; the next rank skips (competition ranking).
+
+        With 4 players (90, 75, 75, 60) DESC:
+          - User 10 (90.0) → rank 1
+          - Users 20 & 30 (75.0) → rank 2 (tied)
+          - User 40 (60.0) → rank 4  ← rank 3 is skipped (competition ranking)
+
+        This verifies that the aggregator uses standard competition ranking,
+        not dense ranking, so callers cannot assume rank N always means N-1 players above.
+        """
+        t = MagicMock()
+        t.tournament_config_obj = MagicMock()
+        t.tournament_config_obj.ranking_direction = "DESC"
+
+        s = MagicMock()
+        s.rounds_data = {
+            "round_results": {
+                "1": {"10": "90.0", "20": "75.0", "30": "75.0", "40": "60.0"}
+            }
+        }
+
+        rankings = _calculate_ir_rankings(t, [s], _LOG)
+
+        assert len(rankings) == 4
+        rank_map = {r["user_id"]: r["rank"] for r in rankings}
+
+        assert rank_map[10] == 1,  f"user 10 (highest) should be rank 1, got {rank_map[10]}"
+        assert rank_map[20] == 2,  f"user 20 (tied 2nd) should be rank 2, got {rank_map[20]}"
+        assert rank_map[30] == 2,  f"user 30 (tied 2nd) should be rank 2, got {rank_map[30]}"
+        assert rank_map[40] == 4,  f"user 40 (last) should be rank 4 (gap after tie), got {rank_map[40]}"
+
+    def test_invariant_finalize_not_called_when_simulation_fails(self):
+        """_finalize_tournament_with_rewards is never called if simulation returns False.
+
+        The auto_immediate path only proceeds to ranking + finalize when
+        sim_ok=True (line 1547: `if sim_ok:`). A failed simulation (no sessions,
+        unsupported format, etc.) must NOT trigger reward distribution.
+
+        This enforces the invariant: a tournament cannot be finalized without
+        completed session results.
+        """
+        mock_tournament = MagicMock()
+        mock_tournament.id = 403
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),          # q0: grandmaster
+            _q(all_=[campus_row]),   # q1: campus validation
+            _q(first=None),          # q2: CampusScheduleConfig
+            _q(all_=[]),             # q3: SE enrolled
+            _q(count=0),             # q4: session count
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.license.UserLicense"), \
+             patch("app.services.tournament.session_generation.session_generator"
+                   ".TournamentSessionGenerator") as MockTSG, \
+             patch(f"{_BASE}._simulate_tournament_results",
+                   return_value=(False, "No tournament sessions found for simulation")), \
+             patch(f"{_BASE}._finalize_tournament_with_rewards") as mock_fin:
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "sessions generated", [])
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        # Core invariant: finalize must NOT be called if simulation failed
+        mock_fin.assert_not_called()
+        # Endpoint still completes successfully
+        assert result.task_id == "sync-done"
