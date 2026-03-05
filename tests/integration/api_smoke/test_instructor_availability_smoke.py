@@ -110,11 +110,11 @@ class TestInstructoravailabilitySmoke:
         """
         Happy path: PATCH /{availability_id}
         Source: app/api/api_v1/endpoints/instructor_availability.py:update_instructor_availability
+        Schema: InstructorAvailabilityUpdate — is_available (Optional bool), notes (Optional str)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        payload = {}
+        payload = {"is_available": True, "notes": "Smoke test availability update"}
         response = api_client.patch("/{availability_id}", json=payload, headers=headers)
         
 

@@ -315,11 +315,11 @@ class TestLfaplayerSmoke:
         """
         Happy path: PUT /licenses/{license_id}/skills
         Source: app/api/api_v1/endpoints/lfa_player/skills.py:update_skill
+        Schema: SkillUpdate — skill_name (str, required), new_avg (float 0-100, required)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        payload = {}
+        payload = {"skill_name": "passing", "new_avg": 75.0}
         response = api_client.put("/licenses/{license_id}/skills", json=payload, headers=headers)
         
 

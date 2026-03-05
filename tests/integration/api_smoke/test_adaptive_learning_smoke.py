@@ -110,11 +110,12 @@ class TestAdaptivelearningSmoke:
         """
         Happy path: POST /sessions/{session_id}/answer
         Source: app/api/api_v1/endpoints/adaptive_learning.py:submit_answer
+        Schema: AnswerQuestionRequest — question_id (int, required), time_spent_seconds (float, required)
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
-        response = api_client.post("/sessions/{session_id}/answer", headers=headers)
+        payload = {"question_id": 9999, "time_spent_seconds": 5.0}
+        response = api_client.post("/sessions/{session_id}/answer", json=payload, headers=headers)
         
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
