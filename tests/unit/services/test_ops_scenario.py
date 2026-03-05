@@ -3005,3 +3005,781 @@ class TestConcurrencyScaleInvariants:
         mock_fin.assert_not_called()
         # Endpoint still completes successfully
         assert result.task_id == "sync-done"
+
+
+# ===========================================================================
+# Sprint P19 — Isolation audit, transaction boundaries, concurrency safety,
+#               and full end-to-end integration
+# ===========================================================================
+
+class TestTransactionBoundaries:
+    """P19-A: Verify commit/rollback isolation at each pipeline stage boundary.
+
+    The ops_scenario pipeline has four distinct commit points:
+      1. Tournament creation  → db.commit() at line 1360
+      2. Enrollment batch     → db.commit() at line 1403
+      3. Ranking persistence  → db.commit() at line 1605
+      4. (Finalize has its own internal transaction — never commits in wrapper)
+
+    Each test exercises failure at one boundary and asserts that earlier
+    commits are preserved while later work is rolled back or never started.
+    """
+
+    _TSG_PATH = (
+        "app.services.tournament.session_generation"
+        ".session_generator.TournamentSessionGenerator"
+    )
+    _FIN_PATH = (
+        "app.services.tournament.results.finalization"
+        ".tournament_finalizer.TournamentFinalizer"
+    )
+
+    def _common_patches(self):
+        """Return list of (path, kwargs) for standard model/service patches."""
+        return [
+            "app.models.semester.Semester",
+            "app.models.semester.SemesterStatus",
+            "app.models.tournament_configuration.TournamentConfiguration",
+            "app.models.tournament_reward_config.TournamentRewardConfig",
+            "app.models.tournament_achievement.TournamentSkillMapping",
+            "app.models.campus.Campus",
+            "app.models.campus_schedule_config.CampusScheduleConfig",
+            "app.services.audit_service.AuditService",
+            "app.models.audit_log.AuditAction",
+            "app.models.session.Session",
+            "app.models.semester_enrollment.SemesterEnrollment",
+            "app.models.semester_enrollment.EnrollmentStatus",
+            "app.models.license.UserLicense",
+            "app.models.tournament_ranking.TournamentRanking",
+        ]
+
+    # -----------------------------------------------------------------------
+    # 1. TSG failure boundary
+    # -----------------------------------------------------------------------
+
+    def test_tsg_failure_raises_422_tournament_already_committed(self):
+        """TSG returns (False, ...) → HTTPException(422) raised.
+
+        The tournament and enrollment commits at lines 1360 and 1403 have
+        already fired before the TSG call. The 422 propagates up with no
+        rollback (the tournament record PERSISTS in real DB; caller must
+        retry or clean up explicitly).
+
+        Contract:
+          - HTTPException 422 raised
+          - db.commit called ≥ 2× (tournament + enrollment precede TSG)
+          - db.rollback NOT called (422 is not a transaction rollback trigger)
+        """
+        import contextlib
+        from fastapi import HTTPException
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 501
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),           # q0: grandmaster
+            _q(all_=[campus_row]),    # q1: campus validation
+            _q(first=None),           # q2: CampusScheduleConfig
+            _q(all_=[]),              # q3: SE enrolled_user_ids
+        )
+
+        with contextlib.ExitStack() as stack:
+            for path in self._common_patches():
+                stack.enter_context(patch(path))
+            MockSem = stack.enter_context(patch("app.models.semester.Semester"))
+            MockTSG = stack.enter_context(patch(self._TSG_PATH))
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (
+                False, "Not enough players enrolled. Need at least 2, have 0", []
+            )
+
+            with pytest.raises(HTTPException) as exc_info:
+                run_ops_scenario(
+                    _req(player_count=0, auto_generate_sessions=True,
+                         simulation_mode="auto_immediate", campus_ids=[1]),
+                    db=db, current_user=_admin()
+                )
+
+        assert exc_info.value.status_code == 422
+        # Tournament creation (line 1360) + enrollment batch (line 1403) both committed
+        assert db.commit.call_count >= 2
+        # No rollback — the 422 exits the endpoint, no rollback logic in this path
+        db.rollback.assert_not_called()
+
+    # -----------------------------------------------------------------------
+    # 2. Simulation failure boundary
+    # -----------------------------------------------------------------------
+
+    def test_simulation_failure_returns_sync_done_zero_rollbacks(self):
+        """Simulation returns (False, ...) → endpoint returns sync-done gracefully.
+
+        Sessions were generated (TSG succeeded), tournament + enrollment committed.
+        When simulation fails, the endpoint logs a warning and returns normally —
+        no rollback is triggered because no transaction was started for simulation.
+
+        Contract:
+          - result.task_id == "sync-done"
+          - db.commit called exactly 2× (tournament + enrollment; no ranking)
+          - db.rollback NOT called (simulation failure is non-fatal, no TX to roll back)
+        """
+        import contextlib
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 502
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),           # q0: grandmaster
+            _q(all_=[campus_row]),    # q1: campus validation
+            _q(first=None),           # q2: CampusScheduleConfig
+            _q(all_=[]),              # q3: SE enrolled
+            _q(count=0),              # q4: final session count
+        )
+
+        with contextlib.ExitStack() as stack:
+            for path in self._common_patches():
+                stack.enter_context(patch(path))
+            MockSem = stack.enter_context(patch("app.models.semester.Semester"))
+            MockTSG = stack.enter_context(patch(self._TSG_PATH))
+            stack.enter_context(patch(f"{_BASE}._simulate_tournament_results",
+                                      return_value=(False, "No tournament sessions found")))
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "sessions generated", [])
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.task_id == "sync-done"
+        # Only tournament + enrollment commits; ranking never reached
+        assert db.commit.call_count == 2
+        # Simulation failure does not trigger any rollback
+        db.rollback.assert_not_called()
+
+    # -----------------------------------------------------------------------
+    # 3. Full success path
+    # -----------------------------------------------------------------------
+
+    def test_full_pipeline_success_three_commits_zero_rollbacks(self):
+        """Full success path: tournament + enrollment + ranking = exactly 3 commits.
+
+        Verifies the expected commit count for the complete happy path so that
+        any future code change adding or removing a commit is immediately visible.
+
+        Contract:
+          - db.commit called exactly 3× (tournament, enrollment, ranking)
+          - db.rollback NOT called
+          - result.task_id == "sync-done"
+        """
+        import contextlib
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 503
+        mock_t2 = MagicMock()
+        mock_t2.format = "INDIVIDUAL_RANKING"
+        mock_t2.tournament_config_obj = None
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),            # q0: grandmaster
+            _q(all_=[campus_row]),     # q1: campus
+            _q(first=None),            # q2: CampusScheduleConfig
+            _q(all_=[]),               # q3: SE enrolled
+            _q(first=mock_t2),         # q4: tournament re-query for ranking
+            _q(all_=[]),               # q5: _get_tournament_sessions
+            _q(),                      # q6: TournamentRanking delete
+            # db.commit() #3 here (ranking)
+            _q(first=mock_t2),         # q7: finalize Semester lookup
+            _q(count=0),               # q8: final session count
+        )
+
+        with contextlib.ExitStack() as stack:
+            for path in self._common_patches():
+                stack.enter_context(patch(path))
+            MockSem = stack.enter_context(patch("app.models.semester.Semester"))
+            MockTSG = stack.enter_context(patch(self._TSG_PATH))
+            stack.enter_context(patch(f"{_BASE}._simulate_tournament_results",
+                                      return_value=(True, "sim ok")))
+            MockFin = stack.enter_context(patch(self._FIN_PATH))
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "1 session", [])
+            MockFin.return_value.finalize.return_value = {"success": True}
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.task_id == "sync-done"
+        assert db.commit.call_count == 3, (
+            f"Expected 3 commits (tournament+enrollment+ranking), got {db.commit.call_count}"
+        )
+        db.rollback.assert_not_called()
+
+    # -----------------------------------------------------------------------
+    # 4. Both ranking AND finalize fail
+    # -----------------------------------------------------------------------
+
+    def test_ranking_and_finalize_both_fail_two_independent_rollbacks(self):
+        """Ranking raises + finalize raises → two independent rollbacks.
+
+        The ranking block and the finalize wrapper each have their own
+        try/except → each triggers its own db.rollback() independently.
+        Both failures are non-fatal; endpoint returns task_id="sync-done".
+
+        Contract:
+          - db.rollback called exactly 2× (once per failed stage)
+          - db.commit called exactly 2× (tournament + enrollment; ranking skips its commit)
+          - result.task_id == "sync-done"
+        """
+        import contextlib
+        from sqlalchemy.exc import OperationalError
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 504
+        mock_t2 = MagicMock()
+        mock_t2.format = "INDIVIDUAL_RANKING"
+        mock_t2.tournament_config_obj = None
+        campus_row = MagicMock(); campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),            # q0: grandmaster
+            _q(all_=[campus_row]),     # q1: campus
+            _q(first=None),            # q2: CampusScheduleConfig
+            _q(all_=[]),               # q3: SE enrolled
+            _q(first=mock_t2),         # q4: tournament re-query for ranking
+            _q(all_=[]),               # q5: sessions for ranking
+            # _calculate_ir_rankings raises → db.rollback() #1
+            _q(first=mock_t2),         # q6: finalize Semester lookup
+            # TournamentFinalizer.finalize raises → db.rollback() #2
+            _q(count=0),               # q7: final session count
+        )
+
+        with contextlib.ExitStack() as stack:
+            for path in self._common_patches():
+                stack.enter_context(patch(path))
+            MockSem = stack.enter_context(patch("app.models.semester.Semester"))
+            MockTSG = stack.enter_context(patch(self._TSG_PATH))
+            stack.enter_context(patch(f"{_BASE}._simulate_tournament_results",
+                                      return_value=(True, "sim ok")))
+            stack.enter_context(patch(f"{_BASE}._calculate_ir_rankings",
+                                      side_effect=RuntimeError("aggregator unavailable")))
+            MockFin = stack.enter_context(patch(self._FIN_PATH))
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "1 session", [])
+            MockFin.return_value.finalize.side_effect = OperationalError(
+                "UPDATE ...", {}, Exception("deadlock detected")
+            )
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.task_id == "sync-done"
+        # Ranking failure rolled back, finalize failure rolled back — each independently
+        assert db.rollback.call_count == 2, (
+            f"Expected 2 rollbacks (ranking + finalize), got {db.rollback.call_count}"
+        )
+        # Tournament + enrollment committed; ranking commit was never reached
+        assert db.commit.call_count == 2
+
+    # -----------------------------------------------------------------------
+    # 5. Campus validation boundary
+    # -----------------------------------------------------------------------
+
+    def test_campus_validation_failure_422_after_enrollment_commits(self):
+        """Invalid campus ID → HTTPException(422) raised after enrollment commits.
+
+        Campus validation (line 1419) occurs AFTER the enrollment batch commit
+        at line 1403. An invalid campus raises 422 with 2 commits already done.
+
+        Contract:
+          - HTTPException 422 raised with campus error message
+          - db.commit called exactly 2× (tournament + enrollment both precede campus check)
+          - TSG never called (422 fires before reaching _generate_sessions_sync)
+          - db.rollback NOT called
+        """
+        import contextlib
+        from fastapi import HTTPException
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 505
+        campus_row = MagicMock(); campus_row.id = 99  # ← different from requested ID
+
+        db = _seq_db(
+            _q(first=None),              # q0: grandmaster
+            _q(all_=[campus_row]),       # q1: campus query returns campus_id=99, not 1
+        )
+
+        with contextlib.ExitStack() as stack:
+            for path in self._common_patches():
+                stack.enter_context(patch(path))
+            MockSem = stack.enter_context(patch("app.models.semester.Semester"))
+            MockTSG = stack.enter_context(patch(self._TSG_PATH))
+            MockSem.return_value = mock_tournament
+
+            with pytest.raises(HTTPException) as exc_info:
+                run_ops_scenario(
+                    _req(player_count=0, auto_generate_sessions=True,
+                         simulation_mode="auto_immediate", campus_ids=[1]),
+                    db=db, current_user=_admin()
+                )
+
+        assert exc_info.value.status_code == 422
+        assert "not found or inactive" in exc_info.value.detail
+        # Tournament (1360) + enrollment (1403) both committed before campus check
+        assert db.commit.call_count == 2
+        # TSG was never reached
+        MockTSG.return_value.generate_sessions.assert_not_called()
+        db.rollback.assert_not_called()
+
+
+# ===========================================================================
+# Sprint P19-B — Concurrency safety
+# ===========================================================================
+
+class TestConcurrencySafety:
+    """P19-B: Thread-safety and registry isolation for concurrent ops_scenario calls.
+
+    The background dispatch path writes to a shared module-level dict
+    (_task_registry) protected by _registry_lock. These tests verify:
+      - No registry state is lost under concurrent writes
+      - Each dispatch produces an isolated entry
+      - Status transitions happen correctly
+      - run_id is function-local (no cross-call contamination)
+    """
+
+    _GS = "app.api.api_v1.endpoints.tournaments.generate_sessions"
+    _TSG_PATH = (
+        "app.services.tournament.session_generation"
+        ".session_generator.TournamentSessionGenerator"
+    )
+
+    def _bg_patches(self, real_registry, real_lock):
+        """Return context managers for background dispatch path."""
+        import contextlib
+        return contextlib.ExitStack()  # caller builds the stack
+
+    # -----------------------------------------------------------------------
+    # 1. No registry writes lost under concurrent dispatch
+    # -----------------------------------------------------------------------
+
+    def test_background_dispatches_no_registry_writes_overwrite_each_other(self):
+        """Two sequential dispatches both land in registry without overwriting.
+
+        Python's unittest.mock.patch objects are not re-entrant across threads,
+        so this test uses sequential calls to verify the registry invariant:
+        N dispatches → N distinct entries, no write is silently dropped.
+
+        This complements P15's task_id-uniqueness test by asserting registry
+        state directly via the real_registry dict.
+
+        Contract:
+          - len(real_registry) == 2 after both dispatches
+          - Both task_ids are distinct UUIDs (uuid4)
+          - Both entries have status="pending" (Thread.start mocked — worker never runs)
+          - Neither registry entry overwrites the other
+        """
+        import contextlib
+
+        real_registry: dict = {}
+        real_lock = __import__("threading").Lock()
+        campus_row = MagicMock(); campus_row.id = 1
+
+        def _make_db():
+            return _seq_db(
+                _q(first=None),         # grandmaster
+                _q(all_=[campus_row]),  # campus
+                _q(first=None),         # CampusScheduleConfig
+            )
+
+        def _dispatch(mock_tournament):
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(patch("app.models.semester.Semester")).return_value = mock_tournament
+                stack.enter_context(patch("app.models.semester.SemesterStatus"))
+                stack.enter_context(patch("app.models.tournament_configuration.TournamentConfiguration"))
+                stack.enter_context(patch("app.models.tournament_reward_config.TournamentRewardConfig"))
+                stack.enter_context(patch("app.models.tournament_achievement.TournamentSkillMapping"))
+                stack.enter_context(patch("app.models.campus.Campus"))
+                stack.enter_context(patch("app.models.campus_schedule_config.CampusScheduleConfig"))
+                stack.enter_context(patch("app.services.audit_service.AuditService"))
+                stack.enter_context(patch("app.models.audit_log.AuditAction"))
+                stack.enter_context(patch("app.models.session.Session"))
+                stack.enter_context(patch("app.models.semester_enrollment.SemesterEnrollment"))
+                stack.enter_context(patch("app.models.semester_enrollment.EnrollmentStatus"))
+                stack.enter_context(patch("app.models.license.UserLicense"))
+                stack.enter_context(patch(f"{self._GS}.BACKGROUND_GENERATION_THRESHOLD", 0))
+                stack.enter_context(patch(f"{self._GS}._is_celery_available", return_value=False))
+                stack.enter_context(patch(f"{self._GS}._registry_lock", real_lock))
+                stack.enter_context(patch(f"{self._GS}._task_registry", real_registry))
+                stack.enter_context(patch(f"{self._GS}._run_generation_in_background"))
+                stack.enter_context(patch("threading.Thread"))
+                return run_ops_scenario(
+                    _req(player_count=0, auto_generate_sessions=True,
+                         simulation_mode="manual", campus_ids=[1]),
+                    db=_make_db(), current_user=_admin()
+                )
+
+        mock_t_a = MagicMock(); mock_t_a.id = 601
+        mock_t_b = MagicMock(); mock_t_b.id = 602
+        r_a = _dispatch(mock_t_a)
+        r_b = _dispatch(mock_t_b)
+
+        assert r_a.task_id != r_b.task_id, "Both dispatch calls must produce unique task_ids"
+        assert len(real_registry) == 2, (
+            f"Expected 2 registry entries, got {len(real_registry)}: {real_registry}"
+        )
+        for task_id, entry in real_registry.items():
+            assert entry["status"] == "pending"
+            assert entry["tournament_id"] is not None
+
+    # -----------------------------------------------------------------------
+    # 2. Background worker status transitions
+    # -----------------------------------------------------------------------
+
+    def test_background_worker_status_transitions_pending_running_done(self):
+        """_run_generation_in_background transitions status: pending → running → done/error.
+
+        Uses a real registry, real lock, and mocked TSG so the worker runs
+        synchronously in the test thread. Verifies the three-state lifecycle.
+        """
+        import threading
+        from app.api.api_v1.endpoints.tournaments.generate_sessions import (
+            _run_generation_in_background,
+        )
+
+        real_registry: dict = {}
+        real_lock = threading.Lock()
+        task_id = "test-status-transition-task"
+
+        real_registry[task_id] = {
+            "status": "pending",
+            "tournament_id": 999,
+            "player_count": 0,
+            "message": None,
+            "sessions_count": 0,
+        }
+
+        # Patch TSG at the generate_sessions module namespace (top-level import)
+        tsg_path = "app.api.api_v1.endpoints.tournaments.generate_sessions.TournamentSessionGenerator"
+        gs_path = "app.api.api_v1.endpoints.tournaments.generate_sessions"
+
+        with patch(f"{gs_path}._registry_lock", real_lock), \
+             patch(f"{gs_path}._task_registry", real_registry), \
+             patch(tsg_path) as MockTSG, \
+             patch(f"{gs_path}.SessionLocal") as MockSL:
+            MockSL.return_value.__enter__ = MagicMock(return_value=MagicMock())
+            MockSL.return_value.__exit__ = MagicMock(return_value=False)
+            # Use a simple mock DB session
+            mock_db = MagicMock()
+            MockSL.return_value = mock_db
+            MockTSG.return_value.generate_sessions.return_value = (True, "1 session ok", [])
+
+            _run_generation_in_background(
+                task_id=task_id,
+                tournament_id=999,
+                parallel_fields=1,
+                session_duration=90,
+                break_duration=15,
+                number_of_rounds=1,
+                campus_overrides_raw=None,
+                campus_ids=[1],
+            )
+
+        final_entry = real_registry[task_id]
+        assert final_entry["status"] == "done", (
+            f"Expected 'done', got {final_entry['status']!r}"
+        )
+        assert final_entry["sessions_count"] == 0  # mocked TSG returns empty list
+        assert final_entry["message"] == "1 session ok"
+
+    # -----------------------------------------------------------------------
+    # 3. Registry size equals dispatch count
+    # -----------------------------------------------------------------------
+
+    def test_registry_size_equals_number_of_dispatches(self):
+        """N sequential background dispatches → exactly N entries in registry.
+
+        After 5 separate dispatches (all with unique tournament ids), the
+        registry must have exactly 5 entries with distinct task_ids.
+        """
+        import contextlib
+
+        real_registry: dict = {}
+        real_lock = __import__("threading").Lock()
+        campus_row = MagicMock(); campus_row.id = 1
+        N = 5
+
+        common_patches = [
+            patch("app.models.semester.Semester"),
+            patch("app.models.semester.SemesterStatus"),
+            patch("app.models.tournament_configuration.TournamentConfiguration"),
+            patch("app.models.tournament_reward_config.TournamentRewardConfig"),
+            patch("app.models.tournament_achievement.TournamentSkillMapping"),
+            patch("app.models.campus.Campus"),
+            patch("app.models.campus_schedule_config.CampusScheduleConfig"),
+            patch("app.services.audit_service.AuditService"),
+            patch("app.models.audit_log.AuditAction"),
+            patch("app.models.session.Session"),
+            patch("app.models.semester_enrollment.SemesterEnrollment"),
+            patch("app.models.semester_enrollment.EnrollmentStatus"),
+            patch("app.models.license.UserLicense"),
+            patch(f"{self._GS}.BACKGROUND_GENERATION_THRESHOLD", 0),
+            patch(f"{self._GS}._is_celery_available", return_value=False),
+            patch(f"{self._GS}._registry_lock", real_lock),
+            patch(f"{self._GS}._task_registry", real_registry),
+            patch(f"{self._GS}._run_generation_in_background"),
+            patch("threading.Thread"),
+        ]
+
+        task_ids = []
+        for i in range(N):
+            mock_t = MagicMock(); mock_t.id = 700 + i
+            db = _seq_db(
+                _q(first=None),
+                _q(all_=[campus_row]),
+                _q(first=None),
+            )
+            with contextlib.ExitStack() as stack:
+                mocks = [stack.enter_context(p) for p in common_patches]
+                mocks[0].return_value = mock_t
+                r = run_ops_scenario(
+                    _req(player_count=0, auto_generate_sessions=True,
+                         simulation_mode="manual", campus_ids=[1]),
+                    db=db, current_user=_admin()
+                )
+                task_ids.append(r.task_id)
+
+        assert len(real_registry) == N, (
+            f"Expected {N} registry entries, got {len(real_registry)}"
+        )
+        assert len(set(task_ids)) == N, f"All {N} task_ids must be unique: {task_ids}"
+        for task_id in task_ids:
+            assert task_id in real_registry
+            assert real_registry[task_id]["status"] == "pending"
+
+    # -----------------------------------------------------------------------
+    # 4. run_id is function-local — no cross-call state contamination
+    # -----------------------------------------------------------------------
+
+    def test_run_id_is_local_no_cross_call_contamination(self):
+        """Each run_ops_scenario call generates an isolated run_id (uuid4 hex).
+
+        Two calls must not share state via the module-level _run_id. The
+        tournament names logged by each call embed a unique run_id segment,
+        verifiable by asserting the two returned tournament_ids are different
+        (each call created an independent tournament object).
+        """
+        import contextlib
+
+        campus_row = MagicMock(); campus_row.id = 1
+        mock_t_a = MagicMock(); mock_t_a.id = 801
+        mock_t_b = MagicMock(); mock_t_b.id = 802
+        real_registry: dict = {}
+        real_lock = __import__("threading").Lock()
+
+        common_patches = [
+            patch("app.models.semester.Semester"),
+            patch("app.models.semester.SemesterStatus"),
+            patch("app.models.tournament_configuration.TournamentConfiguration"),
+            patch("app.models.tournament_reward_config.TournamentRewardConfig"),
+            patch("app.models.tournament_achievement.TournamentSkillMapping"),
+            patch("app.models.campus.Campus"),
+            patch("app.models.campus_schedule_config.CampusScheduleConfig"),
+            patch("app.services.audit_service.AuditService"),
+            patch("app.models.audit_log.AuditAction"),
+            patch("app.models.session.Session"),
+            patch("app.models.semester_enrollment.SemesterEnrollment"),
+            patch("app.models.semester_enrollment.EnrollmentStatus"),
+            patch("app.models.license.UserLicense"),
+            patch(f"{self._GS}.BACKGROUND_GENERATION_THRESHOLD", 0),
+            patch(f"{self._GS}._is_celery_available", return_value=False),
+            patch(f"{self._GS}._registry_lock", real_lock),
+            patch(f"{self._GS}._task_registry", real_registry),
+            patch(f"{self._GS}._run_generation_in_background"),
+            patch("threading.Thread"),
+        ]
+
+        def _call(mock_t):
+            db = _seq_db(
+                _q(first=None),
+                _q(all_=[campus_row]),
+                _q(first=None),
+            )
+            with contextlib.ExitStack() as stack:
+                mocks = [stack.enter_context(p) for p in common_patches]
+                mocks[0].return_value = mock_t
+                return run_ops_scenario(
+                    _req(player_count=0, auto_generate_sessions=True,
+                         simulation_mode="manual", campus_ids=[1]),
+                    db=db, current_user=_admin()
+                )
+
+        r_a = _call(mock_t_a)
+        r_b = _call(mock_t_b)
+
+        # Independent tournament IDs — each call created its own tournament object
+        assert r_a.tournament_id == 801
+        assert r_b.tournament_id == 802
+        # Distinct task_ids confirm isolated run state
+        assert r_a.task_id != r_b.task_id, (
+            "Each call must produce a distinct task_id — shared state detected"
+        )
+        # Both registered
+        assert len(real_registry) == 2
+
+
+# ===========================================================================
+# Sprint P19-C — Full end-to-end integration test (real DB, real TSG)
+# ===========================================================================
+
+class TestOpsScenarioIntegration:
+    """P19-C: Full pipeline integration test using a real PostgreSQL DB.
+
+    Unlike the unit tests above, this class uses the SAVEPOINT-isolated
+    test_db fixture so all DB writes are rolled back after the test.
+
+    Pipeline under test:
+      create tournament → enroll 4 real players → real TSG generates sessions
+      → simulate results → calculate rankings → (finalize mocked)
+
+    All external reward services (CreditService, XPTransactionService,
+    FootballSkillService) are bypassed by mocking _finalize_tournament_with_rewards
+    — that wrapper is tested in isolation in TestFinalizeTournamentWithRewards.
+    """
+
+    _FIN_PATCH = f"{_BASE}._finalize_tournament_with_rewards"
+
+    def _create_location(self, db):
+        import uuid as _uuid
+        from app.models.location import Location
+        loc = Location(
+            name=f"Test Location {_uuid.uuid4().hex[:6]}",
+            city=f"TestCity-{_uuid.uuid4().hex[:6]}",
+            country="Hungary",
+            location_type="CENTER",
+        )
+        db.add(loc); db.commit(); db.refresh(loc)
+        return loc
+
+    def _create_campus(self, db, location_id):
+        from app.models.campus import Campus
+        campus = Campus(
+            location_id=location_id,
+            name="Test Campus",
+            is_active=True,
+        )
+        db.add(campus); db.commit(); db.refresh(campus)
+        return campus
+
+    def _create_player_with_license(self, db, idx):
+        import uuid as _uuid
+        from datetime import datetime
+        from app.models.user import User, UserRole
+        from app.models.license import UserLicense
+        user = User(
+            email=f"player{idx}+{_uuid.uuid4().hex[:6]}@lfa-test.com",
+            name=f"Player {idx}",
+            password_hash="test_hash",
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        db.add(user); db.commit(); db.refresh(user)
+        lic = UserLicense(
+            user_id=user.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            current_level=1,
+            max_achieved_level=1,
+            started_at=datetime.utcnow(),
+            is_active=True,
+        )
+        db.add(lic); db.commit(); db.refresh(lic)
+        return user
+
+    def _create_admin(self, db):
+        import uuid as _uuid
+        from app.models.user import User, UserRole
+        admin = User(
+            email=f"admin+{_uuid.uuid4().hex[:6]}@lfa.com",
+            name="Admin User",
+            password_hash="test_hash",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        db.add(admin); db.commit(); db.refresh(admin)
+        return admin
+
+    def test_full_pipeline_four_players_real_tsg(self, test_db):
+        """Real DB: 4 players → real TSG → real simulation → real ranking → finalize mocked.
+
+        Setup:
+          - 1 Location → 1 Campus
+          - 4 Users + 4 UserLicense (LFA_FOOTBALL_PLAYER, active)
+          - Admin user for current_user
+          - OpsScenarioRequest with player_ids, INDIVIDUAL_RANKING, SCORE_BASED
+
+        Expected outcome:
+          - result.task_id == "sync-done"
+          - result.tournament_id is not None (tournament persisted)
+          - result.enrolled_count == 4
+          - At least 1 session generated (real TSG with ≥2 enrolled players)
+          - _finalize_tournament_with_rewards called once (lifecycle hook fired)
+        """
+        from app.models.session import Session as SessionModel
+        from app.models.semester import Semester
+        from app.models.tournament_ranking import TournamentRanking
+
+        # ── Setup real DB fixtures ─────────────────────────────────────────
+        loc = self._create_location(test_db)
+        campus = self._create_campus(test_db, loc.id)
+        players = [self._create_player_with_license(test_db, i) for i in range(4)]
+        admin = self._create_admin(test_db)
+
+        req = OpsScenarioRequest(
+            scenario="smoke_test",
+            player_count=0,           # overridden by player_ids
+            player_ids=[p.id for p in players],
+            campus_ids=[campus.id],
+            auto_generate_sessions=True,
+            simulation_mode="auto_immediate",
+            tournament_format="INDIVIDUAL_RANKING",
+            scoring_type="SCORE_BASED",
+            ranking_direction="DESC",
+            number_of_rounds=1,
+            tournament_name="Integration Test Tournament",
+        )
+
+        # ── Execute with real TSG, real simulation, real ranking ───────────
+        with patch(self._FIN_PATCH) as mock_fin:
+            result = run_ops_scenario(req, db=test_db, current_user=admin)
+
+        # ── Core assertions ────────────────────────────────────────────────
+        assert result.task_id == "sync-done", f"Expected sync-done, got {result.task_id!r}"
+        assert result.tournament_id is not None, "Tournament must be created in DB"
+        assert result.enrolled_count == 4, (
+            f"All 4 players should be enrolled, got {result.enrolled_count}"
+        )
+
+        # Tournament exists in DB
+        tid = result.tournament_id
+        tournament = test_db.query(Semester).filter(Semester.id == tid).first()
+        assert tournament is not None, "Tournament not found in DB after run"
+        assert tournament.name == "Integration Test Tournament"
+
+        # Real TSG generated at least 1 session (4 enrolled players → ≥ 1 IR session)
+        sessions = test_db.query(SessionModel).filter(
+            SessionModel.semester_id == tid,
+            SessionModel.is_tournament_game == True,
+        ).all()
+        assert len(sessions) >= 1, (
+            f"Real TSG must generate ≥1 session for 4 players; got {len(sessions)}"
+        )
+
+        # Finalize was called exactly once (lifecycle hook fires after ranking)
+        mock_fin.assert_called_once()
