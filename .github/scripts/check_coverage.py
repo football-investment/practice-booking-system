@@ -7,16 +7,16 @@ The combined stmt+branch threshold is already enforced by:
 This script adds a SEPARATE stmt-only check so that the
 two thresholds are independently visible in CI logs:
   - Combined (stmt+branch) >= 55%  --> enforced by --fail-under=55
-  - Stmt-only             >= 60%  --> enforced here via line-rate
+  - Stmt-only             >= 62%  --> enforced here via line-rate
 
-Thresholds locked 2026-03-05 (Sprint I baseline):
-  combined  >= 55%   (current: ~56%)
-  stmt-only >= 60%   (current: ~61.7%)
+Thresholds updated 2026-03-05 (Tournament Cleanup Sprint):
+  combined  >= 55%   (current: ~56.4%)
+  stmt-only >= 62%   (current: ~62.1%)
 """
 import sys
 import xml.etree.ElementTree as ET
 
-STMT_THRESHOLD = 60.0
+STMT_THRESHOLD = 62.0
 
 root = ET.parse("coverage.xml").getroot()
 stmt_pct = float(root.attrib["line-rate"]) * 100
