@@ -62,8 +62,9 @@ jobs:
       run: |
         pytest tests/unit/ tests/integration/tournament/ -q --tb=line -v \
           --cov=app \
+          --cov-branch \
           --cov-report=term-missing \
-          --cov-fail-under=40
+          --cov-fail-under=44
 
     - name: Run api_smoke tests (coverage append)
       env:
@@ -72,15 +73,17 @@ jobs:
       run: |
         pytest tests/integration/api_smoke/ -q --tb=line \
           --cov=app \
+          --cov-branch \
           --cov-append
 
-    - name: Generate combined coverage report
+    - name: Enforce coverage thresholds (stmt >= 60%, branch >= 55%)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         python -m coverage xml -o coverage.xml
-        python -m coverage report --show-missing --fail-under=43
+        python -m coverage report --show-missing --fail-under=55
+        python .github/scripts/check_coverage.py
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4

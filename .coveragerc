@@ -1,5 +1,6 @@
 [run]
 source = app
+branch = true
 omit =
     app/tests/*
     app/static/*
