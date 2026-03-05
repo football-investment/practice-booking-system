@@ -165,13 +165,11 @@ def _sidebar(page: Page):
 
 def _click_next(page: Page) -> None:
     _sidebar(page).get_by_role("button", name="Next →").click()
-    page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(_STREAMLIT_SETTLE)
 
 
 def _click_back(page: Page) -> None:
     _sidebar(page).get_by_role("button", name="← Back").click()
-    page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(_STREAMLIT_SETTLE)
 
 
@@ -312,7 +310,6 @@ def _navigate_to_step8_hth_for_error_test(
     confirm_input = sb.get_by_placeholder("Type LAUNCH to enable the button")
     confirm_input.fill("LAUNCH")
     confirm_input.press("Enter")
-    page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(0.5)
 
 
@@ -367,7 +364,6 @@ def _navigate_to_step8_hth_large(
     confirm_input = sb.get_by_placeholder("Type LAUNCH to enable the button")
     confirm_input.fill("LAUNCH")
     confirm_input.press("Enter")
-    page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(0.5)
 
 
@@ -765,7 +761,6 @@ class TestWizardErrorStateRetention:
 
         # Click Launch — will fail with 401 (invalid token)
         sb.get_by_role("button", name="LAUNCH TOURNAMENT").click()
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(_STREAMLIT_SETTLE)
 
         # Error message must be visible (matches "❌ Launch failed: ...")
@@ -787,7 +782,6 @@ class TestWizardErrorStateRetention:
         sb = _sidebar(page)
 
         sb.get_by_role("button", name="LAUNCH TOURNAMENT").click()
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(_STREAMLIT_SETTLE)
 
         # Must still be on Step 8 — NOT on Step 1
@@ -811,7 +805,6 @@ class TestWizardErrorStateRetention:
         sb = _sidebar(page)
 
         sb.get_by_role("button", name="LAUNCH TOURNAMENT").click()
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(_STREAMLIT_SETTLE)
 
         # Review panel must still show the configured scenario name and player count.
@@ -834,12 +827,10 @@ class TestWizardErrorStateRetention:
         sb = _sidebar(page)
 
         sb.get_by_role("button", name="LAUNCH TOURNAMENT").click()
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(_STREAMLIT_SETTLE)
 
         # Give Streamlit time to re-render with wizard_launching=False
         time.sleep(1)
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
 
         launch_btn = sb.get_by_role("button", name="LAUNCH TOURNAMENT")
         expect(launch_btn).to_be_visible(timeout=_LOAD_TIMEOUT)
@@ -907,7 +898,6 @@ class TestIndividualRankingSafetyGate:
         expect(textbox).to_be_visible(timeout=_LOAD_TIMEOUT)
         textbox.fill("")
         textbox.press("Enter")
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(0.5)
 
         # Launch button must be disabled
@@ -932,7 +922,6 @@ class TestIndividualRankingSafetyGate:
         for wrong_text in ["LAUNC", "Launch!", "yes", "confirm"]:
             textbox.fill(wrong_text)
             textbox.press("Enter")
-            page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
             time.sleep(0.5)
 
             launch_btn = sb.get_by_role("button", name="LAUNCH TOURNAMENT")
@@ -962,7 +951,6 @@ class TestIndividualRankingSafetyGate:
 
         textbox.fill("LAUNCH")
         textbox.press("Enter")
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(0.5)
 
         launch_btn = sb.get_by_role("button", name="LAUNCH TOURNAMENT")
@@ -986,7 +974,6 @@ class TestIndividualRankingSafetyGate:
 
         textbox.fill("launch")
         textbox.press("Enter")
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(0.5)
 
         launch_btn = sb.get_by_role("button", name="LAUNCH TOURNAMENT")

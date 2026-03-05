@@ -172,13 +172,11 @@ def _sidebar(page: Page):
 
 def _click_next(page: Page) -> None:
     _sidebar(page).get_by_role("button", name="Next →").click()
-    page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(_STREAMLIT_SETTLE)
 
 
 def _click_back(page: Page) -> None:
     _sidebar(page).get_by_role("button", name="← Back").click()
-    page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
     time.sleep(_STREAMLIT_SETTLE)
 
 
@@ -835,7 +833,6 @@ class TestSafetyConfirmationUI:
         confirm_input = sb.get_by_placeholder("Type LAUNCH to enable the button")
         confirm_input.fill(text)
         confirm_input.press("Enter")
-        page.wait_for_load_state("networkidle", timeout=_LOAD_TIMEOUT)
         time.sleep(_STREAMLIT_SETTLE)
 
     def test_step6_safety_confirmation_wrong_text_keeps_disabled(
