@@ -156,26 +156,24 @@ class LicenseAuthorizationService:
                 "matching_licenses": []
             }
 
-        # Check PLAYER and COACH licenses for LFA/GANCUJU semesters
+        # Check licenses based on semester specialization type
         matching_licenses = []
 
-        # 1. Check for direct PLAYER license match
-        for lic in active_licenses:
-            if lic.specialization_type == "PLAYER":
-                min_level = cls.PLAYER_MIN_LEVELS.get(age_group, 1)
-                if lic.current_level >= min_level:
-                    matching_licenses.append(lic)
-
-        # 2. Check for COACH license (COACH can teach PLAYER sessions!)
+        # PLAYER semester: PLAYER license OR COACH license qualifies (business rule 1)
         if base_spec == "PLAYER":
             for lic in active_licenses:
-                if lic.specialization_type == "COACH":
+                if lic.specialization_type == "PLAYER":
+                    min_level = cls.PLAYER_MIN_LEVELS.get(age_group, 1)
+                    if lic.current_level >= min_level:
+                        matching_licenses.append(lic)
+                elif lic.specialization_type == "COACH":
+                    # Business rule 1: COACH license can teach PLAYER sessions
                     min_level = cls.COACH_MIN_LEVELS.get(age_group, 1)
                     if lic.current_level >= min_level:
                         matching_licenses.append(lic)
 
-        # 3. Check for COACH semester (only COACH license works)
-        if base_spec == "COACH":
+        # COACH semester: only COACH license qualifies (business rule 2)
+        elif base_spec == "COACH":
             for lic in active_licenses:
                 if lic.specialization_type == "COACH":
                     min_level = cls.COACH_MIN_LEVELS.get(age_group, 1)

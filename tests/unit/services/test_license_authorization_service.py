@@ -409,36 +409,25 @@ class TestCanBeMasterInstructor:
         result = self._call(_instructor(), "LFA_COACH_PRO", "PRO", db)
         assert result["authorized"] is False
 
-    def test_coach_semester_player_license_below_player_threshold_denied(self):
-        """PLAYER license below PLAYER_MIN_LEVELS["PRO"]=8 → denied for COACH_PRO.
+    def test_coach_semester_player_license_any_level_denied(self):
+        """Business rule 2: PLAYER license CANNOT teach COACH semester — any level.
 
-        NOTE: This is denied due to the level threshold, not explicit PLAYER exclusion.
-        Section 1 of can_be_master_instructor checks PLAYER licenses against
-        PLAYER_MIN_LEVELS for ALL semesters (including COACH) — see bug below.
+        Fixed in Sprint N: PLAYER license check is now explicitly gated to
+        base_spec == 'PLAYER' only. A PLAYER level 8 is correctly denied for
+        COACH_PRO (previously it was incorrectly authorized).
         """
-        lic = _license("PLAYER", 6)  # PRO: PLAYER_MIN_LEVELS["PRO"]=8, 6 < 8 → denied
+        lic = _license("PLAYER", 8)  # max PLAYER level — correctly denied for COACH semester
         db = _db_with_licenses([lic])
         result = self._call(_instructor(), "LFA_COACH_PRO", "PRO", db)
         assert result["authorized"] is False
         assert "No license meets minimum requirement" in result["reason"]
 
-    def test_coach_semester_player_license_high_level_authorized_bug(self):
-        """BUG DISCOVERED (Sprint N): PLAYER level 8 is incorrectly authorized for COACH_PRO.
-
-        Business rule 2 states: 'PLAYER license CANNOT teach COACH sessions'.
-        However, section 1 of can_be_master_instructor checks PLAYER licenses
-        against PLAYER_MIN_LEVELS for ALL semester types, not just PLAYER semesters.
-        A PLAYER level 8 passes PLAYER_MIN_LEVELS['PRO']=8 and is added to
-        matching_licenses even for a COACH semester.
-
-        This test documents the actual (buggy) production behavior.
-        Note: can_teach_session does NOT have this bug (gated with base_spec == 'PLAYER').
-        """
-        lic = _license("PLAYER", 8)  # PLAYER_MIN_LEVELS["PRO"]=8, 8 >= 8 → incorrectly authorized
+    def test_coach_semester_player_license_low_level_also_denied(self):
+        """PLAYER license at any level is denied for COACH semester."""
+        lic = _license("PLAYER", 1)
         db = _db_with_licenses([lic])
-        result = self._call(_instructor(), "LFA_COACH_PRO", "PRO", db)
-        # BUG: should be False per business rules, but section 1 incorrectly authorizes
-        assert result["authorized"] is True
+        result = self._call(_instructor(), "LFA_COACH_PRE", "PRE", db)
+        assert result["authorized"] is False
 
     def test_coach_semester_unknown_age_group_uses_default(self):
         """COACH semester, no age_group → COACH_MIN_LEVELS.get(None, 1) = 1."""
