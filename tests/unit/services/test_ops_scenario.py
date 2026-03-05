@@ -1608,3 +1608,315 @@ class TestWorkflowFullOpsScenario:
         mock_fin.assert_called_once()
         # The TSG-generated session was passed into the real sim dispatch
         MockTSG.return_value.generate_sessions.assert_called_once()
+
+
+# ===========================================================================
+# Sprint P15 — Failure and edge workflow scenarios
+# ===========================================================================
+
+class TestEdgeCaseWorkflows:
+    """P15: Robustness under imperfect real-world conditions.
+
+    Covers:
+      1. Partial tournament completion (some sessions already done)
+      2. Participant withdrawal / missing participants mid-tournament
+      3. Tie-breaking edge cases in IR ranking (ASC vs DESC)
+      4. Concurrent scenario generation — unique task_id per dispatch
+    """
+
+    # -----------------------------------------------------------------------
+    # 1. Partial tournament completion
+    # -----------------------------------------------------------------------
+
+    def test_partial_completion_league_skips_done_sessions(self):
+        """League: 3 sessions where session 1 already has game_results.
+
+        Contract:
+          - Sessions with game_results are skipped (skipped_count += 1)
+          - Remaining sessions are simulated normally
+          - Return message reports correct counts: "2 league sessions simulated, 1 skipped"
+        """
+        done = _session_mock(participants=[10, 20], game_results='{"match_format":"HEAD_TO_HEAD"}',
+                             round_num=1, match_num=1)
+        pending1 = _session_mock(participants=[10, 30], game_results=None, round_num=1, match_num=2)
+        pending2 = _session_mock(participants=[20, 30], game_results=None, round_num=1, match_num=3)
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[done, pending1, pending2]), \
+             patch("random.choice", side_effect=["win", True, "win", True]), \
+             patch("random.randint", side_effect=[3, 0, 2, 0]):
+            ok, msg = _simulate_league_tournament(db, 1, _LOG)
+
+        assert ok is True
+        assert "2 league sessions simulated" in msg
+        assert "1 skipped" in msg
+        # Done session must not be overwritten
+        assert done.game_results == '{"match_format":"HEAD_TO_HEAD"}'
+        # Pending sessions must have been filled
+        assert pending1.game_results is not None
+        assert pending2.game_results is not None
+
+    def test_partial_completion_knockout_skips_done_round(self):
+        """Knockout: R1 sessions already have game_results → R1 skipped, R2 winner advances.
+
+        When R1 sessions are already done AND have game_results, they are
+        counted as skipped but their participants are NOT re-advanced
+        (no round_winners populated). R2 session stays with its existing
+        participant list.
+        """
+        r1s1 = _session_mock(
+            participants=[1, 2],
+            game_results='{"match_format":"HEAD_TO_HEAD","round_number":1,"participants":[]}',
+            round_num=1, match_num=1, title="SF1"
+        )
+        r1s2 = _session_mock(
+            participants=[3, 4],
+            game_results='{"match_format":"HEAD_TO_HEAD","round_number":1,"participants":[]}',
+            round_num=1, match_num=2, title="SF2"
+        )
+        r2_final = _session_mock(participants=[1, 3], game_results=None, round_num=2, match_num=1, title="Final")
+
+        simulated, skipped = _simulate_knockout_bracket(MagicMock(), [r1s1, r1s2, r2_final], _LOG)
+
+        # R1: both skipped; R2: 1 simulated (has [1,3] participants already)
+        assert skipped == 2
+        assert simulated == 1
+        assert r2_final.game_results is not None
+
+    def test_partial_completion_group_knockout_group_done_knockout_pending(self):
+        """Group+Knockout: all group sessions done, knockout sessions pending.
+
+        group_sessions all have game_results → group_simulated=0, group_skipped=N.
+        PHASE 2 still calculates standings from game_results (standings empty because
+        group_standings only populated during simulation loop — not read from game_results).
+        Knockout proceeds but seeded_qualifiers is empty → ks1 stays with participants=[].
+        """
+        gs1 = _session_mock(
+            participants=[10, 20],
+            game_results='{"match_format":"HEAD_TO_HEAD","round_number":1,"participants":[]}',
+            round_num=1, match_num=1
+        )
+        gs1.tournament_phase = "GROUP_STAGE"
+        gs1.group_identifier = "A"
+
+        ks1 = _session_mock(participants=[], game_results=None, round_num=1, match_num=1)
+        ks1.tournament_phase = "KNOCKOUT"
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs1, ks1]):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+
+        assert ok is True
+        # Group session was skipped (game_results already set)
+        assert gs1.game_results is not None
+        # Knockout session with empty participants stays skipped (no seeded qualifiers → empty → skipped)
+        assert ks1.participant_user_ids == []
+
+    # -----------------------------------------------------------------------
+    # 2. Participant withdrawal / missing results
+    # -----------------------------------------------------------------------
+
+    def test_missing_participants_league_session_skipped(self):
+        """League session with participant_user_ids=None is skipped (not crashed)."""
+        no_pax = _session_mock(participants=None, game_results=None)
+        # Override: explicitly set None (not the default [42,43])
+        no_pax.participant_user_ids = None
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[no_pax]):
+            ok, msg = _simulate_league_tournament(db, 1, _LOG)
+
+        assert ok is True
+        assert "0 league sessions simulated" in msg
+        assert "1 skipped" in msg
+        # Session must not have been modified
+        assert no_pax.game_results is None
+
+    def test_missing_participants_knockout_single_player_skipped(self):
+        """Knockout session with only 1 participant (withdrawal) is skipped."""
+        one_pax = _session_mock(participants=[42], game_results=None, round_num=1, match_num=1)
+
+        simulated, skipped = _simulate_knockout_bracket(MagicMock(), [one_pax], _LOG)
+
+        assert simulated == 0
+        assert skipped == 1
+        assert one_pax.game_results is None
+
+    def test_missing_participants_group_session_skipped(self):
+        """Group session with empty participants list is skipped cleanly."""
+        empty_pax = _session_mock(participants=[], game_results=None)
+        empty_pax.tournament_phase = "GROUP_STAGE"
+        empty_pax.group_identifier = "A"
+
+        valid = _session_mock(participants=[10, 20], game_results=None, round_num=1, match_num=2)
+        valid.tournament_phase = "GROUP_STAGE"
+        valid.group_identifier = "A"
+
+        ks = _session_mock(participants=[], game_results=None, round_num=1, match_num=1)
+        ks.tournament_phase = "KNOCKOUT"
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[empty_pax, valid, ks]), \
+             patch("random.choice", side_effect=["win", True, 10]), \
+             patch("random.randint", side_effect=[3, 0, 1, 0]):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+
+        assert ok is True
+        # Empty-pax session must remain unchanged
+        assert empty_pax.game_results is None
+        # Valid group session must have been simulated
+        assert valid.game_results is not None
+
+    # -----------------------------------------------------------------------
+    # 3. Tie-breaking edge cases in IR ranking
+    # -----------------------------------------------------------------------
+
+    def test_ir_ranking_tie_desc_both_rank_first(self):
+        """Two players with identical DESC scores → both get rank 1 (dense-rank tie).
+
+        RankingAggregator uses dense ranking: equal values share the same rank.
+        Both players appear in the result; no player is arbitrarily demoted to rank 2.
+        """
+        t = MagicMock()
+        t.tournament_config_obj = MagicMock()
+        t.tournament_config_obj.ranking_direction = "DESC"
+
+        s = MagicMock()
+        # Both players score 75.0 — identical
+        s.rounds_data = {"round_results": {"1": {"10": "75.0", "20": "75.0"}}}
+
+        rankings = _calculate_ir_rankings(t, [s], _LOG)
+
+        assert len(rankings) == 2
+        # Dense-rank: both tied players share rank 1
+        assert all(r["rank"] == 1 for r in rankings)
+        user_ids = {r["user_id"] for r in rankings}
+        assert user_ids == {10, 20}
+
+    def test_ir_ranking_tie_asc_both_rank_first(self):
+        """Two players with identical ASC scores → both get rank 1 (dense-rank tie).
+
+        ASC direction means lower value is better (e.g. TIME_BASED).
+        Equal values still share the same dense rank.
+        """
+        t = MagicMock()
+        t.tournament_config_obj = MagicMock()
+        t.tournament_config_obj.ranking_direction = "ASC"
+
+        s = MagicMock()
+        # Both players time 42.0 — identical
+        s.rounds_data = {"round_results": {"1": {"10": "42.0", "20": "42.0"}}}
+
+        rankings = _calculate_ir_rankings(t, [s], _LOG)
+
+        assert len(rankings) == 2
+        # Dense-rank: both tied players share rank 1
+        assert all(r["rank"] == 1 for r in rankings)
+
+    def test_ir_ranking_multi_session_aggregation(self):
+        """Rankings aggregate across 2 sessions — player with higher values across rounds ranks 1."""
+        t = MagicMock()
+        t.tournament_config_obj = MagicMock()
+        t.tournament_config_obj.ranking_direction = "DESC"
+
+        # Session 1: round 1 results
+        s1 = MagicMock()
+        s1.rounds_data = {"round_results": {"1": {"10": "80.0", "20": "60.0"}}}
+
+        # Session 2: round 2 results (distinct round key "2" → both accumulated)
+        s2 = MagicMock()
+        s2.rounds_data = {"round_results": {"2": {"10": "90.0", "20": "70.0"}}}
+
+        rankings = _calculate_ir_rankings(t, [s1, s2], _LOG)
+
+        # Both players appear; user 10 scores higher in both rounds → rank 1
+        assert len(rankings) == 2
+        top = next(r for r in rankings if r["rank"] == 1)
+        assert top["user_id"] == 10
+
+    # -----------------------------------------------------------------------
+    # 4. Concurrent scenario generation — unique task_id per dispatch
+    # -----------------------------------------------------------------------
+
+    def test_concurrent_thread_dispatch_unique_task_ids(self):
+        """Two sequential Thread dispatch calls each produce a unique task_id.
+
+        Verifies the registry contract:
+          - Each run_ops_scenario call with auto_generate + player_count≥threshold
+            creates a new uuid4 task_id
+          - task_ids from two consecutive calls are distinct
+          - Thread.start() is called for each dispatch
+        """
+        _GS = "app.api.api_v1.endpoints.tournaments.generate_sessions"
+
+        mock_tournament_a = MagicMock()
+        mock_tournament_a.id = 201
+        mock_tournament_b = MagicMock()
+        mock_tournament_b.id = 202
+        campus_row = MagicMock(); campus_row.id = 1
+
+        task_ids = []
+
+        def _make_db():
+            return _seq_db(
+                _q(first=None),          # q0: grandmaster
+                _q(all_=[campus_row]),   # q1: campus validation
+                _q(first=None),          # q2: CampusScheduleConfig
+                _q(all_=[]),             # q3: SE enrolled_user_ids
+            )
+
+        import contextlib
+        common_patches = [
+            patch("app.models.semester.Semester"),
+            patch("app.models.semester.SemesterStatus"),
+            patch("app.models.tournament_configuration.TournamentConfiguration"),
+            patch("app.models.tournament_reward_config.TournamentRewardConfig"),
+            patch("app.models.tournament_achievement.TournamentSkillMapping"),
+            patch("app.models.campus.Campus"),
+            patch("app.models.campus_schedule_config.CampusScheduleConfig"),
+            patch("app.services.audit_service.AuditService"),
+            patch("app.models.audit_log.AuditAction"),
+            patch("app.models.session.Session"),
+            patch("app.models.semester_enrollment.SemesterEnrollment"),
+            patch("app.models.semester_enrollment.EnrollmentStatus"),
+            patch("app.models.license.UserLicense"),
+            patch(f"{_GS}.BACKGROUND_GENERATION_THRESHOLD", 0),
+            patch(f"{_GS}._is_celery_available", return_value=False),
+            patch(f"{_GS}._registry_lock"),
+            patch(f"{_GS}._task_registry", {}),
+            patch(f"{_GS}._run_generation_in_background"),
+            patch("threading.Thread"),
+        ]
+
+        with contextlib.ExitStack() as stack:
+            mocks = [stack.enter_context(p) for p in common_patches]
+            MockSem = mocks[0]
+            MockThread = mocks[-1]
+
+            # First call
+            MockSem.return_value = mock_tournament_a
+            result_a = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="manual", campus_ids=[1]),
+                db=_make_db(), current_user=_admin()
+            )
+            task_ids.append(result_a.task_id)
+
+            # Second call
+            MockSem.return_value = mock_tournament_b
+            result_b = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="manual", campus_ids=[1]),
+                db=_make_db(), current_user=_admin()
+            )
+            task_ids.append(result_b.task_id)
+
+        # Each call should produce a unique task_id
+        assert task_ids[0] != task_ids[1], (
+            f"Expected unique task_ids but got identical: {task_ids[0]!r}"
+        )
+        # Both must not be the sync-done sentinel
+        assert task_ids[0] not in ("sync-done", "manual-mode-skipped")
+        assert task_ids[1] not in ("sync-done", "manual-mode-skipped")
+        # Thread.start() called twice (once per dispatch)
+        assert MockThread.return_value.start.call_count == 2
