@@ -256,9 +256,7 @@ class TestCreateAssignment:
         assert result is not None
 
     def test_201_with_semester_transitions(self):
-        # NOTE: assignments.py:159 has a production bug: Semester.location_city → should be
-        # Semester.location_id. We patch Semester to avoid AttributeError and still test
-        # that check_and_transition_semester is called for each matching semester.
+        """Regression: semester query uses Semester.location_id (not .location_city)."""
         instr = _instructor(specialization=SpecializationType.LFA_COACH)
         sem = MagicMock()
         sem.id = 5
@@ -274,7 +272,6 @@ class TestCreateAssignment:
         mock_assignment.specialization_type = "LFA_COACH"
         with patch(f"{_BASE}.TeachingPermissionService") as MockTPS, \
              patch(f"{_BASE}.InstructorAssignment", return_value=mock_assignment), \
-             patch(f"{_BASE}.Semester") as _MockSem, \
              patch(f"{_BASE}.AssignmentResponse") as MockResp, \
              patch(f"{_BASE}.check_and_transition_semester") as mock_transition:
             MockTPS.get_teaching_permissions.return_value = {
@@ -283,6 +280,21 @@ class TestCreateAssignment:
             MockResp.from_orm.return_value = MagicMock()
             create_assignment(d, db=db, current_user=_user())
         mock_transition.assert_called_once_with(db, 5)
+
+    def test_semester_filter_uses_location_id_not_location_city(self):
+        """Regression: Semester.location_id must be a valid SQLAlchemy column — accessing
+        Semester.location_city would raise AttributeError before this fix was applied."""
+        from app.models.semester import Semester
+        # If assignments.py uses Semester.location_city the attribute access raises
+        # AttributeError before any query is even built. Verify location_id exists.
+        assert hasattr(Semester, "location_id"), (
+            "Semester must have 'location_id' column — "
+            "assignments.py:159 filter relies on it"
+        )
+        assert not hasattr(Semester, "location_city"), (
+            "Semester must NOT have 'location_city' — "
+            "use location_id (FK to Location)"
+        )
 
 
 # ===========================================================================
