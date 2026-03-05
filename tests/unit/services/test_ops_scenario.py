@@ -508,6 +508,28 @@ class TestRunOpsScenarioValidation:
         assert exc.value.status_code == 422
         assert "not found" in exc.value.detail.lower()
 
+    def test_large_count_name_generation(self):
+        """tournament_name='' + player_count=128 → OPS-LF- prefix (covers lines 1115-1116)."""
+        db = _seq_db(_q(all_=[]))  # seed pool → empty → 500 raised
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(player_count=128, confirmed=True, tournament_name=""),
+                db=db, current_user=_admin()
+            )
+        assert exc.value.status_code == 500
+        assert "seed" in exc.value.detail.lower()
+
+    def test_small_count_name_generation(self):
+        """tournament_name='' + player_count=4 → OPS-SMOKE- prefix (covers line 1118)."""
+        db = _seq_db(_q(all_=[]))  # seed pool → empty → 500 raised
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(player_count=4, tournament_name=""),
+                db=db, current_user=_admin()
+            )
+        assert exc.value.status_code == 500
+        assert "seed" in exc.value.detail.lower()
+
 
 # ===========================================================================
 # Phase 3 — Success path (player_count=0 / IR / auto_generate=False)
@@ -708,6 +730,193 @@ class TestRunOpsScenarioSuccess:
         assert result.task_id == "sync-done"
         assert result.session_count == 0
         MockTSG.return_value.generate_sessions.assert_called_once()
+
+    def test_seed_user_auto_mode(self):
+        """player_count=1, auto mode: 1 seed user → enrolled (covers lines 1235-1243)."""
+        mock_tournament = MagicMock()
+        mock_tournament.id = 77
+        seed_row = MagicMock()
+        seed_row.id = 10
+        seed_row.name = "Seed Player"
+        seed_row.email = "seed@lfa-seed.hu"
+        campus_row = MagicMock()
+        campus_row.id = 1
+        lic_mock = MagicMock()
+
+        db = _seq_db(
+            _q(all_=[seed_row]),   # q0: seed pool → 1 user
+            _q(first=None),        # q1: grandmaster
+            _q(first=None),        # q2: _Enroll check → not enrolled
+            _q(first=lic_mock),    # q3: _Lic check → has license
+            _q(all_=[campus_row]), # q4: campus validation
+            _q(first=None),        # q5: CampusScheduleConfig
+            _q(count=0),           # q6: session count
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.license.UserLicense"):
+            MockSem.return_value = mock_tournament
+            result = run_ops_scenario(
+                _req(player_count=1, player_ids=None,
+                     auto_generate_sessions=False, campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.triggered is True
+        assert result.enrolled_count == 1
+
+    def test_sync_gen_failure_422(self):
+        """Sync gen returns (False, ...) → 422 HTTPException (covers lines 1521-1525)."""
+        mock_tournament = MagicMock()
+        mock_tournament.id = 33
+        campus_row = MagicMock()
+        campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),        # q0: grandmaster
+            _q(all_=[campus_row]), # q1: campus validation
+            _q(first=None),        # q2: CampusScheduleConfig
+            _q(all_=[]),           # q3: SemesterEnrollment enrolled_user_ids
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch(
+                 "app.services.tournament.session_generation"
+                 ".session_generator.TournamentSessionGenerator"
+             ) as MockTSG:
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (
+                False, "no suitable schedule found", []
+            )
+            with pytest.raises(Exception) as exc:
+                run_ops_scenario(
+                    _req(player_count=0, auto_generate_sessions=True,
+                         simulation_mode="manual", campus_ids=[1]),
+                    db=db, current_user=_admin()
+                )
+
+        assert exc.value.status_code == 422
+        assert "Session generation failed" in exc.value.detail
+
+    def test_auto_generate_thread_dispatch(self):
+        """BACKGROUND_GENERATION_THRESHOLD=0 → Thread path (covers lines 1479-1495)."""
+        mock_tournament = MagicMock()
+        mock_tournament.id = 55
+        campus_row = MagicMock()
+        campus_row.id = 1
+
+        db = _seq_db(
+            _q(first=None),        # q0: grandmaster
+            _q(all_=[campus_row]), # q1: campus validation
+            _q(first=None),        # q2: CampusScheduleConfig
+            _q(count=0),           # q3: session count (thread dispatched, no SE query)
+        )
+
+        _GS = "app.api.api_v1.endpoints.tournaments.generate_sessions"
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch(f"{_GS}.BACKGROUND_GENERATION_THRESHOLD", 0), \
+             patch(f"{_GS}._is_celery_available", return_value=False), \
+             patch(f"{_GS}._registry_lock"), \
+             patch(f"{_GS}._task_registry", {}), \
+             patch(f"{_GS}._run_generation_in_background"), \
+             patch("threading.Thread") as MockThread:
+            MockSem.return_value = mock_tournament
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="manual", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.triggered is True
+        assert result.task_id not in ("sync-done", "manual-mode-skipped")
+        MockThread.return_value.start.assert_called_once()
+
+    def test_auto_generate_auto_immediate_mode(self):
+        """auto_generate + simulation_mode=auto_immediate → sim + ranking + finalize
+        (covers lines 1542-1616)."""
+        mock_tournament = MagicMock()
+        mock_tournament.id = 22
+        campus_row = MagicMock()
+        campus_row.id = 1
+        mock_t2 = MagicMock()
+        mock_t2.format = "INDIVIDUAL_RANKING"
+        mock_t2.tournament_config_obj = None
+
+        db = _seq_db(
+            _q(first=None),        # q0: grandmaster
+            _q(all_=[campus_row]), # q1: campus validation
+            _q(first=None),        # q2: CampusScheduleConfig
+            _q(all_=[]),           # q3: SE enrolled_user_ids (sync path)
+            _q(first=mock_t2),     # q4: tournament re-query for ranking
+            _q(all_=[]),           # q5: _get_tournament_sessions (for ranking)
+            _q(),                  # q6: TournamentRanking.filter().delete()
+            _q(count=0),           # q7: final session count
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.tournament_ranking.TournamentRanking"), \
+             patch(
+                 "app.services.tournament.session_generation"
+                 ".session_generator.TournamentSessionGenerator"
+             ) as MockTSG, \
+             patch(f"{_BASE}._simulate_tournament_results",
+                   return_value=(True, "IR sim done")) as mock_sim, \
+             patch(f"{_BASE}._finalize_tournament_with_rewards") as mock_fin:
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "1 session", [])
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.triggered is True
+        assert result.task_id == "sync-done"
+        mock_sim.assert_called_once()
+        mock_fin.assert_called_once()
 
 
 # ===========================================================================
@@ -1042,3 +1251,50 @@ class TestSimulateGroupKnockoutTournament:
             ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
         assert ok is True
         assert "group=0" in msg
+
+    def test_group_session_no_participants_skipped(self):
+        """Session with < 2 participants → warning + skipped (covers lines 700-703)."""
+        gs = _session_mock(participants=[1], game_results=None, round_num=1)
+        gs.tournament_phase = "GROUP_STAGE"
+        gs.group_identifier = "A"
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs]), \
+             patch(f"{_BASE}._simulate_knockout_bracket", return_value=(0, 0)):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+        assert ok is True
+        assert "group=0" in msg  # 0 simulated, 1 skipped
+
+    def test_group_session_draw_outcome(self):
+        """random.choice → 'draw' → both players get draw result (covers lines 711-715, 748-750)."""
+        gs = _session_mock(participants=[10, 20], game_results=None, round_num=1)
+        gs.tournament_phase = "GROUP_STAGE"
+        gs.group_identifier = "A"
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs]), \
+             patch(f"{_BASE}._simulate_knockout_bracket", return_value=(0, 0)), \
+             patch("random.choice", return_value="draw"), \
+             patch("random.randint", return_value=2):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+        assert ok is True
+        assert "group=1" in msg
+        game = json.loads(gs.game_results)
+        results = {p["user_id"]: p["result"] for p in game["participants"]}
+        assert results[10] == "draw"
+        assert results[20] == "draw"
+
+    def test_group_session_user2_wins(self):
+        """random.choice: 'win' then False → user_2 wins (covers lines 726-730, 751-752)."""
+        gs = _session_mock(participants=[10, 20], game_results=None, round_num=1)
+        gs.tournament_phase = "GROUP_STAGE"
+        gs.group_identifier = "A"
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs]), \
+             patch(f"{_BASE}._simulate_knockout_bracket", return_value=(0, 0)), \
+             patch("random.choice", side_effect=["win", False]), \
+             patch("random.randint", side_effect=[3, 1]):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+        assert ok is True
+        game = json.loads(gs.game_results)
+        results = {p["user_id"]: p["result"] for p in game["participants"]}
+        assert results[10] == "loss"
+        assert results[20] == "win"
