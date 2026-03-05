@@ -492,7 +492,7 @@ class TestGetLicenseRequirementsCheck:
                 result = svc.get_license_requirements_check(
                     user_id=42, specialization="COACH", target_level=4
                 )
-        assert result["user_id"] == 1
+        assert result["user_id"] == 42
         assert result["target_level"] == 4
         assert "requirements" in result
         assert "can_advance" in result

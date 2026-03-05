@@ -104,7 +104,7 @@ def _db_split(
 
 def _mock_badge(
     badge_type=TournamentBadgeType.CHAMPION,
-    user_id=1,
+    user_id=42,
     tournament_id=10,
     rarity=TournamentBadgeRarity.EPIC,
     category=TournamentBadgeCategory.PLACEMENT,
@@ -137,7 +137,7 @@ class TestAwardBadge:
     def test_unknown_type_raises_value_error(self):
         db = _db_simple()
         with pytest.raises(ValueError, match="Unknown badge type"):
-            badge_service.award_badge(db, user_id=1, tournament_id=10, badge_type="DOES_NOT_EXIST")
+            badge_service.award_badge(db, user_id=42, tournament_id=10, badge_type="DOES_NOT_EXIST")
 
     def test_tournament_not_found_uses_fallback_name(self):
         db = _db_simple()
@@ -560,7 +560,7 @@ class TestGetPlayerBadges:
 
     def test_returns_empty_list_when_no_badges(self):
         db = _db_simple()
-        result = badge_service.get_player_badges(db, user_id=1)
+        result = badge_service.get_player_badges(db, user_id=42)
         assert result == []
 
     def test_without_tournament_id_filter_applies_only_user_filter(self):
@@ -568,7 +568,7 @@ class TestGetPlayerBadges:
         b = _mock_badge()
         db.query.return_value.options.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [b]
 
-        result = badge_service.get_player_badges(db, user_id=1)
+        result = badge_service.get_player_badges(db, user_id=42)
 
         assert len(result) == 1
         b.to_dict.assert_called_once()
@@ -585,7 +585,7 @@ class TestGetPlayerBadges:
         q.all.return_value = [b]
         db.query.return_value = q
 
-        badge_service.get_player_badges(db, user_id=1, tournament_id=5)
+        badge_service.get_player_badges(db, user_id=42, tournament_id=5)
 
         # filter() called at least twice: once for user_id, once for semester_id
         assert q.filter.call_count >= 2
@@ -596,7 +596,7 @@ class TestGetPlayerBadges:
         db.query.return_value.options.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [bad_badge]
 
         with pytest.raises(ValueError, match="Data integrity issue"):
-            badge_service.get_player_badges(db, user_id=1)
+            badge_service.get_player_badges(db, user_id=42)
 
     def test_data_integrity_no_semester_id_does_not_raise(self):
         """Badge with semester_id=None is allowed (no tournament link)."""
@@ -604,7 +604,7 @@ class TestGetPlayerBadges:
         b = _mock_badge(semester_id_val=None, has_tournament=False)
         db.query.return_value.options.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [b]
 
-        result = badge_service.get_player_badges(db, user_id=1)
+        result = badge_service.get_player_badges(db, user_id=42)
 
         assert len(result) == 1  # no ValueError raised
 
@@ -618,7 +618,7 @@ class TestGetPlayerBadges:
         q.all.return_value = []
         db.query.return_value = q
 
-        badge_service.get_player_badges(db, user_id=1, limit=5)
+        badge_service.get_player_badges(db, user_id=42, limit=5)
 
         q.limit.assert_called_with(5)
 
@@ -630,7 +630,7 @@ class TestGetPlayerBadgeShowcase:
 
     def test_empty_showcase_structure(self):
         db = _db_simple()
-        result = badge_service.get_player_badge_showcase(db, user_id=1)
+        result = badge_service.get_player_badge_showcase(db, user_id=42)
 
         assert result["total_badges"] == 0
         assert result["rarest_badges"] == []
@@ -645,7 +645,7 @@ class TestGetPlayerBadgeShowcase:
         db = _db_simple()
         db.query.return_value.filter.return_value.all.return_value = [common, epic, legendary]
 
-        result = badge_service.get_player_badge_showcase(db, user_id=1)
+        result = badge_service.get_player_badge_showcase(db, user_id=42)
 
         rarest = result["rarest_badges"]
         assert len(rarest) == 3
@@ -660,7 +660,7 @@ class TestGetPlayerBadgeShowcase:
         db = _db_simple()
         db.query.return_value.filter.return_value.all.return_value = [older, newer]
 
-        result = badge_service.get_player_badge_showcase(db, user_id=1)
+        result = badge_service.get_player_badge_showcase(db, user_id=42)
 
         recent = result["recent_badges"]
         # Newer badge should be first
@@ -673,7 +673,7 @@ class TestGetPlayerBadgeShowcase:
         db = _db_simple()
         db.query.return_value.filter.return_value.all.return_value = [placement, participation]
 
-        result = badge_service.get_player_badge_showcase(db, user_id=1)
+        result = badge_service.get_player_badge_showcase(db, user_id=42)
 
         assert TournamentBadgeCategory.PLACEMENT in result["by_category"]
         assert TournamentBadgeCategory.PARTICIPATION in result["by_category"]
@@ -687,7 +687,7 @@ class TestGetPlayerBadgeShowcase:
         db = _db_simple()
         db.query.return_value.filter.return_value.all.return_value = badges
 
-        result = badge_service.get_player_badge_showcase(db, user_id=1)
+        result = badge_service.get_player_badge_showcase(db, user_id=42)
 
         assert len(result["rarest_badges"]) == 5
         assert len(result["recent_badges"]) == 5
@@ -697,7 +697,7 @@ class TestGetPlayerBadgeShowcase:
         db = _db_simple()
         db.query.return_value.filter.return_value.all.return_value = badges
 
-        result = badge_service.get_player_badge_showcase(db, user_id=1)
+        result = badge_service.get_player_badge_showcase(db, user_id=42)
 
         assert result["total_badges"] == 3
 
@@ -769,7 +769,7 @@ class TestRewardPipelineSanity:
         db = self._db_for_sanity()
 
         result = orchestrator.distribute_rewards_for_user(
-            db, user_id=1, tournament_id=10,
+            db, user_id=42, tournament_id=10,
             placement=1, total_participants=10,
             is_sandbox_mode=True
         )
@@ -799,7 +799,7 @@ class TestRewardPipelineSanity:
         db = self._db_for_sanity()
 
         orchestrator.distribute_rewards_for_user(
-            db, user_id=1, tournament_id=10,
+            db, user_id=42, tournament_id=10,
             placement=4, total_participants=10,
             is_sandbox_mode=True
         )
@@ -821,7 +821,7 @@ class TestRewardPipelineSanity:
         db = self._db_for_sanity()
 
         result = orchestrator.distribute_rewards_for_user(
-            db, user_id=1, tournament_id=10,
+            db, user_id=42, tournament_id=10,
             placement=1, total_participants=10,
             is_sandbox_mode=True
         )
@@ -850,7 +850,7 @@ class TestRewardPipelineSanity:
         db.query.return_value = q
 
         orchestrator.distribute_rewards_for_user(
-            db, user_id=1, tournament_id=10,
+            db, user_id=42, tournament_id=10,
             placement=1, total_participants=10,
             is_sandbox_mode=True,
             force_redistribution=False
@@ -872,7 +872,7 @@ class TestRewardPipelineSanity:
         db = self._db_for_sanity()
 
         result = orchestrator.distribute_rewards_for_user(
-            db, user_id=1, tournament_id=10,
+            db, user_id=42, tournament_id=10,
             placement=None, total_participants=10,
             is_sandbox_mode=True
         )

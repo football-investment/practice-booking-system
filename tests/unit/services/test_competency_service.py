@@ -88,7 +88,7 @@ class TestAssessFromQuiz:
     def test_quiz_not_found_returns_early(self):
         svc, db = _svc()
         db.execute.return_value.fetchone.return_value = None
-        svc.assess_from_quiz(user_id=1, quiz_id=99, quiz_attempt_id=1, score=80)
+        svc.assess_from_quiz(user_id=42, quiz_id=99, quiz_attempt_id=1, score=80)
         # Only one execute call (quiz lookup), then returns
         db.execute.assert_called_once()
 
@@ -96,7 +96,7 @@ class TestAssessFromQuiz:
         svc, db = _svc()
         quiz_row = _row(specialization_id=None, lesson_id=None, category="MARKETING")
         db.execute.return_value.fetchone.return_value = quiz_row
-        svc.assess_from_quiz(user_id=1, quiz_id=1, quiz_attempt_id=1, score=80)
+        svc.assess_from_quiz(user_id=42, quiz_id=1, quiz_attempt_id=1, score=80)
         # Returns after checking specialization_id is None
         db.execute.assert_called_once()
 
@@ -107,7 +107,7 @@ class TestAssessFromQuiz:
         exec1 = _exec_mock(quiz_row)
         exec2 = _exec_mock(fetchall=True)  # empty
         db.execute.side_effect = [exec1, exec2]
-        svc.assess_from_quiz(user_id=1, quiz_id=1, quiz_attempt_id=1, score=80)
+        svc.assess_from_quiz(user_id=42, quiz_id=1, quiz_attempt_id=1, score=80)
         assert db.execute.call_count == 2
 
     def test_quiz_with_lesson_fetches_lesson_data(self):
@@ -118,7 +118,7 @@ class TestAssessFromQuiz:
         exec_lesson = _exec_mock(lesson_row)
         exec_categories = _exec_mock(fetchall=True)  # empty → early return
         db.execute.side_effect = [exec_quiz, exec_lesson, exec_categories]
-        svc.assess_from_quiz(user_id=1, quiz_id=1, quiz_attempt_id=1, score=80)
+        svc.assess_from_quiz(user_id=42, quiz_id=1, quiz_attempt_id=1, score=80)
         assert db.execute.call_count == 3
 
 
@@ -129,7 +129,7 @@ class TestAssessFromExercise:
     def test_exercise_not_found_returns_early(self):
         svc, db = _svc()
         db.execute.return_value.fetchone.return_value = None
-        svc.assess_from_exercise(user_id=1, exercise_submission_id=999, score=75)
+        svc.assess_from_exercise(user_id=42, exercise_submission_id=999, score=75)
         db.execute.assert_called_once()
 
     def test_exercise_no_categories_returns_early(self):
@@ -138,7 +138,7 @@ class TestAssessFromExercise:
         exec1 = _exec_mock(exercise_row)
         exec2 = _exec_mock(fetchall=True)  # no categories
         db.execute.side_effect = [exec1, exec2]
-        svc.assess_from_exercise(user_id=1, exercise_submission_id=1, score=75)
+        svc.assess_from_exercise(user_id=42, exercise_submission_id=1, score=75)
         assert db.execute.call_count == 2
 
 
@@ -149,19 +149,19 @@ class TestGetUserCompetencies:
     def test_returns_empty_list_if_no_results(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        result = svc.get_user_competencies(user_id=1)
+        result = svc.get_user_competencies(user_id=42)
         assert result == []
 
     def test_returns_list_of_dicts(self):
         svc, db = _svc()
         row = _row(
-            id=1, user_id=1, category_id=2, category_name="Technical",
+            id=1, user_id=42, category_id=2, category_name="Technical",
             category_icon="⚽", specialization_id="LFA_COACH",
             current_score=75.0, current_level="Proficient",
             total_assessments=5, last_assessed_at=None
         )
         db.execute.return_value.fetchall.return_value = [row]
-        result = svc.get_user_competencies(user_id=1)
+        result = svc.get_user_competencies(user_id=42)
         assert len(result) == 1
         assert result[0]["category_name"] == "Technical"
         assert result[0]["current_score"] == 75.0
@@ -169,14 +169,14 @@ class TestGetUserCompetencies:
     def test_filter_by_specialization_id(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        svc.get_user_competencies(user_id=1, specialization_id="LFA_COACH")
+        svc.get_user_competencies(user_id=42, specialization_id="LFA_COACH")
         # Verifies the query was called (specialization filter applied inside)
         db.execute.assert_called_once()
 
     def test_no_filter_when_spec_id_none(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        svc.get_user_competencies(user_id=1, specialization_id=None)
+        svc.get_user_competencies(user_id=42, specialization_id=None)
         db.execute.assert_called_once()
 
 
@@ -187,7 +187,7 @@ class TestGetCompetencyBreakdown:
     def test_category_not_found_returns_none(self):
         svc, db = _svc()
         db.execute.return_value.fetchone.return_value = None
-        result = svc.get_competency_breakdown(user_id=1, category_id=99)
+        result = svc.get_competency_breakdown(user_id=42, category_id=99)
         assert result is None
 
     def test_returns_breakdown_dict_when_category_found(self):
@@ -203,7 +203,7 @@ class TestGetCompetencyBreakdown:
         exec2 = _exec_mock(score_row)
         exec3 = _exec_mock(skill_row, fetchall=True)
         db.execute.side_effect = [exec1, exec2, exec3]
-        result = svc.get_competency_breakdown(user_id=1, category_id=1)
+        result = svc.get_competency_breakdown(user_id=42, category_id=1)
         assert result is not None
         assert result["category"]["name"] == "Technical"
         assert len(result["skills"]) == 1
@@ -215,7 +215,7 @@ class TestGetCompetencyBreakdown:
         exec2 = _exec_mock(None)  # no score
         exec3 = _exec_mock(fetchall=True)  # no skills
         db.execute.side_effect = [exec1, exec2, exec3]
-        result = svc.get_competency_breakdown(user_id=1, category_id=1)
+        result = svc.get_competency_breakdown(user_id=42, category_id=1)
         assert result["category"]["current_score"] == 0.0
         assert result["category"]["current_level"] == "Beginner"
         assert result["category"]["total_assessments"] == 0
@@ -228,7 +228,7 @@ class TestGetAssessmentHistory:
     def test_returns_empty_list_if_none(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        result = svc.get_assessment_history(user_id=1)
+        result = svc.get_assessment_history(user_id=42)
         assert result == []
 
     def test_returns_list_of_assessment_dicts(self):
@@ -238,7 +238,7 @@ class TestGetAssessmentHistory:
             score=85.0, source_type="QUIZ", source_id=5, assessed_at=None
         )
         db.execute.return_value.fetchall.return_value = [row]
-        result = svc.get_assessment_history(user_id=1)
+        result = svc.get_assessment_history(user_id=42)
         assert len(result) == 1
         assert result[0]["score"] == 85.0
         assert result[0]["source_type"] == "QUIZ"
@@ -246,7 +246,7 @@ class TestGetAssessmentHistory:
     def test_default_limit_is_20(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        svc.get_assessment_history(user_id=1)
+        svc.get_assessment_history(user_id=42)
         db.execute.assert_called_once()
 
 
@@ -257,7 +257,7 @@ class TestGetUserMilestones:
     def test_returns_empty_list_if_none(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        result = svc.get_user_milestones(user_id=1)
+        result = svc.get_user_milestones(user_id=42)
         assert result == []
 
     def test_returns_list_of_milestone_dicts(self):
@@ -268,12 +268,12 @@ class TestGetUserMilestones:
             xp_reward=500, specialization_id="LFA_COACH", achieved_at=None
         )
         db.execute.return_value.fetchall.return_value = [row]
-        result = svc.get_user_milestones(user_id=1)
+        result = svc.get_user_milestones(user_id=42)
         assert len(result) == 1
         assert result[0]["milestone_name"] == "Tech Master"
 
     def test_filter_by_specialization(self):
         svc, db = _svc()
         db.execute.return_value.fetchall.return_value = []
-        svc.get_user_milestones(user_id=1, specialization_id="LFA_COACH")
+        svc.get_user_milestones(user_id=42, specialization_id="LFA_COACH")
         db.execute.assert_called_once()

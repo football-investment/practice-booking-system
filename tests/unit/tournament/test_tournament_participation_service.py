@@ -50,7 +50,7 @@ class TestUpdateSkillAssessments:
     def test_is_noop(self):
         # Should not raise and should not call DB
         db = _db()
-        update_skill_assessments(db, user_id=1, skill_points={"agility": 3.0})
+        update_skill_assessments(db, user_id=42, skill_points={"agility": 3.0})
         db.query.assert_not_called()
 
 
@@ -243,7 +243,7 @@ class TestRecordTournamentParticipation:
     def test_creates_new_participation_when_not_existing(self):
         db, _ = self._base_db(existing=False)
         result = record_tournament_participation(
-            db, user_id=1, tournament_id=1, placement=1,
+            db, user_id=42, tournament_id=1, placement=1,
             skill_points={}, base_xp=100, credits=0
         )
         db.add.assert_called()
@@ -251,7 +251,7 @@ class TestRecordTournamentParticipation:
     def test_updates_existing_participation_on_upsert(self):
         db, existing = self._base_db(existing=True)
         record_tournament_participation(
-            db, user_id=1, tournament_id=1, placement=2,
+            db, user_id=42, tournament_id=1, placement=2,
             skill_points={}, base_xp=100, credits=0
         )
         assert existing.placement == 2
@@ -263,7 +263,7 @@ class TestRecordTournamentParticipation:
             return_value={"agility": 0.5}
         ):
             result = record_tournament_participation(
-                db, user_id=1, tournament_id=1, placement=1,
+                db, user_id=42, tournament_id=1, placement=1,
                 skill_points={}, base_xp=100, credits=0
             )
         # skill_rating_delta should have been set on the new participation
@@ -276,7 +276,7 @@ class TestRecordTournamentParticipation:
             'app.services.skill_progression_service.compute_single_tournament_skill_delta',
         ) as mock_compute:
             record_tournament_participation(
-                db, user_id=1, tournament_id=1, placement=1,
+                db, user_id=42, tournament_id=1, placement=1,
                 skill_points={}, base_xp=100, credits=0
             )
             mock_compute.assert_not_called()
@@ -295,7 +295,7 @@ class TestRecordTournamentParticipation:
         db.execute.return_value.scalar.return_value = 500
 
         record_tournament_participation(
-            db, user_id=1, tournament_id=1, placement=1,
+            db, user_id=42, tournament_id=1, placement=1,
             skill_points={"agility": 5.0}, base_xp=100, credits=0
         )
         # db.add should have been called (XPTransaction)
@@ -315,7 +315,7 @@ class TestRecordTournamentParticipation:
         db.execute.return_value.scalar.return_value = 500
         # Should not raise
         record_tournament_participation(
-            db, user_id=1, tournament_id=1, placement=1,
+            db, user_id=42, tournament_id=1, placement=1,
             skill_points={"agility": 5.0}, base_xp=100, credits=0
         )
         sp.rollback.assert_called()
@@ -330,7 +330,7 @@ class TestRecordTournamentParticipation:
         db.execute.return_value.scalar.return_value = 200
 
         record_tournament_participation(
-            db, user_id=1, tournament_id=1, placement=1,
+            db, user_id=42, tournament_id=1, placement=1,
             skill_points={}, base_xp=100, credits=50
         )
         assert db.add.call_count >= 1
@@ -347,7 +347,7 @@ class TestRecordTournamentParticipation:
         ]
         db.execute.return_value.scalar.return_value = 200
         record_tournament_participation(
-            db, user_id=1, tournament_id=1, placement=2,
+            db, user_id=42, tournament_id=1, placement=2,
             skill_points={}, base_xp=0, credits=50
         )
         sp.rollback.assert_called()
@@ -365,7 +365,7 @@ class TestRecordTournamentParticipation:
             sp = MagicMock()
             db.begin_nested.return_value = sp
             record_tournament_participation(
-                db, user_id=1, tournament_id=1, placement=placement,
+                db, user_id=42, tournament_id=1, placement=placement,
                 skill_points={}, base_xp=0, credits=10
             )
             # verify description was set on the credit transaction
@@ -405,7 +405,7 @@ class TestGetPlayerTournamentHistory:
         query.count.return_value = 1
         query.limit.return_value.offset.return_value.all.return_value = [(participation, semester)]
 
-        results, total = get_player_tournament_history(db, user_id=1)
+        results, total = get_player_tournament_history(db, user_id=42)
         assert total == 1
         assert len(results) == 1
         assert results[0]["tournament_name"] == "Cup"
@@ -415,7 +415,7 @@ class TestGetPlayerTournamentHistory:
         query = db.query.return_value.join.return_value.filter.return_value.order_by.return_value
         query.count.return_value = 0
         query.limit.return_value.offset.return_value.all.return_value = []
-        results, total = get_player_tournament_history(db, user_id=1)
+        results, total = get_player_tournament_history(db, user_id=42)
         assert results == []
         assert total == 0
 
@@ -424,7 +424,7 @@ class TestGetPlayerTournamentHistory:
         query = db.query.return_value.join.return_value.filter.return_value.order_by.return_value
         query.count.return_value = 0
         query.limit.return_value.offset.return_value.all.return_value = []
-        get_player_tournament_history(db, user_id=1, limit=10, offset=5)
+        get_player_tournament_history(db, user_id=42, limit=10, offset=5)
         query.limit.assert_called_with(10)
         query.limit.return_value.offset.assert_called_with(5)
 
@@ -439,7 +439,7 @@ class TestGetPlayerParticipationStats:
         db = _db()
         db.query.return_value.filter.return_value.scalar.return_value = 0
         db.query.return_value.filter.return_value.all.return_value = []
-        result = get_player_participation_stats(db, user_id=1)
+        result = get_player_participation_stats(db, user_id=42)
         assert result["total_tournaments"] == 0
         assert result["top_skill"] is None
 
@@ -454,7 +454,7 @@ class TestGetPlayerParticipationStats:
         p2.skill_points_awarded = {"agility": 4.0, "speed": 2.0}
         db.query.return_value.filter.return_value.all.return_value = [p1, p2]
 
-        result = get_player_participation_stats(db, user_id=1)
+        result = get_player_participation_stats(db, user_id=42)
         assert result["skill_totals"]["agility"] == 7.0
         assert result["skill_totals"]["speed"] == 3.0
         assert result["top_skill"] == "agility"
@@ -466,6 +466,6 @@ class TestGetPlayerParticipationStats:
         p = MagicMock()
         p.skill_points_awarded = None
         db.query.return_value.filter.return_value.all.return_value = [p]
-        result = get_player_participation_stats(db, user_id=1)
+        result = get_player_participation_stats(db, user_id=42)
         assert result["skill_totals"] == {}
         assert result["top_skill"] is None

@@ -124,7 +124,7 @@ class TestGetCurrentBelt:
         promo = _promo("CELESTIAL_RIVER")
         db = _split_db(bp_first=promo)
 
-        result = svc.get_current_belt(user_license_id=1, db=db)
+        result = svc.get_current_belt(user_license_id=42, db=db)
 
         assert result == "CELESTIAL_RIVER"
 
@@ -133,7 +133,7 @@ class TestGetCurrentBelt:
         svc = _svc()
         db = _split_db(bp_first=None)
 
-        result = svc.get_current_belt(user_license_id=1, db=db)
+        result = svc.get_current_belt(user_license_id=42, db=db)
 
         assert result == "BAMBOO_DISCIPLE"
 
@@ -281,7 +281,7 @@ class TestPromoteToNextBelt:
         db = _split_db(bp_first=None, lic_first=lic)  # no promo → BAMBOO_DISCIPLE
 
         result = svc.promote_to_next_belt(
-            user_license_id=1, promoted_by=99, db=db
+            user_license_id=42, promoted_by=99, db=db
         )
 
         assert result.from_belt == "BAMBOO_DISCIPLE"
@@ -296,7 +296,7 @@ class TestPromoteToNextBelt:
         lic = _license(lid=1, current_level=1, max_level=1)
         db = _split_db(bp_first=None, lic_first=lic)
 
-        svc.promote_to_next_belt(user_license_id=1, promoted_by=99, db=db)
+        svc.promote_to_next_belt(user_license_id=42, promoted_by=99, db=db)
 
         # DAWN_DEW is index 1 → level 2
         assert lic.current_level == 2
@@ -308,7 +308,7 @@ class TestPromoteToNextBelt:
         db = _split_db(bp_first=_promo("DRAGON_WISDOM", from_belt="MIDNIGHT_GUARDIAN"))
 
         with pytest.raises(ValueError, match="Already at highest belt"):
-            svc.promote_to_next_belt(user_license_id=1, promoted_by=99, db=db)
+            svc.promote_to_next_belt(user_license_id=42, promoted_by=99, db=db)
 
     def test_exam_score_above_100_raises(self):
         """Lines 366-367: exam_score=101 → ValueError."""

@@ -236,7 +236,7 @@ class TestBuildBadgeEvaluationContext:
         t = _mock_tournament()
         db.query.return_value.filter.return_value.first.return_value = t
         db.query.return_value.filter.return_value.filter.return_value.all.return_value = []
-        ctx = build_badge_evaluation_context(db, user_id=1, tournament_id=1, placement=1, total_participants=10)
+        ctx = build_badge_evaluation_context(db, user_id=42, tournament_id=1, placement=1, total_participants=10)
         assert ctx.previous_tournaments_count == 0
         assert ctx.consecutive_wins == 0
 
@@ -255,7 +255,7 @@ class TestBuildBadgeEvaluationContext:
         p3.achieved_at = datetime(2026, 3, 1)
         # The service calls .filter(cond1, cond2).all() — single filter, not chained
         db.query.return_value.filter.return_value.all.return_value = [p1, p2, p3]
-        ctx = build_badge_evaluation_context(db, user_id=1, tournament_id=1, placement=1, total_participants=10)
+        ctx = build_badge_evaluation_context(db, user_id=42, tournament_id=1, placement=1, total_participants=10)
         # consecutive_wins stops at first non-1 placement in sorted list
         assert ctx.previous_tournaments_count == 3
 
@@ -263,7 +263,7 @@ class TestBuildBadgeEvaluationContext:
         db = _db()
         db.query.return_value.filter.return_value.first.return_value = None
         db.query.return_value.filter.return_value.all.return_value = []
-        ctx = build_badge_evaluation_context(db, user_id=1, tournament_id=99, placement=None, total_participants=5)
+        ctx = build_badge_evaluation_context(db, user_id=42, tournament_id=99, placement=None, total_participants=5)
         assert ctx.tournament_format == ""
 
 
@@ -303,7 +303,7 @@ class TestDistributeRewardsForUser:
         db = self._db_with_existing(existing=_mock_participation())
         mock_part.calculate_skill_points_for_placement.return_value = {}
         with patch(f"{PATCH_BASE}.get_user_reward_summary", return_value=MagicMock()) as mock_summary:
-            distribute_rewards_for_user(db, user_id=1, tournament_id=1, placement=1, total_participants=5)
+            distribute_rewards_for_user(db, user_id=42, tournament_id=1, placement=1, total_participants=5)
             mock_summary.assert_called_once()
 
     @_patch_all
@@ -317,7 +317,7 @@ class TestDistributeRewardsForUser:
         mock_badge.check_and_award_milestone_badges.return_value = []
         with patch(f"{PATCH_BASE}.get_user_reward_summary"):
             result = distribute_rewards_for_user(
-                db, user_id=1, tournament_id=1, placement=1, total_participants=5,
+                db, user_id=42, tournament_id=1, placement=1, total_participants=5,
                 force_redistribution=True
             )
         mock_part.record_tournament_participation.assert_called_once()
@@ -332,7 +332,7 @@ class TestDistributeRewardsForUser:
         mock_badge.award_participation_badge.return_value = _mock_badge(rarity="COMMON")
         mock_badge.check_and_award_milestone_badges.return_value = []
         distribute_rewards_for_user(
-            db, user_id=1, tournament_id=1, placement=1, total_participants=5,
+            db, user_id=42, tournament_id=1, placement=1, total_participants=5,
             is_sandbox_mode=True
         )
         # skill_progression_service should not be called in sandbox mode
@@ -350,7 +350,7 @@ class TestDistributeRewardsForUser:
         # No active license found
         db.query.return_value.filter.return_value.filter.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
         distribute_rewards_for_user(
-            db, user_id=1, tournament_id=1, placement=2, total_participants=5,
+            db, user_id=42, tournament_id=1, placement=2, total_participants=5,
             is_sandbox_mode=False
         )
         # Should not crash; skill writeback skipped (warning logged)
@@ -386,10 +386,10 @@ class TestDistributeRewardsForUser:
         }
         with patch("sqlalchemy.orm.attributes.flag_modified"):
             distribute_rewards_for_user(
-                db, user_id=1, tournament_id=1, placement=1, total_participants=5,
+                db, user_id=42, tournament_id=1, placement=1, total_participants=5,
                 is_sandbox_mode=False
             )
-        mock_skill.get_skill_profile.assert_called_once_with(db, 1)
+        mock_skill.get_skill_profile.assert_called_once_with(db, 42)
 
     @_patch_all
     def test_integrity_error_at_commit_returns_summary(self, mock_skill, mock_badge, mock_part, mock_lock):
@@ -404,7 +404,7 @@ class TestDistributeRewardsForUser:
         db.query.return_value.filter.return_value.filter.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
         with patch(f"{PATCH_BASE}.get_user_reward_summary", return_value=MagicMock()) as mock_summary:
             distribute_rewards_for_user(
-                db, user_id=1, tournament_id=1, placement=None, total_participants=5,
+                db, user_id=42, tournament_id=1, placement=None, total_participants=5,
                 is_sandbox_mode=True
             )
             mock_summary.assert_called_once()
@@ -420,7 +420,7 @@ class TestDistributeRewardsForUser:
         mock_badge.award_participation_badge.return_value = _mock_badge(rarity="COMMON")
         mock_badge.check_and_award_milestone_badges.return_value = []
         result = distribute_rewards_for_user(
-            db, user_id=1, tournament_id=1, placement=1, total_participants=5,
+            db, user_id=42, tournament_id=1, placement=1, total_participants=5,
             is_sandbox_mode=True
         )
         mock_badge.award_placement_badges.assert_called_once()
@@ -435,7 +435,7 @@ class TestDistributeRewardsForUser:
         mock_badge.award_participation_badge.return_value = _mock_badge(rarity="COMMON")
         mock_badge.check_and_award_milestone_badges.return_value = []
         distribute_rewards_for_user(
-            db, user_id=1, tournament_id=1, placement=None, total_participants=5,
+            db, user_id=42, tournament_id=1, placement=None, total_participants=5,
             is_sandbox_mode=True
         )
         mock_badge.award_placement_badges.assert_not_called()
@@ -454,7 +454,7 @@ class TestDistributeRewardsForUser:
         mock_badge.check_and_award_milestone_badges.return_value = []
         # Should not raise
         distribute_rewards_for_user(
-            db, user_id=1, tournament_id=1, placement=1, total_participants=5,
+            db, user_id=42, tournament_id=1, placement=1, total_participants=5,
             is_sandbox_mode=True
         )
 
@@ -530,7 +530,7 @@ class TestGetUserRewardSummary:
     def test_no_participation_returns_none(self):
         db = _db()
         db.query.return_value.filter.return_value.first.return_value = None
-        result = get_user_reward_summary(db, user_id=1, tournament_id=1)
+        result = get_user_reward_summary(db, user_id=42, tournament_id=1)
         assert result is None
 
     def test_returns_result_with_participation(self):
@@ -539,9 +539,9 @@ class TestGetUserRewardSummary:
         tournament = _mock_tournament()
         db.query.return_value.filter.return_value.first.side_effect = [participation, tournament]
         db.query.return_value.filter.return_value.all.return_value = []
-        result = get_user_reward_summary(db, user_id=1, tournament_id=1)
+        result = get_user_reward_summary(db, user_id=42, tournament_id=1)
         assert result is not None
-        assert result.user_id == 1
+        assert result.user_id == 42
 
     def test_skill_points_in_participation_built(self):
         db = _db()
@@ -549,7 +549,7 @@ class TestGetUserRewardSummary:
         tournament = _mock_tournament()
         db.query.return_value.filter.return_value.first.side_effect = [participation, tournament]
         db.query.return_value.filter.return_value.all.return_value = []
-        result = get_user_reward_summary(db, user_id=1, tournament_id=1)
+        result = get_user_reward_summary(db, user_id=42, tournament_id=1)
         assert len(result.participation.skill_points) == 2
 
     def test_rarest_badge_determined_from_badges(self):
@@ -559,7 +559,7 @@ class TestGetUserRewardSummary:
         db.query.return_value.filter.return_value.first.side_effect = [participation, tournament]
         badges = [_mock_badge(rarity="EPIC"), _mock_badge(rarity="COMMON")]
         db.query.return_value.filter.return_value.all.return_value = badges
-        result = get_user_reward_summary(db, user_id=1, tournament_id=1)
+        result = get_user_reward_summary(db, user_id=42, tournament_id=1)
         assert result.badges.rarest_badge == "EPIC"
 
     def test_tournament_not_found_uses_fallback_name(self):
@@ -567,7 +567,7 @@ class TestGetUserRewardSummary:
         participation = _mock_participation()
         db.query.return_value.filter.return_value.first.side_effect = [participation, None]
         db.query.return_value.filter.return_value.all.return_value = []
-        result = get_user_reward_summary(db, user_id=1, tournament_id=42)
+        result = get_user_reward_summary(db, user_id=42, tournament_id=42)
         assert "42" in result.tournament_name
 
     def test_no_skill_points_in_participation(self):
@@ -576,5 +576,5 @@ class TestGetUserRewardSummary:
         tournament = _mock_tournament()
         db.query.return_value.filter.return_value.first.side_effect = [participation, tournament]
         db.query.return_value.filter.return_value.all.return_value = []
-        result = get_user_reward_summary(db, user_id=1, tournament_id=1)
+        result = get_user_reward_summary(db, user_id=42, tournament_id=1)
         assert result.participation.skill_points == []

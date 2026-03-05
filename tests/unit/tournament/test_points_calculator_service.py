@@ -41,7 +41,7 @@ class TestCalculatePointsNoSession:
     def test_session_not_found_returns_zero(self):
         svc, db = _svc()
         _q_session(db, None)
-        assert svc.calculate_points(session_id=99, user_id=1, rank=1) == 0.0
+        assert svc.calculate_points(session_id=99, user_id=42, rank=1) == 0.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -25,7 +25,7 @@ def _license(
     expires_at=None,
     is_active=True,
     renewal_cost=None,
-    user_id=1,
+    user_id=42,
     license_id=10,
     spec_type="LFA_COACH",
     level=4,
@@ -41,7 +41,7 @@ def _license(
     return lic
 
 
-def _user(user_id=1, credit_balance=2000):
+def _user(user_id=42, credit_balance=2000):
     u = MagicMock()
     u.id = user_id
     u.credit_balance = credit_balance

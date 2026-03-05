@@ -248,7 +248,7 @@ class TestEnrollUser:
     @patch(VALIDATE, return_value=False)
     def test_invalid_specialization_raises(self, _):
         with pytest.raises(ValueError, match="does not exist"):
-            enroll_user(_mock_db(), user_id=1, specialization_id="INVALID")
+            enroll_user(_mock_db(), user_id=42, specialization_id="INVALID")
 
     @patch(ID_TO_ENUM, return_value=MagicMock())
     @patch(VALIDATE, return_value=True)
@@ -270,7 +270,7 @@ class TestEnrollUser:
         db.query.return_value.filter_by.return_value.first.side_effect = [
             mock_user, mock_progress
         ]
-        result = enroll_user(db, user_id=1, specialization_id="LFA_COACH")
+        result = enroll_user(db, user_id=42, specialization_id="LFA_COACH")
         assert result['success'] is False
         assert 'already enrolled' in result['message']
 
@@ -283,7 +283,7 @@ class TestEnrollUser:
         mock_user = MagicMock()
         # filter_by: user found, then no existing progress
         db.query.return_value.filter_by.return_value.first.side_effect = [mock_user, None]
-        result = enroll_user(db, user_id=1, specialization_id="LFA_COACH")
+        result = enroll_user(db, user_id=42, specialization_id="LFA_COACH")
         assert result['success'] is True
         db.add.assert_called_once()
         db.commit.assert_called_once()
