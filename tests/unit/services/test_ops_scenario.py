@@ -1920,3 +1920,269 @@ class TestEdgeCaseWorkflows:
         assert task_ids[1] not in ("sync-done", "manual-mode-skipped")
         # Thread.start() called twice (once per dispatch)
         assert MockThread.return_value.start.call_count == 2
+
+
+# ===========================================================================
+# Sprint P16 — State integrity under repeated or concurrent execution
+# ===========================================================================
+
+class TestStateIntegrity:
+    """P16: Data consistency guarantees under re-runs and concurrency.
+
+    Covers:
+      1. Idempotent re-run — second simulation run skips all, no overwrites
+      2. Reward distribution protection — IntegrityError / already-distributed handled
+      3. Session result overwrite protection — game_results immutable once set
+      4. Concurrent finalize simulation — two workers, first succeeds, second rollbacks
+    """
+
+    _FIN_PATH = (
+        "app.services.tournament.results.finalization"
+        ".tournament_finalizer.TournamentFinalizer"
+    )
+
+    # -----------------------------------------------------------------------
+    # 1. Idempotent re-run
+    # -----------------------------------------------------------------------
+
+    def test_idempotent_league_rerun_skips_all_on_second_call(self):
+        """Running _simulate_league_tournament twice is fully idempotent.
+
+        After the first run all sessions have game_results.
+        Second run must return "0 simulated, N skipped" without overwriting
+        any result values.
+        """
+        s1 = _session_mock(participants=[10, 20], game_results=None, round_num=1, match_num=1)
+        s2 = _session_mock(participants=[30, 40], game_results=None, round_num=1, match_num=2)
+
+        db = MagicMock()
+
+        # First run — both sessions simulated
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[s1, s2]), \
+             patch("random.choice", side_effect=["win", True, "win", True]), \
+             patch("random.randint", side_effect=[3, 0, 2, 0]):
+            ok1, msg1 = _simulate_league_tournament(db, 1, _LOG)
+
+        assert ok1 is True
+        assert "2 league sessions simulated" in msg1
+        snapshot_s1 = s1.game_results
+        snapshot_s2 = s2.game_results
+        assert snapshot_s1 is not None
+        assert snapshot_s2 is not None
+
+        # Second run — same sessions, all already done
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[s1, s2]):
+            ok2, msg2 = _simulate_league_tournament(db, 1, _LOG)
+
+        assert ok2 is True
+        assert "0 league sessions simulated" in msg2
+        assert "2 skipped" in msg2
+        # Results must be byte-for-byte unchanged
+        assert s1.game_results == snapshot_s1
+        assert s2.game_results == snapshot_s2
+
+    def test_idempotent_knockout_rerun_skips_all_on_second_call(self):
+        """Running _simulate_knockout_bracket twice is fully idempotent.
+
+        After the first run: all 3 sessions have game_results; final has
+        participant_user_ids populated from R1 advancement.
+        Second run: all sessions skipped (game_results present), no participant
+        list is overwritten (round_winners stays empty → no advancement).
+        """
+        s1 = _session_mock(participants=[1, 2], game_results=None, round_num=1, match_num=1)
+        s2 = _session_mock(participants=[3, 4], game_results=None, round_num=1, match_num=2)
+        final = _session_mock(participants=[], game_results=None, round_num=2, match_num=1, title="Final")
+
+        # First run: 3 sessions simulated
+        with patch("random.choice", side_effect=[1, 3, 1]), \
+             patch("random.randint", side_effect=[3, 0, 2, 0, 4, 1]):
+            sim1, skip1 = _simulate_knockout_bracket(MagicMock(), [s1, s2, final], _LOG)
+
+        assert sim1 == 3
+        assert skip1 == 0
+        snap_s1 = s1.game_results
+        snap_s2 = s2.game_results
+        snap_final = final.game_results
+        snap_final_pax = list(final.participant_user_ids)  # [1, 3] from R1 winners
+
+        # Second run — all have game_results → all skipped, none overwritten
+        sim2, skip2 = _simulate_knockout_bracket(MagicMock(), [s1, s2, final], _LOG)
+
+        assert sim2 == 0
+        assert skip2 == 3
+        assert s1.game_results == snap_s1
+        assert s2.game_results == snap_s2
+        assert final.game_results == snap_final
+        # Participant list of final must not be cleared or re-assigned
+        assert list(final.participant_user_ids) == snap_final_pax
+
+    def test_idempotent_group_knockout_rerun_all_done_returns_ok(self):
+        """Running _simulate_group_knockout_tournament when all sessions are done returns True.
+
+        With every session already having game_results, both group stage and
+        knockout stage are fully skipped. The function must still return ok=True.
+        """
+        gs1 = _session_mock(
+            participants=[10, 20],
+            game_results='{"match_format":"HEAD_TO_HEAD","round_number":1,"participants":[]}',
+            round_num=1, match_num=1,
+        )
+        gs1.tournament_phase = "GROUP_STAGE"
+        gs1.group_identifier = "A"
+
+        ks1 = _session_mock(
+            participants=[10, 20],
+            game_results='{"match_format":"HEAD_TO_HEAD","round_number":1,"participants":[]}',
+            round_num=1, match_num=1,
+        )
+        ks1.tournament_phase = "KNOCKOUT"
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs1, ks1]):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+
+        assert ok is True
+        # Neither session must have been touched
+        assert "HEAD_TO_HEAD" in gs1.game_results
+        assert "HEAD_TO_HEAD" in ks1.game_results
+
+    # -----------------------------------------------------------------------
+    # 2. Reward distribution protection
+    # -----------------------------------------------------------------------
+
+    def test_reward_protection_already_distributed_state_logs_warning(self):
+        """finalize() returns success=False with 'already distributed' message.
+
+        This models a second worker arriving after the first already completed
+        reward distribution. The response success=False must be caught gracefully:
+        warning logged, no exception raised, no rollback called (no DB error).
+        """
+        t = MagicMock()
+        db = _seq_db(_q(first=t))
+        logger = MagicMock()
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.return_value = {
+                "success": False,
+                "message": "Tournament already in REWARDS_DISTRIBUTED state — skipping",
+            }
+            _finalize_tournament_with_rewards(1, db, logger)  # must not raise
+
+        # Must log warning about non-success
+        logger.warning.assert_called()
+        # Must NOT call rollback (no exception occurred)
+        db.rollback.assert_not_called()
+
+    def test_reward_protection_integrity_error_on_duplicate_rewards_rollsback(self):
+        """finalize() raises SQLAlchemy IntegrityError (duplicate reward rows).
+
+        Simulates two workers racing to insert reward rows — the second one
+        hits a unique constraint. Contract: exception caught, rollback called,
+        no uncaught exception propagates.
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        t = MagicMock()
+        db = _seq_db(_q(first=t))
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+            MockFin.return_value.finalize.side_effect = IntegrityError(
+                "INSERT INTO xp_transactions ...",
+                {},
+                Exception("duplicate key value violates unique constraint uq_xp_transactions_user_semester_type"),
+            )
+            _finalize_tournament_with_rewards(1, db, _LOG)  # must not raise
+
+        db.rollback.assert_called_once()
+
+    # -----------------------------------------------------------------------
+    # 3. Session result overwrite protection
+    # -----------------------------------------------------------------------
+
+    def test_overwrite_protection_ir_skips_session_with_existing_results(self):
+        """_simulate_individual_ranking skips sessions where game_results is already set.
+
+        The existing value must not be replaced with new simulation data.
+        """
+        pre_done = _session_mock(
+            participants=[42, 43],
+            game_results='{"original":"result","source":"manual_entry"}',
+        )
+        pre_done.scoring_type = None  # not ROUNDS_BASED → single-round else branch
+
+        tournament = MagicMock()
+        tournament.tournament_config_obj.scoring_type = "SCORE_BASED"
+
+        db = _seq_db(_q(all_=[pre_done]))
+        ok, msg = _simulate_individual_ranking(db, tournament, _LOG)
+
+        assert ok is True
+        assert "1 skipped" in msg
+        # Original manual result must be preserved verbatim
+        assert pre_done.game_results == '{"original":"result","source":"manual_entry"}'
+
+    def test_overwrite_protection_h2h_knockout_skips_session_with_existing_results(self):
+        """_simulate_head_to_head_knockout skips sessions where game_results is already set."""
+        pre_done = _session_mock(
+            participants=[1, 2],
+            game_results='{"match_format":"HEAD_TO_HEAD","round_number":1,"participants":[{"user_id":1,"result":"win"}]}',
+            round_num=1, match_num=1,
+        )
+        original = pre_done.game_results
+
+        db = MagicMock()
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[pre_done]):
+            ok, msg = _simulate_head_to_head_knockout(db, 1, _LOG)
+
+        assert ok is True
+        assert pre_done.game_results == original  # not overwritten
+
+    # -----------------------------------------------------------------------
+    # 4. Concurrent finalize — two-worker sequential simulation
+    # -----------------------------------------------------------------------
+
+    def test_concurrent_finalize_first_worker_succeeds_second_rollbacks(self):
+        """Two workers both call _finalize_tournament_with_rewards on the same tournament.
+
+        Worker A (arrives first): finalize() succeeds → rewards distributed.
+        Worker B (arrives after): finalize() raises IntegrityError (duplicate rows
+        from Worker A's already-committed rewards).
+
+        Contract:
+          - Neither worker raises an uncaught exception
+          - Worker A: no rollback called (success path)
+          - Worker B: rollback called exactly once (exception path)
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        t = MagicMock()
+        db_a = _seq_db(_q(first=t))
+        db_b = _seq_db(_q(first=t))
+        db_a.rollback = MagicMock()
+        db_b.rollback = MagicMock()
+
+        with patch("app.models.semester.Semester"), \
+             patch(self._FIN_PATH) as MockFin:
+
+            # Worker A — succeeds
+            MockFin.return_value.finalize.return_value = {
+                "success": True,
+                "tournament_status": "REWARDS_DISTRIBUTED",
+                "rewards_message": "3 players rewarded",
+            }
+            _finalize_tournament_with_rewards(1, db_a, _LOG)  # must not raise
+
+            # Worker B — arrives after A, hits IntegrityError on duplicate reward rows
+            MockFin.return_value.finalize.side_effect = IntegrityError(
+                "INSERT INTO credit_transactions ...",
+                {},
+                Exception("duplicate key value violates unique constraint ix_credit_transactions_idempotency_key"),
+            )
+            _finalize_tournament_with_rewards(1, db_b, _LOG)  # must not raise
+
+        # Worker A had no exception → no rollback
+        db_a.rollback.assert_not_called()
+        # Worker B hit IntegrityError → rollback called
+        db_b.rollback.assert_called_once()
