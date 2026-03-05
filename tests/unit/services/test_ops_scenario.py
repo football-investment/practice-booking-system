@@ -1298,3 +1298,313 @@ class TestSimulateGroupKnockoutTournament:
         results = {p["user_id"]: p["result"] for p in game["participants"]}
         assert results[10] == "loss"
         assert results[20] == "win"
+
+
+# ===========================================================================
+# Sprint P14 — End-to-end operational workflow tests
+# ===========================================================================
+
+class TestWorkflowSimulationChain:
+    """Tests verifying that simulation functions produce outputs that correctly
+    feed into downstream steps (standings → qualifiers → bracket, sim → rank)."""
+
+    def test_workflow_league_round_robin_3_sessions(self):
+        """3-session round-robin: all sessions completed, all game_results populated.
+
+        Workflow: _simulate_league_tournament processes A-B, A-C, B-C sessions.
+        Each session gets game_results and session_status=completed.
+        """
+        s1 = _session_mock(participants=[1, 2], game_results=None, round_num=1)
+        s2 = _session_mock(participants=[1, 3], game_results=None, round_num=1)
+        s3 = _session_mock(participants=[2, 3], game_results=None, round_num=2)
+        db = MagicMock()
+        # s1: user1 wins, s2: user1 wins, s3: draw
+        # random.choice calls: outcome1, winner_selector1, outcome2, winner_selector2, outcome3
+        # random.randint calls: winner1, loser1, winner2, loser2, draw_score3
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[s1, s2, s3]), \
+             patch("random.choice", side_effect=["win", True, "win", True, "draw"]), \
+             patch("random.randint", side_effect=[3, 1, 2, 0, 2]):
+            ok, msg = _simulate_league_tournament(db, 1, _LOG)
+        assert ok is True
+        assert "3 league sessions simulated" in msg
+        for s in [s1, s2, s3]:
+            assert s.game_results is not None, f"session {s.id} missing game_results"
+            assert s.session_status == "completed"
+        # s1: user1 won
+        g1 = json.loads(s1.game_results)
+        r1 = {p["user_id"]: p["result"] for p in g1["participants"]}
+        assert r1[1] == "win" and r1[2] == "loss"
+        # s3: draw
+        g3 = json.loads(s3.game_results)
+        r3 = {p["user_id"]: p["result"] for p in g3["participants"]}
+        assert r3[2] == "draw" and r3[3] == "draw"
+        db.commit.assert_called()
+
+    def test_workflow_group_knockout_qualifiers_fill_bracket(self):
+        """Full GROUP+KNOCKOUT pipeline: group stage → standings → qualifier seeding → knockout.
+
+        Workflow:
+          PHASE 1: Simulate group A (4 sessions, 2 per group: gs1=[10,20], gs2=[30,40])
+          PHASE 2: Calculate group standings (10 and 30 win → rank 1 each)
+          PHASE 3: Seed qualifiers to knockout R1 bracket ([10,30] → ks1)
+          PHASE 4: Simulate knockout session → ks1 gets game_results
+        """
+        # Group A: two sessions (1v2 and 3v4)
+        gs1 = _session_mock(participants=[10, 20], game_results=None, round_num=1, match_num=1)
+        gs1.tournament_phase = "GROUP_STAGE"
+        gs1.group_identifier = "A"
+        gs2 = _session_mock(participants=[30, 40], game_results=None, round_num=1, match_num=2)
+        gs2.tournament_phase = "GROUP_STAGE"
+        gs2.group_identifier = "A"
+        # Knockout R1 session: empty participants, needs qualifier assignment
+        ks1 = _session_mock(participants=[], game_results=None, round_num=1, match_num=1)
+        ks1.tournament_phase = "KNOCKOUT"
+
+        db = MagicMock()
+        # Deterministic random:
+        #   gs1: outcome="win", winner_score=3, user10_wins=True, loser_score=1
+        #   gs2: outcome="win", winner_score=2, user30_wins=True, loser_score=0
+        #   ks1 (after qualifier assignment [10,30]): winner=10, ko_winner_score=2, ko_loser_score=0
+        with patch(f"{_BASE}._get_tournament_sessions", return_value=[gs1, gs2, ks1]), \
+             patch("random.choice", side_effect=["win", True, "win", True, 10]), \
+             patch("random.randint", side_effect=[3, 1, 2, 0, 2, 0]):
+            ok, msg = _simulate_group_knockout_tournament(db, 1, _LOG)
+
+        assert ok is True
+        # Group sessions were simulated
+        assert gs1.game_results is not None
+        assert gs2.game_results is not None
+        # Qualifiers correctly seeded into knockout bracket (PHASE 3 contract)
+        assert ks1.participant_user_ids == [10, 30], (
+            f"Expected [10, 30] in knockout bracket, got {ks1.participant_user_ids}"
+        )
+        # Knockout session was also simulated (PHASE 4 contract)
+        assert ks1.game_results is not None
+        assert ks1.session_status == "completed"
+        # Summary message reflects both phases
+        assert "group=2" in msg
+        assert "knockout=1" in msg
+
+    def test_workflow_rounds_based_sim_feeds_ir_ranking(self):
+        """ROUNDS_BASED simulation produces rounds_data → _calculate_ir_rankings ranks both players.
+
+        Workflow:
+          1. _simulate_individual_ranking sets session.rounds_data with per-user scores
+          2. _calculate_ir_rankings reads rounds_data and returns ranked list
+        """
+        s = _session_mock(participants=[10, 20], game_results=None)
+        s.scoring_type = "ROUNDS_BASED"
+        s.rounds_data = {"total_rounds": 1, "completed_rounds": 0}
+        s.structure_config = None
+
+        db = _seq_db(_q(all_=[s]))
+        tournament = MagicMock()
+        tournament.id = 1
+        tournament.tournament_config_obj = MagicMock()
+        tournament.tournament_config_obj.scoring_type = "SCORE_BASED"
+        tournament.tournament_config_obj.ranking_direction = "DESC"
+
+        # Step 1: simulate
+        with patch("sqlalchemy.orm.attributes.flag_modified"):
+            ok, msg = _simulate_individual_ranking(db, tournament, _LOG)
+
+        assert ok is True
+        assert "1 sessions simulated" in msg
+        # rounds_data was updated with per-user results
+        assert isinstance(s.rounds_data, dict)
+        assert "round_results" in s.rounds_data
+        assert "1" in s.rounds_data["round_results"]
+        round_results = s.rounds_data["round_results"]["1"]
+        assert "10" in round_results and "20" in round_results
+
+        # Step 2: rank — uses the rounds_data produced by step 1
+        rankings = _calculate_ir_rankings(tournament, [s], _LOG)
+        assert len(rankings) == 2
+        user_ids_ranked = {r["user_id"] for r in rankings}
+        assert user_ids_ranked == {10, 20}
+        ranks = sorted(r["rank"] for r in rankings)
+        assert ranks == [1, 2]
+
+    def test_workflow_knockout_3rd_place_playoff(self):
+        """Semi-final losers are assigned to 3rd-place playoff → both sessions simulated.
+
+        Workflow: _simulate_knockout_bracket with 4 sessions:
+          R1: [1,2] and [3,4] → winners advance to final, losers to 3rd-place
+          R2: final (empty) + "3rd Place" session (empty)
+        After simulation: final and playoff both have game_results + participants.
+        """
+        r1s1 = _session_mock(participants=[1, 2], round_num=1, match_num=1, title="SF1")
+        r1s2 = _session_mock(participants=[3, 4], round_num=1, match_num=2, title="SF2")
+        r2_final = _session_mock(participants=[], round_num=2, match_num=1, title="Final")
+        r2_playoff = _session_mock(participants=[], round_num=2, match_num=2, title="3rd Place")
+
+        simulated, skipped = _simulate_knockout_bracket(MagicMock(), [r1s1, r1s2, r2_final, r2_playoff], _LOG)
+
+        assert simulated == 4  # R1×2 + R2_final + R2_playoff
+        assert skipped == 0
+        # Final got the 2 winners
+        assert len(r2_final.participant_user_ids) == 2
+        for uid in r2_final.participant_user_ids:
+            assert uid in [1, 2, 3, 4]
+        # Playoff got the 2 losers
+        assert len(r2_playoff.participant_user_ids) == 2
+        for uid in r2_playoff.participant_user_ids:
+            assert uid in [1, 2, 3, 4]
+        # Winners and losers must be disjoint sets
+        assert set(r2_final.participant_user_ids).isdisjoint(set(r2_playoff.participant_user_ids))
+        # Both R2 sessions were simulated
+        assert r2_final.game_results is not None
+        assert r2_playoff.game_results is not None
+
+
+_COMMON_PATCHES = [
+    "app.models.semester.Semester",
+    "app.models.semester.SemesterStatus",
+    "app.models.tournament_configuration.TournamentConfiguration",
+    "app.models.tournament_reward_config.TournamentRewardConfig",
+    "app.models.tournament_achievement.TournamentSkillMapping",
+    "app.models.campus.Campus",
+    "app.models.campus_schedule_config.CampusScheduleConfig",
+    "app.services.audit_service.AuditService",
+    "app.models.audit_log.AuditAction",
+    "app.models.session.Session",
+    "app.models.semester_enrollment.SemesterEnrollment",
+    "app.models.semester_enrollment.EnrollmentStatus",
+    "app.models.license.UserLicense",
+]
+
+
+class TestWorkflowFullOpsScenario:
+    """End-to-end endpoint workflow tests verifying the full operational lifecycle."""
+
+    def test_workflow_3_players_all_enrolled(self):
+        """player_count=3 with 3 seed users → all 3 enrolled (multi-player enrollment loop).
+
+        Workflow: seed pool query → enrollment loop × 3 (enroll_check + lic_check each)
+        → campus validation → session count.
+        """
+        mock_tournament = MagicMock()
+        mock_tournament.id = 99
+        rows = [MagicMock(id=i, name=f"P{i}", email=f"p{i}@lfa-seed.hu") for i in [10, 20, 30]]
+        campus_row = MagicMock()
+        campus_row.id = 1
+        lic_mock = MagicMock()
+
+        db = _seq_db(
+            _q(all_=rows),         # q0: seed pool → 3 users
+            _q(first=None),        # q1: grandmaster
+            _q(first=None),        # q2: enroll check p1 → not enrolled
+            _q(first=lic_mock),    # q3: lic check p1 → has license
+            _q(first=None),        # q4: enroll check p2
+            _q(first=lic_mock),    # q5: lic check p2
+            _q(first=None),        # q6: enroll check p3
+            _q(first=lic_mock),    # q7: lic check p3
+            _q(all_=[campus_row]), # q8: campus validation
+            _q(first=None),        # q9: CampusScheduleConfig
+            _q(count=0),           # q10: session count
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.license.UserLicense"):
+            MockSem.return_value = mock_tournament
+            result = run_ops_scenario(
+                _req(player_count=3, player_ids=None,
+                     auto_generate_sessions=False, campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.triggered is True
+        assert result.enrolled_count == 3
+
+    def test_workflow_real_sim_dispatch_ir(self):
+        """Full endpoint: _simulate_tournament_results NOT mocked → IR dispatch verified.
+
+        Workflow:
+          seed→enroll(0)→generate(TSG mock)→_simulate_tournament_results(real, IR format)
+          →_simulate_individual_ranking(real, SCORE_BASED, ResultProcessor mocked)
+          →_calculate_ir_rankings(real, empty rounds_data → empty rankings)
+          →_finalize_tournament_with_rewards (mocked)
+        """
+        mock_tournament = MagicMock()
+        mock_tournament.id = 11
+        campus_row = MagicMock()
+        campus_row.id = 1
+
+        # Session TSG "generates": 1 participant, SCORE_BASED — gets simulated
+        sim_session = _session_mock(participants=[42], game_results=None)
+        sim_session.tournament_phase = None   # no phases → IR dispatch
+        sim_session.scoring_type = None       # not ROUNDS_BASED → single-round path
+
+        # Tournament objects for _simulate_tournament_results dispatch query
+        mock_t_dispatch = MagicMock()
+        mock_t_dispatch.format = "INDIVIDUAL_RANKING"
+        mock_t_dispatch.tournament_config_obj = MagicMock()
+        mock_t_dispatch.tournament_config_obj.scoring_type = "SCORE_BASED"
+
+        # Tournament for ranking re-query
+        mock_t2 = MagicMock()
+        mock_t2.format = "INDIVIDUAL_RANKING"
+        mock_t2.tournament_config_obj = None  # → empty rankings (no rounds_data)
+
+        db = _seq_db(
+            _q(first=None),              # q0: grandmaster
+            _q(all_=[campus_row]),       # q1: campus validation
+            _q(first=None),              # q2: CampusScheduleConfig
+            _q(all_=[]),                 # q3: SE enrolled_user_ids (sync path)
+            # _simulate_tournament_results runs (real):
+            _q(first=mock_t_dispatch),   # q4: tournament format query
+            _q(all_=[sim_session]),      # q5: _get_tournament_sessions (phase detection)
+            # _simulate_individual_ranking runs (real):
+            _q(all_=[sim_session]),      # q6: sessions in _simulate_individual_ranking
+            # Ranking calculation:
+            _q(first=mock_t2),           # q7: tournament re-query for ranking
+            _q(all_=[sim_session]),      # q8: _get_tournament_sessions for ranking
+            _q(),                        # q9: TournamentRanking.filter().delete()
+            _q(count=0),                 # q10: final session count
+        )
+
+        with patch("app.models.semester.Semester") as MockSem, \
+             patch("app.models.semester.SemesterStatus"), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.tournament_achievement.TournamentSkillMapping"), \
+             patch("app.models.campus.Campus"), \
+             patch("app.models.campus_schedule_config.CampusScheduleConfig"), \
+             patch("app.services.audit_service.AuditService"), \
+             patch("app.models.audit_log.AuditAction"), \
+             patch("app.models.session.Session"), \
+             patch("app.models.semester_enrollment.SemesterEnrollment"), \
+             patch("app.models.semester_enrollment.EnrollmentStatus"), \
+             patch("app.models.tournament_ranking.TournamentRanking"), \
+             patch("app.services.tournament.result_processor.ResultProcessor"), \
+             patch(
+                 "app.services.tournament.session_generation"
+                 ".session_generator.TournamentSessionGenerator"
+             ) as MockTSG, \
+             patch(f"{_BASE}._finalize_tournament_with_rewards") as mock_fin:
+            MockSem.return_value = mock_tournament
+            MockTSG.return_value.generate_sessions.return_value = (True, "1 session", [sim_session])
+
+            result = run_ops_scenario(
+                _req(player_count=0, auto_generate_sessions=True,
+                     simulation_mode="auto_immediate", campus_ids=[1]),
+                db=db, current_user=_admin()
+            )
+
+        assert result.triggered is True
+        assert result.task_id == "sync-done"
+        # _finalize_tournament_with_rewards was called — full lifecycle completed
+        mock_fin.assert_called_once()
+        # The TSG-generated session was passed into the real sim dispatch
+        MockTSG.return_value.generate_sessions.assert_called_once()
