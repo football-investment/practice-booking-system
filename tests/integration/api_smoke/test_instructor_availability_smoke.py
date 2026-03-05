@@ -253,7 +253,7 @@ class TestInstructoravailabilitySmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
@@ -266,5 +266,155 @@ class TestInstructoravailabilitySmoke:
         assert response.status_code in [400, 401, 403, 404, 422], (
             f"POST /bulk-upsert should validate input: {response.status_code}"
         )
-        
 
+
+
+class TestInstructorAvailabilityEdgeCases:
+    """
+    Phase 4 — Edge case / boundary value tests for instructor_availability endpoints.
+    Focus: POST / (InstructorAvailabilityCreate) field validators.
+    Schema constraints:
+      year: ge=2024, le=2100
+      time_period_code: Q1-Q4 or M01-M12 (regex validator)
+      specialization_type: LFA_PLAYER_PRE | LFA_PLAYER_YOUTH | LFA_PLAYER_AMATEUR | LFA_PLAYER_PRO
+    """
+
+    _VALID_PAYLOAD = {
+        "instructor_id": 9999,
+        "specialization_type": "LFA_PLAYER_YOUTH",
+        "time_period_code": "Q2",
+        "year": 2026,
+    }
+
+    # ── year boundary ─────────────────────────────────────────────────────
+
+    def test_create_availability_year_below_min_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: year has ge=2024 constraint. 2023 violates it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {**self._VALID_PAYLOAD, "year": 2023}
+        response = api_client.post("/", json=payload, headers=headers)
+        assert response.status_code == 422, (
+            f"year=2023 must violate ge=2024 constraint (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_create_availability_year_above_max_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: year has le=2100 constraint. 2101 violates it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {**self._VALID_PAYLOAD, "year": 2101}
+        response = api_client.post("/", json=payload, headers=headers)
+        assert response.status_code == 422, (
+            f"year=2101 must violate le=2100 constraint (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_create_availability_year_boundary_values_accepted(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: exact boundary years 2024 and 2100 are schema-valid.
+        Endpoint may return 404 (instructor not found) — never 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        for boundary_year in [2024, 2100]:
+            payload = {**self._VALID_PAYLOAD, "year": boundary_year}
+            response = api_client.post("/", json=payload, headers=headers)
+            assert response.status_code != 422, (
+                f"Boundary year={boundary_year} must not produce 422, "
+                f"got {response.status_code}: {response.text[:200]}"
+            )
+
+    # ── time_period_code validator ─────────────────────────────────────────
+
+    def test_create_availability_invalid_time_period_code_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: time_period_code must match Q1-Q4 or M01-M12 regex.
+        Invalid value → Pydantic validator raises ValueError → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {**self._VALID_PAYLOAD, "time_period_code": "INVALID"}
+        response = api_client.post("/", json=payload, headers=headers)
+        assert response.status_code == 422, (
+            f"Invalid time_period_code must be 422, "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_create_availability_all_valid_time_periods_accepted(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: all Q1-Q4 values must pass schema validation (endpoint may 404).
+        Monthly M01-M12 not tested exhaustively but pattern coverage via Q variants.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        for period in ["Q1", "Q2", "Q3", "Q4"]:
+            payload = {**self._VALID_PAYLOAD, "time_period_code": period}
+            response = api_client.post("/", json=payload, headers=headers)
+            assert response.status_code != 422, (
+                f"Valid time_period_code='{period}' must not produce 422, "
+                f"got {response.status_code}: {response.text[:200]}"
+            )
+
+    # ── specialization_type validator ─────────────────────────────────────
+
+    def test_create_availability_invalid_specialization_type_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: specialization_type must be one of 4 valid values.
+        Invalid value → Pydantic validator raises ValueError → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {**self._VALID_PAYLOAD, "specialization_type": "NOT_A_REAL_SPEC"}
+        response = api_client.post("/", json=payload, headers=headers)
+        assert response.status_code == 422, (
+            f"Invalid specialization_type must be 422, "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_create_availability_all_valid_specialization_types_accepted(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: every valid specialization_type must pass schema validation (endpoint may 404).
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        valid_specs = [
+            "LFA_PLAYER_PRE",
+            "LFA_PLAYER_YOUTH",
+            "LFA_PLAYER_AMATEUR",
+            "LFA_PLAYER_PRO",
+        ]
+        for spec in valid_specs:
+            payload = {**self._VALID_PAYLOAD, "specialization_type": spec}
+            response = api_client.post("/", json=payload, headers=headers)
+            assert response.status_code != 422, (
+                f"Valid specialization_type='{spec}' must not produce 422, "
+                f"got {response.status_code}: {response.text[:200]}"
+            )
+
+    # ── missing required fields ────────────────────────────────────────────
+
+    def test_create_availability_empty_body_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: all fields in InstructorAvailabilityCreate are required.
+        Empty body → Pydantic reports all as missing → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post("/", json={}, headers=headers)
+        assert response.status_code == 422, (
+            f"Empty body must be 422 (all fields required), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )

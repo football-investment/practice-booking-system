@@ -348,7 +348,7 @@ class TestLfaplayerSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.put(
@@ -361,5 +361,121 @@ class TestLfaplayerSmoke:
         assert response.status_code in [400, 401, 403, 404, 422], (
             f"PUT /licenses/{license_id}/skills should validate input: {response.status_code}"
         )
-        
 
+
+
+class TestLfaPlayerEdgeCases:
+    """
+    Phase 4 — Edge case / boundary value tests for lfa_player endpoints.
+    Focus: SkillUpdate.new_avg (ge=0, le=100) and CreditPurchase.amount (gt=0).
+    Uses concrete integer path params (99999) so body validation is reached.
+    """
+
+    # ── PUT /licenses/{license_id}/skills — new_avg boundary ──────────────
+
+    def test_update_skill_new_avg_below_zero_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: new_avg has ge=0 constraint. -1.0 violates it → 422.
+        Path param 99999 is a valid integer, so body validation is reached.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.put(
+            "/licenses/99999/skills",
+            json={"skill_name": "passing", "new_avg": -1.0},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"new_avg=-1.0 must violate ge=0 constraint (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_update_skill_new_avg_above_100_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: new_avg has le=100 constraint. 101.0 violates it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.put(
+            "/licenses/99999/skills",
+            json={"skill_name": "passing", "new_avg": 101.0},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"new_avg=101.0 must violate le=100 constraint (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_update_skill_missing_skill_name_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: skill_name is required. Omitting it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.put(
+            "/licenses/99999/skills",
+            json={"new_avg": 75.0},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"Missing required skill_name must be 422, "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_update_skill_new_avg_boundary_values_accepted(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: exact boundary values 0.0 and 100.0 are schema-valid.
+        Endpoint may return 404 (license not found) — never 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        for boundary_val in [0.0, 100.0]:
+            response = api_client.put(
+                "/licenses/99999/skills",
+                json={"skill_name": "passing", "new_avg": boundary_val},
+                headers=headers,
+            )
+            assert response.status_code != 422, (
+                f"Boundary new_avg={boundary_val} must not produce 422, "
+                f"got {response.status_code}: {response.text[:200]}"
+            )
+
+    # ── POST /credits/purchase — amount boundary ───────────────────────────
+
+    def test_purchase_credits_zero_amount_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: amount has gt=0 constraint (strictly greater). 0 violates it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            "/credits/purchase",
+            json={"amount": 0, "payment_verified": False},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"amount=0 must violate gt=0 constraint (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_purchase_credits_negative_amount_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: amount has gt=0 constraint. Negative value violates it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            "/credits/purchase",
+            json={"amount": -5, "payment_verified": False},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"amount=-5 must violate gt=0 constraint (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )

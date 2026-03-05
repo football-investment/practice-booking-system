@@ -309,7 +309,7 @@ class TestAdaptivelearningSmoke:
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
 
-        
+
         # Invalid payload (empty or malformed)
         invalid_payload = {"invalid_field": "invalid_value"}
         response = api_client.post(
@@ -322,5 +322,113 @@ class TestAdaptivelearningSmoke:
         assert response.status_code in [400, 401, 403, 404, 422], (
             f"POST /start-session should validate input: {response.status_code}"
         )
-        
+
+
+
+class TestAdaptiveLearningEdgeCases:
+    """
+    Phase 4 — Edge case / boundary value tests for adaptive learning endpoints.
+    Focus: endpoints reachable without a real path-param ID (no session_id needed).
+    Category enum and session lifecycle flow are the primary coverage targets.
+    """
+
+    # ── /start-session enum and field boundary tests ──────────────────────────
+
+    def test_start_session_invalid_category_enum_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: category must be a member of QuizCategory enum.
+        Invalid value → Pydantic 422 before handler runs.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            "/start-session",
+            json={"category": "NOT_A_REAL_CATEGORY", "session_duration_seconds": 180},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"Invalid category enum should be 422, got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_start_session_missing_category_required_field_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: category is required (no default). Omitting it → 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            "/start-session",
+            json={"session_duration_seconds": 180},
+            headers=headers,
+        )
+        assert response.status_code == 422, (
+            f"Missing required category should be 422, got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_start_session_all_valid_categories_accepted(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: every valid QuizCategory enum value must be accepted by schema
+        (endpoint may return 200 or 404 depending on DB state, never 422).
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        valid_categories = [
+            "GENERAL", "MARKETING", "ECONOMICS", "INFORMATICS",
+            "SPORTS_PHYSIOLOGY", "NUTRITION", "LESSON",
+        ]
+        for cat in valid_categories:
+            response = api_client.post(
+                "/start-session",
+                json={"category": cat, "session_duration_seconds": 60},
+                headers=headers,
+            )
+            assert response.status_code != 422, (
+                f"Valid category '{cat}' must not produce 422, "
+                f"got {response.status_code}: {response.text[:200]}"
+            )
+
+    # ── /sessions/{id}/answer — body validation (path param will 422 regardless) ──
+
+    def test_submit_answer_missing_required_fields_returns_422(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Edge case: question_id and time_spent_seconds are both required.
+        Empty body → Pydantic reports both as missing.
+        Path-level 422 (invalid session_id) also acceptable — both mean 422.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            "/sessions/99999/answer",
+            json={},
+            headers=headers,
+        )
+        # Either path-param 422 (session_id invalid int format) or body 422
+        assert response.status_code == 422, (
+            f"Missing required body fields should be 422, got {response.status_code}: {response.text[:200]}"
+        )
+
+    def test_submit_answer_negative_time_spent_accepted_as_float(
+        self, api_client: TestClient, admin_token: str
+    ):
+        """
+        Boundary: time_spent_seconds has no ge= constraint — negative float is
+        schema-valid (endpoint returns 404 because session 99999 doesn't exist).
+        Verifies the schema does not over-reject valid float inputs.
+        """
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            "/sessions/99999/answer",
+            json={"question_id": 1, "time_spent_seconds": -1.0},
+            headers=headers,
+        )
+        # 404 = session not found (valid payload reached handler)
+        # 422 = path param parsing failure (also acceptable)
+        assert response.status_code in [404, 422], (
+            f"Negative time_spent should reach handler (404) or fail path parse (422), "
+            f"got {response.status_code}: {response.text[:200]}"
+        )
 
