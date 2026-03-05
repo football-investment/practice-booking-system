@@ -76,13 +76,13 @@ jobs:
           --cov-branch \
           --cov-append
 
-    - name: Enforce coverage thresholds (stmt >= 60%, branch >= 55%)
+    - name: Enforce coverage thresholds (stmt >= 62%, combined >= 57%)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         python -m coverage xml -o coverage.xml
-        python -m coverage report --show-missing --fail-under=55
+        python -m coverage report --show-missing --fail-under=57
         python .github/scripts/check_coverage.py
 
     - name: Upload coverage report
