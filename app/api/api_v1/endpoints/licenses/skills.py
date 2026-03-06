@@ -1,6 +1,7 @@
 """
 Football skills assessment endpoints
 """
+from datetime import datetime, timezone
 from typing import Any, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -9,6 +10,8 @@ from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....models.license import UserLicense
+from .....models.audit_log import AuditAction
+from .....services.audit_service import AuditService
 
 router = APIRouter()
 
@@ -154,7 +157,7 @@ async def update_football_skills(
     # Log audit
     audit_service = AuditService(db)
     audit_service.log(
-        action=AuditAction.UPDATE,
+        action=AuditAction.USER_UPDATED,
         user_id=current_user.id,
         resource_type="football_skills",
         resource_id=license_id,
