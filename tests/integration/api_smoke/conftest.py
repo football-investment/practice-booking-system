@@ -106,8 +106,12 @@ _DOMAIN_PREFIX_MAP: dict[str, str] = {
     "licenses":              "/api/v1/licenses",
     "locations":             "/api/v1/admin/locations",
     "messages":              "/api/v1/messages",
-    "milestones":            "/api/v1/projects",            # POST /projects/{id}/milestones/{id}/...
-    "quiz_attempts":         "/api/v1/quizzes",             # POST /quizzes/start, POST /quizzes/submit
+    "assignment_requests":   "/api/v1/instructor-assignments",  # CRUD for assignment requests
+    "license_skills":        "/api/v1/licenses",               # GET/PUT football skills
+    "milestones":            "/api/v1/projects",               # POST /projects/{id}/milestones/{id}/...
+    "positions":             "/api/v1/instructor-management",  # CRUD for positions
+    "project_quizzes":       "/api/v1/projects",               # POST/GET/DELETE project quizzes
+    "quiz_attempts":         "/api/v1/quizzes",                # POST /quizzes/start, POST /quizzes/submit
     "motivation":            "/api/v1/licenses",       # /api/v1/licenses/motivation-assessment
     "notifications":         "/api/v1/notifications",
     "onboarding":            "",                       # Streamlit UI routes (no /api/v1/)
@@ -117,7 +121,7 @@ _DOMAIN_PREFIX_MAP: dict[str, str] = {
     "profile":               "",                       # Streamlit UI route (/profile)
     "progression":           "/api/v1/progression",
     "projects":              "/api/v1/projects",
-    "public_profile":        "/api/v1/public",
+    "public_profile":        "/api/v1/users",          # GET /users/{id}/profile/{type}
     "quiz":                  "/api/v1/quizzes",
     "reports":               "/api/v1/reports",
     "sandbox":               "/api/v1/sandbox",
