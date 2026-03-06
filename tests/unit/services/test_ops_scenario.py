@@ -1404,8 +1404,9 @@ class TestWorkflowSimulationChain:
         tournament.tournament_config_obj.scoring_type = "SCORE_BASED"
         tournament.tournament_config_obj.ranking_direction = "DESC"
 
-        # Step 1: simulate
-        with patch("sqlalchemy.orm.attributes.flag_modified"):
+        # Step 1: simulate — pin randint so user 10 scores 85, user 20 scores 60 (no tie)
+        with patch("sqlalchemy.orm.attributes.flag_modified"), \
+             patch("random.randint", side_effect=[85, 60]):
             ok, msg = _simulate_individual_ranking(db, tournament, _LOG)
 
         assert ok is True
