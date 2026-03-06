@@ -109,6 +109,7 @@ _DOMAIN_PREFIX_MAP: dict[str, str] = {
     "assignment_requests":   "/api/v1/instructor-assignments",  # CRUD for assignment requests
     "license_skills":        "/api/v1/licenses",               # GET/PUT football skills
     "milestones":            "/api/v1/projects",               # POST /projects/{id}/milestones/{id}/...
+    "masters":               "/api/v1/instructor-management",  # /masters/* sub-routes
     "positions":             "/api/v1/instructor-management",  # CRUD for positions
     "project_quizzes":       "/api/v1/projects",               # POST/GET/DELETE project quizzes
     "quiz_attempts":         "/api/v1/quizzes",                # POST /quizzes/start, POST /quizzes/submit
