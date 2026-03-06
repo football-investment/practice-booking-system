@@ -28,6 +28,7 @@ from app.api.api_v1.endpoints.payment_verification import (
     add_student_specialization,
     remove_student_specialization,
     get_student_payment_status,
+    get_students_payment_status,
     PaymentVerificationRequest,
     SpecializationRequest,
 )
@@ -349,3 +350,151 @@ class TestGetStudentPaymentStatus:
             request=MagicMock(), student_id=42, db=db, current_user=_admin(),
         ))
         assert result["payment_verifier_name"] == "Admin User"
+
+
+# ── get_students_payment_status (GET /students) ───────────────────────────────
+
+class TestGetStudentsPaymentStatus:
+
+    def test_returns_list(self):
+        s = _student()
+        db = MagicMock()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.all.return_value = [s]
+        db.query.return_value = q
+        result = _run(get_students_payment_status(
+            request=MagicMock(), db=db, current_user=_admin(),
+        ))
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+    def test_returns_empty_list_when_no_students(self):
+        db = MagicMock()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.all.return_value = []
+        db.query.return_value = q
+        result = _run(get_students_payment_status(
+            request=MagicMock(), db=db, current_user=_admin(),
+        ))
+        assert result == []
+
+    def test_each_entry_has_id_and_email(self):
+        s = _student()
+        db = MagicMock()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.all.return_value = [s]
+        db.query.return_value = q
+        result = _run(get_students_payment_status(
+            request=MagicMock(), db=db, current_user=_admin(),
+        ))
+        entry = result[0]
+        assert "id" in entry
+        assert "email" in entry
+        assert "payment_verified" in entry
+
+
+# ── remove_student_specialization ─────────────────────────────────────────────
+
+class TestRemoveStudentSpecialization:
+
+    def _make_remove_db(self, student=None, license_to_remove=None, remaining=None):
+        """
+        Build db for remove path:
+          query(User).filter().first()       → student
+          query(UserLicense).filter().first() → license_to_remove
+          query(UserLicense).filter().all()   → remaining (for remaining_licenses check)
+        """
+        from app.models.license import UserLicense
+        db = MagicMock()
+
+        user_q = MagicMock()
+        user_q.filter.return_value = user_q
+        user_q.first.return_value  = student
+
+        lic_q = MagicMock()
+        lic_q.filter.return_value = lic_q
+        lic_q.first.return_value  = license_to_remove
+        lic_q.all.return_value    = remaining or []
+
+        db.query.side_effect = lambda model: user_q if model is User else lic_q
+        return db
+
+    def test_raises_404_when_student_not_found(self):
+        db = self._make_remove_db(student=None)
+        req = SpecializationRequest(specialization_type="LFA_COACH")
+        with pytest.raises(HTTPException) as exc:
+            _run(remove_student_specialization(
+                request=MagicMock(), student_id=99, spec_request=req,
+                db=db, current_user=_admin(),
+            ))
+        assert exc.value.status_code == 404
+
+    def test_raises_400_for_invalid_specialization(self):
+        db = self._make_remove_db(student=_student())
+        req = SpecializationRequest(specialization_type="INVALID_SPEC")
+        with pytest.raises(HTTPException) as exc:
+            _run(remove_student_specialization(
+                request=MagicMock(), student_id=42, spec_request=req,
+                db=db, current_user=_admin(),
+            ))
+        assert exc.value.status_code == 400
+
+    def test_raises_404_when_license_not_found(self):
+        db = self._make_remove_db(student=_student(), license_to_remove=None)
+        req = SpecializationRequest(specialization_type="LFA_COACH")
+        with pytest.raises(HTTPException) as exc:
+            _run(remove_student_specialization(
+                request=MagicMock(), student_id=42, spec_request=req,
+                db=db, current_user=_admin(),
+            ))
+        assert exc.value.status_code == 404
+
+    def test_happy_path_returns_success(self):
+        s = _student()
+        s.specialization   = SpecializationType.LFA_COACH
+        s.payment_verified = True
+        lic = MagicMock()
+        lic.specialization_type = "LFA_COACH"
+        # One remaining license after removal
+        remaining = [MagicMock()]
+        remaining[0].specialization_type = "LFA_FOOTBALL_PLAYER"
+        db = self._make_remove_db(student=s, license_to_remove=lic, remaining=remaining)
+        req = SpecializationRequest(specialization_type="LFA_COACH")
+        result = _run(remove_student_specialization(
+            request=MagicMock(), student_id=42, spec_request=req,
+            db=db, current_user=_admin(),
+        ))
+        assert result["success"] is True
+        assert result["specialization_removed"] == "LFA_COACH"
+
+    def test_unverifies_payment_when_no_licenses_remain(self):
+        s = _student()
+        s.specialization   = SpecializationType.LFA_COACH
+        s.payment_verified = True
+        lic = MagicMock()
+        lic.specialization_type = "LFA_COACH"
+        db = self._make_remove_db(student=s, license_to_remove=lic, remaining=[])
+        req = SpecializationRequest(specialization_type="LFA_COACH")
+        _run(remove_student_specialization(
+            request=MagicMock(), student_id=42, spec_request=req,
+            db=db, current_user=_admin(),
+        ))
+        s.unverify_payment.assert_called_once()
+
+    def test_db_delete_called_on_license(self):
+        s = _student()
+        s.specialization   = SpecializationType.LFA_COACH
+        s.payment_verified = True
+        lic = MagicMock()
+        lic.specialization_type = "LFA_COACH"
+        db = self._make_remove_db(student=s, license_to_remove=lic, remaining=[])
+        req = SpecializationRequest(specialization_type="LFA_COACH")
+        _run(remove_student_specialization(
+            request=MagicMock(), student_id=42, spec_request=req,
+            db=db, current_user=_admin(),
+        ))
+        db.delete.assert_called_once_with(lic)
+        db.commit.assert_called_once()
