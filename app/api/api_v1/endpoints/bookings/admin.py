@@ -56,10 +56,15 @@ def get_all_bookings(
     bookings = query.offset(offset).limit(size).all()
 
     # Convert to response schema
+    # Exclude SQLAlchemy relationship keys from __dict__ before spreading —
+    # joinedload populates 'user' and 'session' into __dict__, which would
+    # cause "got multiple values for keyword argument" when also passed explicitly.
     booking_responses = []
+    _skip = {'_sa_instance_state', 'user', 'session', 'attendance'}
     for booking in bookings:
+        base = {k: v for k, v in booking.__dict__.items() if k not in _skip}
         booking_responses.append(BookingWithRelations(
-            **booking.__dict__,
+            **base,
             user=booking.user,
             session=booking.session
         ))
