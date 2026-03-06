@@ -855,3 +855,647 @@ class TestGetTournamentSessionsDebug:
             get_tournament_sessions_debug(1, db=db, current_user=_user())
         assert exc.value.status_code == 500
         assert "Unexpected DB error" in exc.value.detail
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# get_tournament_leaderboard — gap tests (Sprint 22)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestGetTournamentLeaderboardGaps:
+    """
+    Gap-fill tests targeting remaining uncovered branches in get_tournament_leaderboard.
+
+    Targets (instructor.py):
+      lines 450-451   — group session: invalid JSON string → JSONDecodeError → continue
+      lines 456-457   — group session: list-format results (old format)
+      line  459       — group session: non-dict/str/list → else: continue
+      line  570 FALSE — knockout not all complete → final_standings=None
+      lines 606-608   — final: p2 wins
+      lines 609-612   — final: tie → first player champion
+      lines 619-642   — bronze match determines 3rd/4th place
+      lines 673-689   — 3rd / 4th place final_standings entries
+      line  726       — rounds_data stored as JSON string → parsed
+      line  730 FALSE — empty round_results → skip live calculation
+      lines 748-749   — invalid value string → ValueError → 0.0
+      line  770       — ROUNDS_BASED scoring
+      line  774       — else/default scoring
+      line  837 FALSE — empty round_scores → skip winner determination
+      lines 929-930   — knockout bracket: p2 wins
+    """
+
+    # ── Group session result format edge cases ─────────────────────────────────
+
+    def test_group_session_invalid_json_string_skipped(self):
+        """game_results is a non-parseable JSON string → JSONDecodeError → continue."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        group_sess = _session(
+            1, game_results="not-json{bad",
+            participant_user_ids=[42, 43],
+            group_identifier="A", phase="GROUP_STAGE",
+        )
+        db = _seq_db(
+            _q(first=tourn),        # q0: tournament
+            _q(all_=[group_sess]),  # q1: group sessions
+            _q(first=user42),       # q2: user42 for standings
+            _q(first=user43),       # q3: user43 for standings
+            _q(all_=[]),            # q4: knockout sessions (group branch)
+            _q(first=None),         # q5: individual session
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        standings = result["group_standings"]["A"]
+        for player in standings:
+            assert player["wins"] == 0
+            assert player["losses"] == 0
+
+    def test_group_session_list_format_results(self):
+        """game_results is a Python list (old format) → elif isinstance(results, list) branch."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        game_res = [{"user_id": 42, "score": 3}, {"user_id": 43, "score": 1}]
+        group_sess = _session(
+            1, game_results=game_res,
+            participant_user_ids=[42, 43],
+            group_identifier="F", phase="GROUP_STAGE",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[group_sess]),
+            _q(first=user42),
+            _q(first=user43),
+            _q(all_=[]),
+            _q(first=None),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        standings = result["group_standings"]["F"]
+        alice = next(p for p in standings if p["user_id"] == 42)
+        assert alice["wins"] == 1
+
+    def test_group_session_non_dict_str_list_results_skipped(self):
+        """game_results is an integer (unexpected type) → else: continue."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        group_sess = _session(
+            1, game_results=12345,
+            participant_user_ids=[42, 43],
+            group_identifier="G", phase="GROUP_STAGE",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[group_sess]),
+            _q(first=user42),
+            _q(first=user43),
+            _q(all_=[]),
+            _q(first=None),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        standings = result["group_standings"]["G"]
+        for player in standings:
+            assert player["wins"] == 0
+
+    # ── Knockout: not all complete ──────────────────────────────────────────────
+
+    def test_knockout_not_all_complete_no_final_standings(self):
+        """
+        Pure knockout, one match not complete → all_knockout_complete=False
+        → final_standings stays None.  Also builds bracket with no winner.
+        """
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        ko_sess = _session(
+            2, title="Semifinal", game_results=None,
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=1, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),      # q0
+            _q(all_=[]),          # q1: no group sessions
+            _q(count=1),          # q2: total_matches
+            _q(count=0),          # q3: completed_matches
+            _q(all_=[ko_sess]),   # q4: knockout → group_stage_finalized=True
+            _q(first=None),       # q5: individual session
+            _q(first=user42),     # q6: bracket participant 42
+            _q(first=user43),     # q7: bracket participant 43
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["final_standings"] is None
+        assert result["knockout_bracket"] is not None
+
+    # ── Final standings: p2 wins and tie ───────────────────────────────────────
+
+    def test_final_standings_p2_wins_and_bracket_p2_winner(self):
+        """
+        Final match p2 score > p1 → champion=p2.
+        Also exercises knockout bracket p2-wins path (lines 929-930).
+        """
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        final_res = {"raw_results": [{"user_id": 42, "score": 1},
+                                     {"user_id": 43, "score": 3}]}
+        final_sess = _session(
+            10, title="Grand Final", game_results=final_res,
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=1, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),           # q0
+            _q(all_=[]),               # q1: no group
+            _q(count=1),               # q2
+            _q(count=1),               # q3
+            _q(all_=[final_sess]),     # q4: knockout
+            _q(all_=[user42, user43]), # q5: users for final_standings
+            _q(first=None),            # q6: individual session
+            _q(first=user42),          # q7: bracket participant 42
+            _q(first=user43),          # q8: bracket participant 43
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["final_standings"] is not None
+        champion = result["final_standings"][0]
+        assert champion["rank"] == 1
+        assert champion["user_id"] == 43  # p2 wins
+        runner_up = result["final_standings"][1]
+        assert runner_up["user_id"] == 42
+        bracket_match = result["knockout_bracket"][0]["matches"][0]
+        assert bracket_match["winner"] == 43
+
+    def test_final_standings_tie_first_player_is_champion(self):
+        """Final match tie (equal scores) → champion = first player (p1)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        final_res = {"raw_results": [{"user_id": 42, "score": 2},
+                                     {"user_id": 43, "score": 2}]}
+        final_sess = _session(
+            10, title="Grand Final", game_results=final_res,
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=1, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=1),
+            _q(all_=[final_sess]),
+            _q(all_=[user42, user43]),
+            _q(first=None),
+            _q(first=user42),
+            _q(first=user43),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["final_standings"] is not None
+        champion = result["final_standings"][0]
+        assert champion["user_id"] == 42  # tie → first player
+
+    # ── Bronze match (3rd / 4th place) ─────────────────────────────────────────
+
+    def test_final_standings_with_bronze_match_full_podium(self):
+        """
+        Bronze match exists → 3rd and 4th place in final_standings.
+        Covers lines 619-642 (bronze parsing) and 673-689 (3rd/4th entries).
+        """
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        user44 = _user(uid=44, name="Charlie")
+        user45 = _user(uid=45, name="Dave")
+        bronze_res = {"raw_results": [{"user_id": 44, "score": 3},
+                                      {"user_id": 45, "score": 1}]}
+        bronze_sess = _session(
+            9, title="3rd Place Match", game_results=bronze_res,
+            participant_user_ids=[44, 45],
+            phase="KNOCKOUT", round_num=1, match_number=2,
+        )
+        final_res = {"raw_results": [{"user_id": 42, "score": 3},
+                                     {"user_id": 43, "score": 1}]}
+        final_sess = _session(
+            10, title="Grand Final", game_results=final_res,
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=2, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),                              # q0
+            _q(all_=[]),                                  # q1: no group
+            _q(count=2),                                  # q2
+            _q(count=2),                                  # q3
+            _q(all_=[bronze_sess, final_sess]),           # q4: knockout
+            _q(all_=[user42, user43, user44, user45]),    # q5: users for final_standings
+            _q(first=None),                               # q6: individual
+            # bracket (sorted by round: round1=bronze, round2=final)
+            _q(first=user44),  # q7: bronze participant 44
+            _q(first=user45),  # q8: bronze participant 45
+            _q(first=user42),  # q9: final participant 42
+            _q(first=user43),  # q10: final participant 43
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        standings = result["final_standings"]
+        assert standings is not None
+        assert len(standings) == 4
+        assert standings[0]["user_id"] == 42  # champion
+        assert standings[1]["user_id"] == 43  # runner-up
+        assert standings[2]["user_id"] == 44  # 3rd place
+        assert standings[3]["user_id"] == 45  # 4th place
+        assert standings[2]["rank"] == 3
+        assert standings[3]["rank"] == 4
+
+    # ── IR live rounds_data edge cases ─────────────────────────────────────────
+
+    def test_live_rounds_string_rounds_data_is_parsed(self):
+        """rounds_data stored as JSON string → parsed before processing (line 726)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        rounds_data_dict = {"round_results": {"1": {"42": "10", "43": "8"}}}
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING", game_results=None,
+            rounds_data=_json.dumps(rounds_data_dict),
+            scoring_type="SCORE_BASED",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=0),
+            _q(all_=[]),
+            _q(first=ir_sess),
+            _q(first=user42),  # perf user 42
+            _q(first=user43),  # perf user 43
+            _q(first=user42),  # wins user 42
+            _q(first=user43),  # wins user 43
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["performance_rankings"] is not None
+        assert len(result["performance_rankings"]) == 2
+
+    def test_live_rounds_empty_round_results_skips_calculation(self):
+        """rounds_data has empty round_results → live ranking not computed (line 730 FALSE)."""
+        tourn = _tourn()
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING", game_results=None,
+            rounds_data={"round_results": {}},
+            scoring_type="SCORE_BASED",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=0),
+            _q(count=0),
+            _q(all_=[]),
+            _q(first=ir_sess),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["performance_rankings"] is None
+
+    def test_live_rounds_invalid_value_string_falls_back_to_zero(self):
+        """
+        Round value "abc" cannot be parsed → ValueError → numeric_value = 0.0.
+        Covers lines 748-749 (perf loop) and 832-833 (wins loop).
+        """
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING", game_results=None,
+            rounds_data={"round_results": {"1": {"42": "abc", "43": "7"}}},
+            scoring_type="SCORE_BASED",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=0),
+            _q(all_=[]),
+            _q(first=ir_sess),
+            _q(first=user42),  # perf user42 (score=0.0)
+            _q(first=user43),  # perf user43 (score=7.0)
+            _q(first=user42),  # wins user42
+            _q(first=user43),  # wins user43
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        perf = result["performance_rankings"]
+        assert perf is not None
+        alice = next(p for p in perf if p["user_id"] == 42)
+        bob = next(p for p in perf if p["user_id"] == 43)
+        assert alice["best_score"] == 0.0  # "abc" → fallback 0.0
+        assert bob["best_score"] == 7.0
+
+    def test_live_rounds_rounds_based_scoring_uses_max(self):
+        """ROUNDS_BASED: best_score = max(scores) per user (line 770)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING", game_results=None,
+            rounds_data={"round_results": {"1": {"42": "5"}, "2": {"42": "8"}}},
+            scoring_type="ROUNDS_BASED",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=2),
+            _q(count=0),
+            _q(all_=[]),
+            _q(first=ir_sess),
+            _q(first=user42),  # perf
+            _q(first=user42),  # wins
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        perf = result["performance_rankings"]
+        assert perf is not None
+        assert perf[0]["best_score"] == 8.0  # max(5, 8) = 8
+
+    def test_live_rounds_default_scoring_type_uses_max(self):
+        """Unknown scoring_type → else branch: best_score = max(scores) (line 774)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING", game_results=None,
+            rounds_data={"round_results": {"1": {"42": "9"}}},
+            scoring_type="DISTANCE_BASED",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=0),
+            _q(all_=[]),
+            _q(first=ir_sess),
+            _q(first=user42),
+            _q(first=user42),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["performance_rankings"][0]["best_score"] == 9.0
+
+    def test_live_rounds_wins_ranking_empty_round_scores_skips_winner(self):
+        """
+        Round with no user scores → round_scores={} → if round_scores: False (line 837 FALSE).
+        Round 1 is normal; round 2 is empty → only round 1 winner counted.
+        """
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING", game_results=None,
+            rounds_data={"round_results": {"1": {"42": "5"}, "2": {}}},
+            scoring_type="SCORE_BASED",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=2),
+            _q(count=0),
+            _q(all_=[]),
+            _q(first=ir_sess),
+            _q(first=user42),  # perf
+            _q(first=user42),  # wins
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        wins = result["wins_rankings"]
+        assert wins is not None
+        assert wins[0]["user_id"] == 42
+        assert wins[0]["wins"] == 1  # only round 1 winner counted
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# get_tournament_sessions_debug — gap tests (Sprint 22)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestGetTournamentSessionsDebugGaps:
+    """
+    Gap-fill tests for get_tournament_sessions_debug.
+
+    Targets (instructor.py):
+      line  1006      — assigned instructor passes auth check (print path)
+      line  1034      — participant user not found → fallback "User {id}"
+      lines 1047-1048 — invalid JSON game_results → except → raw string fallback
+    """
+
+    def test_assigned_instructor_gets_access(self):
+        """Assigned instructor (master_id matches) → line 1006 print, no 403."""
+        tourn = _tourn(master_id=10)
+        instructor = _user(uid=10, role=UserRole.INSTRUCTOR)
+        db = _seq_db(
+            _q(first=tourn),  # q0: tournament
+            _q(all_=[]),      # q1: sessions → empty
+        )
+        result = get_tournament_sessions_debug(1, db=db, current_user=instructor)
+        assert result == []
+
+    def test_participant_user_not_found_uses_fallback_name(self):
+        """Participant user_id with no DB record → appends 'User {id}' (line 1034)."""
+        sess = _session(1, participant_user_ids=[999], game_results=None)
+        db = _seq_db(
+            _q(first=_tourn()),  # q0: tournament
+            _q(all_=[sess]),     # q1: sessions
+            _q(first=None),      # q2: user 999 → not found
+        )
+        result = get_tournament_sessions_debug(1, db=db, current_user=_user())
+        assert result[0]["participant_names"] == ["User 999"]
+
+    def test_invalid_json_game_results_falls_back_to_raw_string(self):
+        """
+        game_results is a non-parseable JSON string → bare except → raw string returned
+        (lines 1047-1048).
+        """
+        sess = _session(1, participant_user_ids=[], game_results='{"broken": }')
+        db = _seq_db(
+            _q(first=_tourn()),  # q0
+            _q(all_=[sess]),     # q1: sessions
+        )
+        result = get_tournament_sessions_debug(1, db=db, current_user=_user())
+        assert result[0]["game_results"] == '{"broken": }'
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Additional targeted gap tests (Sprint 22 — push to ≥95%)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestLeaderboardAdditionalGaps:
+    """
+    Covers remaining uncovered statements for get_tournament_leaderboard:
+      lines 486-488   — group stage: p2 wins (score2 > score1)
+      line  588       — final match game_results stored as JSON string
+      line  713       — IR finalized game_results stored as JSON string
+      lines 917-918   — bracket: session game_results stored as JSON string
+      lines 636-638   — bronze match: p2 wins (third_place = p2)
+    """
+
+    def test_group_session_p2_wins_updates_stats(self):
+        """Group stage: p2 score(3) > p1 score(1) → p2 wins, p1 loses (lines 486-488)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        game_res = {"raw_results": [{"user_id": 42, "score": 1},
+                                    {"user_id": 43, "score": 3}]}
+        group_sess = _session(
+            1, game_results=game_res,
+            participant_user_ids=[42, 43],
+            group_identifier="H", phase="GROUP_STAGE",
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[group_sess]),
+            _q(first=user42),
+            _q(first=user43),
+            _q(all_=[]),
+            _q(first=None),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        standings = result["group_standings"]["H"]
+        bob = next(p for p in standings if p["user_id"] == 43)
+        alice = next(p for p in standings if p["user_id"] == 42)
+        assert bob["wins"] == 1
+        assert alice["losses"] == 1
+
+    def test_final_standings_json_string_game_results(self):
+        """final_match.game_results stored as JSON string → json.loads (line 588)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        final_res = {"raw_results": [{"user_id": 42, "score": 2},
+                                     {"user_id": 43, "score": 1}]}
+        final_sess = _session(
+            10, title="Grand Final",
+            game_results=_json.dumps(final_res),
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=1, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=1),
+            _q(all_=[final_sess]),
+            _q(all_=[user42, user43]),
+            _q(first=None),
+            _q(first=user42),
+            _q(first=user43),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["final_standings"] is not None
+        assert result["final_standings"][0]["user_id"] == 42
+
+    def test_ir_finalized_game_results_as_json_string(self):
+        """IR finalized: game_results stored as JSON string → json.loads (line 713)."""
+        tourn = _tourn()
+        game_res = {"performance_rankings": [{"user_id": 42, "rank": 1}],
+                    "wins_rankings": [{"user_id": 42, "rank": 1, "wins": 3}]}
+        ir_sess = _session(
+            1, fmt="INDIVIDUAL_RANKING",
+            game_results=_json.dumps(game_res),
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=1),
+            _q(all_=[]),
+            _q(first=ir_sess),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        assert result["performance_rankings"] == [{"user_id": 42, "rank": 1}]
+
+    def test_knockout_bracket_json_string_game_results(self):
+        """Bracket session game_results stored as JSON string → lines 917-918."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        game_res = {"raw_results": [{"user_id": 42, "score": 3},
+                                    {"user_id": 43, "score": 1}]}
+        ko_sess = _session(
+            2, title="Final",
+            game_results=_json.dumps(game_res),
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=1, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=1),
+            _q(count=1),
+            _q(all_=[ko_sess]),
+            _q(all_=[user42, user43]),
+            _q(first=None),
+            _q(first=user42),
+            _q(first=user43),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        bracket_match = result["knockout_bracket"][0]["matches"][0]
+        assert bracket_match["winner"] == 42
+
+    def test_bronze_match_p2_wins_gets_third_place(self):
+        """Bronze match p2 score > p1 → third_place=p2, fourth_place=p1 (lines 636-638)."""
+        tourn = _tourn()
+        user42 = _user(uid=42, name="Alice")
+        user43 = _user(uid=43, name="Bob")
+        user44 = _user(uid=44, name="Charlie")
+        user45 = _user(uid=45, name="Dave")
+        bronze_res = {"raw_results": [{"user_id": 44, "score": 1},
+                                      {"user_id": 45, "score": 3}]}
+        bronze_sess = _session(
+            9, title="3rd Place Match", game_results=bronze_res,
+            participant_user_ids=[44, 45],
+            phase="KNOCKOUT", round_num=1, match_number=2,
+        )
+        final_res = {"raw_results": [{"user_id": 42, "score": 3},
+                                     {"user_id": 43, "score": 1}]}
+        final_sess = _session(
+            10, title="Grand Final", game_results=final_res,
+            participant_user_ids=[42, 43],
+            phase="KNOCKOUT", round_num=2, match_number=1,
+        )
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),
+            _q(count=2),
+            _q(count=2),
+            _q(all_=[bronze_sess, final_sess]),
+            _q(all_=[user42, user43, user44, user45]),
+            _q(first=None),
+            _q(first=user44), _q(first=user45),
+            _q(first=user42), _q(first=user43),
+        )
+        db.execute.return_value.fetchall.return_value = []
+
+        result = _run(get_tournament_leaderboard(1, current_user=_user(), db=db))
+        standings = result["final_standings"]
+        third = next(p for p in standings if p["rank"] == 3)
+        fourth = next(p for p in standings if p["rank"] == 4)
+        assert third["user_id"] == 45
+        assert fourth["user_id"] == 44

@@ -830,3 +830,420 @@ class TestGetTournamentRankings:
         assert r["credits_awarded"] == 500
         assert r["xp_awarded"] == 100
         assert r["skill_points_awarded"] == {"dribbling": 5}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sprint 22 gap-fill: distribute_tournament_rewards branch coverage
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestDistributeRewardsGaps:
+    """Target uncovered branches in distribute_tournament_rewards (Sprint 22)."""
+
+    def _req(self, winner_count=None):
+        return RewardDistributionRequest(reason=None, winner_count=winner_count)
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.FootballSkillService")
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_non_dict_reward_policy_falls_back_to_default(
+        self, mock_credit_svc, mock_xp_svc, mock_skill_svc, mock_lifecycle
+    ):
+        """reward_policy_snapshot is a truthy non-dict string → line 532 executes → DEFAULT."""
+        tourn = _tourn(status="COMPLETED", reward_policy=None)
+        tourn.reward_policy_snapshot = "invalid_policy_string"  # truthy, not a dict
+        rank1 = _ranking(uid=42, rank=1)
+        user42 = _user(uid=42)
+
+        mock_credit_svc.return_value.generate_idempotency_key.return_value = "k"
+        mock_credit_svc.return_value.create_transaction.return_value = (MagicMock(), True)
+        mock_xp_svc.return_value.award_xp.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank1]),
+            _q(first=user42),
+            _q(count=2),          # total_players; rank 1 ≤3 → skill path
+            _q(first=None),       # UserLicense → None (skip skill)
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        # DEFAULT_REWARD_POLICY: rank 1 → 500 credits
+        assert result.total_credits_awarded == 500
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_zero_credits_tier_skips_credit_service(
+        self, mock_credit_svc, mock_xp_svc, mock_lifecycle
+    ):
+        """Reward tier credits=0 → credit block skipped (line 582 FALSE branch)."""
+        zero_credit_policy = {"rewards": {"1": {"credits": 0, "xp": 100},
+                                          "participant": {"credits": 0, "xp": 10}}}
+        tourn = _tourn(status="COMPLETED", reward_policy=zero_credit_policy)
+        rank1 = _ranking(uid=42, rank=1)
+        user42 = _user(uid=42)
+        mock_xp_svc.return_value.award_xp.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank1]),
+            _q(first=user42),
+            _q(count=2),
+            _q(first=None),
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        mock_credit_svc.return_value.create_transaction.assert_not_called()
+        assert result.total_credits_awarded == 0
+        assert result.total_xp_awarded == 100
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_zero_xp_tier_skips_xp_service(
+        self, mock_credit_svc, mock_xp_svc, mock_lifecycle
+    ):
+        """Reward tier xp=0 → XP block skipped (line 607 FALSE branch)."""
+        zero_xp_policy = {"rewards": {"1": {"credits": 500, "xp": 0},
+                                      "participant": {"credits": 50, "xp": 0}}}
+        tourn = _tourn(status="COMPLETED", reward_policy=zero_xp_policy)
+        rank1 = _ranking(uid=42, rank=1)
+        user42 = _user(uid=42)
+        mock_credit_svc.return_value.generate_idempotency_key.return_value = "k"
+        mock_credit_svc.return_value.create_transaction.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank1]),
+            _q(first=user42),
+            _q(count=2),
+            _q(first=None),
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        mock_xp_svc.return_value.award_xp.assert_not_called()
+        assert result.total_xp_awarded == 0
+        assert result.total_credits_awarded == 500
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_middle_rank_skips_skill_assessment(
+        self, mock_credit_svc, mock_xp_svc, mock_lifecycle
+    ):
+        """Rank 4 of 6 players: not top-3, not bottom-2 → skill path skipped (line 641 FALSE)."""
+        tourn = _tourn(status="COMPLETED", reward_policy=None)
+        rank4 = _ranking(uid=42, rank=4)
+        user42 = _user(uid=42)
+        mock_credit_svc.return_value.generate_idempotency_key.return_value = "k"
+        mock_credit_svc.return_value.create_transaction.return_value = (MagicMock(), True)
+        mock_xp_svc.return_value.award_xp.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank4]),
+            _q(first=user42),
+            _q(count=6),   # 6 total players: second_last=5, last=6; rank 4 NOT in skill range
+            # No UserLicense query (skill block not entered)
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        assert result.rewards_distributed == 1
+        assert result.rewards[0].rank == 4  # rank 4, not top-3 → skill path skipped
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.FootballSkillService")
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_rank1_with_license_and_game_config_runs_skill_assessment(
+        self, mock_credit_svc, mock_xp_svc, mock_skill_svc, mock_lifecycle
+    ):
+        """Rank 1 + user_license found + game_config with preset skills → skill awards created."""
+        tourn = _tourn(status="COMPLETED", reward_policy=None)
+        rank1 = _ranking(uid=42, rank=1)
+        user42 = _user(uid=42)
+        user_license = MagicMock()
+
+        game_cfg = MagicMock()
+        game_cfg.game_config = {
+            "skill_config": {
+                "skills_tested": ["speed", "dribbling"],
+                "skill_weights": {"speed": 2.0, "dribbling": 1.0},
+            }
+        }
+
+        mock_credit_svc.return_value.generate_idempotency_key.return_value = "k"
+        mock_credit_svc.return_value.create_transaction.return_value = (MagicMock(), True)
+        mock_xp_svc.return_value.award_xp.return_value = (MagicMock(), True)
+        mock_skill_svc.return_value.award_skill_points.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank1]),
+            _q(first=user42),
+            _q(count=3),           # total_players=3: second_last=2; rank 1 ≤3 → skill path
+            _q(first=user_license),  # UserLicense found
+            _q(first=game_cfg),     # GameConfiguration with skills_tested
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        assert result.status == "REWARDS_DISTRIBUTED"
+        assert mock_skill_svc.return_value.award_skill_points.call_count == 2  # 2 skills
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.FootballSkillService")
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_rank1_no_game_config_skips_skill_service(
+        self, mock_credit_svc, mock_xp_svc, mock_skill_svc, mock_lifecycle
+    ):
+        """Rank 1, game_config=None → preset_skills=[] → skill_points_awarded={} (line 670)."""
+        tourn = _tourn(status="COMPLETED", reward_policy=None)
+        rank1 = _ranking(uid=42, rank=1)
+        user42 = _user(uid=42)
+        user_license = MagicMock()
+        mock_credit_svc.return_value.generate_idempotency_key.return_value = "k"
+        mock_credit_svc.return_value.create_transaction.return_value = (MagicMock(), True)
+        mock_xp_svc.return_value.award_xp.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank1]),
+            _q(first=user42),
+            _q(count=3),              # total_players=3 → rank 1 ≤ 3 → skill block
+            _q(first=user_license),   # UserLicense found
+            _q(first=None),           # GameConfiguration → None → no preset skills
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        assert result.rewards_distributed == 1
+        mock_skill_svc.return_value.award_skill_points.assert_not_called()
+
+    @patch(_LIFECYCLE)
+    @patch(f"{_BASE}.FootballSkillService")
+    @patch(f"{_BASE}.XPTransactionService")
+    @patch(f"{_BASE}.CreditService")
+    def test_rank2_with_game_config_gets_rank2_skill_bonus(
+        self, mock_credit_svc, mock_xp_svc, mock_skill_svc, mock_lifecycle
+    ):
+        """Rank 2 + game_config → lines 676-678 (rank==2 skill points branch)."""
+        tourn = _tourn(status="COMPLETED", reward_policy=None)
+        rank2 = _ranking(uid=42, rank=2)
+        user42 = _user(uid=42)
+        user_license = MagicMock()
+        game_cfg = MagicMock()
+        game_cfg.game_config = {
+            "skill_config": {
+                "skills_tested": ["speed"],
+                "skill_weights": {"speed": 1.0},
+            }
+        }
+        mock_credit_svc.return_value.generate_idempotency_key.return_value = "k"
+        mock_credit_svc.return_value.create_transaction.return_value = (MagicMock(), True)
+        mock_xp_svc.return_value.award_xp.return_value = (MagicMock(), True)
+        mock_skill_svc.return_value.award_skill_points.return_value = (MagicMock(), True)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(count=0),
+            _q(),
+            _q(all_=[rank2]),
+            _q(first=user42),
+            _q(count=5),              # total_players=5 → rank 2 ≤ 3 → skill block
+            _q(first=user_license),
+            _q(first=game_cfg),
+        )
+        result = distribute_tournament_rewards(1, self._req(), db=db,
+                                               current_user=_user())
+        assert result.rewards_distributed == 1
+        assert mock_skill_svc.return_value.award_skill_points.call_count == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Sprint 22 gap-fill: get_distributed_rewards branch coverage
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestGetDistributedRewardsGaps:
+    """Target uncovered branches in get_distributed_rewards (Sprint 22)."""
+
+    def test_multiple_credit_txns_same_user_accumulates(self):
+        """Two credit txns same user: second skips dict-init (line 856 FALSE), accumulates."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user42 = _user(uid=42, name="Alice", email="alice@test.com")
+        txn1 = SimpleNamespace(user_id=42, amount=500,
+                               description="Tournament 'Cup' - Rank #1 reward")
+        txn2 = SimpleNamespace(user_id=42, amount=200,
+                               description="Bonus")           # same user, no "Rank #"
+        ranking_row = SimpleNamespace(user_id=42, best_rank=1)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[txn1, txn2]),   # two credit txns for same user
+            _q(all_=[]),
+            _q(all_=[user42]),
+            _q(all_=[ranking_row]),
+            _q(all_=[]),
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        assert result["rewards"][0]["credits"] == 700   # 500 + 200 accumulated
+
+    def test_credit_txn_no_rank_in_description(self):
+        """Description has no 'Rank #' → rank stays None (line 861 FALSE branch)."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user42 = _user(uid=42, name="Alice", email="alice@test.com")
+        txn = SimpleNamespace(user_id=42, amount=100, description="Bonus payment")  # no "Rank #"
+        ranking_row = SimpleNamespace(user_id=42, best_rank=3)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[txn]),
+            _q(all_=[]),
+            _q(all_=[user42]),
+            _q(all_=[ranking_row]),
+            _q(all_=[]),
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        # Rank comes from tournament_rankings override, not description
+        assert result["rewards"][0]["rank"] == 3
+
+    def test_credit_txn_invalid_rank_in_description_uses_except_block(self):
+        """'Rank #invalid' → int() raises ValueError → except block (lines 865-866)."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user42 = _user(uid=42, name="Alice", email="alice@test.com")
+        txn = SimpleNamespace(user_id=42, amount=100, description="Rank #abc-xyz reward")
+        ranking_row = SimpleNamespace(user_id=42, best_rank=1)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[txn]),
+            _q(all_=[]),
+            _q(all_=[user42]),
+            _q(all_=[ranking_row]),
+            _q(all_=[]),
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        # except silenced; rank overridden by ranking_row
+        assert result["rewards"][0]["rank"] == 1
+
+    def test_xp_only_user_enters_reward_map_via_xp_loop(self):
+        """User has XP txn but no credit txn → enters reward_map in XP loop (line 870)."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user99 = _user(uid=99, name="Bob", email="bob@test.com")
+        xp_txn = SimpleNamespace(
+            user_id=99, amount=50,
+            description="Tournament 'Cup' - Rank #3 reward"
+        )
+        ranking_row = SimpleNamespace(user_id=99, best_rank=3)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),              # no credit transactions
+            _q(all_=[xp_txn]),        # XP txn for user 99 (lines 870, 875-879)
+            _q(all_=[user99]),
+            _q(all_=[ranking_row]),
+            _q(all_=[]),
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        assert len(result["rewards"]) == 1
+        assert result["rewards"][0]["xp"] == 50
+        assert result["rewards"][0]["rank"] == 3
+
+    def test_user_not_in_rank_by_user_rank_stays_from_description(self):
+        """User in reward_map but no TournamentRanking row → rank stays from description."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user42 = _user(uid=42, name="Alice", email="alice@test.com")
+        txn = SimpleNamespace(user_id=42, amount=500,
+                              description="Tournament 'Cup' - Rank #2 reward")
+        # No ranking_row → rank_by_user = {} → 904 FALSE branch
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[txn]),
+            _q(all_=[]),
+            _q(all_=[user42]),
+            _q(all_=[]),              # no TournamentRanking rows (rank_by_user = {})
+            _q(all_=[]),
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        # Rank from description parse = 2 (not overridden)
+        assert result["rewards"][0]["rank"] == 2
+
+    def test_skill_rewards_query_exception_silenced(self):
+        """SkillReward query raises → except block (lines 924-927), result still returned."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user42 = _user(uid=42, name="Alice", email="alice@test.com")
+        txn = SimpleNamespace(user_id=42, amount=500,
+                              description="Tournament 'Cup' - Rank #1 reward")
+        ranking_row = SimpleNamespace(user_id=42, best_rank=1)
+
+        boom_q = MagicMock()
+        boom_q.filter.return_value = boom_q
+        boom_q.all.side_effect = RuntimeError("DB error in skill query")
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[txn]),
+            _q(all_=[]),
+            _q(all_=[user42]),
+            _q(all_=[ranking_row]),
+            boom_q,                  # SkillReward query raises
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        assert result["rewards"][0]["skill_points_awarded"] == {}
+
+    def test_user_not_in_user_dict_is_skipped(self):
+        """User in reward_map but users query returns empty → `if not user: continue` (line 936)."""
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        txn = SimpleNamespace(user_id=99, amount=500,
+                              description="Tournament 'Cup' - Rank #1 reward")
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[txn]),
+            _q(all_=[]),
+            _q(all_=[]),              # users query returns empty (user 99 not fetched)
+            _q(all_=[]),
+            _q(all_=[]),
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        assert result["rewards"] == []
+        assert result["total_credits_awarded"] == 0
+
+    def test_xp_txn_invalid_rank_str_exception_silenced(self):
+        """
+        XP txn description has 'Rank #' but rank string is not int → ValueError →
+        bare except → pass (lines 878-879).
+        """
+        tourn = _tourn(status="REWARDS_DISTRIBUTED")
+        user42 = _user(uid=42, name="Alice", email="alice@test.com")
+        # XP txn: "Rank #xyz" — rank_str="xyz", int("xyz") raises ValueError
+        txn_xp = SimpleNamespace(
+            user_id=42, amount=150,
+            description="Tournament 'Cup' - Rank #xyz special award"
+        )
+        ranking_row = SimpleNamespace(user_id=42, best_rank=1)
+
+        db = _seq_db(
+            _q(first=tourn),
+            _q(all_=[]),              # credit txns → empty
+            _q(all_=[txn_xp]),        # XP txns → one with invalid rank
+            _q(all_=[user42]),
+            _q(all_=[ranking_row]),
+            _q(all_=[]),              # SkillReward
+        )
+        result = get_distributed_rewards(1, db=db, current_user=_user())
+        # rank stays None from XP description (exception silenced), gets 1 from TournamentRanking
+        assert result["rewards"][0]["xp"] == 150
