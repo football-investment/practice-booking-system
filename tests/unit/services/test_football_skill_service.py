@@ -583,3 +583,276 @@ class TestRecalculateAllSkillAverages:
         assert isinstance(result, dict)
         assert all(v == 0.0 for v in result.values())
         assert set(result.keys()) == set(svc.VALID_SKILLS)
+
+
+# ===========================================================================
+# create_assessment — line 176: archive validation failure (defensive guard)
+# ===========================================================================
+
+_PATCH_VST = "app.services.football_skill_service.validate_state_transition"
+
+
+@pytest.mark.unit
+@patch(_PATCH_LOCK)
+class TestCreateAssessmentArchiveValidationFailure:
+    def test_archive_validation_failure_raises_value_error(self, mock_lock):
+        """If validate_state_transition returns False during archive loop, raise ValueError."""
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 1
+        old = _mock_assessment(status=SkillAssessmentState.ASSESSED)
+        old.previous_status = None
+
+        call_idx = [0]
+        def _side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                # existing_active with DIFFERENT data (5/10 ≠ 7/10) → continue to archive
+                q = MagicMock(); q.filter.return_value = q
+                q.first.return_value = MagicMock(points_earned=5, points_total=10)
+                return q
+            if i == 2: return _filter_all_mock([old])
+            return MagicMock()
+        db.query.side_effect = _side
+
+        with patch(_PATCH_VST, return_value=(False, "Cannot archive from this state")):
+            with pytest.raises(ValueError, match="Cannot archive old assessment"):
+                svc.create_assessment(
+                    user_license_id=99, skill_name=VALID_SKILL,
+                    points_earned=7, points_total=10, assessed_by=42,
+                )
+
+
+# ===========================================================================
+# get_assessment_history (lines 526–574) — patching missing schema classes
+# ===========================================================================
+
+_PATCH_SAR = "app.services.football_skill_service.SkillAssessmentResponse"
+_PATCH_SAHR = "app.services.football_skill_service.SkillAssessmentHistoryResponse"
+
+
+@pytest.mark.unit
+class TestGetAssessmentHistory:
+    @patch(_PATCH_SAHR, create=True)
+    @patch(_PATCH_SAR, create=True)
+    def test_no_assessments_zero_average(self, MockSAR, MockSAHR):
+        svc, db = _svc()
+        q0 = MagicMock(); q0.filter.return_value = q0
+        q0.order_by.return_value = q0; q0.all.return_value = []
+        q1 = MagicMock(); q1.filter.return_value = q1; q1.scalar.return_value = 0
+
+        call_idx = [0]
+        def _side(*a): i = call_idx[0]; call_idx[0] += 1; return q0 if i == 0 else q1
+        db.query.side_effect = _side
+
+        svc.get_assessment_history(user_license_id=99, skill_name=VALID_SKILL)
+        MockSAHR.assert_called_once()
+        kw = MockSAHR.call_args[1]
+        assert kw['current_average'] == 0.0
+        assert kw['assessment_count'] == 0
+
+    @patch(_PATCH_SAHR, create=True)
+    @patch(_PATCH_SAR, create=True)
+    def test_with_limit_passes_limit_to_query(self, MockSAR, MockSAHR):
+        svc, db = _svc()
+        q0 = MagicMock(); q0.filter.return_value = q0
+        q0.order_by.return_value = q0; q0.limit.return_value = q0; q0.all.return_value = []
+        q1 = MagicMock(); q1.filter.return_value = q1; q1.scalar.return_value = 0
+
+        call_idx = [0]
+        def _side(*a): i = call_idx[0]; call_idx[0] += 1; return q0 if i == 0 else q1
+        db.query.side_effect = _side
+
+        svc.get_assessment_history(user_license_id=99, skill_name=VALID_SKILL, limit=5)
+        q0.limit.assert_called_once_with(5)
+
+    @patch(_PATCH_SAHR, create=True)
+    @patch(_PATCH_SAR, create=True)
+    def test_with_assessments_assessor_found(self, MockSAR, MockSAHR):
+        svc, db = _svc()
+        a = MagicMock(); a.percentage = 80.0; a.assessed_by = 42
+        assessor = MagicMock(); assessor.name = "Coach A"
+
+        q0 = MagicMock(); q0.filter.return_value = q0
+        q0.order_by.return_value = q0; q0.all.return_value = [a]
+        q1 = MagicMock(); q1.filter.return_value = q1; q1.scalar.return_value = 1
+        q2 = MagicMock(); q2.filter.return_value = q2; q2.first.return_value = assessor
+
+        qs = [q0, q1, q2]
+        call_idx = [0]
+        def _side(*a): i = call_idx[0]; call_idx[0] += 1; return qs[i] if i < 3 else MagicMock()
+        db.query.side_effect = _side
+
+        svc.get_assessment_history(user_license_id=99, skill_name=VALID_SKILL)
+        assert MockSAHR.call_args[1]['current_average'] == 80.0
+        assert MockSAR.call_args[1]['assessor_name'] == "Coach A"
+
+    @patch(_PATCH_SAHR, create=True)
+    @patch(_PATCH_SAR, create=True)
+    def test_assessor_not_found_returns_unknown(self, MockSAR, MockSAHR):
+        svc, db = _svc()
+        a = MagicMock(); a.percentage = 60.0; a.assessed_by = 99
+
+        q0 = MagicMock(); q0.filter.return_value = q0
+        q0.order_by.return_value = q0; q0.all.return_value = [a]
+        q1 = MagicMock(); q1.filter.return_value = q1; q1.scalar.return_value = 1
+        q2 = MagicMock(); q2.filter.return_value = q2; q2.first.return_value = None  # assessor missing
+
+        qs = [q0, q1, q2]
+        call_idx = [0]
+        def _side(*a): i = call_idx[0]; call_idx[0] += 1; return qs[i] if i < 3 else MagicMock()
+        db.query.side_effect = _side
+
+        svc.get_assessment_history(user_license_id=99, skill_name=VALID_SKILL)
+        assert MockSAR.call_args[1]['assessor_name'] == "Unknown"
+
+
+# ===========================================================================
+# bulk_create_assessments (lines 641–660)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestBulkCreateAssessments:
+    def test_skips_invalid_skill_names(self):
+        svc, db = _svc()
+        svc.create_assessment = MagicMock(return_value=(MagicMock(), True))
+        assessments = {
+            VALID_SKILL: {'points_earned': 7, 'points_total': 10, 'notes': None},
+            'invalid_skill_xyz': {'points_earned': 5, 'points_total': 10, 'notes': None},
+        }
+        result = svc.bulk_create_assessments(
+            user_license_id=99, assessments=assessments, assessed_by=42
+        )
+        assert VALID_SKILL in result
+        assert 'invalid_skill_xyz' not in result
+        svc.create_assessment.assert_called_once()
+        db.commit.assert_called_once()
+
+    def test_creates_all_valid_skills_and_commits(self):
+        svc, db = _svc()
+        svc.create_assessment = MagicMock(return_value=(MagicMock(), True))
+        assessments = {
+            VALID_SKILL: {'points_earned': 7, 'points_total': 10, 'notes': 'Good'},
+            ANOTHER_VALID_SKILL: {'points_earned': 8, 'points_total': 10, 'notes': None},
+        }
+        result = svc.bulk_create_assessments(
+            user_license_id=99, assessments=assessments, assessed_by=42
+        )
+        assert set(result.keys()) == {VALID_SKILL, ANOTHER_VALID_SKILL}
+        assert svc.create_assessment.call_count == 2
+        db.commit.assert_called_once()
+
+
+# ===========================================================================
+# award_skill_points (lines 695–776)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestAwardSkillPoints:
+    def test_invalid_skill_raises_value_error(self):
+        svc, db = _svc()
+        with pytest.raises(ValueError, match="Invalid skill name"):
+            svc.award_skill_points(
+                user_id=42, source_type="TOURNAMENT", source_id=1,
+                skill_name="not_valid", points_awarded=10
+            )
+        db.query.assert_not_called()
+
+    def test_zero_points_raises_value_error(self):
+        svc, db = _svc()
+        with pytest.raises(ValueError, match="cannot be zero"):
+            svc.award_skill_points(
+                user_id=42, source_type="TOURNAMENT", source_id=1,
+                skill_name=VALID_SKILL, points_awarded=0
+            )
+        db.query.assert_not_called()
+
+    def test_existing_reward_returns_idempotent(self):
+        svc, db = _svc()
+        existing = MagicMock(); existing.id = 10
+        q = MagicMock(); q.filter.return_value = q; q.first.return_value = existing
+        db.query.return_value = q
+        result, is_new = svc.award_skill_points(
+            user_id=42, source_type="TOURNAMENT", source_id=1,
+            skill_name=VALID_SKILL, points_awarded=5
+        )
+        assert result is existing
+        assert is_new is False
+
+    def test_create_new_reward_success(self):
+        svc, db = _svc()
+        q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+        db.query.return_value = q
+        result, is_new = svc.award_skill_points(
+            user_id=42, source_type="TOURNAMENT", source_id=1,
+            skill_name=VALID_SKILL, points_awarded=5
+        )
+        assert is_new is True
+        db.add.assert_called_once()
+        db.flush.assert_called_once()
+
+    def test_negative_points_allowed(self):
+        """Negative points (skill penalty) must be accepted."""
+        svc, db = _svc()
+        q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+        db.query.return_value = q
+        _, is_new = svc.award_skill_points(
+            user_id=42, source_type="TOURNAMENT", source_id=1,
+            skill_name=VALID_SKILL, points_awarded=-3
+        )
+        assert is_new is True
+
+    def test_integrity_error_unique_constraint_existing_found(self):
+        """Race condition: IntegrityError on flush, concurrent reward found → (existing, False)."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+        svc, db = _svc()
+        concurrent = MagicMock(); concurrent.id = 20
+        q_no = MagicMock(); q_no.filter.return_value = q_no; q_no.first.return_value = None
+        q_yes = MagicMock(); q_yes.filter.return_value = q_yes; q_yes.first.return_value = concurrent
+
+        call_idx = [0]
+        def _side(m): i = call_idx[0]; call_idx[0] += 1; return q_no if i == 0 else q_yes
+        db.query.side_effect = _side
+        db.flush.side_effect = SAIntegrityError(
+            "stmt", "params", Exception("uq_skill_rewards_user_source_skill")
+        )
+
+        result, is_new = svc.award_skill_points(
+            user_id=42, source_type="TOURNAMENT", source_id=1,
+            skill_name=VALID_SKILL, points_awarded=5
+        )
+        assert result is concurrent
+        assert is_new is False
+        db.rollback.assert_called_once()
+
+    def test_integrity_error_unique_constraint_not_found_raises_value_error(self):
+        """Race condition: IntegrityError, concurrent fetch returns None → ValueError."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+        svc, db = _svc()
+        q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+        db.query.return_value = q
+        db.flush.side_effect = SAIntegrityError(
+            "stmt", "params", Exception("uq_skill_rewards_user_source_skill")
+        )
+
+        with pytest.raises(ValueError, match="Skill reward failed"):
+            svc.award_skill_points(
+                user_id=42, source_type="TOURNAMENT", source_id=1,
+                skill_name=VALID_SKILL, points_awarded=5
+            )
+
+    def test_integrity_error_other_constraint_reraises(self):
+        """Non-unique-constraint IntegrityError must propagate."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+        svc, db = _svc()
+        q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+        db.query.return_value = q
+        db.flush.side_effect = SAIntegrityError(
+            "stmt", "params", Exception("some_other_fk_violation")
+        )
+
+        with pytest.raises(SAIntegrityError):
+            svc.award_skill_points(
+                user_id=42, source_type="TOURNAMENT", source_id=1,
+                skill_name=VALID_SKILL, points_awarded=5
+            )
