@@ -61,6 +61,16 @@ module.exports = defineConfig({
 
       // Flag to skip tests that require a live backend
       skipApiTests:     process.env.CYPRESS_SKIP_API_TESTS === 'true',
+
+      // Streamlit URL — set to enable UI tests; absent = UI tests self-skip.
+      // Smoke Suite sets CYPRESS_STREAMLIT_URL; Critical Specs (API-only) do not.
+      streamlitUrl:     process.env.CYPRESS_STREAMLIT_URL || '',
+
+      // @cypress/grep options — prevent non-matching tests from showing as "pending"
+      // grepFilterSpecs:  entire spec files without matching tags are excluded upfront
+      // grepOmitFiltered: tests that don't match the tag are omitted, not shown as pending
+      grepFilterSpecs:  true,
+      grepOmitFiltered: true,
     },
 
     // ── Plugin setup ─────────────────────────────────────────────────────────

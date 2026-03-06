@@ -115,10 +115,11 @@ jobs:
       - name: Run smoke suite
         working-directory: tests_cypress
         env:
-          CYPRESS_BASE_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
-          CYPRESS_API_URL:        http://localhost:${{ env.BACKEND_PORT }}
-          CYPRESS_ADMIN_EMAIL:    admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD: admin123
+          CYPRESS_BASE_URL:        http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:         http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_STREAMLIT_URL:   http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_ADMIN_EMAIL:     admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:  admin123
         run: npx cypress run --env grepTags=@smoke --browser chrome --headless
 
       - name: Upload screenshots on failure

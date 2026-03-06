@@ -188,8 +188,13 @@ describe('Student / Real 409 Enrollment (Live Backend)', () => {
   });
 
   // ── Test 6: Streamlit UI remains usable after live 409 ───────────────────
+  // Guard: this test visits the Streamlit UI. It is skipped when STREAMLIT_URL
+  // is not set (e.g. Critical Specs job, which is API-only, has no Streamlit).
+  // In the Smoke Suite job CYPRESS_STREAMLIT_URL IS set → test runs normally.
 
-  it('@smoke Streamlit UI is usable after live 409 enrollment attempt', () => {
+  ;(Cypress.env('streamlitUrl') ? it : it.skip)(
+    '@smoke Streamlit UI is usable after live 409 enrollment attempt',
+    () => {
     // Log in via Streamlit (same player) — verify no crash, no raw JSON shown
     cy.loginAsPlayer();
 
