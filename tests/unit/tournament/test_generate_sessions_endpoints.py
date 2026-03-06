@@ -15,7 +15,8 @@ Covers:
   _assert_campus_scope (SystemEvent emission branches — db provided):
     SC-01  instructor multi-campus + db → emit event + 403
     SC-02  instructor multi-override + db → emit event + 403
-    SC-03  SystemEvent emit exception → non-fatal warning, still 403
+    SC-03  SystemEvent emit exception in campus_ids block → non-fatal, still 403
+    SC-04  SystemEvent emit exception in overrides block → non-fatal, still 403
 
   preview_tournament_sessions:
     PV-01  no tournament_type_id → 400
@@ -34,6 +35,8 @@ Covers:
     GS-03  sync path success → sessions list
     GS-04  sync path failure → 500
     GS-05  async thread path (player_count >= threshold, no Celery)
+    GS-06  campus_schedule_overrides serialized + tournament_config_obj persisted
+    GS-07  async Celery path (player_count >= threshold, Celery available)
 
   get_generation_status:
     ST-01  Celery SUCCESS with result dict
@@ -42,12 +45,13 @@ Covers:
     ST-04  Celery exception → thread fallback, found
     ST-05  task_id not in registry → 404
     ST-06  tournament_id mismatch → 404
+    ST-07  Celery PENDING + result=None → falls through to thread registry
 
   get_tournament_sessions:
     TS-01  empty sessions list
     TS-02  sessions with participants, attendance found
     TS-03  participant uid=None → skipped
-    TS-04  participant not in users_by_id → skipped
+    TS-04  participant uid valid but not in users_by_id → skipped
     TS-05  ROUNDS_BASED session result_submitted logic
     TS-06  non-ROUNDS_BASED with game_results
 
@@ -260,13 +264,26 @@ class TestAssertCampusScopeSystemEvent:
         mock_svc.emit.assert_called_once()
 
     def test_emit_exception_is_non_fatal(self):
-        """SC-03: SystemEvent emit raises → non-fatal, still raises 403"""
+        """SC-03: SystemEvent emit raises in campus_ids block → non-fatal, still 403"""
         db = MagicMock()
         with patch("app.services.system_event_service.SystemEventService",
                    side_effect=RuntimeError("event store down")):
             with pytest.raises(HTTPException) as ei:
                 _assert_campus_scope(self._instructor(), [1, 2], None, db)
         assert ei.value.status_code == 403
+
+    def test_overrides_block_emit_exception_non_fatal(self):
+        """SC-04: SystemEvent emit raises in overrides block → non-fatal, still 403"""
+        db = MagicMock()
+        # campus_ids=None so campus_ids check passes; overrides has >1 key
+        with patch("app.services.system_event_service.SystemEventService",
+                   side_effect=RuntimeError("event store down")):
+            with pytest.raises(HTTPException) as ei:
+                _assert_campus_scope(
+                    self._instructor(), None, {"1": {}, "2": {}}, db
+                )
+        assert ei.value.status_code == 403
+        assert "campus_schedule_overrides" in ei.value.detail
 
 
 # ─── preview_tournament_sessions ─────────────────────────────────────────────
@@ -565,6 +582,62 @@ class TestGenerateTournamentSessions:
         assert "task_id" in result
         assert result["async_backend"] == "thread"
 
+    def test_campus_overrides_serialized_and_config_persisted(self):
+        """GS-06: campus_schedule_overrides is not None + tournament_config_obj truthy → persisted"""
+        override_cfg = MagicMock()
+        override_cfg.model_dump.return_value = {"parallel_fields": 2}
+        req = self._make_request(overrides={"42": override_cfg})
+        t = self._make_tournament()
+        t.tournament_config_obj = MagicMock()  # truthy → trigger persist branch
+        mock_gen = MagicMock()
+        mock_gen.can_generate_sessions.return_value = (True, "")
+        mock_gen.generate_sessions.return_value = (True, "OK", [])
+        db = MagicMock()
+        q_enroll = _fq(count_val=4)  # sync path
+        db.query.return_value = q_enroll
+        with patch(f"{_BASE}.TournamentSessionGenerator", return_value=mock_gen), \
+             patch(f"{_BASE}.TournamentRepository") as MockRepo:
+            MockRepo.return_value.get_or_404.return_value = t
+            result = generate_tournament_sessions(
+                tournament_id=1, request=req, db=db, current_user=_user()
+            )
+        assert result["success"] is True
+        assert result["async"] is False
+        # campus_schedule_overrides was serialized and persisted
+        assert t.tournament_config_obj.campus_schedule_overrides == {"42": {"parallel_fields": 2}}
+        db.flush.assert_called_once()
+
+    def test_async_celery_path(self):
+        """GS-07: player_count >= threshold, Celery available → Celery task"""
+        req = self._make_request()
+        t = self._make_tournament()
+        mock_gen = MagicMock()
+        mock_gen.can_generate_sessions.return_value = (True, "")
+        db = MagicMock()
+        q_enroll = _fq(count_val=BACKGROUND_GENERATION_THRESHOLD)
+        db.query.return_value = q_enroll
+        mock_celery_result = MagicMock()
+        mock_celery_result.id = "celery-task-id-abc"
+        mock_task = MagicMock()
+        mock_task.apply_async.return_value = mock_celery_result
+        with patch(f"{_BASE}.TournamentSessionGenerator", return_value=mock_gen), \
+             patch(f"{_BASE}.TournamentRepository") as MockRepo, \
+             patch(f"{_BASE}._is_celery_available", return_value=True), \
+             patch.dict("sys.modules", {
+                 "app.tasks.tournament_tasks": MagicMock(
+                     generate_sessions_task=mock_task
+                 ),
+             }):
+            MockRepo.return_value.get_or_404.return_value = t
+            result = generate_tournament_sessions(
+                tournament_id=1, request=req, db=db, current_user=_user()
+            )
+        assert result["success"] is True
+        assert result["async"] is True
+        assert result["task_id"] == "celery-task-id-abc"
+        assert result["async_backend"] == "celery"
+        mock_task.apply_async.assert_called_once()
+
 
 # ─── get_generation_status ───────────────────────────────────────────────────
 
@@ -674,6 +747,30 @@ class TestGetGenerationStatus:
         assert ei.value.status_code == 404
         del _task_registry[task_id]
 
+    def test_celery_pending_no_result_falls_through_to_thread(self):
+        """ST-07: Celery state=PENDING + result=None → False branch at 602, falls to thread registry"""
+        task_id = "thread-task-03"
+        with _registry_lock:
+            _task_registry[task_id] = {
+                "status": "pending",
+                "tournament_id": 7,
+                "message": None,
+                "sessions_count": 0,
+            }
+        mock_ar = MagicMock()
+        mock_ar.state = "PENDING"
+        mock_ar.result = None  # condition: state=="PENDING" AND result is None → False → fall through
+        with patch.dict("sys.modules", {
+            "celery.result": MagicMock(AsyncResult=MagicMock(return_value=mock_ar)),
+            "app.celery_app": MagicMock(),
+        }):
+            result = get_generation_status(
+                tournament_id=7, task_id=task_id,
+                current_user=_user()
+            )
+        assert result["status"] == "pending"
+        del _task_registry[task_id]
+
 
 # ─── get_tournament_sessions ─────────────────────────────────────────────────
 
@@ -758,6 +855,36 @@ class TestGetTournamentSessions:
         session.date_end = None
         result = get_tournament_sessions(
             tournament_id=7, db=self._session_db([session]), current_user=_user()
+        )
+        assert result[0]["participants"] == []
+
+    def test_participant_uid_not_in_users_by_id_skipped(self):
+        """TS-04: uid present in participant_user_ids but not fetched from DB → skipped"""
+        session = MagicMock()
+        session.id = 1
+        session.participant_user_ids = [99]  # uid=99 not in users_by_id
+        session.game_results = {}
+        session.rounds_data = None
+        session.scoring_type = "PLACEMENT"
+        session.date_start = None
+        session.date_end = None
+        # second db.query returns empty user list → users_by_id = {}
+        db = MagicMock()
+        n = [0]
+        def _side(*args):
+            n[0] += 1
+            q = MagicMock()
+            q.filter.return_value = q
+            q.order_by.return_value = q
+            q.in_.return_value = q
+            if n[0] == 1:
+                q.all.return_value = [session]
+            else:
+                q.all.return_value = []  # no users, no attendance
+            return q
+        db.query.side_effect = _side
+        result = get_tournament_sessions(
+            tournament_id=7, db=db, current_user=_user()
         )
         assert result[0]["participants"] == []
 

@@ -54,6 +54,16 @@ Test matrix:
     CT-01  tournament type not found → ValueError
     CT-02  invalid player count → ValueError
     CT-03  success HEAD_TO_HEAD (no game_preset)
+    CT-04  individual_config in overrides → INDIVIDUAL_RANKING path, no preset
+    CT-05  game_preset_id provided, preset found → preset path with overrides
+    CT-05b game_preset_id + individual_ranking → format_config override inside preset
+    CT-06  game_preset_id provided, preset NOT found → warning + basic config fallback
+
+  _distribute_rewards:
+    DR-01  success path → status REWARDS_DISTRIBUTED, returns result
+
+  _calculate_verdict:
+    CV-01  delegates to SandboxVerdictCalculator
 
   execute_test:
     ET-01  success path (all helpers mocked)
@@ -514,6 +524,253 @@ class TestCreateTournament:
             o._create_tournament("league", ["dribbling"], 4)
         assert o.tournament_id == 7
         assert "Tournament created" in o.execution_steps[-1]
+
+    def test_individual_config_in_overrides_no_preset(self):
+        """CT-04: individual_config → is_individual_ranking=True, tournament_type_id=None,
+        format_key=INDIVIDUAL_RANKING, game_preset_id_value=None"""
+        db = MagicMock()
+        tt = MagicMock()
+        tt.validate_player_count.return_value = (True, "")
+        tt.format = "league"
+        tt.id = 1
+        grandmaster = MagicMock()
+        grandmaster.id = 3
+        n = [0]
+        def _side(*args):
+            n[0] += 1
+            q = MagicMock()
+            q.filter.return_value = q
+            q.first.return_value = tt if n[0] == 1 else grandmaster
+            return q
+        db.query.side_effect = _side
+        mock_tournament = MagicMock()
+        mock_tournament.id = 7
+        overrides = {
+            "individual_config": {
+                "scoring_type": "PLACEMENT",
+                "number_of_rounds": 3,
+                "measurement_unit": "meters",
+                "ranking_direction": "ASC",
+            }
+        }
+        o = _orch(db)
+        o.test_run_id = "test-individual"
+        o.start_time = datetime(2026, 3, 1, 10, 0, 0)
+        with patch(f"{_BASE}.Semester", return_value=mock_tournament), \
+             patch("app.models.tournament_configuration.TournamentConfiguration") as MockTC, \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.game_configuration.GameConfiguration"), \
+             patch("app.models.game_preset.GamePreset"):
+            o._create_tournament("league", ["dribbling"], 4, game_config_overrides=overrides)
+        # tournament_type_id_value must be None for INDIVIDUAL_RANKING
+        call_kwargs = MockTC.call_args[1]
+        assert call_kwargs["tournament_type_id"] is None
+        assert call_kwargs["scoring_type"] == "PLACEMENT"
+        assert call_kwargs["number_of_rounds"] == 3
+        assert o.tournament_id == 7
+
+    def test_game_preset_found_with_skill_sim_overrides(self):
+        """CT-05: game_preset_id provided, preset found → preset path + skill_config + simulation_config overrides"""
+        db = MagicMock()
+        tt = MagicMock()
+        tt.validate_player_count.return_value = (True, "")
+        tt.format = "league"
+        tt.id = 1
+        grandmaster = MagicMock()
+        grandmaster.id = 3
+        preset = MagicMock()
+        preset.name = "Test Preset"
+        preset.game_config = {
+            "version": "1.0",
+            "skill_config": {"original": True},
+            "simulation_config": {"original": True},
+            "format_config": {"league": {"ranking_rules": {}}},
+        }
+        n = [0]
+        def _side(*args):
+            n[0] += 1
+            q = MagicMock()
+            q.filter.return_value = q
+            if n[0] == 1:
+                q.first.return_value = tt
+            elif n[0] == 2:
+                q.first.return_value = grandmaster
+            else:
+                q.first.return_value = preset
+            return q
+        db.query.side_effect = _side
+        mock_tournament = MagicMock()
+        mock_tournament.id = 7
+        overrides = {
+            "skill_config": {"skills_tested": ["dribbling"]},
+            "simulation_config": {"player_selection": "manual"},
+        }
+        o = _orch(db)
+        o.test_run_id = "test-preset"
+        o.start_time = datetime(2026, 3, 1, 10, 0, 0)
+        with patch(f"{_BASE}.Semester", return_value=mock_tournament), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.game_configuration.GameConfiguration") as MockGC, \
+             patch("app.models.game_preset.GamePreset"):
+            o._create_tournament("league", ["dribbling"], 4,
+                                 game_preset_id=99, game_config_overrides=overrides)
+        # game_preset_id_value must be set (HEAD_TO_HEAD, not INDIVIDUAL_RANKING)
+        gc_call_kwargs = MockGC.call_args[1]
+        assert gc_call_kwargs["game_preset_id"] == 99
+        assert o.tournament_id == 7
+
+    def test_game_preset_individual_ranking_overrides_format_config(self):
+        """CT-05b: game_preset + individual_ranking=True → format_config key replaced with INDIVIDUAL_RANKING"""
+        db = MagicMock()
+        tt = MagicMock()
+        tt.validate_player_count.return_value = (True, "")
+        tt.format = "league"
+        tt.id = 1
+        grandmaster = MagicMock()
+        grandmaster.id = 3
+        preset = MagicMock()
+        preset.name = "Test Preset"
+        preset.game_config = {
+            "version": "1.0",
+            "skill_config": {},
+            "format_config": {"league": {"ranking_rules": {"primary": "points"}}},
+        }
+        n = [0]
+        def _side(*args):
+            n[0] += 1
+            q = MagicMock()
+            q.filter.return_value = q
+            if n[0] == 1:
+                q.first.return_value = tt
+            elif n[0] == 2:
+                q.first.return_value = grandmaster
+            else:
+                q.first.return_value = preset
+            return q
+        db.query.side_effect = _side
+        mock_tournament = MagicMock()
+        mock_tournament.id = 7
+        overrides = {
+            "individual_config": {
+                "scoring_type": "DISTANCE_BASED",
+                "number_of_rounds": 1,
+            }
+        }
+        o = _orch(db)
+        o.test_run_id = "test-ir-preset"
+        o.start_time = datetime(2026, 3, 1, 10, 0, 0)
+        game_config_captured = {}
+        original_gc = __builtins__  # capture via side_effect below
+        with patch(f"{_BASE}.Semester", return_value=mock_tournament), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.game_configuration.GameConfiguration") as MockGC, \
+             patch("app.models.game_preset.GamePreset"):
+            o._create_tournament("league", ["dribbling"], 4,
+                                 game_preset_id=99, game_config_overrides=overrides)
+        # game_preset_id_value=None (INDIVIDUAL_RANKING)
+        gc_call_kwargs = MockGC.call_args[1]
+        assert gc_call_kwargs["game_preset_id"] is None
+        # format_config key must be INDIVIDUAL_RANKING (not "league")
+        final_cfg = gc_call_kwargs["game_config"]
+        assert "INDIVIDUAL_RANKING" in final_cfg["format_config"]
+        assert "league" not in final_cfg["format_config"]
+
+    def test_game_preset_not_found_falls_back_to_basic_config(self):
+        """CT-06: game_preset_id provided, preset NOT found → warning + build basic config"""
+        db = MagicMock()
+        tt = MagicMock()
+        tt.validate_player_count.return_value = (True, "")
+        tt.format = "league"
+        tt.id = 1
+        grandmaster = MagicMock()
+        grandmaster.id = 3
+        n = [0]
+        def _side(*args):
+            n[0] += 1
+            q = MagicMock()
+            q.filter.return_value = q
+            if n[0] == 1:
+                q.first.return_value = tt
+            elif n[0] == 2:
+                q.first.return_value = grandmaster
+            else:
+                q.first.return_value = None  # preset not found
+            return q
+        db.query.side_effect = _side
+        mock_tournament = MagicMock()
+        mock_tournament.id = 7
+        o = _orch(db)
+        o.test_run_id = "test-no-preset"
+        o.start_time = datetime(2026, 3, 1, 10, 0, 0)
+        with patch(f"{_BASE}.Semester", return_value=mock_tournament), \
+             patch("app.models.tournament_configuration.TournamentConfiguration"), \
+             patch("app.models.tournament_reward_config.TournamentRewardConfig"), \
+             patch("app.models.game_configuration.GameConfiguration") as MockGC, \
+             patch("app.models.game_preset.GamePreset"):
+            o._create_tournament("league", ["dribbling"], 4, game_preset_id=999)
+        # Must still produce a game_config (fallback to basic)
+        gc_call_kwargs = MockGC.call_args[1]
+        assert gc_call_kwargs["game_config"] is not None
+        assert "format_config" in gc_call_kwargs["game_config"]
+        assert o.tournament_id == 7
+
+
+# ─── _distribute_rewards ─────────────────────────────────────────────────────
+
+@pytest.mark.unit
+class TestDistributeRewards:
+    def test_success_path_sets_status_and_returns_result(self):
+        """DR-01: _distribute_rewards calls orchestrator, sets REWARDS_DISTRIBUTED"""
+        db = MagicMock()
+        mock_result = MagicMock()
+        mock_result.total_participants = 4
+        tournament = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = tournament
+        o = _orch(db)
+        o.tournament_id = 7
+        with patch(f"{_BASE}.tournament_reward_orchestrator") as mock_orch:
+            mock_orch.distribute_rewards_for_tournament.return_value = mock_result
+            result = o._distribute_rewards()
+        assert result is mock_result
+        assert tournament.tournament_status == "REWARDS_DISTRIBUTED"
+        db.commit.assert_called()
+        assert "Rewards distributed" in o.execution_steps[-1]
+        assert "SANDBOX MODE" in o.execution_steps[-1]
+        # Verify is_sandbox_mode=True was passed
+        call_kwargs = mock_orch.distribute_rewards_for_tournament.call_args[1]
+        assert call_kwargs["is_sandbox_mode"] is True
+        assert call_kwargs["tournament_id"] == 7
+
+
+# ─── _calculate_verdict ──────────────────────────────────────────────────────
+
+@pytest.mark.unit
+class TestCalculateVerdict:
+    def test_delegates_to_verdict_calculator(self):
+        """CV-01: _calculate_verdict creates SandboxVerdictCalculator and delegates"""
+        o = _orch()
+        o.tournament_id = 7
+        mock_verdict = {"verdict": "WORKING", "skill_progression": {}}
+        mock_calc = MagicMock()
+        mock_calc.calculate_verdict.return_value = mock_verdict
+        with patch("app.services.sandbox_verdict_calculator.SandboxVerdictCalculator",
+                   return_value=mock_calc):
+            result = o._calculate_verdict(
+                user_ids=[42, 43],
+                skills_to_test=["dribbling"],
+                distribution_result=MagicMock(total_participants=2),
+                skills_before_snapshot={42: {"dribbling": 60.0}},
+            )
+        assert result is mock_verdict
+        mock_calc.calculate_verdict.assert_called_once_with(
+            tournament_id=7,
+            expected_participant_count=2,
+            skills_to_test=["dribbling"],
+            distribution_result=mock_calc.calculate_verdict.call_args[1]["distribution_result"],
+            skills_before_snapshot={42: {"dribbling": 60.0}},
+        )
 
 
 # ─── execute_test ────────────────────────────────────────────────────────────
