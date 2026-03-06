@@ -23,6 +23,9 @@ jobs:
           - cypress/e2e/auth/registration.cy.js
           - cypress/e2e/error_states/http_409_conflict.cy.js
           - cypress/e2e/error_states/unauthorized.cy.js
+          - cypress/e2e/student/booking_lifecycle.cy.js
+          - cypress/e2e/student/license_advancement.cy.js
+          - cypress/e2e/student/booking_capacity_concurrency.cy.js
 
     services:
       postgres:
