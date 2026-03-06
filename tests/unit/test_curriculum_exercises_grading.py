@@ -378,3 +378,23 @@ class TestGradeExerciseHookResilience:
                 db=db,
             )
         mock_hook_db.close.assert_called_once()
+
+    def test_session_local_failure_hook_db_stays_none(self):
+        """
+        When SessionLocal() itself raises, hook_db stays None.
+        Both `if hook_db:` guards in except + finally must evaluate False.
+        Endpoint must still return success (exception is caught).
+        Covers branch edges 363->368 and 368->371.
+        """
+        db = _db_with_submission(_submission_row())
+
+        with patch(_COMP), patch(_ADAPT), \
+             patch(_SL, side_effect=RuntimeError("cannot connect")):
+            result = grade_exercise_submission(
+                submission_id=1,
+                payload={"score": 80},
+                current_user=_user(),
+                db=db,
+            )
+        # hook_db=None path: rollback and close are skipped — endpoint still succeeds
+        assert result["status"] == "success"
