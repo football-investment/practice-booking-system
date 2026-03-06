@@ -131,13 +131,42 @@ jobs:
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Job 2 — Critical specs only (blocking for PR merge)
+# Job 2 — Critical specs (blocking for PR merge) — split A/B for parallelism
+#
+# Previously a single job running 15 specs serially (10m28s).
+# Now two matrix groups running in parallel, targeting <6 min each.
+#
+# Group A (8 specs — admin/auth/new API workflows): ~4.5 min of tests
+# Group B (7 specs — student/instructor/player UI):  ~5.0 min of tests
+# Wall-clock improvement: 10m28s serial → ~6 min parallel (~43% faster)
 # ─────────────────────────────────────────────────────────────────────────────
   critical:
-    name: Critical Specs (Core Workflows — Blocking)
+    name: Critical Specs (${{ matrix.group }} — Blocking)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    timeout-minutes: 40
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false   # run both groups even if one fails
+      matrix:
+        include:
+          # ── Group A: admin + auth + new API-workflow specs ──────────────────
+          # Specs: dashboard_navigation(31s), tournament_manager(40s),
+          #        tournament_monitor(41s), registration(34s),
+          #        tournament_applications(70s), booking_lifecycle(~30s),
+          #        license_advancement(~30s), booking_capacity_concurrency(~30s)
+          # Estimated test time: ~4.5 min
+          - group: A
+            specs: "cypress/e2e/admin/dashboard_navigation.cy.js,cypress/e2e/admin/tournament_manager.cy.js,cypress/e2e/admin/tournament_monitor.cy.js,cypress/e2e/auth/registration.cy.js,cypress/e2e/instructor/tournament_applications.cy.js,cypress/e2e/student/booking_lifecycle.cy.js,cypress/e2e/student/license_advancement.cy.js,cypress/e2e/student/booking_capacity_concurrency.cy.js"
+
+          # ── Group B: student + instructor + player UI specs ─────────────────
+          # Specs: instructor/dashboard(19s), student/credits(40s),
+          #        student/dashboard(~30s), enrollment_flow(46s),
+          #        skill_update(40s), player/credits(30s),
+          #        player/specialization_hub(37s)
+          # Estimated test time: ~5.0 min
+          - group: B
+            specs: "cypress/e2e/instructor/dashboard.cy.js,cypress/e2e/student/credits.cy.js,cypress/e2e/student/dashboard.cy.js,cypress/e2e/student/enrollment_flow.cy.js,cypress/e2e/student/skill_update.cy.js,cypress/e2e/player/credits.cy.js,cypress/e2e/player/specialization_hub.cy.js"
 
     services:
       postgres:
@@ -209,20 +238,21 @@ jobs:
         working-directory: tests_cypress
         run: npm ci
 
-      - name: Run critical specs only
+      - name: Run critical specs (group ${{ matrix.group }})
         working-directory: tests_cypress
         env:
-          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
-          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
-          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
+          CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_STREAMLIT_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_ADMIN_EMAIL:         admin@lfa.com
           CYPRESS_ADMIN_PASSWORD:      admin123
-          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
           CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
-          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
+          CYPRESS_PLAYER_PASSWORD:     TestPlayer2026
         run: |
           npx cypress run \
-            --spec 'cypress/e2e/admin/dashboard_navigation.cy.js,cypress/e2e/admin/tournament_manager.cy.js,cypress/e2e/admin/tournament_monitor.cy.js,cypress/e2e/auth/registration.cy.js,cypress/e2e/instructor/dashboard.cy.js,cypress/e2e/instructor/tournament_applications.cy.js,cypress/e2e/student/credits.cy.js,cypress/e2e/student/dashboard.cy.js,cypress/e2e/student/enrollment_flow.cy.js,cypress/e2e/student/skill_update.cy.js,cypress/e2e/player/credits.cy.js,cypress/e2e/player/specialization_hub.cy.js,cypress/e2e/student/booking_lifecycle.cy.js,cypress/e2e/student/license_advancement.cy.js,cypress/e2e/student/booking_capacity_concurrency.cy.js' \
+            --spec '${{ matrix.specs }}' \
             --browser chrome \
             --headless
 
@@ -230,7 +260,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cypress-critical-screenshots-${{ github.run_id }}
+          name: cypress-critical-screenshots-${{ matrix.group }}-${{ github.run_id }}
           path: tests_cypress/cypress/screenshots/
           retention-days: 7
 

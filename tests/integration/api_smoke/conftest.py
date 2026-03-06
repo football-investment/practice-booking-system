@@ -90,6 +90,7 @@ _DOMAIN_PREFIX_MAP: dict[str, str] = {
     "groups":                "/api/v1/groups",
     "health":                "/api/v1/health",
     "instructor":            "/api/v1/instructor-management",
+    "instructor_analytics":  "/api/v1/users",              # GET /users/instructor/students{/*}
     "instructor_assignments":"/api/v1/instructor-assignments",
     "instructor_availability":"/api/v1/instructor-availability",
     "instructor_dashboard":  "/api/v1/instructor-management",
@@ -105,6 +106,8 @@ _DOMAIN_PREFIX_MAP: dict[str, str] = {
     "licenses":              "/api/v1/licenses",
     "locations":             "/api/v1/admin/locations",
     "messages":              "/api/v1/messages",
+    "milestones":            "/api/v1/projects",            # POST /projects/{id}/milestones/{id}/...
+    "quiz_attempts":         "/api/v1/quizzes",             # POST /quizzes/start, POST /quizzes/submit
     "motivation":            "/api/v1/licenses",       # /api/v1/licenses/motivation-assessment
     "notifications":         "/api/v1/notifications",
     "onboarding":            "",                       # Streamlit UI routes (no /api/v1/)
