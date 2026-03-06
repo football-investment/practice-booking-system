@@ -34,6 +34,7 @@ Covers:
     counts per skill, None scalar defaults to 0
 """
 import pytest
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from app.services.football_skill_service import FootballSkillService
@@ -310,3 +311,275 @@ class TestGetAssessmentCounts:
         db.query.return_value = q
         result = svc.get_assessment_counts(user_license_id=99)
         assert all(v == 0 for v in result.values())
+
+
+# ===========================================================================
+# create_assessment — paths that require lock_timer (Sprint 25 extension)
+# ===========================================================================
+
+_PATCH_LOCK = "app.services.football_skill_service.lock_timer"
+
+
+def _seq_q(*results):
+    """Sequential db.query side-effect: n-th call returns results[n]."""
+    idx = [0]
+    def _side(model):
+        i = idx[0]; idx[0] += 1
+        return results[i] if i < len(results) else MagicMock()
+    return _side
+
+
+def _wfu_mock(result):
+    q = MagicMock(); q.filter.return_value = q
+    q.with_for_update.return_value = q; q.first.return_value = result
+    return q
+
+
+def _filter_all_mock(items):
+    q = MagicMock(); q.filter.return_value = q; q.all.return_value = items
+    return q
+
+
+def _recalc_early_return():
+    """Mock that causes recalculate_skill_average to return early (no assessments)."""
+    q = MagicMock(); q.filter.return_value = q; q.all.return_value = []
+    return q
+
+
+@pytest.mark.unit
+@patch(_PATCH_LOCK)
+class TestCreateAssessmentWithLock:
+
+    def test_license_not_found_raises_value_error(self, mock_lock):
+        svc, db = _svc()
+        db.query.side_effect = _seq_q(
+            _wfu_mock(None),  # license → None
+        )
+        with pytest.raises(ValueError, match="not found"):
+            svc.create_assessment(
+                user_license_id=99, skill_name=VALID_SKILL,
+                points_earned=7, points_total=10, assessed_by=42,
+            )
+
+    def test_idempotent_same_data_returns_existing(self, mock_lock):
+        """Existing active assessment with identical data → (existing, False)."""
+        svc, db = _svc()
+        license = MagicMock()
+        existing = _mock_assessment(points_earned=7, points_total=10)
+        db.query.side_effect = _seq_q(
+            _wfu_mock(license),      # UserLicense
+            _wfu_mock(existing),     # existing_active (same data 7/10)
+        )
+        result = svc.create_assessment(
+            user_license_id=99, skill_name=VALID_SKILL,
+            points_earned=7, points_total=10, assessed_by=42,
+        )
+        assert result == (existing, False)
+
+    def test_different_data_logs_and_archives_old(self, mock_lock):
+        """Existing active with different score → archived, new assessment created."""
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 1
+        existing = _mock_assessment(points_earned=5, points_total=10)  # different
+        old = _mock_assessment(status=SkillAssessmentState.ASSESSED)
+        old.previous_status = None
+        instructor = MagicMock(); instructor.created_at = None
+
+        db.query.side_effect = _seq_q(
+            _wfu_mock(license),          # UserLicense
+            _wfu_mock(existing),         # existing_active (5/10 ≠ 7/10)
+            _filter_all_mock([old]),     # old_assessments for archiving
+            _wfu_mock(instructor),       # instructor lookup (filter().first())
+            _recalc_early_return(),      # recalculate_skill_average: no assessments
+        )
+        # Make instructor query use filter/first (not with_for_update)
+        # Reset side_effect to handle both filter-chains
+        call_idx = [0]
+        def _smart_side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = existing
+                return q
+            if i == 2: return _filter_all_mock([old])
+            if i == 3:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = instructor
+                return q
+            return _recalc_early_return()
+        db.query.side_effect = _smart_side
+
+        _, is_new = svc.create_assessment(
+            user_license_id=99, skill_name=VALID_SKILL,
+            points_earned=7, points_total=10, assessed_by=42,
+        )
+        assert is_new is True
+        assert old.status == SkillAssessmentState.ARCHIVED
+        assert old.archived_by == 42
+
+    def test_no_existing_active_creates_new(self, mock_lock):
+        """No existing active assessment → creates new (is_new=True)."""
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 2
+        instructor = MagicMock(); instructor.created_at = None
+
+        call_idx = [0]
+        def _side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+                return q
+            if i == 2: return _filter_all_mock([])
+            if i == 3:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = instructor
+                return q
+            return _recalc_early_return()
+        db.query.side_effect = _side
+
+        _, is_new = svc.create_assessment(
+            user_license_id=99, skill_name=VALID_SKILL,
+            points_earned=7, points_total=10, assessed_by=42,
+        )
+        assert is_new is True
+        db.add.assert_called_once()
+
+    def test_instructor_with_created_at_calculates_tenure(self, mock_lock):
+        """Instructor with created_at set → tenure_days calculated (not zero)."""
+        from datetime import timezone as tz
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 1
+        instructor = MagicMock()
+        # Timezone-naive datetime → branch: tzinfo is None → replace(tzinfo=utc)
+        instructor.created_at = datetime(2023, 1, 1, tzinfo=None)
+
+        call_idx = [0]
+        def _side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+                return q
+            if i == 2: return _filter_all_mock([])
+            if i == 3:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = instructor
+                return q
+            return _recalc_early_return()
+        db.query.side_effect = _side
+
+        _, is_new = svc.create_assessment(
+            user_license_id=99, skill_name=VALID_SKILL,
+            points_earned=7, points_total=10, assessed_by=42,
+        )
+        assert is_new is True  # tenure calculated, no error
+
+    def test_instructor_not_found_raises_value_error(self, mock_lock):
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 1
+
+        call_idx = [0]
+        def _side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+                return q
+            if i == 2: return _filter_all_mock([])
+            # i == 3: instructor → None
+            q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+            return q
+        db.query.side_effect = _side
+
+        with pytest.raises(ValueError, match="not found"):
+            svc.create_assessment(
+                user_license_id=99, skill_name=VALID_SKILL,
+                points_earned=7, points_total=10, assessed_by=42,
+            )
+
+    def test_integrity_error_concurrent_assessment_found_returns_it(self, mock_lock):
+        """IntegrityError on flush → rollback, fetch concurrent, return (existing, False)."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 1
+        instructor = MagicMock(); instructor.created_at = None
+        concurrent = _mock_assessment()
+
+        flush_call = [0]
+        def _flush():
+            flush_call[0] += 1
+            if flush_call[0] == 1:
+                raise SAIntegrityError("stmt", "params", Exception("orig"))
+        db.flush.side_effect = _flush
+
+        call_idx = [0]
+        def _side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+                return q
+            if i == 2: return _filter_all_mock([])
+            if i == 3:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = instructor
+                return q
+            # i == 4: concurrent fetch after rollback
+            q = MagicMock(); q.filter.return_value = q; q.first.return_value = concurrent
+            return q
+        db.query.side_effect = _side
+
+        result, is_new = svc.create_assessment(
+            user_license_id=99, skill_name=VALID_SKILL,
+            points_earned=7, points_total=10, assessed_by=42,
+        )
+        assert result is concurrent
+        assert is_new is False
+        db.rollback.assert_called_once()
+
+    def test_integrity_error_no_concurrent_reraises(self, mock_lock):
+        """IntegrityError on flush, concurrent fetch returns None → re-raise."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+        svc, db = _svc()
+        license = MagicMock(); license.current_level = 1
+        instructor = MagicMock(); instructor.created_at = None
+
+        db.flush.side_effect = SAIntegrityError("stmt", "params", Exception("orig"))
+
+        call_idx = [0]
+        def _side(model):
+            i = call_idx[0]; call_idx[0] += 1
+            if i == 0: return _wfu_mock(license)
+            if i == 1:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+                return q
+            if i == 2: return _filter_all_mock([])
+            if i == 3:
+                q = MagicMock(); q.filter.return_value = q; q.first.return_value = instructor
+                return q
+            # i == 4: no concurrent found
+            q = MagicMock(); q.filter.return_value = q; q.first.return_value = None
+            return q
+        db.query.side_effect = _side
+
+        with pytest.raises(SAIntegrityError):
+            svc.create_assessment(
+                user_license_id=99, skill_name=VALID_SKILL,
+                points_earned=7, points_total=10, assessed_by=42,
+            )
+
+
+# ===========================================================================
+# recalculate_all_skill_averages (Sprint 25 extension)
+# ===========================================================================
+
+@pytest.mark.unit
+@patch(_PATCH_LOCK)
+class TestRecalculateAllSkillAverages:
+    def test_returns_dict_with_all_skills(self, mock_lock):
+        svc, db = _svc()
+        # recalculate_skill_average: first query returns [] → 0.0 (early return)
+        q = MagicMock(); q.filter.return_value = q; q.all.return_value = []
+        db.query.return_value = q
+
+        result = svc.recalculate_all_skill_averages(user_license_id=99)
+        assert isinstance(result, dict)
+        assert all(v == 0.0 for v in result.values())
+        assert set(result.keys()) == set(svc.VALID_SKILLS)
