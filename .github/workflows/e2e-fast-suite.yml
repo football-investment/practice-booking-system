@@ -97,6 +97,7 @@ jobs:
       - name: Run Fast Suite
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          STREAMLIT_URL: http://localhost:8501
         run: |
           pytest tests_e2e/test_tournament_monitor_e2e.py \
                  tests_e2e/test_tournament_monitor_coverage.py \
