@@ -451,3 +451,104 @@ class TestAdminSmoke:
         )
         
 
+
+
+class TestBatchCreatePlayersSmoke:
+    """
+    Smoke tests for POST /admin/batch-create-players
+
+    Coverage target: app/api/api_v1/endpoints/admin_players.py
+    Covers: auth guard, instructor 403, input validation (422),
+            and the happy-path (201) with a minimal valid payload.
+    """
+
+    _URL = "/api/v1/admin/batch-create-players"  # bypass _PrefixedClient prefix
+
+    def test_batch_create_auth_required(self, api_client):
+        """POST without auth → 401 or 403."""
+        response = api_client.post(
+            self._URL,
+            json={"players": [{"email": "x@example.com", "password": "secret123", "name": "X"}]},
+        )
+        assert response.status_code in [401, 403], (
+            f"No-auth batch-create: unexpected {response.status_code}"
+        )
+
+    def test_batch_create_instructor_forbidden(self, api_client, instructor_token: str):
+        """Instructor POST → 403 (Admin only)."""
+        headers = {"Authorization": f"Bearer {instructor_token}"}
+        response = api_client.post(
+            self._URL,
+            headers=headers,
+            json={"players": [{"email": "x@example.com", "password": "secret123", "name": "X"}]},
+        )
+        assert response.status_code in [401, 403], (
+            f"Instructor batch-create should be 403: got {response.status_code}"
+        )
+
+    def test_batch_create_empty_list_validation(self, api_client, admin_token: str):
+        """Admin POST with empty players list → 422 (min_length=1)."""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            self._URL,
+            headers=headers,
+            json={"players": []},
+        )
+        assert response.status_code == 422, (
+            f"Empty players list should be 422: got {response.status_code}"
+        )
+
+    def test_batch_create_invalid_email_validation(self, api_client, admin_token: str):
+        """Admin POST with bad email → 422 (field_validator)."""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            self._URL,
+            headers=headers,
+            json={"players": [{"email": "not-an-email", "password": "secret123", "name": "X"}]},
+        )
+        assert response.status_code == 422, (
+            f"Invalid email should be 422: got {response.status_code}"
+        )
+
+    def test_batch_create_short_password_validation(self, api_client, admin_token: str):
+        """Admin POST with password < 6 chars → 422."""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            self._URL,
+            headers=headers,
+            json={"players": [{"email": "ok@example.com", "password": "abc", "name": "X"}]},
+        )
+        assert response.status_code == 422, (
+            f"Short password should be 422: got {response.status_code}"
+        )
+
+    def test_batch_create_admin_minimal_payload(self, api_client, admin_token: str):
+        """Admin POST with 1 unique player → 201 created or 409 if already exists."""
+        import uuid
+        unique_email = f"smoke-batch-{uuid.uuid4().hex[:8]}@test.example.com"
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = api_client.post(
+            self._URL,
+            headers=headers,
+            json={
+                "players": [{"email": unique_email, "password": "secret123", "name": "Smoke Player"}],
+                "skip_existing": True,
+            },
+        )
+        assert response.status_code in [200, 201, 409], (
+            f"Admin batch-create (1 player): unexpected {response.status_code}"
+        )
+
+    def test_batch_create_skip_existing_idempotent(self, api_client, admin_token: str):
+        """Sending the same email twice with skip_existing=True → success (no conflict)."""
+        import uuid
+        unique_email = f"smoke-idem-{uuid.uuid4().hex[:8]}@test.example.com"
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        payload = {
+            "players": [{"email": unique_email, "password": "secret123", "name": "Idem Player"}],
+            "skip_existing": True,
+        }
+        r1 = api_client.post(self._URL, headers=headers, json=payload)
+        r2 = api_client.post(self._URL, headers=headers, json=payload)
+        assert r1.status_code in [200, 201], f"First call: {r1.status_code}"
+        assert r2.status_code in [200, 201], f"Second call (idempotent): {r2.status_code}"
