@@ -14,25 +14,14 @@ All three routes require:
   - Instructor role (403 for non-instructor)
   - Valid student_id that exists in DB (404 otherwise)
 
-Known production bug:
-  instructor_analytics.py references ProjectEnrollment without importing it.
-  The NameError is only triggered on the instructor-token path (after the role
-  check passes). The 3 instructor-token tests are marked @pytest.mark.xfail
-  with raises=NameError, strict=False — they will automatically turn XPASS
-  (and eventually PASS after the xfail is removed) once the bug is fixed.
-
-Bug monitor policy:
-  - XFAIL (expected): bug is still present → CI stays green
-  - XPASS (unexpected pass): bug was fixed → CI stays green, but developer
-    should remove the @pytest.mark.xfail decorator and the try/except block
-  - strict=False ensures no false FAIL on bug fix
+Bug fix applied (Sprint 28):
+  Missing imports (ProjectEnrollment, Project, SessionTypel, QuizAttempt, Quiz,
+  UserAchievement, Achievement) were added to instructor_analytics.py.
+  xfail markers have been removed.
 """
 
 import pytest
 from fastapi.testclient import TestClient
-
-_BUG = "Known bug: ProjectEnrollment not imported in instructor_analytics.py"
-
 
 class TestInstructorAnalyticsSmoke:
     """Smoke tests for instructor student analytics endpoints (users domain)."""
@@ -79,16 +68,12 @@ class TestInstructorAnalyticsSmoke:
             f"GET /instructor/students with pagination: {response.status_code}"
         )
 
-    @pytest.mark.xfail(raises=NameError, strict=False, reason=_BUG)
     def test_get_instructor_students_instructor_token(
         self, api_client: TestClient, instructor_token: str
     ):
         """
         Instructor token: GET /instructor/students with valid instructor credentials.
         Covers: the successful DB query path (project_students union session_students).
-
-        Bug monitor: xfail(raises=NameError, strict=False) — XFAIL while bug present,
-        XPASS once ProjectEnrollment import is added. Remove decorator after fix.
         """
         headers = {"Authorization": f"Bearer {instructor_token}"}
         response = api_client.get("/instructor/students", headers=headers)

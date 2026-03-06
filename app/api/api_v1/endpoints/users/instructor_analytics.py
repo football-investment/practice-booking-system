@@ -12,6 +12,11 @@ from .....models.user import User, UserRole
 from .....models.booking import Booking
 from .....models.attendance import Attendance
 from .....models.feedback import Feedback
+from .....models.project import Project, ProjectEnrollment
+from .....models.session import Session as SessionTypel
+from .....models.quiz import Quiz, QuizAttempt
+from .....models.achievement import Achievement
+from .....models.gamification import UserAchievement
 from .helpers import serialize_enum_value
 
 router = APIRouter()
