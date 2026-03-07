@@ -7,9 +7,9 @@
 # ===================================
 #
 # Phase 0 — Clean DB Setup (lifecycle prerequisite)
-#   tests_e2e/lifecycle/test_00_clean_db.py
+#   tests/e2e/lifecycle/test_00_clean_db.py
 #   → Drops and recreates DB, runs migrations, seeds admin + grandmaster + invite code
-#   → Saves snapshot: tests_e2e/snapshots/00_clean_db.dump
+#   → Saves snapshot: tests/e2e/snapshots/00_clean_db.dump
 #   → Requires: PostgreSQL running, DATABASE_URL set
 #
 # Phase 1 — Auth: Admin Login (smoke check)
@@ -49,7 +49,7 @@
 #   → Requires: Streamlit sandbox running: streamlit run streamlit_sandbox_v3_admin_aligned.py --server.port 8501
 #
 # Phase 5 — Tournament Lifecycle E2E: Rankings + Badges + Regression Guard
-#   tests_e2e/lifecycle/test_04_tournament_lifecycle.py
+#   tests/e2e/lifecycle/test_04_tournament_lifecycle.py
 #   → Creates league tournament with 4 star players (Mbappé, Haaland, Messi, Vinicius)
 #   → Batch enrolls all 4 via admin API
 #   → Generates 6 round-robin sessions
@@ -202,7 +202,7 @@ fi
 
 if [[ "$SKIP_SNAPSHOT" == "false" ]]; then
     run_phase "0" "Clean DB Setup + Snapshot" \
-        "tests_e2e/lifecycle/test_00_clean_db.py" \
+        "tests/e2e/lifecycle/test_00_clean_db.py" \
         "-s"
 
     # Phase 0b: Seed 12 star players (runs immediately after Phase 0)
@@ -269,7 +269,7 @@ run_phase "4" "Sandbox Tournament: Group+Knockout Full Flow" \
 # =============================================================================
 
 run_phase "5" "Tournament Lifecycle: Rankings + CHAMPION Badge + No-Regression" \
-    "tests_e2e/lifecycle/test_04_tournament_lifecycle.py" \
+    "tests/e2e/lifecycle/test_04_tournament_lifecycle.py" \
     "-s"
 
 # =============================================================================

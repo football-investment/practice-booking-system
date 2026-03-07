@@ -37,7 +37,7 @@ ok()   { echo -e "${GREEN}✅  $*${NC}"; }
 
 # ── Config ───────────────────────────────────────────────────────────────────
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-CYPRESS_DIR="${REPO_ROOT}/tests_cypress"
+CYPRESS_DIR="${REPO_ROOT}/cypress"
 BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
 STREAMLIT_URL="${STREAMLIT_URL:-http://localhost:8501}"
 
@@ -88,8 +88,8 @@ else
     echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     err "Fix failing tests before pushing"
-    info "Review screenshots in: tests_cypress/cypress/screenshots/"
-    info "Review videos in: tests_cypress/cypress/videos/"
+    info "Review screenshots in: cypress/cypress/screenshots/"
+    info "Review videos in: cypress/cypress/videos/"
     echo ""
     exit 1
 fi
