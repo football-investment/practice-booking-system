@@ -18,11 +18,7 @@ Auth requirements:
   - GET waitlist: public (returns anonymous waitlist)
 """
 
-import pytest
 from fastapi.testclient import TestClient
-
-_BUG_QUIZ = "Known bug: ProjectQuiz not imported in projects/quizzes.py DELETE handler"
-_BUG_WAITLIST = "Known bug: UnboundLocalError in projects/quizzes.py waitlist handler (status variable collision)"
 
 
 class TestProjectQuizzesSmoke:
@@ -103,14 +99,11 @@ class TestProjectQuizzesSmoke:
             f"No-auth DELETE quiz: unexpected {response.status_code}"
         )
 
-    @pytest.mark.xfail(raises=NameError, strict=False, reason=_BUG_QUIZ)
     def test_delete_quiz_nonexistent(
         self, api_client: TestClient, admin_token: str
     ):
         """
         Admin DELETE /projects/99999/quizzes/1 — connection not found → 404.
-        Bug monitor: ProjectQuiz not imported → NameError in DELETE path.
-        Remove xfail decorator once the import bug is fixed.
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
         response = api_client.delete("/99999/quizzes/1", headers=headers)
@@ -152,14 +145,10 @@ class TestProjectQuizzesSmoke:
             f"GET waitlist (no project): unexpected {response.status_code}"
         )
 
-    @pytest.mark.xfail(raises=UnboundLocalError, strict=False, reason=_BUG_WAITLIST)
     def test_waitlist_with_auth(
         self, api_client: TestClient, admin_token: str
     ):
-        """GET /projects/99999/waitlist with admin auth → user_position field.
-        Bug monitor: UnboundLocalError in waitlist handler when authenticated.
-        Remove xfail once the status variable collision bug is fixed.
-        """
+        """GET /projects/99999/waitlist with admin auth → 404 (project not found)."""
         headers = {"Authorization": f"Bearer {admin_token}"}
         response = api_client.get("/99999/waitlist", headers=headers)
         assert response.status_code in [200, 404, 422], (
