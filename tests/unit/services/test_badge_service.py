@@ -564,3 +564,224 @@ class TestGetUserActionCount:
 
     def test_zero_count_for_known_action(self):
         assert self._call("login", audit_count=0) == 0
+
+
+# ---------------------------------------------------------------------------
+# check_and_award_first_time_achievements
+# ---------------------------------------------------------------------------
+
+class TestCheckFirstTimeAchievements:
+    """Tests for check_and_award_first_time_achievements."""
+
+    def _run(self, quiz_count=0):
+        from app.services.gamification.badge_service import (
+            check_and_award_first_time_achievements,
+        )
+        db = _db()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.count.return_value = quiz_count
+        db.query.return_value = q
+
+        with patch("app.services.gamification.badge_service.award_achievement",
+                   return_value=MagicMock()) as mock_award:
+            with patch("app.services.gamification.badge_service.award_xp"):
+                result = check_and_award_first_time_achievements(db, user_id=42)
+        return result, mock_award
+
+    def test_no_quiz_count_no_award(self):
+        """FTA-01: quiz_count=0 → not exactly 1 → no award."""
+        result, mock_award = self._run(quiz_count=0)
+        assert result == []
+        mock_award.assert_not_called()
+
+    def test_exactly_one_quiz_awards_achievement(self):
+        """FTA-02: quiz_count=1 → FIRST_QUIZ_COMPLETED awarded."""
+        from app.models.gamification import BadgeType
+        result, mock_award = self._run(quiz_count=1)
+        assert len(result) == 1
+        mock_award.assert_called_once()
+        call_kw = mock_award.call_args.kwargs
+        assert call_kw["badge_type"] == BadgeType.FIRST_QUIZ_COMPLETED
+
+    def test_more_than_one_quiz_no_award(self):
+        """FTA-03: quiz_count=5 → not exactly 1 → no award."""
+        result, mock_award = self._run(quiz_count=5)
+        assert result == []
+        mock_award.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# check_first_project_enrollment
+# ---------------------------------------------------------------------------
+
+class TestCheckFirstProjectEnrollment:
+    """Tests for check_first_project_enrollment."""
+
+    def _run(self, enrollment_count=0, combo_achievements=None):
+        from app.services.gamification.badge_service import (
+            check_first_project_enrollment,
+        )
+        db = _db()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.count.return_value = enrollment_count
+        db.query.return_value = q
+
+        combo = combo_achievements if combo_achievements is not None else []
+        with patch("app.services.gamification.badge_service.award_achievement",
+                   return_value=MagicMock()) as mock_award:
+            with patch("app.services.gamification.badge_service.award_xp"):
+                with patch(
+                    "app.services.gamification.badge_service._check_quiz_enrollment_combo",
+                    return_value=combo,
+                ) as mock_combo:
+                    result = check_first_project_enrollment(db, user_id=42, project_id=7)
+        return result, mock_award, mock_combo
+
+    def test_zero_enrollments_no_award(self):
+        """FPE-01: enrollment_count=0 → no award."""
+        result, mock_award, mock_combo = self._run(enrollment_count=0)
+        assert result == []
+        mock_award.assert_not_called()
+
+    def test_first_enrollment_awards_and_checks_combo(self):
+        """FPE-02: enrollment_count=1 → FIRST_PROJECT_ENROLLED + combo checked."""
+        from app.models.gamification import BadgeType
+        result, mock_award, mock_combo = self._run(enrollment_count=1)
+        assert len(result) >= 1
+        mock_award.assert_called_once()
+        call_kw = mock_award.call_args.kwargs
+        assert call_kw["badge_type"] == BadgeType.FIRST_PROJECT_ENROLLED
+        mock_combo.assert_called_once()  # called with (db, user_id) positionally
+
+    def test_first_enrollment_combo_achievements_extended(self):
+        """FPE-03: enrollment_count=1 + combo returns achievement → result includes it."""
+        combo_ach = MagicMock()
+        result, mock_award, _ = self._run(enrollment_count=1, combo_achievements=[combo_ach])
+        assert combo_ach in result
+
+    def test_second_enrollment_no_award(self):
+        """FPE-04: enrollment_count=2 → not first → no award."""
+        result, mock_award, mock_combo = self._run(enrollment_count=2)
+        assert result == []
+        mock_award.assert_not_called()
+        mock_combo.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# check_and_award_specialization_achievements
+# ---------------------------------------------------------------------------
+
+class TestSpecializationAchievements:
+    """Tests for check_and_award_specialization_achievements."""
+
+    def _progress(self, current_level=1, completed_sessions=0, completed_projects=0):
+        p = MagicMock()
+        p.current_level = current_level
+        p.completed_sessions = completed_sessions
+        p.completed_projects = completed_projects
+        return p
+
+    def _run(self, progress_obj, spec_id="PLAYER"):
+        from app.services.gamification.badge_service import (
+            check_and_award_specialization_achievements,
+        )
+        db = _db()
+        q = MagicMock()
+        q.filter.return_value = q
+        q.first.return_value = progress_obj
+        db.query.return_value = q
+
+        awarded = []
+        with patch("app.services.gamification.badge_service.award_achievement",
+                   side_effect=lambda **kw: kw["badge_type"]) as mock_award:
+            result = check_and_award_specialization_achievements(db, user_id=42, specialization_id=spec_id)
+        return result
+
+    def test_no_progress_returns_empty(self):
+        """SPEC-01: progress not found → []."""
+        result = self._run(progress_obj=None, spec_id="PLAYER")
+        assert result == []
+
+    def test_player_level_2_awards_first_level_up(self):
+        """SPEC-02: PLAYER level=2 → FIRST_LEVEL_UP awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=2), spec_id="PLAYER")
+        assert BadgeType.FIRST_LEVEL_UP in result
+
+    def test_player_level_3_awards_skill_milestone(self):
+        """SPEC-03: PLAYER level=3 → FIRST_LEVEL_UP + SKILL_MILESTONE."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=3), spec_id="PLAYER")
+        assert BadgeType.SKILL_MILESTONE in result
+
+    def test_player_level_5_awards_advanced_skill(self):
+        """SPEC-04: PLAYER level=5 → ADVANCED_SKILL awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=5), spec_id="PLAYER")
+        assert BadgeType.ADVANCED_SKILL in result
+
+    def test_player_level_8_awards_master_level(self):
+        """SPEC-05: PLAYER level=8 → MASTER_LEVEL awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=8), spec_id="PLAYER")
+        assert BadgeType.MASTER_LEVEL in result
+
+    def test_player_sessions_5_awards_player_dedication(self):
+        """SPEC-06: PLAYER sessions=5 → PLAYER_DEDICATION awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=1, completed_sessions=5), spec_id="PLAYER")
+        assert BadgeType.PLAYER_DEDICATION in result
+
+    def test_player_level_1_no_achievements(self):
+        """SPEC-07: PLAYER level=1, sessions=0 → no awards."""
+        result = self._run(self._progress(current_level=1, completed_sessions=0), spec_id="PLAYER")
+        assert result == []
+
+    def test_coach_level_2_awards_first_level_up(self):
+        """SPEC-08: COACH level=2 → FIRST_LEVEL_UP awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=2), spec_id="COACH")
+        assert BadgeType.FIRST_LEVEL_UP in result
+
+    def test_coach_level_8_awards_master_level(self):
+        """SPEC-09: COACH level=8 → MASTER_LEVEL awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=8), spec_id="COACH")
+        assert BadgeType.MASTER_LEVEL in result
+
+    def test_coach_sessions_5_awards_coach_dedication(self):
+        """SPEC-10: COACH sessions=5 → COACH_DEDICATION awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=1, completed_sessions=5), spec_id="COACH")
+        assert BadgeType.COACH_DEDICATION in result
+
+    def test_internship_level_2_awards_first_level_up(self):
+        """SPEC-11: INTERNSHIP level=2 → FIRST_LEVEL_UP awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=2), spec_id="INTERNSHIP")
+        assert BadgeType.FIRST_LEVEL_UP in result
+
+    def test_internship_level_3_awards_master(self):
+        """SPEC-12: INTERNSHIP level=3 → MASTER_LEVEL awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=3), spec_id="INTERNSHIP")
+        assert BadgeType.MASTER_LEVEL in result
+
+    def test_internship_sessions_3_awards_dedication(self):
+        """SPEC-13: INTERNSHIP sessions=3 → INTERNSHIP_DEDICATION awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=1, completed_sessions=3), spec_id="INTERNSHIP")
+        assert BadgeType.INTERNSHIP_DEDICATION in result
+
+    def test_internship_project_complete_awards_badge(self):
+        """SPEC-14: INTERNSHIP completed_projects=1 → PROJECT_COMPLETE awarded."""
+        from app.models.gamification import BadgeType
+        result = self._run(self._progress(current_level=1, completed_projects=1), spec_id="INTERNSHIP")
+        assert BadgeType.PROJECT_COMPLETE in result
+
+    def test_unknown_specialization_returns_empty(self):
+        """SPEC-15: unknown spec_id → no if/elif matches → empty list."""
+        result = self._run(self._progress(current_level=10, completed_sessions=10), spec_id="UNKNOWN")
+        assert result == []
