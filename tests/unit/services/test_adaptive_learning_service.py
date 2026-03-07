@@ -526,3 +526,311 @@ class TestRecordAnswer:
         assert result["xp_earned"] == 5
         assert result["new_target_difficulty"] is None
         assert result["performance_trend"] is None
+
+
+# ===========================================================================
+# get_next_question — uncovered branches
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetNextQuestion:
+    """
+    Covers branches in get_next_question (L35-86):
+      L40: session not found → None
+      L43: session time expired → time_expired dict
+      L52: no candidate questions → None
+      L65: all recently answered → fall back to all candidates
+      L75: selected_question is None → no_questions dict
+    """
+
+    def _setup_q_multi(self, db, *qs):
+        """Set db.query.side_effect to return sequential mocks."""
+        calls = [0]
+        def _side(*args):
+            idx = calls[0]
+            calls[0] += 1
+            return qs[idx] if idx < len(qs) else _q(db)
+        db.query.side_effect = _side
+
+    def test_session_not_found_returns_none(self):
+        svc, db = _svc()
+        _q(db, first=None)   # session query → None
+        result = svc.get_next_question(user_id=42, session_id=99)
+        assert result is None
+
+    def test_time_expired_returns_dict(self):
+        svc, db = _svc()
+        session = MagicMock()
+        _q(db, first=session)
+        with patch.object(svc, "_is_session_time_expired", return_value=True):
+            result = svc.get_next_question(user_id=42, session_id=1)
+        assert result == {"session_complete": True, "reason": "time_expired"}
+
+    def test_no_candidate_questions_returns_none(self):
+        svc, db = _svc()
+        session = MagicMock()
+        _q(db, first=session)
+        with patch.object(svc, "_is_session_time_expired", return_value=False), \
+             patch.object(svc, "_get_user_performance_data", return_value={}), \
+             patch.object(svc, "_get_candidate_questions", return_value=[]):
+            result = svc.get_next_question(user_id=42, session_id=1)
+        assert result is None
+
+    def test_all_recently_answered_uses_all_candidates(self):
+        """All candidates were recently answered → available_questions = candidate_questions."""
+        svc, db = _svc()
+        session = MagicMock()
+        question = MagicMock()
+        question.id = 7
+
+        # recent_questions query returns a performance record for question.id
+        q_session = MagicMock()
+        q_session.filter.return_value = q_session
+        q_session.first.return_value = session
+
+        q_recent = MagicMock()
+        q_recent.filter.return_value = q_recent
+        recent_perf = MagicMock()
+        recent_perf.question_id = 7   # matches question.id
+        q_recent.all.return_value = [recent_perf]
+
+        calls = [0]
+        def _side(*args):
+            idx = calls[0]; calls[0] += 1
+            return [q_session, q_recent][idx] if idx < 2 else MagicMock()
+        db.query.side_effect = _side
+
+        with patch.object(svc, "_is_session_time_expired", return_value=False), \
+             patch.object(svc, "_get_user_performance_data", return_value={}), \
+             patch.object(svc, "_get_candidate_questions", return_value=[question]), \
+             patch.object(svc, "_select_adaptive_question", return_value=question), \
+             patch.object(svc, "_get_session_time_remaining", return_value=120):
+            result = svc.get_next_question(user_id=42, session_id=1)
+        assert result["id"] == 7
+
+    def test_no_selected_question_returns_no_questions_dict(self):
+        """_select_adaptive_question returns None → no_questions dict."""
+        svc, db = _svc()
+        session = MagicMock()
+        _q(db, first=session, all_=[])   # recent questions → empty
+        with patch.object(svc, "_is_session_time_expired", return_value=False), \
+             patch.object(svc, "_get_user_performance_data", return_value={}), \
+             patch.object(svc, "_get_candidate_questions", return_value=[MagicMock()]), \
+             patch.object(svc, "_select_adaptive_question", return_value=None):
+            result = svc.get_next_question(user_id=42, session_id=1)
+        assert result == {"session_complete": True, "reason": "no_questions"}
+
+
+# ===========================================================================
+# record_answer — session found branches (is_correct True/False)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestRecordAnswerSessionFound:
+    """
+    Covers record_answer branches when session IS found:
+      L97: session found → questions_presented incremented
+      L99: is_correct=True → questions_correct incremented
+      L99: is_correct=False → questions_correct NOT incremented
+      L123: session found → xp_earned updated
+    """
+
+    def _run(self, is_correct):
+        svc, db = _svc()
+        session = MagicMock()
+        session.questions_presented = 2
+        session.questions_correct = 1
+        session.performance_trend = 0.0
+        session.target_difficulty = 0.5
+        session.xp_earned = 0
+        _q(db, first=session)
+        with patch.object(svc, "_calculate_performance_trend", return_value=0.1), \
+             patch.object(svc, "_adjust_target_difficulty", return_value=0.55), \
+             patch.object(svc, "_update_user_question_performance"), \
+             patch.object(svc, "_update_question_metadata"), \
+             patch.object(svc, "_calculate_adaptive_xp", return_value=25), \
+             patch.object(svc, "_get_mastery_update", return_value={}):
+            result = svc.record_answer(
+                user_id=42, session_id=1, question_id=5,
+                is_correct=is_correct, time_spent_seconds=20.0
+            )
+        return result, session
+
+    def test_is_correct_true_increments_correct_count(self):
+        result, session = self._run(True)
+        assert result["xp_earned"] == 25
+        # questions_correct should have been incremented
+        assert session.questions_correct == 2  # 1 + 1
+
+    def test_is_correct_false_does_not_increment_correct_count(self):
+        result, session = self._run(False)
+        assert result["xp_earned"] == 25
+        # questions_correct stays at 1 (not incremented for wrong)
+        assert session.questions_correct == 1
+
+
+# ===========================================================================
+# get_user_learning_analytics — uncovered branches
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetUserLearningAnalyticsBranches:
+    """
+    Covers:
+      L173: if category: → True branch (join query applied)
+      L201: if len(recent_performances) > 0: → True branch (velocity calculated)
+    """
+
+    def test_with_category_joins_query(self):
+        """category provided → join applied (L173 True)."""
+        svc, db = _svc()
+        perf = MagicMock()
+        perf.total_attempts = 5
+        perf.correct_attempts = 3
+        perf.mastery_level = 0.6
+        perf.success_rate = 0.6
+        # last_attempted_at in the past (not recent)
+        perf.last_attempted_at = datetime.now(timezone.utc) - timedelta(days=10)
+        q = MagicMock()
+        q.filter.return_value = q
+        q.join.return_value = q
+        q.all.return_value = [perf]
+        db.query.return_value = q
+        result = svc.get_user_learning_analytics(
+            user_id=42, category=QuizCategory.GENERAL
+        )
+        q.join.assert_called()   # category branch triggered join
+        assert result["total_questions_attempted"] == 1
+
+    def test_with_recent_performances_calculates_velocity(self):
+        """recent_performances > 0 → learning_velocity computed (L201 True)."""
+        svc, db = _svc()
+        perf = MagicMock()
+        perf.total_attempts = 10
+        perf.correct_attempts = 8
+        perf.mastery_level = 0.8
+        perf.success_rate = 0.8
+        # last_attempted_at within last 7 days → goes into recent_performances
+        perf.last_attempted_at = datetime.now(timezone.utc) - timedelta(hours=2)
+        q = MagicMock()
+        q.filter.return_value = q
+        q.join.return_value = q
+        q.all.return_value = [perf]
+        db.query.return_value = q
+        result = svc.get_user_learning_analytics(user_id=42, category=None)
+        # learning_velocity should be set (0.8 recent - 0.8 overall = 0.0 in this case)
+        assert "learning_velocity" in result
+
+
+# ===========================================================================
+# _select_adaptive_question — branch coverage
+# ===========================================================================
+
+@pytest.mark.unit
+class TestSelectAdaptiveQuestion:
+    """
+    Covers _select_adaptive_question:
+      L279: due_questions found → random.choice (True path)
+      L286: weak_concept_questions found AND random < 0.7 → random.choice
+      L286: weak_concept OR random >= 0.7 → fallback random.choice
+    """
+
+    def _perf_data(self, due_ids=None, weak_ids=None):
+        return {
+            "due_for_review": [MagicMock(question_id=i) for i in (due_ids or [])],
+            "weak_concepts": [MagicMock(question_id=i) for i in (weak_ids or [])],
+        }
+
+    def test_due_question_returned_preferentially(self):
+        svc, _ = _svc()
+        q_due = MagicMock(); q_due.id = 10
+        q_other = MagicMock(); q_other.id = 20
+        perf_data = self._perf_data(due_ids=[10])
+        with patch("random.choice", return_value=q_due):
+            result = svc._select_adaptive_question([q_due, q_other], perf_data, MagicMock())
+        assert result is q_due
+
+    def test_weak_concept_selected_when_random_below_threshold(self):
+        svc, _ = _svc()
+        q_weak = MagicMock(); q_weak.id = 20
+        q_other = MagicMock(); q_other.id = 30
+        perf_data = self._perf_data(due_ids=[], weak_ids=[20])
+        with patch("random.random", return_value=0.5), \
+             patch("random.choice", return_value=q_weak):
+            result = svc._select_adaptive_question([q_weak, q_other], perf_data, MagicMock())
+        assert result is q_weak
+
+    def test_random_question_returned_when_random_above_threshold(self):
+        """random.random() >= 0.7 → fallback to random.choice from all candidates."""
+        svc, _ = _svc()
+        q_weak = MagicMock(); q_weak.id = 20
+        q_other = MagicMock(); q_other.id = 30
+        perf_data = self._perf_data(due_ids=[], weak_ids=[20])
+        with patch("random.random", return_value=0.9), \
+             patch("random.choice", return_value=q_other):
+            result = svc._select_adaptive_question([q_weak, q_other], perf_data, MagicMock())
+        assert result is q_other
+
+
+# ===========================================================================
+# _get_candidate_questions — fallback branch
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetCandidateQuestionsFallback:
+    """
+    Covers L264: if not questions: → fallback to any category questions.
+    """
+
+    def test_empty_range_falls_back_to_category_query(self):
+        svc, db = _svc()
+        question = MagicMock()
+        # First query (by difficulty range) returns empty
+        # Second query (category-only fallback) returns one question
+        calls = [0]
+        q_empty = MagicMock(); q_empty.filter.return_value = q_empty
+        q_empty.join.return_value = q_empty; q_empty.all.return_value = []
+        q_fallback = MagicMock(); q_fallback.filter.return_value = q_fallback
+        q_fallback.join.return_value = q_fallback; q_fallback.all.return_value = [question]
+        def _side(*args):
+            idx = calls[0]; calls[0] += 1
+            return [q_empty, q_fallback][idx] if idx < 2 else MagicMock()
+        db.query.side_effect = _side
+        result = svc._get_candidate_questions(QuizCategory.GENERAL, target_difficulty=0.5)
+        assert result == [question]
+
+
+# ===========================================================================
+# _update_question_metadata — difficulty adjustment branches
+# ===========================================================================
+
+@pytest.mark.unit
+class TestUpdateQuestionMetadataDifficultyBranches:
+    """
+    Covers:
+      L386: global_success_rate > 0.8 → decrease estimated_difficulty
+      L388: global_success_rate < 0.4 → increase estimated_difficulty
+    """
+
+    def _run_update(self, initial_success, is_correct, time_spent=30.0):
+        svc, db = _svc()
+        metadata = MagicMock()
+        metadata.global_success_rate = initial_success
+        metadata.average_time_seconds = 60.0
+        metadata.estimated_difficulty = 0.5
+        _q(db, first=metadata)
+        svc._update_question_metadata(question_id=1, is_correct=is_correct,
+                                       time_spent=time_spent)
+        return metadata
+
+    def test_high_success_rate_decreases_difficulty(self):
+        """After update, success_rate > 0.8 → estimated_difficulty decreased."""
+        metadata = self._run_update(initial_success=0.95, is_correct=True)
+        # global_success_rate = 0.95*0.95 + 1.0*0.05 = 0.9025 + 0.05 = 0.9525 > 0.8
+        assert metadata.estimated_difficulty < 0.5   # decreased
+
+    def test_low_success_rate_increases_difficulty(self):
+        """After update, success_rate < 0.4 → estimated_difficulty increased."""
+        metadata = self._run_update(initial_success=0.2, is_correct=False)
+        # global_success_rate = 0.2*0.95 + 0.0*0.05 = 0.19 < 0.4
+        assert metadata.estimated_difficulty > 0.5   # increased
