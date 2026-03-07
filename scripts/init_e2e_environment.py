@@ -32,8 +32,8 @@ Semesters (1):
 ────────────────────────────────────────────────────────────────────────────
 HOW TO UPDATE
 ────────────────────────────────────────────────────────────────────────────
-Add or change baseline records in _USERS / _SEMESTERS below, then keep the
-corresponding Cypress env vars in .github/workflows/cypress-tests.yml in sync.
+Add or change baseline records in tests/fixtures/e2e_baseline.py (USERS /
+SEMESTERS), then keep the Cypress env vars in cypress-tests.yml in sync.
 """
 
 import sys
@@ -43,41 +43,10 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import SessionLocal
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.semester import Semester
 from app.core.security import get_password_hash
-
-
-# ── Baseline specification ────────────────────────────────────────────────────
-
-_USERS = [
-    {
-        "email":    "admin@lfa.com",
-        "name":     "LFA Admin",
-        "password": "admin123",
-        "role":     UserRole.ADMIN,
-    },
-    {
-        "email":    "grandmaster@lfa.com",
-        "name":     "Grand Master",
-        "password": "TestInstructor2026",
-        "role":     UserRole.INSTRUCTOR,
-    },
-    {
-        "email":    "rdias@manchestercity.com",
-        "name":     "Ruben Dias",
-        "password": "TestPlayer2026",
-        "role":     UserRole.STUDENT,
-    },
-]
-
-_SEMESTERS = [
-    {
-        "code": "E2E-CI-2026",
-        "name": "E2E CI Test Semester",
-        # start/end derived at runtime so the window is always current
-    },
-]
+from tests.fixtures.e2e_baseline import USERS as _USERS, SEMESTERS as _SEMESTERS
 
 
 # ── Seed logic ────────────────────────────────────────────────────────────────
