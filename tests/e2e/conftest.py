@@ -302,7 +302,7 @@ def e2e_test_users():
     # Import models and utilities
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
     from app.models.user import User
     from app.core.security import get_password_hash
@@ -445,7 +445,7 @@ def seed_ops_players(request):
     # Import models
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
     from app.models.user import User
     from app.models.license import UserLicense
@@ -645,7 +645,7 @@ def seed_scale_suite_players(request):
     # Import models
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
     from app.models.user import User
     from app.models.license import UserLicense
