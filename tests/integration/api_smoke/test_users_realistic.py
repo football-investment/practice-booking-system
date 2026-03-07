@@ -174,13 +174,16 @@ class TestUsersRealistic:
         self, api_client: TestClient, admin_token: str
     ):
         """
-        GET /?search=lfa → 200 (exercises the search param branch).
+        GET /?search=smoke → 200 (exercises the search param branch).
 
-        Searches for 'lfa' which matches admin@lfa.com and grandmaster@lfa.com
-        (valid email domains — @example.com users cause Pydantic 422 in response).
+        Searches for 'smoke' which matches smoke.admin@example.com,
+        smoke.student@example.com, smoke.instructor@example.com — all guaranteed
+        present via the admin_token/student_token/instructor_token fixtures.
+        The admin list (/users/) response model handles @example.com emails fine;
+        only the /users/search endpoint causes Pydantic 422 for reserved domains.
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
-        response = api_client.get("/api/v1/users/?search=lfa", headers=headers)
+        response = api_client.get("/api/v1/users/?search=smoke", headers=headers)
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["total"] >= 1
