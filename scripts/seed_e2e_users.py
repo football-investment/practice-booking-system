@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
-Seed the three users required by Cypress E2E tests.
+Seed the three users and one active semester required by Cypress E2E tests.
 
 Creates (or password-resets) exactly three accounts:
-  admin@lfa.com          / AdminPass123!     → ADMIN
+  admin@lfa.com          / admin123           → ADMIN
   grandmaster@lfa.com    / TestInstructor2026 → INSTRUCTOR
   rdias@manchestercity.com / TestPlayer2026   → STUDENT
+
+Also ensures an active semester (code=E2E-CI-2026) exists that covers
+dates 6 months before and after today, so session-creation tests can
+always find a valid semester_id.
 
 Idempotent: existing users get their password updated to match CI credentials.
 Run before Cypress tests whenever the DB is freshly migrated.
@@ -13,11 +17,13 @@ Run before Cypress tests whenever the DB is freshly migrated.
 
 import sys
 import os
+from datetime import date, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import SessionLocal
 from app.models.user import User, UserRole
+from app.models.semester import Semester
 from app.core.security import get_password_hash
 
 
@@ -64,6 +70,27 @@ def seed_e2e_users() -> bool:
                 db.add(user)
                 db.commit()
                 print(f"✓ created  {spec['email']} ({spec['role'].value})")
+
+        # Ensure an active semester exists so session-creation E2E tests can
+        # always find a valid semester_id (SessionCreate.semester_id is required).
+        today = date.today()
+        sem = db.query(Semester).filter(Semester.code == "E2E-CI-2026").first()
+        if sem:
+            sem.start_date = today - timedelta(days=180)
+            sem.end_date   = today + timedelta(days=180)
+            db.commit()
+            print(f"✓ updated  semester E2E-CI-2026 ({sem.start_date} → {sem.end_date})")
+        else:
+            sem = Semester(
+                code="E2E-CI-2026",
+                name="E2E CI Test Semester",
+                start_date=today - timedelta(days=180),
+                end_date=today + timedelta(days=180),
+            )
+            db.add(sem)
+            db.commit()
+            print(f"✓ created  semester E2E-CI-2026 ({sem.start_date} → {sem.end_date})")
+
         return True
     except Exception as exc:
         db.rollback()

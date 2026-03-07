@@ -97,6 +97,12 @@ jobs:
         working-directory: tests_cypress
         run: npm ci
 
+      - name: Sanitize spec name for artifact
+        id: spec
+        run: |
+          safe=$(echo '${{ matrix.spec }}' | tr '/' '-' | sed 's/\.cy\.js$//')
+          echo "name=${safe}" >> "$GITHUB_OUTPUT"
+
       - name: Run Cypress tests
         uses: cypress-io/github-action@v6
         with:
@@ -107,8 +113,8 @@ jobs:
         env:
           CYPRESS_adminEmail: admin@lfa.com
           CYPRESS_adminPassword: admin123
-          CYPRESS_instructorEmail: instructor@lfa.com
-          CYPRESS_instructorPassword: instructor123
+          CYPRESS_instructorEmail: grandmaster@lfa.com
+          CYPRESS_instructorPassword: TestInstructor2026
           CYPRESS_playerEmail: rdias@manchestercity.com
           CYPRESS_playerPassword: TestPlayer2026
 
@@ -116,14 +122,16 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: cypress-screenshots-${{ matrix.spec }}
+          name: cypress-screenshots-${{ steps.spec.outputs.name }}
           path: tests_cypress/cypress/screenshots
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload videos on failure
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: cypress-videos-${{ matrix.spec }}
+          name: cypress-videos-${{ steps.spec.outputs.name }}
           path: tests_cypress/cypress/videos
           retention-days: 7
+          if-no-files-found: ignore
