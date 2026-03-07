@@ -21,7 +21,7 @@ GamificationService is patched in __init__ to avoid transitive DB setup.
 """
 
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, patch, call
 
 from app.services.quiz_service import QuizService
@@ -606,3 +606,422 @@ class TestSubmitQuizAttemptHappyPath:
 
         db.commit.assert_called()
         assert result is attempt
+
+
+# ===========================================================================
+# TestSubmitQuizAttemptBranchCoverage — missing branches from coverage gap
+# ===========================================================================
+
+@pytest.mark.unit
+class TestSubmitQuizAttemptBranchCoverage:
+    """
+    Covers the submit_quiz_attempt branches not hit by existing tests:
+      - question_id not in question_dict → continue (L170)
+      - MC: selected_option_id is None → is_correct stays False (L180)
+      - Unknown question type: neither MC/TF nor FIB → is_correct False (L193)
+      - FIB: answer_text is None → is_correct False (L195)
+      - FIB: answer_text set but no option matches → is_correct False (L205-206)
+      - started_at is timezone-naive → add UTC tzinfo (L235)
+      - started_at has non-UTC timezone → convert to UTC (L238)
+      - negative time_spent_seconds_raw warning (L250)
+    """
+
+    def _make_svc_db(self):
+        db = MagicMock()
+        with patch("app.services.quiz_service.GamificationService"):
+            from app.services.quiz_service import QuizService
+            svc = QuizService(db)
+        return svc, db
+
+    def _submission(self, question_id=1, option_id=None, answer_text=None):
+        answer = MagicMock()
+        answer.question_id = question_id
+        answer.selected_option_id = option_id
+        answer.answer_text = answer_text
+        sub = MagicMock()
+        sub.attempt_id = 1
+        sub.answers = [answer]
+        return sub
+
+    def _setup_queries(self, db, attempt, quiz, questions, *extra_qs):
+        """Wire db.query sequence: attempt, quiz, questions, then extra."""
+        specs = [
+            {"first": attempt},
+            {"first": quiz},
+            {"all_": questions},
+        ]
+        for eq in extra_qs:
+            specs.append(eq)
+        specs.append({"first": None})   # ProjectQuiz → early return
+        _multi_q(db, specs)
+
+    def test_question_id_not_in_dict_continues(self):
+        """Answer references a question not in quiz → continue branch."""
+        svc, db = self._make_svc_db()
+        now = datetime.now(timezone.utc)
+        attempt = _make_attempt(started_at=now, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        question = MagicMock()
+        question.id = 99      # question ID in quiz
+        question.points = 1
+        question.question_type = QuestionType.MULTIPLE_CHOICE
+
+        # Submission answers question_id=1, but quiz only has question.id=99
+        self._setup_queries(db, attempt, quiz, [question])
+        result = svc.submit_quiz_attempt(
+            user_id=42, submission=self._submission(question_id=1, option_id=10)
+        )
+        assert result is attempt
+
+    def test_mc_no_selected_option_id_is_wrong(self):
+        """MC answer with selected_option_id=None → is_correct False (L180 False)."""
+        svc, db = self._make_svc_db()
+        now = datetime.now(timezone.utc)
+        attempt = _make_attempt(started_at=now, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        question = MagicMock()
+        question.id = 1
+        question.points = 1
+        question.question_type = QuestionType.MULTIPLE_CHOICE
+
+        self._setup_queries(db, attempt, quiz, [question])
+        result = svc.submit_quiz_attempt(
+            user_id=42, submission=self._submission(question_id=1, option_id=None)
+        )
+        assert result is attempt
+
+    def test_unknown_question_type_not_mc_not_fib(self):
+        """Question type is not MC/TF/FIB → both branches skipped (L193 False)."""
+        svc, db = self._make_svc_db()
+        now = datetime.now(timezone.utc)
+        attempt = _make_attempt(started_at=now, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        question = MagicMock()
+        question.id = 1
+        question.points = 1
+        # Use an enum value that's neither MC/TF nor FILL_IN_BLANK
+        question.question_type = "UNKNOWN_TYPE"
+
+        self._setup_queries(db, attempt, quiz, [question])
+        result = svc.submit_quiz_attempt(
+            user_id=42, submission=self._submission(question_id=1, option_id=10)
+        )
+        assert result is attempt
+
+    def test_fib_no_answer_text_is_wrong(self):
+        """FIB answer with answer_text=None → is_correct False (L195 False)."""
+        svc, db = self._make_svc_db()
+        now = datetime.now(timezone.utc)
+        attempt = _make_attempt(started_at=now, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        question = MagicMock()
+        question.id = 1
+        question.points = 1
+        question.question_type = QuestionType.FILL_IN_BLANK
+
+        self._setup_queries(db, attempt, quiz, [question])
+        result = svc.submit_quiz_attempt(
+            user_id=42, submission=self._submission(question_id=1, answer_text=None)
+        )
+        assert result is attempt
+
+    def test_fib_answer_no_matching_option_is_wrong(self):
+        """FIB: answer_text set but no option matches → False path in loop (L205, L206)."""
+        svc, db = self._make_svc_db()
+        now = datetime.now(timezone.utc)
+        attempt = _make_attempt(started_at=now, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        question = MagicMock()
+        question.id = 1
+        question.points = 1
+        question.question_type = QuestionType.FILL_IN_BLANK
+
+        correct_opt = MagicMock()
+        correct_opt.option_text = "Paris"  # user answers "london" → no match
+
+        self._setup_queries(
+            db, attempt, quiz, [question],
+            {"all_": [correct_opt]},   # FIB correct options lookup
+        )
+        result = svc.submit_quiz_attempt(
+            user_id=42, submission=self._submission(question_id=1, answer_text="london")
+        )
+        # is_correct stays False → score=0 → failed
+        svc.gamification_service.award_xp.assert_not_called()
+        assert result is attempt
+
+    def test_naive_started_at_gets_utc_tzinfo(self):
+        """started_at without tzinfo → branch L235 True (replace tzinfo with UTC)."""
+        svc, db = self._make_svc_db()
+        naive_start = datetime.now().replace(tzinfo=None)   # timezone-naive
+        attempt = _make_attempt(started_at=naive_start, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        _multi_q(db, [
+            {"first": attempt},
+            {"first": quiz},
+            {"all_": []},      # no questions → score = 0
+            {"first": None},   # ProjectQuiz
+        ])
+        result = svc.submit_quiz_attempt(
+            user_id=42, submission=self._submission()
+        )
+        assert result is attempt
+
+    def test_non_utc_tz_started_at_converted(self):
+        """started_at with non-UTC tz → branch L238 True (astimezone UTC)."""
+        from datetime import timezone as tz
+        import zoneinfo
+        svc, db = self._make_svc_db()
+        # Use UTC+2 as a non-UTC timezone
+        try:
+            eastern_tz = zoneinfo.ZoneInfo("Europe/Berlin")
+            aware_non_utc = datetime.now(eastern_tz)
+        except Exception:
+            aware_non_utc = datetime.now(tz.utc).replace(tzinfo=None).replace(
+                tzinfo=tz(timedelta(hours=2))
+            )
+        attempt = _make_attempt(started_at=aware_non_utc, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=60, passing_score=50.0)
+
+        _multi_q(db, [
+            {"first": attempt},
+            {"first": quiz},
+            {"all_": []},
+            {"first": None},
+        ])
+        result = svc.submit_quiz_attempt(user_id=42, submission=self._submission())
+        assert result is attempt
+
+    def test_negative_time_warning_branch(self):
+        """started_at far in the future → time_spent_seconds_raw < 0 → L250 True."""
+        svc, db = self._make_svc_db()
+        # started_at 10 minutes in the FUTURE → negative elapsed time
+        future_start = datetime.now(timezone.utc) + timedelta(minutes=10)
+        attempt = _make_attempt(started_at=future_start, completed_at=None)
+        quiz = _make_quiz(time_limit_minutes=9999, passing_score=50.0)   # big limit
+
+        _multi_q(db, [
+            {"first": attempt},
+            {"first": quiz},
+            {"all_": []},
+            {"first": None},
+        ])
+        result = svc.submit_quiz_attempt(user_id=42, submission=self._submission())
+        # time_spent_seconds_raw < 0 → clamped to 0
+        assert attempt.time_spent_minutes == 0
+        assert result is attempt
+
+
+# ===========================================================================
+# TestProcessEnrollmentQuizBranchCoverage — _process_enrollment_quiz branches
+# ===========================================================================
+
+@pytest.mark.unit
+class TestProcessEnrollmentQuizBranchCoverage:
+    """
+    Covers _process_enrollment_quiz_if_applicable branches:
+      - enrollment quiz found → proceeds past L294 (False branch)
+      - existing_project_enrollment found → early return L303
+      - existing_enrollment quiz found → early return L312
+      - all_enrollments loop with higher-score existing → priority++  L327
+      - not attempt.passed → NOT_ELIGIBLE enrollment created L345
+      - attempt.passed → no NOT_ELIGIBLE enrollment created
+      - priority update loop: lower-score existing → L361 True
+    """
+
+    def _make_svc_db(self):
+        db = MagicMock()
+        with patch("app.services.quiz_service.GamificationService"):
+            from app.services.quiz_service import QuizService
+            svc = QuizService(db)
+        return svc, db
+
+    def _build_attempt(self, passed=True, score=80.0):
+        a = MagicMock()
+        a.id = 1
+        a.user_id = 42
+        a.quiz_id = 5
+        a.passed = passed
+        a.score = score
+        a.completed_at = None     # attempt not yet complete (submit path)
+        a.started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        return a
+
+    def _build_enrollment_quiz(self, project_id=10):
+        eq = MagicMock()
+        eq.project_id = project_id
+        eq.quiz_id = 5
+        return eq
+
+    def _submit_with_queries(self, db, svc, extra_queries):
+        """
+        Run submit_quiz_attempt driving through _process_enrollment_quiz_if_applicable.
+        extra_queries are appended after the standard [attempt, quiz, [], ProjectQuiz_found].
+        """
+        attempt = self._build_attempt(passed=True, score=80.0)
+        quiz = _make_quiz(id=5, time_limit_minutes=60, passing_score=50.0)
+        enrollment_quiz = self._build_enrollment_quiz()
+
+        specs = [
+            {"first": attempt},         # find attempt
+            {"first": quiz},            # get_quiz_by_id (time check)
+            {"all_": []},               # questions (none)
+            {"first": enrollment_quiz}, # ProjectQuiz found → enters function body
+        ] + extra_queries
+
+        _multi_q(db, specs)
+
+        sub = MagicMock()
+        sub.attempt_id = 1
+        sub.answers = []
+        return svc.submit_quiz_attempt(user_id=42, submission=sub)
+
+    def test_existing_project_enrollment_returns_early(self):
+        """existing_project_enrollment found → return at L303."""
+        svc, db = self._make_svc_db()
+        existing_proj_enroll = MagicMock()
+
+        result = self._submit_with_queries(db, svc, [
+            {"first": existing_proj_enroll},   # ProjectEnrollment query → found
+        ])
+        # commit still called (from submit itself, before _process call)
+        assert result is not None
+
+    def test_existing_enrollment_quiz_returns_early(self):
+        """existing_enrollment quiz found → return at L312."""
+        svc, db = self._make_svc_db()
+        existing_enroll = MagicMock()
+
+        result = self._submit_with_queries(db, svc, [
+            {"first": None},             # ProjectEnrollment → not found
+            {"first": existing_enroll},  # ProjectEnrollmentQuiz → found → early return
+        ])
+        assert result is not None
+
+    def test_priority_incremented_for_higher_score_existing(self):
+        """
+        all_enrollments has one existing attempt with higher score →
+        enrollment_priority gets incremented (L327 True).
+        """
+        svc, db = self._make_svc_db()
+
+        # current attempt.score = 80 (set in _build_attempt)
+        # existing attempt.score = 90 > 80 → enrollment_priority += 1
+        existing_enrollment = MagicMock()
+        existing_enrollment.quiz_attempt_id = 99
+        existing_enrollment.enrollment_priority = 1
+
+        existing_attempt = MagicMock()
+        existing_attempt.score = 90.0      # higher than 80 → priority increments
+        existing_attempt.completed_at = datetime.now(timezone.utc) - timedelta(hours=1)
+
+        result = self._submit_with_queries(db, svc, [
+            {"first": None},                       # ProjectEnrollment → not found
+            {"first": None},                       # ProjectEnrollmentQuiz → not found
+            {"all_": [existing_enrollment]},       # all_enrollments
+            {"first": existing_attempt},           # get existing_attempt (priority loop)
+            {"first": existing_attempt},           # get existing_attempt (update loop)
+        ])
+        assert result is not None
+
+    def test_failed_quiz_creates_not_eligible_enrollment(self):
+        """
+        not attempt.passed → ProjectEnrollment NOT_ELIGIBLE created (L345 True).
+        Uses attempt with passed=False.
+        """
+        svc, db = self._make_svc_db()
+
+        attempt_failed = MagicMock()
+        attempt_failed.id = 1
+        attempt_failed.user_id = 42
+        attempt_failed.quiz_id = 5
+        attempt_failed.passed = False
+        attempt_failed.score = 20.0
+        attempt_failed.completed_at = None   # not yet completed (submit path)
+        attempt_failed.started_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+        quiz = _make_quiz(id=5, time_limit_minutes=60, passing_score=50.0)
+        enrollment_quiz = self._build_enrollment_quiz()
+
+        specs = [
+            {"first": attempt_failed},     # find attempt
+            {"first": quiz},              # quiz for time check
+            {"all_": []},                 # no questions
+            {"first": enrollment_quiz},   # ProjectQuiz found
+            {"first": None},              # ProjectEnrollment → not found
+            {"first": None},              # ProjectEnrollmentQuiz → not found
+            {"all_": []},                 # all_enrollments (empty)
+        ]
+        _multi_q(db, specs)
+
+        sub = MagicMock()
+        sub.attempt_id = 1
+        sub.answers = []
+        result = svc.submit_quiz_attempt(user_id=42, submission=sub)
+
+        # db.add called for ProjectEnrollmentQuiz AND ProjectEnrollment (NOT_ELIGIBLE)
+        assert db.add.call_count >= 2
+        assert result is attempt_failed
+
+
+# ===========================================================================
+# TestGetUserQuizStatisticsBranchCoverage — loop continuation branches
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetUserQuizStatisticsBranchCoverage:
+    """
+    Covers the for-loop continuation branches in get_user_quiz_statistics:
+      - L395 False: attempt.completed_at is None → next iteration
+      - L397 False: completed but quiz not found → next iteration
+    """
+
+    def _make_svc_db(self):
+        db = MagicMock()
+        with patch("app.services.quiz_service.GamificationService"):
+            from app.services.quiz_service import QuizService
+            svc = QuizService(db)
+        return svc, db
+
+    def test_attempt_without_completed_at_skipped_in_category_loop(self):
+        """
+        First attempt has completed_at=None → L395 False (no quiz lookup).
+        Second attempt has completed_at set and quiz found → L395 True, L397 True.
+        """
+        svc, db = self._make_svc_db()
+        quiz = _make_quiz(id=1, category=QuizCategory.GENERAL)
+
+        incomplete = _make_attempt(id=1, completed_at=None, score=None, passed=False, xp_awarded=0)
+        complete = _make_attempt(id=2, completed_at=datetime.now(timezone.utc),
+                                  score=80.0, passed=True, xp_awarded=30)
+
+        _multi_q(db, [
+            {"all_": [incomplete, complete]},  # all attempts for user
+            {"first": quiz},                   # get_quiz_by_id for complete attempt
+        ])
+        stats = svc.get_user_quiz_statistics(user_id=42)
+        assert stats.total_quizzes_attempted == 2
+        assert stats.total_quizzes_completed == 1
+        assert stats.favorite_category == QuizCategory.GENERAL
+
+    def test_completed_attempt_with_quiz_not_found_skips_category(self):
+        """
+        Attempt has completed_at but get_quiz_by_id returns None → L397 False.
+        favorite_category remains None.
+        """
+        svc, db = self._make_svc_db()
+        complete = _make_attempt(id=1, completed_at=datetime.now(timezone.utc),
+                                  score=70.0, passed=True, xp_awarded=20)
+
+        _multi_q(db, [
+            {"all_": [complete]},  # all attempts
+            {"first": None},       # get_quiz_by_id → None
+        ])
+        stats = svc.get_user_quiz_statistics(user_id=42)
+        assert stats.favorite_category is None
