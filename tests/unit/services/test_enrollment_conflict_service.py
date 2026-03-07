@@ -253,3 +253,178 @@ class TestCheckSessionTimeConflictEarlyReturns:
         )
         assert result["has_conflict"] is False
         assert any("No future sessions" in w for w in result["warnings"])
+
+
+# ===========================================================================
+# _has_time_overlap — missing branch (session2.date_end = None)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestHasTimeOverlapAdditional:
+    def test_session2_missing_date_end_returns_false(self):
+        """session2.date_end=None → cannot determine → False."""
+        s1 = _session(_dt(10), _dt(12))
+        s2 = _session(_dt(10), None)   # same date, but missing end
+        assert EnrollmentConflictService._has_time_overlap(s1, s2) is False
+
+
+# ===========================================================================
+# _has_travel_conflict — missing branches (session.date_end = None)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestHasTravelConflictAdditional:
+    def test_session1_missing_date_end_returns_false(self):
+        """session1.date_end=None → cannot determine → False."""
+        s1 = _session(_dt(10), None)    # missing end
+        s2 = _session(_dt(11), _dt(12))
+        loc1 = {"location_id": 1}
+        loc2 = {"location_id": 2}
+        assert EnrollmentConflictService._has_travel_conflict(s1, loc1, s2, loc2) is False
+
+    def test_session2_missing_date_end_returns_false(self):
+        """session2.date_end=None → cannot determine → False."""
+        s1 = _session(_dt(10), _dt(11))
+        s2 = _session(_dt(11, m=15), None)  # missing end
+        loc1 = {"location_id": 1}
+        loc2 = {"location_id": 2}
+        assert EnrollmentConflictService._has_travel_conflict(s1, loc1, s2, loc2) is False
+
+
+# ===========================================================================
+# _get_session_location
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetSessionLocation:
+    def test_returns_location_name_from_session_location_field(self):
+        """session.location truthy → returns dict with location_name."""
+        session = MagicMock()
+        session.location = "Keleti pálya"
+        result = EnrollmentConflictService._get_session_location(session, _db())
+        assert result == {"location_name": "Keleti pálya"}
+
+    def test_uses_semester_location_id_when_session_location_empty(self):
+        """session.location falsy → queries via semester.location_id."""
+        session = MagicMock()
+        session.location = None
+        session.semester.location_id = 5
+
+        location_obj = MagicMock()
+        location_obj.name = "LFA Campus"
+        location_obj.city = "Budapest"
+        location_obj.id = 5
+
+        db = _db()
+        _q(db, first=location_obj)
+
+        result = EnrollmentConflictService._get_session_location(session, db)
+        assert result["location_name"] == "LFA Campus"
+        assert result["location_city"] == "Budapest"
+        assert result["location_id"] == 5
+
+    def test_returns_none_when_no_location_available(self):
+        """No session.location, no semester.location_id → None."""
+        session = MagicMock()
+        session.location = None
+        session.semester = None
+        result = EnrollmentConflictService._get_session_location(session, _db())
+        assert result is None
+
+    def test_returns_none_when_location_not_found_in_db(self):
+        """semester.location_id set but DB query returns None → None."""
+        session = MagicMock()
+        session.location = None
+        session.semester.location_id = 99
+
+        db = _db()
+        _q(db, first=None)  # location not found
+
+        result = EnrollmentConflictService._get_session_location(session, db)
+        assert result is None
+
+
+# ===========================================================================
+# validate_enrollment_request
+# ===========================================================================
+
+@pytest.mark.unit
+class TestValidateEnrollmentRequest:
+    def test_no_conflicts_returns_allowed_true(self):
+        """No conflicts → allowed=True, empty conflicts/warnings/recommendations."""
+        from unittest.mock import patch
+
+        with patch.object(
+            EnrollmentConflictService,
+            "check_session_time_conflict",
+            return_value={"has_conflict": False, "conflicts": [], "warnings": []}
+        ):
+            result = EnrollmentConflictService.validate_enrollment_request(
+                user_id=42, semester_id=1, db=_db()
+            )
+
+        assert result["allowed"] is True
+        assert result["conflicts"] == []
+        assert result["recommendations"] == []
+
+    def test_blocking_conflict_adds_warning(self):
+        """blocking severity conflict → warning added to result."""
+        from unittest.mock import patch
+
+        conflicts = [{"conflict_type": "time_overlap", "severity": "blocking"}]
+        with patch.object(
+            EnrollmentConflictService,
+            "check_session_time_conflict",
+            return_value={"has_conflict": True, "conflicts": conflicts, "warnings": []}
+        ):
+            result = EnrollmentConflictService.validate_enrollment_request(
+                user_id=42, semester_id=1, db=_db()
+            )
+
+        assert any("FIGYELMEZTETÉS" in w or "ütközés" in w for w in result["warnings"])
+
+    def test_travel_conflict_adds_recommendation(self):
+        """travel_time conflict → recommendation added."""
+        from unittest.mock import patch
+
+        conflicts = [{"conflict_type": "travel_time", "severity": "warning"}]
+        with patch.object(
+            EnrollmentConflictService,
+            "check_session_time_conflict",
+            return_value={"has_conflict": True, "conflicts": conflicts, "warnings": []}
+        ):
+            result = EnrollmentConflictService.validate_enrollment_request(
+                user_id=42, semester_id=1, db=_db()
+            )
+
+        assert len(result["recommendations"]) > 0
+
+
+# ===========================================================================
+# get_user_schedule — default date range
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetUserSchedule:
+    def test_default_date_range_no_enrollments(self):
+        """No start_date/end_date → defaults applied; no enrollments → empty result."""
+        db = _db()
+        _q(db, all_=[])  # no enrollments
+        result = EnrollmentConflictService.get_user_schedule(user_id=42, db=db)
+        assert result["enrollments"] == []
+        assert result["total_sessions"] == 0
+        assert "start" in result["date_range"]
+        assert "end" in result["date_range"]
+
+    def test_explicit_date_range_respected(self):
+        """Explicit start/end_date → used directly, no default override."""
+        from datetime import date
+        db = _db()
+        _q(db, all_=[])
+        start = date(2026, 4, 1)
+        end = date(2026, 6, 30)
+        result = EnrollmentConflictService.get_user_schedule(
+            user_id=42, start_date=start, end_date=end, db=db
+        )
+        assert result["date_range"]["start"] == "2026-04-01"
+        assert result["date_range"]["end"] == "2026-06-30"
