@@ -80,13 +80,33 @@ jobs:
       - name: Run Alembic migrations
         run: alembic upgrade head
 
-      - name: Seed E2E test users
-        run: python scripts/seed_e2e_users.py
+      # ── E2E baseline: seed users + active semester ───────────────────────────
+      # Baseline spec is documented in scripts/init_e2e_environment.py.
+      # Update that file (and the Cypress env vars below) when baseline changes.
+      - name: Initialize E2E baseline environment
+        run: python scripts/init_e2e_environment.py
 
       - name: Start FastAPI backend
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           timeout 45 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
+
+      # ── Verify baseline is reachable via the live API ─────────────────────
+      # Confirms that seeded credentials work and the CI semester is visible.
+      # Fails fast before Cypress starts if the environment is broken.
+      - name: Verify E2E baseline
+        run: |
+          TOKEN=$(curl -sf -X POST http://localhost:8000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@lfa.com","password":"admin123"}' \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+          echo "✓ admin login OK"
+
+          SEM_TOTAL=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+            http://localhost:8000/api/v1/semesters/ \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['total'])")
+          [ "$SEM_TOTAL" -ge 1 ] || { echo "✗ no semesters found"; exit 1; }
+          echo "✓ semesters visible: $SEM_TOTAL"
 
       - name: Start Streamlit frontend
         run: |
