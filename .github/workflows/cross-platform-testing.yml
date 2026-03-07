@@ -1,10 +1,10 @@
 name: 🌐 Cross-Platform Testing Suite
 # ⚠️  DISABLED: This workflow references a non-existent React `frontend/` directory
-# and an `e2e-tests/` directory that does not exist (actual: `tests_e2e/`).
+# and an `e2e-tests/` directory that does not exist (actual: `tests/e2e/`).
 # It also requires BrowserStack secrets and Lighthouse CI that are not configured.
 # The project uses Streamlit (not React) as the frontend layer.
 #
-# To re-enable: rewrite to target `streamlit_app/` + `tests_e2e/` + `tests_cypress/`
+# To re-enable: rewrite to target `streamlit_app/` + `tests/e2e/` + `cypress/`
 # and configure the required secrets (BROWSERSTACK_ACCESS_KEY, LHCI_GITHUB_APP_TOKEN).
 #
 # Status: DEFERRED — blocked by CI infra (external service credentials)

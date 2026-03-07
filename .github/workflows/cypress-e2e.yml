@@ -7,7 +7,7 @@ on:
     paths:
       - 'streamlit_app/**'
       - 'app/**'
-      - 'tests_cypress/**'
+      - 'cypress/**'
 
   # ── Nightly: full suite + error suite ────────────────────────────────────
   schedule:
@@ -106,14 +106,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run smoke suite
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
           CYPRESS_BASE_URL:        http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:         http://localhost:${{ env.BACKEND_PORT }}
@@ -127,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-smoke-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,14 +232,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run critical specs (group ${{ matrix.group }})
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
@@ -261,7 +261,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-critical-screenshots-${{ matrix.group }}-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -337,14 +337,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run full suite (all 202 tests)
-        working-directory: tests_cypress
+        working-directory: cypress
         continue-on-error: true
         env:
           CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
@@ -363,7 +363,7 @@ jobs:
             --reporter-options "output=cypress-results.json"
 
       - name: Analyze results (critical vs non-critical)
-        working-directory: tests_cypress
+        working-directory: cypress
         run: node ci-result-processor.js all
 
       - name: Upload screenshots
@@ -371,7 +371,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-full-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 14
 
       - name: Upload videos
@@ -379,7 +379,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-full-videos-${{ github.run_id }}
-          path: tests_cypress/cypress/videos/
+          path: cypress/cypress/videos/
           retention-days: 14
 
       - name: Upload test results
@@ -387,7 +387,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-results-${{ github.run_id }}
-          path: tests_cypress/cypress-results.json
+          path: cypress/cypress-results.json
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -428,14 +428,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run error-state specs
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
           CYPRESS_BASE_URL:    http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:     http://localhost:9999
@@ -447,5 +447,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-error-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7

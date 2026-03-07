@@ -31,7 +31,7 @@ on:
     paths:
       - 'streamlit_app/**'
       - 'app/**'
-      - 'tests_cypress/**'
+      - 'cypress/**'
       - '.github/workflows/e2e-comprehensive.yml'
 
   # ── Nightly: full suite (all 525+ tests) ─────────────────────────────────
@@ -142,14 +142,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run smoke suite (@smoke tag)
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
@@ -166,7 +166,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -250,14 +250,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run critical tests for ${{ matrix.role }} role
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
           CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
@@ -279,7 +279,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: critical-${{ matrix.role }}-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -379,14 +379,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run full suite for ${{ matrix.role }} (~${{ matrix.estimated_tests }} tests)
-        working-directory: tests_cypress
+        working-directory: cypress
         continue-on-error: true
         env:
           CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
@@ -423,7 +423,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-${{ matrix.role }}-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 14
 
       - name: Upload videos
@@ -431,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-${{ matrix.role }}-videos-${{ github.run_id }}
-          path: tests_cypress/cypress/videos/
+          path: cypress/cypress/videos/
           retention-days: 14
 
       - name: Upload test results
@@ -439,7 +439,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-${{ matrix.role }}-results-${{ github.run_id }}
-          path: tests_cypress/cypress-results-${{ matrix.role }}.json
+          path: cypress/cypress-results-${{ matrix.role }}.json
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────

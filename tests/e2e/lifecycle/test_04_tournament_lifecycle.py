@@ -45,7 +45,7 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from tests_e2e.utils.snapshot_manager import SnapshotManager
+from tests.e2e.utils.snapshot_manager import SnapshotManager
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.license import UserLicense

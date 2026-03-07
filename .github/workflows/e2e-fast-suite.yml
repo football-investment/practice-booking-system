@@ -99,9 +99,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
           STREAMLIT_URL: http://localhost:8501
         run: |
-          pytest tests_e2e/test_tournament_monitor_e2e.py \
-                 tests_e2e/test_tournament_monitor_coverage.py \
-                 tests_e2e/test_champion_badge_regression.py \
+          pytest tests/e2e/test_tournament_monitor_e2e.py \
+                 tests/e2e/test_tournament_monitor_coverage.py \
+                 tests/e2e/test_champion_badge_regression.py \
             -m "not scale_suite" \
             --tb=short \
             -ra \
@@ -113,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-fast-suite-screenshots
-          path: tests_e2e/screenshots/*_FAILED.png
+          path: tests/e2e/screenshots/*_FAILED.png
           retention-days: 7
 
       - name: Upload failure snapshots
@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-fast-suite-snapshots
-          path: tests_e2e/snapshots/*.dump
+          path: tests/e2e/snapshots/*.dump
           retention-days: 7
 
     # CRITICAL: Fast Suite is MANDATORY

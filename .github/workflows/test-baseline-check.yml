@@ -392,12 +392,12 @@ jobs:
         echo "⚠️  Smoke tests SKIPPED - All smoke tests are Playwright/Streamlit UI tests"
         echo "Playwright tests require headed browser and don't work in GitHub Actions headless CI"
         echo "Covered by:"
-        echo "  - tests_e2e/test_champion_badge_regression.py (Playwright)"
-        echo "  - tests_e2e/test_instructor_dashboard_tab_smoke.py (Playwright)"
-        echo "  - tests_e2e/test_tournament_manager_sidebar_nav.py (Playwright)"
-        echo "  - tests_e2e/test_knockout_matrix.py (Playwright)"
-        echo "  - tests_e2e/test_game_presets_admin.py (Playwright)"
-        echo "  - tests_e2e/test_reward_leaderboard_matrix.py (Playwright)"
+        echo "  - tests/e2e/test_champion_badge_regression.py (Playwright)"
+        echo "  - tests/e2e/test_instructor_dashboard_tab_smoke.py (Playwright)"
+        echo "  - tests/e2e/test_tournament_manager_sidebar_nav.py (Playwright)"
+        echo "  - tests/e2e/test_knockout_matrix.py (Playwright)"
+        echo "  - tests/e2e/test_game_presets_admin.py (Playwright)"
+        echo "  - tests/e2e/test_reward_leaderboard_matrix.py (Playwright)"
         echo "These tests run locally with pre-push hooks."
         echo "✅ PASS (skipped - not CI-compatible)"
 
@@ -481,7 +481,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_payment_workflow.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_payment_workflow.py \
           -v \
           --tb=short \
           -ra
@@ -491,7 +491,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_payment_workflow.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_payment_workflow.py \
           -n auto \
           -v \
           --tb=short \
@@ -585,8 +585,8 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_multi_role_integration.py::test_student_full_enrollment_flow \
-          tests_e2e/integration_critical/test_multi_role_integration.py::test_instructor_full_workflow \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_multi_role_integration.py::test_student_full_enrollment_flow \
+          tests/e2e/integration_critical/test_multi_role_integration.py::test_instructor_full_workflow \
           -v \
           --tb=short \
           -ra
@@ -596,8 +596,8 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_multi_role_integration.py::test_student_full_enrollment_flow \
-          tests_e2e/integration_critical/test_multi_role_integration.py::test_instructor_full_workflow \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_multi_role_integration.py::test_student_full_enrollment_flow \
+          tests/e2e/integration_critical/test_multi_role_integration.py::test_instructor_full_workflow \
           -n auto \
           -v \
           --tb=short \
@@ -691,7 +691,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_student_lifecycle.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_student_lifecycle.py \
           --count=20 \
           -v \
           --tb=short \
@@ -702,7 +702,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_student_lifecycle.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_student_lifecycle.py \
           -n auto \
           -v \
           --tb=short \
@@ -796,7 +796,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_instructor_lifecycle.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_instructor_lifecycle.py \
           --count=20 \
           -v \
           --tb=short \
@@ -807,7 +807,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_instructor_lifecycle.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_instructor_lifecycle.py \
           -n auto \
           -v \
           --tb=short \
@@ -901,7 +901,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_refund_workflow.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_refund_workflow.py \
           --count=20 \
           -v \
           --tb=short \
@@ -912,7 +912,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_refund_workflow.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_refund_workflow.py \
           -n auto \
           -v \
           --tb=short \
@@ -1006,7 +1006,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_multi_campus.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_multi_campus.py \
           --count=20 \
           -v \
           --tb=short \
@@ -1017,7 +1017,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_multi_campus.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_multi_campus.py \
           -n auto \
           -v \
           --tb=short \
@@ -1193,7 +1193,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_skill_assessment_lifecycle.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_skill_assessment_lifecycle.py \
           --count=20 \
           -v \
           --tb=short \
@@ -1205,7 +1205,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        PYTHONPATH=. pytest tests_e2e/integration_critical/test_skill_assessment_lifecycle.py \
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_skill_assessment_lifecycle.py \
           -n auto \
           -v \
           --tb=short \

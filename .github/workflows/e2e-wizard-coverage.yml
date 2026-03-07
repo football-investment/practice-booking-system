@@ -6,10 +6,10 @@ on:
     paths:
       - 'streamlit_app/**'
       - 'app/**'
-      - 'tests_e2e/test_tournament_monitor*.py'
-      - 'tests_e2e/test_full_boundary_matrix.py'
-      - 'tests_e2e/test_knockout_matrix.py'
-      - 'tests_e2e/test_p1_coverage.py'
+      - 'tests/e2e/test_tournament_monitor*.py'
+      - 'tests/e2e/test_full_boundary_matrix.py'
+      - 'tests/e2e/test_knockout_matrix.py'
+      - 'tests/e2e/test_p1_coverage.py'
   push:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -104,7 +104,7 @@ jobs:
 
       - name: Wizard Flow tests
         run: |
-          cd tests_e2e
+          cd tests/e2e
           pytest test_tournament_monitor_e2e.py::TestWizardFlow \
             --junitxml=results/ci_wizard_flow.xml \
             -v --tb=short
@@ -114,14 +114,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-wizard-flow
-          path: tests_e2e/results/ci_wizard_flow.xml
+          path: tests/e2e/results/ci_wizard_flow.xml
 
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-wizard-flow
-          path: tests_e2e/screenshots/
+          path: tests/e2e/screenshots/
 
   # ── Job 2: Coverage UI + Monitoring (Playwright, headless) ─────────────────
   coverage-ui:
@@ -201,7 +201,7 @@ jobs:
 
       - name: Safety Confirmation + Slider tests
         run: |
-          cd tests_e2e
+          cd tests/e2e
           pytest \
             test_tournament_monitor_coverage.py::TestSafetyConfirmationUI \
             test_tournament_monitor_coverage.py::TestSliderStatePersistence \
@@ -215,14 +215,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-coverage-ui
-          path: tests_e2e/results/ci_coverage_ui.xml
+          path: tests/e2e/results/ci_coverage_ui.xml
 
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-coverage-ui
-          path: tests_e2e/screenshots/
+          path: tests/e2e/screenshots/
 
   # ── Job 3: Boundary Wizard UI (Playwright, parametrized) ───────────────────
   boundary-wizard-ui:
@@ -302,7 +302,7 @@ jobs:
 
       - name: Boundary Wizard Parametrized UI tests
         run: |
-          cd tests_e2e
+          cd tests/e2e
           pytest test_full_boundary_matrix.py::TestWizardParametrizedUI \
             --junitxml=results/ci_boundary_wizard.xml \
             -v --tb=short
@@ -312,14 +312,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-boundary-wizard
-          path: tests_e2e/results/ci_boundary_wizard.xml
+          path: tests/e2e/results/ci_boundary_wizard.xml
 
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-boundary-wizard
-          path: tests_e2e/screenshots/
+          path: tests/e2e/screenshots/
 
   # ── Job 4: API Boundary Tests (pure HTTP, no browser) ─────────────────────
   api-boundary:
@@ -397,7 +397,7 @@ jobs:
 
       - name: API Boundary tests (non-slow)
         run: |
-          cd tests_e2e
+          cd tests/e2e
           pytest \
             test_tournament_monitor_coverage.py::TestPlayerCountBoundaryAPI \
             test_tournament_monitor_coverage.py::TestGroupKnockoutMatrix \
@@ -416,7 +416,7 @@ jobs:
       - name: API Boundary tests (slow) — only on main or manual trigger
         if: github.ref == 'refs/heads/main' || github.event.inputs.include_slow == 'true'
         run: |
-          cd tests_e2e
+          cd tests/e2e
           pytest \
             test_full_boundary_matrix.py::TestKnockoutFullBVA \
             test_full_boundary_matrix.py::TestLeagueExtendedBVA \
@@ -431,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-api-boundary
-          path: tests_e2e/results/ci_api_boundary*.xml
+          path: tests/e2e/results/ci_api_boundary*.xml
 
   # ── Job 5: P1 Critical Coverage (API + Playwright) ────────────────────────
   p1-critical-coverage:
@@ -511,7 +511,7 @@ jobs:
 
       - name: P1 Critical Coverage tests
         run: |
-          cd tests_e2e
+          cd tests/e2e
           pytest test_p1_coverage.py \
             --junitxml=results/ci_p1_coverage.xml \
             -v --tb=short
@@ -521,14 +521,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit-p1-coverage
-          path: tests_e2e/results/ci_p1_coverage.xml
+          path: tests/e2e/results/ci_p1_coverage.xml
 
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-p1-coverage
-          path: tests_e2e/screenshots/
+          path: tests/e2e/screenshots/
 
   # ── Summary job ────────────────────────────────────────────────────────────
   coverage-summary:

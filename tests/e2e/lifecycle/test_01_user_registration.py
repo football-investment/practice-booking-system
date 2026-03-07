@@ -32,8 +32,8 @@ from playwright.sync_api import Page
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from tests_e2e.utils.snapshot_manager import SnapshotManager
-from tests_e2e.utils.db_helpers import get_user_by_email, get_invitation_code
+from tests.e2e.utils.snapshot_manager import SnapshotManager
+from tests.e2e.utils.db_helpers import get_user_by_email, get_invitation_code
 
 
 @pytest.mark.lifecycle

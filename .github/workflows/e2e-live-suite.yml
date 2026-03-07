@@ -44,7 +44,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
@@ -58,7 +58,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Set up database
@@ -90,7 +90,7 @@ jobs:
           curl --fail http://localhost:8501 || exit 1
 
       - name: Run Live Suite (Cypress @live_env)
-        working-directory: tests_cypress
+        working-directory: cypress
         run: |
           npx cypress run \
             --spec "${{ github.event.inputs.test_spec || 'cypress/e2e/**/*.cy.js' }}" \
@@ -102,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-screenshots
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
       - name: Upload Cypress videos
@@ -110,7 +110,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cypress-videos
-          path: tests_cypress/cypress/videos/
+          path: cypress/cypress/videos/
           retention-days: 7
 
       - name: Notify on failure (Slack/Email)
