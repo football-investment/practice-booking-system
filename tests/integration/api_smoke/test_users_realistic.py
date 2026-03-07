@@ -174,16 +174,19 @@ class TestUsersRealistic:
         self, api_client: TestClient, admin_token: str
     ):
         """
-        GET /?search=smoke → 200 (exercises the search param branch).
+        GET /?search=example.com → 200 (exercises the search param branch).
 
-        Searches for 'smoke' which matches smoke.admin@example.com,
+        Searches for 'example.com' which matches smoke.admin@example.com,
         smoke.student@example.com, smoke.instructor@example.com — all guaranteed
         present via the admin_token/student_token/instructor_token fixtures.
-        The admin list (/users/) response model handles @example.com emails fine;
-        only the /users/search endpoint causes Pydantic 422 for reserved domains.
+
+        Uses 'example.com' instead of 'smoke' to avoid matching @generated.test
+        users that accumulate in persistent local DBs across test runs.  The
+        UserList response schema accepts @example.com emails (reserved-domain
+        check is absent from the admin list model, unlike /users/search).
         """
         headers = {"Authorization": f"Bearer {admin_token}"}
-        response = api_client.get("/api/v1/users/?search=smoke", headers=headers)
+        response = api_client.get("/api/v1/users/?search=example.com", headers=headers)
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["total"] >= 1
