@@ -1323,10 +1323,216 @@ jobs:
         echo "Required: 0 flake, parallel execution stable, no overbooking"
         exit 1
 
+  auth-lifecycle-gate:
+    name: Auth Lifecycle E2E (BLOCKING)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install pytest pytest-xdist
+        pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
+    - name: Seed tournament types
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python scripts/seed_tournament_types.py
+
+    - name: Seed LFA test users (@lfa-seed.hu)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python scripts/seed_lfa_test_users.py
+
+    - name: Start FastAPI backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
+      run: |
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
+
+    - name: Run Auth Lifecycle Tests (Sequential - 0 flake requirement)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_auth_lifecycle.py \
+          -v \
+          --tb=short \
+          -ra
+
+    - name: Run Auth Lifecycle Tests (Parallel - race condition validation)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_auth_lifecycle.py \
+          -n auto \
+          -v \
+          --tb=short \
+          -ra
+
+    - name: Auth lifecycle gate failure
+      if: failure()
+      run: |
+        echo "::error::Auth lifecycle tests failed - merge blocked"
+        echo "Core auth flow (login → token → refresh → protected endpoint) is broken."
+        echo "Required: 0 flake, parallel execution stable"
+        exit 1
+
+  enrollment-workflow-gate:
+    name: Enrollment Workflow E2E (BLOCKING)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install pytest pytest-xdist
+        pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
+    - name: Seed tournament types
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python scripts/seed_tournament_types.py
+
+    - name: Seed LFA test users (@lfa-seed.hu)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python scripts/seed_lfa_test_users.py
+
+    - name: Start FastAPI backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
+      run: |
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
+
+    - name: Run Enrollment Workflow Tests (Sequential - 0 flake requirement)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_enrollment_workflow.py \
+          -v \
+          --tb=short \
+          -ra
+
+    - name: Run Enrollment Workflow Tests (Parallel - race condition validation)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        PYTHONPATH=. pytest tests/e2e/integration_critical/test_enrollment_workflow.py \
+          -n auto \
+          -v \
+          --tb=short \
+          -ra
+
+    - name: Enrollment workflow gate failure
+      if: failure()
+      run: |
+        echo "::error::Enrollment workflow tests failed - merge blocked"
+        echo "Core enrollment flow (enroll → auto-approve → admin list → duplicate rejected) is broken."
+        echo "Required: 0 flake, parallel execution stable"
+        exit 1
+
   baseline-report:
     name: Generate Baseline Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate]
+    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate]
     if: always()
 
     steps:
@@ -1350,8 +1556,10 @@ jobs:
         SESSION_MANAGEMENT="${{ needs.session-management-gate.result }}"
         SKILL_LIFECYCLE="${{ needs.skill-assessment-lifecycle-gate.result }}"
         BOOKING_LIFECYCLE="${{ needs.booking-lifecycle-gate.result }}"
+        AUTH_LIFECYCLE="${{ needs.auth-lifecycle-gate.result }}"
+        ENROLLMENT_WORKFLOW="${{ needs.enrollment-workflow-gate.result }}"
 
-        if [ "$UNIT" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ] && [ "$PAYMENT" == "success" ] && [ "$CORE_ACCESS" == "success" ] && [ "$STUDENT_LIFECYCLE" == "success" ] && [ "$INSTRUCTOR_LIFECYCLE" == "success" ] && [ "$REFUND_WORKFLOW" == "success" ] && [ "$MULTI_CAMPUS" == "success" ] && [ "$SESSION_MANAGEMENT" == "success" ] && [ "$SKILL_LIFECYCLE" == "success" ] && [ "$BOOKING_LIFECYCLE" == "success" ]; then
+        if [ "$UNIT" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ] && [ "$PAYMENT" == "success" ] && [ "$CORE_ACCESS" == "success" ] && [ "$STUDENT_LIFECYCLE" == "success" ] && [ "$INSTRUCTOR_LIFECYCLE" == "success" ] && [ "$REFUND_WORKFLOW" == "success" ] && [ "$MULTI_CAMPUS" == "success" ] && [ "$SESSION_MANAGEMENT" == "success" ] && [ "$SKILL_LIFECYCLE" == "success" ] && [ "$BOOKING_LIFECYCLE" == "success" ] && [ "$AUTH_LIFECYCLE" == "success" ] && [ "$ENROLLMENT_WORKFLOW" == "success" ]; then
           echo "✅ **PASS** - Baseline maintained (100% LIFECYCLE COVERAGE)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Unit & Integration Tests" >> $GITHUB_STEP_SUMMARY
@@ -1370,7 +1578,9 @@ jobs:
           echo "- **Multi-Campus E2E: 1/1 test passing (0 flake in 20 runs, parallel stable)** ✨ NEW" >> $GITHUB_STEP_SUMMARY
           echo "- **Session Management E2E: 4/4 tests passing (0 flake in 20 runs, parallel stable, p95 <200ms)** ✨ NEW" >> $GITHUB_STEP_SUMMARY
           echo "- **Skill Assessment Lifecycle E2E: 9/9 tests passing (0 flake in 20 runs, parallel stable, <5s)** ⚽ NEW - Priority K1" >> $GITHUB_STEP_SUMMARY
-          echo "- **Booking Lifecycle E2E: 3/3 tests passing (confirm→waitlist→cancel→promote, capacity guard)** 🎯 NEW - Sprint 37" >> $GITHUB_STEP_SUMMARY
+          echo "- **Booking Lifecycle E2E: 3/3 tests passing (confirm→waitlist→cancel→promote, capacity guard)** 🎯 Sprint 37" >> $GITHUB_STEP_SUMMARY
+          echo "- **Auth Lifecycle E2E: 6/6 tests passing (login→token→refresh→protected endpoint)** 🔐 NEW - Sprint 38" >> $GITHUB_STEP_SUMMARY
+          echo "- **Enrollment Workflow E2E: 3/3 tests passing (enroll→auto-approve→duplicate rejected)** 📋 NEW - Sprint 38" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Policy Enforcement" >> $GITHUB_STEP_SUMMARY
           echo "- **0 Flake Tolerance**: All tests must pass 20 sequential runs with 0 failures" >> $GITHUB_STEP_SUMMARY
@@ -1396,6 +1606,8 @@ jobs:
           echo "| **Session Management E2E** | $SESSION_MANAGEMENT |" >> $GITHUB_STEP_SUMMARY
           echo "| **Skill Assessment Lifecycle E2E** ⚽ | $SKILL_LIFECYCLE |" >> $GITHUB_STEP_SUMMARY
           echo "| **Booking Lifecycle E2E** 🎯 | $BOOKING_LIFECYCLE |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Auth Lifecycle E2E** 🔐 | $AUTH_LIFECYCLE |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Enrollment Workflow E2E** 📋 | $ENROLLMENT_WORKFLOW |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**DO NOT MERGE** - Fix tests first" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
