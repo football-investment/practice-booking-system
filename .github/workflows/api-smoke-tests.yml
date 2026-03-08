@@ -7,6 +7,7 @@ on:
       - 'app/api/**'
       - 'tests/integration/api_smoke/**'
       - '.github/workflows/api-smoke-tests.yml'
+      - 'tests/snapshots/**'
   push:
     branches: [ main ]
   workflow_dispatch:
