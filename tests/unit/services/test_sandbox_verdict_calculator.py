@@ -663,3 +663,197 @@ class TestGetTopPerformers:
         assert result[0]["total_skill_gain"] == 10.0
         assert result[0]["skills_changed"]["shooting"]["change"] == "+5.0"
         assert result[0]["skills_changed"]["passing"]["change"] == "+5.0"
+
+
+# ── Sprint 48 additions — performer edge-case mutation kills ──────────────────
+
+class TestPerformerEdgeCases:
+    """
+    Sprint 48: Kill isinstance guards and default-50.0 mutations in
+    _get_top_performers and _get_bottom_performers.
+
+    These paths are parallel to _calculate_skill_progression but were never
+    tested in isolation for the edge cases. mutmut survivors at lines:
+      260-261, 332-333 (isinstance guard → after=50.0)
+      254, 326         (snapshot .get default 50.0)
+      265, 337         (current_level .get default 50.0)
+    """
+
+    # ── top performers: non-dict profile ─────────────────────────────────────
+
+    def test_top_performers_non_dict_profile_defaults_to_50(self):
+        """SVT-P1: get_skill_profile → None (non-dict) → after=50.0 via isinstance guard."""
+        ranking = _ranking(user_id=42, rank=1, points=100)
+        user = _user_mock(uid=42, email="player@test.com")
+        db = _seq_db(_q(all_=[ranking]), _q(first=user))
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = None
+            result = SandboxVerdictCalculator(db)._get_top_performers(
+                tournament_id=1, skills_to_test=["passing"],
+                skills_before_snapshot={42: {"passing": 60.0}}, count=3,
+            )
+        # isinstance(None, dict) is False → after = 50.0; change = 50-60 = -10
+        assert result[0]["skills_changed"]["passing"]["after"] == 50.0
+        assert result[0]["skills_changed"]["passing"]["before"] == 60.0
+        assert result[0]["total_skill_gain"] == -10.0
+
+    # ── bottom performers: non-dict profile ──────────────────────────────────
+
+    def test_bottom_performers_non_dict_profile_defaults_to_50(self):
+        """SVT-P2: get_skill_profile → string (non-dict) → after=50.0 via isinstance guard."""
+        ranking = _ranking(user_id=42, rank=5, points=20)
+        user = _user_mock(uid=42)
+        db = _seq_db(_q(count=5), _q(all_=[ranking]), _q(first=user))
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = "not-a-dict"
+            result = SandboxVerdictCalculator(db)._get_bottom_performers(
+                tournament_id=1, skills_to_test=["passing"],
+                skills_before_snapshot={42: {"passing": 70.0}}, count=2,
+            )
+        # isinstance("not-a-dict", dict) is False → after = 50.0; change = 50-70 = -20
+        assert result[0]["skills_changed"]["passing"]["after"] == 50.0
+        assert result[0]["skills_changed"]["passing"]["before"] == 70.0
+        assert result[0]["total_skill_gain"] == -20.0
+
+    # ── top performers: skill missing from snapshot ───────────────────────────
+
+    def test_top_performers_skill_missing_from_snapshot_before_defaults_to_50(self):
+        """SVT-P3: skill key absent from user's snapshot dict → before=50.0 default."""
+        ranking = _ranking(user_id=42, rank=1, points=100)
+        user = _user_mock(uid=42)
+        db = _seq_db(_q(all_=[ranking]), _q(first=user))
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = _skill_profile("passing", 60.0)
+            result = SandboxVerdictCalculator(db)._get_top_performers(
+                tournament_id=1, skills_to_test=["passing"],
+                # user 42 is in snapshot but "passing" key is missing → default 50.0
+                skills_before_snapshot={42: {"dribbling": 80.0}}, count=3,
+            )
+        assert result[0]["skills_changed"]["passing"]["before"] == 50.0
+        assert result[0]["skills_changed"]["passing"]["after"] == 60.0
+        assert result[0]["skills_changed"]["passing"]["change"] == "+10.0"
+
+    # ── bottom performers: skill missing from snapshot ────────────────────────
+
+    def test_bottom_performers_skill_missing_from_snapshot_before_defaults_to_50(self):
+        """SVT-P4: skill key absent from bottom performer's snapshot → before=50.0 default."""
+        ranking = _ranking(user_id=42, rank=5, points=10)
+        user = _user_mock(uid=42)
+        db = _seq_db(_q(count=5), _q(all_=[ranking]), _q(first=user))
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = _skill_profile("passing", 45.0)
+            result = SandboxVerdictCalculator(db)._get_bottom_performers(
+                tournament_id=1, skills_to_test=["passing"],
+                skills_before_snapshot={42: {"shooting": 70.0}}, count=2,
+            )
+        assert result[0]["skills_changed"]["passing"]["before"] == 50.0
+        assert result[0]["skills_changed"]["passing"]["after"] == 45.0
+        assert result[0]["skills_changed"]["passing"]["change"] == "-5.0"
+
+    # ── top performers: profile has 'skills' but skill key absent ─────────────
+
+    def test_top_performers_profile_missing_skill_key_current_level_defaults_to_50(self):
+        """SVT-P5: profile is dict with 'skills' but skill name absent → after=50.0."""
+        ranking = _ranking(user_id=42, rank=1, points=100)
+        user = _user_mock(uid=42)
+        db = _seq_db(_q(all_=[ranking]), _q(first=user))
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = {"skills": {}}  # "passing" absent
+            result = SandboxVerdictCalculator(db)._get_top_performers(
+                tournament_id=1, skills_to_test=["passing"],
+                skills_before_snapshot={42: {"passing": 70.0}}, count=3,
+            )
+        # skills_dict.get("passing", {}) → {}; {}.get("current_level", 50.0) → 50.0
+        assert result[0]["skills_changed"]["passing"]["after"] == 50.0
+        assert result[0]["total_skill_gain"] == -20.0  # 50 - 70 = -20
+
+    # ── bottom performers: profile has 'skills' but skill key absent ──────────
+
+    def test_bottom_performers_profile_missing_skill_key_current_level_defaults_to_50(self):
+        """SVT-P6: same as SVT-P5 but for bottom performers path."""
+        ranking = _ranking(user_id=42, rank=5, points=10)
+        user = _user_mock(uid=42)
+        db = _seq_db(_q(count=5), _q(all_=[ranking]), _q(first=user))
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = {"skills": {"shooting": {"current_level": 80.0}}}
+            result = SandboxVerdictCalculator(db)._get_bottom_performers(
+                tournament_id=1, skills_to_test=["passing"],
+                skills_before_snapshot={42: {"passing": 65.0}}, count=2,
+            )
+        # "passing" not in skills → {}.get("current_level", 50.0) = 50.0
+        assert result[0]["skills_changed"]["passing"]["after"] == 50.0
+        assert result[0]["skills_changed"]["passing"]["before"] == 65.0
+        assert result[0]["total_skill_gain"] == -15.0  # 50 - 65 = -15
+
+
+# ── Sprint 48 — targeted kills (abs, round-precision, bottom-count) ───────────
+
+class TestSandboxVerdictMutationTargets:
+    """
+    Sprint 48: Kill surviving mutants in calculate_verdict, _calculate_skill_progression,
+    and _get_bottom_performers.
+
+    Targets:
+        IDs 57, 58  — line 113: ``total_skill_change += abs(change)``
+        IDs 125-136 — lines 211-218: ``round(x, 1)`` precision
+        ID 183      — line 304: ``if total_count <= count:``
+    """
+
+    def test_abs_prevents_opposite_skill_changes_cancelling(self):
+        """SVT-M1: ±10 cancels without abs(); abs() keeps total=20 → WORKING not NOT_WORKING."""
+        # passing: before=80 → after=70 (−10)
+        # shooting: before=70 → after=80 (+10)
+        # Without abs: −10 + 10 = 0 → NOT_WORKING verdict
+        # With abs:    10  + 10 = 20 → WORKING verdict
+        db = _seq_db(
+            _q(first=_tournament()),  # Semester
+            _q(count=1),              # TournamentParticipation
+            _q(all_=[]),              # top performers → empty
+            _q(count=0),              # bottom performers total (0 ≤ 2 → [])
+        )
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = {
+                "skills": {
+                    "passing":  {"current_level": 70.0},  # before=80 → −10
+                    "shooting": {"current_level": 80.0},  # before=70 → +10
+                }
+            }
+            result = SandboxVerdictCalculator(db).calculate_verdict(
+                tournament_id=1,
+                expected_participant_count=1,
+                skills_to_test=["passing", "shooting"],
+                distribution_result=None,
+                skills_before_snapshot={42: {"passing": 80.0, "shooting": 70.0}},
+            )
+        assert result["verdict"] == "WORKING"
+
+    def test_round_precision_one_decimal_place(self):
+        """SVT-M2: round(x, 1) exact — kills round(x,2)=75.23/77.78 and round(x,0)=75.0/78.0."""
+        db = MagicMock()
+        with patch(_PATCH_SKILL) as mock_svc:
+            mock_svc.get_skill_profile.return_value = {
+                "skills": {"passing": {"current_level": 77.777}}
+            }
+            result = SandboxVerdictCalculator(db)._calculate_skill_progression(
+                tournament_id=1,
+                skills_to_test=["passing"],
+                skills_before_snapshot={42: {"passing": 75.234}},
+            )
+        assert result["passing"]["before"]["average"] == 75.2
+        assert result["passing"]["before"]["min"] == 75.2
+        assert result["passing"]["before"]["max"] == 75.2
+        assert result["passing"]["after"]["average"] == 77.8
+        assert result["passing"]["after"]["min"] == 77.8
+        assert result["passing"]["after"]["max"] == 77.8
+
+    def test_bottom_performers_total_count_equals_count_returns_empty(self):
+        """SVT-M3: total_count == count → must return [] (kills <= → < mutant at line 304)."""
+        # 2 total, requesting bottom 2: 2 <= 2 is True → []; 2 < 2 is False → would proceed
+        db = _seq_db(_q(count=2))
+        result = SandboxVerdictCalculator(db)._get_bottom_performers(
+            tournament_id=1,
+            skills_to_test=["passing"],
+            skills_before_snapshot={},
+            count=2,
+        )
+        assert result == []
