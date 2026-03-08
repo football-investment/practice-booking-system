@@ -81,6 +81,16 @@ class TestCheckLicenseExpiration:
         LicenseRenewalService.check_license_expiration(lic)
         assert lic.is_active is True
 
+    def test_expiry_exactly_at_now_boundary_is_not_expired(self):
+        """LR-Exp: expires_at == now is NOT expired — strict < not <= (kills <= mutant)."""
+        fixed_now = datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        lic = _license(expires_at=fixed_now, is_active=True)
+        with patch("app.services.license_renewal_service.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_now
+            result = LicenseRenewalService.check_license_expiration(lic)
+        assert result is True
+        assert lic.is_active is True
+
     def test_naive_datetime_handled(self):
         # Naive datetime (no tzinfo) — service must make it tz-aware
         naive_past = datetime.utcnow() - timedelta(days=5)
@@ -429,3 +439,91 @@ class TestGetLicenseStatusBoundaries:
         result = LicenseRenewalService.get_license_status(lic)
         assert result["status"] == "active"
         assert result["needs_renewal"] is False
+
+
+# ── Sprint 48 additions — targeted mutation kills ─────────────────────────────
+
+class TestRenewLicenseMutationTargets:
+    """
+    Sprint 48: Kill specific mutants in renew_license that survived Sprint 47.
+
+    Targets:
+      L-R1: line 121  `<` → `<=` credit balance exact boundary
+      L-R2: line 149  assignment `license.expires_at = new_expiration`
+      L-R3: line 150  assignment `license.last_renewed_at = now`
+      L-R4: line 152  conditional `if payment_verified:`
+      L-R5: lines 143 `timedelta(days=renewal_months * 30)` 24-month precision
+    """
+
+    def test_exactly_sufficient_credits_succeeds(self):
+        """L-R1: credit_balance == renewal_cost should NOT raise (strict < not <=)."""
+        lic = _license(renewal_cost=1000)
+        usr = _user(credit_balance=1000)  # exactly enough
+        db = _db_for_renewal(lic, usr)
+        result = LicenseRenewalService.renew_license(
+            license_id=10, renewal_months=12, admin_id=99, db=db
+        )
+        assert result["success"] is True
+        assert usr.credit_balance == 0  # 1000 - 1000 = 0
+
+    def test_license_expires_at_updated_on_renewal(self):
+        """L-R2: license.expires_at must be set to new_expiration (not just returned)."""
+        lic = _license(expires_at=None)  # perpetual → new_expiration = now + 360d
+        usr = _user(credit_balance=2000)
+        db = _db_for_renewal(lic, usr)
+        result = LicenseRenewalService.renew_license(
+            license_id=10, renewal_months=12, admin_id=99, db=db
+        )
+        assert lic.expires_at == result["new_expiration"]
+
+    def test_license_last_renewed_at_set_on_renewal(self):
+        """L-R3: license.last_renewed_at must be set after renewal."""
+        lic = _license()
+        usr = _user(credit_balance=2000)
+        db = _db_for_renewal(lic, usr)
+        LicenseRenewalService.renew_license(
+            license_id=10, renewal_months=12, admin_id=99, db=db
+        )
+        # Must be set to some datetime — original MagicMock default is not a datetime
+        assert lic.last_renewed_at is not None
+        assert isinstance(lic.last_renewed_at, datetime)
+
+    def test_payment_not_verified_does_not_set_flag(self):
+        """L-R4: payment_verified=False → conditional skips, lic.payment_verified not set True."""
+        lic = _license()
+        usr = _user(credit_balance=2000)
+        db = _db_for_renewal(lic, usr)
+        LicenseRenewalService.renew_license(
+            license_id=10, renewal_months=12, admin_id=99, db=db,
+            payment_verified=False
+        )
+        # If `if payment_verified:` were removed, payment_verified would be True regardless.
+        # With the guard in place, lic.payment_verified should remain the MagicMock attribute
+        # (not explicitly set to True by the service).
+        assert lic.payment_verified is not True
+
+    def test_24_month_renewal_adds_exactly_720_days_from_now(self):
+        """L-R5: 24 months = 24*30 = 720 days; tight range kills constant mutations."""
+        lic = _license(expires_at=None)  # perpetual → starts from now
+        usr = _user(credit_balance=5000)
+        db = _db_for_renewal(lic, usr)
+        result = LicenseRenewalService.renew_license(
+            license_id=10, renewal_months=24, admin_id=99, db=db
+        )
+        days_left = (result["new_expiration"] - _now()).days
+        # 24 * 30 = 720; allow 5-day drift for test execution time
+        assert 715 < days_left <= 720
+
+    def test_renew_extends_from_existing_non_expired_date(self):
+        """L-R6: non-expired license → new_expiration = expires_at + Δ, not now + Δ."""
+        # expires_at = now+100d; after 12-month renewal: new = (now+100d) + 360d ≈ now+460d
+        # If mutated to − or using now: result ≈ 360d or −260d → assertion fails
+        future_expiry = _now() + timedelta(days=100)
+        lic = _license(expires_at=future_expiry)
+        usr = _user(credit_balance=2000)
+        db = _db_for_renewal(lic, usr)
+        result = LicenseRenewalService.renew_license(
+            license_id=10, renewal_months=12, admin_id=99, db=db
+        )
+        days_left = (result["new_expiration"] - _now()).days
+        assert 455 < days_left <= 462
