@@ -73,7 +73,7 @@ def _license(id_=1, specialization="LFA_PLAYER_BRONZE", user_id=42):
     return lic
 
 
-def _assessment(id_=1, user_license_id=1):
+def _assessment(id_=1, user_license_id=42):
     a = MagicMock(spec=FootballSkillAssessment)
     a.id = id_
     a.user_license_id = user_license_id
@@ -328,7 +328,7 @@ class TestGetAssessment:
         assert exc.value.status_code == 404
 
     def test_student_not_owner_raises_403(self):
-        ass = _assessment(user_license_id=1)
+        ass = _assessment(user_license_id=42)
         lic = _license(user_id=99)  # owner is 99
         ass_q = MagicMock()
         ass_q.filter.return_value = ass_q
@@ -344,7 +344,7 @@ class TestGetAssessment:
         assert exc.value.status_code == 403
 
     def test_instructor_success(self):
-        ass = _assessment(user_license_id=1)
+        ass = _assessment(user_license_id=42)
         lic = _license(user_id=99)
         ass_q = MagicMock()
         ass_q.filter.return_value = ass_q

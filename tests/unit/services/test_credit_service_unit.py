@@ -12,7 +12,7 @@ reaching db.flush().  Only true concurrent writes (two requests interleaved at
 the OS level) can bypass the pre-flight check — not reproducible with sequential
 DB tests.  Here we make db.flush() raise IntegrityError directly.
 
-FK guard: user_id=42 throughout (CI guard rejects user_id=1 in tests/unit/services/).
+FK guard: all fixtures use user_id=42 (CI lint rejects the literal pattern in tests/unit/services/).
 """
 
 import pytest
