@@ -6,6 +6,7 @@ Phase 1 Enhancement: Real test data fixtures for path parameter resolution
 """
 
 import pytest
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta, timezone
@@ -369,12 +370,13 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
     from app.models.session import Session as SessionModel
 
-    timestamp = int(datetime.now(timezone.utc).timestamp())
+    # Use UUID suffix to prevent UniqueViolation when two CI jobs run within the same second
+    unique_suffix = uuid.uuid4().hex[:8].upper()
 
     # Create tournament (game_preset_id moved to GameConfiguration in P3)
     tournament = Semester(
-        code=f"SMOKE_TEST_{timestamp}",
-        name=f"Smoke Test Tournament {timestamp}",
+        code=f"SMOKE_TEST_{unique_suffix}",
+        name=f"Smoke Test Tournament {unique_suffix}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
         tournament_status="IN_PROGRESS",
@@ -412,7 +414,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     student1 = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
     # Create student 2
-    student2_email = f"smoke.student2.{timestamp}@example.com"
+    student2_email = f"smoke.student2.{unique_suffix}@example.com"
     student2 = test_db.query(User).filter(User.email == student2_email).first()
     if not student2:
         student2 = User(
@@ -428,7 +430,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         test_db.refresh(student2)
 
     # Create student 3
-    student3_email = f"smoke.student3.{timestamp}@example.com"
+    student3_email = f"smoke.student3.{unique_suffix}@example.com"
     student3 = test_db.query(User).filter(User.email == student3_email).first()
     if not student3:
         student3 = User(
@@ -444,7 +446,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         test_db.refresh(student3)
 
     # Create student 4
-    student4_email = f"smoke.student4.{timestamp}@example.com"
+    student4_email = f"smoke.student4.{unique_suffix}@example.com"
     student4 = test_db.query(User).filter(User.email == student4_email).first()
     if not student4:
         student4 = User(

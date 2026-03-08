@@ -1,0 +1,468 @@
+"""
+Unit tests for app/api/web_routes/sessions.py
+
+Covers:
+  calendar_page — student not onboarded redirects, instructor passes, student onboarded passes
+  sessions_page — student not onboarded, instructor view (template + enrolled_count),
+                  student view (approved semesters only)
+  book_session — session not found, deadline passed, already booked, success
+  cancel_booking — booking not found, session not found, session already ended,
+                   cancellation deadline passed, attendance marked, evaluation submitted,
+                   success
+  session_details — session not found redirects, instructor view template, student view template
+"""
+import asyncio
+from datetime import datetime, timezone, timedelta
+from unittest.mock import MagicMock, patch
+
+from zoneinfo import ZoneInfo
+from fastapi.responses import RedirectResponse
+
+from app.api.web_routes.sessions import (
+    calendar_page,
+    sessions_page,
+    book_session,
+    cancel_booking,
+    session_details,
+)
+from app.models.user import UserRole
+from app.models.session import SessionType
+from app.models.booking import BookingStatus
+from app.models.semester_enrollment import EnrollmentStatus
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+_BASE = "app.api.web_routes.sessions"
+
+
+def _instructor(uid=42):
+    u = MagicMock()
+    u.id = uid
+    u.role = UserRole.INSTRUCTOR
+    u.email = "instructor@test.com"
+    u.name = "Coach"
+    u.onboarding_completed = True
+    return u
+
+
+def _student(uid=99, onboarding_done=True):
+    u = MagicMock()
+    u.id = uid
+    u.role = UserRole.STUDENT
+    u.email = "student@test.com"
+    u.onboarding_completed = onboarding_done
+    return u
+
+
+def _req():
+    return MagicMock()
+
+
+def _run(coro):
+    return asyncio.run(coro)
+
+
+def _mock_db(first_return=None):
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = first_return
+    db.query.return_value.filter.return_value.all.return_value = []
+    db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+    db.query.return_value.filter.return_value.count.return_value = 0
+    return db
+
+
+_BUD = ZoneInfo("Europe/Budapest")
+
+
+def _now_budapest():
+    """Current time as naive Budapest datetime (matches DB storage convention)."""
+    return datetime.now(_BUD).replace(tzinfo=None)
+
+
+def _future_session(session_id=1, instructor_id=42):
+    """Session starting > 13 hours from now Budapest time (safe to book and cancel)."""
+    s = MagicMock()
+    s.id = session_id
+    s.instructor_id = instructor_id
+    s.session_type = SessionType.on_site
+    s.actual_end_time = None
+    now = _now_budapest()
+    s.date_start = now + timedelta(hours=14)
+    s.date_end = now + timedelta(hours=15)
+    s.title = "Test Session"
+    return s
+
+
+def _past_session(session_id=1, instructor_id=42):
+    """Session that already ended (actual_end_time is set)."""
+    s = MagicMock()
+    s.id = session_id
+    s.instructor_id = instructor_id
+    s.session_type = SessionType.on_site
+    s.actual_end_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    now = _now_budapest()
+    s.date_start = now - timedelta(hours=3)
+    s.date_end = now - timedelta(hours=2)
+    s.title = "Past Session"
+    return s
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# calendar_page
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestCalendarPage:
+
+    def test_student_not_onboarded_redirects_to_dashboard(self):
+        user = _student(onboarding_done=False)
+        result = _run(calendar_page(request=_req(), db=_mock_db(), user=user))
+        assert isinstance(result, RedirectResponse)
+        assert "/dashboard" in result.headers["location"]
+
+    def test_instructor_gets_calendar_template(self):
+        user = _instructor()
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(calendar_page(request=_req(), db=_mock_db(), user=user))
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "calendar.html"
+
+    def test_student_onboarded_gets_calendar_template(self):
+        user = _student(onboarding_done=True)
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(calendar_page(request=_req(), db=_mock_db(), user=user))
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "calendar.html"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# sessions_page
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestSessionsPage:
+
+    def test_student_not_onboarded_redirects(self):
+        user = _student(onboarding_done=False)
+        result = _run(sessions_page(request=_req(), db=_mock_db(), user=user))
+        assert isinstance(result, RedirectResponse)
+        assert "/dashboard" in result.headers["location"]
+
+    def test_instructor_view_renders_sessions_template(self):
+        user = _instructor()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.count.return_value = 0
+        db.query.return_value.filter.return_value.all.return_value = []
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(sessions_page(request=_req(), db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "sessions.html"
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["is_instructor"] is True
+
+    def test_instructor_view_with_sessions_adds_enrolled_count(self):
+        user = _instructor()
+        s = MagicMock()
+        s.id = 1
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [s]
+        db.query.return_value.filter.return_value.count.return_value = 5
+        db.query.return_value.filter.return_value.all.return_value = []
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(sessions_page(request=_req(), db=db, user=user))
+
+        assert s.enrolled_count == 5
+
+    def test_student_view_no_enrollments_returns_empty_sessions(self):
+        user = _student()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = []  # No enrollments
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(sessions_page(request=_req(), db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "sessions.html"
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["is_instructor"] is False
+
+    def test_student_view_with_approved_enrollments_shows_sessions(self):
+        """Student has approved enrollments → exercises session loop body (lines 104-191)."""
+        user = _student(uid=99)
+
+        enrollment = MagicMock()
+        enrollment.semester_id = 10
+
+        session_obj = MagicMock()
+        session_obj.id = 1
+        session_obj.instructor_id = None   # Skip instructor name query
+        # Non-virtual → skip quiz queries
+        session_obj.session_type = SessionType.on_site
+        now = _now_budapest()
+        session_obj.date_start = now + timedelta(hours=14)  # Naive Budapest datetime
+
+        db = MagicMock()
+        # .all() calls: approved_enrollments=[enrollment], my_bookings=[]
+        db.query.return_value.filter.return_value.all.side_effect = [[enrollment], []]
+        # upcoming_sessions via order_by().limit().all()
+        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [session_obj]
+        db.query.return_value.filter.return_value.count.return_value = 2
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(sessions_page(request=_req(), db=db, user=user))
+
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["is_instructor"] is False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# book_session
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestBookSession:
+
+    def test_session_not_found_redirects(self):
+        db = _mock_db(None)
+        result = _run(book_session(request=_req(), session_id=1, db=db, user=_student()))
+        assert isinstance(result, RedirectResponse)
+        assert "session_not_found" in result.headers["location"]
+
+    def test_booking_deadline_passed_redirects(self):
+        user = _student()
+        s = MagicMock()
+        # Session starts in 1 hour Budapest time — within 12-hour deadline
+        s.date_start = _now_budapest() + timedelta(hours=1)
+        db = _mock_db(s)
+        result = _run(book_session(request=_req(), session_id=1, db=db, user=user))
+        assert "booking_deadline_passed" in result.headers["location"]
+
+    def test_already_booked_redirects(self):
+        user = _student()
+        s = _future_session()
+        existing_booking = MagicMock()
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, existing_booking]
+
+        result = _run(book_session(request=_req(), session_id=1, db=db, user=user))
+        assert "already_booked" in result.headers["location"]
+
+    def test_book_session_success(self):
+        user = _student()
+        s = _future_session()
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, None]
+
+        result = _run(book_session(request=_req(), session_id=1, db=db, user=user))
+        assert "success=booked" in result.headers["location"]
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# cancel_booking
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestCancelBooking:
+
+    def test_booking_not_found_redirects(self):
+        db = _mock_db(None)
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=_student()))
+        assert "booking_not_found" in result.headers["location"]
+
+    def test_session_not_found_redirects(self):
+        booking = MagicMock()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [booking, None]
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=_student()))
+        assert "session_not_found" in result.headers["location"]
+
+    def test_session_already_ended_redirects(self):
+        booking = MagicMock()
+        s = _past_session()  # actual_end_time is set
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [booking, s]
+
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=_student()))
+        assert "session_already_ended" in result.headers["location"]
+
+    def test_cancellation_deadline_passed_redirects(self):
+        booking = MagicMock()
+        # Session starts in 1 hour Budapest time → within 12h deadline
+        s = MagicMock()
+        s.actual_end_time = None
+        s.date_start = _now_budapest() + timedelta(hours=1)
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [booking, s]
+
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=_student()))
+        assert "cancellation_deadline_passed" in result.headers["location"]
+
+    def test_attendance_already_marked_redirects(self):
+        user = _student()
+        booking = MagicMock()
+        booking.id = 7
+        s = _future_session()
+        s.actual_end_time = None
+        attendance = MagicMock()  # attendance exists for this booking
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [booking, s, attendance]
+
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=user))
+        assert "attendance_already_marked" in result.headers["location"]
+
+    def test_evaluation_already_submitted_redirects(self):
+        user = _student()
+        booking = MagicMock()
+        booking.id = 7
+        s = _future_session()
+        s.actual_end_time = None
+        instructor_review = MagicMock()
+
+        db = MagicMock()
+        # booking, session, no attendance, instructor_review exists
+        db.query.return_value.filter.return_value.first.side_effect = [booking, s, None, instructor_review]
+
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=user))
+        assert "evaluation_already_submitted" in result.headers["location"]
+
+    def test_cancel_booking_success(self):
+        user = _student()
+        booking = MagicMock()
+        booking.id = 7
+        s = _future_session()
+        s.actual_end_time = None
+
+        db = MagicMock()
+        # booking, session, no attendance, no review
+        db.query.return_value.filter.return_value.first.side_effect = [booking, s, None, None]
+
+        result = _run(cancel_booking(request=_req(), session_id=1, db=db, user=user))
+        assert "success=cancelled" in result.headers["location"]
+        db.delete.assert_called_once_with(booking)
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# session_details
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestSessionDetails:
+
+    def test_session_not_found_raises_404(self):
+        import pytest
+        from fastapi import HTTPException
+        db = _mock_db(None)
+        with pytest.raises(HTTPException) as exc_info:
+            _run(session_details(request=_req(), session_id=1, db=db, user=_student()))
+        assert exc_info.value.status_code == 404
+
+    def _make_session_obj(self, user_id=42, session_type=SessionType.on_site):
+        """Session with naive Budapest datetimes (matches DB convention)."""
+        s = MagicMock()
+        s.id = 1
+        s.instructor_id = user_id
+        s.session_type = session_type
+        now = _now_budapest()
+        s.date_start = now + timedelta(hours=2)   # Future session
+        s.date_end = now + timedelta(hours=3)
+        return s
+
+    def test_instructor_view_renders_template(self):
+        user = _instructor()
+        s = self._make_session_obj(user_id=user.id)
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, instructor_obj]
+        db.query.return_value.filter.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.count.return_value = 0
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(session_details(request=_req(), session_id=1, db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "session_details.html"
+
+    def test_student_view_renders_template(self):
+        user = _student()
+        s = self._make_session_obj(user_id=42)
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, instructor_obj]
+        db.query.return_value.filter.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.count.return_value = 0
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(session_details(request=_req(), session_id=1, db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "session_details.html"
+
+    def test_student_enrolled_with_attendance_covers_review_query(self):
+        """Student IS enrolled (booking in list), attendance found → exercises lines 413-424."""
+        user = _student(uid=99)
+        s = self._make_session_obj(user_id=42)  # instructor_id != user.id
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        # A booking belonging to this student → is_enrolled = True
+        booking = MagicMock()
+        booking.user_id = 99
+        booking.id = 7
+
+        student_obj = MagicMock()
+        student_obj.id = 99
+        student_obj.name = "Student"
+        student_obj.email = "s@test.com"
+
+        my_attendance = MagicMock()
+        my_instructor_review = MagicMock()
+
+        db = MagicMock()
+        # bookings.all() → [booking]; order_by.all() → []
+        db.query.return_value.filter.return_value.all.return_value = [booking]
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.count.return_value = 0
+        # .first() sequence:
+        # 1. session, 2. instructor_obj,
+        # booking loop (for booking): 3. student_obj, 4. attendance=None, 5. student_review=None
+        # student enrolled check: 6. my_attendance, 7. my_instructor_review
+        db.query.return_value.filter.return_value.first.side_effect = [
+            s, instructor_obj,
+            student_obj, None, None,
+            my_attendance, my_instructor_review,
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(session_details(request=_req(), session_id=1, db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "session_details.html"
