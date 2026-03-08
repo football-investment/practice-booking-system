@@ -15,7 +15,7 @@ Covers:
 """
 import pytest
 from datetime import datetime, date, time, timedelta, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from app.services.enrollment_conflict_service import EnrollmentConflictService
 
@@ -428,3 +428,158 @@ class TestGetUserSchedule:
         )
         assert result["date_range"]["start"] == "2026-04-01"
         assert result["date_range"]["end"] == "2026-06-30"
+
+
+# ===========================================================================
+# get_user_schedule — with enrollments and sessions (loop body branches)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestGetUserScheduleWithData:
+    """
+    Covers:
+      L233: for enrollment in enrollments: → loop body entered (L234)
+      L259: for session in sessions: → loop body entered (L260)
+    """
+
+    def _make_enrollment(self, semester_id=5):
+        enrollment = MagicMock()
+        enrollment.id = 10
+        sem = MagicMock()
+        sem.id = semester_id
+        sem.name = "Test Semester"
+        enrollment.semester = sem
+        return enrollment
+
+    def _make_session(self, session_id=1, dt_start=None, dt_end=None):
+        s = MagicMock()
+        s.id = session_id
+        s.date_start = dt_start or datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc)
+        s.date_end = dt_end or datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+        s.location_id = None
+        _ = s.location   # pre-warm
+        return s
+
+    def test_enrollment_with_sessions_loop_body_entered(self):
+        """One enrollment with one session → loop bodies at L234 and L260 entered."""
+        enrollment = self._make_enrollment()
+        session = self._make_session()
+
+        # Build a DB mock that returns data in sequence:
+        #   query 1 (SemesterEnrollment): enrollments list
+        #   query 2 (SessionModel): sessions list
+        #   query 3 (Booking): user bookings (empty)
+        calls = [0]
+        def _make_q(first=None, all_=None):
+            q = MagicMock()
+            q.filter.return_value = q
+            q.order_by.return_value = q
+            q.join.return_value = q
+            q.first.return_value = first
+            q.all.return_value = all_ if all_ is not None else []
+            return q
+
+        q_enrollments = _make_q(all_=[enrollment])
+        q_sessions = _make_q(all_=[session])
+        q_bookings = _make_q(all_=[])
+
+        def _side(*args):
+            idx = calls[0]; calls[0] += 1
+            return [q_enrollments, q_sessions, q_bookings][idx] if idx < 3 else _make_q()
+        db = MagicMock()
+        db.query.side_effect = _side
+
+        with patch("app.services.enrollment_conflict_service.EnrollmentConflictService._get_session_location", return_value="TestLocation"):
+            result = EnrollmentConflictService.get_user_schedule(
+                user_id=42, db=db
+            )
+
+        assert len(result["enrollments"]) == 1
+        assert result["enrollments"][0]["semester_name"] == "Test Semester"
+
+    def test_enrollment_with_no_sessions_skips_session_loop(self):
+        """Enrollment with no sessions → L259 exits without entering loop body."""
+        enrollment = self._make_enrollment()
+
+        calls = [0]
+        def _make_q(all_=None):
+            q = MagicMock()
+            q.filter.return_value = q
+            q.order_by.return_value = q
+            q.join.return_value = q
+            q.all.return_value = all_ if all_ is not None else []
+            return q
+
+        q_enrollments = _make_q(all_=[enrollment])
+        q_sessions = _make_q(all_=[])     # no sessions
+        q_bookings = _make_q(all_=[])
+
+        def _side(*args):
+            idx = calls[0]; calls[0] += 1
+            return [q_enrollments, q_sessions, q_bookings][idx] if idx < 3 else _make_q()
+        db = MagicMock()
+        db.query.side_effect = _side
+
+        result = EnrollmentConflictService.get_user_schedule(user_id=42, db=db)
+        assert len(result["enrollments"]) == 1
+        assert result["total_sessions"] == 0   # no sessions found for this enrollment
+
+
+# ===========================================================================
+# check_session_time_conflict — with sessions and no booking conflicts (L103 loop)
+# ===========================================================================
+
+@pytest.mark.unit
+class TestCheckSessionTimeConflictWithSessions:
+    """
+    Covers L97 False branch (target_sessions non-empty → enters for loop).
+    Uses empty existing_bookings so the inner for-booking loop isn't needed.
+    """
+
+    def test_sessions_present_no_bookings_no_conflict(self):
+        """
+        target_sessions non-empty + existing_bookings empty for each session →
+        L97 False branch (proceeds to for loop), L103 loop body entered,
+        inner booking loop (L122) not entered → result has no conflicts.
+        """
+        from datetime import date as date_cls
+        semester = MagicMock()
+        semester.id = 5
+        semester.name = "Target Sem"
+
+        enrollment = MagicMock()
+        enrollment.semester.sessions = []   # no existing sessions to match
+
+        target_session = MagicMock()
+        target_session.id = 1
+        target_session.date_start = datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc)
+        target_session.date_end = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
+
+        calls = [0]
+        def _make_q(first=None, all_=None):
+            q = MagicMock()
+            q.filter.return_value = q
+            q.join.return_value = q
+            q.all.return_value = all_ if all_ is not None else []
+            q.first.return_value = first
+            return q
+
+        q_semester = _make_q(first=semester)
+        q_enrollments = _make_q(all_=[enrollment])
+        q_target_sessions = _make_q(all_=[target_session])
+        q_bookings = _make_q(all_=[])   # no bookings for this target_session
+
+        def _side(*args):
+            idx = calls[0]; calls[0] += 1
+            qs = [q_semester, q_enrollments, q_target_sessions, q_bookings]
+            return qs[idx] if idx < len(qs) else _make_q()
+        db = MagicMock()
+        db.query.side_effect = _side
+
+        with patch("app.services.enrollment_conflict_service.EnrollmentConflictService._get_session_location", return_value=None):
+            result = EnrollmentConflictService.check_session_time_conflict(
+                user_id=42, semester_id=5, db=db
+            )
+
+        assert result["has_conflict"] is False
+        assert result["conflicts"] == []
