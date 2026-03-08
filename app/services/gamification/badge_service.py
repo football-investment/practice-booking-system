@@ -14,6 +14,9 @@ from ...models.gamification import UserAchievement, BadgeType
 from ...models.achievement import Achievement
 from ...models.audit_log import AuditLog, AuditAction
 from ...models.license import UserLicense
+from ...models.quiz import QuizAttempt
+from ...models.project import ProjectEnrollment, ProjectEnrollmentStatus
+from ...models.user_progress import SpecializationProgress
 
 from .xp_service import calculate_user_stats, award_xp
 

@@ -8,9 +8,18 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timedelta
 
+from zoneinfo import ZoneInfo
+from sqlalchemy.orm import joinedload
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...models.session import Session as SessionModel, SessionType
+from ...models.booking import Booking, BookingStatus
+from ...models.attendance import Attendance, AttendanceHistory
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.quiz import Quiz, QuizQuestion, QuizAttempt, SessionQuiz
+from ...models.performance_review import InstructorSessionReview, StudentPerformanceReview
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -201,7 +210,7 @@ async def book_session(
     user: User = Depends(get_current_user_web)
 ):
     """Book a session"""
-    session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         # Redirect back with error
         return RedirectResponse(url="/sessions?error=session_not_found", status_code=303)
@@ -266,7 +275,7 @@ async def cancel_booking(
         return RedirectResponse(url="/sessions?error=booking_not_found", status_code=303)
 
     # Get the session to check if it has started
-    session = db.query(SessionTypel).filter(SessionTypel.id == session_id).first()
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
     if not session:
         return RedirectResponse(url="/sessions?error=session_not_found", status_code=303)
 

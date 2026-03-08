@@ -179,6 +179,7 @@ class AdaptiveLearningService:
         if not performances:
             return {
                 "total_questions_attempted": 0,
+                "total_attempts": 0,
                 "overall_success_rate": 0.0,
                 "mastery_level": 0.0,
                 "learning_velocity": 0.0,

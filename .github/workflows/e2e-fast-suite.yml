@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   fast-suite:
-    name: Fast Suite (52 tests)
+    name: Fast Suite (tournament monitor baseline)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -24,8 +24,8 @@ jobs:
       postgres:
         image: postgres:14
         env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_db
         options: >-
           --health-cmd pg_isready
@@ -39,53 +39,69 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-test.txt
 
       - name: Install Playwright browsers
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
+        run: python -m playwright install --with-deps chromium
 
-      - name: Set up database
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+      - name: Write .env (consistent settings for all subprocesses)
         run: |
-          # Run migrations
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Run Alembic migrations
+        run: |
           alembic upgrade head
-
-          # Verify migration state
           alembic current -v
 
-      - name: Start FastAPI backend
+      - name: Seed CI users and required data
         env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_lfa_test_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start FastAPI backend
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
-
-          # Health check
-          curl --fail http://localhost:8000/health || exit 1
+          timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
 
       - name: Start Streamlit frontend
+        env:
+          BACKEND_URL: http://localhost:8000
         run: |
           streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          sleep 10
-
-          # Health check
-          curl --fail http://localhost:8501 || exit 1
+          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
 
       - name: Run Fast Suite
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          STREAMLIT_URL: http://localhost:8501
         run: |
-          pytest tests_e2e/ \
+          pytest tests/e2e/test_tournament_monitor_e2e.py \
+                 tests/e2e/test_tournament_monitor_coverage.py \
+                 tests/e2e/test_champion_badge_regression.py \
             -m "not scale_suite" \
             --tb=short \
             -ra \
@@ -97,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-fast-suite-screenshots
-          path: tests_e2e/screenshots/*_FAILED.png
+          path: tests/e2e/screenshots/*_FAILED.png
           retention-days: 7
 
       - name: Upload failure snapshots
@@ -105,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-fast-suite-snapshots
-          path: tests_e2e/snapshots/*.dump
+          path: tests/e2e/snapshots/*.dump
           retention-days: 7
 
     # CRITICAL: Fast Suite is MANDATORY

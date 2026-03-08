@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 # Test files to update
-TEST_DIR = Path("tests_e2e")
+TEST_DIR = Path("tests/e2e")
 TEST_FILES = [
     "test_01_quick_test_full_flow.py",
     "test_01_create_new_tournament.py",

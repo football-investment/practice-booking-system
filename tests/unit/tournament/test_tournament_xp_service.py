@@ -337,8 +337,11 @@ class TestDistributeRewards:
         # Verify XP was awarded (4 times)
         assert mock_award_xp.call_count == 4
 
-        # Verify credit transactions
-        transactions = test_db.query(CreditTransaction).all()
+        # Verify credit transactions (scoped to users created in this test)
+        test_user_ids = [user1.id, user2.id, user3.id, user4.id]
+        transactions = test_db.query(CreditTransaction).filter(
+            CreditTransaction.user_id.in_(test_user_ids)
+        ).all()
         assert len(transactions) == 3  # Only 1st, 2nd, 3rd get credits
 
         # Verify user credits
@@ -654,7 +657,9 @@ class TestAwardManualReward:
         mock_award_xp.assert_called_once()
 
         # No credit transaction should be created
-        transactions = test_db.query(CreditTransaction).all()
+        transactions = test_db.query(CreditTransaction).filter(
+            CreditTransaction.user_id == user.id
+        ).all()
         assert len(transactions) == 0
 
         test_db.refresh(user)
@@ -774,5 +779,7 @@ class TestAwardManualReward:
         mock_award_xp.assert_not_called()
 
         # No transaction created
-        transactions = test_db.query(CreditTransaction).all()
+        transactions = test_db.query(CreditTransaction).filter(
+            CreditTransaction.user_id == user.id
+        ).all()
         assert len(transactions) == 0

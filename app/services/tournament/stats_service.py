@@ -43,15 +43,15 @@ def get_or_create_stats(db: Session, tournament_id: int) -> TournamentStats:
     return stats
 
 
-def update_tournament_stats(db: Session, tournament_id: int) -> TournamentStats:
+def update_tournament_stats(db: Session, tournament_id: int) -> Optional[TournamentStats]:
     """Recalculate all statistics for a tournament"""
-    
-    stats = get_or_create_stats(db, tournament_id)
-    
-    # Get tournament
+
+    # Guard: check tournament exists before any INSERT to avoid FK violation
     tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
     if not tournament:
-        return stats
+        return None
+
+    stats = get_or_create_stats(db, tournament_id)
     
     # Count individual participants
     individual_count = db.query(SemesterEnrollment).filter(

@@ -9,7 +9,7 @@ Allows instructors to:
 import streamlit as st
 from typing import List, Dict, Any, Optional
 import requests
-from streamlit_app.config import API_BASE_URL
+from config import API_BASE_URL
 
 
 def render_tournament_requests():

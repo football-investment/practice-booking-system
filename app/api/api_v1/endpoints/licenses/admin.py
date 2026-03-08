@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .....database import get_db
 from .....dependencies import get_current_user
-from .....models.user import User
+from .....models.user import User, UserRole
 from .....services.progress_license_sync_service import ProgressLicenseSyncService
 
 router = APIRouter()

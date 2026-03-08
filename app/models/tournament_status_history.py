@@ -29,7 +29,7 @@ class TournamentStatusHistory(Base):
         DateTime,
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
-        server_default=text("(NOW() AT TIME ZONE 'utc')")
+        server_default=text("CURRENT_TIMESTAMP")
     )
 
     # Relationships

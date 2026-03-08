@@ -1,21 +1,23 @@
 """
-Pytest configuration and shared fixtures.
+API Test Fixtures
 
-This file is automatically discovered by pytest and provides:
-- Database setup/teardown
-- Test data fixtures
-- Authentication helpers
-- Common test utilities
+Uses PostgreSQL engine with transactional SAVEPOINT isolation.
+Each test gets a fresh transactional session — all changes are
+automatically rolled back at teardown.
+
+No SQLite. No mocks. Real endpoints against real PostgreSQL.
 """
 
 import pytest
+import uuid
 from datetime import date, datetime, timedelta
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+
+from sqlalchemy import event
+from sqlalchemy.orm import Session, sessionmaker
 from fastapi.testclient import TestClient
 
+from app.database import engine, get_db
 from app.main import app
-from app.database import Base, get_db
 from app.models.user import User, UserRole
 from app.models.specialization import SpecializationType
 from app.models.semester import Semester, SemesterStatus
@@ -23,57 +25,59 @@ from app.models.session import Session as SessionModel, SessionType
 from app.models.booking import Booking, BookingStatus
 from app.models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus
 from app.models.coupon import Coupon, CouponUsage, CouponType
+from app.models.invitation_code import InvitationCode
+from app.models.license import UserLicense
 from app.core.security import get_password_hash
 from app.core.auth import create_access_token
 
 
 # ============================================================================
-# DATABASE FIXTURES
+# DATABASE FIXTURES — PostgreSQL + SAVEPOINT isolation
 # ============================================================================
 
 @pytest.fixture(scope="function")
-def test_db():
+def postgres_db():
     """
-    Create a fresh test database for each test function.
+    PostgreSQL session with transactional rollback.
 
-    Uses SQLite in-memory database for speed.
-    Automatically tears down after test completes.
-
-    Usage:
-        def test_something(test_db):
-            user = User(email="test@example.com")
-            test_db.add(user)
-            test_db.commit()
+    Uses nested transactions (SAVEPOINT) so test code can call commit()
+    while all changes are still rolled back at teardown.
     """
-    # Create in-memory SQLite database
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False}
-    )
+    connection = engine.connect()
+    transaction = connection.begin()
 
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+    session = TestSessionLocal()
 
-    # Create session
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = TestingSessionLocal()
+    connection.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(session, txn):
+        if txn.nested and not txn._parent.nested:
+            session.begin_nested()
 
     try:
-        yield db
+        yield session
     finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+        session.close()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture(scope="function")
-def client(test_db):
-    """
-    FastAPI TestClient with test database dependency override.
+def test_db(postgres_db: Session):
+    """Alias for backward compatibility with tests expecting test_db."""
+    return postgres_db
 
-    Usage:
-        def test_api_endpoint(client):
-            response = client.get("/api/v1/sessions/")
-            assert response.status_code == 200
+
+@pytest.fixture(scope="function")
+def client(test_db: Session):
+    """
+    FastAPI TestClient bound to the test PostgreSQL session.
+
+    get_db is overridden to yield the same transactional session,
+    so all endpoint DB operations participate in the rollback.
     """
     def override_get_db():
         try:
@@ -95,13 +99,12 @@ def client(test_db):
 
 @pytest.fixture
 def admin_user(test_db: Session) -> User:
-    """Create and return an admin user."""
     user = User(
-        email="admin@lfa.com",
+        email=f"admin+{uuid.uuid4().hex[:8]}@lfa.com",
         name="Admin User",
         password_hash=get_password_hash("admin123"),
         role=UserRole.ADMIN,
-        is_active=True
+        is_active=True,
     )
     test_db.add(user)
     test_db.commit()
@@ -111,13 +114,12 @@ def admin_user(test_db: Session) -> User:
 
 @pytest.fixture
 def instructor_user(test_db: Session) -> User:
-    """Create and return an instructor user."""
     user = User(
-        email="instructor@lfa.com",
+        email=f"instructor+{uuid.uuid4().hex[:8]}@lfa.com",
         name="Instructor User",
         password_hash=get_password_hash("instructor123"),
         role=UserRole.INSTRUCTOR,
-        is_active=True
+        is_active=True,
     )
     test_db.add(user)
     test_db.commit()
@@ -127,14 +129,13 @@ def instructor_user(test_db: Session) -> User:
 
 @pytest.fixture
 def student_user(test_db: Session) -> User:
-    """Create and return a student user."""
     user = User(
-        email="student@lfa.com",
+        email=f"student+{uuid.uuid4().hex[:8]}@lfa.com",
         name="Student User",
         password_hash=get_password_hash("student123"),
         role=UserRole.STUDENT,
         is_active=True,
-        date_of_birth=date(2005, 1, 15)  # 18 years old
+        date_of_birth=date(2005, 1, 15),
     )
     test_db.add(user)
     test_db.commit()
@@ -143,17 +144,16 @@ def student_user(test_db: Session) -> User:
 
 
 @pytest.fixture
-def student_users(test_db: Session) -> list[User]:
-    """Create and return 10 student users for bulk testing."""
+def student_users(test_db: Session) -> list:
     students = []
     for i in range(10):
         user = User(
-            email=f"student{i+1}@lfa.com",
+            email=f"student{i}+{uuid.uuid4().hex[:8]}@lfa.com",
             name=f"Student {i+1}",
             password_hash=get_password_hash("student123"),
             role=UserRole.STUDENT,
             is_active=True,
-            date_of_birth=date(2005, 1, i+1)
+            date_of_birth=date(2005, 1, (i % 28) + 1),
         )
         test_db.add(user)
         students.append(user)
@@ -166,24 +166,21 @@ def student_users(test_db: Session) -> list[User]:
 
 
 # ============================================================================
-# AUTHENTICATION FIXTURES
+# AUTH FIXTURES
 # ============================================================================
 
 @pytest.fixture
 def admin_token(admin_user: User) -> str:
-    """Generate JWT token for admin user."""
     return create_access_token(data={"sub": admin_user.email})
 
 
 @pytest.fixture
 def instructor_token(instructor_user: User) -> str:
-    """Generate JWT token for instructor user."""
     return create_access_token(data={"sub": instructor_user.email})
 
 
 @pytest.fixture
 def student_token(student_user: User) -> str:
-    """Generate JWT token for student user."""
     return create_access_token(data={"sub": student_user.email})
 
 
@@ -193,27 +190,21 @@ def student_token(student_user: User) -> str:
 
 @pytest.fixture
 def tournament_date() -> date:
-    """Standard tournament date for testing (7 days from now)."""
     return date.today() + timedelta(days=7)
 
 
 @pytest.fixture
 def tournament_semester(test_db: Session, tournament_date: date) -> Semester:
-    """
-    Create a tournament semester in SEEKING_INSTRUCTOR status.
-
-    This is the initial state after admin creates a tournament.
-    """
     semester = Semester(
-        code=f"TOURN-{tournament_date.strftime('%Y%m%d')}",
+        code=f"TOURN-{tournament_date.strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}",
         name="Test Tournament",
         start_date=tournament_date,
-        end_date=tournament_date,  # 1-day tournament
+        end_date=tournament_date,
         is_active=True,
         status=SemesterStatus.SEEKING_INSTRUCTOR,
-        master_instructor_id=None,  # No instructor yet
+        master_instructor_id=None,
         specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,
-        age_group="YOUTH"
+        age_group="YOUTH",
     )
     test_db.add(semester)
     test_db.commit()
@@ -225,15 +216,10 @@ def tournament_semester(test_db: Session, tournament_date: date) -> Semester:
 def tournament_semester_with_instructor(
     test_db: Session,
     tournament_date: date,
-    instructor_user: User
+    instructor_user: User,
 ) -> Semester:
-    """
-    Create a tournament semester in READY_FOR_ENROLLMENT status.
-
-    This is the state after instructor accepts the assignment.
-    """
     semester = Semester(
-        code=f"TOURN-{tournament_date.strftime('%Y%m%d')}-READY",
+        code=f"TOURN-{tournament_date.strftime('%Y%m%d')}-READY-{uuid.uuid4().hex[:6]}",
         name="Ready Tournament",
         start_date=tournament_date,
         end_date=tournament_date,
@@ -241,7 +227,7 @@ def tournament_semester_with_instructor(
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         master_instructor_id=instructor_user.id,
         specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,
-        age_group="YOUTH"
+        age_group="YOUTH",
     )
     test_db.add(semester)
     test_db.commit()
@@ -253,13 +239,8 @@ def tournament_semester_with_instructor(
 def tournament_sessions(
     test_db: Session,
     tournament_semester: Semester,
-    tournament_date: date
-) -> list[SessionModel]:
-    """
-    Create 3 tournament sessions for testing.
-
-    Sessions at 09:00, 11:00, 14:00.
-    """
+    tournament_date: date,
+) -> list:
     sessions = []
     times = ["09:00", "11:00", "14:00"]
 
@@ -274,11 +255,11 @@ def tournament_sessions(
             date_end=end_time,
             session_type=SessionType.on_site,
             capacity=20,
-            instructor_id=None,  # Will be assigned when instructor accepts
+            instructor_id=None,
             semester_id=tournament_semester.id,
             credit_cost=1,
             is_tournament_game=True,
-            game_type=f"Round {i+1}"
+            game_type=f"Round {i+1}",
         )
         test_db.add(session)
         sessions.append(session)
@@ -295,13 +276,8 @@ def tournament_session_with_bookings(
     test_db: Session,
     tournament_semester_with_instructor: Semester,
     tournament_date: date,
-    student_users: list[User]
+    student_users: list,
 ) -> SessionModel:
-    """
-    Create a tournament session with 5 confirmed bookings.
-
-    Useful for testing attendance marking.
-    """
     start_time = datetime.strptime(f"{tournament_date} 10:00", "%Y-%m-%d %H:%M")
     end_time = start_time + timedelta(minutes=90)
 
@@ -316,23 +292,21 @@ def tournament_session_with_bookings(
         semester_id=tournament_semester_with_instructor.id,
         credit_cost=1,
         is_tournament_game=True,
-        game_type="Final"
+        game_type="Final",
     )
     test_db.add(session)
     test_db.commit()
     test_db.refresh(session)
 
-    # Add 5 bookings
     for student in student_users[:5]:
         booking = Booking(
             user_id=student.id,
             session_id=session.id,
-            status=BookingStatus.CONFIRMED
+            status=BookingStatus.CONFIRMED,
         )
         test_db.add(booking)
 
     test_db.commit()
-
     return session
 
 
@@ -341,19 +315,14 @@ def instructor_assignment_request(
     test_db: Session,
     tournament_semester: Semester,
     instructor_user: User,
-    admin_user: User
+    admin_user: User,
 ) -> InstructorAssignmentRequest:
-    """
-    Create a pending instructor assignment request.
-
-    Admin has invited instructor, but instructor hasn't responded yet.
-    """
     request = InstructorAssignmentRequest(
         semester_id=tournament_semester.id,
         instructor_id=instructor_user.id,
         requested_by=admin_user.id,
         status=AssignmentRequestStatus.PENDING,
-        request_message=f"Please lead the '{tournament_semester.name}' tournament"
+        request_message=f"Please lead the '{tournament_semester.name}' tournament",
     )
     test_db.add(request)
     test_db.commit()
@@ -367,17 +336,14 @@ def instructor_assignment_request(
 
 @pytest.fixture
 def today() -> date:
-    """Current date for testing."""
     return date.today()
 
 
 @pytest.fixture
 def future_date() -> date:
-    """Future date (30 days from now)."""
     return date.today() + timedelta(days=30)
 
 
 @pytest.fixture
 def past_date() -> date:
-    """Past date (30 days ago)."""
     return date.today() - timedelta(days=30)

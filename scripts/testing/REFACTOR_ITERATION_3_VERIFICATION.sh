@@ -56,7 +56,7 @@ echo ""
 
 # ── 3. E2E Smoke Tests ───────────────────────────────────────────────────────
 echo "3️⃣  E2E Smoke Tests..."
-pytest tests_e2e/test_reward_leaderboard_matrix.py -v -k "8p" --tb=short 2>&1 | tee /tmp/iter3_e2e_smoke.log
+pytest tests/e2e/test_reward_leaderboard_matrix.py -v -k "8p" --tb=short 2>&1 | tee /tmp/iter3_e2e_smoke.log
 E2E_SMOKE_EXIT=$?
 
 if [ $E2E_SMOKE_EXIT -eq 0 ]; then
@@ -68,7 +68,7 @@ echo ""
 
 # ── 4. Full E2E Regression Suite ─────────────────────────────────────────────
 echo "4️⃣  Full E2E Regression Suite..."
-pytest tests_e2e/ -v --tb=short -m "not slow" 2>&1 | tee /tmp/iter3_e2e_full.log
+pytest tests/e2e/ -v --tb=short -m "not slow" 2>&1 | tee /tmp/iter3_e2e_full.log
 E2E_FULL_EXIT=$?
 
 if [ $E2E_FULL_EXIT -eq 0 ]; then

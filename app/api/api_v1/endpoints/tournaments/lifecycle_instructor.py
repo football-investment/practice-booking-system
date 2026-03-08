@@ -67,7 +67,7 @@ def assign_instructor_to_tournament(
     Business rules:
     - Only admins can assign instructors
     - Tournament must be in SEEKING_INSTRUCTOR status
-    - Instructor must have GRANDMASTER role
+    - Instructor must have INSTRUCTOR role
     - Auto-transition to PENDING_INSTRUCTOR_ACCEPTANCE
     """
 
@@ -102,10 +102,10 @@ def assign_instructor_to_tournament(
         )
 
     # Validate instructor role
-    if instructor.role != UserRole.GRANDMASTER:
+    if instructor.role != UserRole.INSTRUCTOR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User {instructor.email} is not an instructor (GRANDMASTER role required)"
+            detail=f"User {instructor.email} does not have INSTRUCTOR role"
         )
 
     # Assign instructor

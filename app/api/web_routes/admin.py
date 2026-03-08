@@ -8,9 +8,25 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone, date
 
+import re
+from collections import defaultdict
+
+from sqlalchemy.orm import joinedload
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...models.semester import Semester
+from ...models.license import UserLicense
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.specialization import SpecializationType
+from ...models.invoice_request import InvoiceRequest
+from ...models.coupon import Coupon
+from ...models.invitation_code import InvitationCode
+from ...models.session import Session as SessionModel
+from ...models.booking import Booking
+from ...services.audit_service import AuditService
+from ...models.audit_log import AuditAction
 from ...services.tournament.session_generation import get_tournament_venue
 
 # Setup templates

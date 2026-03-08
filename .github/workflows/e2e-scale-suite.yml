@@ -86,7 +86,7 @@ jobs:
 
       - name: Run Scale Suite
         run: |
-          pytest tests_e2e/ \
+          pytest tests/e2e/ \
             -m "scale_suite" \
             --tb=short \
             -ra \
@@ -99,8 +99,8 @@ jobs:
         with:
           name: scale-suite-metrics
           path: |
-            tests_e2e/performance_metrics.json
-            tests_e2e/benchmark_results.csv
+            tests/e2e/performance_metrics.json
+            tests/e2e/benchmark_results.csv
           retention-days: 30
 
       - name: Upload failure screenshots
@@ -108,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: scale-suite-screenshots
-          path: tests_e2e/screenshots/*_FAILED.png
+          path: tests/e2e/screenshots/*_FAILED.png
           retention-days: 7
 
       - name: Generate performance report

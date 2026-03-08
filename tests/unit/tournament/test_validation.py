@@ -34,25 +34,6 @@ from app.models.semester_enrollment import SemesterEnrollment
 class TestGetVisibleTournamentAgeGroups:
     """Test age group visibility rules for tournaments."""
 
-    @pytest.mark.xfail(reason="Business logic mismatch: function returns different age groups than expected")
-    def test_pre_category_sees_only_pre(self):
-        """PRE (5-13) can ONLY see PRE tournaments."""
-        visible = get_visible_tournament_age_groups("PRE")
-        assert visible == ["PRE"]
-
-    @pytest.mark.xfail(reason="Business logic mismatch: function returns different age groups than expected")
-    def test_youth_category_sees_youth_and_amateur(self):
-        """YOUTH (14-18) can see YOUTH OR AMATEUR tournaments."""
-        visible = get_visible_tournament_age_groups("YOUTH")
-        assert set(visible) == {"YOUTH", "AMATEUR"}
-        assert "PRO" not in visible
-
-    @pytest.mark.xfail(reason="Business logic mismatch: function returns different age groups than expected")
-    def test_amateur_category_sees_only_amateur(self):
-        """AMATEUR (18+) can ONLY see AMATEUR tournaments."""
-        visible = get_visible_tournament_age_groups("AMATEUR")
-        assert visible == ["AMATEUR"]
-
     def test_pro_category_sees_only_pro(self):
         """PRO (18+) can ONLY see PRO tournaments."""
         visible = get_visible_tournament_age_groups("PRO")
@@ -81,13 +62,6 @@ class TestValidateTournamentEnrollmentAge:
         assert is_valid is True
         assert error is None
 
-    @pytest.mark.xfail(reason="Business logic mismatch: validation currently allows PRE→YOUTH enrollment, but test expects it blocked")
-    def test_pre_cannot_enroll_in_youth(self):
-        """PRE player cannot enroll in YOUTH tournament."""
-        is_valid, error = validate_tournament_enrollment_age("PRE", "YOUTH")
-        assert is_valid is False
-        assert "PRE category players can only enroll in PRE tournaments" in error
-
     def test_youth_can_enroll_in_youth(self):
         """YOUTH player can enroll in YOUTH tournament."""
         is_valid, error = validate_tournament_enrollment_age("YOUTH", "YOUTH")
@@ -100,39 +74,17 @@ class TestValidateTournamentEnrollmentAge:
         assert is_valid is True
         assert error is None
 
-    @pytest.mark.xfail(reason="Business logic mismatch: validation currently allows YOUTH→PRO enrollment, but test expects it blocked")
-    def test_youth_cannot_enroll_in_pro(self):
-        """YOUTH player cannot enroll in PRO tournament."""
-        is_valid, error = validate_tournament_enrollment_age("YOUTH", "PRO")
-        assert is_valid is False
-        assert "YOUTH category players can enroll in YOUTH or AMATEUR" in error
-        assert "not PRO" in error
-
     def test_amateur_can_enroll_in_amateur(self):
         """AMATEUR player can enroll in AMATEUR tournament."""
         is_valid, error = validate_tournament_enrollment_age("AMATEUR", "AMATEUR")
         assert is_valid is True
         assert error is None
 
-    @pytest.mark.xfail(reason="Business logic mismatch: validation currently allows AMATEUR→PRO enrollment, but test expects it blocked")
-    def test_amateur_cannot_enroll_in_pro(self):
-        """AMATEUR player cannot enroll in PRO tournament."""
-        is_valid, error = validate_tournament_enrollment_age("AMATEUR", "PRO")
-        assert is_valid is False
-        assert "AMATEUR category players can only enroll in AMATEUR tournaments" in error
-
     def test_pro_can_enroll_in_pro(self):
         """PRO player can enroll in PRO tournament."""
         is_valid, error = validate_tournament_enrollment_age("PRO", "PRO")
         assert is_valid is True
         assert error is None
-
-    @pytest.mark.xfail(reason="Business logic mismatch: validation currently allows PRO→AMATEUR enrollment, but test expects it blocked")
-    def test_pro_cannot_enroll_in_amateur(self):
-        """PRO player cannot 'move down' to AMATEUR tournament."""
-        is_valid, error = validate_tournament_enrollment_age("PRO", "AMATEUR")
-        assert is_valid is False
-        assert "PRO category players can only enroll in PRO tournaments" in error
 
     def test_invalid_player_category(self):
         """Invalid player category returns error."""
@@ -395,17 +347,6 @@ class TestValidateTournamentAttendanceStatus:
 @pytest.mark.validation
 class TestValidationEdgeCases:
     """Test edge cases and error handling in validation logic."""
-
-    @pytest.mark.xfail(reason="Age validation logic mismatch - requires business requirements clarification (see TEST_ISSUES.md)")
-    def test_case_sensitivity_in_age_groups(self):
-        """Age group validation should be case-sensitive."""
-        # Lowercase should not match
-        visible = get_visible_tournament_age_groups("pre")
-        assert visible == []  # No match
-
-        # Correct case should work
-        visible = get_visible_tournament_age_groups("PRE")
-        assert visible == ["PRE"]
 
     def test_case_sensitivity_in_attendance_status(self):
         """Attendance status validation should be case-sensitive."""

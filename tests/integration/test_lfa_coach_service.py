@@ -13,10 +13,20 @@ import pytest
 from datetime import date, datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.dialects import sqlite as sqlite_dialect
 from app.database import Base
-from app.models.user import User
+
+# Register PostgreSQL type → SQLite fallbacks
+_stc = sqlite_dialect.base.SQLiteTypeCompiler
+if not hasattr(_stc, 'visit_JSONB'):
+    _stc.visit_JSONB = _stc.visit_JSON
+if not hasattr(_stc, 'visit_ARRAY'):
+    _stc.visit_ARRAY = lambda self, type_, **kw: 'TEXT'
+if not hasattr(_stc, 'visit_UUID'):
+    _stc.visit_UUID = lambda self, type_, **kw: 'VARCHAR(36)'
+from app.models.user import User, UserRole
 from app.models.license import UserLicense
-from app.models.semester import Semester
+from app.models.semester import Semester, SemesterStatus
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.session import Session as SessionModel
 from app.models.specialization import SpecializationType
@@ -56,8 +66,9 @@ def young_coach_user(db_session):
         id=1,
         email="young.coach@test.com",
         name="Young Coach",
+        password_hash="hashed_test_password",
         date_of_birth=date(2011, 6, 15),  # ~14 years old
-        role="student"
+        role=UserRole.STUDENT
     )
     db_session.add(user)
     db_session.commit()
@@ -71,8 +82,9 @@ def experienced_coach_user(db_session):
         id=2,
         email="experienced.coach@test.com",
         name="Experienced Coach",
+        password_hash="hashed_test_password",
         date_of_birth=date(2000, 3, 10),  # ~25 years old
-        role="instructor"
+        role=UserRole.INSTRUCTOR
     )
     db_session.add(user)
     db_session.commit()
@@ -86,8 +98,9 @@ def too_young_user(db_session):
         id=3,
         email="too.young@test.com",
         name="Too Young",
+        password_hash="hashed_test_password",
         date_of_birth=date(2013, 1, 1),  # ~12 years old
-        role="student"
+        role=UserRole.STUDENT
     )
     db_session.add(user)
     db_session.commit()
@@ -99,11 +112,11 @@ def active_semester(db_session):
     """Create an active semester"""
     semester = Semester(
         id=1,
+        code="SPRING-2025-COACH",
         name="Spring 2025",
-        specialization_type=SpecializationType.LFA_COACH,
         start_date=date(2025, 1, 15),
         end_date=date(2025, 6, 15),
-        is_active=True
+        status=SemesterStatus.ONGOING
     )
     db_session.add(semester)
     db_session.commit()
@@ -116,10 +129,11 @@ def coach_license(db_session, young_coach_user):
     license = UserLicense(
         id=1,
         user_id=young_coach_user.id,
-        specialization_type=SpecializationType.LFA_COACH,
+        specialization_type=SpecializationType.LFA_COACH.value,  # String column needs .value
         is_active=True,
         current_level=1,  # PRE_ASSISTANT
         max_achieved_level=1,
+        started_at=datetime.now(timezone.utc),
         created_at=datetime.now(timezone.utc)
     )
     db_session.add(license)
@@ -150,12 +164,12 @@ def coach_session(db_session, active_semester):
     """Create LFA Coach session"""
     session = SessionModel(
         id=1,
-        name="Coaching Theory 101",
-        specialization_type=SpecializationType.LFA_COACH,
+        title="Coaching Theory 101",
+        target_specialization=SpecializationType.LFA_COACH,
         semester_id=active_semester.id,
-        max_participants=20,
-        start_time=datetime(2025, 2, 1, 10, 0),
-        end_time=datetime(2025, 2, 1, 12, 0)
+        capacity=20,
+        date_start=datetime(2025, 2, 1, 10, 0),
+        date_end=datetime(2025, 2, 1, 12, 0)
     )
     db_session.add(session)
     db_session.commit()
@@ -274,7 +288,7 @@ def test_certification_info(coach_service):
     assert info['name'] == "LFA Pre Football Assistant Coach"
     assert info['level'] == 1
     assert info['min_coach_age'] == 14
-    assert info['age_group'] == "Pre (5-8 years)"
+    assert info['age_group'] == "Pre (5-13 years)"
     assert info['role'] == "Assistant Coach"
 
     info = coach_service.get_certification_info("PRO_HEAD")

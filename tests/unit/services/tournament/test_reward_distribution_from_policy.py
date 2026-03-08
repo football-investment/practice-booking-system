@@ -366,8 +366,8 @@ class TestRewardDistributionFromPolicy:
         """Ranks 4+ all receive PARTICIPANT reward"""
         tournament = tournament_with_policy
 
-        # Create rankings for ranks 4-10
-        for i in range(4, 11):
+        # Create rankings for ranks 4-8 (5 users, no duplicate user_id per tournament)
+        for i in range(4, 9):
             user = test_users[i % len(test_users)]
             ranking = TournamentRanking(
                 tournament_id=tournament.id,

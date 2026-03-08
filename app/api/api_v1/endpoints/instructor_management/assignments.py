@@ -150,13 +150,13 @@ def create_assignment(
     # semesters matching this assignment's criteria should transition to READY_FOR_ENROLLMENT
     #
     # Note: InstructorAssignment doesn't have semester_id, so we find matching semesters
-    # based on location_city, specialization_type, and time overlap
+    # based on location_id, specialization_type, and time overlap
     location = db.query(Location).filter(Location.id == assignment.location_id).first()
     if location:
         # Find semesters at this location with same specialization
         # that might now be ready for enrollment
         matching_semesters = db.query(Semester).filter(
-            Semester.location_city == location.city,
+            Semester.location_id == location.id,
             Semester.specialization_type == assignment.specialization_type,
             Semester.status == SemesterStatus.INSTRUCTOR_ASSIGNED
         ).all()

@@ -4,11 +4,14 @@ Curriculum exercise endpoints
 import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .....database import get_db
 from .....dependencies import get_current_user
-from .....models.user import User
+from .....models.user import User, UserRole
+from .....services.competency_service import CompetencyService
+from .....services.adaptive_learning_service import AdaptiveLearningService
 
 logger = logging.getLogger(__name__)
 
@@ -328,7 +331,7 @@ def grade_exercise_submission(
     # 🆕 HOOK 2: AUTOMATIC COMPETENCY ASSESSMENT
     # ==========================================
     # Use SEPARATE session to avoid transaction conflicts
-    from ....database import SessionLocal
+    from .....database import SessionLocal
     hook_db = None
 
     try:

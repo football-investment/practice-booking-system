@@ -85,18 +85,19 @@ class TestCreateTournamentSemester:
         assert semester.campus_id == campus.id
         assert semester.location_id is None  # Campus takes precedence
 
-    @pytest.mark.skip(reason="Requires Location fixture with foreign key - blocked by missing Location entity setup")
-    def test_create_with_location_id(self, test_db: Session, tournament_date: date):
+    def test_create_with_location_id(self, test_db: Session, tournament_date: date, location_factory):
         """Create tournament with location fallback."""
+        location = location_factory(country="Hungary")
+
         semester = create_tournament_semester(
             db=test_db,
             tournament_date=tournament_date,
             name="Location Tournament",
             specialization_type=SpecializationType.LFA_PLAYER_PRO,
-            location_id=3
+            location_id=location.id
         )
 
-        assert semester.location_id == 3
+        assert semester.location_id == location.id
         assert semester.campus_id is None
 
     def test_create_with_age_group(self, test_db: Session, tournament_date: date):
@@ -489,18 +490,6 @@ class TestDeleteTournament:
 
         assert success is False
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason=(
-            "KNOWN-BUG-TC01: test ordering contamination. "
-            "test_campus_scope_guard_integration.py imports app.main, which registers the "
-            "MatchStructure SQLAlchemy backref on Session. The match_structures table was "
-            "never migrated to the test DB. After that import, Session cascade-deletes "
-            "query match_structures and fail with UndefinedTable. "
-            "Fix: create match_structures migration, or set passive_deletes=True on backref. "
-            "Tracking: docs/bugs/BUG-TC01_test_core_ordering_contamination.md"
-        )
-    )
     def test_delete_tournament_cascades_to_sessions(
         self,
         test_db: Session,
@@ -525,13 +514,6 @@ class TestDeleteTournament:
             retrieved = test_db.query(SessionModel).filter(SessionModel.id == session_id).first()
             assert retrieved is None
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason=(
-            "KNOWN-BUG-TC01: test ordering contamination (same root cause as "
-            "test_delete_tournament_cascades_to_sessions). See docs/bugs/BUG-TC01."
-        )
-    )
     def test_delete_tournament_cascades_to_bookings(
         self,
         test_db: Session,

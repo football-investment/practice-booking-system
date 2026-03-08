@@ -84,7 +84,7 @@ def create_master_instructor_legacy(
     # Trigger semester transition
     transition_to_instructor_assigned(
         db=db,
-        location_city=location.city,
+        location_id=location.id,
         master_instructor_id=data.instructor_id
     )
 

@@ -8,9 +8,15 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import joinedload
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...models.semester import Semester
+from ...models.license import UserLicense
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.specialization import SpecializationType
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

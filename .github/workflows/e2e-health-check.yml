@@ -1,0 +1,114 @@
+name: E2E Environment Health Check
+
+on:
+  schedule:
+    # Mon–Fri at 06:00 UTC — before the team starts work
+    - cron: '0 6 * * 1-5'
+  workflow_dispatch:  # Manual trigger for ad-hoc verification
+
+concurrency:
+  group: e2e-health-check
+  cancel-in-progress: true
+
+jobs:
+  health-check:
+    name: Verify E2E baseline environment
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: lfa_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          pip check
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Initialize E2E baseline environment
+        run: python scripts/init_e2e_environment.py
+
+      - name: Start FastAPI backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 45 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
+          echo "Backend is up"
+
+      - name: Verify admin login
+        run: |
+          TOKEN=$(curl -sf -X POST http://localhost:8000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@lfa.com","password":"admin123"}' \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+          echo "ADMIN_TOKEN=$TOKEN" >> $GITHUB_ENV
+          echo "✓ admin@lfa.com login OK"
+
+      - name: Verify instructor login
+        run: |
+          curl -sf -X POST http://localhost:8000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"grandmaster@lfa.com","password":"TestInstructor2026"}' \
+            | python3 -c "import json,sys; json.load(sys.stdin)['access_token']"
+          echo "✓ grandmaster@lfa.com login OK"
+
+      - name: Verify student login
+        run: |
+          curl -sf -X POST http://localhost:8000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"rdias@manchestercity.com","password":"TestPlayer2026"}' \
+            | python3 -c "import json,sys; json.load(sys.stdin)['access_token']"
+          echo "✓ rdias@manchestercity.com login OK"
+
+      - name: Verify E2E semester exists
+        run: |
+          SEM_TOTAL=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+            http://localhost:8000/api/v1/semesters/ \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['total'])")
+          [ "$SEM_TOTAL" -ge 1 ] || { echo "✗ no semesters found"; exit 1; }
+          echo "✓ semesters visible: $SEM_TOTAL"
+
+      - name: Health check summary
+        run: |
+          echo "E2E baseline health check passed:"
+          echo "  - admin@lfa.com             ✓"
+          echo "  - grandmaster@lfa.com       ✓"
+          echo "  - rdias@manchestercity.com  ✓"
+          echo "  - E2E-CI-2026 semester      ✓"

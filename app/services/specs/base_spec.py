@@ -132,6 +132,9 @@ class BaseSpecializationService(ABC):
         if not date_of_birth:
             raise ValueError("Date of birth is required to calculate age")
 
+        if isinstance(date_of_birth, datetime):
+            date_of_birth = date_of_birth.date()
+
         today = datetime.now().date()
         age = today.year - date_of_birth.year
 
@@ -175,6 +178,21 @@ class BaseSpecializationService(ABC):
         """
         return self.__class__.__name__.replace("Service", "")
 
+    def get_license_by_user(self, user_id: int) -> Optional[Dict]:
+        """
+        Get license data for a user.
+
+        Override in subclass to return specialization-specific license dict.
+        Default implementation returns None (no license found).
+
+        Args:
+            user_id: User ID to look up
+
+        Returns:
+            License data dict or None if not found
+        """
+        return None
+
     # ========================================================================
     # VALIDATION HELPERS
     # ========================================================================
@@ -216,7 +234,10 @@ class BaseSpecializationService(ABC):
             return False, "Date of birth is required but not set"
 
         # Check if date of birth is in the future
-        if user.date_of_birth > datetime.now().date():
+        dob = user.date_of_birth
+        if isinstance(dob, datetime):
+            dob = dob.date()
+        if dob > datetime.now().date():
             return False, "Date of birth cannot be in the future"
 
         return True, "Date of birth is valid"

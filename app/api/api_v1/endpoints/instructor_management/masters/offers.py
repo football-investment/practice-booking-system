@@ -123,7 +123,7 @@ def respond_to_offer(
         # Trigger semester status transition
         transition_to_instructor_assigned(
             db=db,
-            location_city=master.location.city,
+            location_id=master.location.id,
             master_instructor_id=current_user.id
         )
 

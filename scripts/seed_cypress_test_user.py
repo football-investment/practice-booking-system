@@ -69,7 +69,7 @@ if __name__ == '__main__':
     if user_id:
         print(f"\n✓ Success! User ID: {user_id}")
         print(f"\nNext: Run Cypress tests")
-        print(f"  cd tests_cypress")
+        print(f"  cd cypress")
         print(f"  npm run cy:run:critical")
         sys.exit(0)
     else:

@@ -10,9 +10,19 @@ from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel
 
+from zoneinfo import ZoneInfo
+from sqlalchemy.orm import joinedload
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...models.session import Session as SessionModel, SessionType
+from ...models.booking import Booking
+from ...models.attendance import Attendance, AttendanceStatus
+from ...models.quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, QuizUserAnswer, SessionQuiz
+from ...models.performance_review import InstructorSessionReview, StudentPerformanceReview
+from ...models.instructor_specialization import InstructorSpecialization
+from ...models.gamification import UserStats
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

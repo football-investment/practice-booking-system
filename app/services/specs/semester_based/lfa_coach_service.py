@@ -40,6 +40,9 @@ class LFACoachService(BaseSpecializationService):
     Handles semester-based enrollment, certification progression, and coaching development.
     """
 
+    def __init__(self, db: Session = None):
+        self.db = db
+
     # ========================================================================
     # CERTIFICATION CONFIGURATION
     # ========================================================================
@@ -273,9 +276,11 @@ class LFACoachService(BaseSpecializationService):
         if not enrollment.payment_verified:
             return False, "Payment not verified. Please complete payment to access sessions."
 
-        # Check if session is for LFA Coach
-        if not session.specialization_type or not session.specialization_type.startswith('LFA_COACH'):
-            return False, f"This session is not for LFA Coach (session type: {session.specialization_type})"
+        # Check if session is for LFA Coach (uses target_specialization field)
+        spec = getattr(session, 'target_specialization', None) or getattr(session, 'specialization_type', None)
+        spec_value = spec.value if hasattr(spec, 'value') else str(spec) if spec else None
+        if not spec_value or not spec_value.startswith('LFA_COACH'):
+            return False, f"This session is not for LFA Coach (session type: {spec_value})"
 
         return True, "Eligible to book LFA Coach session"
 

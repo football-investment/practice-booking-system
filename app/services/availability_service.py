@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import List
 from sqlalchemy.orm import Session
 
-from ..models.instructor_assignment import InstructorAvailabilityWindow
+from ..models.instructor_assignment import InstructorAvailabilityWindow, LocationMasterInstructor, MasterOfferStatus
+from ..models.location import Location
 from ..schemas.instructor_management import AvailabilityCheckResult
 
 def parse_date_to_quarters(start_date: datetime, end_date: datetime) -> List[str]:

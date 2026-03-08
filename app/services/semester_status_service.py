@@ -11,7 +11,7 @@ Business Logic:
 CRITICAL: Only transition semesters when master instructor offer is ACCEPTED
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.orm import Session
 from app.models.semester import Semester, SemesterStatus
 from app.models.instructor_assignment import LocationMasterInstructor, MasterOfferStatus
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def transition_to_instructor_assigned(
     db: Session,
-    location_city: str,
+    location_id: int,
     master_instructor_id: int
 ) -> int:
     """
@@ -40,7 +40,7 @@ def transition_to_instructor_assigned(
 
     Args:
         db: Database session
-        location_city: City where master is assigned (e.g., 'Budapest')
+        location_id: ID of the location where master is assigned
         master_instructor_id: ID of the hired master instructor
 
     Returns:
@@ -68,7 +68,7 @@ def transition_to_instructor_assigned(
 
     # Offer is accepted (or legacy) - proceed with transition
     updated_count = db.query(Semester).filter(
-        Semester.location_city == location_city,
+        Semester.location_id == location_id,
         Semester.status == SemesterStatus.DRAFT
     ).update({
         'master_instructor_id': master_instructor_id,
@@ -80,7 +80,7 @@ def transition_to_instructor_assigned(
 
     logger.info(
         f"Transitioned {updated_count} semesters to INSTRUCTOR_ASSIGNED "
-        f"for location {location_city}, master_id={master_instructor_id} "
+        f"for location_id={location_id}, master_id={master_instructor_id} "
         f"(offer_status={master.offer_status.value if master.offer_status else 'LEGACY'})"
     )
 
@@ -145,17 +145,17 @@ def check_and_transition_semester(
     Returns:
         New status after check, or None if semester not found
     """
-    from app.models.instructor_assignment import InstructorAssignment
+    from app.models.instructor_assignment import InstructorAssignmentRequest, AssignmentRequestStatus
 
     semester = db.query(Semester).filter(Semester.id == semester_id).first()
     if not semester:
         logger.error(f"Semester {semester_id} not found")
         return None
 
-    # Count assigned instructors for this semester
-    instructor_count = db.query(InstructorAssignment).filter(
-        InstructorAssignment.semester_id == semester_id,
-        InstructorAssignment.is_active == True
+    # Count accepted assignment requests for this semester (= assigned instructors)
+    instructor_count = db.query(InstructorAssignmentRequest).filter(
+        InstructorAssignmentRequest.semester_id == semester_id,
+        InstructorAssignmentRequest.status == AssignmentRequestStatus.ACCEPTED
     ).count()
 
     # If semester has master + at least 1 assistant, mark ready
@@ -227,7 +227,6 @@ def bulk_transition_by_date(
     Returns:
         Dict with counts: {'started': X, 'completed': Y}
     """
-    from datetime import date
     today = date.today()
 
     result = {'started': 0, 'completed': 0}

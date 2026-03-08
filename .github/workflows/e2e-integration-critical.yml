@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
-      - 'tests_e2e/integration_critical/**'
+      - 'tests/e2e/integration_critical/**'
       - '.github/workflows/e2e-integration-critical.yml'
 
 jobs:
@@ -74,7 +74,7 @@ jobs:
 
       - name: Run Integration Critical Suite (Sequential)
         run: |
-          PYTHONPATH=. pytest tests_e2e/integration_critical/ \
+          PYTHONPATH=. pytest tests/e2e/integration_critical/ \
             -v \
             --tb=short \
             -ra \
@@ -82,7 +82,7 @@ jobs:
 
       - name: Run Integration Critical Suite (Parallel - HARD REQUIREMENT)
         run: |
-          PYTHONPATH=. pytest tests_e2e/integration_critical/ \
+          PYTHONPATH=. pytest tests/e2e/integration_critical/ \
             -n auto \
             -v \
             --tb=short \
@@ -94,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-critical-screenshots
-          path: tests_e2e/screenshots/*_FAILED.png
+          path: tests/e2e/screenshots/*_FAILED.png
           retention-days: 7
 
       - name: Report test results

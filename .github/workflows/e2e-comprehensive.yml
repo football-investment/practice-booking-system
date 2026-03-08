@@ -31,7 +31,7 @@ on:
     paths:
       - 'streamlit_app/**'
       - 'app/**'
-      - 'tests_cypress/**'
+      - 'cypress/**'
       - '.github/workflows/e2e-comprehensive.yml'
 
   # ── Nightly: full suite (all 525+ tests) ─────────────────────────────────
@@ -93,6 +93,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -103,30 +117,20 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
-      - name: Seed test data
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-        run: python scripts/seed_test_data.py || true
+      - name: Seed E2E test users
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
-          ENVIRONMENT:  test
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
-          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+          timeout 45 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
 
       - name: Start Streamlit app
         env:
-          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
-          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
-          STREAMLIT_SERVER_HEADLESS: true
+          BACKEND_URL:               http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: "true"
         run: |
           streamlit run streamlit_app/Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
@@ -138,23 +142,23 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run smoke suite (@smoke tag)
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
-          CYPRESS_BASE_URL:       http://localhost:${{ env.STREAMLIT_PORT }}
-          CYPRESS_API_URL:        http://localhost:${{ env.BACKEND_PORT }}
-          CYPRESS_ADMIN_EMAIL:    admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD: AdminPass123!
-          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:         admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:      admin123
+          CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
-          CYPRESS_PLAYER_EMAIL:       rdias@manchestercity.com
-          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
+          CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:     TestPlayer2026
         run: npx cypress run --env grepTags=@smoke --browser chrome --headless
 
       - name: Upload screenshots on failure
@@ -162,7 +166,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -197,6 +201,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -207,30 +225,20 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
-      - name: Seed test data
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-        run: python scripts/seed_test_data.py || true
+      - name: Seed E2E test users
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
-          ENVIRONMENT:  test
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
-          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+          timeout 45 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
 
       - name: Start Streamlit app
         env:
-          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
-          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
-          STREAMLIT_SERVER_HEADLESS: true
+          BACKEND_URL:               http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: "true"
         run: |
           streamlit run streamlit_app/Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
@@ -242,23 +250,23 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run critical tests for ${{ matrix.role }} role
-        working-directory: tests_cypress
+        working-directory: cypress
         env:
-          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
-          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
-          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:     AdminPass123!
-          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:         admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:      admin123
+          CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
-          CYPRESS_PLAYER_EMAIL:       rdias@manchestercity.com
-          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
+          CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:     TestPlayer2026
         run: |
           npx cypress run \
             --spec 'cypress/e2e/${{ matrix.role }}/**/*.cy.js' \
@@ -271,7 +279,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: critical-${{ matrix.role }}-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -322,6 +330,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Write .env (consistent settings for all subprocesses)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://lfa:lfa@localhost:5432/lfa_test
+          SECRET_KEY=ci-test-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -332,30 +354,20 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Alembic migrations
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
         run: alembic upgrade head
 
-      - name: Seed test data
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-        run: python scripts/seed_test_data.py || true
+      - name: Seed E2E test users
+        run: python scripts/seed_e2e_users.py
 
       - name: Start FastAPI backend
-        env:
-          DATABASE_URL: postgresql://lfa:lfa@localhost:5432/lfa_test
-          SECRET_KEY:   ci-test-secret-key-not-for-production
-          ENVIRONMENT:  test
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port ${{ env.BACKEND_PORT }} &
-          timeout 30 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
+          timeout 45 bash -c 'until curl -sf http://localhost:${{ env.BACKEND_PORT }}/health; do sleep 1; done'
 
       - name: Start Streamlit app
         env:
-          DATABASE_URL:          postgresql://lfa:lfa@localhost:5432/lfa_test
-          BACKEND_URL:           http://localhost:${{ env.BACKEND_PORT }}
-          STREAMLIT_SERVER_HEADLESS: true
+          BACKEND_URL:               http://localhost:${{ env.BACKEND_PORT }}
+          STREAMLIT_SERVER_HEADLESS: "true"
         run: |
           streamlit run streamlit_app/Home.py \
             --server.port ${{ env.STREAMLIT_PORT }} \
@@ -367,25 +379,25 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: tests_cypress/package-lock.json
+          cache-dependency-path: cypress/package-lock.json
 
       - name: Install Cypress
-        working-directory: tests_cypress
+        working-directory: cypress
         run: npm ci
 
       - name: Run full suite for ${{ matrix.role }} (~${{ matrix.estimated_tests }} tests)
-        working-directory: tests_cypress
+        working-directory: cypress
         continue-on-error: true
         env:
-          CYPRESS_BASE_URL:           http://localhost:${{ env.STREAMLIT_PORT }}
-          CYPRESS_API_URL:            http://localhost:${{ env.BACKEND_PORT }}
-          CYPRESS_ADMIN_EMAIL:        admin@lfa.com
-          CYPRESS_ADMIN_PASSWORD:     AdminPass123!
-          CYPRESS_INSTRUCTOR_EMAIL:   grandmaster@lfa.com
+          CYPRESS_BASE_URL:            http://localhost:${{ env.STREAMLIT_PORT }}
+          CYPRESS_API_URL:             http://localhost:${{ env.BACKEND_PORT }}
+          CYPRESS_ADMIN_EMAIL:         admin@lfa.com
+          CYPRESS_ADMIN_PASSWORD:      admin123
+          CYPRESS_INSTRUCTOR_EMAIL:    grandmaster@lfa.com
           CYPRESS_INSTRUCTOR_PASSWORD: TestInstructor2026
-          CYPRESS_PLAYER_EMAIL:       rdias@manchestercity.com
-          CYPRESS_PLAYER_PASSWORD:    TestPlayer2026
-          CYPRESS_RECORD_KEY:         ${{ secrets.CYPRESS_RECORD_KEY }}
+          CYPRESS_PLAYER_EMAIL:        rdias@manchestercity.com
+          CYPRESS_PLAYER_PASSWORD:     TestPlayer2026
+          CYPRESS_RECORD_KEY:          ${{ secrets.CYPRESS_RECORD_KEY }}
           CYPRESS_video:              true
         run: |
           # Determine if recording to Cypress Cloud
@@ -411,7 +423,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-${{ matrix.role }}-screenshots-${{ github.run_id }}
-          path: tests_cypress/cypress/screenshots/
+          path: cypress/cypress/screenshots/
           retention-days: 14
 
       - name: Upload videos
@@ -419,7 +431,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-${{ matrix.role }}-videos-${{ github.run_id }}
-          path: tests_cypress/cypress/videos/
+          path: cypress/cypress/videos/
           retention-days: 14
 
       - name: Upload test results
@@ -427,7 +439,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: full-${{ matrix.role }}-results-${{ github.run_id }}
-          path: tests_cypress/cypress-results-${{ matrix.role }}.json
+          path: cypress/cypress-results-${{ matrix.role }}.json
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -476,6 +488,7 @@ jobs:
 
       - name: PR Comment with Test Results
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |

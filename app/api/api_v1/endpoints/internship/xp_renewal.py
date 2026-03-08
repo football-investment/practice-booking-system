@@ -9,30 +9,7 @@ from pydantic import BaseModel, Field
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
-
-"""
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field
-import sys
-import os
-
-# Add service layer to path
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
 from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
-Internship License Management API Endpoints
-
-Provides REST API endpoints for Internship XP-based progression system.
-Handles license creation, XP tracking, level progression, expiry management,
-and credit system for session enrollments.
-
-Level System: XP-based progression with automatic level-up
-- Levels: 1-8 (based on cumulative XP)
-- Expiry: 15 months from creation/renewal
-"""
 
 
 router = APIRouter()

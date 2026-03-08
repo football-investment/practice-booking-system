@@ -9,9 +9,16 @@ from pathlib import Path
 from datetime import datetime, date
 import re
 
+from sqlalchemy.orm import joinedload
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+UserModel = User  # alias used in some template context sections
+from ...models.semester import Semester
+from ...models.license import UserLicense
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...utils.age_requirements import get_available_specializations
 from .helpers import get_lfa_age_category
 
 # Setup templates

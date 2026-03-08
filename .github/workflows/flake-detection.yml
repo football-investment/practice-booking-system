@@ -1,0 +1,115 @@
+name: E2E Flake Detection (Non-Blocking)
+
+# Non-blocking health check: runs weekly + on-demand.
+# Surfaces intermittent test failures before they become CI outages.
+# Does NOT block PRs — informational only.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 6'  # Saturday 03:00 UTC
+
+jobs:
+  flake-detection:
+    name: E2E Flake Detection (5x repetition)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install pytest pytest-xdist pytest-repeat
+        pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
+    - name: Seed tournament types
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python scripts/seed_tournament_types.py
+
+    - name: Seed LFA test users (@lfa-seed.hu)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python scripts/seed_lfa_test_users.py
+
+    - name: Start FastAPI backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+        TESTING: "true"
+      run: |
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        for i in {1..20}; do
+          if curl --fail --silent --max-time 2 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ FastAPI ready after ${i} attempts"
+            break
+          fi
+          if [ $i -eq 20 ]; then
+            echo "❌ FastAPI failed to start after 20 attempts (40s)"
+            exit 1
+          fi
+          sleep 2
+        done
+
+    - name: Run all E2E critical tests (--count=5 flake detection)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        PYTHONPATH=. pytest tests/e2e/integration_critical/ \
+          --count=5 \
+          -v \
+          --tb=short \
+          -ra \
+          --durations=10
+
+    - name: Write flake detection summary
+      if: always()
+      run: |
+        echo "## E2E Flake Detection Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "All integration-critical E2E tests ran **5 times sequentially**." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Suite | Tests |" >> $GITHUB_STEP_SUMMARY
+        echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+        echo "| test_auth_lifecycle | 6 tests × 5 runs = 30 executions |" >> $GITHUB_STEP_SUMMARY
+        echo "| test_booking_lifecycle | 3 tests × 5 runs = 15 executions |" >> $GITHUB_STEP_SUMMARY
+        echo "| test_enrollment_workflow | 3 tests × 5 runs = 15 executions |" >> $GITHUB_STEP_SUMMARY
+        echo "| test_user_account | 3 tests × 5 runs = 15 executions |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Slowest tests (top 10):** See \`--durations=10\` output above." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "> This workflow is **non-blocking** — failures here do not prevent PRs from merging." >> $GITHUB_STEP_SUMMARY
+        echo "> Investigate flakes before they escalate to blocking CI failures." >> $GITHUB_STEP_SUMMARY

@@ -1,6 +1,7 @@
 """
 License payment verification
 """
+from datetime import datetime
 from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
@@ -9,6 +10,8 @@ from .....database import get_db
 from .....dependencies import get_current_admin_user_web
 from .....models.user import User
 from .....models.license import UserLicense
+from .....models.audit_log import AuditAction
+from .....services.audit_service import AuditService
 
 router = APIRouter()
 

@@ -107,7 +107,7 @@ def test_certification_info():
     assert info['name'] == "LFA Pre Football Assistant Coach"
     assert info['level'] == 1
     assert info['min_coach_age'] == 14
-    assert info['age_group'] == "Pre (5-8 years)"
+    assert info['age_group'] == "Pre (5-13 years)"
     assert info['role'] == "Assistant Coach"
     assert info['requirements']['teaching_hours'] == 0  # Entry level
     assert info['requirements']['previous_cert'] is None
@@ -262,8 +262,8 @@ def test_age_group_coverage():
 
     # Should have exactly 4 unique age groups
     assert len(age_groups_found) == 4
-    assert "Pre (5-8 years)" in age_groups_found
-    assert "Youth (9-14 years)" in age_groups_found
+    assert "Pre (5-13 years)" in age_groups_found
+    assert "Youth (14-18 years)" in age_groups_found
     assert "Amateur (14+ years)" in age_groups_found
     assert "PRO (16+ years)" in age_groups_found
 

@@ -44,6 +44,9 @@ class LFAPlayerService(BaseSpecializationService):
     Handles age-based categorization, session booking, and skills progression.
     """
 
+    def __init__(self, db: Session = None):
+        self.db = db
+
     # ========================================================================
     # AGE GROUP CONFIGURATION
     # ========================================================================

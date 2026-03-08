@@ -1,0 +1,106 @@
+name: Mutation Testing (Non-Blocking)
+
+# Non-blocking quality signal: runs weekly + on-demand.
+# Measures test effectiveness beyond coverage: kill rate = killed / total.
+# Does NOT block PRs — informational only.
+#
+# Target modules (see setup.cfg [mutmut]):
+#   app/services/sandbox_verdict_calculator.py       -- pure scoring logic (97% unit coverage)
+#   app/services/specialization_validation.py        -- pure validation (98% unit coverage)
+#   app/services/credit_service.py                   -- financial logic (high business risk)
+#   app/services/license_authorization_service.py    -- access control (100% unit coverage)
+#   app/services/gamification/xp_service.py          -- XP arithmetic (100% unit coverage)
+#   app/services/enrollment_conflict_service.py      -- enrollment/booking domain (93% coverage)
+#   app/services/license_renewal_service.py          -- payment/license domain (97% coverage)
+#
+# Baseline kill rates (Sprint 46): see TESTING.md — Mutation Testing section
+# Machine-readable baseline: tests/snapshots/mutation_baseline.json
+# Long-term milestone target: ≥80% combined kill rate (current: 70.7%, gap: ~9.3pp)
+# Report script (SQLite-based, bypasses broken mutmut CLI): scripts/mutation_report.py
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 6'  # Saturday 04:00 UTC (1h after flake-detection)
+
+jobs:
+  mutation-testing:
+    name: Mutation Testing — 7 Service Modules
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
+    - name: Verify test suite passes (baseline check)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        python -m pytest \
+          tests/unit/services/test_sandbox_verdict_calculator.py \
+          tests/unit/services/test_specialization_validation.py \
+          tests/unit/services/test_credit_service.py \
+          tests/unit/services/test_credit_service_unit.py \
+          tests/unit/services/test_license_authorization_service.py \
+          tests/unit/services/test_gamification_xp_service.py \
+          tests/unit/services/test_enrollment_conflict_service.py \
+          tests/unit/services/test_license_renewal_service.py \
+          -q --tb=short
+
+    - name: Run mutation tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python -m mutmut run
+      continue-on-error: true  # surviving mutants are not a hard failure
+
+    - name: Generate mutation report
+      if: always()
+      # scripts/mutation_report.py reads .mutmut-cache SQLite directly.
+      # The `mutmut results` CLI crashes with a pony ORM bug in 2.4.4 — avoid it.
+      # This script also writes Markdown to $GITHUB_STEP_SUMMARY automatically.
+      run: python scripts/mutation_report.py
+      continue-on-error: true
+
+    - name: Check for regressions
+      if: always()
+      # Compares current kill rates against tests/snapshots/mutation_baseline.json.
+      # Regression = combined rate drops ≥2pp OR per-module drops ≥3pp from last baseline.
+      # Non-blocking: marks this step red but does NOT fail the workflow or block PRs.
+      # A red step here is a signal to investigate surviving mutants before the next sprint.
+      run: python scripts/mutation_report.py --check-regression
+      continue-on-error: true

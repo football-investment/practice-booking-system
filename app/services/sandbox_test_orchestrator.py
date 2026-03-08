@@ -496,8 +496,6 @@ class SandboxTestOrchestrator:
             logger.info(f"🔒 DETERMINISTIC selection: first {player_count} from pool of {len(pool)}")
 
         # Get active licenses for each user
-        from app.models.license import UserLicense
-
         for user_id in selected_users:
             # Get user's active license
             active_license = self.db.query(UserLicense).filter(

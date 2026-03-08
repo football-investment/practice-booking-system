@@ -3,7 +3,7 @@ Tournament Ranking and Stats Models
 
 Models for tournament leaderboards, rankings, and statistics.
 """
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -33,6 +33,8 @@ class TournamentRanking(Base):
     team = relationship("Team", back_populates="rankings")
 
     __table_args__ = (
+        UniqueConstraint('tournament_id', 'user_id', 'participant_type',
+                         name='uq_tournament_rankings_tournament_user_type'),
         {'extend_existing': True}
     )
 

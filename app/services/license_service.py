@@ -106,7 +106,12 @@ class LicenseService:
         reason: str = "",
         requirements_met: str = ""
     ) -> Dict[str, Any]:
-        """Advance a user's license to a new level"""
+        """Advance a user's license to a new level.
+
+        Invariant: after validate_advancement passes, target_level > current_level
+        is always True (validate_advancement rejects target <= current).
+        Therefore the level_changed guard below line 151 is always True at runtime.
+        """
         specialization = specialization.upper()
         
         # Get or create user license
@@ -148,6 +153,9 @@ class LicenseService:
         # 🔄 P1: AUTO-SYNC License → Progress after advancement
         # Use separate session for sync to avoid contaminating main transaction
         sync_result = None
+        # NOTE: level_changed is always True here — validate_advancement (called above)
+        # already rejected any path where target_level <= old_level.  The guard is kept
+        # as a defensive safety net but the False-branch is structurally unreachable.
         level_changed = (old_level != target_level)
         if level_changed:
             from app.database import SessionLocal

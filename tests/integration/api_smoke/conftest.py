@@ -8,7 +8,7 @@ Phase 1 Enhancement: Real test data fixtures for path parameter resolution
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from app.main import app
@@ -20,10 +20,192 @@ from app.models.location import Location
 from app.core.security import get_password_hash
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _seed_tournament_types_once():
+    """Seed tournament_types table from JSON configs if empty (idempotent, session-scoped)."""
+    import json
+    import os
+    from app.models.tournament_type import TournamentType
+
+    db = next(get_db())
+    try:
+        if db.query(TournamentType).count() == 0:
+            base_path = os.path.join(
+                os.path.dirname(__file__), "..", "..", "..", "app", "tournament_types"
+            )
+            for filename in ["league.json", "knockout.json", "group_knockout.json", "swiss.json"]:
+                config_path = os.path.join(base_path, filename)
+                if not os.path.exists(config_path):
+                    continue
+                with open(config_path) as f:
+                    config = json.load(f)
+                db.add(TournamentType(
+                    code=config["code"],
+                    display_name=config["display_name"],
+                    description=config.get("description"),
+                    format=config.get("format", "HEAD_TO_HEAD"),
+                    min_players=config.get("min_players", 4),
+                    max_players=config.get("max_players"),
+                    requires_power_of_two=config.get("requires_power_of_two", False),
+                    session_duration_minutes=config.get("session_duration_minutes", 90),
+                    break_between_sessions_minutes=config.get("break_between_sessions_minutes", 15),
+                    config=config,
+                ))
+            db.commit()
+    finally:
+        db.close()
+
+
+# ── Domain → API prefix map ───────────────────────────────────────────────────
+# Auto-generated smoke tests use paths relative to the router prefix, e.g.
+# GET "/" in test_users_smoke.py should be GET "/api/v1/users/".
+# The PrefixedClient wrapper prepends the correct prefix per test module.
+#
+# Mapping key = stem between "test_" and "_smoke" in the filename.
+# Values sourced from app router include_router() calls.
+_DOMAIN_PREFIX_MAP: dict[str, str] = {
+    # ── Standard API domains ──────────────────────────────────────────────
+    "_semesters_main":       "/api/v1/semesters",
+    "adaptive_learning":     "/api/v1/adaptive-learning",
+    "admin":                 "/api/v1/admin",
+    "analytics":             "/api/v1/analytics",
+    "attendance":            "/api/v1/attendance",
+    "audit":                 "/api/v1/audit",
+    "auth":                  "/api/v1/auth",
+    "bookings":              "/api/v1/bookings",
+    "campuses":              "/api/v1/admin",          # routes: /api/v1/admin/campuses/...
+    "certificates":          "/api/v1/certificates",
+    "coach":                 "/api/v1/coach",
+    "competency":            "/api/v1/competency",
+    "coupons":               "/api/v1/coupons",
+    "curriculum":            "/api/v1/curriculum",
+    "curriculum_adaptive":   "/api/v1/curriculum-adaptive",
+    "debug":                 "/api/v1/debug",
+    "enrollments":           "/api/v1/enrollments",
+    "feedback":              "/api/v1/feedback",
+    "game_presets":          "/api/v1/game-presets",
+    "gamification":          "/api/v1/gamification",
+    "gancuju":               "/api/v1/gancuju",
+    "gancuju_routes":        "/api/v1/gancuju",
+    "groups":                "/api/v1/groups",
+    "health":                "/api/v1/health",
+    "instructor":            "/api/v1/instructor-management",
+    "instructor_analytics":  "/api/v1/users",              # GET /users/instructor/students{/*}
+    "instructor_assignments":"/api/v1/instructor-assignments",
+    "instructor_availability":"/api/v1/instructor-availability",
+    "instructor_dashboard":  "/api/v1/instructor-management",
+    "instructor_management": "/api/v1/instructor-management",
+    "internship":            "/api/v1/internship",
+    "internship_routes":     "/api/v1/internship",
+    "invitation_codes":      "/api/v1/invitation-codes",
+    "invoices":              "/api/v1/invoices",
+    "lfa_coach_routes":      "/api/v1/coach",
+    "lfa_player":            "/api/v1/lfa-player",
+    "lfa_player_routes":     "/api/v1/lfa-player",
+    "license_renewal":       "/api/v1/license-renewal",
+    "licenses":              "/api/v1/licenses",
+    "locations":             "/api/v1/admin/locations",
+    "messages":              "/api/v1/messages",
+    "assignment_requests":   "/api/v1/instructor-assignments",  # CRUD for assignment requests
+    "license_skills":        "/api/v1/licenses",               # GET/PUT football skills
+    "milestones":            "/api/v1/projects",               # POST /projects/{id}/milestones/{id}/...
+    "masters":               "/api/v1/instructor-management",  # /masters/* sub-routes
+    "positions":             "/api/v1/instructor-management",  # CRUD for positions
+    "project_quizzes":       "/api/v1/projects",               # POST/GET/DELETE project quizzes
+    "quiz_attempts":         "/api/v1/quizzes",                # POST /quizzes/start, POST /quizzes/submit
+    "motivation":            "/api/v1/licenses",       # /api/v1/licenses/motivation-assessment
+    "notifications":         "/api/v1/notifications",
+    "onboarding":            "",                       # Streamlit UI routes (no /api/v1/)
+    "parallel_specializations": "/api/v1/parallel-specializations",
+    "payment_verification":  "/api/v1/payment-verification",
+    "periods":               "/api/v1/admin/periods",
+    "profile":               "",                       # Streamlit UI route (/profile)
+    "progression":           "/api/v1/progression",
+    "projects":              "/api/v1/projects",
+    "public_profile":        "/api/v1/users",          # GET /users/{id}/profile/{type}
+    "quiz":                  "/api/v1/quizzes",
+    "reports":               "/api/v1/reports",
+    "sandbox":               "/api/v1/sandbox",
+    "semester_enrollments":  "/api/v1/semester-enrollments",
+    "semester_generator":    "/api/v1/semesters",
+    "semesters":             "/api/v1/semesters",
+    "session_groups":        "/api/v1/session-groups",
+    "sessions":              "/api/v1/sessions",
+    "spec_info":             "/api/v1/spec-info",
+    "specialization":        "/api/v1/specializations",
+    "specializations":       "/api/v1/specializations",
+    "student_features":      "",                       # Streamlit UI routes (/about-specializations etc.)
+    "students":              "/api/v1/students",
+    "system_events":         "/api/v1/system-events",
+    "tournament_types":      "/api/v1/tournament-types",
+    "tournaments":           "/api/v1/tournaments",
+    "tracks":                "/api/v1/tracks",
+    "users":                 "/api/v1/users",
+    # ── Catch-all dashboard (Streamlit UI) ────────────────────────────────
+    "dashboard":             "",                       # Streamlit UI route (/dashboard)
+}
+
+
+class _PrefixedClient:
+    """
+    Thin wrapper around TestClient that prepends a domain prefix to every
+    HTTP method call.  Smoke tests use paths relative to their domain router
+    (e.g. GET "/" instead of GET "/api/v1/users/").  This wrapper fixes that
+    transparently without touching the auto-generated test files.
+    """
+
+    def __init__(self, base_client: TestClient, prefix: str) -> None:
+        self._client = base_client
+        self._prefix = prefix
+
+    def _url(self, path: str) -> str:
+        # If path is already absolute (starts with /api/ or has no prefix to add),
+        # pass it through unchanged — avoids double-prefixing for enhanced test
+        # files that already include the full route path.
+        if not self._prefix or path.startswith("/api/"):
+            return path
+        return self._prefix + path
+
+    def get(self, url, **kwargs):
+        return self._client.get(self._url(url), **kwargs)
+
+    def post(self, url, **kwargs):
+        return self._client.post(self._url(url), **kwargs)
+
+    def put(self, url, **kwargs):
+        return self._client.put(self._url(url), **kwargs)
+
+    def patch(self, url, **kwargs):
+        return self._client.patch(self._url(url), **kwargs)
+
+    def delete(self, url, **kwargs):
+        return self._client.delete(self._url(url), **kwargs)
+
+    # Expose status_code / headers / json for any test that accesses them
+    # directly on the client object (rare but safe to proxy).
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
+
 @pytest.fixture(scope="module")
-def api_client():
-    """FastAPI test client"""
-    return TestClient(app)
+def api_client(request):
+    """
+    FastAPI TestClient with per-domain path prefix.
+
+    Each smoke test module targets one API domain.  This fixture detects the
+    domain from the test filename (e.g. test_users_smoke → "users") and wraps
+    the raw TestClient in a _PrefixedClient that prepends /api/v1/<domain> to
+    every request, so paths like GET "/" hit GET "/api/v1/users/" instead of
+    the Streamlit root.
+    """
+    import re
+    module_stem = request.module.__name__.split(".")[-1]   # "test_users_smoke"
+    match = re.search(r"^test_(.+?)_smoke$", module_stem)
+    domain_key = match.group(1) if match else ""
+    prefix = _DOMAIN_PREFIX_MAP.get(domain_key, "/api/v1")
+
+    base_client = TestClient(app, follow_redirects=False)
+    return _PrefixedClient(base_client, prefix)
 
 
 @pytest.fixture(scope="module")
@@ -40,12 +222,12 @@ def test_db():
 def admin_token(test_db: Session):
     """Admin user authentication token"""
     # Check if admin exists
-    admin = test_db.query(User).filter(User.email == "smoke.admin@generated.test").first()
+    admin = test_db.query(User).filter(User.email == "smoke.admin@example.com").first()
 
     if not admin:
         admin = User(
             name="Smoke Test Admin",
-            email="smoke.admin@generated.test",
+            email="smoke.admin@example.com",
             password_hash=get_password_hash("admin123"),
             role=UserRole.ADMIN,
             is_active=True
@@ -63,19 +245,26 @@ def admin_token(test_db: Session):
 @pytest.fixture(scope="module")
 def student_token(test_db: Session):
     """Student user authentication token"""
-    student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
     if not student:
         student = User(
             name="Smoke Test Student",
-            email="smoke.student@generated.test",
+            email="smoke.student@example.com",
             password_hash=get_password_hash("student123"),
             role=UserRole.STUDENT,
-            is_active=True
+            is_active=True,
+            date_of_birth=date(2000, 1, 1),
+            credit_balance=5000
         )
         test_db.add(student)
         test_db.commit()
         test_db.refresh(student)
+    else:
+        # Ensure date_of_birth is set so enroll endpoint passes the dob check (line 143)
+        if not student.date_of_birth:
+            student.date_of_birth = date(2000, 1, 1)
+            test_db.commit()
 
     from app.core.auth import create_access_token
     token = create_access_token(data={"sub": student.email}, expires_delta=timedelta(hours=1))
@@ -85,12 +274,12 @@ def student_token(test_db: Session):
 @pytest.fixture(scope="module")
 def instructor_token(test_db: Session):
     """Instructor user authentication token"""
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
 
     if not instructor:
         instructor = User(
             name="Smoke Test Instructor",
-            email="smoke.instructor@generated.test",
+            email="smoke.instructor@example.com",
             password_hash=get_password_hash("instructor123"),
             role=UserRole.INSTRUCTOR,
             is_active=True
@@ -124,6 +313,7 @@ def test_campus_id(test_db: Session) -> int:
         location = Location(
             name="Smoke Test Location",
             city="Budapest",
+            country="Hungary",
             is_active=True
         )
         test_db.add(location)
@@ -153,8 +343,8 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
     - Tournament entity (Semester)
     - Campus schedule config
     - Reward config
-    - 2 Students with PLAYER licenses
-    - 2 Enrollments (APPROVED, is_active=True)
+    - 4 Students with LFA_FOOTBALL_PLAYER licenses (knockout min_players=4)
+    - 4 Enrollments (APPROVED, is_active=True)
     - 1 Session (tournament_round=1)
 
     Note: MatchStructure/MatchResult not included (tables don't exist in DB).
@@ -219,10 +409,10 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
 
     # ── 4. Create 2 Students with PLAYER Licenses ──────────────────────
     # Get student 1 (created by student_token fixture)
-    student1 = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student1 = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
 
     # Create student 2
-    student2_email = f"smoke.student2.{timestamp}@generated.test"
+    student2_email = f"smoke.student2.{timestamp}@example.com"
     student2 = test_db.query(User).filter(User.email == student2_email).first()
     if not student2:
         student2 = User(
@@ -237,19 +427,53 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         test_db.commit()
         test_db.refresh(student2)
 
-    # Create UserLicense + Enrollment for both students
+    # Create student 3
+    student3_email = f"smoke.student3.{timestamp}@example.com"
+    student3 = test_db.query(User).filter(User.email == student3_email).first()
+    if not student3:
+        student3 = User(
+            name="Smoke Test Student 3",
+            email=student3_email,
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=1000
+        )
+        test_db.add(student3)
+        test_db.commit()
+        test_db.refresh(student3)
+
+    # Create student 4
+    student4_email = f"smoke.student4.{timestamp}@example.com"
+    student4 = test_db.query(User).filter(User.email == student4_email).first()
+    if not student4:
+        student4 = User(
+            name="Smoke Test Student 4",
+            email=student4_email,
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=1000
+        )
+        test_db.add(student4)
+        test_db.commit()
+        test_db.refresh(student4)
+
+    # Create UserLicense + Enrollment for all 4 students
+    # License type must be LFA_FOOTBALL_PLAYER — ops_scenario enrollment loop
+    # filters by specialization_type == "LFA_FOOTBALL_PLAYER" (ops_scenario.py:1380)
     enrolled_student_ids = []
-    for student in [student1, student2]:
-        # Check if PLAYER license exists
+    for student in [student1, student2, student3, student4]:
+        # Check if LFA_FOOTBALL_PLAYER license exists
         user_license = test_db.query(UserLicense).filter(
             UserLicense.user_id == student.id,
-            UserLicense.specialization_type == "PLAYER"
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
         ).first()
 
         if not user_license:
             user_license = UserLicense(
                 user_id=student.id,
-                specialization_type="PLAYER",
+                specialization_type="LFA_FOOTBALL_PLAYER",
                 current_level=1,
                 max_achieved_level=1,
                 started_at=datetime.now(timezone.utc),
@@ -303,6 +527,7 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         "name": tournament.name,
         "session_ids": [session.id],
         "enrolled_student_ids": enrolled_student_ids,
+        "campus_id": test_campus_id,
         "has_reward_config": True,
         "has_campus_schedule": True,
         "has_sessions": True,
@@ -318,7 +543,7 @@ def test_student_id(test_db: Session) -> int:
     Returns:
         User ID (int)
     """
-    student = test_db.query(User).filter(User.email == "smoke.student@generated.test").first()
+    student = test_db.query(User).filter(User.email == "smoke.student@example.com").first()
     assert student, "Smoke test student not found - ensure student_token fixture is called first"
     return student.id
 
@@ -333,7 +558,7 @@ def test_instructor_id(test_db: Session, instructor_token: str) -> int:
     Returns:
         User ID (int)
     """
-    instructor = test_db.query(User).filter(User.email == "smoke.instructor@generated.test").first()
+    instructor = test_db.query(User).filter(User.email == "smoke.instructor@example.com").first()
     assert instructor, "Smoke test instructor not found after instructor_token fixture"
     return instructor.id
 

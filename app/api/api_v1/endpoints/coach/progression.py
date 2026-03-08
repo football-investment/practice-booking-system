@@ -10,31 +10,7 @@ from datetime import datetime
 from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User
-
-"""
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field
-import sys
-import os
-
-# Add service layer to path
-from app.database import get_db
-from app.dependencies import get_current_user
-from app.models.user import User
 from .....services.specs.semester_based.lfa_coach_service import LFACoachService
-Coach License Management API Endpoints
-
-Provides REST API endpoints for Coach certification system.
-Handles license creation, theory/practice hours tracking, level progression,
-expiry management, and statistics.
-
-Level System: 1-8 certification levels
-- Theory hours requirement per level
-- Practice hours requirement per level
-- Expiry: 2 years from creation/renewal
-"""
 
 
 router = APIRouter()

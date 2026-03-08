@@ -8,6 +8,7 @@ This is a CRITICAL test that verifies Phase 1 database constraints prevent
 the dual-path bug that caused Tournament 227 to have duplicate rewards.
 """
 
+import uuid
 import pytest
 from sqlalchemy.orm import Session
 from fastapi.testclient import TestClient
@@ -16,6 +17,7 @@ from app.models.credit_transaction import CreditTransaction
 from app.models.xp_transaction import XPTransaction
 from app.models.skill_reward import SkillReward
 from app.models.tournament_ranking import TournamentRanking
+from app.models.semester import Semester, SemesterStatus
 
 
 class TestRewardDistributionIdempotency:
@@ -33,7 +35,7 @@ class TestRewardDistributionIdempotency:
         # TODO: Set up full tournament workflow when test fixtures are ready
         pass
 
-    def test_credit_transaction_duplicate_blocked_by_constraint(self, postgres_db: Session):
+    def test_credit_transaction_duplicate_blocked_by_constraint(self, postgres_db: Session, postgres_admin_user):
         """
         Test that database constraint blocks duplicate credit transactions.
 
@@ -43,15 +45,17 @@ class TestRewardDistributionIdempotency:
         from sqlalchemy.exc import IntegrityError
         from datetime import datetime
 
-        # Create first transaction
+        idem_key = f"test_tournament_999_reward_{uuid.uuid4().hex[:8]}"
+
+        # Create first transaction (semester_id=None is nullable; constraint is on idempotency_key)
         transaction1 = CreditTransaction(
-            user_id=2,
+            user_id=postgres_admin_user.id,
             transaction_type="TEST_REWARD",
             amount=100,
             balance_after=100,
             description="Test reward idempotency",
-            idempotency_key="test_tournament_999_reward_2",
-            semester_id=1,
+            idempotency_key=idem_key,
+            semester_id=None,
             created_at=datetime.utcnow()
         )
         postgres_db.add(transaction1)
@@ -62,27 +66,27 @@ class TestRewardDistributionIdempotency:
         # Try to create duplicate - should fail
         with pytest.raises(IntegrityError) as exc_info:
             transaction2 = CreditTransaction(
-                user_id=2,
+                user_id=postgres_admin_user.id,
                 transaction_type="TEST_REWARD",
                 amount=100,
                 balance_after=100,
                 description="Test reward idempotency - duplicate",
-                idempotency_key="test_tournament_999_reward_2",  # Same key!
-                semester_id=1,
+                idempotency_key=idem_key,  # Same key!
+                semester_id=None,
                 created_at=datetime.utcnow()
             )
             postgres_db.add(transaction2)
             postgres_db.commit()
 
-        # Verify correct constraint was triggered
-        assert "uq_credit_transactions_idempotency_key" in str(exc_info.value)
+        # Verify correct constraint was triggered (DB uses ix_ prefix for index-backed unique)
+        assert "idempotency_key" in str(exc_info.value)
 
         # Rollback the failed transaction
         postgres_db.rollback()
 
         # Verify only ONE transaction exists
         count = postgres_db.query(CreditTransaction).filter(
-            CreditTransaction.idempotency_key == "test_tournament_999_reward_2"
+            CreditTransaction.idempotency_key == idem_key
         ).count()
         assert count == 1, f"Expected 1 transaction, found {count}"
 
@@ -92,78 +96,125 @@ class TestRewardDistributionIdempotency:
         ).delete()
         postgres_db.commit()
 
-    def test_xp_transaction_duplicate_blocked_by_constraint(self, postgres_db: Session):
+    def test_xp_transaction_duplicate_blocked_by_constraint(self, postgres_db: Session, postgres_admin_user):
         """
         Test that database constraint blocks duplicate XP transactions.
 
         Unique constraint: (user_id, semester_id, transaction_type)
         """
+        from sqlalchemy import inspect as sa_inspect
         from sqlalchemy.exc import IntegrityError
-        from datetime import datetime
+        from datetime import datetime, date
 
-        # Create first transaction
-        xp1 = XPTransaction(
-            user_id=2,
-            transaction_type="TEST_TOURNAMENT_REWARD",
-            amount=50,
-            balance_after=50,
-            description="Test XP idempotency",
-            semester_id=1,
-            created_at=datetime.utcnow()
-        )
-        postgres_db.add(xp1)
-        postgres_db.commit()
+        # Skip if the unique constraint hasn't been applied via migration yet
+        insp = sa_inspect(postgres_db.bind)
+        xp_constraints = [c['name'] for c in insp.get_unique_constraints('xp_transactions')]
+        if 'uq_xp_transactions_user_semester_type' not in xp_constraints:
+            pytest.skip(
+                "Unique constraint 'uq_xp_transactions_user_semester_type' not yet applied "
+                "(migration rw01concurr00 missing)."
+            )
 
-        xp1_id = xp1.id
+        # Reuse an existing semester or create a temporary one for this test
+        semester = postgres_db.query(Semester).first()
+        created_semester = False
+        if not semester:
+            semester = Semester(
+                code=f"TEST_IDEM_{uuid.uuid4().hex[:6]}",
+                name="Test Idempotency Semester",
+                start_date=date.today(),
+                end_date=date.today(),
+                status=SemesterStatus.DRAFT,
+            )
+            postgres_db.add(semester)
+            postgres_db.commit()
+            postgres_db.refresh(semester)
+            created_semester = True
 
-        # Try to create duplicate - should fail
-        with pytest.raises(IntegrityError) as exc_info:
-            xp2 = XPTransaction(
-                user_id=2,
-                transaction_type="TEST_TOURNAMENT_REWARD",  # Same type
+        semester_id = semester.id
+        tx_type = f"TEST_XP_IDEM_{uuid.uuid4().hex[:8]}"
+
+        try:
+            # Create first transaction
+            xp1 = XPTransaction(
+                user_id=postgres_admin_user.id,
+                transaction_type=tx_type,
                 amount=50,
-                balance_after=100,
-                description="Test XP idempotency - duplicate",
-                semester_id=1,  # Same semester
+                balance_after=50,
+                description="Test XP idempotency",
+                semester_id=semester_id,
                 created_at=datetime.utcnow()
             )
-            postgres_db.add(xp2)
+            postgres_db.add(xp1)
             postgres_db.commit()
 
-        # Verify correct constraint was triggered
-        assert "uq_xp_transactions_user_semester_type" in str(exc_info.value)
+            xp1_id = xp1.id
 
-        # Rollback the failed transaction
-        postgres_db.rollback()
+            # Try to create duplicate - should fail
+            with pytest.raises(IntegrityError) as exc_info:
+                xp2 = XPTransaction(
+                    user_id=postgres_admin_user.id,
+                    transaction_type=tx_type,  # Same type
+                    amount=50,
+                    balance_after=100,
+                    description="Test XP idempotency - duplicate",
+                    semester_id=semester_id,  # Same semester
+                    created_at=datetime.utcnow()
+                )
+                postgres_db.add(xp2)
+                postgres_db.commit()
 
-        # Verify only ONE transaction exists
-        count = postgres_db.query(XPTransaction).filter(
-            XPTransaction.user_id == 2,
-            XPTransaction.semester_id == 1,
-            XPTransaction.transaction_type == "TEST_TOURNAMENT_REWARD"
-        ).count()
-        assert count == 1, f"Expected 1 XP transaction, found {count}"
+            # Verify correct constraint was triggered
+            assert "uq_xp_transactions_user_semester_type" in str(exc_info.value)
 
-        # Cleanup
-        postgres_db.query(XPTransaction).filter(
-            XPTransaction.id == xp1_id
-        ).delete()
-        postgres_db.commit()
+            # Rollback the failed transaction
+            postgres_db.rollback()
 
-    def test_skill_reward_duplicate_blocked_by_constraint(self, postgres_db: Session):
+            # Verify only ONE transaction exists
+            count = postgres_db.query(XPTransaction).filter(
+                XPTransaction.user_id == postgres_admin_user.id,
+                XPTransaction.semester_id == semester_id,
+                XPTransaction.transaction_type == tx_type
+            ).count()
+            assert count == 1, f"Expected 1 XP transaction, found {count}"
+
+            # Cleanup transaction
+            postgres_db.query(XPTransaction).filter(
+                XPTransaction.id == xp1_id
+            ).delete()
+            postgres_db.commit()
+
+        finally:
+            # Cleanup temporary semester if we created it
+            if created_semester:
+                postgres_db.query(Semester).filter(Semester.id == semester_id).delete()
+                postgres_db.commit()
+
+    def test_skill_reward_duplicate_blocked_by_constraint(self, postgres_db: Session, postgres_admin_user):
         """
         Test that database constraint blocks duplicate skill rewards.
 
         Unique constraint: (user_id, source_type, source_id, skill_name)
         """
+        from sqlalchemy import inspect as sa_inspect
         from sqlalchemy.exc import IntegrityError
-        from datetime import datetime
+
+        # Skip if the unique constraint hasn't been applied via migration yet
+        insp = sa_inspect(postgres_db.bind)
+        sr_constraints = [c['name'] for c in insp.get_unique_constraints('skill_rewards')]
+        if 'uq_skill_rewards_user_source_skill' not in sr_constraints:
+            pytest.skip(
+                "Unique constraint 'uq_skill_rewards_user_source_skill' not yet applied "
+                "(migration missing)."
+            )
+
+        source_id = int(uuid.uuid4().int % 1_000_000) + 100_000  # unique source_id
 
         # Create first reward
         reward1 = SkillReward(
-            user_id=2,
+            user_id=postgres_admin_user.id,
             source_type="TEST_TOURNAMENT",
-            source_id=999,
+            source_id=source_id,
             skill_name="Passing",
             points_awarded=10
         )
@@ -175,11 +226,11 @@ class TestRewardDistributionIdempotency:
         # Try to create duplicate - should fail
         with pytest.raises(IntegrityError) as exc_info:
             reward2 = SkillReward(
-                user_id=2,
+                user_id=postgres_admin_user.id,
                 source_type="TEST_TOURNAMENT",  # Same source
-                source_id=999,  # Same ID
-                skill_name="Passing",  # Same skill
-                points_awarded=15  # Different points (doesn't matter)
+                source_id=source_id,            # Same ID
+                skill_name="Passing",           # Same skill
+                points_awarded=15               # Different points (doesn't matter)
             )
             postgres_db.add(reward2)
             postgres_db.commit()
@@ -192,9 +243,9 @@ class TestRewardDistributionIdempotency:
 
         # Verify only ONE reward exists
         count = postgres_db.query(SkillReward).filter(
-            SkillReward.user_id == 2,
+            SkillReward.user_id == postgres_admin_user.id,
             SkillReward.source_type == "TEST_TOURNAMENT",
-            SkillReward.source_id == 999,
+            SkillReward.source_id == source_id,
             SkillReward.skill_name == "Passing"
         ).count()
         assert count == 1, f"Expected 1 skill reward, found {count}"

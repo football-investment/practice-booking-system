@@ -1,0 +1,18 @@
+[run]
+source = app
+branch = true
+omit =
+    app/tests/*
+    app/static/*
+    app/templates/*
+    app/tournament_types/*
+    app/skills_config.py
+    alembic/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    @abstractmethod
