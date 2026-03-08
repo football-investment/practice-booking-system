@@ -1,6 +1,6 @@
 # Testing Strategy — LFA Practice Booking System
 
-> **Last updated:** Sprint 38 | **Coverage:** stmt 87.7%, branch 78.6%
+> **Last updated:** Sprint 39 | **Coverage:** stmt 88.4%, branch 79.8%
 
 ---
 
@@ -11,7 +11,7 @@
             │   Cypress E2E   │  cypress/    (7 specs, browser-level)
             │   (UI flows)    │
         ┌───┴─────────────────┴───┐
-        │  Blocking E2E Gates (15)│  tests/e2e/integration_critical/
+        │  Blocking E2E Gates (16)│  tests/e2e/integration_critical/
         │  (live server, real DB) │
     ┌───┴─────────────────────────┴───┐
     │  Integration / Smoke Tests      │  tests/integration/
@@ -38,7 +38,7 @@ Every gate runs after `unit-tests` succeeds. All must be **green** before merge.
 
 | Gate Job | Tests | What It Validates |
 |----------|-------|-------------------|
-| `unit-tests` | ~6000 unit + tournament | 0 failures, stmt ≥ 87%, branch ≥ 78% |
+| `unit-tests` | ~6100 unit + tournament | 0 failures, stmt ≥ 87%, branch ≥ 78%, `--durations=20` for slow-test profiling |
 | `smoke-tests` | ~1654 API smoke | All API endpoints return expected status codes |
 | `api-module-integrity` | Import check | All `app/` modules load cleanly, route count ≥ 71 |
 | `hardcoded-id-guard` | Lint | No `user_id=1` in unit/service tests |
@@ -50,9 +50,10 @@ Every gate runs after `unit-tests` succeeds. All must be **green** before merge.
 | `multi-campus-gate` | 1 E2E test | Session creation across campuses |
 | `session-management-gate` | 4 E2E tests | Session CRUD + availability |
 | `skill-assessment-lifecycle-gate` | 9 E2E tests | Football skill assessment end-to-end |
-| `booking-lifecycle-gate` | 3 E2E tests | Confirm → waitlist → cancel → auto-promote |
-| `auth-lifecycle-gate` | 6 E2E tests | Login → token → refresh → protected endpoint |
-| `enrollment-workflow-gate` | 3 E2E tests | Enroll → auto-approve → duplicate rejected |
+| `booking-lifecycle-gate` | 3 E2E tests | Confirm → waitlist → cancel → auto-promote (3× flake detection) |
+| `auth-lifecycle-gate` | 6 E2E tests | Login → token → refresh → protected endpoint (3× flake detection) |
+| `enrollment-workflow-gate` | 3 E2E tests | Enroll → auto-approve → duplicate rejected (3× flake detection) |
+| `user-account-gate` | 3 E2E tests | Password change → old creds fail → new creds work (3× flake detection) |
 
 ---
 
@@ -102,6 +103,24 @@ uvicorn app.main:app --port 8000 &
 PYTHONPATH=. pytest tests/e2e/integration_critical/test_auth_lifecycle.py -v
 PYTHONPATH=. pytest tests/e2e/integration_critical/test_enrollment_workflow.py -v
 PYTHONPATH=. pytest tests/e2e/integration_critical/test_booking_lifecycle.py -v
+PYTHONPATH=. pytest tests/e2e/integration_critical/test_user_account.py -v
+
+# Flake detection dry-run (3× repetition, same as CI)
+PYTHONPATH=. pytest tests/e2e/integration_critical/test_user_account.py --count=3 -v
+```
+
+### Flake detection (non-blocking)
+
+The `.github/workflows/flake-detection.yml` workflow runs all integration-critical E2E tests
+**5 times sequentially** (`--count=5`) to surface intermittent failures before they become outages.
+
+- **Trigger:** manual (`workflow_dispatch`) or weekly (Saturday 03:00 UTC)
+- **Not blocking:** failures here do not prevent PRs from merging
+- **When to run manually:** after adding new E2E tests, after infrastructure changes, or when a CI flake is suspected
+
+```bash
+# Local flake detection simulation (all suites, 3×)
+PYTHONPATH=. pytest tests/e2e/integration_critical/ --count=3 -v --durations=10
 ```
 
 ### Cypress (browser E2E)
@@ -151,11 +170,11 @@ assert resp.status_code < 500
 
 ## Coverage Targets
 
-| Metric | CI Threshold | Sprint 38 Actual |
+| Metric | CI Threshold | Sprint 39 Actual |
 |--------|-------------|-----------------|
-| Statement | ≥ 75% | 87.7% |
-| Branch (pure) | ≥ 78% | 78.6% |
-| Combined | ≥ 75% | ~86% |
+| Statement | ≥ 75% | 88.4% |
+| Branch (pure) | ≥ 78% | 79.8% |
+| Combined | ≥ 75% | ~87% |
 
 Coverage is measured by `python .github/scripts/check_coverage.py` in the `unit-tests` CI job.
 
