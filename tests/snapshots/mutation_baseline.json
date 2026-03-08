@@ -1,6 +1,7 @@
 {
-  "version": "sprint-48",
+  "version": "sprint-49",
   "last_updated": "2026-03-08",
+  "sprint_49_coverage_note": "Infra 0%-coverage eliminated: tasks/scheduler.py 0%→100%, tasks/tournament_tasks.py 0%→95%, core/health.py 25%→98%, middleware/security.py 28%→96%. Unit-only stmt 84.4%→85.1% (+0.7pp), branch 76.4%→77.0% (+0.6pp). 138 new tests, 6621 total.",
   "project_target_kill_rate": 0.70,
   "milestone_kill_rate": 0.80,
   "milestone_note": "≥80% milestone ACHIEVED in Sprint 48 CI-confirmed: 897/1116 = 80.4%. Regression gate: ≥78.0% (−2.4pp from 80.4%).",
