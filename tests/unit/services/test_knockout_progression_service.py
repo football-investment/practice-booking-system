@@ -634,3 +634,201 @@ class TestCreateBronzeAndFinalMatch:
         call_data = svc.repo.create_session.call_args[0][1]
         expected_start = datetime(2026, 4, 2, 12, tzinfo=timezone.utc)
         assert call_data["date_start"] == expected_start
+
+
+# ===========================================================================
+# Branch Coverage Buffer — Sprint 37
+# ===========================================================================
+
+class TestKnockoutProgressionBranchBuffer:
+    """
+    Sprint 37: 7 tests covering branches missed in the original test suite.
+
+    Uncovered branches targeted:
+      1. HEAD_TO_HEAD raw fallback → elif has_placement: False (no result/placement fields)
+      2. INDIVIDUAL format → both len==2 conditions False (empty raw_results)
+      3. _update_next_round_matches: if distinct_rounds: False (returns [] with losers >= 2)
+      4. _update_next_round_matches: if final_round > next_round: False (equal/below case)
+      5. _update_next_round_matches: "bronze"/"3rd" not in any final-round session title
+      6. _update_final_and_bronze: "round of 2" in title_lower → treated as final
+      7. _update_final_and_bronze: bronze_match found but len(losers) < 2 → not updated
+    """
+
+    def _hrc(self, svc, matches, round_num=1, total_rounds=4):
+        """Call _handle_round_completion directly."""
+        return svc._handle_round_completion(
+            round_num=round_num,
+            total_rounds=total_rounds,
+            completed_matches=matches,
+            tournament=_tournament(),
+            tournament_phase=TournamentPhase.KNOCKOUT,
+        )
+
+    # 1. HEAD_TO_HEAD raw fallback — no result or placement fields in raw_results
+
+    def test_hth_raw_fallback_no_result_no_placement_skips_match(self):
+        """
+        HEAD_TO_HEAD: participants=[], raw_results items have neither 'result' nor
+        'placement' → has_result_field=False, has_placement=False →
+        elif has_placement branch: False → no winners/losers extracted.
+        """
+        svc = _svc()
+        m = _match(game_results='{"x": 1}')
+        parsed = {
+            "match_format": "HEAD_TO_HEAD",
+            "participants": [],
+            "raw_results": [{"user_id": 10}, {"user_id": 20}],  # no result/placement
+        }
+        with patch(_PARSE, return_value=parsed):
+            with patch.object(svc, "_update_next_round_matches", return_value={"ok": True}) as mock_unr:
+                self._hrc(svc, [m])
+        winners = mock_unr.call_args[1]["winners"]
+        losers = mock_unr.call_args[1]["losers"]
+        assert winners == []
+        assert losers == []
+
+    # 2. INDIVIDUAL format with empty raw_results
+
+    def test_individual_empty_raw_results_no_winners_extracted(self):
+        """
+        INDIVIDUAL format (no match_format key), raw_results=[] →
+        len(raw_results)==0, both if/elif conditions False → no winners.
+        """
+        svc = _svc()
+        m = _match(game_results='{"x": 1}')
+        parsed = {"raw_results": []}
+        with patch(_PARSE, return_value=parsed):
+            with patch.object(svc, "_update_next_round_matches", return_value={"ok": True}) as mock_unr:
+                self._hrc(svc, [m])
+        assert mock_unr.call_args[1]["winners"] == []
+
+    # 3. _update_next_round_matches: get_distinct_rounds returns [] with losers >= 2
+
+    def test_update_next_round_distinct_rounds_empty_skips_bronze(self):
+        """
+        When len(losers) >= 2 but get_distinct_rounds() returns [] →
+        if distinct_rounds: False → entire bronze assignment block skipped.
+        """
+        svc = _svc()
+        nxt = _match(title="Semifinal", mid=5)
+        nxt.participant_user_ids = []
+        svc.repo.get_sessions_by_phase_and_round.return_value = [nxt]
+        svc.repo.get_distinct_rounds.return_value = []  # empty
+
+        result = svc._update_next_round_matches(
+            round_num=1,
+            winners=[10, 20],
+            losers=[30, 40],
+            tournament=_tournament(),
+            tournament_phase=TournamentPhase.KNOCKOUT,
+        )
+        bronze_entries = [s for s in result.get("updated_sessions", []) if s.get("type") == "bronze"]
+        assert bronze_entries == []
+
+    # 4. _update_next_round_matches: final_round <= next_round → bronze block skipped
+
+    def test_update_next_round_final_round_not_gt_next_round_skips_bronze(self):
+        """
+        round_num=2 → next_round=3; distinct_rounds=[1, 2] → final_round=2;
+        final_round > next_round → 2 > 3 = False → bronze assignment skipped.
+        """
+        svc = _svc()
+        nxt = _match(title="Final Match", mid=5)
+        nxt.participant_user_ids = []
+        svc.repo.get_sessions_by_phase_and_round.return_value = [nxt]
+        svc.repo.get_distinct_rounds.return_value = [1, 2]  # final_round=2, next_round=3 → 2>3=False
+
+        result = svc._update_next_round_matches(
+            round_num=2,
+            winners=[10, 20],
+            losers=[30, 40],
+            tournament=_tournament(),
+            tournament_phase=TournamentPhase.KNOCKOUT,
+        )
+        bronze_entries = [s for s in result.get("updated_sessions", []) if s.get("type") == "bronze"]
+        assert bronze_entries == []
+
+    # 5. _update_next_round_matches: final-round sessions have no bronze/3rd title
+
+    def test_update_next_round_no_bronze_title_in_final_round_sessions(self):
+        """
+        final_round > next_round is True, but no session in final_round_sessions
+        has 'bronze' or '3rd' in title → loop exhausts without bronze assignment.
+        """
+        svc = _svc()
+        nxt = _match(title="Semifinal", mid=5)
+        nxt.participant_user_ids = []
+        championship = _match(title="Championship Match", mid=9)
+        championship.participant_user_ids = []
+
+        def _get_sessions(tournament_id, phase, round_num, exclude_bronze):
+            if round_num == 2:
+                return [nxt]
+            if round_num == 3:
+                return [championship]
+            return []
+
+        svc.repo.get_sessions_by_phase_and_round.side_effect = _get_sessions
+        svc.repo.get_distinct_rounds.return_value = [1, 2, 3]  # final=3, next=2, 3>2=True
+
+        result = svc._update_next_round_matches(
+            round_num=1,
+            winners=[10, 20],
+            losers=[30, 40],
+            tournament=_tournament(),
+            tournament_phase=TournamentPhase.KNOCKOUT,
+        )
+        assert championship.participant_user_ids == []
+        bronze_entries = [s for s in result.get("updated_sessions", []) if s.get("type") == "bronze"]
+        assert bronze_entries == []
+
+    # 6. _update_final_and_bronze: "round of 2" in title → treated as final match
+
+    def test_update_final_round_of_2_title_treated_as_final(self):
+        """
+        Session titled 'Round of 2 Championship' →
+        'round of 2' in title_lower: True → treated as final match.
+        """
+        svc = _svc()
+        r2 = _match(title="Round of 2 Championship", mid=1)
+        r2.participant_user_ids = []
+        svc.repo.get_distinct_rounds.return_value = [1, 2]
+        svc.repo.get_sessions_by_phase_and_round.return_value = [r2]
+
+        result = svc._update_final_and_bronze(
+            winners=[10, 20],
+            losers=[],
+            tournament=_tournament(),
+            tournament_phase=TournamentPhase.KNOCKOUT,
+            reference_session=_match(),
+        )
+        assert r2.participant_user_ids == [10, 20]
+        assert any(s["type"] == "final" for s in result["updated_sessions"])
+
+    # 7. _update_final_and_bronze: bronze match found but len(losers) < 2
+
+    def test_update_final_bronze_match_found_but_insufficient_losers(self):
+        """
+        Bronze session exists in final round (has 'bronze' in title), but
+        len(losers) < 2 → if bronze_match and len(losers) >= 2: False →
+        bronze.participant_user_ids NOT updated.
+        """
+        svc = _svc()
+        final = _match(title="Grand Final", mid=1)
+        final.participant_user_ids = []
+        bronze = _match(title="Bronze Medal Match", mid=2)
+        bronze.participant_user_ids = []
+        svc.repo.get_distinct_rounds.return_value = [1, 2]
+        svc.repo.get_sessions_by_phase_and_round.return_value = [final, bronze]
+
+        result = svc._update_final_and_bronze(
+            winners=[10, 20],
+            losers=[30],  # only 1 loser, need >= 2
+            tournament=_tournament(),
+            tournament_phase=TournamentPhase.KNOCKOUT,
+            reference_session=_match(),
+        )
+        assert final.participant_user_ids == [10, 20]
+        assert bronze.participant_user_ids == []
+        assert len(result["updated_sessions"]) == 1
+        assert result["updated_sessions"][0]["type"] == "final"

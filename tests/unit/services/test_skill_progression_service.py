@@ -872,3 +872,284 @@ class TestGetSkillAudit:
         # shooting: delta=8.0, headroom=39, norm≈0.205
         # 0.013+0.005 < 0.205 → fairness_ok=False
         assert passing_row["fairness_ok"] is False
+
+
+# ===========================================================================
+# Branch coverage buffer — Sprint 37
+# Targets 11 previously-uncovered branches for ~+0.1pp pure-branch coverage.
+# ===========================================================================
+
+@pytest.mark.unit
+class TestSkillProgressionBranchBuffer:
+    """
+    Targeted branch tests for 11 uncovered paths identified by coverage report.
+
+    Groups:
+      A. _compute_opponent_factor — non-numeric values in football_skills
+      B. _extract_tournament_skills — legacy dict with unknown skill key
+      C. calculate_tournament_skill_contribution — tournament skill not in skill_data
+      D. compute_single_tournament_skill_delta — empty mappings, unknown skill key
+      E. get_skill_timeline — single-player tournament (percentile=0.0)
+      F. get_skill_audit — single-player, zero delta, fairness peer-weight/headroom
+    """
+
+    # ── A. _compute_opponent_factor ────────────────────────────────────────
+
+    def test_opponent_factor_non_numeric_string_hits_except(self):
+        """
+        football_skills = {"pace": "not-a-number"} → float() raises ValueError
+        → except block executes, vals stays empty, baseline_avgs stays empty → 1.0.
+        Covers the except (TypeError, ValueError) branch.
+        """
+        db = _db()
+        opp = _make_opponent(user_id=2)
+        lic = _make_license(football_skills={"pace": "not-a-number"})
+        _multi_q(db, [
+            {"all_": [opp]},   # opponents list
+            {"first": lic},    # opponent's license
+        ])
+        result = _compute_opponent_factor(
+            db, tournament_id=1, player_user_id=42, player_baseline_avg=60.0
+        )
+        assert result == 1.0  # no valid baseline → neutral
+
+    def test_opponent_factor_none_value_hits_empty_vals(self):
+        """
+        football_skills = {"pace": None} → float(None) raises TypeError
+        → vals stays [], if vals: is False → baseline_avgs empty → 1.0.
+        Covers the if vals: → False branch (baseline_avgs not appended).
+        """
+        db = _db()
+        opp = _make_opponent(user_id=2)
+        lic = _make_license(football_skills={"pace": None})
+        _multi_q(db, [
+            {"all_": [opp]},
+            {"first": lic},
+        ])
+        result = _compute_opponent_factor(
+            db, tournament_id=1, player_user_id=42, player_baseline_avg=60.0
+        )
+        assert result == 1.0
+
+    # ── B. _extract_tournament_skills ─────────────────────────────────────
+
+    def test_extract_skills_legacy_dict_unknown_key(self):
+        """
+        reward_config.skill_mappings is a dict with key "UNKNOWN_SKILL".
+        skill_keys = {"pace"} — does not contain "UNKNOWN_SKILL".
+        → if sk in skill_keys: → False → loop body skipped.
+        → result stays empty → fallback DB query returns [] → returns {}.
+        Covers the False branch of `if sk in skill_keys` (L217).
+        """
+        db = _db()
+        t = MagicMock()
+        t.id = 10
+        t.reward_config = {"skill_mappings": {"UNKNOWN_SKILL": 1.0}}
+        # Fallback DB query: TournamentSkillMapping.filter.all() → []
+        q = _fluent_q(all_=[])
+        db.query.return_value = q
+
+        result = _extract_tournament_skills(db, t, skill_keys={"pace"})
+        assert result == {}
+
+    # ── C. calculate_tournament_skill_contribution ─────────────────────────
+
+    def test_contribution_tournament_skill_not_in_skill_data(self):
+        """
+        _extract_tournament_skills returns {"pace": 1.0} but skill_data only has
+        "dribbling" (from skill_keys + get_baseline_skills).
+        → `if skill_key not in skill_data: continue` is taken.
+        Covers the continue branch at the inner skill loop.
+        """
+        db = _db()
+        t = _tourn()
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        with patch(_PATCH_GBS, return_value={"dribbling": 60.0}), \
+             patch(_PATCH_ETS, return_value={"pace": 1.0}), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_MOD, return_value=0.0):
+            result = calculate_tournament_skill_contribution(
+                db, user_id=42, skill_keys=["dribbling"]
+            )
+        # "pace" is not in skill_data → skipped; "dribbling" unchanged
+        assert result["dribbling"]["tournament_count"] == 0
+
+    # ── D. compute_single_tournament_skill_delta ───────────────────────────
+
+    def test_delta_empty_skill_mappings_skips_tournament(self):
+        """
+        _extract_tournament_skills returns {} → `if not tournament_skills_with_weights:
+        continue` is taken.
+        Returns empty dict (no delta computed).
+        """
+        db = _db()
+        t = _tourn(tid=5)
+        p = _part(tournament=t, placement=1)
+        q = _fluent_q(all_=[p])
+        db.query.return_value = q
+        with patch(_PATCH_GBS, return_value={"passing": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["passing"]), \
+             patch(_PATCH_ETS, return_value={}):
+            result = compute_single_tournament_skill_delta(
+                db, user_id=42, tournament_id=5
+            )
+        assert result == {}
+
+    def test_delta_skill_key_not_in_previous_values_skips(self):
+        """
+        _extract_tournament_skills returns {"pace": 1.0} but get_all_skill_keys
+        returns ["dribbling"] → skill_previous_values has "dribbling", not "pace".
+        → `if skill_key not in skill_previous_values: continue` is taken.
+        Returns empty dict.
+        """
+        db = _db()
+        t = _tourn(tid=5)
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        with patch(_PATCH_GBS, return_value={"dribbling": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["dribbling"]), \
+             patch(_PATCH_ETS, return_value={"pace": 1.0}), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_MOD, return_value=0.0):
+            result = compute_single_tournament_skill_delta(
+                db, user_id=42, tournament_id=5
+            )
+        assert result == {}
+
+    # ── E. get_skill_timeline — single-player tournament ──────────────────
+
+    def test_timeline_single_player_percentile_zero(self):
+        """
+        total_players=1 → `if total_players == 1: percentile = 0.0`.
+        Covers the True branch of the single-player guard in get_skill_timeline.
+        """
+        db = _db()
+        t = _tourn(tid=10, name="Solo Cup")
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=1)   # ← single player
+        db.query.side_effect = [q1, q2]
+        with patch(_PATCH_GBS, return_value={"ball_control": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["ball_control"]), \
+             patch(_PATCH_ETS, return_value={"ball_control": 1.0}), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_SKV, return_value=68.0):
+            result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
+        assert len(result["timeline"]) == 1
+        entry = result["timeline"][0]
+        assert entry["total_players"] == 1
+
+    # ── F. get_skill_audit ─────────────────────────────────────────────────
+
+    def test_audit_single_player_percentile_zero(self):
+        """
+        total_players=1 → `if total_players == 1: percentile = 0.0`.
+        Covers the True branch of the single-player guard in get_skill_audit.
+        """
+        db = _db()
+        t = _tourn(tid=10)
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=1)   # ← single player
+        db.query.side_effect = [q1, q2]
+        with patch(_PATCH_GBS, return_value={"passing": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["passing"]), \
+             patch(_PATCH_ETS, return_value={"passing": 1.0}), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_SKV, return_value=68.0):
+            result = get_skill_audit(db, user_id=42)
+        assert len(result) == 1
+        assert result[0]["total_players"] == 1
+
+    def test_audit_zero_delta_sets_headroom_zero(self):
+        """
+        calculate_skill_value_from_placement returns the same value as prev (60.0)
+        → delta = 0.0 → `else: headroom = 0.0` branch.
+        norm_delta must be 0.0.
+        """
+        db = _db()
+        t = _tourn(tid=10)
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        # SKV returns 60.0 (same as prev=60.0) for delta, then again for advance
+        with patch(_PATCH_GBS, return_value={"passing": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["passing"]), \
+             patch(_PATCH_ETS, return_value={"passing": 1.0}), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_SKV, return_value=60.0):  # unchanged → delta=0
+            result = get_skill_audit(db, user_id=42)
+        assert len(result) == 1
+        row = result[0]
+        assert row["delta_this_tournament"] == 0.0
+        assert row["norm_delta"] == 0.0   # headroom=0 → norm=0
+        assert row["actual_changed"] is False
+
+    def test_fairness_peer_weight_gte_skill_weight_skips_check(self):
+        """
+        Three skills: dribbling(1.0), passing(2.0), shooting(2.0).
+        avg ≈ 1.667, threshold ≈ 1.75 → both passing(2.0) and shooting(2.0) are dominant.
+        When checking "passing" (skill_weight=2.0) vs peer "shooting" (peer_weight=2.0):
+          peer_weight(2.0) < skill_weight(2.0) → False → inner block skipped.
+        Covers the False branch of `if peer_weight < skill_weight`.
+        """
+        db = _db()
+        t = _tourn(tid=10)
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        # 3 skills: dribbling(w=1.0), passing(w=2.0), shooting(w=2.0)
+        # avg=1.667, threshold≈1.75; passing and shooting are both dominant
+        # For "passing": peer "shooting" has peer_weight=2.0 which equals skill_weight=2.0
+        # → peer_weight < skill_weight → False → skip
+        skills = {"dribbling": 1.0, "passing": 2.0, "shooting": 2.0}
+        # prev = 60.0 for all; SKV returns: delta + advance for 3 skills = 6 calls
+        # dribbling: 68.0/68.0, passing: 68.0/68.0, shooting: 68.0/68.0
+        skv_returns = [68.0, 68.0, 68.0, 68.0, 68.0, 68.0]
+        with patch(_PATCH_GBS, return_value={"dribbling": 60.0, "passing": 60.0, "shooting": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["dribbling", "passing", "shooting"]), \
+             patch(_PATCH_ETS, return_value=skills), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_SKV, side_effect=skv_returns):
+            result = get_skill_audit(db, user_id=42)
+        # Should produce 3 audit rows (one per skill)
+        assert len(result) == 3
+        # Both passing and shooting are dominant; peer check between them is skipped
+        passing_row = next(r for r in result if r["skill"] == "passing")
+        assert passing_row["is_dominant"] is True
+
+    def test_fairness_dominant_has_more_headroom_ok(self):
+        """
+        Two skills: passing(dominant, w=2.0) and shooting(peer, w=0.5).
+        avg=1.25, threshold=1.3125 → passing is dominant.
+        passing: delta=8.0, norm≈0.205 | shooting: delta=0.5, norm≈0.013
+        my_norm(0.205) + 0.005 = 0.210 < peer_norm(0.013)? → False → fairness_ok stays True.
+        Covers the False branch of `if my_norm + 0.005 < peer_norm`.
+        """
+        db = _db()
+        t = _tourn(tid=10)
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        skills = {"passing": 2.0, "shooting": 0.5}
+        # call order: passing_delta, shooting_delta, passing_advance, shooting_advance
+        # passing prev=60 → new=68 (delta=8.0); shooting prev=60 → new=60.5 (delta=0.5)
+        skv_returns = [68.0, 60.5, 68.0, 60.5]
+        with patch(_PATCH_GBS, return_value={"passing": 60.0, "shooting": 60.0}), \
+             patch(f"{_BASE}.get_all_skill_keys", return_value=["passing", "shooting"]), \
+             patch(_PATCH_ETS, return_value=skills), \
+             patch(_PATCH_OPP, return_value=1.0), \
+             patch(_PATCH_SKV, side_effect=skv_returns):
+            result = get_skill_audit(db, user_id=42)
+        passing_row = next(r for r in result if r["skill"] == "passing")
+        assert passing_row["is_dominant"] is True
+        # Dominant consumed MORE headroom than peer → fairness is OK
+        assert passing_row["fairness_ok"] is True
