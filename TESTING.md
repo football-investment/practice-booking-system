@@ -1,6 +1,6 @@
 # Testing Strategy — LFA Practice Booking System
 
-> **Last updated:** Sprint 41 | **Coverage:** stmt 89.0%, branch 81.0%
+> **Last updated:** Sprint 42 | **Coverage:** stmt 89.0%, branch 81.0%
 
 ---
 
@@ -48,7 +48,7 @@ Every gate runs after `unit-tests` succeeds. All must be **green** before merge.
 
 | Gate Job | Tests | What It Validates |
 |----------|-------|-------------------|
-| `unit-tests` | ~6409 unit + contract + tournament | 0 failures, stmt ≥ 87%, branch ≥ 78%, `--durations=20` for slow-test profiling |
+| `unit-tests` | ~6414 unit + contract + openapi-snapshot + tournament | 0 failures, stmt ≥ 87%, branch ≥ 78%, `--durations=20` for slow-test profiling |
 | `smoke-tests` | ~1654 API smoke | All API endpoints return expected status codes |
 | `api-module-integrity` | Import check | All `app/` modules load cleanly, route count ≥ 71 |
 | `hardcoded-id-guard` | Lint | No `user_id=1` in unit/service tests |
@@ -68,7 +68,7 @@ Every gate runs after `unit-tests` succeeds. All must be **green** before merge.
 
 ---
 
-## CI Gate Categories (Sprint 41)
+## CI Gate Categories (Sprint 42)
 
 Gates organized by functional domain — use this when diagnosing CI failures.
 
@@ -85,7 +85,7 @@ Gates organized by functional domain — use this when diagnosing CI failures.
 
 ---
 
-## Business Flow Map (Sprint 41)
+## Business Flow Map (Sprint 42)
 
 All critical user journeys mapped to CI gates. Gaps documented with rationale.
 
@@ -109,9 +109,20 @@ All critical user journeys mapped to CI gates. Gaps documented with rationale.
 | Quiz Assessment | Take quiz → score → update progress | — | ⚠️ Unit+smoke (≥90%) |
 | Gamification | XP gain → level → badge | — | ⚠️ Unit only (≥95%) |
 
-**Gap rationale:** The four ungated flows have ≥90% unit service coverage. They lack the complex
-multi-service state machines (auth tokens, DB transactions, concurrent state changes) that justify
-an E2E gate. Adding gates for these would be artificial expansion without proportional risk reduction.
+### Ungated Flow Gate Decisions (Sprint 42)
+
+Explicit per-flow analysis confirming no E2E gate is needed:
+
+| Flow | Evidence | Gate Decision | Rationale |
+|------|----------|--------------|-----------|
+| License Lifecycle | 10+ test files, `test_license_service.py` 49+ tests, ≥95% unit coverage | **No E2E gate** | Financial risk already gated via `payment-workflow-gate`. Level advancement is deterministic pure logic with no cross-service state machine. |
+| Curriculum/Learning | 8 test files, `test_curriculum_exercises/modules/lessons` suites, ≥95% unit coverage | **No E2E gate** | Track enroll → module complete is a stateless, linear flow. All curriculum state transitions are exhaustively tested at unit level. |
+| Quiz Assessment | 4 files, `test_quiz_service.py` ~1027 lines (most comprehensive unit test in the suite), ≥90% unit coverage | **No E2E gate** | Every quiz state transition is exercised at unit level. No concurrent state machine or auth-token dependency that would require live-server validation. |
+| Gamification | 3 files, 48+ tests in `test_gamification_xp_service.py`, ≥95% unit coverage | **No E2E gate** | XP gain is a side effect of booking/attendance (both already gated). Not a user-facing journey; adding a gate would create artificial coupling to booking infrastructure. |
+
+**Conclusion:** All four flows remain ungated. They lack the complex multi-service state machines
+(auth tokens, DB transactions, concurrent state changes) that justify E2E gating. The unit+smoke
+layer provides ≥90% coverage per flow with faster feedback than an E2E gate would offer.
 
 ---
 
@@ -252,6 +263,91 @@ Coverage is measured by `python .github/scripts/check_coverage.py` in the `unit-
 
 ---
 
+## OpenAPI Schema Snapshot (Sprint 42)
+
+The full API contract is versioned as a committed JSON file (`tests/snapshots/openapi_snapshot.json`).
+Any endpoint or schema change is visible in the PR diff and triggers an immediate test failure.
+
+**How it works:** `FastAPI.openapi()` generates the schema from registered routes without connecting
+to a database or starting a server. The test runs in the `unit-tests` CI step (< 2 min feedback).
+
+**496 routes, 382 components** versioned as of Sprint 42.
+
+```bash
+# Update snapshot after intentional API changes
+python scripts/update_openapi_snapshot.py
+
+# Run snapshot test
+pytest tests/unit/contract/test_openapi_snapshot.py -v
+```
+
+What the test catches:
+- Renamed or removed endpoints
+- Changed request/response schemas or field names
+- Added/removed path parameters or query params
+- Modified operation metadata (tags, summary, operationId)
+
+---
+
+## Mutation Testing (Sprint 42)
+
+Mutation testing measures **test effectiveness beyond coverage**: if a test kills a mutant, it
+proves the test can detect that specific bug. Kill rate = (killed mutants) / (total mutants).
+
+**Target: ≥80% kill rate per module.** Modules below 80% have coverage gaps that don't catch
+realistic bugs.
+
+### Target Modules
+
+| Module | Rationale | Unit Test File |
+|--------|-----------|---------------|
+| `app/services/sandbox_verdict_calculator.py` | Pure scoring logic, 97% unit coverage | `test_sandbox_verdict_calculator.py` |
+| `app/services/specialization_validation.py` | Pure validation, 98% unit coverage | `test_specialization_validation.py` |
+| `app/services/credit_service.py` | Financial operations, high business risk | `test_credit_service.py` |
+
+**Selection rationale:** Pure-logic modules (no complex mocking) with high existing coverage
+(mutations are reachable and thus catchable). Financial logic prioritized for high business risk.
+
+### Baseline Kill Rates (Sprint 42)
+
+First full local run completed. Results from `.mutmut-cache`:
+
+| Module | Mutants | Killed | Survived | Kill Rate |
+|--------|---------|--------|----------|-----------|
+| `sandbox_verdict_calculator.py` | 224 | 124 | 100 | 55% |
+| `specialization_validation.py` | 128 | 104 | 24 | 81% ✅ |
+| `credit_service.py` | 33 | 14 | 19 | 42% |
+| **Combined** | **385** | **242** | **143** | **63%** |
+
+**Analysis:** `specialization_validation.py` meets the ≥80% target — pure conditional logic is
+well-caught by its 74 tests. `sandbox_verdict_calculator.py` (55%) and `credit_service.py` (42%)
+have surviving mutants in list-manipulation and arithmetic operations where tests verify only
+the final verdict/balance rather than intermediate state.
+
+**When to use this:** The surviving mutants are documented gaps, not regressions. They identify
+areas where tests verify outputs without asserting on intermediate calculations. This is acceptable
+for the current sprint; future test hardening should target these modules.
+
+### Running Locally
+
+```bash
+# Full run (10–30 min, cached after first run)
+bash scripts/run_mutation_tests.sh
+
+# HTML report
+bash scripts/run_mutation_tests.sh --html
+
+# View results (after run completes)
+python -m mutmut results
+```
+
+### CI Workflow
+
+`.github/workflows/mutation-testing.yml` — **non-blocking**, manual + weekly (Saturday 04:00 UTC).
+Failures here do not prevent PRs from merging. Track trends in this table.
+
+---
+
 ## Mock Patterns (Quick Reference)
 
 Key patterns confirmed working — full details in `.claude/projects/*/memory/MEMORY.md`:
@@ -275,5 +371,11 @@ Key patterns confirmed working — full details in `.claude/projects/*/memory/ME
 | Tournament payloads | `tests/integration/api_smoke/tournament_payloads.py` |
 | E2E fixture helpers (create/delete user) | `tests/e2e/integration_critical/conftest.py` |
 | Contract (schema) tests | `tests/unit/contract/` |
+| OpenAPI snapshot | `tests/snapshots/openapi_snapshot.json` |
+| OpenAPI snapshot test | `tests/unit/contract/test_openapi_snapshot.py` |
+| OpenAPI snapshot updater | `scripts/update_openapi_snapshot.py` |
 | Coverage script | `.github/scripts/check_coverage.py` |
 | CI gates workflow | `.github/workflows/test-baseline-check.yml` |
+| Mutation testing config | `setup.cfg` (`[mutmut]` section) |
+| Mutation testing runner | `scripts/run_mutation_tests.sh` |
+| Mutation testing CI (non-blocking) | `.github/workflows/mutation-testing.yml` |

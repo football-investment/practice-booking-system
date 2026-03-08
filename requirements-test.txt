@@ -19,3 +19,7 @@ bandit==1.7.5
 # 1.44+ required for Ubuntu 24.04 (Noble) libasound2t64 package name support
 playwright==1.49.0
 pytest-playwright==0.5.0
+
+# Mutation testing — measures real test effectiveness (kill rate per module)
+# Pin to 2.x: mutmut 3.x has a subprocess config-loading bug with this project's pytest setup
+mutmut==2.4.4

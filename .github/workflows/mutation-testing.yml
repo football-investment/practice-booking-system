@@ -1,0 +1,96 @@
+name: Mutation Testing (Non-Blocking)
+
+# Non-blocking quality signal: runs weekly + on-demand.
+# Measures test effectiveness beyond coverage: kill rate = killed / total.
+# Does NOT block PRs — informational only.
+#
+# Target modules (see setup.cfg [mutmut]):
+#   app/services/sandbox_verdict_calculator.py  -- pure scoring logic (97% unit coverage)
+#   app/services/specialization_validation.py   -- pure validation (98% unit coverage)
+#   app/services/credit_service.py              -- financial logic (high business risk)
+#
+# Baseline kill rates (Sprint 42): see TESTING.md — Mutation Testing section
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 6'  # Saturday 04:00 UTC (1h after flake-detection)
+
+jobs:
+  mutation-testing:
+    name: Mutation Testing — 3 Service Modules
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip check
+
+    - name: Run DB migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: alembic upgrade head
+
+    - name: Verify test suite passes (baseline check)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        python -m pytest \
+          tests/unit/services/test_sandbox_verdict_calculator.py \
+          tests/unit/services/test_specialization_validation.py \
+          tests/unit/services/test_credit_service.py \
+          -q --tb=short
+
+    - name: Run mutation tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: python -m mutmut run
+      continue-on-error: true  # surviving mutants are not a hard failure
+
+    - name: Print mutation results
+      if: always()
+      run: python -m mutmut results
+      continue-on-error: true
+
+    - name: Write mutation testing summary
+      if: always()
+      run: |
+        echo "## Mutation Testing Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Targets: \`sandbox_verdict_calculator\` | \`specialization_validation\` | \`credit_service\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        python -m mutmut results 2>/dev/null || echo "No results available"
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "> This workflow is **non-blocking** — surviving mutants do not prevent PRs from merging." >> $GITHUB_STEP_SUMMARY
+        echo "> Track kill rate trends in TESTING.md. Target: ≥80% kill rate per module." >> $GITHUB_STEP_SUMMARY
