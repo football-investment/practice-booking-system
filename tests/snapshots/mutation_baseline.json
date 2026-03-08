@@ -1,10 +1,14 @@
 {
-  "version": "sprint-43",
+  "version": "sprint-45",
   "last_updated": "2026-03-08",
   "project_target_kill_rate": 0.70,
   "history": [
-    {"sprint": 42, "combined_kill_rate": 0.629, "total": 385, "killed": 242},
-    {"sprint": 43, "combined_kill_rate": 0.725, "total": 385, "killed": 279}
+    {"sprint": 42, "combined_kill_rate": 0.629, "total": 385, "killed": 242,
+     "note": "3 modules; baseline run"},
+    {"sprint": 43, "combined_kill_rate": 0.725, "total": 385, "killed": 279,
+     "note": "3 modules; sandbox +15pp, credit +12pp"},
+    {"sprint": 45, "combined_kill_rate": 0.755, "total": 718, "killed": 542,
+     "note": "5 modules; credit 100% effective, xp_service 75.4%, license_auth 79.6%"}
   ],
   "modules": {
     "app/services/sandbox_verdict_calculator.py": {
@@ -14,7 +18,7 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"42": 0.554, "43": 0.701}
+      "sprint_history": {"42": 0.554, "43": 0.701, "45": 0.701}
     },
     "app/services/specialization_validation.py": {
       "total": 128,
@@ -23,17 +27,17 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"42": 0.813, "43": 0.813}
+      "sprint_history": {"42": 0.813, "43": 0.813, "45": 0.813}
     },
     "app/services/credit_service.py": {
       "total": 33,
-      "killed": 18,
-      "kill_rate": 0.545,
+      "killed": 22,
+      "kill_rate": 0.667,
       "target": 0.70,
       "acceptable_survivors": ["logger_strings", "orm_filter_mock_bypass"],
       "acceptable_survivor_count": 11,
-      "effective_kill_rate": 0.818,
-      "effective_note": "18 killed / (33 total - 11 acceptable) = 18/22 = 81.8%",
+      "effective_kill_rate": 1.0,
+      "effective_note": "22 killed / (33 total - 11 acceptable) = 22/22 = 100%",
       "survivor_breakdown": {
         "logger_strings": {
           "count": 10,
@@ -46,7 +50,25 @@
           "reason": "SQLAlchemy filter expression (CreditTransaction.idempotency_key == key) is mocked away; changing == to != has no effect on mock return value. Requires real-DB integration test to kill."
         }
       },
-      "sprint_history": {"42": 0.424, "43": 0.545}
+      "sprint_history": {"42": 0.424, "43": 0.545, "45": 0.667}
+    },
+    "app/services/license_authorization_service.py": {
+      "total": 191,
+      "killed": 152,
+      "kill_rate": 0.796,
+      "target": 0.70,
+      "acceptable_survivors": [],
+      "acceptable_survivor_count": 0,
+      "sprint_history": {"45": 0.796}
+    },
+    "app/services/gamification/xp_service.py": {
+      "total": 142,
+      "killed": 107,
+      "kill_rate": 0.754,
+      "target": 0.70,
+      "acceptable_survivors": [],
+      "acceptable_survivor_count": 0,
+      "sprint_history": {"45": 0.754}
     }
   }
 }

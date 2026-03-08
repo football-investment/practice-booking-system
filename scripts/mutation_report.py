@@ -7,13 +7,14 @@ Why not `mutmut results`?
   the command line. Reading the SQLite cache directly is the reliable alternative.
 
 Usage:
-  python scripts/mutation_report.py                  # print to stdout
-  python scripts/mutation_report.py --check-baseline # exit 1 if any module
-                                                     # is below effective target
+  python scripts/mutation_report.py                   # print to stdout
+  python scripts/mutation_report.py --check-regression # exit 1 if combined kill rate
+                                                       # dropped ≥2pp from last baseline
+                                                       # or per-module dropped ≥3pp
 
 In CI this script also writes Markdown to $GITHUB_STEP_SUMMARY when that
 environment variable is set (GitHub Actions). Always exits 0 unless
---check-baseline is passed (non-blocking by default).
+--check-regression is passed (non-blocking by default).
 """
 
 import json
@@ -31,7 +32,13 @@ _SHORT = {
     "app/services/sandbox_verdict_calculator.py": "sandbox_verdict_calculator",
     "app/services/specialization_validation.py": "specialization_validation",
     "app/services/credit_service.py": "credit_service",
+    "app/services/license_authorization_service.py": "license_authorization_service",
+    "app/services/gamification/xp_service.py": "xp_service",
 }
+
+# Regression tolerances
+_COMBINED_TOLERANCE = 0.02   # 2pp: combined kill rate may drop at most 2pp from baseline
+_MODULE_TOLERANCE = 0.03     # 3pp: per-module effective kill rate may drop at most 3pp
 
 
 def _load_baseline():
@@ -88,6 +95,12 @@ def _delta_str(current_rate, baseline_rate):
     return f"{sign}{delta:.1f}pp"
 
 
+def _effective_rate(killed, total, acceptable):
+    effective_total = total - acceptable
+    effective_killed = min(killed, effective_total)
+    return _pct(effective_killed, effective_total), effective_total
+
+
 def build_report(cache, baseline):
     lines = []
     lines.append("## Mutation Testing Report")
@@ -129,18 +142,18 @@ def build_report(cache, baseline):
         target = bmod.get("target", 0.70)
         target_pct = int(target * 100)
         acceptable = bmod.get("acceptable_survivor_count", 0)
-        effective_total = total - acceptable
-        effective_killed = min(killed, effective_total)
-        effective_rate = _pct(effective_killed, effective_total)
+        eff_rate, _ = _effective_rate(killed, total, acceptable)
         baseline_rate = bmod.get("kill_rate")
 
-        if acceptable > 0:
+        if total == 0:
+            status_str = "⏳ pending first run"
+            meets = True  # not yet measured — don't flag as failure
+        elif acceptable > 0:
             status_str = (
-                f"⚠️ {rate}% raw · {effective_rate}% eff. "
+                f"⚠️ {rate}% raw · {eff_rate}% eff. "
                 f"({acceptable}/{survived} acceptable)"
             )
-            # Use effective rate for target check
-            meets = effective_rate >= target_pct
+            meets = eff_rate >= target_pct
         else:
             status_str = "✅" if rate >= target_pct else "❌"
             meets = rate >= target_pct
@@ -188,23 +201,128 @@ def build_report(cache, baseline):
     return "\n".join(lines), any_below
 
 
+def build_regression_report(cache, baseline):
+    """
+    Compare current kill rates against the last recorded sprint baseline.
+    Returns (report_text, has_regression).
+    """
+    if not baseline or not baseline.get("history"):
+        return "No baseline history — skipping regression check.", False
+
+    last_sprint = baseline["history"][-1]
+    last_combined = last_sprint["combined_kill_rate"]
+    combined_threshold = last_combined - _COMBINED_TOLERANCE
+
+    lines = []
+    lines.append("### Regression Check")
+    lines.append("")
+    lines.append(f"> Last baseline (Sprint {last_sprint['sprint']}): "
+                 f"**{last_combined * 100:.1f}%** combined")
+    lines.append(f"> Regression threshold: **≥{combined_threshold * 100:.1f}%** "
+                 f"(tolerance: {_COMBINED_TOLERANCE * 100:.0f}pp)")
+    lines.append("")
+
+    # Per-module regression table
+    lines.append("| Module | Baseline | Current | Delta | Status |")
+    lines.append("|--------|----------|---------|-------|--------|")
+
+    has_regression = False
+
+    # Track totals for combined check
+    total_killed = total_all = 0
+
+    for filename in sorted(_SHORT.keys()):
+        label = _SHORT[filename]
+        data = cache.get(filename, {})
+        killed = data.get("killed", 0)
+        total = data.get("total", 0)
+
+        total_killed += killed
+        total_all += total
+
+        bmod = (baseline or {}).get("modules", {}).get(filename, {})
+        baseline_kill_rate = bmod.get("kill_rate")  # last confirmed rate
+        acceptable = bmod.get("acceptable_survivor_count", 0)
+
+        if total == 0 or baseline_kill_rate is None:
+            lines.append(f"| `{label}` | — | — | — | ⏳ pending |")
+            continue
+
+        eff_rate, _ = _effective_rate(killed, total, acceptable)
+        eff_rate_frac = eff_rate / 100
+        # Use effective rate vs baseline kill_rate for comparison
+        baseline_eff = bmod.get("effective_kill_rate", baseline_kill_rate)
+        threshold = baseline_eff - _MODULE_TOLERANCE
+        delta_pp = (eff_rate_frac - baseline_eff) * 100
+        sign = "+" if delta_pp >= 0 else ""
+        delta_str = f"{sign}{delta_pp:.1f}pp"
+
+        if eff_rate_frac < threshold:
+            has_regression = True
+            status = f"❌ REGRESSION (threshold: ≥{threshold * 100:.1f}%)"
+        else:
+            status = "✅"
+
+        lines.append(
+            f"| `{label}` | {baseline_eff * 100:.1f}% | {eff_rate}% | {delta_str} | {status} |"
+        )
+
+    # Combined regression check
+    if total_all > 0:
+        combined_rate = total_killed / total_all
+        delta_pp = (combined_rate - last_combined) * 100
+        sign = "+" if delta_pp >= 0 else ""
+        combined_delta = f"{sign}{delta_pp:.1f}pp"
+
+        if combined_rate < combined_threshold:
+            has_regression = True
+            combined_status = f"❌ REGRESSION (threshold: ≥{combined_threshold * 100:.1f}%)"
+        else:
+            combined_status = "✅"
+
+        lines.append(
+            f"| **Combined** | **{last_combined * 100:.1f}%** | **{combined_rate * 100:.1f}%** "
+            f"| **{combined_delta}** | {combined_status} |"
+        )
+
+    lines.append("")
+    if has_regression:
+        lines.append("> ❌ **Regression detected.** Kill rate dropped beyond tolerance.")
+        lines.append("> Investigate surviving mutants with `python scripts/mutation_report.py`")
+        lines.append("> and `python -m mutmut show <id>` for specific mutant diffs.")
+    else:
+        lines.append("> ✅ **No regression.** Kill rate is within tolerance of baseline.")
+
+    return "\n".join(lines), has_regression
+
+
 def main():
-    check_baseline = "--check-baseline" in sys.argv
+    check_regression = "--check-regression" in sys.argv
 
     cache = _query_cache()
     baseline = _load_baseline()
     report, any_below = build_report(cache, baseline)
 
-    print(report)
+    output_parts = [report]
+
+    if check_regression:
+        reg_report, has_regression = build_regression_report(cache, baseline)
+        output_parts.append(reg_report)
+    else:
+        has_regression = False
+
+    full_output = "\n\n".join(output_parts)
+    print(full_output)
 
     # Write to GitHub Step Summary if running in CI
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_file:
         with open(summary_file, "a") as f:
-            f.write(report + "\n")
+            f.write(full_output + "\n")
 
-    if check_baseline and any_below:
-        print("\n[mutation_report] One or more modules are below effective target.", file=sys.stderr)
+    if check_regression and has_regression:
+        print("\n[mutation_report] Regression detected — kill rate dropped beyond tolerance.",
+              file=sys.stderr)
         sys.exit(1)
 
     sys.exit(0)

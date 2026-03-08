@@ -1,6 +1,6 @@
 # Testing Strategy — LFA Practice Booking System
 
-> **Last updated:** Sprint 44 | **Coverage:** stmt 89.0%, branch 81.0%
+> **Last updated:** Sprint 45 | **Coverage:** stmt 89.0%, branch 81.0%
 
 ---
 
@@ -289,12 +289,12 @@ What the test catches:
 
 ---
 
-## Mutation Testing (Sprint 44)
+## Mutation Testing (Sprint 45)
 
 Mutation testing measures **test effectiveness beyond coverage**: if a test kills a mutant, it
 proves the test can detect that specific bug. Kill rate = (killed mutants) / (total mutants).
 
-**Project baseline: ≥70% kill rate per module** (project-wide target, set Sprint 44).
+**Project baseline: ≥70% kill rate per module, ≥73.5% combined** (regression threshold: −2pp).
 Machine-readable baseline: `tests/snapshots/mutation_baseline.json`.
 
 ### Target Modules
@@ -304,43 +304,38 @@ Machine-readable baseline: `tests/snapshots/mutation_baseline.json`.
 | `app/services/sandbox_verdict_calculator.py` | Pure scoring logic, 97% unit coverage | `test_sandbox_verdict_calculator.py` |
 | `app/services/specialization_validation.py` | Pure validation, 98% unit coverage | `test_specialization_validation.py` |
 | `app/services/credit_service.py` | Financial operations, high business risk | `test_credit_service.py`, `test_credit_service_unit.py` |
+| `app/services/license_authorization_service.py` | Access control — license level thresholds for teaching positions | `test_license_authorization_service.py` |
+| `app/services/gamification/xp_service.py` | XP arithmetic — engagement scoring and leaderboard input | `test_gamification_xp_service.py` |
 
-**Selection rationale:** Pure-logic modules (no complex mocking) with high existing coverage
-(mutations are reachable and thus catchable). Financial logic prioritized for high business risk.
+**Selection rationale:** Pure-logic modules (no complex external I/O) with high existing coverage
+(mutations are reachable and thus catchable). Financial/access-control modules prioritized for
+high business risk. Modules with ≥80 dedicated tests preferred.
 
 ### Sprint Trend
 
-| Sprint | sandbox | specialization | credit (raw) | credit (eff.) | Combined | Delta |
-|--------|---------|----------------|-------------|---------------|----------|-------|
-| 42     | 55%     | 81%            | 42%         | —             | 62.9%    | —     |
-| 43     | 70.1% ✅ | 81.3% ✅       | 54.5%       | —             | 72.5%    | +9.6pp |
-| 44 (projected) | 70.1% ✅ | 81.3% ✅ | ~66.7%   | ~100% ✅     | ~73.5%   | +1.0pp |
+| Sprint | Modules | Total Mutants | Killed | Combined | Delta |
+|--------|---------|---------------|--------|----------|-------|
+| 42     | 3       | 385           | 242    | 62.9%    | —     |
+| 43     | 3       | 385           | 279    | 72.5%    | +9.6pp |
+| 45     | **5**   | **718**       | **542**| **75.5% ✅** | +3.0pp |
 
-> **credit (eff.)** = killed / (total − acceptable survivors). Excludes logger-string mutants
-> and ORM-filter mock-bypass mutants that are architecturally untestable. See breakdown below.
+Per-module Sprint 45 breakdown:
 
-### Kill Rates (Sprint 43 Baseline)
+| Module | Mutants | Killed | Survived | Kill Rate | Sprint 43 | Delta |
+|--------|---------|--------|----------|-----------|-----------|-------|
+| `sandbox_verdict_calculator.py` | 224 | 157 | 67 | **70.1% ✅** | 70.1% | stable |
+| `specialization_validation.py` | 128 | 104 | 24 | **81.3% ✅** | 81.3% | stable |
+| `credit_service.py` | 33 | 22 | 11 | 66.7% raw / **100% eff. ✅** | 54.5% | +12.2pp |
+| `license_authorization_service.py` | 191 | 152 | 39 | **79.6% ✅** | — (new) | — |
+| `gamification/xp_service.py` | 142 | 107 | 35 | **75.4% ✅** | — (new) | — |
 
-Last full run: `.mutmut-cache` from Sprint 43 `--rerun-all`:
-
-| Module | Mutants | Killed | Survived | Kill Rate |
-|--------|---------|--------|----------|-----------|
-| `sandbox_verdict_calculator.py` | 224 | 157 | 67 | **70.1% ✅** |
-| `specialization_validation.py` | 128 | 104 | 24 | **81.3% ✅** |
-| `credit_service.py` | 33 | 18 | 15 | **54.5%** (eff. 81.8% ✅) |
-| **Combined** | **385** | **279** | **106** | **72.5% ✅** |
-
-Sprint 43 improvements: sandbox +15.1pp (17 targeted insight-dict tests), credit +12.5pp
-(new `test_credit_service_unit.py` for IntegrityError dead-code path).
-
-Sprint 44 improvements (4 targeted tests, projected):
-- `credit_service.py` lines 63/66/128: mutmut 2.x wraps strings as `"XX...XX"`.
-  `pytest.raises(match=...)` uses `re.search()` — the substring still matched.
-  Fixed with `str(exc_info.value) == "..."` exact-equality assertions.
-- `credit_service.py` line 135 (`@staticmethod`): calling on the *class* works in
-  Python 3 even without the decorator (no implicit `self` injection). Fixed by adding
-  an instance-level call — Python 3 injects `self`, causing `TypeError` if @staticmethod
-  is removed (5 args for 4-param signature).
+**Sprint 43 → 45 improvements:**
+- credit_service: 4 new exact-match tests (Sprint 44) killed all non-acceptable survivors.
+  All 11 remaining survivors are logger strings or ORM-filter mock-bypass — 100% effective rate.
+- license_authorization_service: 79.6% on first run — threshold comparisons (`>=`) and license
+  type guards are well-caught by the 84-test suite.
+- xp_service: 75.4% on first run — arithmetic mutations (XP amounts, bonus thresholds) caught
+  by value assertions in 48-test suite.
 
 ### Credit Service Survivor Breakdown
 
@@ -364,25 +359,49 @@ Would require a real-DB integration test to kill. Accepted as architectural limi
 
 **Effective kill rate** = 18 killed / (33 total − 11 acceptable) = **81.8% ✅**
 
+### Regression Gate
+
+The "Check for regressions" CI step (non-blocking) compares each run against the last sprint
+baseline in `mutation_baseline.json`:
+
+- **Combined regression**: current combined rate drops **≥2pp** below baseline → step turns red
+- **Per-module regression**: effective kill rate drops **≥3pp** below module baseline → step turns red
+- **Action required**: investigate surviving mutants with `mutmut show <id>` and add targeted tests
+
+A red regression step does **not** block PRs — it is a signal to prioritize before the next sprint.
+
+```bash
+# Run regression check locally
+python scripts/mutation_report.py --check-regression
+```
+
 ### Running Locally
 
 ```bash
-# Full run (10–30 min, cached after first run)
-bash scripts/run_mutation_tests.sh
+# Incremental run (only untested mutants — fast when expanding scope)
+python -m mutmut run
 
-# HTML report
-bash scripts/run_mutation_tests.sh --html
+# Full re-run (all mutants; use after major test changes)
+python -m mutmut run --rerun-all
 
-# View structured report (reads SQLite cache — does NOT use broken `mutmut results` CLI)
+# Structured report (reads SQLite cache — does NOT use broken `mutmut results` CLI)
 python scripts/mutation_report.py
+
+# Regression check
+python scripts/mutation_report.py --check-regression
 ```
 
 ### CI Workflow
 
 `.github/workflows/mutation-testing.yml` — **non-blocking**, manual + weekly (Saturday 04:00 UTC).
-Failures here do not prevent PRs from merging. After each run, the "Generate mutation report"
-step writes a Markdown kill-rate table to the GitHub Actions Step Summary (visible in the
-Actions UI without downloading any artifact).
+Failures here do not prevent PRs from merging.
+
+| Step | What it does |
+|------|-------------|
+| Verify test suite passes | Runs all 6 mutation-target test files as a sanity check |
+| Run mutation tests | `python -m mutmut run` (incremental — skips already-tested mutants) |
+| Generate mutation report | Reads `.mutmut-cache` SQLite → Markdown table in Step Summary |
+| Check for regressions | `--check-regression` flag → red step if ≥2pp combined drop |
 
 **When to update `mutation_baseline.json`:** After each sprint that changes kill rates, update
 `tests/snapshots/mutation_baseline.json` to record the new baseline and append to `history[]`.
