@@ -1,9 +1,9 @@
 {
-  "version": "sprint-47",
+  "version": "sprint-48",
   "last_updated": "2026-03-08",
   "project_target_kill_rate": 0.70,
   "milestone_kill_rate": 0.80,
-  "milestone_note": "Long-term target: ≥80% combined kill rate across all 7 modules. Current gap from Sprint 47 CI-confirmed: 2.0pp.",
+  "milestone_note": "≥80% milestone ACHIEVED in Sprint 48 CI-confirmed: 897/1116 = 80.4%. Regression gate: ≥78.0% (−2.4pp from 80.4%).",
   "history": [
     {"sprint": 42, "combined_kill_rate": 0.629, "total": 385, "killed": 242,
      "note": "3 modules; baseline run"},
@@ -14,17 +14,24 @@
     {"sprint": 46, "combined_kill_rate": 0.712, "total": 1116, "killed": 795,
      "note": "7 modules CI-confirmed; sandbox 72.8%, enrollment_conflict 56.7% (initial), license_renewal 70.2%"},
     {"sprint": 47, "combined_kill_rate": 0.780, "total": 1116, "killed": 871,
-     "note": "enrollment_conflict 56.7%→87.4% CI-confirmed (+76 kills); dict-structure + @staticmethod tests; 2.0pp from milestone"}
+     "note": "enrollment_conflict 56.7%→87.4% CI-confirmed (+76 kills); dict-structure + @staticmethod tests; 2.0pp from milestone"},
+    {"sprint": 48, "combined_kill_rate": 0.804, "total": 1116, "killed": 897,
+     "note": "MILESTONE ≥80% ACHIEVED. sandbox_verdict abs()/round(1)/≤count kills; license_renewal boundary + non-expired branch; CI run 22827511617 (+2.4pp from 78.0%)"}
   ],
+  "regression_gate": {
+    "sprint": 48,
+    "threshold": 0.780,
+    "note": "−2.4pp from Sprint 48 CI-confirmed 80.4%"
+  },
   "modules": {
     "app/services/sandbox_verdict_calculator.py": {
       "total": 224,
-      "killed": 163,
-      "kill_rate": 0.728,
+      "killed": 184,
+      "kill_rate": 0.821,
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"42": 0.554, "43": 0.701, "45": 0.701, "46": 0.701, "46_ci": 0.728, "47": 0.728}
+      "sprint_history": {"42": 0.554, "43": 0.701, "45": 0.701, "46": 0.701, "46_ci": 0.728, "47": 0.728, "48": 0.821}
     },
     "app/services/specialization_validation.py": {
       "total": 128,
@@ -33,7 +40,7 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"42": 0.813, "43": 0.813, "45": 0.813, "46": 0.813, "47": 0.812}
+      "sprint_history": {"42": 0.813, "43": 0.813, "45": 0.813, "46": 0.813, "47": 0.812, "48": 0.812}
     },
     "app/services/credit_service.py": {
       "total": 33,
@@ -56,7 +63,7 @@
           "reason": "SQLAlchemy filter expression (CreditTransaction.idempotency_key == key) is mocked away; changing == to != has no effect on mock return value. Requires real-DB integration test to kill."
         }
       },
-      "sprint_history": {"42": 0.424, "43": 0.545, "45": 0.667, "46": 0.667, "47": 0.667}
+      "sprint_history": {"42": 0.424, "43": 0.545, "45": 0.667, "46": 0.667, "47": 0.667, "48": 0.667}
     },
     "app/services/license_authorization_service.py": {
       "total": 191,
@@ -65,7 +72,7 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"45": 0.796, "46": 0.796, "47": 0.796}
+      "sprint_history": {"45": 0.796, "46": 0.796, "47": 0.796, "48": 0.796}
     },
     "app/services/gamification/xp_service.py": {
       "total": 142,
@@ -74,7 +81,7 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"45": 0.754, "46": 0.761, "47": 0.761}
+      "sprint_history": {"45": 0.754, "46": 0.761, "47": 0.761, "48": 0.761}
     },
     "app/services/enrollment_conflict_service.py": {
       "total": 247,
@@ -84,16 +91,16 @@
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
       "survivor_note": "31 survivors: ~20 in DB-heavy query filter mutations (SemesterEnrollment/SessionModel/Booking filter args — require real-DB to kill), ~11 in string literal mutations in check_session_time_conflict early-return paths.",
-      "sprint_history": {"46": 0.567, "47": 0.874}
+      "sprint_history": {"46": 0.567, "47": 0.874, "48": 0.874}
     },
     "app/services/license_renewal_service.py": {
       "total": 151,
-      "killed": 106,
-      "kill_rate": 0.702,
+      "killed": 111,
+      "kill_rate": 0.735,
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"46": 0.702, "47": 0.702}
+      "sprint_history": {"46": 0.702, "47": 0.702, "48": 0.735}
     }
   }
 }
