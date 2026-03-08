@@ -1,6 +1,6 @@
 # Testing Strategy — LFA Practice Booking System
 
-> **Last updated:** Sprint 39 | **Coverage:** stmt 88.4%, branch 79.8%
+> **Last updated:** Sprint 40 | **Coverage:** stmt 89.0%, branch 81.0%
 
 ---
 
@@ -11,7 +11,7 @@
             │   Cypress E2E   │  cypress/    (7 specs, browser-level)
             │   (UI flows)    │
         ┌───┴─────────────────┴───┐
-        │  Blocking E2E Gates (16)│  tests/e2e/integration_critical/
+        │  Blocking E2E Gates (17)│  tests/e2e/integration_critical/
         │  (live server, real DB) │
     ┌───┴─────────────────────────┴───┐
     │  Integration / Smoke Tests      │  tests/integration/
@@ -54,6 +54,7 @@ Every gate runs after `unit-tests` succeeds. All must be **green** before merge.
 | `auth-lifecycle-gate` | 6 E2E tests | Login → token → refresh → protected endpoint (3× flake detection) |
 | `enrollment-workflow-gate` | 3 E2E tests | Enroll → auto-approve → duplicate rejected (3× flake detection) |
 | `user-account-gate` | 3 E2E tests | Password change → old creds fail → new creds work (3× flake detection) |
+| `instructor-assignment-lifecycle-gate` | 4 E2E tests | Admin assigns instructor → accept/decline, auth guards (3× flake detection) |
 
 ---
 
@@ -170,11 +171,18 @@ assert resp.status_code < 500
 
 ## Coverage Targets
 
-| Metric | CI Threshold | Sprint 39 Actual |
+| Metric | CI Threshold | Sprint 40 Actual |
 |--------|-------------|-----------------|
-| Statement | ≥ 75% | 88.4% |
-| Branch (pure) | ≥ 78% | 79.8% |
-| Combined | ≥ 75% | ~87% |
+| Statement | ≥ 75% | 89.0% |
+| Branch (pure) | ≥ 78% | 81.0% |
+| Combined | ≥ 75% | ~88% |
+
+## Test Performance Baseline (Sprint 40 `--durations=20`)
+
+Unit suite profiled locally after Sprint 39 changes:
+- **Total:** 6307 tests in ~23s — all sub-300ms per test
+- **Slowest:** 0.26s (`test_skill_progression_service.py`)
+- **Conclusion:** No optimization needed. The `--durations=20` CI flag (added Sprint 39) will surface any future regressions.
 
 Coverage is measured by `python .github/scripts/check_coverage.py` in the `unit-tests` CI job.
 
