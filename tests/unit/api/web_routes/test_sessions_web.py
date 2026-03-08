@@ -226,6 +226,95 @@ class TestSessionsPage:
         ctx = mock_tmpl.TemplateResponse.call_args.args[1]
         assert ctx["is_instructor"] is False
 
+    def test_student_enrolled_session_attendance_and_instructor_name(self):
+        """Student is enrolled → attendance + review queries run; instructor_id set → name resolved.
+        Covers lines 134-139, 173-174, 187-191."""
+        user = _student(uid=99)
+
+        enrollment = MagicMock()
+        enrollment.semester_id = 10
+
+        # Booking that matches this user and session
+        booking_obj = MagicMock()
+        booking_obj.session_id = 1
+        booking_obj.user_id = 99
+
+        session_obj = MagicMock()
+        session_obj.id = 1
+        session_obj.instructor_id = 42        # truthy → instructor name query
+        session_obj.session_type = SessionType.on_site  # not virtual
+        session_obj.date_start = _now_budapest() + timedelta(hours=14)
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        db = MagicMock()
+        # .all() sequence: approved_enrollments, my_bookings
+        db.query.return_value.filter.return_value.all.side_effect = [
+            [enrollment], [booking_obj],
+        ]
+        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [session_obj]
+        db.query.return_value.filter.return_value.count.return_value = 3
+        # .first() sequence inside loop:
+        # 1. attendance (enrolled) → None
+        # 2. instructor_review → None
+        # 3. instructor name → instructor_obj
+        # 4. performance_review (enrolled) → None
+        db.query.return_value.filter.return_value.first.side_effect = [
+            None, None, instructor_obj, None,
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(sessions_page(request=_req(), db=db, user=user))
+
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["is_instructor"] is False
+        assert session_obj.instructor_name == "Coach"
+
+    def test_student_enrolled_virtual_session_quiz_completed(self):
+        """Enrolled student on a VIRTUAL session with a required quiz passed → quiz_completed=True.
+        Covers lines 151-166."""
+        user = _student(uid=99)
+
+        enrollment = MagicMock()
+        enrollment.semester_id = 10
+
+        booking_obj = MagicMock()
+        booking_obj.session_id = 1
+        booking_obj.user_id = 99
+
+        session_obj = MagicMock()
+        session_obj.id = 1
+        session_obj.instructor_id = None
+        session_obj.session_type = SessionType.virtual  # triggers quiz check
+        session_obj.date_start = _now_budapest() + timedelta(hours=14)
+
+        sq = MagicMock()
+        sq.is_required = True
+        sq.quiz_id = 5
+
+        passed_attempt = MagicMock()
+
+        db = MagicMock()
+        # .all(): approved_enrollments, my_bookings, SessionQuiz list
+        db.query.return_value.filter.return_value.all.side_effect = [
+            [enrollment], [booking_obj], [sq],
+        ]
+        db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [session_obj]
+        db.query.return_value.filter.return_value.count.return_value = 1
+        # .first(): attendance=None, instructor_review=None, QuizAttempt=passed,
+        #           performance_review=None (line 187)
+        db.query.return_value.filter.return_value.first.side_effect = [
+            None, None, passed_attempt, None,
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(sessions_page(request=_req(), db=db, user=user))
+
+        assert session_obj.quiz_completed is True
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # book_session
@@ -466,3 +555,192 @@ class TestSessionDetails:
 
         template_name = mock_tmpl.TemplateResponse.call_args.args[0]
         assert template_name == "session_details.html"
+
+    def test_booking_loop_with_attendance_history_and_student_review(self):
+        """Booking loop: student has attendance → history queried; student_review found →
+        performance_review dict built. Covers lines 354-360, 372, 380."""
+        user = _student(uid=99)
+        s = self._make_session_obj(user_id=42)
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        booking = MagicMock()
+        booking.user_id = 55          # different from user.id → is_enrolled=False
+        booking.id = 7
+
+        student_obj = MagicMock()
+        student_obj.id = 55
+        student_obj.name = "OtherStudent"
+        student_obj.email = "other@test.com"
+
+        attendance = MagicMock()
+        attendance.id = 10
+
+        h_record = MagicMock()
+        h_record.changed_by = 42
+        h_record.change_type = "update"
+        h_record.old_value = "absent"
+        h_record.new_value = "present"
+        h_record.reason = "late arrival"
+        h_record.created_at = _now_budapest()
+
+        changer_obj = MagicMock()
+        changer_obj.name = "Coach"
+
+        sr = MagicMock()
+        sr.punctuality = 8
+        sr.engagement = 9
+        sr.focus = 7
+        sr.collaboration = 8
+        sr.attitude = 9
+        sr.comments = "Good"
+        sr.average_score = 8.2
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [booking]
+        # history_records: filter().order_by().all()
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [h_record]
+        db.query.return_value.filter.return_value.count.return_value = 0
+        # .first() sequence:
+        # 1. session, 2. instructor_obj,
+        # booking loop: 3. student_obj, 4. attendance(found), 5. changer_obj, 6. sr(found)
+        # student NOT enrolled (booking.user_id=55 != user.id=99) → no my_attendance queries
+        db.query.return_value.filter.return_value.first.side_effect = [
+            s, instructor_obj,
+            student_obj, attendance, changer_obj, sr,
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(session_details(request=_req(), session_id=1, db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "session_details.html"
+
+    def test_session_details_hybrid_session_loads_quiz_data_for_student(self):
+        """Hybrid session: quiz data loaded for enrolled student. Covers lines 448-524 student path."""
+        user = _student(uid=99)
+
+        s = MagicMock()
+        s.id = 1
+        s.instructor_id = 42
+        s.session_type = MagicMock()
+        s.session_type.value = "hybrid"
+        now = _now_budapest()
+        s.date_start = now + timedelta(hours=2)
+        s.date_end = now + timedelta(hours=3)
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        booking = MagicMock()
+        booking.user_id = 99          # enrolled student
+        booking.id = 7
+
+        sq = MagicMock()
+        sq.quiz_id = 5
+
+        quiz_obj = MagicMock()
+        quiz_obj.id = 5
+        quiz_obj.title = "Tactics Quiz"
+        quiz_obj.description = "Test"
+        quiz_obj.passing_score = 0.75
+        quiz_obj.time_limit_minutes = 30
+
+        attempt = MagicMock()
+        attempt.score = 80.0
+        attempt.passed = True
+        attempt.completed_at = _now_budapest()
+        attempt.correct_answers = 8
+        attempt.total_questions = 10
+
+        db = MagicMock()
+        # .all(): bookings=[booking], sq_records=[sq]
+        db.query.return_value.filter.return_value.all.side_effect = [[booking], [sq]]
+        # QuizAttempt.order_by().all() for student attempts
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [attempt]
+        db.query.return_value.filter.return_value.count.return_value = 10
+        student_in_loop = MagicMock()
+        student_in_loop.id = 99
+        # .first(): session, instructor_obj, student(loop), attendance=None(loop),
+        #           my_attendance=None(enrolled check), quiz_obj
+        db.query.return_value.filter.return_value.first.side_effect = [
+            s, instructor_obj,
+            student_in_loop, None,
+            None,
+            quiz_obj,
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(session_details(request=_req(), session_id=1, db=db, user=user))
+
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["session_quizzes"] != []
+
+    def test_session_details_hybrid_session_instructor_quiz_results(self):
+        """Hybrid session: instructor view → student quiz results loaded. Covers lines 475-524."""
+        user = _instructor(uid=42)
+
+        s = MagicMock()
+        s.id = 1
+        s.instructor_id = 42
+        s.session_type = MagicMock()
+        s.session_type.value = "hybrid"
+        now = _now_budapest()
+        s.date_start = now - timedelta(hours=1)
+        s.date_end = now + timedelta(hours=1)
+
+        instructor_obj = MagicMock()
+        instructor_obj.name = "Coach"
+
+        booking = MagicMock()
+        booking.user_id = 55
+        booking.id = 7
+
+        sq = MagicMock()
+        sq.quiz_id = 5
+
+        quiz_obj = MagicMock()
+        quiz_obj.id = 5
+        quiz_obj.title = "Tactics Quiz"
+        quiz_obj.description = "Test"
+        quiz_obj.passing_score = 0.75
+        quiz_obj.time_limit_minutes = 30
+
+        student_result_user = MagicMock()
+        student_result_user.id = 55
+        student_result_user.name = "Student"
+        student_result_user.email = "s@test.com"
+
+        attempt = MagicMock()
+        attempt.score = 90.0
+        attempt.passed = True
+        attempt.completed_at = _now_budapest()
+        attempt.correct_answers = 9
+        attempt.total_questions = 10
+        attempt.time_spent_minutes = 15
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.side_effect = [[booking], [sq]]
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [attempt]
+        db.query.return_value.filter.return_value.count.return_value = 10
+        student_in_loop = MagicMock()
+        student_in_loop.id = 55
+        # .first(): session, instructor_obj,
+        #   booking loop: student_in_loop, attendance=None,
+        #   instructor quiz results: student_result_user, quiz_obj
+        db.query.return_value.filter.return_value.first.side_effect = [
+            s, instructor_obj,
+            student_in_loop, None,
+            student_result_user,
+            quiz_obj,
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(session_details(request=_req(), session_id=1, db=db, user=user))
+
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["session_quizzes"] != []

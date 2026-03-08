@@ -1,6 +1,7 @@
 {
-  "version": "sprint-49",
+  "version": "sprint-50",
   "last_updated": "2026-03-08",
+  "sprint_50_coverage_note": "web_routes coverage sprint: attendance 96%, instructor 79%, quiz 87%, sessions 96% (sessions: 69%→96%). Unit stmt 87.0%, branch 80.0%. 6744 tests total (+123 new). Mutation: 895/1116=80.2% (≥80% milestone maintained). Smoke seed-collision fix: conftest.py uuid4 suffix.",
   "sprint_49_coverage_note": "Infra 0%-coverage eliminated: tasks/scheduler.py 0%→100%, tasks/tournament_tasks.py 0%→95%, core/health.py 25%→98%, middleware/security.py 28%→96%. Unit-only stmt 84.4%→85.1% (+0.7pp), branch 76.4%→77.0% (+0.6pp). 138 new tests, 6621 total.",
   "project_target_kill_rate": 0.70,
   "milestone_kill_rate": 0.80,
