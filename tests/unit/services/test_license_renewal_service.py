@@ -379,3 +379,53 @@ class TestGetLicenseStatus:
         lic = _license(expires_at=_now() - timedelta(days=1), is_active=True)
         result = LicenseRenewalService.get_license_status(lic)
         assert result["is_active"] is False
+
+
+class TestGetLicenseStatusBoundaries:
+    """
+    Targeted boundary tests to kill comparison-operator mutants in get_license_status.
+
+    Production line 313: is_expired = days_until_expiration < 0
+    Production line 314: expiring_soon = 0 < days_until_expiration <= 30
+
+    Killed mutants:
+      1094: < 0  →  <= 0  (days=0 wrongly becomes expired)
+      1095: < 0  →  < 1   (days=0 wrongly becomes expired)
+      1097: 0 <  →  1 <   (days=1 wrongly not expiring_soon)
+      1098: 0 <  →  0 <=  (days=0 wrongly becomes expiring_soon)
+      1099: <= 30 →  < 30  (days=30 wrongly becomes active)
+      1100: <= 30 →  <= 31 (days=31 wrongly becomes expiring_soon)
+    """
+
+    def test_zero_days_left_is_active_not_expired(self):
+        # days_until_expiration = 0 (expires in a few seconds — same day, .days = 0)
+        # Not expired (< 0 is False), not expiring_soon (0 < 0 <= 30 is False) → active
+        lic = _license(expires_at=_now() + timedelta(seconds=30), is_active=True)
+        result = LicenseRenewalService.get_license_status(lic)
+        assert result["days_until_expiration"] == 0
+        assert result["is_expired"] is False
+        assert result["needs_renewal"] is False
+        assert result["status"] == "active"
+
+    def test_one_day_left_is_expiring_soon(self):
+        # days_until_expiration = 1 → expiring_soon (0 < 1 <= 30 → True)
+        # Use +25h so days=1 despite any microsecond drift in test execution
+        lic = _license(expires_at=_now() + timedelta(hours=25), is_active=True)
+        result = LicenseRenewalService.get_license_status(lic)
+        assert result["status"] == "expiring_soon"
+        assert result["needs_renewal"] is True
+
+    def test_exactly_30_days_left_is_expiring_soon(self):
+        # days_until_expiration = 30 → expiring_soon (0 < 30 <= 30 → True)
+        # Use +30d+1h so days=30 despite any drift
+        lic = _license(expires_at=_now() + timedelta(days=30, hours=1), is_active=True)
+        result = LicenseRenewalService.get_license_status(lic)
+        assert result["status"] == "expiring_soon"
+        assert result["needs_renewal"] is True
+
+    def test_exactly_31_days_left_is_active(self):
+        # days_until_expiration = 31 → active (0 < 31 <= 30 → False)
+        lic = _license(expires_at=_now() + timedelta(days=31, hours=1), is_active=True)
+        result = LicenseRenewalService.get_license_status(lic)
+        assert result["status"] == "active"
+        assert result["needs_renewal"] is False

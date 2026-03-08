@@ -15,6 +15,10 @@ Usage:
 In CI this script also writes Markdown to $GITHUB_STEP_SUMMARY when that
 environment variable is set (GitHub Actions). Always exits 0 unless
 --check-regression is passed (non-blocking by default).
+
+Dashboard:
+  Sprint trend bar chart (ASCII) is appended to the report for visual tracking.
+  Long-term milestone target is read from baseline['milestone_kill_rate'].
 """
 
 import json
@@ -34,6 +38,8 @@ _SHORT = {
     "app/services/credit_service.py": "credit_service",
     "app/services/license_authorization_service.py": "license_authorization_service",
     "app/services/gamification/xp_service.py": "xp_service",
+    "app/services/enrollment_conflict_service.py": "enrollment_conflict_service",
+    "app/services/license_renewal_service.py": "license_renewal_service",
 }
 
 # Regression tolerances
@@ -99,6 +105,65 @@ def _effective_rate(killed, total, acceptable):
     effective_total = total - acceptable
     effective_killed = min(killed, effective_total)
     return _pct(effective_killed, effective_total), effective_total
+
+
+def _bar(rate_pct, width=20):
+    """ASCII progress bar: ████████████░░░░░░░░ for a given percentage (0–100)."""
+    filled = round(rate_pct / 100 * width)
+    return "█" * filled + "░" * (width - filled)
+
+
+def build_dashboard(baseline, current_combined_rate=None, current_total_killed=None, current_total_all=None):
+    """
+    Build an ASCII bar chart showing the sprint-by-sprint combined kill rate trend.
+    Includes the long-term milestone target line if defined in baseline.
+    Returns a Markdown code block string.
+    """
+    if not baseline or not baseline.get("history"):
+        return ""
+
+    milestone = baseline.get("milestone_kill_rate")  # e.g. 0.80
+    target = baseline.get("project_target_kill_rate", 0.70)
+
+    lines = []
+    lines.append("### Kill Rate Trend Dashboard")
+    lines.append("")
+    lines.append("```")
+    lines.append(f"  Combined kill rate — target ≥{int(target * 100)}%"
+                 + (f"  |  milestone ≥{int(milestone * 100)}%" if milestone else ""))
+    lines.append("")
+
+    for entry in baseline["history"]:
+        sp = entry["sprint"]
+        r = entry["combined_kill_rate"] * 100
+        bar = _bar(r)
+        lines.append(f"  Sprint {sp:>2}  {bar}  {r:.1f}%")
+
+    # Current run row (from live cache)
+    if current_total_all and current_total_all > 0:
+        r = current_combined_rate
+        bar = _bar(r)
+        lines.append(f"  Current   {bar}  {r:.1f}%  ({current_total_killed}/{current_total_all})")
+
+    lines.append("")
+    # Target line
+    target_bar = _bar(target * 100)
+    lines.append(f"  Target    {target_bar}  {int(target * 100)}%  (per-module minimum)")
+    if milestone:
+        m_bar = _bar(milestone * 100)
+        lines.append(f"  Milestone {m_bar}  {int(milestone * 100)}%  (long-term goal)")
+    lines.append("```")
+    lines.append("")
+
+    if milestone:
+        gap = milestone * 100 - (current_combined_rate or 0)
+        if gap > 0 and current_total_all:
+            lines.append(f"> Milestone gap: **{gap:.1f}pp** to reach ≥{int(milestone * 100)}% "
+                         f"combined kill rate.")
+        elif current_total_all:
+            lines.append(f"> Milestone **≥{int(milestone * 100)}%** achieved! 🎯")
+
+    return "\n".join(lines)
 
 
 def build_report(cache, baseline):
@@ -167,9 +232,12 @@ def build_report(cache, baseline):
 
     # Combined row
     combined_rate = _pct(total_killed, total_all)
+    milestone = (baseline or {}).get("milestone_kill_rate", 0.70)
+    milestone_pct = int(milestone * 100)
+    combined_status = "✅" if combined_rate >= milestone_pct else f"⬆️ milestone ≥{milestone_pct}%"
     lines.append(
         f"| **Combined** | **{total_all}** | **{total_killed}** | **{total_survived}** "
-        f"| **{combined_rate}%** | ≥70% | {'✅' if combined_rate >= 70 else '❌'} |"
+        f"| **{combined_rate}%** | ≥{milestone_pct}% | {combined_status} |"
     )
     lines.append("")
 
@@ -194,6 +262,16 @@ def build_report(cache, baseline):
             lines.append(f"| **Current** | **{total_killed}** | **{total_all}** "
                          f"| **{combined_rate}%** | {delta} |")
         lines.append("")
+
+    # ASCII bar chart dashboard
+    dashboard = build_dashboard(
+        baseline,
+        current_combined_rate=combined_rate if total_all > 0 else None,
+        current_total_killed=total_killed if total_all > 0 else None,
+        current_total_all=total_all if total_all > 0 else None,
+    )
+    if dashboard:
+        lines.append(dashboard)
 
     lines.append("> **Non-blocking:** surviving mutants do not prevent PRs from merging.")
     lines.append("> Track kill rate trends in `TESTING.md` — Mutation Testing section.")

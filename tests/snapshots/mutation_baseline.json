@@ -1,14 +1,18 @@
 {
-  "version": "sprint-45",
+  "version": "sprint-46",
   "last_updated": "2026-03-08",
   "project_target_kill_rate": 0.70,
+  "milestone_kill_rate": 0.80,
+  "milestone_note": "Long-term target: ≥80% combined kill rate across all 7 modules. Current gap from Sprint 46 baseline: ~9.3pp.",
   "history": [
     {"sprint": 42, "combined_kill_rate": 0.629, "total": 385, "killed": 242,
      "note": "3 modules; baseline run"},
     {"sprint": 43, "combined_kill_rate": 0.725, "total": 385, "killed": 279,
      "note": "3 modules; sandbox +15pp, credit +12pp"},
     {"sprint": 45, "combined_kill_rate": 0.755, "total": 718, "killed": 542,
-     "note": "5 modules; credit 100% effective, xp_service 75.4%, license_auth 79.6%"}
+     "note": "5 modules; credit 100% effective, xp_service 75.4%, license_auth 79.6%"},
+    {"sprint": 46, "combined_kill_rate": 0.707, "total": 1116, "killed": 789,
+     "note": "7 modules; enrollment_conflict (56.7% initial), license_renewal (70.2%), dashboard added"}
   ],
   "modules": {
     "app/services/sandbox_verdict_calculator.py": {
@@ -18,7 +22,7 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"42": 0.554, "43": 0.701, "45": 0.701}
+      "sprint_history": {"42": 0.554, "43": 0.701, "45": 0.701, "46": 0.701}
     },
     "app/services/specialization_validation.py": {
       "total": 128,
@@ -27,7 +31,7 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"42": 0.813, "43": 0.813, "45": 0.813}
+      "sprint_history": {"42": 0.813, "43": 0.813, "45": 0.813, "46": 0.813}
     },
     "app/services/credit_service.py": {
       "total": 33,
@@ -50,7 +54,7 @@
           "reason": "SQLAlchemy filter expression (CreditTransaction.idempotency_key == key) is mocked away; changing == to != has no effect on mock return value. Requires real-DB integration test to kill."
         }
       },
-      "sprint_history": {"42": 0.424, "43": 0.545, "45": 0.667}
+      "sprint_history": {"42": 0.424, "43": 0.545, "45": 0.667, "46": 0.667}
     },
     "app/services/license_authorization_service.py": {
       "total": 191,
@@ -59,16 +63,35 @@
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"45": 0.796}
+      "sprint_history": {"45": 0.796, "46": 0.796}
     },
     "app/services/gamification/xp_service.py": {
       "total": 142,
-      "killed": 107,
-      "kill_rate": 0.754,
+      "killed": 108,
+      "kill_rate": 0.761,
       "target": 0.70,
       "acceptable_survivors": [],
       "acceptable_survivor_count": 0,
-      "sprint_history": {"45": 0.754}
+      "sprint_history": {"45": 0.754, "46": 0.761}
+    },
+    "app/services/enrollment_conflict_service.py": {
+      "total": 247,
+      "killed": 140,
+      "kill_rate": 0.567,
+      "target": 0.70,
+      "acceptable_survivors": [],
+      "acceptable_survivor_count": 0,
+      "survivor_note": "107 survivors; ~95 are in DB-heavy check_enrollment_conflicts() dict-building (conflict_type/severity string literals, null-guard mutations in conflict result dict). Pure static methods are well-covered. Sprint 47: add targeted tests for dict-structure assertions.",
+      "sprint_history": {"46": 0.567}
+    },
+    "app/services/license_renewal_service.py": {
+      "total": 151,
+      "killed": 106,
+      "kill_rate": 0.702,
+      "target": 0.70,
+      "acceptable_survivors": [],
+      "acceptable_survivor_count": 0,
+      "sprint_history": {"46": 0.702}
     }
   }
 }

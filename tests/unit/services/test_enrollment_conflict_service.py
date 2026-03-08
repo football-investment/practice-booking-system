@@ -583,3 +583,116 @@ class TestCheckSessionTimeConflictWithSessions:
 
         assert result["has_conflict"] is False
         assert result["conflicts"] == []
+
+
+# ===========================================================================
+# Targeted mutation-killing tests (Sprint 46)
+# ===========================================================================
+
+class TestGetEnrollmentTypeMutantTargets:
+    """
+    Kill XX-string mutants on the MINI_SEASON branch spec list (line 357).
+    mutmut wraps individual list items to "XX...XX"; tests must use those exact values.
+    Killed mutants: 890 (YOUTH→XX), 891 (AMATEUR→XX), 892 (PRO→XX)
+    """
+
+    def _semester(self, spec_value, code="SEM-001"):
+        sem = MagicMock()
+        sem.specialization_type = spec_value
+        sem.code = code
+        return sem
+
+    def test_lfa_player_youth_is_mini_season(self):
+        sem = self._semester("LFA_PLAYER_YOUTH", code="SEM-2026")
+        assert EnrollmentConflictService._get_enrollment_type(sem) == "MINI_SEASON"
+
+    def test_lfa_player_amateur_is_mini_season(self):
+        sem = self._semester("LFA_PLAYER_AMATEUR", code="SEM-2026")
+        assert EnrollmentConflictService._get_enrollment_type(sem) == "MINI_SEASON"
+
+    def test_lfa_player_pro_is_mini_season(self):
+        sem = self._semester("LFA_PLAYER_PRO", code="SEM-2026")
+        assert EnrollmentConflictService._get_enrollment_type(sem) == "MINI_SEASON"
+
+
+class TestHasTimeOverlapMutantTargets:
+    """
+    Kill operator-mutation survivors in _has_time_overlap (line 404) and
+    @staticmethod removal mutant (line 407).
+
+    Killed mutants:
+      922: s1.date_start < s2.date_end  →  <=  (reverse-adjacent: s2 ends when s1 starts)
+      925: @staticmethod removed from _has_time_overlap (instance call injects self → TypeError)
+    """
+
+    def test_reverse_adjacent_no_overlap(self):
+        # s2: 08:00-10:00, s1: 10:00-12:00  → s2.date_end == s1.date_start → no overlap
+        # Mutant (<= instead of <): s1.date_start <= s2.date_end → 10:00 <= 10:00 True AND
+        #   s2.date_start < s1.date_end → 08:00 < 12:00 True → would wrongly return True
+        s1 = _session(_dt(10), _dt(12))
+        s2 = _session(_dt(8), _dt(10))
+        assert EnrollmentConflictService._has_time_overlap(s1, s2) is False
+
+    def test_instance_call_preserves_staticmethod_behaviour(self):
+        # Calling via instance on the original code works fine.
+        # With @staticmethod removed, Python injects self as first arg → TypeError.
+        s1 = _session(_dt(10), _dt(12))
+        s2 = _session(_dt(11), _dt(13))
+        result = EnrollmentConflictService()._has_time_overlap(s1, s2)
+        assert result is True
+
+
+class TestHasTravelConflictMutantTargets:
+    """
+    Kill or→and mutant (line 424) and boundary mutants on `0 <= min_gap < BUFFER` (line 444).
+
+    Killed mutants:
+      942: `not location1 or not location2`  →  `not location1 and not location2`
+           (only one location None still triggers early-return with `or`, not with `and`)
+      951: 0 <= min_gap  →  1 <= min_gap  (gap=0 is conflict, but 1<=0 is False)
+      952: 0 <= min_gap  →  0 < min_gap   (gap=0 is conflict, but 0<0 is False)
+      953: min_gap < 30  →  min_gap <= 30 (gap=30 is NOT a conflict, but <=30 is True)
+    """
+
+    def test_one_location_none_other_present_returns_false(self):
+        # Only location2 provided, location1 is None.
+        # Original `or`: True OR False = True → returns False (correct)
+        # Mutant `and`: True AND False = False → proceeds → None.get() → AttributeError
+        s1 = _session(_dt(10), _dt(11))
+        s2 = _session(_dt(11, m=15), _dt(12))
+        loc2 = {"location_id": 2}
+        assert EnrollmentConflictService._has_travel_conflict(s1, None, s2, loc2) is False
+
+    def test_zero_minute_gap_different_locations_is_conflict(self):
+        # s1: 09:00-10:00, s2: 10:00-11:00 — gap = 0 min, different locations → conflict
+        # Original: 0 <= 0 < 30 → True (conflict)
+        # Mutant 951 (1<=): 1 <= 0 → False (no conflict) — WRONG
+        # Mutant 952 (0<):  0 < 0 → False (no conflict) — WRONG
+        s1 = _session(_dt(9), _dt(10))
+        s2 = _session(_dt(10), _dt(11))
+        loc1 = {"location_id": 1}
+        loc2 = {"location_id": 2}
+        assert EnrollmentConflictService._has_travel_conflict(s1, loc1, s2, loc2) is True
+
+    def test_exactly_30_minute_gap_is_not_conflict(self):
+        # s1: 09:00-10:00, s2: 10:30-11:30 — gap = 30 min → NOT a conflict (strict <30)
+        # Mutant 953 (<=30): 0 <= 30 <= 30 → True (conflict) — WRONG
+        s1 = _session(_dt(9), _dt(10))
+        s2 = _session(_dt(10, 30), _dt(11, 30))
+        loc1 = {"location_id": 1}
+        loc2 = {"location_id": 2}
+        assert EnrollmentConflictService._has_travel_conflict(s1, loc1, s2, loc2) is False
+
+
+class TestCalculateTimeGapMutantTargets:
+    """
+    Kill @staticmethod removal mutant on _calculate_time_gap (line 446).
+    Killed mutant: 954 (@staticmethod removed → instance call injects self → TypeError)
+    """
+
+    def test_instance_call_preserves_staticmethod_behaviour(self):
+        from datetime import time as time_cls
+        result = EnrollmentConflictService()._calculate_time_gap(
+            time_cls(10, 0), time_cls(11, 30)
+        )
+        assert result == 90

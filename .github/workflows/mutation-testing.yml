@@ -10,9 +10,12 @@ name: Mutation Testing (Non-Blocking)
 #   app/services/credit_service.py                   -- financial logic (high business risk)
 #   app/services/license_authorization_service.py    -- access control (100% unit coverage)
 #   app/services/gamification/xp_service.py          -- XP arithmetic (100% unit coverage)
+#   app/services/enrollment_conflict_service.py      -- enrollment/booking domain (93% coverage)
+#   app/services/license_renewal_service.py          -- payment/license domain (97% coverage)
 #
-# Baseline kill rates (Sprint 45): see TESTING.md — Mutation Testing section
+# Baseline kill rates (Sprint 46): see TESTING.md — Mutation Testing section
 # Machine-readable baseline: tests/snapshots/mutation_baseline.json
+# Long-term milestone target: ≥80% combined kill rate (current: 70.7%, gap: ~9.3pp)
 # Report script (SQLite-based, bypasses broken mutmut CLI): scripts/mutation_report.py
 
 on:
@@ -22,7 +25,7 @@ on:
 
 jobs:
   mutation-testing:
-    name: Mutation Testing — 5 Service Modules
+    name: Mutation Testing — 7 Service Modules
     runs-on: ubuntu-latest
 
     services:
@@ -74,6 +77,8 @@ jobs:
           tests/unit/services/test_credit_service_unit.py \
           tests/unit/services/test_license_authorization_service.py \
           tests/unit/services/test_gamification_xp_service.py \
+          tests/unit/services/test_enrollment_conflict_service.py \
+          tests/unit/services/test_license_renewal_service.py \
           -q --tb=short
 
     - name: Run mutation tests

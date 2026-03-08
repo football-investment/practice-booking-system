@@ -289,27 +289,30 @@ What the test catches:
 
 ---
 
-## Mutation Testing (Sprint 45)
+## Mutation Testing (Sprint 46)
 
 Mutation testing measures **test effectiveness beyond coverage**: if a test kills a mutant, it
 proves the test can detect that specific bug. Kill rate = (killed mutants) / (total mutants).
 
-**Project baseline: ≥70% kill rate per module, ≥73.5% combined** (regression threshold: −2pp).
+**Project baseline: ≥70% kill rate per module, 70.7% combined** (regression threshold: −2pp).
+**Long-term milestone: ≥80% combined kill rate** (current gap: ~9.3pp).
 Machine-readable baseline: `tests/snapshots/mutation_baseline.json`.
 
-### Target Modules
+### Target Modules (7 modules)
 
-| Module | Rationale | Unit Test Files |
-|--------|-----------|----------------|
-| `app/services/sandbox_verdict_calculator.py` | Pure scoring logic, 97% unit coverage | `test_sandbox_verdict_calculator.py` |
-| `app/services/specialization_validation.py` | Pure validation, 98% unit coverage | `test_specialization_validation.py` |
-| `app/services/credit_service.py` | Financial operations, high business risk | `test_credit_service.py`, `test_credit_service_unit.py` |
-| `app/services/license_authorization_service.py` | Access control — license level thresholds for teaching positions | `test_license_authorization_service.py` |
-| `app/services/gamification/xp_service.py` | XP arithmetic — engagement scoring and leaderboard input | `test_gamification_xp_service.py` |
+| Module | Domain | Rationale | Coverage | Test File(s) |
+|--------|--------|-----------|----------|-------------|
+| `sandbox_verdict_calculator.py` | Scoring | Pure scoring logic | 97% | `test_sandbox_verdict_calculator.py` |
+| `specialization_validation.py` | Enrollment | Pure validation | 98% | `test_specialization_validation.py` |
+| `credit_service.py` | Payment | Financial operations, high business risk | 96% | `test_credit_service.py`, `test_credit_service_unit.py` |
+| `license_authorization_service.py` | Access control | License level threshold guards | 100% | `test_license_authorization_service.py` |
+| `gamification/xp_service.py` | Gamification | XP arithmetic | 100% | `test_gamification_xp_service.py` |
+| `enrollment_conflict_service.py` | **Booking/Enrollment** | Time-overlap/travel conflict detection | 93% | `test_enrollment_conflict_service.py` |
+| `license_renewal_service.py` | **Payment** | License renewal credits, expiry logic | 97% | `test_license_renewal_service.py` |
 
-**Selection rationale:** Pure-logic modules (no complex external I/O) with high existing coverage
-(mutations are reachable and thus catchable). Financial/access-control modules prioritized for
-high business risk. Modules with ≥80 dedicated tests preferred.
+**Selection rationale:** Pure-logic modules with high existing coverage (mutations are reachable
+and catchable). Financial/access-control/booking modules prioritized for business risk.
+Sprint 46 expands into the booking and payment domains as requested.
 
 ### Sprint Trend
 
@@ -317,47 +320,71 @@ high business risk. Modules with ≥80 dedicated tests preferred.
 |--------|---------|---------------|--------|----------|-------|
 | 42     | 3       | 385           | 242    | 62.9%    | —     |
 | 43     | 3       | 385           | 279    | 72.5%    | +9.6pp |
-| 45     | **5**   | **718**       | **542**| **75.5% ✅** | +3.0pp |
+| 45     | 5       | 718           | 542    | 75.5%    | +3.0pp |
+| 46     | **7**   | **1116**      | **789**| **70.7% ✅** | −4.8pp (scope expansion) |
 
-Per-module Sprint 45 breakdown:
+> **Note:** The combined drop Sprint 45→46 reflects adding 2 new modules (398 mutants) that start
+> below 70%. This is normal when expanding scope; the existing 5 modules are unchanged.
+> Long-term goal: ≥80% combined (milestone).
 
-| Module | Mutants | Killed | Survived | Kill Rate | Sprint 43 | Delta |
+Per-module Sprint 46 breakdown:
+
+| Module | Mutants | Killed | Survived | Kill Rate | Sprint 45 | Delta |
 |--------|---------|--------|----------|-----------|-----------|-------|
 | `sandbox_verdict_calculator.py` | 224 | 157 | 67 | **70.1% ✅** | 70.1% | stable |
 | `specialization_validation.py` | 128 | 104 | 24 | **81.3% ✅** | 81.3% | stable |
-| `credit_service.py` | 33 | 22 | 11 | 66.7% raw / **100% eff. ✅** | 54.5% | +12.2pp |
-| `license_authorization_service.py` | 191 | 152 | 39 | **79.6% ✅** | — (new) | — |
-| `gamification/xp_service.py` | 142 | 107 | 35 | **75.4% ✅** | — (new) | — |
+| `credit_service.py` | 33 | 22 | 11 | 66.7% raw / **100% eff. ✅** | 100% eff. | stable |
+| `license_authorization_service.py` | 191 | 152 | 39 | **79.6% ✅** | 79.6% | stable |
+| `gamification/xp_service.py` | 142 | 108 | 34 | **76.1% ✅** | 75.4% | +0.7pp |
+| `enrollment_conflict_service.py` | 247 | 140 | 107 | 56.7% ❌ | — (new) | — |
+| `license_renewal_service.py` | 151 | 106 | 45 | **70.2% ✅** | — (new) | — |
 
-**Sprint 43 → 45 improvements:**
-- credit_service: 4 new exact-match tests (Sprint 44) killed all non-acceptable survivors.
-  All 11 remaining survivors are logger strings or ORM-filter mock-bypass — 100% effective rate.
-- license_authorization_service: 79.6% on first run — threshold comparisons (`>=`) and license
-  type guards are well-caught by the 84-test suite.
-- xp_service: 75.4% on first run — arithmetic mutations (XP amounts, bonus thresholds) caught
-  by value assertions in 48-test suite.
+### Kill Rate Dashboard
+
+```
+  Combined kill rate — target ≥70%  |  milestone ≥80%
+
+  Sprint 42  █████████████░░░░░░░  62.9%
+  Sprint 43  ██████████████░░░░░░  72.5%
+  Sprint 45  ███████████████░░░░░  75.5%
+  Sprint 46  ██████████████░░░░░░  70.7%  ← 2 new modules
+
+  Target    ██████████████░░░░░░  70%   (per-module minimum)
+  Milestone ████████████████░░░░  80%   (long-term goal, ~9.3pp gap)
+```
+
+Generated automatically in CI Step Summary by `python scripts/mutation_report.py`.
+
+### enrollment_conflict_service — Initial Baseline (56.7%)
+
+This module's 107 surviving mutants break down into two groups:
+
+1. **Pure static method mutants (~12 survivors, Sprint 46 targeted tests killed ~11)**:
+   String-list items (`LFA_PLAYER_YOUTH` etc.), comparison operators (`<` → `<=`), `@staticmethod`
+   removals, `or` → `and` in location guard, `0 <= min_gap < BUFFER` bounds.
+   Sprint 46 added 9 targeted tests to kill these.
+
+2. **DB-heavy method mutants (~95 survivors)** in `check_enrollment_conflicts()`:
+   Complex dict-building code (conflict_type/severity string literals, `.isoformat()` null-guards)
+   in the conflict result dictionary. Not architecturally untestable — require full mock setup
+   asserting on the complete conflict dict structure. **Sprint 47 goal**: add 5–10 integration-style
+   unit tests asserting on conflict dict fields to push past 70%.
 
 ### Credit Service Survivor Breakdown
-
-15 survivors categorized (Sprint 43 cache):
 
 | Category | Count | Lines | Testable? |
 |----------|-------|-------|-----------|
 | Validation message strings (XX-wrap) | 4 | 63, 66, 128, 135 | **Yes — fixed Sprint 44** |
-| Logger string mutations | 10 | 75, 76, 99–101, 118, 119, 124, 125, 132 | No — see below |
-| ORM filter comparison (`==` → `!=`) | 1 | 113 | No — see below |
+| Logger string mutations | 10 | 75, 76, 99–101, 118, 119, 124, 125, 132 | No (see below) |
+| ORM filter comparison (`==` → `!=`) | 1 | 113 | No (see below) |
 
-**Logger strings (10 survivors):** `logger.info/warning/error(f"...")` content changes
-(emoji prefixes, f-string text). Not functionally observable:
-- Log output changes do not affect return values, raised exceptions, or control flow
-- Asserting `mock_logger.info.call_args` creates brittle tests tied to log formatting
+**Logger strings (10 survivors):** `logger.info/warning/error(f"...")` content mutations.
+Not functionally observable — log content changes don't affect return values or control flow.
 
-**ORM filter mock-bypass (1 survivor, line 113):** `CreditTransaction.idempotency_key == idempotency_key`
-mutated to `!=`. The entire `db.query().filter().first()` chain is mocked — the filter
-expression is never evaluated. Changing `==` to `!=` has no effect on mock return values.
-Would require a real-DB integration test to kill. Accepted as architectural limitation.
+**ORM filter mock-bypass (1 survivor, line 113):** Mock chain ignores filter expression.
+Would require real-DB integration test to kill. Accepted as architectural limitation.
 
-**Effective kill rate** = 18 killed / (33 total − 11 acceptable) = **81.8% ✅**
+**Effective kill rate** = 22 killed / (33 total − 11 acceptable) = **100% ✅**
 
 ### Regression Gate
 
@@ -398,14 +425,14 @@ Failures here do not prevent PRs from merging.
 
 | Step | What it does |
 |------|-------------|
-| Verify test suite passes | Runs all 6 mutation-target test files as a sanity check |
+| Verify test suite passes | Runs all 8 mutation-target test files as a sanity check |
 | Run mutation tests | `python -m mutmut run` (incremental — skips already-tested mutants) |
-| Generate mutation report | Reads `.mutmut-cache` SQLite → Markdown table in Step Summary |
-| Check for regressions | `--check-regression` flag → red step if ≥2pp combined drop |
+| Generate mutation report | Reads `.mutmut-cache` SQLite → Markdown table + ASCII dashboard in Step Summary |
+| Check for regressions | `--check-regression` flag → red step if ≥2pp combined drop or ≥3pp per-module |
 
 **When to update `mutation_baseline.json`:** After each sprint that changes kill rates, update
 `tests/snapshots/mutation_baseline.json` to record the new baseline and append to `history[]`.
-The report script reads this file to show sprint-over-sprint deltas in the CI summary.
+The report script reads this file to show sprint-over-sprint deltas and the milestone gap in CI.
 
 ---
 
