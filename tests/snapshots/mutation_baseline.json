@@ -1,0 +1,52 @@
+{
+  "version": "sprint-43",
+  "last_updated": "2026-03-08",
+  "project_target_kill_rate": 0.70,
+  "history": [
+    {"sprint": 42, "combined_kill_rate": 0.629, "total": 385, "killed": 242},
+    {"sprint": 43, "combined_kill_rate": 0.725, "total": 385, "killed": 279}
+  ],
+  "modules": {
+    "app/services/sandbox_verdict_calculator.py": {
+      "total": 224,
+      "killed": 157,
+      "kill_rate": 0.701,
+      "target": 0.70,
+      "acceptable_survivors": [],
+      "acceptable_survivor_count": 0,
+      "sprint_history": {"42": 0.554, "43": 0.701}
+    },
+    "app/services/specialization_validation.py": {
+      "total": 128,
+      "killed": 104,
+      "kill_rate": 0.813,
+      "target": 0.70,
+      "acceptable_survivors": [],
+      "acceptable_survivor_count": 0,
+      "sprint_history": {"42": 0.813, "43": 0.813}
+    },
+    "app/services/credit_service.py": {
+      "total": 33,
+      "killed": 18,
+      "kill_rate": 0.545,
+      "target": 0.70,
+      "acceptable_survivors": ["logger_strings", "orm_filter_mock_bypass"],
+      "acceptable_survivor_count": 11,
+      "effective_kill_rate": 0.818,
+      "effective_note": "18 killed / (33 total - 11 acceptable) = 18/22 = 81.8%",
+      "survivor_breakdown": {
+        "logger_strings": {
+          "count": 10,
+          "lines": [75, 76, 99, 100, 101, 118, 119, 124, 125, 132],
+          "reason": "logger.info/warning/error string literal mutations do not change observable output, return values, or raised exceptions"
+        },
+        "orm_filter_mock_bypass": {
+          "count": 1,
+          "lines": [113],
+          "reason": "SQLAlchemy filter expression (CreditTransaction.idempotency_key == key) is mocked away; changing == to != has no effect on mock return value. Requires real-DB integration test to kill."
+        }
+      },
+      "sprint_history": {"42": 0.424, "43": 0.545}
+    }
+  }
+}

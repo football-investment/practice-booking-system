@@ -9,7 +9,9 @@ name: Mutation Testing (Non-Blocking)
 #   app/services/specialization_validation.py   -- pure validation (98% unit coverage)
 #   app/services/credit_service.py              -- financial logic (high business risk)
 #
-# Baseline kill rates (Sprint 42): see TESTING.md — Mutation Testing section
+# Baseline kill rates (Sprint 43): see TESTING.md — Mutation Testing section
+# Machine-readable baseline: tests/snapshots/mutation_baseline.json
+# Report script (SQLite-based, bypasses broken mutmut CLI): scripts/mutation_report.py
 
 on:
   workflow_dispatch:
@@ -67,6 +69,7 @@ jobs:
           tests/unit/services/test_sandbox_verdict_calculator.py \
           tests/unit/services/test_specialization_validation.py \
           tests/unit/services/test_credit_service.py \
+          tests/unit/services/test_credit_service_unit.py \
           -q --tb=short
 
     - name: Run mutation tests
@@ -76,21 +79,10 @@ jobs:
       run: python -m mutmut run
       continue-on-error: true  # surviving mutants are not a hard failure
 
-    - name: Print mutation results
+    - name: Generate mutation report
       if: always()
-      run: python -m mutmut results
+      # scripts/mutation_report.py reads .mutmut-cache SQLite directly.
+      # The `mutmut results` CLI crashes with a pony ORM bug in 2.4.4 — avoid it.
+      # This script also writes Markdown to $GITHUB_STEP_SUMMARY automatically.
+      run: python scripts/mutation_report.py
       continue-on-error: true
-
-    - name: Write mutation testing summary
-      if: always()
-      run: |
-        echo "## Mutation Testing Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Targets: \`sandbox_verdict_calculator\` | \`specialization_validation\` | \`credit_service\`" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        python -m mutmut results 2>/dev/null || echo "No results available"
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "> This workflow is **non-blocking** — surviving mutants do not prevent PRs from merging." >> $GITHUB_STEP_SUMMARY
-        echo "> Track kill rate trends in TESTING.md. Target: ≥80% kill rate per module." >> $GITHUB_STEP_SUMMARY

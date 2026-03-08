@@ -186,3 +186,51 @@ class TestCreditServiceUnit:
         """Uppercase inputs are lowercased — kills any case-normalization mutant."""
         key = CreditService.generate_idempotency_key("TOURNAMENT", 1, 42, "REWARD")
         assert key == "tournament_1_42_reward"
+
+    def test_generate_idempotency_key_on_instance_kills_decorator_mutant(self):
+        """
+        Call generate_idempotency_key on an INSTANCE (not the class).
+        Without @staticmethod Python injects self as an implicit 5th argument;
+        the 4-param signature has no room for it → TypeError kills the mutant.
+        """
+        svc = CreditService(db=MagicMock())
+        key = svc.generate_idempotency_key("tournament", 99, 42, "reward")
+        assert key == "tournament_99_42_reward"
+
+    # ── Exact message assertions (kill XX-wrapped string mutants) ─────────
+    #
+    # mutmut 2.x mutates string literals by wrapping them: "msg" → "XXmsgXX".
+    # pytest.raises(match=...) uses re.search() — the original text is still a
+    # substring of the wrapped string, so match= passes and the mutant survives.
+    # str(exc_info.value) == "..." is an EXACT comparison and catches the wrapping.
+
+    def test_neither_user_id_message_is_exact(self):
+        """Exact message check for the 'Either' validation guard (line 63)."""
+        svc = CreditService(db=MagicMock())
+        with pytest.raises(ValueError) as exc_info:
+            svc.create_transaction(
+                user_id=None, user_license_id=None,
+                transaction_type="X", amount=1, balance_after=1,
+                description="x", idempotency_key="x",
+            )
+        assert str(exc_info.value) == "Either user_id or user_license_id must be provided"
+
+    def test_both_user_ids_message_is_exact(self):
+        """Exact message check for the 'Only one' validation guard (line 66)."""
+        svc = CreditService(db=MagicMock())
+        with pytest.raises(ValueError) as exc_info:
+            svc.create_transaction(
+                user_id=42, user_license_id=9,
+                transaction_type="X", amount=1, balance_after=1,
+                description="x", idempotency_key="x",
+            )
+        assert str(exc_info.value) == "Only one of user_id or user_license_id can be provided"
+
+    def test_race_condition_message_is_exact(self):
+        """Exact message check for the race-condition ValueError (line 128)."""
+        db = _db_with_flush_error(_CONSTRAINT, re_fetch_result=None)
+        with pytest.raises(ValueError) as exc_info:
+            _call(db, idempotency_key=_IDEM_KEY)
+        assert str(exc_info.value) == (
+            f"Credit transaction with key '{_IDEM_KEY}' failed due to race condition"
+        )
