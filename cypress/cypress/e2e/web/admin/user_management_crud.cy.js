@@ -4,18 +4,37 @@
  * Role coverage: admin (all CRUD), student (RBAC blocked)
  *
  * Uses cy.request() to avoid OOM on large admin pages.
+ *
+ * ── Why beforeEach resets DB ──────────────────────────────────────────────────
+ * ADM-CRUD-03 edits a user (name + email), which would corrupt the admin
+ * user's session if admin is accidentally picked.  Moving resetDb to
+ * beforeEach (instead of before) also guards against Cypress retries: Cypress
+ * re-runs beforeEach before each retry attempt, so even if a test mutates the
+ * DB the next attempt starts from a clean baseline.
+ *
+ * ── Student-user targeting ────────────────────────────────────────────────────
+ * The /admin/users page lists users ORDER BY id.  On a fresh CI database the
+ * admin user always has the lowest id (id=1).  Tests that POST to
+ * /admin/users/{id}/edit or /admin/users/{id}/toggle-status must NOT target
+ * the admin user, because:
+ *   • Editing admin's email breaks the JWT lookup (server looks up the JWT
+ *     email in DB; if the email changed the lookup returns 404 → 401).
+ *   • Toggling the admin's own status returns 400 (self-toggle guard).
+ *
+ * Solution: search the page HTML for the `badge-student` CSS class to find a
+ * student row, then extract the user id from the adjacent edit/toggle link.
  */
 import '../../../support/web_commands';
 
 describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] }, () => {
 
-  before(() => {
-    cy.resetDb('baseline');
-  });
-
+  // Reset DB before EVERY test (including retries).
+  // This ensures admin@lfa.com is always valid and student users are pristine.
   beforeEach(() => {
-    cy.setupCsrf();
+    cy.resetDb('baseline');
     cy.clearAllCookies();
+    // cy.setupCsrf() is intentionally omitted here — cy.webLogin() calls it
+    // internally before every login, so a second registration is redundant.
   });
 
   // ── ADM-CRUD-01 ─────────────────────────────────────────────────────────
@@ -51,20 +70,23 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   });
 
   // ── ADM-CRUD-03 ─────────────────────────────────────────────────────────
-  it('ADM-CRUD-03: edit user with valid data → redirects to /admin/users', () => {
+  it('ADM-CRUD-03: edit student user with valid data → redirects to /admin/users', () => {
     cy.webLoginAs('admin');
-    // Find student user ID
     cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
       .then((resp) => {
         expect(resp.status).to.equal(200);
-        const match = resp.body.match(/href="\/admin\/users\/(\d+)\/edit"/);
-        if (!match) return cy.log('No edit links found — skip ADM-CRUD-03');
+        // Find a STUDENT user (badge-student) — never edit the admin user
+        // (editing admin email breaks the JWT lookup → 401 on redirect).
+        const match = resp.body.match(/badge-student[\s\S]{0,800}href="\/admin\/users\/(\d+)\/edit"/);
+        if (!match) return cy.log('No student edit link found — skip ADM-CRUD-03');
         const userId = match[1];
         return cy.request({
           method: 'POST',
           url: `/admin/users/${userId}/edit`,
           form: true,
-          body: { name: 'Updated E2E Name', email: `updated_${userId}@e2e.com`, role: 'student' },
+          // Keep the student email unchanged so the upsert in the next
+          // beforeEach can find the user by email and restore their data.
+          body: { name: 'Updated E2E Name', email: 'rdias@manchestercity.com', role: 'student' },
           failOnStatusCode: false,
         }).then((editResp) => {
           // 303 redirect to /admin/users (Cypress follows → 200)
@@ -77,17 +99,17 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   // ── ADM-CRUD-04 ─────────────────────────────────────────────────────────
   it('ADM-CRUD-04: edit user with invalid role → 400 error', () => {
     cy.webLoginAs('admin');
-    // Find a real user ID first to avoid 404
     cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
       .then((resp) => {
-        const match = resp.body.match(/href="\/admin\/users\/(\d+)\/edit"/);
-        if (!match) return cy.log('No edit links found — skip ADM-CRUD-04');
+        // Find a STUDENT user — avoid admin so its session stays valid
+        const match = resp.body.match(/badge-student[\s\S]{0,800}href="\/admin\/users\/(\d+)\/edit"/);
+        if (!match) return cy.log('No student edit link found — skip ADM-CRUD-04');
         const userId = match[1];
         return cy.request({
           method: 'POST',
           url: `/admin/users/${userId}/edit`,
           form: true,
-          body: { name: 'Test', email: 'test@test.com', role: 'SUPER_ADMIN_INVALID' },
+          body: { name: 'Test', email: 'rdias@manchestercity.com', role: 'SUPER_ADMIN_INVALID' },
           failOnStatusCode: false,
         }).then((editResp) => {
           expect(editResp.status).to.be.oneOf([400, 422]);
@@ -98,12 +120,11 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   // ── ADM-CRUD-05 ─────────────────────────────────────────────────────────
   it('ADM-CRUD-05: toggle user status (student) → redirects to /admin/users', () => {
     cy.webLoginAs('admin');
-    // Find a student to toggle
     cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
       .then((resp) => {
-        // Find a toggle form action URL
-        const match = resp.body.match(/action="\/admin\/users\/(\d+)\/toggle-status"/);
-        if (!match) return cy.log('No toggle buttons found — skip ADM-CRUD-05');
+        // Find a STUDENT toggle button — avoid admin (self-toggle → 400)
+        const match = resp.body.match(/badge-student[\s\S]{0,800}action="\/admin\/users\/(\d+)\/toggle-status"/);
+        if (!match) return cy.log('No student toggle button found — skip ADM-CRUD-05');
         const userId = match[1];
         return cy.request({
           method: 'POST',
