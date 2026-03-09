@@ -71,18 +71,19 @@ module.exports = defineConfig({
       // grepOmitFiltered: tests that don't match the tag are omitted, not shown as pending
       grepFilterSpecs:  true,
       grepOmitFiltered: true,
-    },
 
-    // ── Web E2E (FastAPI Jinja2) credentials ────────────────────────────────
-    // Used by cypress/e2e/web/** specs (baseUrl=http://localhost:8000)
-    webAdminEmail:       process.env.CYPRESS_webAdminEmail       || 'admin@lfa.com',
-    webAdminPassword:    process.env.CYPRESS_webAdminPassword    || 'admin123',
-    webInstructorEmail:  process.env.CYPRESS_webInstructorEmail  || 'grandmaster@lfa.com',
-    webInstructorPassword: process.env.CYPRESS_webInstructorPassword || 'TestInstructor2026',
-    webStudentEmail:     process.env.CYPRESS_webStudentEmail     || 'rdias@manchestercity.com',
-    webStudentPassword:  process.env.CYPRESS_webStudentPassword  || 'TestPlayer2026',
-    webFreshEmail:       process.env.CYPRESS_webFreshEmail       || 'fresh.e2e@lfa.com',
-    webFreshPassword:    process.env.CYPRESS_webFreshPassword    || 'FreshE2E2026',
+      // ── Web E2E (FastAPI Jinja2) credentials ──────────────────────────────
+      // Used by cypress/e2e/web/** specs (baseUrl=http://localhost:8000)
+      // Accessible via Cypress.env('webAdminEmail') etc.
+      webAdminEmail:       process.env.CYPRESS_webAdminEmail       || 'admin@lfa.com',
+      webAdminPassword:    process.env.CYPRESS_webAdminPassword    || 'admin123',
+      webInstructorEmail:  process.env.CYPRESS_webInstructorEmail  || 'grandmaster@lfa.com',
+      webInstructorPassword: process.env.CYPRESS_webInstructorPassword || 'TestInstructor2026',
+      webStudentEmail:     process.env.CYPRESS_webStudentEmail     || 'rdias@manchestercity.com',
+      webStudentPassword:  process.env.CYPRESS_webStudentPassword  || 'TestPlayer2026',
+      webFreshEmail:       process.env.CYPRESS_webFreshEmail       || 'fresh.e2e@lfa.com',
+      webFreshPassword:    process.env.CYPRESS_webFreshPassword    || 'FreshE2E2026',
+    },
 
     // ── Plugin setup ─────────────────────────────────────────────────────────
     setupNodeEvents(on, config) {

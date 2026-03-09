@@ -3,7 +3,7 @@
  * DB scenario: session_ready (baseline users + 2 E2E sessions)
  * Role coverage: student
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Sessions — Student Booking', { tags: ['@web', '@student', '@booking'] }, () => {
   let onSiteSessionId = null;
@@ -44,7 +44,7 @@ describe('Web Sessions — Student Booking', { tags: ['@web', '@student', '@book
   it('BK-01: GET /sessions renders sessions list', () => {
     cy.visit('/sessions');
     cy.assertWebPath('/sessions');
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 
   // ── BK-02 ─────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ describe('Web Sessions — Student Booking', { tags: ['@web', '@student', '@book
   it('BK-05: GET /sessions/{id} renders session detail page', () => {
     if (!onSiteSessionId) return cy.log('No session ID found — skip BK-05');
     cy.visit(`/sessions/${onSiteSessionId}`, { failOnStatusCode: false });
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
     cy.url().should('satisfy', (url) =>
       url.includes(`/sessions/${onSiteSessionId}`) || url.includes('/sessions') || url.includes('/login')
     );
@@ -105,6 +105,6 @@ describe('Web Sessions — Student Booking', { tags: ['@web', '@student', '@book
   it('BK-06: GET /calendar renders calendar view', () => {
     cy.visit('/calendar');
     cy.assertWebPath('/calendar');
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 });

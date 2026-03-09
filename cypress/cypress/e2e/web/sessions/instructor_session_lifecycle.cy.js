@@ -3,7 +3,7 @@
  * DB scenario: session_ready
  * Role coverage: instructor
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Sessions — Instructor Lifecycle', { tags: ['@web', '@instructor', '@session'] }, () => {
   let onSiteId = null;
@@ -50,7 +50,7 @@ describe('Web Sessions — Instructor Lifecycle', { tags: ['@web', '@instructor'
   it('INS-01: GET /sessions — instructor sees sessions list', () => {
     cy.visit('/sessions');
     cy.assertWebPath('/sessions');
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 
   // ── INS-02 ─────────────────────────────────────────────────────────────

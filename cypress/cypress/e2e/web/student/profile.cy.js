@@ -3,7 +3,7 @@
  * DB scenario: baseline
  * Role coverage: student, instructor
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Student — Profile', { tags: ['@web', '@student', '@profile'] }, () => {
   before(() => {
@@ -37,7 +37,9 @@ describe('Web Student — Profile', { tags: ['@web', '@student', '@profile'] }, 
   it('PRF-03: student profile page exists and loads', () => {
     cy.webLoginAs('student');
     cy.visit('/profile');
-    cy.get('body').should('not.contain.text', '500');
+    // Check for 'Internal Server Error' rather than '500' because inline
+    // <script> tags (e.g. setTimeout(fn, 500)) cause false positives.
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 
   // ── PRF-04 ─────────────────────────────────────────────────────────────
@@ -63,7 +65,7 @@ describe('Web Student — Profile', { tags: ['@web', '@student', '@profile'] }, 
     cy.resetDb('baseline');
     cy.webLoginAs('student');
     cy.visit('/profile');
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 
   // ── PRF-07 ─────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
  * DB scenario: student_with_credits (student has license)
  * Role coverage: student
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Student — Specialization Switch', { tags: ['@web', '@student', '@specialization'] }, () => {
   before(() => {
@@ -44,7 +44,7 @@ describe('Web Student — Specialization Switch', { tags: ['@web', '@student', '
       method: 'POST',
       url: '/specialization/switch',
       form: true,
-      body: { spec: 'LFA_COACH' },
+      body: { specialization: 'LFA_COACH' },   // route param is 'specialization', not 'spec'
       followRedirect: false,
       failOnStatusCode: false,
     }).then((resp) => {
@@ -58,7 +58,7 @@ describe('Web Student — Specialization Switch', { tags: ['@web', '@student', '
       method: 'POST',
       url: '/specialization/switch',
       form: true,
-      body: { spec: 'GANCUJU_PLAYER' },
+      body: { specialization: 'GANCUJU_PLAYER' },
       followRedirect: false,
       failOnStatusCode: false,
     }).then((resp) => {
@@ -78,7 +78,7 @@ describe('Web Student — Specialization Switch', { tags: ['@web', '@student', '
       method: 'POST',
       url: '/specialization/switch',
       form: true,
-      body: { spec: 'GANCUJU_PLAYER', return_url: '/profile' },
+      body: { specialization: 'GANCUJU_PLAYER', return_url: '/profile' },
       followRedirect: false,
       failOnStatusCode: false,
     }).then((resp) => {

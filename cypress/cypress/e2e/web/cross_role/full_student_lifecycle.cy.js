@@ -12,7 +12,7 @@
  *   student confirms → instructor evaluates → student sees XP →
  *   student cancels booking
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Cross-Role — Full Student Lifecycle', {
   tags: ['@web', '@integration', '@cross-role'],
@@ -196,7 +196,7 @@ describe('Web Cross-Role — Full Student Lifecycle', {
       method: 'POST',
       url: `/sessions/${sessionId}/attendance/confirm`,
       form: true,
-      body: { confirmed: 'true' },
+      body: { action: 'confirm' },
       followRedirect: false,
       failOnStatusCode: false,
     }).then((resp) => {
@@ -240,14 +240,14 @@ describe('Web Cross-Role — Full Student Lifecycle', {
   it('XR-12: student visits /progress — page loads without 500', () => {
     cy.webLoginAs('student');
     cy.visit('/progress', { failOnStatusCode: false });
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 
   // ── XR-13 ─────────────────────────────────────────────────────────────
   it('XR-13: student visits /achievements — page loads without 500', () => {
     cy.webLoginAs('student');
     cy.visit('/achievements', { failOnStatusCode: false });
-    cy.get('body').should('not.contain.text', '500');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
   });
 
   // ── XR-14 ─────────────────────────────────────────────────────────────

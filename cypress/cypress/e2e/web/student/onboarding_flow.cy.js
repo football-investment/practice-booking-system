@@ -3,7 +3,7 @@
  * DB scenario: student_with_credits (student has 200 credits, no license yet)
  * Role coverage: student
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Student — Onboarding Flow', { tags: ['@web', '@student', '@onboarding'] }, () => {
   before(() => {

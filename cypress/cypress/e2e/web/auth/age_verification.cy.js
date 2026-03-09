@@ -3,7 +3,7 @@
  * DB scenario: student_no_dob
  * Role coverage: student (fresh, no DOB)
  */
-import '../../support/web_commands';
+import '../../../support/web_commands';
 
 describe('Web Auth — Age Verification', { tags: ['@web', '@auth', '@student'] }, () => {
   before(() => {
@@ -30,7 +30,10 @@ describe('Web Auth — Age Verification', { tags: ['@web', '@auth', '@student'] 
   // ── AGE-03 ─────────────────────────────────────────────────────────────
   it('AGE-03: future date → error on page', () => {
     cy.webLoginAs('fresh');
+    // The template sets max="{{ today }}" — remove it so Chrome's HTML5 validation
+    // does not block form submission, allowing the server-side check to fire.
     cy.get('input[name="date_of_birth"], input[name="dob"], #date_of_birth')
+      .invoke('removeAttr', 'max')
       .type('2099-01-01');
     cy.get('button[type="submit"]').click();
     cy.get('body').should('satisfy', ($body) =>

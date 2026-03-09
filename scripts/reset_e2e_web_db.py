@@ -73,6 +73,15 @@ _FRESH_STUDENT = {
     "dob":      None,   # intentionally missing — age_verification flow
 }
 
+# Seeded with is_active=False in every scenario → used by AUTH-07
+_INACTIVE_STUDENT = {
+    "email":    "inactive.e2e@lfa.com",
+    "name":     "Inactive E2E Student",
+    "password": "InactiveE2E2026",
+    "role":     UserRole.STUDENT,
+    "dob":      date(2000, 1, 1),
+}
+
 _SEMESTER_CODE = "E2E-CI-2026"
 _SEMESTER_NAME = "E2E CI Test Semester"
 
@@ -88,7 +97,8 @@ def _truncate_transactional_data(db) -> None:
     db.query(SemesterEnrollment).filter(
         SemesterEnrollment.user_id.in_(
             db.query(User.id).filter(User.email.in_(
-                [u["email"] for u in _BASELINE_USERS] + [_FRESH_STUDENT["email"]]
+                [u["email"] for u in _BASELINE_USERS]
+                + [_FRESH_STUDENT["email"], _INACTIVE_STUDENT["email"]]
             ))
         )
     ).delete(synchronize_session=False)
@@ -98,16 +108,19 @@ def _truncate_transactional_data(db) -> None:
     db.commit()
 
 
-def _upsert_user(db, spec: dict, credit_balance: int = 0, clear_dob: bool = False) -> User:
+def _upsert_user(db, spec: dict, credit_balance: int = 0,
+                 clear_dob: bool = False, is_active: bool = True,
+                 onboarding_completed: bool = False) -> User:
     existing = db.query(User).filter(User.email == spec["email"]).first()
     dob = None if clear_dob else spec.get("dob")
     dob_dt = datetime(dob.year, dob.month, dob.day) if dob else None
 
     if existing:
         existing.password_hash = get_password_hash(spec["password"])
-        existing.is_active = True
+        existing.is_active = is_active
         existing.credit_balance = credit_balance
         existing.date_of_birth = dob_dt
+        existing.onboarding_completed = onboarding_completed
         db.commit()
         return existing
     else:
@@ -116,9 +129,10 @@ def _upsert_user(db, spec: dict, credit_balance: int = 0, clear_dob: bool = Fals
             email=spec["email"],
             password_hash=get_password_hash(spec["password"]),
             role=spec["role"],
-            is_active=True,
+            is_active=is_active,
             credit_balance=credit_balance,
             date_of_birth=dob_dt,
+            onboarding_completed=onboarding_completed,
         )
         db.add(user)
         db.commit()
@@ -196,6 +210,8 @@ def scenario_baseline(db) -> list[str]:
     for spec in _BASELINE_USERS:
         u = _upsert_user(db, spec, credit_balance=0)
         lines.append(f"  upserted user {spec['email']} ({spec['role'].value})")
+    _upsert_user(db, _INACTIVE_STUDENT, credit_balance=0, is_active=False)
+    lines.append(f"  upserted inactive user {_INACTIVE_STUDENT['email']}")
     _upsert_semester(db)
     lines.append(f"  upserted semester {_SEMESTER_CODE}")
     return lines
@@ -224,6 +240,10 @@ def scenario_student_with_credits(db) -> list[str]:
 
 def scenario_session_ready(db) -> list[str]:
     lines = scenario_student_with_credits(db)
+    # Mark the E2E student as onboarding_completed so /sessions and /calendar are accessible
+    student_spec = next(s for s in _BASELINE_USERS if s["role"] == UserRole.STUDENT)
+    _upsert_user(db, student_spec, credit_balance=200, onboarding_completed=True)
+    lines.append(f"  set onboarding_completed=True for {student_spec['email']}")
     semester = db.query(Semester).filter(Semester.code == _SEMESTER_CODE).first()
     instructor = db.query(User).filter(User.email == "grandmaster@lfa.com").first()
     sessions = _create_sessions(db, semester, instructor)
