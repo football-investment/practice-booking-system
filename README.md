@@ -369,9 +369,286 @@ pytest -m tournament           # Tournament tests
 
 ---
 
-**Verzió**: 2.3 (2025-12-17) 🎉
+## 🧪 Testing Milestone — Sprint 52 (2026-03-09)
+
+| Metric | Sprint 51 | Sprint 52 | CI Gate |
+|--------|-----------|-----------|---------|
+| Unit tests passed | 6 843 | **6 865** | — |
+| Statement coverage | 88.5% | **88.7%** | ≥ 88% ✅ |
+| Branch coverage (pure) | 82.7% | **83.5%** | ≥ 80% ✅ |
+| Combined coverage | 87.0% | **88%** | ≥ 85% ✅ |
+| Mutation kill rate | 80.2% | **80.2%** | ≥ 80% ✅ |
+| web_routes layer | 65% combined | **71% combined** | ≥ 65% ✅ |
+
+**web_routes per-file breakdown (Sprint 52)**:
+
+| File | Coverage | BrPart |
+|------|----------|--------|
+| attendance.py | **100%** | 0 |
+| dashboard.py | **100%** | 0 |
+| instructor.py | **100%** | 0 |
+| instructor_dashboard.py | **100%** | 0 (new) |
+| quiz.py | **100%** | 0 |
+| sessions.py | **100%** | 0 |
+| admin.py | 77% | 0 (lines 92-233 excluded) |
+
+**CI Gates (test-baseline-check.yml)**:
+- Unit step: `--cov-fail-under=85`
+- Full scope: `--fail-under=85`
+- `check_coverage.py`: stmt ≥ 88%, branch ≥ 80%
+
+**Test files**: see [TESTING.md](TESTING.md)
+
+---
+
+## 🗺️ User Flow Coverage (Sprint 53 — Integration Tests)
+
+End-to-end flow validation via `tests/integration/web_flows/` (26 tests, real PostgreSQL, SAVEPOINT isolation).
+
+| Lifecycle | Positive ✅ | Negative ❌ | DB validated |
+|-----------|-------------|-------------|-------------|
+| **Session booking** | Book → `Booking(CONFIRMED)` in DB | Book within 12h deadline → 303 error | ✅ row created |
+| **Booking cancellation** | Cancel → row deleted from DB | Cancel within 12h deadline → 303 error; cancel without booking → 303 error | ✅ row deleted / preserved |
+| **Attendance marking** | Mark present → `Attendance(present, pending)` in DB; mark absent → `check_in_time=None` | No booking → 303 `student_not_enrolled`; non-instructor → 303 `unauthorized` | ✅ row created / unchanged |
+| **Attendance confirmation** | Student confirms → `ConfirmationStatus.confirmed`; student disputes → `ConfirmationStatus.disputed` + reason | Instructor confirms → 303 `unauthorized`; no attendance record → 303 `no_attendance` | ✅ status updated / unchanged |
+| **Hybrid quiz unlock** | Unlock → `session.quiz_unlocked=True` in DB | Non-instructor → blocked; non-hybrid session → error; unstarted session → error | ✅ flag set / unchanged |
+| **Quiz submission** | Submit → `QuizAttempt.completed_at` set, score/passed persisted | Already completed → 400; bad attempt → 404; no booking for session → 403 + attempt unchanged | ✅ completed_at set / unchanged |
+
+**Timing**: all `call` durations ≤ 0.18s (well under 2s threshold). Setup overhead ~0.1–0.6s (TestClient app startup).
+
+**Idempotency guards** (tested in `test_concurrency.py`, 5 tests):
+
+| Scenario | 1st request | 2nd request | DB invariant |
+|----------|------------|------------|-------------|
+| Double booking | 303 `success=booked` | 303 `already_booked` | exactly 1 `Booking` row |
+| Double cancel | 303 `success=cancelled` | 303 `booking_not_found` | row stays deleted |
+| Double quiz submit | 200 HTML | 400 already-completed | `completed_at` from 1st, unchanged |
+| Double attendance mark | 303 `attendance_marked` (INSERT) | 303 `attendance_marked` (UPDATE) | exactly 1 `Attendance` row |
+| Status change (present → absent) | 303 `attendance_marked` | 303 `attendance_marked` | 1 row, `status=absent` |
+
+**Rate limiting**: disabled in pytest (`ENABLE_RATE_LIMITING = not is_testing()`). Production enforcement via `slowapi` middleware, unrelated to these idempotency guards.
+
+---
+
+## 🔒 Database Safety Guarantees (Sprint 53+)
+
+Which invariants are enforced at DB level (survive concurrent writes without application cooperation) versus application level (single-process guard only).
+
+### Invariant Layer Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Layer 1 — PostgreSQL (always enforced, even without application)    │
+│                                                                      │
+│  UNIQUE indexes / partial unique indexes / FK constraints            │
+│  ──────────────────────────────────────────────────────              │
+│  uq_active_booking       (user_id, session_id) WHERE not CANCELLED   │
+│  uq_attendance_…_null    (user_id, session_id) WHERE booking IS NULL │
+│  uq_booking_attendance   UNIQUE (booking_id)  [squashed schema]      │
+│  idempotency_key UNIQUE  on credit_transactions                      │
+│                                                                      │
+│  ▶ Race safety: IntegrityError on concurrent duplicate INSERT        │
+└─────────────────────────────┬────────────────────────────────────────┘
+                              │ application reads after acquiring lock
+┌─────────────────────────────▼────────────────────────────────────────┐
+│  Layer 2 — Application (FastAPI routes + SELECT FOR UPDATE)          │
+│                                                                      │
+│  Pessimistic locking + guard checks                                  │
+│  ──────────────────────────────────                                  │
+│  quiz submit:   .with_for_update().first() → completed_at check      │
+│  booking:       explicit already_booked check + DB constraint backup  │
+│  cancel:        booking lookup → None → 404 (no-op on double-cancel) │
+│                                                                      │
+│  ▶ Race safety: row lock prevents double-completion; friendly 400/303│
+└─────────────────────────────┬────────────────────────────────────────┘
+                              │ validated by
+┌─────────────────────────────▼────────────────────────────────────────┐
+│  Layer 3 — Tests (validates both layers)                             │
+│                                                                      │
+│  Unit (6 865):  MagicMock DB → business logic, SELECT FOR UPDATE     │
+│                 _make_db helper loops with_for_update mock chain      │
+│  Integration (26 web_flows):  real PostgreSQL SAVEPOINT              │
+│                 idempotency tests validate row-count invariants       │
+│  Migration (7): real schema DDL, downgrade/upgrade round-trip        │
+│                 verifies index definition (UNIQUE + partial WHERE)    │
+│                                                                      │
+│  ▶ Guarantees: each invariant tested at both app and DB level        │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### DB-Enforced Invariants (hard constraints)
+
+| Table | Constraint | Invariant |
+|-------|-----------|-----------|
+| `bookings` | `uq_active_booking` — partial unique `(user_id, session_id) WHERE status <> 'CANCELLED'` | One active booking per student per session. Concurrent double-book raises `IntegrityError`. |
+| `attendance` | `uq_attendance_user_session_no_booking` — partial unique `(user_id, session_id) WHERE booking_id IS NULL` (**Sprint 53+**) | One attendance per student per session for tournament sessions (NULL booking_id). Concurrent duplicate → `IntegrityError`. |
+| `quiz_user_answers` | `unique_user_question UNIQUE (user_id, question_id)` | One answer per student per question. |
+| `semester_enrollments` | `UniqueConstraint(user_id, semester_id, user_license_id)` | One enrollment per student per semester per license. |
+| `credit_transactions` | `idempotency_key UNIQUE` | Payment transaction deduplication at DB level. |
+
+### Application-Enforced Invariants (serialized)
+
+| Endpoint | Guard | Race risk + status |
+|----------|-------|-------------------|
+| `POST /quizzes/{id}/submit` | `completed_at IS NOT NULL` → 400; `SELECT FOR UPDATE` on attempt fetch (**Sprint 53+**) | **Fixed**: concurrent submits serialized by row lock; 2nd sees `completed_at` set → 400. |
+| `POST /sessions/book/{id}` | `already_booked` check before INSERT | Defence-in-depth with DB `uq_active_booking`. Application guard handles friendly redirect; DB constraint is the final safety net. |
+| `POST /sessions/cancel/{id}` | Booking lookup → None → 404 | Second cancel is a no-op (row already deleted). No race risk. |
+
+### Remaining Gaps
+
+| Scenario | Status |
+|----------|--------|
+| Concurrent `confirm_attendance` by student | Application-level `confirmation_status` check only — no `SELECT FOR UPDATE`. Low production risk (confirmation is student-initiated, one per session). |
+| Multiple `QuizAttempt` rows per `(user_id, quiz_id)` | Intentional design (retake allowed). Submit guard prevents double-completion of same attempt. |
+
+---
+
+## 🧱 Test Strategy Overview
+
+Three-layer test architecture covering correctness at each system boundary:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Layer 1 — Unit Tests (tests/unit/)                             │
+│                                                                 │
+│  Tool: asyncio.run() + MagicMock DB                            │
+│  Scope: service logic, business rules, individual functions     │
+│  DB: fully mocked (no network)                                  │
+│  Count: 6 865 tests  |  Speed: ~12s  |  Coverage: 88.7% stmt  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ services / DB models
+┌──────────────────────────▼──────────────────────────────────────┐
+│  Layer 2 — Integration: web_flows (tests/integration/web_flows/)│
+│                                                                 │
+│  Tool: FastAPI TestClient (real HTTP dispatch)                  │
+│  Scope: route → service → DB → response chain                  │
+│  DB: real PostgreSQL, SAVEPOINT rollback per test               │
+│  Count: 26 tests  |  Speed: ~4s  |  Validates: DB state ✅     │
+│                                                                 │
+│  Sub-flows tested:                                              │
+│    booking/cancel · attendance mark/confirm · quiz submit       │
+│    hybrid quiz-unlock · idempotency guards                      │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ full stack
+┌──────────────────────────▼──────────────────────────────────────┐
+│  Layer 3 — E2E (cypress/ + tests/e2e/)                         │
+│                                                                 │
+│  Tool: Cypress JS + Playwright Python                           │
+│  Scope: browser ↔ app ↔ DB (real user journeys)               │
+│  DB: live dev server with seeded E2E data                       │
+│  Count: 7/7 Cypress green  |  Speed: ~60s                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**When each layer catches bugs**:
+- Unit: wrong business logic, edge-case calculation errors, service return values
+- Integration: route wiring bugs, missing DB commits, wrong redirect URLs, CSRF/auth misconfigurations
+- E2E: UI rendering, cookie/session flow, cross-service interactions visible to users
+
+---
+
+## 🚀 Deployment Safety Checklist (Sprint 53+)
+
+Steps to follow before every production deployment that includes DB migrations.
+
+### Pre-deployment
+
+| # | Step | Command / Verification |
+|---|------|------------------------|
+| 1 | Run full test suite | `pytest tests/unit/ tests/integration/ -q --tb=short` → 0 failures |
+| 2 | Verify migration chain | `alembic history --verbose` → head = `2026_03_09_1500` |
+| 3 | Dry-run upgrade (staging) | `alembic upgrade head --sql` → review DDL, no unexpected DROP |
+| 4 | Run migration rollback tests | `pytest tests/integration/test_migration_rollback.py -v` → 14 passed |
+| 5 | Check CI gates | stmt ≥ 88%, branch ≥ 80%, combined ≥ 85% |
+| 6 | Snapshot attendance constraints | `SELECT conname FROM pg_constraint WHERE conrelid='attendance'::regclass` → 3 rows: `attendance_pkey`, `attendance_booking_id_fkey`, `uq_booking_attendance` + index `uq_attendance_user_session_no_booking` |
+
+### Migration execution
+
+| # | Step | Command |
+|---|------|---------|
+| 1 | Backup DB | `pg_dump lfa_intern_system > backup_$(date +%Y%m%d_%H%M%S).sql` |
+| 2 | Apply migration | `alembic upgrade head` |
+| 3 | Confirm revision | `alembic current` → `2026_03_09_1500 (head)` |
+| 4 | Spot-check constraints | repeat snapshot query above |
+
+### Rollback plan
+
+If a migration causes issues:
+
+```bash
+# Roll back to before uq_booking_attendance (keeps partial index)
+alembic downgrade 2026_03_09_1400
+
+# Roll back to before both attendance constraints
+alembic downgrade 2026_03_02_2115
+
+# Verify revision after rollback
+alembic current
+```
+
+**Safety property**: both `downgrade` paths are tested by `test_migration_rollback.py` and confirmed
+to leave `attendance_pkey` and `attendance_booking_id_fkey` intact.
+
+### CI gates summary
+
+| Gate | Threshold | Current |
+|------|-----------|---------|
+| Statement coverage | ≥ 88% | 88.7% |
+| Branch coverage | ≥ 80% | 83.5% |
+| Combined coverage | ≥ 85% | 88.0% |
+| Mutation kill rate | ≥ 78% (regression) | 80.4% |
+| Unit tests | 0 failures | 6 865 passed, 1 xfailed |
+| Integration tests | 0 failures | 51 passed (26 web_flows + 14 rollback + 11 tournament) |
+
+---
+
+## 📋 Release Candidate Report — Sprint 53+ (2026-03-09)
+
+### Summary
+
+| Dimension | Status | Detail |
+|-----------|--------|--------|
+| Unit tests | ✅ Green | 6 865 passed, 1 xfailed (expected) |
+| Integration tests | ✅ Green | 51 passed (26 web_flows + 14 migration rollback + 11 tournament) |
+| E2E tests | ✅ Green | 7/7 Cypress (CI run `22803983615`) |
+| Statement coverage | ✅ 88.7% | Gate: ≥ 88% |
+| Branch coverage | ✅ 83.5% | Gate: ≥ 80% |
+| Mutation kill rate | ✅ 80.4% | Milestone ≥ 80% achieved Sprint 48 |
+| DB migrations | ✅ Applied | Head: `2026_03_09_1500`, rollback tests: 14/14 |
+| API smoke tests | ✅ 579 endpoints | 1 737 tests passing (CI) |
+
+### DB Safety State
+
+Two complementary attendance uniqueness constraints in place as of `2026_03_09_1500`:
+
+```
+booking_id IS NOT NULL  →  uq_booking_attendance UNIQUE(booking_id)
+booking_id IS NULL      →  uq_attendance_user_session_no_booking
+                              UNIQUE(user_id, session_id) WHERE booking_id IS NULL
+```
+
+Quiz double-completion race is serialized by `SELECT FOR UPDATE` in `quiz.py:submit_quiz` — no DB
+unique constraint possible (multi-attempt design; no `session_id` column on `quiz_attempts`).
+
+### Known Gaps
+
+| Gap | Severity | Mitigation |
+|-----|----------|------------|
+| `admin_enrollments_page` (lines 92–233) excluded from coverage | Low | Function has no pure-unit test path due to `db.refresh` on lazy relationships; covered by E2E |
+| Quiz attempt uniqueness has no DB constraint | Low | `SELECT FOR UPDATE` + `completed_at` guard; integration test confirms idempotency |
+| Rate limiting not tested at unit/integration level | Info | `ENABLE_RATE_LIMITING = not is_testing()` — enforced by `slowapi` in production only |
+| web_routes branch coverage 71% (below 80% project gate) | Info | Layer-level gap; project-level gate (83.5%) is met |
+
+### Go / No-Go
+
+**GO** — all blocking gates pass, DB constraints are consistent and rollback-tested, no open
+regressions. The two new migrations (`1400` + `1500`) close the attendance uniqueness matrix.
+
+---
+
+**Verzió**: 2.3 (2025-12-17) → Sprint 53 integration flows (2026-03-09)
 **Státusz**: Production Ready
 **Database Quality**: 90.75% (A-) ⭐
 **API Performance**: 8/12 N+1 fixed (98.7% query reduction) ✅
-**Test Coverage**: 45% (221 tests, +58 new) ✅
+**Test Coverage**: 88.7% stmt / 83.5% branch (6 865 unit + 26 integration web_flows + 14 migration rollback) ✅
 **Response Time**: ~7,170ms → ~90ms (98.7% faster) ⚡

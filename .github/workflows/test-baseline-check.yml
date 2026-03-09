@@ -60,12 +60,23 @@ jobs:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
-        pytest tests/unit/ tests/integration/tournament/ -q --tb=line -v \
+        pytest tests/unit/ tests/integration/tournament/ tests/integration/web_flows/ \
+          -q --tb=line -v \
           --cov=app \
           --cov-branch \
           --cov-report=term-missing \
-          --cov-fail-under=60 \
+          --cov-fail-under=85 \
           --durations=20
+
+    - name: Run migration rollback tests (DDL round-trip)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        # These tests perform actual downgrade/upgrade DDL — run separately
+        # after the main suite. The autouse fixture always restores DB to head,
+        # so subsequent steps (api_smoke, coverage) see a clean schema.
+        pytest tests/integration/test_migration_rollback.py -v --tb=short
 
     - name: Run api_smoke tests (coverage append)
       env:
@@ -77,13 +88,13 @@ jobs:
           --cov-branch \
           --cov-append
 
-    - name: Enforce coverage thresholds (stmt >= 75%, combined >= 75%)
+    - name: Enforce coverage thresholds (stmt >= 88%, branch >= 80%, combined >= 85%)
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test
         SECRET_KEY: test-secret-key-for-ci-only-not-production
       run: |
         python -m coverage xml -o coverage.xml
-        python -m coverage report --show-missing --fail-under=75
+        python -m coverage report --show-missing --fail-under=85
         python .github/scripts/check_coverage.py
 
     - name: Upload coverage report
