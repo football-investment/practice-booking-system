@@ -21,8 +21,13 @@
  *     email in DB; if the email changed the lookup returns 404 → 401).
  *   • Toggling the admin's own status returns 400 (self-toggle guard).
  *
- * Solution: search the page HTML for the `badge-student` CSS class to find a
- * student row, then extract the user id from the adjacent edit/toggle link.
+ * Solution: admin/users.html emits stable data attributes on every <tr>:
+ *   data-testid="user-row"
+ *   data-role="{{ u.role.value }}"   →  "admin" | "instructor" | "student"
+ *   data-user-id="{{ u.id }}"
+ *
+ * The tests match `data-role="student"` and read `data-user-id` directly —
+ * immune to CSS class renames, badge icon changes, and column reordering.
  */
 import '../../../support/web_commands';
 
@@ -75,10 +80,10 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
     cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
       .then((resp) => {
         expect(resp.status).to.equal(200);
-        // Find a STUDENT user (badge-student) — never edit the admin user
-        // (editing admin email breaks the JWT lookup → 401 on redirect).
-        const match = resp.body.match(/badge-student[\s\S]{0,800}href="\/admin\/users\/(\d+)\/edit"/);
-        if (!match) return cy.log('No student edit link found — skip ADM-CRUD-03');
+        // Stable selector: data-role="student" on <tr data-testid="user-row">
+        // Immune to CSS class renames, badge icon changes, column reordering.
+        const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
+        if (!match) return cy.log('No student row found — skip ADM-CRUD-03');
         const userId = match[1];
         return cy.request({
           method: 'POST',
@@ -101,9 +106,9 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
     cy.webLoginAs('admin');
     cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
       .then((resp) => {
-        // Find a STUDENT user — avoid admin so its session stays valid
-        const match = resp.body.match(/badge-student[\s\S]{0,800}href="\/admin\/users\/(\d+)\/edit"/);
-        if (!match) return cy.log('No student edit link found — skip ADM-CRUD-04');
+        // Stable selector: data-role="student" — avoid admin so its session stays valid
+        const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
+        if (!match) return cy.log('No student row found — skip ADM-CRUD-04');
         const userId = match[1];
         return cy.request({
           method: 'POST',
@@ -122,9 +127,9 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
     cy.webLoginAs('admin');
     cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
       .then((resp) => {
-        // Find a STUDENT toggle button — avoid admin (self-toggle → 400)
-        const match = resp.body.match(/badge-student[\s\S]{0,800}action="\/admin\/users\/(\d+)\/toggle-status"/);
-        if (!match) return cy.log('No student toggle button found — skip ADM-CRUD-05');
+        // Stable selector: data-role="student" — avoid admin (self-toggle → 400)
+        const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
+        if (!match) return cy.log('No student row found — skip ADM-CRUD-05');
         const userId = match[1];
         return cy.request({
           method: 'POST',

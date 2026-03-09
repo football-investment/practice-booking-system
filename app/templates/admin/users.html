@@ -262,7 +262,7 @@
                 </thead>
                 <tbody>
                     {% for u in all_users %}
-                    <tr>
+                    <tr data-testid="user-row" data-role="{{ u.role.value }}" data-user-id="{{ u.id }}">
                         <td><strong>#{{ u.id }}</strong></td>
                         <td>{{ u.name }}</td>
                         <td>{{ u.email }}</td>
