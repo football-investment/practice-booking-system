@@ -33,8 +33,17 @@ Constraint design:
 Pre-migration data check (2026-03-09):
   - 83 attendance rows, 0 with NULL booking_id
   - 0 duplicate booking_id values  → safe to apply, no backfill needed
+
+Idempotency note:
+  Fresh databases (CI, new dev setups) already have this constraint via the
+  squashed baseline migration (1ec11c73ea62). The upgrade() guard checks
+  pg_constraint before creating, so the migration is safe to apply in both
+  environments:
+    - Live prod DB: constraint absent → created here ✓
+    - Fresh CI DB:  constraint present (from baseline) → skipped ✓
 """
 from alembic import op
+from sqlalchemy import text
 
 
 revision = '2026_03_09_1500'
@@ -44,12 +53,28 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_unique_constraint(
-        'uq_booking_attendance',
-        'attendance',
-        ['booking_id'],
-    )
+    conn = op.get_bind()
+    exists = conn.execute(
+        text(
+            "SELECT 1 FROM pg_constraint "
+            "WHERE conname='uq_booking_attendance' AND conrelid='attendance'::regclass"
+        )
+    ).scalar()
+    if not exists:
+        op.create_unique_constraint(
+            'uq_booking_attendance',
+            'attendance',
+            ['booking_id'],
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint('uq_booking_attendance', 'attendance', type_='unique')
+    conn = op.get_bind()
+    exists = conn.execute(
+        text(
+            "SELECT 1 FROM pg_constraint "
+            "WHERE conname='uq_booking_attendance' AND conrelid='attendance'::regclass"
+        )
+    ).scalar()
+    if exists:
+        op.drop_constraint('uq_booking_attendance', 'attendance', type_='unique')
