@@ -21,10 +21,18 @@
     "cy:run:non-critical": "ELECTRON_RUN_AS_NODE= cypress run --spec 'cypress/e2e/auth/login.cy.js,cypress/e2e/error_states/http_409_conflict.cy.js,cypress/e2e/error_states/unauthorized.cy.js,cypress/e2e/player/dashboard.cy.js,cypress/e2e/student/enrollment_409_live.cy.js,cypress/e2e/student/error_states.cy.js,cypress/e2e/system/cross_role_e2e.cy.js'",
     "cy:run:headed": "ELECTRON_RUN_AS_NODE= cypress run --headed --no-exit",
     "cy:run:ci": "cypress run --headless --browser chrome",
-    "cy:analyze": "node ci-result-processor.js all"
+    "cy:analyze": "node ci-result-processor.js all",
+    "cy:run:web:admin": "ELECTRON_RUN_AS_NODE= cypress run --config baseUrl=http://localhost:8000 --spec 'cypress/e2e/web/admin/**'",
+    "cy:run:web:instructor": "ELECTRON_RUN_AS_NODE= cypress run --config baseUrl=http://localhost:8000 --spec 'cypress/e2e/web/instructor/**,cypress/e2e/web/sessions/instructor_session_lifecycle.cy.js'",
+    "cy:run:web:student": "ELECTRON_RUN_AS_NODE= cypress run --config baseUrl=http://localhost:8000 --spec 'cypress/e2e/web/auth/**,cypress/e2e/web/student/**,cypress/e2e/web/sessions/student_booking.cy.js'",
+    "cy:run:web:integration": "ELECTRON_RUN_AS_NODE= cypress run --config baseUrl=http://localhost:8000 --spec 'cypress/e2e/web/cross_role/**'",
+    "cy:run:web:all": "ELECTRON_RUN_AS_NODE= cypress run --config baseUrl=http://localhost:8000 --spec 'cypress/e2e/web/**'"
   },
   "devDependencies": {
-    "@cypress/grep": "^4.0.2"
+    "@cypress/grep": "^4.0.2",
+    "cypress-mochawesome-reporter": "^3.8.0",
+    "mochawesome-merge": "^4.3.0",
+    "mochawesome-report-generator": "^6.2.0"
   },
   "engines": {
     "node": ">=18.0.0"

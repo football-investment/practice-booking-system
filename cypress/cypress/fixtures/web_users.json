@@ -1,0 +1,26 @@
+{
+  "admin": {
+    "email": "admin@lfa.com",
+    "password": "admin123",
+    "role": "ADMIN",
+    "name": "LFA Admin"
+  },
+  "instructor": {
+    "email": "grandmaster@lfa.com",
+    "password": "TestInstructor2026",
+    "role": "INSTRUCTOR",
+    "name": "Grand Master"
+  },
+  "student": {
+    "email": "rdias@manchestercity.com",
+    "password": "TestPlayer2026",
+    "role": "STUDENT",
+    "name": "Ruben Dias"
+  },
+  "fresh": {
+    "email": "fresh.e2e@lfa.com",
+    "password": "FreshE2E2026",
+    "role": "STUDENT",
+    "name": "Fresh E2E Student"
+  }
+}

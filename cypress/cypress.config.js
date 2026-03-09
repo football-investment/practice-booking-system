@@ -73,16 +73,55 @@ module.exports = defineConfig({
       grepOmitFiltered: true,
     },
 
+    // ── Web E2E (FastAPI Jinja2) credentials ────────────────────────────────
+    // Used by cypress/e2e/web/** specs (baseUrl=http://localhost:8000)
+    webAdminEmail:       process.env.CYPRESS_webAdminEmail       || 'admin@lfa.com',
+    webAdminPassword:    process.env.CYPRESS_webAdminPassword    || 'admin123',
+    webInstructorEmail:  process.env.CYPRESS_webInstructorEmail  || 'grandmaster@lfa.com',
+    webInstructorPassword: process.env.CYPRESS_webInstructorPassword || 'TestInstructor2026',
+    webStudentEmail:     process.env.CYPRESS_webStudentEmail     || 'rdias@manchestercity.com',
+    webStudentPassword:  process.env.CYPRESS_webStudentPassword  || 'TestPlayer2026',
+    webFreshEmail:       process.env.CYPRESS_webFreshEmail       || 'fresh.e2e@lfa.com',
+    webFreshPassword:    process.env.CYPRESS_webFreshPassword    || 'FreshE2E2026',
+
     // ── Plugin setup ─────────────────────────────────────────────────────────
     setupNodeEvents(on, config) {
       // @cypress/grep — tag-based test filtering
-      // Usage: cy:run:smoke → runs tests tagged @smoke
       try {
         require('@cypress/grep/src/plugin')(config);
-      } catch {
-        // Gracefully skip if @cypress/grep not installed yet
-      }
+      } catch {}
+
+      // cy.task("resetDb", scenario) — calls Python DB reset script
+      // Used by web/e2e specs before each suite (baseUrl=http://localhost:8000)
+      on('task', {
+        resetDb(scenario = 'baseline') {
+          const { execSync } = require('child_process');
+          const cwd = require('path').resolve(__dirname, '..');
+          execSync(
+            `python scripts/reset_e2e_web_db.py --scenario ${scenario}`,
+            { cwd, stdio: 'inherit' }
+          );
+          return null;
+        },
+      });
+
+      // cypress-mochawesome-reporter
+      try {
+        require('cypress-mochawesome-reporter/plugin')(on);
+      } catch {}
+
       return config;
     },
+  },
+
+  // ── Mochawesome HTML report (web E2E coverage visualization) ────────────────
+  reporter: 'cypress-mochawesome-reporter',
+  reporterOptions: {
+    reportDir:          'cypress/reports/html',
+    charts:             true,
+    reportPageTitle:    'Web E2E Coverage — FastAPI Jinja2',
+    embeddedScreenshots: true,
+    inlineAssets:       true,
+    saveAllAttempts:    false,
   },
 });
