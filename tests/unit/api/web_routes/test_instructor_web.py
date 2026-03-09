@@ -31,6 +31,7 @@ import asyncio
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -408,12 +409,152 @@ class TestTakeQuiz:
             _run(take_quiz(request=_req(), quiz_id=1, session_id=5, db=db, user=user))
         assert exc_info.value.status_code == 404
 
+    def test_take_quiz_session_id_session_not_found(self):
+        """session_id given, SessionQuiz found, Session not found → 404."""
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.time_limit_minutes = 30
+        session_quiz = MagicMock()
+        db = MagicMock()
+        db.query.return_value.options.return_value.filter.return_value.first.return_value = quiz
+        db.query.return_value.filter.return_value.first.side_effect = [session_quiz, None]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(take_quiz(request=_req(), quiz_id=1, session_id=5, db=db, user=_student()))
+        assert exc_info.value.status_code == 404
+        assert "Session not found" in exc_info.value.detail
+
+    def test_take_quiz_session_not_started_raises_403(self):
+        """session_id given, session has future start → 403."""
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.time_limit_minutes = 30
+        session_quiz = MagicMock()
+        session_obj = MagicMock()
+        future_naive = (datetime.now(ZoneInfo("Europe/Budapest")) + timedelta(hours=2)).replace(tzinfo=None)
+        session_obj.date_start = future_naive
+        db = MagicMock()
+        db.query.return_value.options.return_value.filter.return_value.first.return_value = quiz
+        db.query.return_value.filter.return_value.first.side_effect = [session_quiz, session_obj]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(take_quiz(request=_req(), quiz_id=1, session_id=5, db=db, user=_student()))
+        assert exc_info.value.status_code == 403
+
+    def test_take_quiz_session_not_booked_raises_403(self):
+        """session_id given, session started, booking=None → 403."""
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.time_limit_minutes = 30
+        session_quiz = MagicMock()
+        session_obj = MagicMock()
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_obj.date_start = past_naive
+        db = MagicMock()
+        db.query.return_value.options.return_value.filter.return_value.first.return_value = quiz
+        db.query.return_value.filter.return_value.first.side_effect = [session_quiz, session_obj, None]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(take_quiz(request=_req(), quiz_id=1, session_id=5, db=db, user=_student()))
+        assert exc_info.value.status_code == 403
+        assert "book this session" in exc_info.value.detail
+
+    def test_take_quiz_session_id_booked_renders_take(self):
+        """session_id given, all checks pass → quiz_take.html + line 369 session re-fetch."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = [MagicMock()]
+        quiz.time_limit_minutes = 60
+        session_quiz = MagicMock()
+        session_obj = MagicMock()
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_obj.date_start = past_naive
+        booking = MagicMock()
+        active_attempt = MagicMock()
+        active_attempt.started_at = datetime.now(timezone.utc)
+        active_attempt.id = 10
+        db = MagicMock()
+        db.query.return_value.options.return_value.filter.return_value.first.return_value = quiz
+        db.query.return_value.filter.return_value.first.side_effect = [
+            session_quiz,    # SessionQuiz booking check
+            session_obj,     # Session start-time check
+            booking,         # Booking check
+            active_attempt,  # QuizAttempt
+            session_obj,     # Line 369: session re-fetch for template
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(take_quiz(request=_req(), quiz_id=1, session_id=5, db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "quiz_take.html"
+
+    def test_take_quiz_session_start_aware_datetime_skips_tz_replace(self):
+        """date_start is tz-aware → 296→299 False branch (skip replace)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.time_limit_minutes = 60
+        session_quiz = MagicMock()
+        session_obj = MagicMock()
+        bud = ZoneInfo("Europe/Budapest")
+        session_obj.date_start = datetime.now(bud) - timedelta(hours=1)  # tz-aware, already past
+        booking = MagicMock()
+        active_attempt = MagicMock()
+        active_attempt.started_at = datetime.now(timezone.utc)
+        active_attempt.id = 10
+        db = MagicMock()
+        db.query.return_value.options.return_value.filter.return_value.first.return_value = quiz
+        db.query.return_value.filter.return_value.first.side_effect = [
+            session_quiz,   # SessionQuiz check
+            session_obj,    # Session time check — tz-aware, skips replace
+            booking,        # Booking check
+            active_attempt, # QuizAttempt
+            session_obj,    # line 369: session re-fetch for template
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(take_quiz(request=_req(), quiz_id=1, session_id=5, db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "quiz_take.html"
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # submit_quiz
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestSubmitQuiz:
+    """Tests for the submit_quiz endpoint.
+
+    DB query order when session_id is provided (not None/"None"):
+    ─────────────────────────────────────────────────────────────
+    The endpoint always starts by fetching the Quiz object (options chain).
+    When session_id is set, a *session validation block* runs BEFORE
+    processing the QuizAttempt:
+
+      filter().first() side_effect order:
+        1. Quiz          — db.query(Quiz).options(...).filter(...).first()
+        2. SessionQuiz   — db.query(SessionQuiz).filter(...).first()
+        3. SessionModel  — time-check: date_start must be a real naive Budapest
+                           datetime (< now → allowed; > now → 403)
+                           Use: (datetime.now(ZoneInfo("Europe/Budapest")) ± delta).replace(tzinfo=None)
+        4. Booking       — auth-check: must not be None, else 403
+        5. QuizAttempt   — existing attempt lookup
+        [questions loop — no DB calls]
+        6. SessionModel  — re-fetch after commit (line ~523)
+        7. Booking       — for auto-attendance when virtual + passed (line ~527)
+        8. AttendanceRecord — existing attendance check (None → create new)
+
+    When session_id is None/"None", steps 2–4 and 6–8 are skipped.
+    """
 
     def _make_req_with_form(self, form_data=None):
         req = MagicMock()
@@ -569,6 +710,393 @@ class TestSubmitQuiz:
 
         mock_tmpl.TemplateResponse.assert_called_once()
 
+    def test_submit_session_quiz_link_not_found(self):
+        """session_id given, SessionQuiz=None → 404."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [MagicMock(), None]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(submit_quiz(
+                request=self._make_req_with_form(), quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=5.0, db=db, user=_student(),
+            ))
+        assert exc_info.value.status_code == 404
+        assert "not found for this session" in exc_info.value.detail
+
+    def test_submit_session_not_found(self):
+        """session_id given, SessionQuiz found, Session not found → 404."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            MagicMock(),  # quiz
+            MagicMock(),  # session_quiz
+            None,         # session = None
+        ]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(submit_quiz(
+                request=self._make_req_with_form(), quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=5.0, db=db, user=_student(),
+            ))
+        assert exc_info.value.status_code == 404
+        assert "Session not found" in exc_info.value.detail
+
+    def test_submit_session_not_started_403(self):
+        """session_id given, session has future start → 403."""
+        session_obj = MagicMock()
+        future_naive = (datetime.now(ZoneInfo("Europe/Budapest")) + timedelta(hours=2)).replace(tzinfo=None)
+        session_obj.date_start = future_naive
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            MagicMock(),  # quiz
+            MagicMock(),  # session_quiz
+            session_obj,  # session with future start
+        ]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(submit_quiz(
+                request=self._make_req_with_form(), quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=5.0, db=db, user=_student(),
+            ))
+        assert exc_info.value.status_code == 403
+
+    def test_submit_session_not_booked_403(self):
+        """session_id given, session started, booking=None → 403."""
+        session_obj = MagicMock()
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_obj.date_start = past_naive
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            MagicMock(),  # quiz
+            MagicMock(),  # session_quiz
+            session_obj,  # session with past start
+            None,         # booking = None
+        ]
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(submit_quiz(
+                request=self._make_req_with_form(), quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=5.0, db=db, user=_student(),
+            ))
+        assert exc_info.value.status_code == 403
+        assert "book this session" in exc_info.value.detail
+
+    def test_submit_unanswered_question_skips_scoring(self):
+        """Question with no form answer → FALSE branch of line 469 (if selected_option_id)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        question = MagicMock()
+        question.id = 7
+        question.points = 10
+        quiz.questions = [question]
+        quiz.passing_score = 0.70
+        quiz.xp_reward = 50
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [quiz, attempt]
+
+        req = MagicMock()
+        req.form = AsyncMock(return_value={})  # No answer for question_7
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=req, quiz_id=1, session_id=None,
+                attempt_id=1, time_spent=5.0, db=db, user=user,
+            ))
+
+        assert attempt.passed is False
+        assert attempt.xp_awarded == 0
+
+    def test_submit_incorrect_answer_no_points(self):
+        """Selected answer is wrong → FALSE branch of line 473 (if option.is_correct)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        question = MagicMock()
+        question.id = 7
+        question.points = 10
+        quiz.questions = [question]
+        quiz.passing_score = 0.70
+        quiz.xp_reward = 50
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        wrong_option = MagicMock()
+        wrong_option.is_correct = False
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [quiz, attempt, wrong_option]
+
+        req = MagicMock()
+        req.form = AsyncMock(return_value={"question_7": "42"})
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=req, quiz_id=1, session_id=None,
+                attempt_id=1, time_spent=5.0, db=db, user=user,
+            ))
+
+        assert attempt.correct_answers == 0
+        assert attempt.xp_awarded == 0
+
+    def test_submit_existing_user_stats_updated(self):
+        """Passed quiz with existing UserStats → update path (lines 513-515)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.passing_score = 0.0  # Always pass
+        quiz.xp_reward = 100
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        existing_stats = MagicMock()
+        existing_stats.total_xp = 500
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [quiz, attempt, existing_stats]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=self._make_req_with_form(),
+                quiz_id=1, session_id=None,
+                attempt_id=1, time_spent=3.0, db=db, user=user,
+            ))
+
+        assert existing_stats.total_xp == 600  # 500 + 100
+
+    def test_submit_virtual_session_auto_attendance(self):
+        """Virtual session + quiz passed → auto-attendance created (lines 526-550)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.passing_score = 0.0  # Always pass
+        quiz.xp_reward = 0        # Avoid UserStats query
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        # Validation session (lines 401-440): needs real date_start in the past
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_for_validation = MagicMock()
+        session_for_validation.date_start = past_naive
+        # Session for virtual attendance (line 523): needs session_type.value = 'virtual'
+        session_for_attendance = MagicMock()
+        session_for_attendance.id = 5
+        session_for_attendance.session_type.value = 'virtual'
+        booking_auth = MagicMock()    # booking for auth check (line 430-440)
+        booking_attend = MagicMock()  # booking for auto-attendance (line 527)
+        booking_attend.id = 10
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            quiz,                   # 1: Quiz
+            MagicMock(),            # 2: SessionQuiz (validation)
+            session_for_validation, # 3: SessionModel time-check
+            booking_auth,           # 4: Booking auth-check
+            attempt,                # 5: QuizAttempt
+            session_for_attendance, # 6: SessionModel after commit (line 523)
+            booking_attend,         # 7: Booking for auto-attendance (line 527)
+            None,                   # 8: existing_attendance → create
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=self._make_req_with_form(),
+                quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=3.0, db=db, user=user,
+            ))
+
+        db.add.assert_called()
+        assert db.commit.call_count >= 2
+
+    def test_submit_session_start_aware_skips_tz_replace(self):
+        """date_start is tz-aware → 420→423 False branch (skip replace)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.passing_score = 1.0
+        quiz.xp_reward = 0
+        bud = ZoneInfo("Europe/Budapest")
+        session_obj = MagicMock()
+        session_obj.date_start = datetime.now(bud) - timedelta(hours=1)  # tz-aware
+        session_obj.session_type.value = "on_site"
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            quiz,           # Quiz
+            MagicMock(),    # SessionQuiz
+            session_obj,    # Session (tz-aware, no replace)
+            MagicMock(),    # Booking auth
+            attempt,        # QuizAttempt
+            session_obj,    # re-fetch after commit
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=self._make_req_with_form(),
+                quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=3.0, db=db, user=user,
+            ))
+
+        mock_tmpl.TemplateResponse.assert_called_once()
+
+    def test_submit_correct_answer_increments_score(self):
+        """Correct answer → 474-475 covered (correct_count += 1, earned_points += question.points)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        question = MagicMock()
+        question.id = 7
+        question.points = 10
+        quiz.questions = [question]
+        quiz.passing_score = 0.5  # 50% threshold
+        quiz.xp_reward = 0
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        correct_option = MagicMock()
+        correct_option.is_correct = True
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [quiz, attempt, correct_option]
+
+        req = MagicMock()
+        req.form = AsyncMock(return_value={"question_7": "42"})
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=req, quiz_id=1, session_id=None,
+                attempt_id=1, time_spent=5.0, db=db, user=user,
+            ))
+
+        assert attempt.correct_answers == 1
+        assert attempt.score == 100.0
+
+    def test_submit_non_virtual_session_skips_auto_attendance(self):
+        """Non-virtual session + passed → 526→556 False branch (not virtual)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.passing_score = 0.0  # Always pass
+        quiz.xp_reward = 0
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_obj = MagicMock()
+        session_obj.date_start = past_naive
+        session_obj.session_type.value = "on_site"  # NOT virtual → skip auto-attendance
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            quiz,           # Quiz
+            MagicMock(),    # SessionQuiz validation
+            session_obj,    # Session time check
+            MagicMock(),    # Booking auth
+            attempt,        # QuizAttempt
+            session_obj,    # re-fetch after commit (line 523)
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=self._make_req_with_form(),
+                quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=3.0, db=db, user=user,
+            ))
+
+        mock_tmpl.TemplateResponse.assert_called_once()
+
+    def test_submit_virtual_no_booking_skips_auto_attendance(self):
+        """Virtual + passed, booking=None → 532→556 False branch (no auto-attendance)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.passing_score = 0.0
+        quiz.xp_reward = 0
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_for_validation = MagicMock()
+        session_for_validation.date_start = past_naive
+        session_for_attendance = MagicMock()
+        session_for_attendance.id = 5
+        session_for_attendance.session_type.value = "virtual"
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            quiz,                    # Quiz
+            MagicMock(),             # SessionQuiz validation
+            session_for_validation,  # Session time check
+            MagicMock(),             # Booking auth
+            attempt,                 # QuizAttempt
+            session_for_attendance,  # re-fetch after commit
+            None,                    # booking for auto-attendance = None → skip
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=self._make_req_with_form(),
+                quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=3.0, db=db, user=user,
+            ))
+
+        mock_tmpl.TemplateResponse.assert_called_once()
+
+    def test_submit_virtual_existing_attendance_skips_create(self):
+        """Virtual + passed + booking found + existing_attendance → 539→556 False (no double-create)."""
+        user = _student(uid=99)
+        quiz = MagicMock()
+        quiz.id = 1
+        quiz.questions = []
+        quiz.passing_score = 0.0
+        quiz.xp_reward = 0
+        past_naive = (datetime.now(ZoneInfo("Europe/Budapest")) - timedelta(hours=1)).replace(tzinfo=None)
+        session_for_validation = MagicMock()
+        session_for_validation.date_start = past_naive
+        session_for_attendance = MagicMock()
+        session_for_attendance.id = 5
+        session_for_attendance.session_type.value = "virtual"
+        booking_attend = MagicMock()
+        booking_attend.id = 10
+        existing_att = MagicMock()  # already exists → skip create
+        attempt = MagicMock()
+        attempt.completed_at = None
+        attempt.id = 1
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [
+            quiz,                    # Quiz
+            MagicMock(),             # SessionQuiz validation
+            session_for_validation,  # Session time check
+            MagicMock(),             # Booking auth
+            attempt,                 # QuizAttempt
+            session_for_attendance,  # re-fetch after commit
+            booking_attend,          # booking for auto-attendance
+            existing_att,            # existing_attendance found → don't create
+        ]
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(submit_quiz(
+                request=self._make_req_with_form(),
+                quiz_id=1, session_id="5",
+                attempt_id=1, time_spent=3.0, db=db, user=user,
+            ))
+
+        mock_tmpl.TemplateResponse.assert_called_once()
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # evaluate_student_performance
@@ -712,6 +1240,32 @@ class TestEvaluateStudentPerformance:
 
         assert "student_evaluated" in result.headers["location"]
         mock_xp.assert_called_once()
+
+    def test_update_review_no_comments_path(self):
+        """Updating review with update_reason but no comments → else branch (line 668-669)."""
+        user = _instructor()
+        s = _session_mock(actual_end=datetime.now(timezone.utc))
+        attendance = MagicMock()
+        attendance.status = AttendanceStatus.present
+        existing_review = MagicMock()
+        existing_review.comments = "Previous comment"
+        student = MagicMock()
+        student.specialization = None
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, attendance, existing_review, student]
+
+        with patch(_PATCH_XP, create=True):
+            result = _run(evaluate_student_performance(
+                request=_req(), session_id=1, student_id=2,
+                db=db, user=user,
+                punctuality=4, engagement=4, focus=4, collaboration=4, attitude=4,
+                comments=None,             # No comments → else branch (line 668-669)
+                update_reason="Correction needed",
+            ))
+
+        assert "student_evaluated" in result.headers["location"]
+        # else branch: existing_review.comments = (existing_review.comments or "") + update_note
+        assert existing_review.comments.startswith("Previous comment")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

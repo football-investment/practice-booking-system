@@ -253,6 +253,93 @@ class TestMarkAttendance:
         assert "attendance_marked" in result.headers["location"]
         assert existing.status == AttendanceStatus.present
 
+    def test_session_start_aware_datetime_skips_tz_replace(self):
+        """date_start is tz-aware → 54→56 False branch (skip replace for start)."""
+        user = _instructor()
+        s = MagicMock()
+        s.instructor_id = 42
+        now_aware = datetime.now(_BUD)
+        s.date_start = now_aware - timedelta(minutes=30)  # tz-aware, already past 15-min window
+        s.date_end = now_aware + timedelta(minutes=30)    # tz-aware
+        booking = MagicMock()
+        booking.id = 7
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, booking, None]
+        db.flush.side_effect = lambda: None
+
+        result = _run(mark_attendance(
+            request=_req(), session_id=1,
+            student_id=2, status="present", notes=None,
+            db=db, user=user,
+        ))
+        assert "attendance_marked" in result.headers["location"]
+
+    def test_session_end_aware_datetime_skips_tz_replace(self):
+        """date_end is tz-aware → 56→60 False branch (skip replace for end)."""
+        user = _instructor()
+        s = MagicMock()
+        s.instructor_id = 42
+        now_naive = _now_budapest()
+        # date_start naive, date_end tz-aware
+        s.date_start = now_naive - timedelta(minutes=30)
+        s.date_end = datetime.now(_BUD) + timedelta(minutes=30)  # tz-aware
+        booking = MagicMock()
+        booking.id = 8
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, booking, None]
+        db.flush.side_effect = lambda: None
+
+        result = _run(mark_attendance(
+            request=_req(), session_id=1,
+            student_id=2, status="present", notes=None,
+            db=db, user=user,
+        ))
+        assert "attendance_marked" in result.headers["location"]
+
+    def test_same_status_update_skips_history_entry(self):
+        """attendance.status == attendance_status → 108→120 False branch (no history)."""
+        user = _instructor()
+        s = _session_in_window()
+        booking = MagicMock()
+        existing = MagicMock()
+        existing.confirmation_status = ConfirmationStatus.pending_confirmation
+        existing.status = AttendanceStatus.present   # same as what we're setting
+        existing.check_in_time = datetime.now(timezone.utc)  # already has check_in
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, booking, existing]
+
+        result = _run(mark_attendance(
+            request=_req(), session_id=1,
+            student_id=2, status="present", notes=None,
+            db=db, user=user,
+        ))
+        assert "attendance_marked" in result.headers["location"]
+        # No AttendanceHistory should be added (no history entry needed)
+
+    def test_update_present_without_check_in_sets_check_in_time(self):
+        """attendance_status=present, check_in_time=None → line 127 covered."""
+        user = _instructor()
+        s = _session_in_window()
+        booking = MagicMock()
+        existing = MagicMock()
+        existing.confirmation_status = ConfirmationStatus.pending_confirmation
+        existing.status = AttendanceStatus.absent  # different → history created
+        existing.check_in_time = None              # no check_in yet
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [s, booking, existing]
+
+        result = _run(mark_attendance(
+            request=_req(), session_id=1,
+            student_id=2, status="present", notes=None,
+            db=db, user=user,
+        ))
+        assert "attendance_marked" in result.headers["location"]
+        assert existing.check_in_time is not None
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # confirm_attendance
@@ -348,6 +435,42 @@ class TestConfirmAttendance:
             db=db, user=user,
         ))
         assert "invalid_action" in result.headers["location"]
+
+    def test_session_not_found_skips_time_check(self):
+        """Session lookup returns None → 183→194 False branch (skip session time check)."""
+        user = _student()
+        attendance = MagicMock()
+        attendance.id = 5
+
+        db = MagicMock()
+        # attendance found, session=None → skip time check → proceed to confirm
+        db.query.return_value.filter.return_value.first.side_effect = [attendance, None]
+
+        result = _run(confirm_attendance(
+            request=_req(), session_id=1,
+            action="confirm", dispute_reason=None,
+            db=db, user=user,
+        ))
+        assert "attendance_confirmed" in result.headers["location"]
+
+    def test_session_end_aware_datetime_skips_tz_replace(self):
+        """session_end is tz-aware → 187→190 False branch (skip replace in confirm)."""
+        user = _student()
+        attendance = MagicMock()
+        attendance.id = 5
+        s = MagicMock()
+        # date_end is tz-aware → if session_end.tzinfo is None → False, skip replace
+        s.date_end = datetime.now(_BUD) + timedelta(hours=1)  # tz-aware, not yet ended
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [attendance, s]
+
+        result = _run(confirm_attendance(
+            request=_req(), session_id=1,
+            action="confirm", dispute_reason=None,
+            db=db, user=user,
+        ))
+        assert "attendance_confirmed" in result.headers["location"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
