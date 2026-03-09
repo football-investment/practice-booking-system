@@ -12,7 +12,10 @@ import traceback
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User
-from ...models.license import UserLicense  # ✅ CRITICAL FIX: Missing import causing NameError
+from ...models.license import UserLicense
+from ...models.specialization import SpecializationType
+from ...models.credit_transaction import CreditTransaction, TransactionType
+from ...utils.age_requirements import get_available_specializations
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

@@ -7,11 +7,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
+import traceback
 
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user_optional
-from ...models.user import User
+from ...models.user import User, UserRole
 from ...core.auth import create_access_token
 from ...core.security import verify_password
 from ...config import settings

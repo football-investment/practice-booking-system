@@ -48290,7 +48290,7 @@
     },
     "/specialization/lfa-player/onboarding": {
       "get": {
-        "description": "LFA Player specialized onboarding questionnaire\nMulti-step: Position \u2192 Self-Assessment \u2192 Motivation",
+        "description": "LFA Player specialized onboarding questionnaire\nMulti-step: Position -> Self-Assessment -> Motivation",
         "operationId": "lfa_player_onboarding_page_specialization_lfa_player_onboarding_get",
         "responses": {
           "200": {
