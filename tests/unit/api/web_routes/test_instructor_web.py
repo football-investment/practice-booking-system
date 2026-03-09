@@ -24,7 +24,7 @@ Covers:
 Mock strategy:
   - db = MagicMock(); db.query(...).filter(...).first() returns configured mock objects
   - patch("app.api.web_routes.instructor.templates") for TemplateResponse
-  - patch("app.api.web_routes.instructor._update_specialization_xp", create=True)
+  - patch("app.api.web_routes.instructor._update_specialization_xp")  (imported from helpers, fixed Sprint 54 P1)
   - asyncio.run(endpoint(...)) calls async functions directly without FastAPI DI
 """
 import asyncio
@@ -1187,7 +1187,7 @@ class TestEvaluateStudentPerformance:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [s, attendance, None, student]
 
-        with patch(_PATCH_XP, create=True) as mock_xp:
+        with patch(_PATCH_XP) as mock_xp:
             result = _run(evaluate_student_performance(
                 request=_req(), session_id=1, student_id=2,
                 db=db, user=user, **_EVAL_SCORES,
@@ -1208,7 +1208,7 @@ class TestEvaluateStudentPerformance:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [s, attendance, existing_review]
         # update_reason=None (already in _EVAL_SCORES) → no reason provided → should redirect
-        with patch(_PATCH_XP, create=True):
+        with patch(_PATCH_XP):
             result = _run(evaluate_student_performance(
                 request=_req(), session_id=1, student_id=2,
                 db=db, user=user,
@@ -1230,7 +1230,7 @@ class TestEvaluateStudentPerformance:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [s, attendance, existing_review, student]
 
-        with patch(_PATCH_XP, create=True) as mock_xp:
+        with patch(_PATCH_XP) as mock_xp:
             result = _run(evaluate_student_performance(
                 request=_req(), session_id=1, student_id=2,
                 db=db, user=user,
@@ -1254,7 +1254,7 @@ class TestEvaluateStudentPerformance:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [s, attendance, existing_review, student]
 
-        with patch(_PATCH_XP, create=True):
+        with patch(_PATCH_XP):
             result = _run(evaluate_student_performance(
                 request=_req(), session_id=1, student_id=2,
                 db=db, user=user,

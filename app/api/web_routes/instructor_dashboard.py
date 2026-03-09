@@ -17,6 +17,8 @@ from ...models.semester import Semester
 from ...models.license import UserLicense
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.specialization import SpecializationType
+from ...models.audit_log import AuditAction
+from ...services.audit_service import AuditService
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

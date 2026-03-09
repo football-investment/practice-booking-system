@@ -23,6 +23,7 @@ from ...models.quiz import Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, Qu
 from ...models.performance_review import InstructorSessionReview, StudentPerformanceReview
 from ...models.instructor_specialization import InstructorSpecialization
 from ...models.gamification import UserStats
+from .helpers import update_specialization_xp as _update_specialization_xp
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
