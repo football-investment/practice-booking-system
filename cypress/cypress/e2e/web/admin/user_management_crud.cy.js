@@ -3,8 +3,6 @@
  * DB scenario: baseline
  * Role coverage: admin (all CRUD), student (RBAC blocked)
  *
- * Uses cy.request() to avoid OOM on large admin pages.
- *
  * ── Why beforeEach resets DB ──────────────────────────────────────────────────
  * ADM-CRUD-03 edits a user (name + email), which would corrupt the admin
  * user's session if admin is accidentally picked.  Moving resetDb to
@@ -26,8 +24,11 @@
  *   data-role="{{ u.role.value }}"   →  "admin" | "instructor" | "student"
  *   data-user-id="{{ u.id }}"
  *
- * The tests match `data-role="student"` and read `data-user-id` directly —
- * immune to CSS class renames, badge icon changes, and column reordering.
+ * Tests that need a user ID use cy.visit('/admin/users') + cy.get() DOM
+ * queries — fully DOM-driven, immune to HTML serialisation differences and
+ * attribute ordering.  RBAC-negative tests (ADM-CRUD-02, -06, -10) keep
+ * cy.request() because the server returns a non-200/non-HTML response that
+ * cy.visit() cannot handle gracefully.
  */
 import '../../../support/web_commands';
 
@@ -45,24 +46,18 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   // ── ADM-CRUD-01 ─────────────────────────────────────────────────────────
   it('ADM-CRUD-01: GET /admin/users/{id}/edit responds 200 for admin (first user)', () => {
     cy.webLoginAs('admin');
-    // Get user list first to find a user ID
-    cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
-      .then((resp) => {
-        expect(resp.status).to.equal(200);
-        // Extract first edit link href to get a user ID
-        const match = resp.body.match(/href="\/admin\/users\/(\d+)\/edit"/);
-        if (!match) return cy.log('No edit links found in page');
-        const userId = match[1];
-        return cy.request({
-          method: 'GET',
-          url: `/admin/users/${userId}/edit`,
-          failOnStatusCode: false,
-        }).then((editResp) => {
-          expect(editResp.status).to.equal(200);
-          expect(editResp.body).to.not.include('Internal Server Error');
-          expect(editResp.body).to.include('Edit User');
-        });
+    cy.visit('/admin/users');
+    cy.get('[data-testid="user-row"]').first().invoke('attr', 'data-user-id').then((userId) => {
+      cy.request({
+        method: 'GET',
+        url: `/admin/users/${userId}/edit`,
+        failOnStatusCode: false,
+      }).then((editResp) => {
+        expect(editResp.status).to.equal(200);
+        expect(editResp.body).to.not.include('Internal Server Error');
+        expect(editResp.body).to.include('Edit User');
       });
+    });
   });
 
   // ── ADM-CRUD-02 ─────────────────────────────────────────────────────────
@@ -77,69 +72,57 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   // ── ADM-CRUD-03 ─────────────────────────────────────────────────────────
   it('ADM-CRUD-03: edit student user with valid data → redirects to /admin/users', () => {
     cy.webLoginAs('admin');
-    cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
-      .then((resp) => {
-        expect(resp.status).to.equal(200);
-        // Stable selector: data-role="student" on <tr data-testid="user-row">
-        // Immune to CSS class renames, badge icon changes, column reordering.
-        const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
-        if (!match) return cy.log('No student row found — skip ADM-CRUD-03');
-        const userId = match[1];
-        return cy.request({
-          method: 'POST',
-          url: `/admin/users/${userId}/edit`,
-          form: true,
-          // Keep the student email unchanged so the upsert in the next
-          // beforeEach can find the user by email and restore their data.
-          body: { name: 'Updated E2E Name', email: 'rdias@manchestercity.com', role: 'student' },
-          failOnStatusCode: false,
-        }).then((editResp) => {
-          // 303 redirect to /admin/users (Cypress follows → 200)
-          expect(editResp.status).to.equal(200);
-          expect(editResp.body).to.not.include('Internal Server Error');
-        });
+    cy.visit('/admin/users');
+    cy.get('[data-testid="user-row"][data-role="student"]').first().invoke('attr', 'data-user-id').then((userId) => {
+      cy.request({
+        method: 'POST',
+        url: `/admin/users/${userId}/edit`,
+        form: true,
+        // Keep the student email unchanged so the upsert in the next
+        // beforeEach can find the user by email and restore their data.
+        body: { name: 'Updated E2E Name', email: 'rdias@manchestercity.com', role: 'student' },
+        failOnStatusCode: false,
+      }).then((editResp) => {
+        // 303 redirect to /admin/users (Cypress follows → 200)
+        expect(editResp.status).to.equal(200);
+        expect(editResp.body).to.not.include('Internal Server Error');
       });
+    });
   });
 
   // ── ADM-CRUD-04 ─────────────────────────────────────────────────────────
   it('ADM-CRUD-04: edit user with invalid role → 400 error', () => {
     cy.webLoginAs('admin');
-    cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
-      .then((resp) => {
-        // Stable selector: data-role="student" — avoid admin so its session stays valid
-        const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
-        if (!match) return cy.log('No student row found — skip ADM-CRUD-04');
-        const userId = match[1];
-        return cy.request({
-          method: 'POST',
-          url: `/admin/users/${userId}/edit`,
-          form: true,
-          body: { name: 'Test', email: 'rdias@manchestercity.com', role: 'SUPER_ADMIN_INVALID' },
-          failOnStatusCode: false,
-        }).then((editResp) => {
-          expect(editResp.status).to.be.oneOf([400, 422]);
-        });
+    cy.visit('/admin/users');
+    // Target a student — avoid admin so its session stays valid
+    cy.get('[data-testid="user-row"][data-role="student"]').first().invoke('attr', 'data-user-id').then((userId) => {
+      cy.request({
+        method: 'POST',
+        url: `/admin/users/${userId}/edit`,
+        form: true,
+        body: { name: 'Test', email: 'rdias@manchestercity.com', role: 'SUPER_ADMIN_INVALID' },
+        failOnStatusCode: false,
+      }).then((editResp) => {
+        expect(editResp.status).to.be.oneOf([400, 422]);
       });
+    });
   });
 
   // ── ADM-CRUD-05 ─────────────────────────────────────────────────────────
   it('ADM-CRUD-05: toggle user status (student) → redirects to /admin/users', () => {
     cy.webLoginAs('admin');
-    cy.request({ method: 'GET', url: '/admin/users', failOnStatusCode: false })
-      .then((resp) => {
-        // Stable selector: data-role="student" — avoid admin (self-toggle → 400)
-        const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
-        if (!match) return cy.log('No student row found — skip ADM-CRUD-05');
-        const userId = match[1];
-        return cy.request({
-          method: 'POST',
-          url: `/admin/users/${userId}/toggle-status`,
-          failOnStatusCode: false,
-        }).then((toggleResp) => {
-          expect(toggleResp.status).to.equal(200);
-          expect(toggleResp.body).to.not.include('Internal Server Error');
-        });
+    cy.visit('/admin/users');
+    // Target a student — avoid admin (self-toggle → 400)
+    cy.get('[data-testid="user-row"][data-role="student"]').first().invoke('attr', 'data-user-id').then((userId) => {
+      cy.request({
+        method: 'POST',
+        url: `/admin/users/${userId}/toggle-status`,
+        failOnStatusCode: false,
+      }).then((toggleResp) => {
+        expect(toggleResp.status).to.equal(200);
+        expect(toggleResp.body).to.not.include('Internal Server Error');
       });
+    });
   });
 
   // ── ADM-CRUD-06 ─────────────────────────────────────────────────────────
