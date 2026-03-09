@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -21,6 +21,19 @@ class ConfirmationStatus(enum.Enum):
 
 class Attendance(Base):
     __tablename__ = "attendance"
+    __table_args__ = (
+        # Protects regular-session attendances (booking_id IS NOT NULL).
+        # PostgreSQL allows multiple NULLs in a UNIQUE constraint — tournament
+        # sessions (booking_id IS NULL) are covered by the partial index below.
+        UniqueConstraint('booking_id', name='uq_booking_attendance'),
+        # Protects tournament-session attendances (booking_id IS NULL).
+        Index(
+            'uq_attendance_user_session_no_booking',
+            'user_id', 'session_id',
+            unique=True,
+            postgresql_where="booking_id IS NULL",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)

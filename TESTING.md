@@ -240,14 +240,14 @@ assert resp.status_code < 500
 
 ## Coverage Targets
 
-| Metric | CI Threshold | Sprint 41 Actual |
+| Metric | CI Threshold | Sprint 51 Actual |
 |--------|-------------|-----------------|
-| Statement | ≥ 75% | 89.0% |
-| Branch (pure) | ≥ 78% | 81.0% |
-| Combined | ≥ 75% | ~88% |
+| Statement | ≥ 88% | 88.5% |
+| Branch (pure) | ≥ 80% | 81.4% |
+| Combined | ≥ 85% | 87.0% |
 
-**Target range:** 80–82% pure-branch. Contract tests add ~102 tests with minimal branch impact
-(Pydantic `model_fields` introspection has no conditional logic). Coverage stays ~81%.
+**web_routes layer:** 65% combined (was 60.9% pre-Sprint 51). admin.py 77%/BrPart=0, dashboard.py 98%/BrPart=2.
+Unreachable branches: dashboard.py lines 185-186 (only 3 UserRoles; student early-returns), admin.py lines 92-233 (`admin_enrollments_page` excluded — db.refresh on lazy-loaded relationships).
 
 ## Test Performance Baseline (Sprint 40 `--durations=20`)
 
@@ -436,6 +436,291 @@ The report script reads this file to show sprint-over-sprint deltas and the mile
 
 ---
 
+## Web Routes Unit Testing
+
+### Why `asyncio.run()` instead of TestClient
+
+Web route tests call async endpoint functions **directly** via `asyncio.run(endpoint(...))`.
+This bypasses FastAPI's dependency injection and the ASGI stack entirely, giving precise
+control over every DB query and making tests fast (no HTTP overhead).
+
+Trade-off: you must supply all injected parameters (`request`, `db`, `user`) manually.
+Use `MagicMock()` for `request`; build `db` chains yourself; use a user factory helper.
+
+### DB Mock Chain Reference
+
+| Query pattern in source | How to mock |
+|------------------------|-------------|
+| `db.query(M).filter().first()` | `db.query.return_value.filter.return_value.first.return_value = obj` |
+| `db.query(M).filter().all()` | `db.query.return_value.filter.return_value.all.return_value = [...]` |
+| `db.query(M).filter().order_by().all()` | `db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [...]` |
+| `db.query(M).options(...).order_by().all()` | `db.query.return_value.options.return_value.order_by.return_value.all.return_value = [...]` |
+| `db.query(M).options(...).filter().order_by().all()` | `db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [...]` |
+| `db.query(M).count()` | `db.query.return_value.count.return_value = N` |
+| `db.query(M).filter().count()` | `db.query.return_value.filter.return_value.count.return_value = N` |
+| Sequential `.first()` calls | `db.query.return_value.filter.return_value.first.side_effect = [obj1, obj2, ...]` |
+
+### Known Gotchas
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `TypeError: '>=' not supported between MagicMock and date` | `semester.end_date` left as MagicMock | Set `semester.end_date = date(2027, 12, 31)` |
+| `TypeError: multiple values for keyword argument 'user'` | `fb.user = MagicMock()` puts `user` in `__dict__` | Access via `fb.user.name = "X"` (not assignment) |
+| `AuditAction.UPDATE` AttributeError | `AuditAction` is a plain class, no `UPDATE` constant | Use `AuditAction.FOOTBALL_SKILLS_UPDATED` (fixed in admin.py) |
+| `StopIteration` in async tests | `side_effect` list exhausted (too few entries) | Add entries for ALL subsequent filter().first() calls |
+
+### Per-file Coverage Targets (web_routes layer)
+
+| File | stmt% | branch% | Notes |
+|------|-------|---------|-------|
+| admin.py | ≥75% | ≥60% | Lines 92-233 (`admin_enrollments_page`) excluded — db.refresh on lazy-loaded relationships |
+| dashboard.py | ≥95% | ≥70% | Lines 185-186 unreachable (only 3 roles; student early-returns) |
+| instructor.py | ≥98% | ≥90% | Lines 526/532/539->556 are nested loop exits, hard to trigger without real DB |
+| attendance.py | ≥95% | ≥85% | Lines 54->56 etc. are multi-condition branch exits |
+| sessions.py | ≥95% | ≥85% | |
+| quiz.py | ≥85% | ≥75% | |
+
+---
+
+## Web Flows Integration Testing (`tests/integration/web_flows/`)
+
+End-to-end validation of the web_routes → service → DB chain using real PostgreSQL
+with per-test SAVEPOINT isolation. Each test POSTs to an actual FastAPI route and
+validates both the HTTP response AND the resulting DB state.
+
+### Infrastructure
+
+| Component | Solution |
+|-----------|----------|
+| DB isolation | SAVEPOINT per test (same pattern as `tests/integration/conftest.py`) |
+| Auth injection | `app.dependency_overrides[get_current_user_web] = lambda: user` |
+| CSRF bypass | `TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"})` — `CSRFProtectionMiddleware` skips validation for Bearer auth requests |
+| Redirect assertions | `follow_redirects=False` → check `resp.status_code == 303` + `resp.headers["location"]` |
+| DB state validation | `test_db.expire_all()` then re-query after the request |
+
+### Fixture Layer (`conftest.py`)
+
+```
+test_db         ← SAVEPOINT-isolated session (local override)
+  ↓ used by:
+  semester        ← minimal Semester (code unique, status=ONGOING)
+  future_session  ← on-site, date_start=NOW+24h (bookable, cancellable)
+  active_session  ← on-site, date_start=NOW-5min, date_end=NOW+1h (attendance window)
+  hybrid_session  ← hybrid, actual_start_time set (quiz unlockable)
+  future_booking  ← student CONFIRMED booking on future_session
+  active_booking  ← student CONFIRMED booking on active_session
+
+student_client    ← TestClient + get_current_user_web → student_user + Bearer bypass
+instructor_client ← TestClient + get_current_user_web → instructor_user + Bearer bypass
+```
+
+### Test Files and Flows
+
+| File | Tests | Routes exercised | Key DB assertions |
+|------|-------|-----------------|-------------------|
+| `test_booking_cancellation.py` | 6 | POST `/sessions/book/{id}`, `/sessions/cancel/{id}` | `Booking` row created / deleted |
+| `test_attendance_lifecycle.py` | 7 | POST `/sessions/{id}/attendance/mark`, `/attendance/confirm` | `Attendance.status`, `ConfirmationStatus` transitions |
+| `test_hybrid_session_flow.py` | 4 | POST `/sessions/{id}/unlock-quiz` | `session.quiz_unlocked` True/False |
+| `test_virtual_quiz_flow.py` | 4 | POST `/quizzes/{id}/submit` | `QuizAttempt.completed_at` set, `passed`, `score` |
+| `test_concurrency.py` | 5 | Same as above (double-call sequences) | Row count invariants, `completed_at` unchanged |
+
+### Timing Constraints
+
+```python
+# Booking/cancellation window (12h deadline):
+date_start = _now_bp() + timedelta(hours=24)   # future_session — bookable & cancellable
+date_start = _now_bp() + timedelta(hours=6)    # near_future_session — within 12h deadline (blocked)
+
+# Attendance marking window (15min before → session end):
+date_start = _now_bp() - timedelta(minutes=5)  # active_session
+date_end   = _now_bp() + timedelta(hours=1)
+
+# Quiz unlock: requires session_type=HYBRID + actual_start_time is not None
+# unstarted_hybrid_session: actual_start_time=None → unlock blocked
+```
+
+### Running
+
+```bash
+pytest tests/integration/web_flows/ -v           # 26 tests, ~4s
+pytest tests/integration/web_flows/ -v --tb=short  # with failure detail
+```
+
+---
+
+## Failure Modes — Tested Edge Cases
+
+Each entry documents the guard that fires, whether it is enforced at DB level or application level, and the expected outcome for both the HTTP response and DB state.
+
+### Booking / Cancellation
+
+| Scenario | Guard layer | HTTP response | DB state after |
+|----------|------------|---------------|----------------|
+| Book when already booked | Application: `already_booked` check before INSERT | 303 `?info=already_booked` | exactly 1 `Booking` row |
+| Cancel when no booking exists | Application: booking lookup → None | 303 `?error=booking_not_found` | no row (unchanged) |
+| Book within 12h of start | Application: `date_start - NOW < 12h` | 303 `?error=booking_deadline_passed` | no row created |
+| Cancel within 12h of start | Application: deadline check before DELETE | 303 `?error=cancellation_deadline_passed` | `Booking` row preserved |
+| Double cancel (row already gone) | Application: second lookup → None | 303 `?error=booking_not_found` | stays deleted |
+
+**DB constraint behind booking idempotency**:
+```sql
+CREATE UNIQUE INDEX uq_active_booking ON bookings (user_id, session_id)
+  WHERE status <> 'CANCELLED';
+```
+This partial unique index catches true concurrent double-bookings at DB level (would raise `IntegrityError`), providing defence-in-depth beyond the application guard.
+
+### Attendance
+
+| Scenario | Guard layer | HTTP response | DB state after |
+|----------|------------|---------------|----------------|
+| Mark attendance for unbooked student | Application: booking lookup → None | 303 `?error=student_not_enrolled` | no `Attendance` row |
+| Student tries to confirm (not STUDENT role) | Application: role check | 303 `?error=unauthorized` | unchanged |
+| Confirm when no attendance record exists | Application: attendance lookup → None | 303 `?error=no_attendance` | no row |
+| Double mark same student (upsert) | Application: UPDATE existing row | 303 `?success=attendance_marked` | still 1 row |
+| Mark present then absent | Application: UPDATE existing row | 303 `?success=attendance_marked` | 1 row, `status=absent` |
+
+**DB constraint behind attendance uniqueness**:
+```sql
+ALTER TABLE attendance ADD CONSTRAINT uq_booking_attendance UNIQUE (booking_id);
+```
+Prevents two `Attendance` records referencing the same `Booking`. **Gap**: when `booking_id=NULL` (tournament sessions), no DB-level constraint prevents duplicate `(user_id, session_id)` rows — the application upsert is the only guard.
+
+### Quiz Submission
+
+| Scenario | Guard layer | HTTP response | DB state after |
+|----------|------------|---------------|----------------|
+| Submit nonexistent attempt_id | Application: attempt lookup → None → 404 | 404 | unchanged |
+| Submit already-completed attempt | Application: `completed_at is not None` | 400 | `completed_at` from 1st submit preserved |
+| Submit with session_id but no booking | Application: booking check after session_id provided | 403 | `completed_at` remains None |
+| Double submit (2nd after 1st committed) | Application: `completed_at is not None` guard | 400 | `completed_at` unchanged |
+
+**DB constraint behind quiz idempotency**: none — `QuizAttempt` allows multiple attempts per `(user_id, quiz_id)` by design. The `completed_at IS NOT NULL` guard is **application-level only**. A concurrent double-submit race (both see `completed_at=None` before either commits) could theoretically mark the attempt completed twice; mitigated in production by client-side disable-on-submit and connection pooling serialization.
+
+### Hybrid Session Quiz Unlock
+
+| Scenario | Guard layer | HTTP response | DB state after |
+|----------|------------|---------------|----------------|
+| Non-instructor tries to unlock | Application: `user.id != session.instructor_id` | 303 `?error=unauthorized` | `quiz_unlocked` unchanged |
+| Unlock on non-HYBRID session | Application: `session_type != HYBRID` | 303 `?error=unlock_only_hybrid` | unchanged |
+| Unlock on unstarted session | Application: `actual_start_time is None` | 303 `?error=session_not_started_unlock` | unchanged |
+
+---
+
+## SELECT FOR UPDATE — Path Coverage Analysis (quiz submit)
+
+`submit_quiz` in [app/api/web_routes/quiz.py](app/api/web_routes/quiz.py) acquires a row-level lock on the `QuizAttempt` row **before** checking `completed_at`. This ensures concurrent submits are serialised at DB level.
+
+### Call-site (line 279)
+
+```python
+attempt = db.query(QuizAttempt).filter(
+    QuizAttempt.id == attempt_id,
+    QuizAttempt.user_id == user.id,
+    QuizAttempt.quiz_id == quiz_id
+).with_for_update().first()          # ← row-level lock acquired here
+```
+
+### Path trace
+
+```
+POST /quizzes/{quiz_id}/submit
+│
+├─ fetch quiz → 404 if not found (lock NOT acquired — no attempt involved)
+│
+├─ if session_id provided:
+│   ├─ fetch SessionQuiz → 404 (lock NOT acquired)
+│   ├─ fetch Session → 404 (lock NOT acquired)
+│   ├─ check session.date_start < now → 403 (lock NOT acquired)
+│   └─ fetch Booking → 403 if missing (lock NOT acquired)
+│
+├─ attempt = .filter(...).with_for_update().first()   ← LOCK ACQUIRED
+│   ├─ attempt is None  → 404  (lock released on exception rollback) ✅
+│   ├─ completed_at set → 400  (lock released on exception rollback) ✅
+│   └─ else: calculate score, db.commit(), lock released               ✅
+│
+└─ render quiz_result.html
+```
+
+**Conclusion**: The lock is acquired on the **single path** that accesses the attempt row. Every branch that touches `completed_at` (404-not-found, 400-already-done, 200-success) does so under the lock. No path reads the attempt row without `WITH FOR UPDATE`. ✅
+
+### Race condition neutralised
+
+| Without `SELECT FOR UPDATE` | With `SELECT FOR UPDATE` |
+|-----------------------------|--------------------------|
+| T1 reads `completed_at=None` | T1 acquires lock, reads `completed_at=None` |
+| T2 reads `completed_at=None` | T2 **blocks** waiting for T1 |
+| Both set `completed_at`, both return 200 | T1 sets `completed_at`, commits, releases lock |
+| Last write wins — XP double-awarded | T2 acquires lock, reads `completed_at≠None` → 400 |
+
+### Unit test pattern (`_make_db`)
+
+Because `with_for_update()` breaks the default MagicMock chain, all `TestSubmitQuiz` tests that reach the attempt query use the `_make_db` static helper:
+
+```python
+@staticmethod
+def _make_db(*side_effects):
+    db = MagicMock()
+    fm = db.query.return_value.filter.return_value
+    fm.with_for_update.return_value = fm   # loop: with_for_update() → same mock
+    fm.first.side_effect = list(side_effects)
+    return db
+```
+
+### Migration rollback test
+
+`tests/integration/test_migration_rollback.py` (7 tests) verifies the attendance partial unique index (`uq_attendance_user_session_no_booking`) can be:
+- Applied: index present, correct `UNIQUE … WHERE booking_id IS NULL` definition
+- Rolled back: `downgrade -1` drops only the new index, PK and FK constraints intact
+- Re-applied: `upgrade head` restores the index and revision
+- Idempotent: double `upgrade head` is a no-op
+
+Run explicitly (modifies real DB schema, auto-restored by fixture):
+```bash
+pytest tests/integration/test_migration_rollback.py -v
+```
+
+---
+
+## CI Pipeline Benchmark (2026-03-09, local, M-series Mac)
+
+Full pipeline: **unit → integration → E2E**, measured separately. E2E requires a running backend — run offline means Cypress is skipped in the table below.
+
+| Layer | Scope | Tests | Time | Notes |
+|-------|-------|-------|------|-------|
+| Unit | `tests/unit/` | 6 865 + 1 xfail | **20.9s** | asyncio.run + MagicMock, no network |
+| Integration: tournament | `tests/integration/tournament/` | 25 | **~3s** | real PostgreSQL SAVEPOINT |
+| Integration: web_flows | `tests/integration/web_flows/` | 26 | **~4s** | real PostgreSQL SAVEPOINT + TestClient |
+| **Combined (CI step 1)** | unit + integration/tournament + web_flows | **6 916** | **~24s** | CI gate: stmt ≥88%, branch ≥80% |
+| E2E Cypress | `cypress/` (7 spec files) | 7/7 ✅ | **~60s** | requires live backend + seeded E2E data |
+| E2E Playwright | `tests/e2e/` | — | — | golden_path smoke tests |
+
+**Slowest individual tests** (unit layer):
+
+| Test | Time |
+|------|------|
+| `test_api_contract_unchanged` (OpenAPI snapshot) | 0.95s |
+| `test_spec_none_returns_false` (lfa_coach_service) | 0.27s |
+| `test_200_1st_place_default_policy` (rewards_endpoint) | 0.27s |
+| `test_concurrent_thread_dispatch_unique_task_ids` (ops_scenario) | 0.26s |
+
+All web_flows integration tests run in ≤ 0.18s each; slowest is TestClient startup overhead (~0.6s/fixture group).
+
+**Run the combined benchmark locally**:
+```bash
+# Step 1 — unit + integration (matches CI scope)
+pytest tests/unit/ tests/integration/tournament/ tests/integration/web_flows/ -q --tb=no
+
+# Step 2 — coverage check (matches CI gate)
+python -m pytest tests/unit/ tests/integration/tournament/ -q --cov=app --cov-branch --cov-report=term --tb=no 2>/dev/null | tail -5
+python .github/scripts/check_coverage.py
+
+# Step 3 — E2E (requires live backend)
+# ./start_backend.sh &
+# npx cypress run --spec "cypress/e2e/**/*.cy.js"
+```
+
+---
+
 ## Mock Patterns (Quick Reference)
 
 Key patterns confirmed working — full details in `.claude/projects/*/memory/MEMORY.md`:
@@ -469,3 +754,56 @@ Key patterns confirmed working — full details in `.claude/projects/*/memory/ME
 | Mutation testing report | `scripts/mutation_report.py` (reads SQLite cache, writes CI summary) |
 | Mutation testing baseline | `tests/snapshots/mutation_baseline.json` (sprint history + targets) |
 | Mutation testing CI (non-blocking) | `.github/workflows/mutation-testing.yml` |
+
+---
+
+## Test Architecture & Coverage Policy
+
+### Architecture Overview
+
+```
+tests/
+├── unit/                    # Fast, no DB — asyncio.run() or sync direct calls
+│   ├── api/web_routes/      # FastAPI endpoint tests (asyncio.run pattern)
+│   ├── services/            # Business logic (MagicMock DB)
+│   ├── models/              # SQLAlchemy model unit tests
+│   ├── booking/             # Booking/concurrency regression tests
+│   ├── contract/            # Pydantic schema + OpenAPI snapshot tests
+│   └── ...
+├── integration/
+│   ├── tournament/          # Tournament workflow integration (in-memory SQLite or real DB)
+│   └── api_smoke/           # 579-endpoint smoke suite (requires running server + DB)
+└── e2e/                     # Playwright Python E2E (requires full stack)
+```
+
+### Layer-by-layer Quality Gates
+
+| Layer | Gate type | Threshold | Enforcement |
+|-------|-----------|-----------|-------------|
+| Unit + integration/tournament | stmt | ≥ 88% | `check_coverage.py` |
+| Unit + integration/tournament | branch (pure) | ≥ 80% | `check_coverage.py` |
+| Unit + integration/tournament | combined | ≥ 85% | `--fail-under=85` in workflow |
+| Unit step alone | combined | ≥ 60% | `--cov-fail-under=60` in workflow |
+| Mutation (service layer) | kill rate | ≥ 78% (regression) | `mutation-testing.yml` (non-blocking) |
+| Contract | OpenAPI snapshot | exact match | `test_openapi_snapshot.py` |
+
+### Coverage Exclusion Policy
+
+Use `# pragma: no cover` / `# pragma: no branch` sparingly and only for:
+1. **Structurally unreachable code** — e.g., enum-exhaustive if/elif/else where the else can never fire
+2. **Platform/environment guards** — e.g., `if sys.platform == "win32":` in a Linux-only CI
+3. **Debug/logging-only paths** — `if __name__ == "__main__":` blocks
+
+Current exclusions in production code:
+- `dashboard.py` line 183 `else:` — unreachable: only 3 UserRoles, STUDENT returns early
+- `dashboard.py` line 116 `if ... or ...:` — `# pragma: no branch` — False branch unreachable for same reason
+- `admin.py` lines 92–233 (`admin_enrollments_page`) — excluded from coverage target (not pragma), too complex for unit mocking (db.refresh on lazy-loaded relationships); tested at integration level
+
+### Adding New Web Route Tests — Checklist
+
+1. `asyncio.run(endpoint(request=MagicMock(), db=<configured_mock>, user=<role_mock>))`
+2. Configure the **exact mock chain** your route uses (see "DB Mock Chain Reference" above)
+3. Patch `app.api.web_routes.<module>.templates` to capture TemplateResponse calls
+4. For sequential DB calls, use `side_effect=[result1, result2, ...]`
+5. Verify: `template_name = mock_tmpl.TemplateResponse.call_args.args[0]`
+6. For error paths: `pytest.raises(HTTPException)` + `assert exc.value.status_code == N`
