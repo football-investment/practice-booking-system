@@ -8,6 +8,14 @@
     <p>Manage semesters and specialization availability</p>
 </div>
 
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <div></div>
+    <a href="/admin/semesters/new"
+        style="padding:0.6rem 1.2rem; background:linear-gradient(135deg,#27ae60,#219a52); color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:0.9rem;">
+        + Create Semester
+    </a>
+</div>
+
 <div class="card">
     <h2>All Semesters ({{ semesters|length }})</h2>
 
@@ -16,16 +24,19 @@
         <thead>
             <tr style="border-bottom: 2px solid #ecf0f1;">
                 <th style="padding: 0.75rem; text-align: left;">ID</th>
+                <th style="padding: 0.75rem; text-align: left;">Code</th>
                 <th style="padding: 0.75rem; text-align: left;">Name</th>
                 <th style="padding: 0.75rem; text-align: left;">Start Date</th>
                 <th style="padding: 0.75rem; text-align: left;">End Date</th>
                 <th style="padding: 0.75rem; text-align: left;">Status</th>
+                <th style="padding: 0.75rem; text-align: left;">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for semester in semesters %}
             <tr style="border-bottom: 1px solid #ecf0f1;">
                 <td style="padding: 0.75rem;">{{ semester.id }}</td>
+                <td style="padding: 0.75rem; font-family:monospace; font-size:0.8rem;">{{ semester.code }}</td>
                 <td style="padding: 0.75rem;">{{ semester.name }}</td>
                 <td style="padding: 0.75rem;">{{ semester.start_date.strftime('%Y-%m-%d') }}</td>
                 <td style="padding: 0.75rem;">{{ semester.end_date.strftime('%Y-%m-%d') }}</td>
@@ -35,6 +46,15 @@
                     {% else %}
                         <span style="color: #95a5a6;">Inactive</span>
                     {% endif %}
+                </td>
+                <td style="padding: 0.75rem;">
+                    <form method="POST" action="/admin/semesters/{{ semester.id }}/delete" style="display:inline;">
+                        <button type="submit"
+                            style="padding:0.3rem 0.7rem; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer; background:#e74c3c; color:white;"
+                            onclick="return confirm('Delete/deactivate semester {{ semester.code }}?')">
+                            Delete
+                        </button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}

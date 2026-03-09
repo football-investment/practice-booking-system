@@ -257,6 +257,7 @@
                         <th>Specialization</th>
                         <th>Onboarding</th>
                         <th>Active</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -294,6 +295,19 @@
                             {% else %}
                                 <span class="status-no">✗ Inactive</span>
                             {% endif %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <a href="/admin/users/{{ u.id }}/edit"
+                               style="display:inline-block; padding:0.3rem 0.7rem; background:#667eea; color:white; border-radius:6px; text-decoration:none; font-size:0.8rem; margin-right:0.3rem;">
+                                Edit
+                            </a>
+                            <form method="POST" action="/admin/users/{{ u.id }}/toggle-status" style="display:inline;">
+                                <button type="submit"
+                                    style="padding:0.3rem 0.7rem; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer; background:{% if u.is_active %}#e74c3c{% else %}#27ae60{% endif %}; color:white;"
+                                    onclick="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} user {{ u.name }}?')">
+                                    {{ 'Deactivate' if u.is_active else 'Activate' }}
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}

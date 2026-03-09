@@ -638,6 +638,228 @@ async def instructor_update_student_skills(
 # ============================================================================
 
 
+# ============================================================================
+# ADMIN USER CRUD
+# ============================================================================
+
+@router.post("/admin/users/{user_id}/toggle-status")
+async def admin_toggle_user_status(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Toggle a user's is_active status"""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Safety: admin cannot deactivate themselves
+    if target.id == user.id:
+        raise HTTPException(status_code=400, detail="Cannot toggle your own account status")
+
+    target.is_active = not target.is_active
+    db.commit()
+    print(f"Admin {user.email} toggled user {target.email} → is_active={target.is_active}")
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.get("/admin/users/{user_id}/edit", response_class=HTMLResponse)
+async def admin_edit_user_page(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Edit user form"""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return templates.TemplateResponse(
+        "admin/user_edit.html",
+        {"request": request, "user": user, "target": target, "UserRole": UserRole}
+    )
+
+
+@router.post("/admin/users/{user_id}/edit")
+async def admin_edit_user_submit(
+    user_id: int,
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    role: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Save user edits"""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Validate role
+    try:
+        new_role = UserRole(role)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+
+    # Check email uniqueness (if changed)
+    new_email = email.lower().strip()
+    if new_email != target.email:
+        existing = db.query(User).filter(User.email == new_email).first()
+        if existing:
+            return templates.TemplateResponse(
+                "admin/user_edit.html",
+                {
+                    "request": request, "user": user, "target": target,
+                    "UserRole": UserRole,
+                    "error": f"Email {new_email} is already in use."
+                }
+            )
+
+    target.name = name.strip()
+    target.email = new_email
+    target.role = new_role
+    db.commit()
+    print(f"Admin {user.email} edited user {target.email}: name={target.name}, role={target.role}")
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
+# ============================================================================
+# ADMIN SEMESTER CRUD
+# ============================================================================
+
+@router.get("/admin/semesters/new", response_class=HTMLResponse)
+async def admin_new_semester_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Create semester form"""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR, User.is_active == True).all()
+    return templates.TemplateResponse(
+        "admin/semester_new.html",
+        {
+            "request": request, "user": user,
+            "instructors": instructors,
+            "today": date.today().isoformat()
+        }
+    )
+
+
+@router.post("/admin/semesters/new")
+async def admin_new_semester_submit(
+    request: Request,
+    code: str = Form(...),
+    name: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    enrollment_cost: int = Form(500),
+    specialization_type: str = Form(""),
+    master_instructor_id: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Create new semester"""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR, User.is_active == True).all()
+
+    def form_error(msg: str):
+        return templates.TemplateResponse(
+            "admin/semester_new.html",
+            {
+                "request": request, "user": user,
+                "error": msg, "instructors": instructors,
+                "today": date.today().isoformat(),
+                "form": {
+                    "code": code, "name": name, "start_date": start_date,
+                    "end_date": end_date, "enrollment_cost": enrollment_cost,
+                    "specialization_type": specialization_type
+                }
+            }
+        )
+
+    # Validate dates
+    try:
+        sd = datetime.strptime(start_date, "%Y-%m-%d").date()
+        ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        return form_error("Invalid date format.")
+
+    if ed <= sd:
+        return form_error("End date must be after start date.")
+
+    # Check code uniqueness
+    existing = db.query(Semester).filter(Semester.code == code.strip()).first()
+    if existing:
+        return form_error(f"Semester code '{code}' already exists.")
+
+    instructor_id = int(master_instructor_id) if master_instructor_id.strip() else None
+
+    new_sem = Semester(
+        code=code.strip(),
+        name=name.strip(),
+        start_date=sd,
+        end_date=ed,
+        enrollment_cost=enrollment_cost,
+        specialization_type=specialization_type.strip() or None,
+        master_instructor_id=instructor_id,
+        is_active=True,
+    )
+    db.add(new_sem)
+    db.commit()
+    print(f"Admin {user.email} created semester {new_sem.code}")
+    return RedirectResponse(url="/admin/semesters", status_code=303)
+
+
+@router.post("/admin/semesters/{semester_id}/delete")
+async def admin_delete_semester(
+    semester_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Soft-delete a semester (set is_active=False)"""
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    sem = db.query(Semester).filter(Semester.id == semester_id).first()
+    if not sem:
+        raise HTTPException(status_code=404, detail="Semester not found")
+
+    # Check if semester has active enrollments
+    active_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == semester_id,
+        SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+    ).count()
+
+    if active_count > 0:
+        # Don't delete — just deactivate
+        sem.is_active = False
+        db.commit()
+        print(f"Admin {user.email} deactivated semester {sem.code} ({active_count} active enrollments)")
+    else:
+        db.delete(sem)
+        db.commit()
+        print(f"Admin {user.email} deleted semester {sem.code}")
+
+    return RedirectResponse(url="/admin/semesters", status_code=303)
+
+
 @router.get("/admin/analytics", response_class=HTMLResponse)
 async def admin_analytics_page(
     request: Request,

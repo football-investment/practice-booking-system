@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Create Semester — Admin Panel{% endblock %}
+
+{% block content %}
+<div style="max-width:640px; margin:2rem auto;">
+    <div style="background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.12); padding:2.5rem;">
+        <div style="margin-bottom:2rem;">
+            <a href="/admin/semesters" style="color:#667eea; text-decoration:none; font-size:0.9rem;">← Back to Semesters</a>
+            <h2 style="color:#2c3e50; margin:0.5rem 0 0 0;">Create New Semester</h2>
+        </div>
+
+        {% if error %}
+        <div style="background:#fee; border:1px solid #e74c3c; border-radius:8px; padding:0.8rem 1rem; margin-bottom:1.5rem; color:#c0392b;">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin/semesters/new">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
+                <div>
+                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Semester Code *</label>
+                    <input type="text" name="code" required
+                        placeholder="e.g. LFA_PLAYER_PRE_2026_JAN_BUDA"
+                        value="{{ form.code if form else '' }}"
+                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; font-family:monospace;">
+                    <p style="font-size:0.75rem; color:#95a5a6; margin-top:0.25rem;">Unique identifier (uppercase, underscores)</p>
+                </div>
+                <div>
+                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Display Name *</label>
+                    <input type="text" name="name" required
+                        placeholder="e.g. LFA Player PRE — Spring 2026"
+                        value="{{ form.name if form else '' }}"
+                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
+                <div>
+                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Start Date *</label>
+                    <input type="date" name="start_date" required
+                        min="{{ today }}"
+                        value="{{ form.start_date if form else '' }}"
+                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">End Date *</label>
+                    <input type="date" name="end_date" required
+                        min="{{ today }}"
+                        value="{{ form.end_date if form else '' }}"
+                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
+                <div>
+                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Enrollment Cost (credits)</label>
+                    <input type="number" name="enrollment_cost" min="0" step="50"
+                        value="{{ form.enrollment_cost if form else 500 }}"
+                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Specialization Type</label>
+                    <select name="specialization_type"
+                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; background:white;">
+                        <option value="">— none —</option>
+                        <option value="LFA_PLAYER_PRE">LFA Player PRE</option>
+                        <option value="LFA_PLAYER_YOUTH">LFA Player Youth</option>
+                        <option value="LFA_PLAYER_AMATEUR">LFA Player Amateur</option>
+                        <option value="LFA_PLAYER_PRO">LFA Player PRO</option>
+                        <option value="GANCUJU_PLAYER">GānCuju Player</option>
+                        <option value="INTERNSHIP">Internship</option>
+                        <option value="LFA_COACH">LFA Coach</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Assigned Instructor</label>
+                <select name="master_instructor_id"
+                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; background:white;">
+                    <option value="">— no instructor yet —</option>
+                    {% for inst in instructors %}
+                    <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display:flex; gap:1rem;">
+                <button type="submit"
+                    style="flex:1; padding:0.9rem; background:linear-gradient(135deg,#27ae60,#219a52); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.95rem;">
+                    Create Semester
+                </button>
+                <a href="/admin/semesters"
+                    style="flex:1; padding:0.9rem; background:#ecf0f1; color:#7f8c8d; border-radius:8px; font-weight:600; text-align:center; text-decoration:none; font-size:0.95rem; display:flex; align-items:center; justify-content:center;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -35,6 +35,7 @@ from app.models.attendance import Attendance
 from app.models.quiz import QuizAttempt
 from app.models.credit_transaction import CreditTransaction
 from app.models.semester_enrollment import SemesterEnrollment
+from app.models.invitation_code import InvitationCode
 from app.core.security import get_password_hash
 
 TZ = ZoneInfo("Europe/Budapest")
@@ -84,6 +85,9 @@ _INACTIVE_STUDENT = {
 
 _SEMESTER_CODE = "E2E-CI-2026"
 _SEMESTER_NAME = "E2E CI Test Semester"
+
+# Fixed invitation code for Cypress registration tests
+_E2E_INV_CODE = "INV-E2E-TEST01"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -204,6 +208,28 @@ def _create_sessions(db, semester: Semester, instructor: User) -> list[SessionMo
 
 # ── Scenario runners ──────────────────────────────────────────────────────────
 
+def _upsert_e2e_invitation_code(db) -> InvitationCode:
+    """Ensure the fixed E2E invitation code exists and is UNUSED."""
+    code = db.query(InvitationCode).filter(InvitationCode.code == _E2E_INV_CODE).first()
+    if code:
+        code.is_used = False
+        code.used_by_user_id = None
+        code.used_at = None
+        code.bonus_credits = 100
+        db.commit()
+    else:
+        code = InvitationCode(
+            code=_E2E_INV_CODE,
+            invited_name="E2E Test Registrant",
+            bonus_credits=100,
+            is_used=False,
+        )
+        db.add(code)
+        db.commit()
+        db.refresh(code)
+    return code
+
+
 def scenario_baseline(db) -> list[str]:
     _truncate_transactional_data(db)
     lines = []
@@ -214,6 +240,8 @@ def scenario_baseline(db) -> list[str]:
     lines.append(f"  upserted inactive user {_INACTIVE_STUDENT['email']}")
     _upsert_semester(db)
     lines.append(f"  upserted semester {_SEMESTER_CODE}")
+    _upsert_e2e_invitation_code(db)
+    lines.append(f"  upserted invitation code {_E2E_INV_CODE} (unused)")
     return lines
 
 
