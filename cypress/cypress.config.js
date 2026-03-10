@@ -121,6 +121,24 @@ module.exports = defineConfig({
           const out = execSync(`python -c '${script}'`, { cwd, encoding: 'utf8' }).trim();
           return out === 'null' ? null : parseInt(out, 10);
         },
+
+        // Returns {score, correct_answers, passed} for a QuizAttempt row by id.
+        // Used by QUIZ-13 to verify the DB record matches the displayed result.
+        getQuizAttemptData(attemptId) {
+          const { execSync } = require('child_process');
+          const cwd = require('path').resolve(__dirname, '..');
+          const script = [
+            'import sys, json; sys.path.insert(0, ".")',
+            'from app.database import SessionLocal',
+            'from app.models.quiz import QuizAttempt',
+            'db = SessionLocal()',
+            `a = db.query(QuizAttempt).filter(QuizAttempt.id == ${parseInt(attemptId, 10)}).first()`,
+            'db.close()',
+            'print(json.dumps({"score": a.score, "correct_answers": a.correct_answers, "passed": a.passed}) if a else "null")',
+          ].join('; ');
+          const out = execSync(`python -c '${script}'`, { cwd, encoding: 'utf8' }).trim();
+          return out === 'null' ? null : JSON.parse(out);
+        },
       });
 
       // cypress-mochawesome-reporter

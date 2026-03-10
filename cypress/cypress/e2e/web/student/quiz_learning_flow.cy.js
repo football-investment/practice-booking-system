@@ -1,5 +1,5 @@
 /**
- * QUIZ-01–11 — Quiz learning flow (HTTP smoke + UI rendering + score grading)
+ * QUIZ-01–13 — Quiz learning flow (HTTP smoke + UI rendering + score grading + robustness)
  *
  * DB scenario  : baseline
  *   - quiz id=1 "Smoke Test Quiz" always present (0 questions) — used by QUIZ-01..05
@@ -276,6 +276,75 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
       cy.get('a.btn-secondary')
         .should('be.visible')
         .and('contain.text', 'Try Again');
+    });
+  });
+
+  // ── QUIZ-12 ──────────────────────────────────────────────────────────────
+  it('QUIZ-12: #timer counts down and auto-submits with score 0.0% when time expires', () => {
+    cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      // Freeze the JS clock BEFORE visiting so the page timer is under Cypress control
+      cy.clock();
+      cy.visit(`/quizzes/${quizId}/take`);
+
+      // Timer element is visible and shows the initial countdown format
+      cy.get('#timer')
+        .should('be.visible')
+        .invoke('text')
+        .should('match', /Time: \d+:\d{2}/);
+
+      // Stub window.alert so the "Time is up!" dialog doesn't block Cypress
+      cy.window().then((win) => {
+        cy.stub(win, 'alert').as('timerAlert');
+      });
+
+      // Fast-forward past the full 10-minute (600 s) quiz limit
+      // The setInterval fires once per 1000 ms; after ~600 fires remaining hits 0,
+      // triggering clearInterval + alert + quizForm.submit()
+      cy.tick(700000);
+
+      // Confirm the alert was triggered with the expected message
+      cy.get('@timerAlert').should(
+        'have.been.calledWith',
+        '⏰ Time is up! Submitting quiz...',
+      );
+
+      // The auto-submit (no answers selected) renders the result page with 0%
+      cy.get('.result-title').should('be.visible');
+      cy.contains('.stat-label', 'Score')
+        .parent().find('.stat-value')
+        .should('have.text', '0.0%');
+    });
+  });
+
+  // ── QUIZ-13 ──────────────────────────────────────────────────────────────
+  it('QUIZ-13: submitted score and correct_answers persist correctly in the database', () => {
+    cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.visit(`/quizzes/${quizId}/take`);
+
+      // Capture attempt_id before interacting with the form
+      cy.get('[name="attempt_id"]').invoke('val').then((rawAttemptId) => {
+        const attemptId = parseInt(rawAttemptId, 10);
+
+        // 1 of 2 correct: Q1 wrong (Green), Q2 correct (3) → 50.0%, passed=true
+        cy.get('.question').eq(0).find('input[type="radio"]').eq(1).check();
+        cy.get('.question').eq(1).find('input[type="radio"]').eq(0).check();
+        cy.get('#submitBtn').click();
+
+        // Result page DOM shows 50.0%
+        cy.contains('.stat-label', 'Score')
+          .parent().find('.stat-value')
+          .should('have.text', '50.0%');
+
+        // Query the DB record and verify it matches the displayed result
+        cy.task('getQuizAttemptData', attemptId).then((row) => {
+          expect(row, 'attempt record must exist in DB').not.to.be.null;
+          expect(row.score, 'stored score').to.equal(50);
+          expect(row.correct_answers, 'stored correct_answers').to.equal(1);
+          expect(row.passed, 'stored passed flag').to.be.true;
+        });
+      });
     });
   });
 });
