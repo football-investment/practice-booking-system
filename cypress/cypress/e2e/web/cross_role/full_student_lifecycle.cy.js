@@ -236,6 +236,36 @@ describe('Web Cross-Role — Full Student Lifecycle', {
     });
   });
 
+  // ── XR-15 ─────────────────────────────────────────────────────────────
+  // Runs after XR-10 (session stopped) and XR-08/09 (student marked PRESENT).
+  // evaluate-instructor requires: session stopped + student attended (PRESENT).
+  it('XR-15: student evaluates instructor (POST evaluate-instructor) → redirect or success', () => {
+    if (!sessionId) return cy.log('No session ID — skip XR-15');
+    cy.webLoginAs('student');
+    cy.request({
+      method: 'POST',
+      url: `/sessions/${sessionId}/evaluate-instructor`,
+      form: true,
+      body: {
+        instructor_clarity: '4',
+        support_approachability: '5',
+        session_structure: '4',
+        relevance: '5',
+        environment: '4',
+        engagement_feeling: '5',
+        feedback_quality: '4',
+        satisfaction: '5',
+        comments: 'Excellent E2E lifecycle instructor evaluation',
+      },
+      followRedirect: false,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      // Success → 303 redirect to session page; or 404 if attendance not found
+      expect(resp.status).to.not.equal(500);
+      expect(resp.status).to.be.oneOf([200, 302, 303, 404]);
+    });
+  });
+
   // ── XR-12 ─────────────────────────────────────────────────────────────
   it('XR-12: student visits /progress — page loads without 500', () => {
     cy.webLoginAs('student');

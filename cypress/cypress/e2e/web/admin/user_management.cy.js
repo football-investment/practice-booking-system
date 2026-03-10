@@ -12,11 +12,13 @@
 import '../../../support/web_commands';
 
 const ADMIN_PAGES = [
-  { id: 'ADM-01', path: '/admin/users',       name: 'users' },
-  { id: 'ADM-03', path: '/admin/semesters',   name: 'semesters' },
-  { id: 'ADM-04', path: '/admin/enrollments', name: 'enrollments' },
-  { id: 'ADM-05', path: '/admin/payments',    name: 'payments' },
-  { id: 'ADM-06', path: '/admin/analytics',   name: 'analytics' },
+  { id: 'ADM-01', path: '/admin/users',             name: 'users' },
+  { id: 'ADM-03', path: '/admin/semesters',         name: 'semesters' },
+  { id: 'ADM-04', path: '/admin/enrollments',       name: 'enrollments' },
+  { id: 'ADM-05', path: '/admin/payments',          name: 'payments' },
+  { id: 'ADM-06', path: '/admin/analytics',         name: 'analytics' },
+  { id: 'ADM-09', path: '/admin/coupons',           name: 'coupons' },
+  { id: 'ADM-10', path: '/admin/invitation-codes',  name: 'invitation-codes' },
 ];
 
 describe('Web Admin — User Management & Pages', { tags: ['@web', '@admin'] }, () => {
