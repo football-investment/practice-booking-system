@@ -34,16 +34,19 @@ from app.api.web_routes.admin import (
     admin_invitation_codes_page,
     admin_analytics_page,
     admin_payments_page,
+    motivation_assessment_page,
+    motivation_assessment_submit,
+)
+from app.api.web_routes.instructor_dashboard import (
     instructor_enrollments_page,
     instructor_edit_student_skills_page,
     instructor_update_student_skills,
-    motivation_assessment_page,
-    motivation_assessment_submit,
 )
 from app.models.user import UserRole
 
 
 _BASE = "app.api.web_routes.admin"
+_INSTRUCTOR_BASE = "app.api.web_routes.instructor_dashboard"
 
 
 def _admin(uid=1):
@@ -345,7 +348,7 @@ class TestInstructorEnrollmentsPage:
         # instructor_semesters: filter().order_by().all() → []
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_enrollments_page(request=_req(), db=db, user=user))
 
@@ -362,7 +365,7 @@ class TestInstructorEnrollmentsPage:
         # all_enrollments: options().filter().order_by().all() → []
         db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_enrollments_page(request=_req(), db=db, user=user))
 
@@ -405,7 +408,7 @@ class TestInstructorEditSkillsPage:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_edit_student_skills_page(
                 request=_req(), student_id=99, license_id=1, db=db, user=user
@@ -520,7 +523,7 @@ class TestInstructorUpdateSkills:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_update_student_skills(
                 request=_req(), student_id=99, license_id=1, db=db, user=user,
@@ -543,8 +546,8 @@ class TestInstructorUpdateSkills:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl, \
-             patch(f"{_BASE}.AuditService") as mock_audit:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl, \
+             patch(f"{_INSTRUCTOR_BASE}.AuditService") as mock_audit:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             mock_audit.return_value.log.return_value = None
             _run(instructor_update_student_skills(
@@ -685,8 +688,8 @@ class TestMotivationAssessmentSubmit:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl, \
-             patch(f"{_BASE}.AuditService") as mock_audit:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl, \
+             patch(f"{_INSTRUCTOR_BASE}.AuditService") as mock_audit:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             mock_audit.return_value.log.return_value = None
             _run(instructor_update_student_skills(

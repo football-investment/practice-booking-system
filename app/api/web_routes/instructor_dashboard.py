@@ -237,7 +237,7 @@ async def instructor_update_student_skills(
     # Log audit
     audit_service = AuditService(db)
     audit_service.log(
-        action=AuditAction.UPDATE,
+        action=AuditAction.FOOTBALL_SKILLS_UPDATED,
         user_id=user.id,
         resource_type="football_skills",
         resource_id=license_id,

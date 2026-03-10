@@ -8,8 +8,8 @@ module.exports = defineConfig({
 
   e2e: {
     // ── Target application ──────────────────────────────────────────────────
-    // Streamlit default port. Override with CYPRESS_BASE_URL env var.
-    baseUrl: process.env.CYPRESS_BASE_URL || 'http://localhost:8501',
+    // FastAPI Jinja2 HTML frontend. Override with CYPRESS_BASE_URL env var.
+    baseUrl: process.env.CYPRESS_BASE_URL || 'http://localhost:8000',
 
     // ── Test discovery ──────────────────────────────────────────────────────
     specPattern: 'cypress/e2e/**/*.cy.{js,jsx}',
