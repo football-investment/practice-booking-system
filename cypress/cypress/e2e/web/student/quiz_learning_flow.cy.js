@@ -1,9 +1,19 @@
 /**
- * QUIZ-01–08 — Quiz learning flow (HTTP smoke + UI rendering + interaction)
+ * QUIZ-01–11 — Quiz learning flow (HTTP smoke + UI rendering + score grading)
  *
  * DB scenario  : baseline
  *   - quiz id=1 "Smoke Test Quiz" always present (0 questions) — used by QUIZ-01..05
- *   - "E2E UI Quiz" seeded with 2 real questions — used by QUIZ-06..08
+ *   - "E2E UI Quiz" seeded with 2 real questions — used by QUIZ-06..11
+ *
+ *   E2E UI Quiz structure (deterministic, used for grading assertions):
+ *     Q1: "What colour is the sky on a clear day?"
+ *         option[0] = Blue  (is_correct=True,  order_index=1)
+ *         option[1] = Green (is_correct=False, order_index=2)
+ *     Q2: "How many sides does a triangle have?"
+ *         option[0] = 3 (is_correct=True,  order_index=1)
+ *         option[1] = 4 (is_correct=False, order_index=2)
+ *     passing_score = 0.5  →  50 points threshold
+ *     score formula: (earned_points / total_points) * 100   (0–100 float)
  *
  * Role coverage: student (primary path), unauthenticated (RBAC)
  */
@@ -175,6 +185,97 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
           expect(resp.body).to.include('Try Again');
         });
       });
+    });
+  });
+
+  // ── QUIZ-09 ──────────────────────────────────────────────────────────────
+  it('QUIZ-09: 1 of 2 correct → score 50.0%, "Correct Answers: 1 / 2", passes boundary', () => {
+    cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.visit(`/quizzes/${quizId}/take`);
+
+      // Q1: select WRONG answer (Green = 2nd radio, order_index=2, is_correct=False)
+      cy.get('.question').eq(0).find('input[type="radio"]').eq(1).check();
+      // Q2: select CORRECT answer (3 = 1st radio, order_index=1, is_correct=True)
+      cy.get('.question').eq(1).find('input[type="radio"]').eq(0).check();
+
+      cy.get('#submitBtn').click();
+
+      // Score: 1 point earned / 2 total × 100 = 50.0%
+      cy.contains('.stat-label', 'Score')
+        .parent().find('.stat-value')
+        .should('have.text', '50.0%');
+
+      // Correct answers counter
+      cy.contains('.stat-label', 'Correct Answers')
+        .parent().find('.stat-value')
+        .should('have.text', '1 / 2');
+
+      // 50.0 >= 50 threshold → passed ("Understood!")
+      cy.get('.result-title').should('have.class', 'passed');
+    });
+  });
+
+  // ── QUIZ-10 ──────────────────────────────────────────────────────────────
+  it('QUIZ-10: 2 of 2 correct → score 100.0%, "Correct Answers: 2 / 2", passed', () => {
+    cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.visit(`/quizzes/${quizId}/take`);
+
+      // Q1: select CORRECT answer (Blue = 1st radio, order_index=1, is_correct=True)
+      cy.get('.question').eq(0).find('input[type="radio"]').eq(0).check();
+      // Q2: select CORRECT answer (3 = 1st radio, order_index=1, is_correct=True)
+      cy.get('.question').eq(1).find('input[type="radio"]').eq(0).check();
+
+      cy.get('#submitBtn').click();
+
+      // Score: 2 points earned / 2 total × 100 = 100.0%
+      cy.contains('.stat-label', 'Score')
+        .parent().find('.stat-value')
+        .should('have.text', '100.0%');
+
+      // Correct answers counter
+      cy.contains('.stat-label', 'Correct Answers')
+        .parent().find('.stat-value')
+        .should('have.text', '2 / 2');
+
+      // 100.0 >= 50 threshold → passed
+      cy.get('.result-title').should('have.class', 'passed');
+    });
+  });
+
+  // ── QUIZ-11 ──────────────────────────────────────────────────────────────
+  it('QUIZ-11: 0 of 2 correct → score 0.0%, "Needs Review", "Try Again" visible', () => {
+    cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.visit(`/quizzes/${quizId}/take`);
+
+      // Q1: select WRONG answer (Green = 2nd radio, order_index=2, is_correct=False)
+      cy.get('.question').eq(0).find('input[type="radio"]').eq(1).check();
+      // Q2: select WRONG answer (4 = 2nd radio, order_index=2, is_correct=False)
+      cy.get('.question').eq(1).find('input[type="radio"]').eq(1).check();
+
+      cy.get('#submitBtn').click();
+
+      // Score: 0 points earned / 2 total × 100 = 0.0%
+      cy.contains('.stat-label', 'Score')
+        .parent().find('.stat-value')
+        .should('have.text', '0.0%');
+
+      // Correct answers counter
+      cy.contains('.stat-label', 'Correct Answers')
+        .parent().find('.stat-value')
+        .should('have.text', '0 / 2');
+
+      // 0.0 < 50 threshold → failed → "Needs Review"
+      cy.get('.result-title')
+        .should('have.class', 'failed')
+        .and('contain.text', 'Needs Review');
+
+      // "Try Again" link is present and visible
+      cy.get('a.btn-secondary')
+        .should('be.visible')
+        .and('contain.text', 'Try Again');
     });
   });
 });
