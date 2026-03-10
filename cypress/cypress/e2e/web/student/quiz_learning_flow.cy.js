@@ -298,10 +298,21 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
         cy.stub(win, 'alert').as('timerAlert');
       });
 
-      // Fast-forward past the full 10-minute (600 s) quiz limit
-      // The setInterval fires once per 1000 ms; after ~600 fires remaining hits 0,
-      // triggering clearInterval + alert + quizForm.submit()
-      cy.tick(700000);
+      // Derive the tick duration from the live timer display instead of hardcoding.
+      //
+      // Why this works:
+      //   The template renders `let remaining = {{ remaining_seconds }};` into the
+      //   page script.  The synchronous updateTimer() call at load time displays
+      //   the current `remaining` value as "⏱️ Time: M:SS" before decrementing it.
+      //   So M*60+SS equals the server-provided remaining_seconds (= time_limit_minutes*60
+      //   minus any elapsed startup time).  The setInterval then needs exactly that many
+      //   fires to drive `remaining` to 0 and trigger the auto-submit.  One extra tick
+      //   (+1 s) provides a safe margin for the final boundary check.
+      cy.get('#timer').invoke('text').then((text) => {
+        const m = text.match(/Time: (\d+):(\d{2})/);
+        const displayedSeconds = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+        cy.tick((displayedSeconds + 1) * 1000);
+      });
 
       // Confirm the alert was triggered with the expected message
       cy.get('@timerAlert').should(
