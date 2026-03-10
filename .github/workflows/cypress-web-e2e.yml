@@ -28,6 +28,9 @@ jobs:
           - role: student
             specs: "cypress/e2e/web/auth/**,cypress/e2e/web/student/**,cypress/e2e/web/sessions/student_booking.cy.js"
             db_scenario: student_with_credits
+          - role: business-workflow
+            specs: "cypress/e2e/web/business_workflows/**"
+            db_scenario: business_lifecycle
 
     services:
       postgres:

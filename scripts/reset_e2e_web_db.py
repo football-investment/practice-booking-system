@@ -10,12 +10,14 @@ Usage:
     python scripts/reset_e2e_web_db.py --scenario student_no_dob
     python scripts/reset_e2e_web_db.py --scenario student_with_credits
     python scripts/reset_e2e_web_db.py --scenario session_ready
+    python scripts/reset_e2e_web_db.py --scenario business_lifecycle
 
 Scenarios:
     baseline             admin + instructor + student (DOB set) + semester
     student_no_dob       baseline users but fresh student has no DOB
     student_with_credits baseline + student.credit_balance = 200
     session_ready        student_with_credits + 1 on_site + 1 hybrid session
+    business_lifecycle   session_ready + 1 lifecycle session (started 90min ago) + student booking
 """
 
 import sys
@@ -30,7 +32,7 @@ from app.database import SessionLocal
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel, SessionType
-from app.models.booking import Booking
+from app.models.booking import Booking, BookingStatus
 from app.models.attendance import Attendance
 from app.models.quiz import (
     Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, QuizUserAnswer,
@@ -335,6 +337,56 @@ def scenario_session_ready(db) -> list[str]:
     return lines
 
 
+def _create_lifecycle_session(db, semester: Semester, instructor: User, student: User) -> SessionModel:
+    """Create an on-site session that started 90 minutes ago with a student booking.
+
+    date_start = now - 90min  → can_mark_attendance=True (past the 15-min window)
+    actual_start_time = None   → 'Start Session' button visible for instructor
+    Student has a CONFIRMED booking → enrolled_students list shows for attendance
+    """
+    now = datetime.now(TZ).replace(tzinfo=None)
+
+    session = SessionModel(
+        title="E2E Lifecycle Session",
+        description="Business workflow lifecycle test — scheduled 90min ago, not started",
+        date_start=now - timedelta(minutes=90),
+        date_end=now + timedelta(minutes=30),
+        session_type=SessionType.on_site,
+        capacity=20,
+        location="E2E Lifecycle Field",
+        semester_id=semester.id,
+        instructor_id=instructor.id,
+        session_status="scheduled",
+        quiz_unlocked=False,
+    )
+    db.add(session)
+    db.flush()
+
+    booking = Booking(
+        user_id=student.id,
+        session_id=session.id,
+        status=BookingStatus.CONFIRMED,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+def scenario_business_lifecycle(db) -> list[str]:
+    lines = scenario_session_ready(db)
+    semester = db.query(Semester).filter(Semester.code == _SEMESTER_CODE).first()
+    instructor = db.query(User).filter(User.email == "grandmaster@lfa.com").first()
+    student_spec = next(s for s in _BASELINE_USERS if s["role"] == UserRole.STUDENT)
+    student = db.query(User).filter(User.email == student_spec["email"]).first()
+    session = _create_lifecycle_session(db, semester, instructor, student)
+    lines.append(
+        f"  created lifecycle session id={session.id} '{session.title}' "
+        f"date_start={session.date_start} (student id={student.id} booked)"
+    )
+    return lines
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 _SCENARIOS = {
@@ -342,6 +394,7 @@ _SCENARIOS = {
     "student_no_dob":       scenario_student_no_dob,
     "student_with_credits": scenario_student_with_credits,
     "session_ready":        scenario_session_ready,
+    "business_lifecycle":   scenario_business_lifecycle,
 }
 
 
