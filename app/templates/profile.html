@@ -300,7 +300,7 @@
                 <p>{{ user.email }}{% if user.date_of_birth %} · Age: {{ ((today.year - user.date_of_birth.year) - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))) }} years{% endif %}</p>
             </div>
             <div class="header-actions">
-                {% if user.role.value == 'STUDENT' %}
+                {% if user.role.value == 'student' %}
                 <div class="credit-badge">
                     💰 {{ credit_balance }} credits
                 </div>
@@ -329,7 +329,7 @@
         </div>
 
         <!-- SPECIALIZATION SWITCHER (for students with multiple licenses) -->
-        {% if user.role.value == 'STUDENT' and user_licenses and user_licenses|length > 1 %}
+        {% if user.role.value == 'student' and user_licenses and user_licenses|length > 1 %}
         <div class="spec-switcher">
             <div class="spec-switcher-content">
                 <h3>
@@ -426,9 +426,9 @@
                 <div class="info-row">
                     <span class="info-label">Role:</span>
                     <span class="info-value">
-                        {% if user.role.value == 'ADMIN' %}
+                        {% if user.role.value == 'admin' %}
                             <span class="badge badge-success">ADMIN</span>
-                        {% elif user.role.value == 'INSTRUCTOR' %}
+                        {% elif user.role.value == 'instructor' %}
                             <span class="badge badge-info">INSTRUCTOR</span>
                         {% else %}
                             <span class="badge badge-student">STUDENT</span>
@@ -474,7 +474,7 @@
                     <span class="info-label">Member Since:</span>
                     <span class="info-value">{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'N/A' }}</span>
                 </div>
-                {% if user.role.value == 'STUDENT' %}
+                {% if user.role.value == 'student' %}
                 <div class="info-row">
                     <span class="info-label">💰 Credit Balance:</span>
                     <span class="info-value"><strong>{{ credit_balance }}</strong> credits</span>

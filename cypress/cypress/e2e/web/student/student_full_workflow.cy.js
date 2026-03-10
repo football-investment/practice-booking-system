@@ -138,19 +138,22 @@ describe('Business Workflow — Student Full Process', {
   // Student views credits balance + transaction history page via DOM.
   // Credits page is JS-heavy (fetch-driven) — this validates the page renders fully.
   //
-  // Note: `.credit-badge` is guarded by `user.role.value == 'STUDENT'` (uppercase)
-  // in credits.html, but UserRole.STUDENT.value is lowercase 'student' — so the
-  // badge is never rendered. Assert on the main balance section and coupon section
-  // which ARE always visible for authenticated users.
-  it('STU-WF-04: student visits /credits via DOM → balance section and coupon visible', () => {
-    cy.resetDb('student_with_credits');
+  // Bug fixed (2026-03-10): credits.html had `user.role.value == 'STUDENT'` (uppercase)
+  // but UserRole.STUDENT.value is lowercase 'student'. Fixed across all 8 templates
+  // (credits, profile, hub_specializations, about_specializations, unified_header,
+  // dashboard_student_switcher, dashboard_student_new).
+  // .credit-badge now correctly renders for authenticated students.
+  it('STU-WF-04: student visits /credits via DOM → credit-badge + balance + coupon visible', () => {
+    cy.resetDb('student_with_credits');  // rdias has 200 credits
 
     cy.webLoginAs('student');
     cy.visit('/credits');
     cy.get('body').should('not.contain.text', 'Internal Server Error');
-    // Credit balance amount section is always rendered in the main content
+    // .credit-badge renders because credits.html now checks role.value == 'student' (lowercase)
+    cy.get('.credit-badge').should('be.visible').and('contain.text', 'credits');
+    // Credit balance amount section in main content
     cy.get('.balance-amount').should('be.visible');
-    // Coupon section (invitation code + coupon code inputs) should be visible
+    // Coupon sections visible
     cy.get('.coupon-section').should('exist');
   });
 
