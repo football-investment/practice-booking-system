@@ -47,7 +47,7 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   it('ADM-CRUD-01: GET /admin/users/{id}/edit responds 200 for admin (first user)', () => {
     cy.webLoginAs('admin');
     cy.visit('/admin/users');
-    cy.get('[data-testid="user-row"]').should('exist').first().invoke('attr', 'data-user-id').then((userId) => {
+    cy.get('[data-testid="user-row"]').should('exist').first().should('have.attr', 'data-user-id').then((userId) => {
       cy.request({
         method: 'GET',
         url: `/admin/users/${userId}/edit`,
@@ -73,7 +73,7 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
   it('ADM-CRUD-03: edit student user with valid data → redirects to /admin/users', () => {
     cy.webLoginAs('admin');
     cy.visit('/admin/users');
-    cy.get('[data-testid="user-row"][data-role="student"]').should('exist').first().invoke('attr', 'data-user-id').then((userId) => {
+    cy.get('[data-testid="user-row"][data-role="student"]').should('exist').first().should('have.attr', 'data-user-id').then((userId) => {
       cy.request({
         method: 'POST',
         url: `/admin/users/${userId}/edit`,
@@ -95,7 +95,7 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
     cy.webLoginAs('admin');
     cy.visit('/admin/users');
     // Target a student — avoid admin so its session stays valid
-    cy.get('[data-testid="user-row"][data-role="student"]').should('exist').first().invoke('attr', 'data-user-id').then((userId) => {
+    cy.get('[data-testid="user-row"][data-role="student"]').should('exist').first().should('have.attr', 'data-user-id').then((userId) => {
       cy.request({
         method: 'POST',
         url: `/admin/users/${userId}/edit`,
@@ -113,7 +113,7 @@ describe('Web Admin — CRUD Operations', { tags: ['@web', '@admin', '@crud'] },
     cy.webLoginAs('admin');
     cy.visit('/admin/users');
     // Target a student — avoid admin (self-toggle → 400)
-    cy.get('[data-testid="user-row"][data-role="student"]').should('exist').first().invoke('attr', 'data-user-id').then((userId) => {
+    cy.get('[data-testid="user-row"][data-role="student"]').should('exist').first().should('have.attr', 'data-user-id').then((userId) => {
       cy.request({
         method: 'POST',
         url: `/admin/users/${userId}/toggle-status`,
