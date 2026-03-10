@@ -32,7 +32,10 @@ from app.models.semester import Semester
 from app.models.session import Session as SessionModel, SessionType
 from app.models.booking import Booking
 from app.models.attendance import Attendance
-from app.models.quiz import QuizAttempt
+from app.models.quiz import (
+    Quiz, QuizQuestion, QuizAnswerOption, QuizAttempt, QuizUserAnswer,
+    QuizCategory, QuizDifficulty, QuestionType,
+)
 from app.models.credit_transaction import CreditTransaction
 from app.models.semester_enrollment import SemesterEnrollment
 from app.models.invitation_code import InvitationCode
@@ -94,6 +97,7 @@ _E2E_INV_CODE = "INV-E2E-TEST01"
 
 def _truncate_transactional_data(db) -> None:
     """Remove all transactional E2E data (bookings, attendance, quiz attempts, etc.)."""
+    db.query(QuizUserAnswer).delete(synchronize_session=False)
     db.query(QuizAttempt).delete(synchronize_session=False)
     db.query(Attendance).delete(synchronize_session=False)
     db.query(Booking).delete(synchronize_session=False)
@@ -230,6 +234,55 @@ def _upsert_e2e_invitation_code(db) -> InvitationCode:
     return code
 
 
+_E2E_QUIZ_TITLE = "E2E UI Quiz"
+
+
+def _upsert_e2e_quiz(db) -> Quiz:
+    """Ensure a quiz with 2 real questions exists for Cypress UI tests."""
+    quiz = db.query(Quiz).filter(Quiz.title == _E2E_QUIZ_TITLE).first()
+    if not quiz:
+        quiz = Quiz(
+            title=_E2E_QUIZ_TITLE,
+            description="Cypress E2E UI test quiz — do not delete",
+            category=QuizCategory.GENERAL,
+            difficulty=QuizDifficulty.EASY,
+            time_limit_minutes=10,
+            xp_reward=10,
+            passing_score=0.5,
+            is_active=True,
+        )
+        db.add(quiz)
+        db.flush()  # get quiz.id before adding children
+
+        q1 = QuizQuestion(
+            quiz_id=quiz.id,
+            question_text="What colour is the sky on a clear day?",
+            question_type=QuestionType.MULTIPLE_CHOICE,
+            points=1,
+            order_index=1,
+        )
+        db.add(q1)
+        db.flush()
+        db.add(QuizAnswerOption(question_id=q1.id, option_text="Blue",  is_correct=True,  order_index=1))
+        db.add(QuizAnswerOption(question_id=q1.id, option_text="Green", is_correct=False, order_index=2))
+
+        q2 = QuizQuestion(
+            quiz_id=quiz.id,
+            question_text="How many sides does a triangle have?",
+            question_type=QuestionType.MULTIPLE_CHOICE,
+            points=1,
+            order_index=2,
+        )
+        db.add(q2)
+        db.flush()
+        db.add(QuizAnswerOption(question_id=q2.id, option_text="3", is_correct=True,  order_index=1))
+        db.add(QuizAnswerOption(question_id=q2.id, option_text="4", is_correct=False, order_index=2))
+
+        db.commit()
+        db.refresh(quiz)
+    return quiz
+
+
 def scenario_baseline(db) -> list[str]:
     _truncate_transactional_data(db)
     lines = []
@@ -242,6 +295,8 @@ def scenario_baseline(db) -> list[str]:
     lines.append(f"  upserted semester {_SEMESTER_CODE}")
     _upsert_e2e_invitation_code(db)
     lines.append(f"  upserted invitation code {_E2E_INV_CODE} (unused)")
+    quiz = _upsert_e2e_quiz(db)
+    lines.append(f"  upserted E2E UI quiz id={quiz.id} (2 questions)")
     return lines
 
 

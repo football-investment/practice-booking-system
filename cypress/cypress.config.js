@@ -104,6 +104,23 @@ module.exports = defineConfig({
           );
           return null;
         },
+
+        // Returns the DB id of the "E2E UI Quiz" seeded by reset_e2e_web_db.py
+        getE2eQuizId() {
+          const { execSync } = require('child_process');
+          const cwd = require('path').resolve(__dirname, '..');
+          const script = [
+            'import sys; sys.path.insert(0, ".")',
+            'from app.database import SessionLocal',
+            'from app.models.quiz import Quiz',
+            'db = SessionLocal()',
+            'q = db.query(Quiz).filter(Quiz.title == "E2E UI Quiz").first()',
+            'db.close()',
+            'print(q.id if q else "null")',
+          ].join('; ');
+          const out = execSync(`python -c '${script}'`, { cwd, encoding: 'utf8' }).trim();
+          return out === 'null' ? null : parseInt(out, 10);
+        },
       });
 
       // cypress-mochawesome-reporter
