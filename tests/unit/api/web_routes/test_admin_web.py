@@ -97,7 +97,10 @@ class TestAdminUsersPage:
     def test_admin_renders_users_template(self):
         user = _admin()
         db = MagicMock()
-        db.query.return_value.order_by.return_value.all.return_value = []
+        # count() must return int — used in max()/min() pagination math
+        db.query.return_value.count.return_value = 0
+        db.query.return_value.filter.return_value.count.return_value = 0
+        db.query.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = []
 
         with patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
