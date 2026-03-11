@@ -1,0 +1,620 @@
+"""
+Tournament web routes — cookie auth HTML frontend
+Mirrors Streamlit Tournament_Monitor / Tournament_Manager flow.
+
+Student routes:
+    GET  /tournaments              — browse ENROLLMENT_OPEN tournaments
+    POST /tournaments/{id}/enroll  — enroll (auto-approved, deducts credits)
+    POST /tournaments/{id}/unenroll — withdraw (50 % refund)
+
+Instructor routes:
+    GET  /instructor/tournaments   — view assigned tournaments + participants
+
+Admin routes:
+    GET  /admin/tournaments                — all tournaments list + create form
+    POST /admin/tournaments                — create new tournament
+    POST /admin/tournaments/{id}/start     — ENROLLMENT_CLOSED → IN_PROGRESS
+    POST /admin/tournaments/{id}/cancel    — any → CANCELLED
+    POST /admin/tournaments/{id}/delete    — permanent delete
+    POST /admin/tournaments/{id}/rollback  — IN_PROGRESS → ENROLLMENT_CLOSED (stuck recovery)
+"""
+from datetime import datetime, date
+from pathlib import Path
+import uuid
+
+from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import and_, or_, update as sql_update
+from sqlalchemy.orm import Session
+
+from ...database import get_db
+from ...dependencies import get_current_user_web
+from ...models.booking import Booking, BookingStatus
+from ...models.campus import Campus
+from ...models.credit_transaction import CreditTransaction
+from ...models.license import UserLicense
+from ...models.location import Location
+from ...models.semester import Semester, SemesterStatus
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.session import Session as SessionModel
+from ...models.user import User, UserRole
+from ...services.age_category_service import (
+    calculate_age_at_season_start,
+    get_automatic_age_category,
+    get_current_season_year,
+)
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+router = APIRouter()
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _get_player_age_category(user: User) -> str:
+    """Derive AMATEUR/PRE/YOUTH/PRO age category from user DOB. Defaults to AMATEUR."""
+    if not user.date_of_birth:
+        return "AMATEUR"
+    season_year = get_current_season_year()
+    age_at = calculate_age_at_season_start(user.date_of_birth, season_year)
+    return get_automatic_age_category(age_at) or "AMATEUR"
+
+
+# ── Student: browse + enroll ───────────────────────────────────────────────────
+
+@router.get("/tournaments", response_class=HTMLResponse)
+async def tournaments_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Browse ENROLLMENT_OPEN / IN_PROGRESS tournaments available to the student."""
+    tournaments = (
+        db.query(Semester)
+        .filter(
+            and_(
+                Semester.code.like("TOURN-%"),
+                Semester.tournament_status.in_(["ENROLLMENT_OPEN", "IN_PROGRESS"]),
+                Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
+                Semester.is_active == True,
+                Semester.end_date >= date.today(),
+            )
+        )
+        .order_by(Semester.start_date.asc())
+        .all()
+    )
+
+    tournament_data = []
+    for t in tournaments:
+        enrollment_count = (
+            db.query(SemesterEnrollment)
+            .filter(
+                SemesterEnrollment.semester_id == t.id,
+                SemesterEnrollment.is_active == True,
+            )
+            .count()
+        )
+        user_enrollment = (
+            db.query(SemesterEnrollment)
+            .filter(
+                SemesterEnrollment.semester_id == t.id,
+                SemesterEnrollment.user_id == user.id,
+                SemesterEnrollment.is_active == True,
+            )
+            .first()
+        )
+        # Instructor info
+        instructor = None
+        if t.master_instructor_id:
+            instructor = db.query(User).filter(User.id == t.master_instructor_id).first()
+
+        tournament_data.append({
+            "tournament": t,
+            "enrollment_count": enrollment_count,
+            "max_players": t.max_players or 999,
+            "is_enrolled": user_enrollment is not None,
+            "enrollment_status": user_enrollment.request_status.value if user_enrollment else None,
+            "instructor": instructor,
+        })
+
+    return templates.TemplateResponse(
+        "tournaments.html",
+        {
+            "request": request,
+            "user": user,
+            "tournaments": tournament_data,
+            "flash": request.query_params.get("flash"),
+            "flash_type": request.query_params.get("flash_type", "info"),
+        },
+    )
+
+
+@router.post("/tournaments/{tournament_id}/enroll", response_class=HTMLResponse)
+async def tournament_enroll(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Enroll current student in the given tournament (auto-approved, deducts credits)."""
+
+    def _err(msg: str):
+        return RedirectResponse(
+            url=f"/tournaments?flash={msg}&flash_type=error", status_code=303
+        )
+
+    # 1. Fetch tournament
+    tournament = db.query(Semester).filter(
+        Semester.id == tournament_id, Semester.is_active == True
+    ).first()
+    if not tournament:
+        return _err("Tournament+not+found")
+
+    # 2. Status check
+    if tournament.tournament_status not in ("ENROLLMENT_OPEN", "IN_PROGRESS"):
+        return _err("Tournament+not+open+for+enrollment")
+
+    # 3. Student only
+    if user.role != UserRole.STUDENT:
+        return _err("Only+students+can+enroll")
+
+    # 4. LFA_FOOTBALL_PLAYER license required
+    license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not license:
+        return _err("LFA+Football+Player+license+required")
+
+    # 5. Not already enrolled
+    existing = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.user_id == user.id,
+        SemesterEnrollment.is_active == True,
+    ).first()
+    if existing:
+        return RedirectResponse(
+            url="/tournaments?flash=Already+enrolled&flash_type=info", status_code=303
+        )
+
+    # 6. Credits check
+    cost = tournament.enrollment_cost if tournament.enrollment_cost is not None else 500
+    if user.credit_balance < cost:
+        return _err(f"Insufficient+credits+(need+{cost}%2C+have+{user.credit_balance})")
+
+    # 7. Capacity check
+    enrolled_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.is_active == True,
+        SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+    ).count()
+    max_p = tournament.max_players if tournament.max_players else 999
+    if enrolled_count >= max_p:
+        return _err("Tournament+is+full")
+
+    # 8. Create enrollment (auto-approved)
+    age_category = _get_player_age_category(user)
+    enrollment = SemesterEnrollment(
+        user_id=user.id,
+        semester_id=tournament_id,
+        user_license_id=license.id,
+        age_category=age_category,
+        request_status=EnrollmentStatus.APPROVED,
+        approved_at=datetime.utcnow(),
+        approved_by=user.id,
+        payment_verified=True,
+        is_active=True,
+        enrolled_at=datetime.utcnow(),
+        requested_at=datetime.utcnow(),
+    )
+    db.add(enrollment)
+    db.flush()
+
+    # 9. Atomic credit deduction
+    result = db.execute(
+        sql_update(User)
+        .where(User.id == user.id, User.credit_balance >= cost)
+        .values(credit_balance=User.credit_balance - cost)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        db.rollback()
+        return _err("Insufficient+credits+(concurrent+update)")
+    db.refresh(user)
+
+    # 10. Credit transaction record
+    db.add(CreditTransaction(
+        user_license_id=license.id,
+        transaction_type="TOURNAMENT_ENROLLMENT",
+        amount=-cost,
+        balance_after=user.credit_balance,
+        description=f"Tournament enrollment: {tournament.name} ({tournament.code})",
+        semester_id=tournament_id,
+        enrollment_id=enrollment.id,
+        idempotency_key=str(uuid.uuid4()),
+    ))
+
+    # 11. Auto-book existing tournament sessions
+    sessions = db.query(SessionModel).filter(
+        SessionModel.semester_id == tournament_id
+    ).all()
+    for s in sessions:
+        db.add(Booking(
+            user_id=user.id,
+            session_id=s.id,
+            enrollment_id=enrollment.id,
+            status=BookingStatus.CONFIRMED,
+            created_at=datetime.utcnow(),
+        ))
+
+    db.commit()
+
+    tournament_name = tournament.name.replace(" ", "+")
+    return RedirectResponse(
+        url=f"/tournaments?flash=Successfully+enrolled+in+{tournament_name}&flash_type=success",
+        status_code=303,
+    )
+
+
+@router.post("/tournaments/{tournament_id}/unenroll", response_class=HTMLResponse)
+async def tournament_unenroll(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Withdraw student from tournament (50 % refund)."""
+    enrollment = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.user_id == user.id,
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.is_active == True,
+    ).first()
+    if not enrollment:
+        return RedirectResponse(
+            url="/tournaments?flash=No+active+enrollment+found&flash_type=error",
+            status_code=303,
+        )
+
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    cost = (tournament.enrollment_cost if tournament and tournament.enrollment_cost else 500)
+    refund = cost // 2
+
+    enrollment.is_active = False
+    enrollment.request_status = EnrollmentStatus.WITHDRAWN
+    db.add(enrollment)
+
+    db.execute(
+        sql_update(User)
+        .where(User.id == user.id)
+        .values(credit_balance=User.credit_balance + refund)
+        .execution_options(synchronize_session=False)
+    )
+    db.refresh(user)
+
+    db.add(CreditTransaction(
+        user_license_id=enrollment.user_license_id,
+        transaction_type="TOURNAMENT_UNENROLL_REFUND",
+        amount=refund,
+        balance_after=user.credit_balance,
+        description=f"Tournament unenrollment refund (50%): {tournament.name if tournament else tournament_id}",
+        semester_id=tournament_id,
+        enrollment_id=enrollment.id,
+        idempotency_key=str(uuid.uuid4()),
+    ))
+
+    # Remove linked bookings
+    db.query(Booking).filter(
+        Booking.enrollment_id == enrollment.id,
+        Booking.user_id == user.id,
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/tournaments?flash=Unenrolled.+{refund}+credits+refunded.&flash_type=info",
+        status_code=303,
+    )
+
+
+# ── Instructor: manage assigned tournaments ────────────────────────────────────
+
+@router.get("/instructor/tournaments", response_class=HTMLResponse)
+async def instructor_tournaments(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Instructor/Admin view: list assigned tournaments with participant details."""
+    if user.role not in (UserRole.INSTRUCTOR, UserRole.ADMIN):
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    tournaments = (
+        db.query(Semester)
+        .filter(
+            and_(
+                Semester.code.like("TOURN-%"),
+                Semester.master_instructor_id == user.id,
+                Semester.is_active == True,
+            )
+        )
+        .order_by(Semester.start_date.asc())
+        .all()
+    )
+
+    tournament_data = []
+    for t in tournaments:
+        enrollments = (
+            db.query(SemesterEnrollment)
+            .filter(
+                SemesterEnrollment.semester_id == t.id,
+                SemesterEnrollment.is_active == True,
+            )
+            .all()
+        )
+
+        participants = []
+        for enr in enrollments:
+            student = db.query(User).filter(User.id == enr.user_id).first()
+            if student:
+                participants.append({
+                    "name": student.name,
+                    "email": student.email,
+                    "age_category": enr.age_category or "—",
+                    "enrolled_at": enr.enrolled_at,
+                    "status": enr.request_status.value,
+                })
+
+        tournament_data.append({
+            "tournament": t,
+            "participants": participants,
+            "enrollment_count": len(participants),
+            "max_players": t.max_players or "—",
+        })
+
+    return templates.TemplateResponse(
+        "instructor/tournaments.html",
+        {
+            "request": request,
+            "user": user,
+            "tournaments": tournament_data,
+            "flash": request.query_params.get("flash"),
+            "flash_type": request.query_params.get("flash_type", "info"),
+        },
+    )
+
+
+# ── Admin: tournament management ───────────────────────────────────────────────
+
+def _admin_only(user: User):
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@router.get("/admin/tournaments", response_class=HTMLResponse)
+async def admin_tournaments_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: list all tournaments (all statuses) + create form."""
+    _admin_only(user)
+
+    tournaments = (
+        db.query(Semester)
+        .filter(
+            or_(
+                Semester.code.like("TOURN-%"),
+                Semester.code.like("OPS-%"),
+            )
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    tournament_info = []
+    for t in tournaments:
+        enroll_count = (
+            db.query(SemesterEnrollment)
+            .filter(
+                SemesterEnrollment.semester_id == t.id,
+                SemesterEnrollment.is_active == True,
+            )
+            .count()
+        )
+        session_count = (
+            db.query(SessionModel)
+            .filter(SessionModel.semester_id == t.id)
+            .count()
+        )
+        instructor = None
+        if t.master_instructor_id:
+            instructor = db.query(User).filter(User.id == t.master_instructor_id).first()
+        tournament_info.append({
+            "tournament": t,
+            "enrollment_count": enroll_count,
+            "session_count": session_count,
+            "instructor": instructor,
+        })
+
+    locations = db.query(Location).filter(Location.is_active == True).all()
+    campuses = db.query(Campus).filter(Campus.is_active == True).all()
+
+    return templates.TemplateResponse(
+        "admin/tournaments.html",
+        {
+            "request": request,
+            "user": user,
+            "tournament_info": tournament_info,
+            "locations": locations,
+            "campuses": campuses,
+            "flash": request.query_params.get("flash"),
+            "flash_type": request.query_params.get("flash_type", "success"),
+            "error": request.query_params.get("error"),
+            "active_tab": request.query_params.get("tab", "list"),
+        },
+    )
+
+
+@router.post("/admin/tournaments", response_class=RedirectResponse)
+async def admin_create_tournament(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    name: str = Form(...),
+    code: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    age_group: str = Form("AMATEUR"),
+    enrollment_cost: int = Form(0),
+    location_id: str = Form(""),
+    campus_id: str = Form(""),
+    assignment_type: str = Form("OPEN_ASSIGNMENT"),
+):
+    """Admin: create a new tournament."""
+    _admin_only(user)
+
+    code = code.strip().upper()
+    if not code.startswith("TOURN-") and not code.startswith("OPS-"):
+        code = f"TOURN-{code}"
+
+    if db.query(Semester).filter(Semester.code == code).first():
+        return RedirectResponse(
+            url=f"/admin/tournaments?error=Code+{code}+already+exists&tab=create",
+            status_code=303,
+        )
+
+    t = Semester(
+        code=code,
+        name=name.strip(),
+        start_date=date.fromisoformat(start_date),
+        end_date=date.fromisoformat(end_date),
+        status=SemesterStatus.DRAFT,
+        tournament_status="DRAFT",
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        age_group=age_group,
+        enrollment_cost=enrollment_cost,
+        location_id=int(location_id) if location_id.strip() else None,
+        campus_id=int(campus_id) if campus_id.strip() else None,
+        is_active=True,
+    )
+    db.add(t)
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/tournaments?flash=Tournament+{code}+created+successfully",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/start", response_class=RedirectResponse)
+async def admin_start_tournament(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: advance ENROLLMENT_CLOSED → IN_PROGRESS."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+    if t.tournament_status != "ENROLLMENT_CLOSED":
+        return RedirectResponse(
+            url=f"/admin/tournaments?error=Tournament+must+be+ENROLLMENT_CLOSED+to+start+(current:+{t.tournament_status})",
+            status_code=303,
+        )
+
+    t.tournament_status = "IN_PROGRESS"
+    t.status = SemesterStatus.ONGOING
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/tournaments?flash=Tournament+{t.code}+started+(IN_PROGRESS)",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/cancel", response_class=RedirectResponse)
+async def admin_cancel_tournament(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: cancel tournament."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+    if t.tournament_status in ("COMPLETED", "CANCELLED"):
+        return RedirectResponse(
+            url=f"/admin/tournaments?error=Cannot+cancel+{t.tournament_status}+tournament",
+            status_code=303,
+        )
+
+    t.tournament_status = "CANCELLED"
+    t.status = SemesterStatus.CANCELLED
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/tournaments?flash=Tournament+{t.code}+cancelled",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/delete", response_class=RedirectResponse)
+async def admin_delete_tournament(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: permanently delete tournament."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+
+    code = t.code
+    db.delete(t)
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/tournaments?flash=Tournament+{code}+permanently+deleted",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/rollback", response_class=RedirectResponse)
+async def admin_rollback_tournament(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: rollback stuck IN_PROGRESS → ENROLLMENT_CLOSED for re-generation."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+    if t.tournament_status != "IN_PROGRESS":
+        return RedirectResponse(
+            url=f"/admin/tournaments?error=Rollback+only+available+for+IN_PROGRESS+tournaments",
+            status_code=303,
+        )
+
+    t.tournament_status = "ENROLLMENT_CLOSED"
+    t.status = SemesterStatus.READY_FOR_ENROLLMENT
+    db.commit()
+
+    return RedirectResponse(
+        url=f"/admin/tournaments?flash=Tournament+{t.code}+rolled+back+to+ENROLLMENT_CLOSED",
+        status_code=303,
+    )

@@ -230,6 +230,14 @@
                             </span>
                         </td>
                         <td style="padding: 0.75rem; text-align: center;">
+                            <!-- Payment Verification -->
+                            {% if enrollment.payment_verified %}
+                            <span style="background:#d4edda;color:#155724;padding:0.3rem 0.6rem;border-radius:4px;font-size:0.8rem;font-weight:600;display:inline-block;margin:0.2rem;">💳 Paid</span>
+                            <button onclick="unverifyPayment({{ enrollment.id }})" class="btn btn-secondary" style="padding:0.4rem 0.8rem;font-size:0.8rem;margin:0.2rem;">↩ Unpay</button>
+                            {% else %}
+                            <button onclick="verifyPayment({{ enrollment.id }})" style="padding:0.4rem 0.8rem;font-size:0.8rem;margin:0.2rem;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;">💳 Verify Payment</button>
+                            {% endif %}
+
                             <!-- Active Toggle -->
                             <button onclick="toggleActive({{ enrollment.id }})" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0.2rem;">
                                 {% if enrollment.is_active %}Deactivate{% else %}Activate{% endif %}
@@ -417,6 +425,46 @@ async function toggleActive(enrollmentId) {
             location.reload();
         } else {
             alert('❌ Error: ' + (data.detail || 'Failed to toggle status'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function verifyPayment(enrollmentId) {
+    if (!confirm('✅ Mark payment as verified for this enrollment?')) return;
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/verify-payment`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert('✅ Payment verified!');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || 'Failed to verify payment'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Network error');
+    }
+}
+
+async function unverifyPayment(enrollmentId) {
+    if (!confirm('↩ Remove payment verification for this enrollment?')) return;
+    try {
+        const response = await fetch(`/api/v1/semester-enrollments/${enrollmentId}/unverify-payment`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert('↩ Payment unverified');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.detail || 'Failed to unverify payment'));
         }
     } catch (error) {
         console.error('Error:', error);

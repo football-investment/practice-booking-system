@@ -346,7 +346,7 @@
                             <a href="/credits" style="color: #667eea; font-weight: 600;">Purchase credits →</a>
                         </p>
                     {% else %}
-                        <form method="POST" action="/specialization/unlock">
+                        <form method="POST" action="/specialization/select">
                             <input type="hidden" name="specialization" value="{{ spec.type }}">
                             <button type="submit" class="unlock-btn">
                                 🔓 Unlock Now (100 credits)

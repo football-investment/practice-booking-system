@@ -3,40 +3,233 @@
 {% block title %}Analytics & Reports - Admin Panel{% endblock %}
 
 {% block content %}
+<style>
+    .analytics-section { margin-bottom: 2rem; }
+    .analytics-section h2 { font-size: 1.1rem; color: #2d3748; margin-bottom: 1rem; font-weight: 700; }
+    .fin-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .fin-card { background: white; border-radius: 12px; padding: 1.25rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-top: 3px solid #667eea; }
+    .fin-card .val { font-size: 1.6rem; font-weight: 700; color: #2d3748; }
+    .fin-card .lbl { color: #718096; font-size: 0.8rem; margin-top: 0.3rem; }
+    .fin-card.warn .val { color: #e74c3c; }
+    .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: white; border-radius: 12px; padding: 1.25rem 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+    .stat-card .val { font-size: 2rem; font-weight: 700; }
+    .stat-card .lbl { color: #718096; font-size: 0.82rem; margin-top: 0.25rem; }
+    .loc-filter { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .loc-filter label { font-size: 0.8rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.4rem; }
+    .loc-filter select { padding: 0.5rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; min-width: 220px; }
+    .loc-filter button { padding: 0.5rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; background: #4299e1; color: white; font-size: 0.9rem; }
+    .spec-card { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 1rem; overflow: hidden; }
+    .spec-header { padding: 0.85rem 1.25rem; background: linear-gradient(135deg, #667eea, #764ba2); color: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+    .spec-body { display: none; overflow-x: auto; }
+    .spec-body.open { display: block; }
+    .spec-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .spec-table th { padding: 0.6rem 1rem; text-align: left; background: #f8f9fa; color: #4a5568; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+    .spec-table td { padding: 0.6rem 1rem; border-bottom: 1px solid #f0f0f0; color: #4a5568; }
+    .spec-table tr:hover td { background: #f8f9fa; }
+    .campus-card { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); padding: 1rem 1.25rem; margin-bottom: 0.75rem; border-left: 4px solid #48bb78; }
+    .campus-name { font-weight: 600; color: #2d3748; margin-bottom: 0.4rem; }
+    .campus-counts { display: flex; gap: 1.5rem; font-size: 0.85rem; color: #718096; }
+    .campus-counts .upcoming { color: #48bb78; font-weight: 600; }
+    .status-draft { color: #718096; }
+    .status-ready { color: #27ae60; font-weight: 600; }
+    .status-ongoing { color: #3498db; font-weight: 600; }
+    .badge-status { padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+</style>
+
+<div style="background:#2d3748;padding:0.6rem 1.5rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;font-size:0.82rem;">
+    <a href="/dashboard" style="color:#a0aec0;text-decoration:none;">🏠 Dashboard</a>
+    <a href="/admin/users" style="color:#a0aec0;text-decoration:none;">👥 Users</a>
+    <a href="/admin/sessions" style="color:#a0aec0;text-decoration:none;">📅 Sessions</a>
+    <a href="/admin/bookings" style="color:#a0aec0;text-decoration:none;">📋 Bookings</a>
+    <a href="/admin/semesters" style="color:#a0aec0;text-decoration:none;">🎓 Semesters</a>
+    <a href="/admin/analytics" style="color:white;font-weight:600;text-decoration:none;">📊 Analytics</a>
+    <a href="/admin/tournaments" style="color:#a0aec0;text-decoration:none;">🏆 Tournaments</a>
+    <a href="/admin/locations" style="color:#a0aec0;text-decoration:none;">📍 Locations</a>
+    <a href="/admin/game-presets" style="color:#a0aec0;text-decoration:none;">🎮 Game Presets</a>
+    <a href="/admin/system-events" style="color:#a0aec0;text-decoration:none;">⚙️ Events</a>
+    <a href="/admin/payments" style="color:#a0aec0;text-decoration:none;">💳 Payments</a>
+    <a href="/admin/coupons" style="color:#a0aec0;text-decoration:none;">🎟️ Coupons</a>
+    <a href="/admin/invitation-codes" style="color:#a0aec0;text-decoration:none;">🎁 Codes</a>
+    <span style="margin-left:auto;display:flex;gap:0.75rem;">
+        <a href="/profile" style="color:#a0aec0;text-decoration:none;">⚙️ Profile</a>
+        <a href="/logout" style="color:#a0aec0;text-decoration:none;">🚪 Logout</a>
+    </span>
+</div>
 <div class="welcome-section">
     <h1>📊 Analytics & Reports</h1>
-    <p>Platform statistics and performance metrics</p>
+    <p>Platform statistics, financial snapshot, and location overview</p>
 </div>
 
-<div class="cards-grid">
-    <div class="card">
-        <h2>👥 Total Users</h2>
-        <p style="font-size: 3rem; font-weight: 700; color: #3498db; margin: 1rem 0;">{{ stats.total_users }}</p>
-        <p style="color: #7f8c8d;">All registered users</p>
-    </div>
-
-    <div class="card">
-        <h2>🎓 Students</h2>
-        <p style="font-size: 3rem; font-weight: 700; color: #27ae60; margin: 1rem 0;">{{ stats.total_students }}</p>
-        <p style="color: #7f8c8d;">Active students</p>
-    </div>
-
-    <div class="card">
-        <h2>👨‍🏫 Instructors</h2>
-        <p style="font-size: 3rem; font-weight: 700; color: #e74c3c; margin: 1rem 0;">{{ stats.total_instructors }}</p>
-        <p style="color: #7f8c8d;">Teaching staff</p>
-    </div>
-
-    <div class="card">
-        <h2>📚 Sessions</h2>
-        <p style="font-size: 3rem; font-weight: 700; color: #f39c12; margin: 1rem 0;">{{ stats.total_sessions }}</p>
-        <p style="color: #7f8c8d;">Total sessions created</p>
-    </div>
-
-    <div class="card">
-        <h2>📅 Bookings</h2>
-        <p style="font-size: 3rem; font-weight: 700; color: #9b59b6; margin: 1rem 0;">{{ stats.total_bookings }}</p>
-        <p style="color: #7f8c8d;">Session bookings</p>
+<!-- Platform Stats -->
+<div class="analytics-section">
+    <h2>👥 Platform Overview</h2>
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="val" style="color:#3498db">{{ stats.total_users }}</div>
+            <div class="lbl">👥 Total Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="val" style="color:#27ae60">{{ stats.total_students }}</div>
+            <div class="lbl">🎓 Students</div>
+        </div>
+        <div class="stat-card">
+            <div class="val" style="color:#e74c3c">{{ stats.total_instructors }}</div>
+            <div class="lbl">👨‍🏫 Instructors</div>
+        </div>
+        <div class="stat-card">
+            <div class="val" style="color:#f39c12">{{ stats.total_sessions }}</div>
+            <div class="lbl">📚 Sessions</div>
+        </div>
+        <div class="stat-card">
+            <div class="val" style="color:#9b59b6">{{ stats.total_bookings }}</div>
+            <div class="lbl">📅 Bookings</div>
+        </div>
     </div>
 </div>
+
+<!-- Financial Snapshot (8 metrics) -->
+<div class="analytics-section">
+    <h2>💶 Financial Snapshot</h2>
+    <div class="fin-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="fin-card">
+            <div class="val">€{{ "{:,.2f}".format(fin.total_eur) }}</div>
+            <div class="lbl">💶 Total Revenue</div>
+        </div>
+        <div class="fin-card {% if fin.pending_eur > 0 %}warn{% endif %}">
+            <div class="val">€{{ "{:,.2f}".format(fin.pending_eur) }}</div>
+            <div class="lbl">⏳ Pending (EUR)</div>
+        </div>
+        <div class="fin-card">
+            <div class="val">{{ "{:,}".format(fin.issued_credits) }}</div>
+            <div class="lbl">🪙 Issued Credits</div>
+        </div>
+        <div class="fin-card">
+            <div class="val">{{ "{:,}".format(fin.active_balance) }}</div>
+            <div class="lbl">💼 Active Balance (cr)</div>
+        </div>
+    </div>
+    <div class="fin-grid" style="grid-template-columns:repeat(4,1fr);margin-top:0.75rem">
+        <div class="fin-card">
+            <div class="val">{{ fin.total_invoices }}</div>
+            <div class="lbl">🧾 Total Invoices</div>
+        </div>
+        <div class="fin-card {% if fin.open_invoices > 0 %}warn{% endif %}">
+            <div class="val">{{ fin.open_invoices }}</div>
+            <div class="lbl">⏳ Awaiting Approval</div>
+        </div>
+        <div class="fin-card">
+            <div class="val">{{ fin.verified_invoices }}</div>
+            <div class="lbl">✅ Verified</div>
+        </div>
+        <div class="fin-card">
+            <div class="val">{{ fin.users_with_credits }}</div>
+            <div class="lbl">👥 Users with Credits</div>
+        </div>
+    </div>
+</div>
+
+<!-- Semesters by Specialization -->
+<div class="analytics-section">
+    <h2>📚 Semesters by Specialization</h2>
+    {% if spec_semesters %}
+        {% for spec, sems in spec_semesters | dictsort %}
+        <div class="spec-card">
+            <div class="spec-header" onclick="this.nextElementSibling.classList.toggle('open')">
+                <span>⚽ {{ spec.replace('_', ' ').title() }} <span style="font-weight:400;opacity:0.85;font-size:0.85rem">({{ sems|length }} semesters)</span></span>
+                <span>▼</span>
+            </div>
+            <div class="spec-body">
+                <table class="spec-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Status</th>
+                            <th>City</th>
+                            <th>Campus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sem in sems %}
+                        <tr>
+                            <td>{{ sem.id }}</td>
+                            <td>{{ sem.name }}</td>
+                            <td style="font-family:monospace;font-size:0.8rem">{{ sem.code }}</td>
+                            <td>{{ sem.start_date.strftime('%Y-%m-%d') if sem.start_date else '—' }}</td>
+                            <td>{{ sem.end_date.strftime('%Y-%m-%d') if sem.end_date else '—' }}</td>
+                            <td>
+                                {% if sem.status %}
+                                    {% set s = sem.status.value if sem.status.value is defined else sem.status | string %}
+                                    {% if s == 'ONGOING' %}
+                                        <span class="badge-status" style="background:#c6f6d5;color:#276749">🟢 {{ s }}</span>
+                                    {% elif s == 'READY_FOR_ENROLLMENT' %}
+                                        <span class="badge-status" style="background:#bee3f8;color:#2c5282">🔵 READY</span>
+                                    {% elif s == 'DRAFT' %}
+                                        <span class="badge-status" style="background:#e2e8f0;color:#4a5568">⚪ DRAFT</span>
+                                    {% elif s == 'INSTRUCTOR_ASSIGNED' %}
+                                        <span class="badge-status" style="background:#fef3c7;color:#92400e">🟡 INST. ASSIGNED</span>
+                                    {% else %}
+                                        <span class="badge-status" style="background:#e2e8f0;color:#4a5568">{{ s }}</span>
+                                    {% endif %}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>{{ sem.location.city if sem.location else '—' }}</td>
+                            <td>{{ sem.campus.name if sem.campus else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="color:#718096">No active semesters found.</p>
+    {% endif %}
+</div>
+
+<!-- Location Overview -->
+<div class="analytics-section">
+    <h2>📍 Location Overview</h2>
+    <form method="get" action="/admin/analytics" class="loc-filter">
+        <div>
+            <label>Select Location</label>
+            <select name="location_id">
+                <option value="0">— All Locations —</option>
+                {% for loc in all_locations %}
+                <option value="{{ loc.id }}" {% if selected_location_id == loc.id %}selected{% endif %}>
+                    {{ loc.city }}{% if loc.country %}, {{ loc.country }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">🔍 View</button>
+    </form>
+
+    {% if selected_location %}
+        <p style="font-size:0.9rem;color:#718096;margin-bottom:1rem">
+            Showing campuses &amp; session counts for <strong>{{ selected_location.city }}{% if selected_location.country %}, {{ selected_location.country }}{% endif %}</strong>
+        </p>
+        {% if location_campuses %}
+            {% for item in location_campuses %}
+            <div class="campus-card">
+                <div class="campus-name">🏫 {{ item.campus.name }}</div>
+                <div class="campus-counts">
+                    <span>Total: <strong>{{ item.total }}</strong></span>
+                    <span class="upcoming">🔜 Upcoming: {{ item.upcoming }}</span>
+                    <span>Past: {{ item.past }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#718096">No active campuses found for this location.</p>
+        {% endif %}
+    {% else %}
+        <p style="color:#718096;font-size:0.9rem">Select a location above to see campus and session breakdown.</p>
+    {% endif %}
+</div>
+
 {% endblock %}

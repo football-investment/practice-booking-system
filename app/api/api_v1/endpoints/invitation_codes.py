@@ -355,17 +355,6 @@ async def redeem_invitation_code(
             detail=f"This invitation code is restricted to {code.invited_email}"
         )
 
-    # Check if user has already redeemed ANY invitation code
-    existing_redemption = db.query(InvitationCode).filter(
-        InvitationCode.used_by_user_id == current_user.id
-    ).first()
-
-    if existing_redemption:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already redeemed an invitation code"
-        )
-
     # Add credits to user account
     old_balance = current_user.credit_balance
     current_user.credit_balance += code.bonus_credits

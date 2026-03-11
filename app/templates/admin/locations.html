@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locations & Campuses - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; }
+        .header-content { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .user-info h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .user-info p { opacity: 0.9; }
+        .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-white { background: white; color: #4a5568; }
+        .btn-primary { background: #4299e1; color: white; }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-danger { background: #fc8181; color: white; }
+        .btn-warning { background: #f6ad55; color: white; }
+        .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+        .stat-card .val { font-size: 2rem; font-weight: 700; color: #2d3748; }
+        .stat-card .lbl { color: #718096; font-size: 0.85rem; margin-top: 0.25rem; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .section-header h2 { font-size: 1.5rem; color: #2d3748; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem; overflow: hidden; }
+        .card-header { padding: 1rem 1.5rem; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
+        .card-header h3 { font-size: 1.1rem; color: #2d3748; display: flex; align-items: center; gap: 0.5rem; }
+        .card-body { padding: 1.5rem; display: none; }
+        .card-body.open { display: block; }
+        .badge { padding: 0.25rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: #c6f6d5; color: #276749; }
+        .badge-inactive { background: #fed7d7; color: #9b2335; }
+        .badge-center { background: #bee3f8; color: #2c5282; }
+        .badge-partner { background: #fefcbf; color: #744210; }
+        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+        .info-block label { font-size: 0.75rem; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .info-block p { font-size: 0.95rem; color: #2d3748; margin-top: 0.2rem; }
+        .campus-list { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+        .campus-item { background: #f8f9fa; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .campus-info { flex: 1; }
+        .campus-info strong { font-size: 0.95rem; color: #2d3748; }
+        .campus-info small { color: #718096; display: block; }
+        .campus-actions { display: flex; gap: 0.5rem; }
+        .action-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+        details.campus-form summary { cursor: pointer; color: #4299e1; font-size: 0.9rem; font-weight: 600; padding: 0.5rem 0; }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+        .form-group.full { grid-column: 1 / -1; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 2rem; max-width: 640px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 1.5rem; color: #2d3748; }
+        .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; justify-content: flex-end; }
+        .no-data { text-align: center; padding: 3rem; color: #718096; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>📍 Locations & Campuses</h1>
+            <p>Manage LFA Education Center locations and campus venues</p>
+        </div>
+        <div class="header-actions">
+            <a href="/admin/users" class="btn btn-white">👥 Users</a>
+            <a href="/admin/semesters" class="btn btn-white">📚 Semesters</a>
+            <a href="/admin/sessions" class="btn btn-white">📅 Sessions</a>
+            <a href="/admin/bookings" class="btn btn-white">📋 Bookings</a>
+            <a href="/admin/tournaments" class="btn btn-white">🏆 Tournaments</a>
+            <a href="/admin/system-events" class="btn btn-white">⚙️ System Events</a>
+            <a href="/admin/game-presets" class="btn btn-white">🎮 Game Presets</a>
+            <a href="/dashboard" class="btn btn-white">🏠 Dashboard</a>
+            <a href="/logout" class="btn btn-white">🚪 Logout</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Stats -->
+    {% set active_locs = locations | selectattr('is_active') | list %}
+    {% set inactive_locs = locations | rejectattr('is_active') | list %}
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="val">{{ locations | length }}</div>
+            <div class="lbl">📍 Total Locations</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ active_locs | length }}</div>
+            <div class="lbl">🟢 Active</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ inactive_locs | length }}</div>
+            <div class="lbl">🔴 Inactive</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" action="/admin/locations" style="background:white;border-radius:12px;padding:1.1rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:1.25rem;display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+        <div style="display:flex;flex-direction:column;gap:0.35rem;min-width:160px;">
+            <label style="font-size:0.78rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.05em;">City</label>
+            <select name="city_filter" style="padding:0.45rem 0.8rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                <option value="" {% if not city_filter %}selected{% endif %}>All Cities</option>
+                {% for city in all_cities %}
+                <option value="{{ city }}" {% if city_filter == city %}selected{% endif %}>{{ city }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.35rem;min-width:150px;">
+            <label style="font-size:0.78rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.05em;">Status</label>
+            <select name="status_filter" style="padding:0.45rem 0.8rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>🟢 Active Only</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>🔴 Inactive Only</option>
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+            </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.35rem;min-width:200px;">
+            <label style="font-size:0.78rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.05em;">Search by Name</label>
+            <input type="text" name="name_search" value="{{ name_search }}" placeholder="Type location name…" style="padding:0.45rem 0.8rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+            <button type="submit" style="padding:0.45rem 1.1rem;background:#4299e1;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;">🔍 Filter</button>
+            <a href="/admin/locations" style="padding:0.45rem 1.1rem;background:#f0f0f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.9rem;">✕ Clear</a>
+        </div>
+    </form>
+
+    <!-- Create Location button -->
+    <div class="section-header">
+        <h2>📍 Locations ({{ locations|length }}{% if city_filter or name_search or status_filter != 'active' %} filtered{% endif %})</h2>
+        <button class="btn btn-primary" onclick="document.getElementById('createLocationModal').classList.add('open')">
+            ➕ Create Location
+        </button>
+    </div>
+
+    {% if locations %}
+        {% for loc in locations %}
+        <div class="card">
+            <div class="card-header" onclick="toggleCard('loc-{{ loc.id }}')">
+                <h3>
+                    {% if loc.is_active %}🟢{% else %}🔴{% endif %}
+                    {{ loc.name }}
+                    <span style="font-weight: 400; color: #718096; font-size: 0.9rem">({{ loc.city }}, {{ loc.country }})</span>
+                    <span class="badge {% if loc.location_type.value == 'CENTER' %}badge-center{% else %}badge-partner{% endif %}">
+                        {% if loc.location_type.value == 'CENTER' %}🏫 CENTER{% else %}🤝 PARTNER{% endif %}
+                    </span>
+                    <span class="badge {% if loc.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                        {{ 'Active' if loc.is_active else 'Inactive' }}
+                    </span>
+                </h3>
+                <span style="color: #718096; font-size: 0.85rem">ID: {{ loc.id }} — {{ loc.campuses_list | length }} campus(es) ▼</span>
+            </div>
+            <div class="card-body" id="loc-{{ loc.id }}">
+                <div class="info-grid">
+                    <div class="info-block">
+                        <label>📍 Location Info</label>
+                        <p>Name: {{ loc.name }}</p>
+                        <p>City: {{ loc.city }}</p>
+                        <p>Country: {{ loc.country }}{% if loc.country_code %} ({{ loc.country_code }}){% endif %}</p>
+                    </div>
+                    <div class="info-block">
+                        <label>📮 Address Details</label>
+                        <p>Postal Code: {{ loc.postal_code or 'N/A' }}</p>
+                        <p>Location Code: {{ loc.location_code or 'N/A' }}</p>
+                        <p>Address: {{ (loc.address[:50] + '...') if loc.address and loc.address|length > 50 else (loc.address or 'N/A') }}</p>
+                    </div>
+                    <div class="info-block">
+                        <label>✅ Status</label>
+                        <p>Status: {{ '✅ Active' if loc.is_active else '❌ Inactive' }}</p>
+                        <p>Type: {{ '🏫 CENTER' if loc.location_type.value == 'CENTER' else '🤝 PARTNER' }}</p>
+                        {% if loc.notes %}<p>Notes: {{ (loc.notes[:50] + '...') if loc.notes|length > 50 else loc.notes }}</p>{% endif %}
+                    </div>
+                </div>
+
+                <!-- Campuses -->
+                <div class="campus-list">
+                    <strong>🏫 Campuses at this location:</strong>
+                    {% if loc.campuses_list %}
+                        {% for campus in loc.campuses_list %}
+                        <div class="campus-item">
+                            <div class="campus-info">
+                                <strong>{% if campus.is_active %}🟢{% else %}🔴{% endif %} {{ campus.name }}</strong>
+                                <small>
+                                    ID: {{ campus.id }}
+                                    {% if campus.venue %} · Venue: {{ campus.venue }}{% endif %}
+                                    {% if campus.address %} · {{ campus.address[:40] }}{% endif %}
+                                </small>
+                            </div>
+                            <div class="campus-actions">
+                                <a href="/admin/campuses/{{ campus.id }}/edit" class="btn btn-sm" style="background:#667eea;color:white;">✏️ Edit</a>
+                                <form method="post" action="/admin/campuses/{{ campus.id }}/toggle" style="display:inline">
+                                    <button type="submit" class="btn btn-sm btn-warning">
+                                        {{ '⚫ Deactivate' if campus.is_active else '🟢 Activate' }}
+                                    </button>
+                                </form>
+                                <form method="post" action="/admin/campuses/{{ campus.id }}/delete" style="display:inline"
+                                      onsubmit="return confirm('Delete campus {{ campus.name }}?')">
+                                    <button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="color: #718096; margin-top: 0.5rem">⚠️ No campuses found for this location.</p>
+                    {% endif %}
+
+                    <!-- Add campus inline -->
+                    <details class="campus-form" style="margin-top: 0.75rem">
+                        <summary>➕ Add Campus</summary>
+                        <form method="post" action="/admin/locations/{{ loc.id }}/campuses">
+                            <div class="form-grid" style="grid-template-columns: repeat(2, 1fr)">
+                                <div class="form-group">
+                                    <label>Campus Name *</label>
+                                    <input type="text" name="name" required placeholder="e.g. Main Field">
+                                </div>
+                                <div class="form-group">
+                                    <label>Venue</label>
+                                    <input type="text" name="venue" placeholder="e.g. Artificial Turf A">
+                                </div>
+                                <div class="form-group full">
+                                    <label>Address</label>
+                                    <input type="text" name="address" placeholder="Street address">
+                                </div>
+                                <div class="form-group full">
+                                    <label>Notes</label>
+                                    <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
+                                </div>
+                            </div>
+                            <div style="margin-top: 0.75rem">
+                                <button type="submit" class="btn btn-success btn-sm">✅ Add Campus</button>
+                            </div>
+                        </form>
+                    </details>
+                </div>
+
+                <!-- Location actions -->
+                <div class="action-row">
+                    <a href="/admin/locations/{{ loc.id }}/edit" class="btn btn-sm" style="background:#667eea;color:white;">✏️ Edit Location</a>
+                    <form method="post" action="/admin/locations/{{ loc.id }}/toggle">
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            {{ '⚫ Deactivate Location' if loc.is_active else '🟢 Activate Location' }}
+                        </button>
+                    </form>
+                    <form method="post" action="/admin/locations/{{ loc.id }}/delete"
+                          onsubmit="return confirm('Delete location {{ loc.name }} and ALL its campuses?')">
+                        <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete Location</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-data">
+            <p style="font-size: 1.5rem">📍</p>
+            <p>No locations found. Create your first location!</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Create Location Modal -->
+<div class="modal-overlay" id="createLocationModal">
+    <div class="modal">
+        <h3>➕ Create New Location</h3>
+        <form method="post" action="/admin/locations">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Budapest Education Center">
+                </div>
+                <div class="form-group">
+                    <label>City *</label>
+                    <input type="text" name="city" required placeholder="e.g. Budapest">
+                </div>
+                <div class="form-group">
+                    <label>Country *</label>
+                    <input type="text" name="country" required placeholder="e.g. Hungary">
+                </div>
+                <div class="form-group">
+                    <label>Country Code</label>
+                    <input type="text" name="country_code" maxlength="2" placeholder="e.g. HU">
+                </div>
+                <div class="form-group">
+                    <label>Location Code</label>
+                    <input type="text" name="location_code" maxlength="10" placeholder="e.g. BDPST">
+                </div>
+                <div class="form-group">
+                    <label>Postal Code</label>
+                    <input type="text" name="postal_code" placeholder="e.g. 1051">
+                </div>
+                <div class="form-group">
+                    <label>Location Type</label>
+                    <select name="location_type">
+                        <option value="PARTNER">🤝 PARTNER (Tournament + Mini Season)</option>
+                        <option value="CENTER">🏫 CENTER (All types)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" name="address" placeholder="General city address">
+                </div>
+                <div class="form-group full">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="2" placeholder="Any additional notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-white" onclick="document.getElementById('createLocationModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn btn-primary">➕ Create Location</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleCard(id) {
+    const body = document.getElementById(id);
+    body.classList.toggle('open');
+}
+// Close modal on overlay click
+document.getElementById('createLocationModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+});
+</script>
+</body>
+</html>

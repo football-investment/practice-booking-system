@@ -324,9 +324,17 @@
                 <div class="admin-badge">👑 ADMIN</div>
                 <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
                 <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
+                <a href="/admin/sessions" class="btn btn-secondary">📅 Sessions</a>
+                <a href="/admin/bookings" class="btn btn-secondary">📋 Bookings</a>
+                <a href="/admin/tournaments" class="btn btn-secondary">🏆 Tournaments</a>
+                <a href="/admin/locations" class="btn btn-secondary">📍 Locations</a>
+                <a href="/admin/game-presets" class="btn btn-secondary">🎮 Game Presets</a>
+                <a href="/admin/system-events" class="btn btn-secondary">⚙️ Events</a>
                 <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
                 <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
                 <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
+                <a href="/admin/analytics" class="btn btn-secondary">📊 Analytics</a>
+                <a href="/admin/semesters" class="btn btn-secondary">🎓 Semesters</a>
                 <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
                 <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
             </div>
@@ -338,27 +346,44 @@
         <h2 class="page-title">💳 Payment Management</h2>
         <p class="page-subtitle">Manage invoice requests and payment verification</p>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-card" style="border-left-color: #ffc107;">
-                <h3>📄 PENDING INVOICES</h3>
-                <div class="stat-value">{{ invoice_requests|selectattr('status', 'equalto', 'pending')|list|length }}</div>
-                <p class="stat-description">Awaiting verification</p>
+        <!-- 💶 Financial KPI header (8 metrics) -->
+        <div style="margin-bottom:1.5rem;">
+            <h3 style="font-size:0.95rem;color:#4a5568;margin-bottom:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">💶 Financial Snapshot</h3>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-bottom:0.75rem;">
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid #27ae60;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#2d3748;">€{{ "{:,.2f}".format(fin_kpi.total_eur) }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">💶 Total Revenue</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid {% if fin_kpi.pending_eur > 0 %}#e74c3c{% else %}#a0aec0{% endif %};">
+                    <div style="font-size:1.5rem;font-weight:700;color:{% if fin_kpi.pending_eur > 0 %}#e74c3c{% else %}#2d3748{% endif %};">€{{ "{:,.2f}".format(fin_kpi.pending_eur) }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">⏳ Pending (EUR)</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid #667eea;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#2d3748;">{{ "{:,}".format(fin_kpi.issued_credits) }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">🪙 Issued Credits</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid #3498db;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#2d3748;">{{ "{:,}".format(fin_kpi.active_balance) }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">💼 Active Balance (cr)</div>
+                </div>
             </div>
-            <div class="stat-card" style="border-left-color: #28a745;">
-                <h3>✅ VERIFIED</h3>
-                <div class="stat-value">{{ invoice_requests|selectattr('status', 'equalto', 'verified')|list|length }}</div>
-                <p class="stat-description">Payment confirmed</p>
-            </div>
-            <div class="stat-card" style="border-left-color: #dc3545;">
-                <h3>❌ CANCELLED</h3>
-                <div class="stat-value">{{ invoice_requests|selectattr('status', 'equalto', 'cancelled')|list|length }}</div>
-                <p class="stat-description">Cancelled requests</p>
-            </div>
-            <div class="stat-card" style="border-left-color: #3498db;">
-                <h3>💰 TOTAL INVOICES</h3>
-                <div class="stat-value">{{ invoice_requests|length }}</div>
-                <p class="stat-description">All time requests</p>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;">
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid #a0aec0;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#2d3748;">{{ fin_kpi.total_invoices }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">🧾 Total Invoices</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid {% if fin_kpi.open_invoices > 0 %}#e74c3c{% else %}#a0aec0{% endif %};">
+                    <div style="font-size:1.5rem;font-weight:700;color:{% if fin_kpi.open_invoices > 0 %}#e74c3c{% else %}#2d3748{% endif %};">{{ fin_kpi.open_invoices }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">⏳ Awaiting Approval</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid #27ae60;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#2d3748;">{{ fin_kpi.verified_invoices }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">✅ Verified</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:1rem 1.25rem;box-shadow:0 2px 6px rgba(0,0,0,0.06);border-top:3px solid #9b59b6;">
+                    <div style="font-size:1.5rem;font-weight:700;color:#2d3748;">{{ fin_kpi.users_with_credits }}</div>
+                    <div style="font-size:0.8rem;color:#718096;margin-top:0.2rem;">👥 Users with Credits</div>
+                </div>
             </div>
         </div>
 
@@ -448,19 +473,22 @@
     </div>
 
     <script>
+    function getCsrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
     async function verifyInvoice(invoiceId) {
         if (!confirm('Are you sure you want to verify this payment and add credits to the student account?')) {
             return;
         }
-
         try {
-            const response = await fetch(`/api/v1/invoices/${invoiceId}/verify`, {
+            const response = await fetch(`/admin/invoices/${invoiceId}/verify`, {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {'X-CSRF-Token': getCsrfToken()}
             });
-
             const data = await response.json();
-
             if (response.ok) {
                 alert(`✅ Payment verified!\n\nAdded ${data.credits_added} credits to ${data.student_name}\nNew balance: ${data.new_balance} credits`);
                 location.reload();
@@ -474,22 +502,17 @@
 
     async function cancelInvoice(invoiceId) {
         const reason = prompt('Enter cancellation reason:');
-        if (!reason) {
-            return;
-        }
-
+        if (!reason) return;
         try {
-            const response = await fetch(`/api/v1/invoices/${invoiceId}/cancel`, {
+            const fd = new FormData();
+            fd.append('reason', reason);
+            const response = await fetch(`/admin/invoices/${invoiceId}/cancel`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 credentials: 'include',
-                body: JSON.stringify({ reason })
+                headers: {'X-CSRF-Token': getCsrfToken()},
+                body: fd
             });
-
             const data = await response.json();
-
             if (response.ok) {
                 alert(`✅ Invoice cancelled\nReason: ${reason}`);
                 location.reload();
@@ -505,15 +528,13 @@
         if (!confirm('Are you sure you want to UNVERIFY this payment? This will remove credits from the student account.')) {
             return;
         }
-
         try {
-            const response = await fetch(`/api/v1/invoices/${invoiceId}/unverify`, {
+            const response = await fetch(`/admin/invoices/${invoiceId}/unverify`, {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {'X-CSRF-Token': getCsrfToken()}
             });
-
             const data = await response.json();
-
             if (response.ok) {
                 alert(`✅ Payment unverified!\n\nRemoved ${data.credits_removed} credits from ${data.student_name}\nNew balance: ${data.new_balance} credits`);
                 location.reload();

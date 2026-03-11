@@ -11,6 +11,8 @@ Usage:
     python scripts/reset_e2e_web_db.py --scenario student_with_credits
     python scripts/reset_e2e_web_db.py --scenario session_ready
     python scripts/reset_e2e_web_db.py --scenario business_lifecycle
+    python scripts/reset_e2e_web_db.py --scenario tournament_e2e
+    python scripts/reset_e2e_web_db.py --scenario tournament_e2e_enrolled
 
 Scenarios:
     baseline             admin + instructor + student (DOB set) + semester
@@ -18,11 +20,14 @@ Scenarios:
     student_with_credits baseline + student.credit_balance = 200
     session_ready        student_with_credits + 1 on_site + 1 hybrid session
     business_lifecycle   session_ready + 1 lifecycle session (started 90min ago) + student booking
+    tournament_e2e           baseline + student LFA license (1000 cr) + ENROLLMENT_OPEN tournament
+    tournament_e2e_enrolled  tournament_e2e + student already enrolled (900 cr, for instructor view tests)
 """
 
 import sys
 import os
 import argparse
+import uuid
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -39,8 +44,9 @@ from app.models.quiz import (
     QuizCategory, QuizDifficulty, QuestionType,
 )
 from app.models.credit_transaction import CreditTransaction
-from app.models.semester_enrollment import SemesterEnrollment
+from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.invitation_code import InvitationCode
+from app.models.license import UserLicense
 from app.core.security import get_password_hash
 
 TZ = ZoneInfo("Europe/Budapest")
@@ -373,6 +379,162 @@ def _create_lifecycle_session(db, semester: Semester, instructor: User, student:
     return session
 
 
+_TOURN_E2E_CODE = "TOURN-E2E-2026"
+
+
+def _upsert_lfa_license(db, user: User) -> UserLicense:
+    """Ensure a student has an active, onboarding-completed LFA_FOOTBALL_PLAYER license."""
+    lic = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+    ).first()
+    if lic:
+        lic.is_active = True
+        lic.onboarding_completed = True
+        db.commit()
+    else:
+        lic = UserLicense(
+            user_id=user.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            current_level=1,
+            max_achieved_level=1,
+            started_at=datetime.now(),
+            payment_verified=True,
+            payment_verified_at=datetime.now(),
+            onboarding_completed=True,
+            onboarding_completed_at=datetime.now(),
+            is_active=True,
+        )
+        db.add(lic)
+        db.commit()
+        db.refresh(lic)
+    return lic
+
+
+def _upsert_tournament_e2e(db, instructor: User) -> Semester:
+    """Create/update an ENROLLMENT_OPEN tournament for Cypress E2E tests."""
+    today = date.today()
+    tourn = db.query(Semester).filter(Semester.code == _TOURN_E2E_CODE).first()
+    if tourn:
+        tourn.name = "E2E Tournament 2026"
+        tourn.tournament_status = "ENROLLMENT_OPEN"
+        tourn.master_instructor_id = instructor.id
+        tourn.start_date = today + timedelta(days=7)
+        tourn.end_date = today + timedelta(days=14)
+        tourn.enrollment_cost = 100
+        tourn.specialization_type = "LFA_FOOTBALL_PLAYER"
+        tourn.age_group = "AMATEUR"
+        tourn.is_active = True
+        db.commit()
+    else:
+        tourn = Semester(
+            code=_TOURN_E2E_CODE,
+            name="E2E Tournament 2026",
+            start_date=today + timedelta(days=7),
+            end_date=today + timedelta(days=14),
+            tournament_status="ENROLLMENT_OPEN",
+            is_active=True,
+            enrollment_cost=100,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            age_group="AMATEUR",
+            master_instructor_id=instructor.id,
+        )
+        db.add(tourn)
+        db.commit()
+        db.refresh(tourn)
+    return tourn
+
+
+def scenario_tournament_e2e(db) -> list[str]:
+    """Tournament lifecycle scenario: student can browse + enroll, instructor can manage.
+
+    State:
+        - Student rdias@manchestercity.com: 1000 credits, LFA license, onboarding done
+        - Tournament TOURN-E2E-2026: ENROLLMENT_OPEN, cost=100, instructor=grandmaster
+        - No enrollments yet (student enrolls during the Cypress test)
+    """
+    lines = scenario_baseline(db)
+
+    student_spec = next(s for s in _BASELINE_USERS if s["role"] == UserRole.STUDENT)
+    student = _upsert_user(db, student_spec, credit_balance=1000, onboarding_completed=True)
+    lines.append(f"  set {student_spec['email']} credit_balance=1000 onboarding_completed=True")
+
+    _upsert_lfa_license(db, student)
+    lines.append(f"  upserted LFA_FOOTBALL_PLAYER license for {student_spec['email']}")
+
+    instructor = db.query(User).filter(User.email == "grandmaster@lfa.com").first()
+    tourn = _upsert_tournament_e2e(db, instructor)
+    lines.append(
+        f"  upserted tournament id={tourn.id} '{tourn.name}' "
+        f"status={tourn.tournament_status} cost={tourn.enrollment_cost}"
+    )
+    return lines
+
+
+def scenario_tournament_e2e_enrolled(db) -> list[str]:
+    """Tournament instructor view scenario: student already enrolled in the tournament.
+
+    State (extends tournament_e2e):
+        - Student rdias@manchestercity.com: 900 credits (1000 - 100 entry fee), LFA license
+        - Tournament TOURN-E2E-2026: ENROLLMENT_OPEN, 1 active enrollment (the student)
+    Used by TOUR-I-02/TOUR-I-03 instructor tests that need a pre-enrolled participant.
+    """
+    lines = scenario_tournament_e2e(db)
+
+    student_spec = next(s for s in _BASELINE_USERS if s["role"] == UserRole.STUDENT)
+    student = db.query(User).filter(User.email == student_spec["email"]).first()
+    instructor = db.query(User).filter(User.email == "grandmaster@lfa.com").first()
+    tourn = db.query(Semester).filter(Semester.code == _TOURN_E2E_CODE).first()
+    license_ = db.query(UserLicense).filter(
+        UserLicense.user_id == student.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+
+    # Remove any existing enrollment for this student + tournament (idempotent)
+    db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.user_id == student.id,
+        SemesterEnrollment.semester_id == tourn.id,
+    ).delete(synchronize_session=False)
+    db.commit()
+
+    now = datetime.utcnow()
+    cost = tourn.enrollment_cost or 100
+    enrollment = SemesterEnrollment(
+        user_id=student.id,
+        semester_id=tourn.id,
+        user_license_id=license_.id,
+        age_category="AMATEUR",
+        request_status=EnrollmentStatus.APPROVED,
+        approved_at=now,
+        approved_by=student.id,
+        payment_verified=True,
+        is_active=True,
+        enrolled_at=now,
+        requested_at=now,
+    )
+    db.add(enrollment)
+    db.flush()
+
+    # Deduct credits + add transaction (mirrors tournament_enroll route)
+    student.credit_balance = 1000 - cost
+    db.add(CreditTransaction(
+        user_license_id=license_.id,
+        transaction_type="TOURNAMENT_ENROLLMENT",
+        amount=-cost,
+        balance_after=student.credit_balance,
+        description=f"Tournament enrollment: {tourn.name} ({tourn.code})",
+        semester_id=tourn.id,
+        enrollment_id=enrollment.id,
+        idempotency_key=str(uuid.uuid4()),
+    ))
+    db.commit()
+    lines.append(
+        f"  pre-enrolled {student_spec['email']} in tournament (balance={student.credit_balance})"
+    )
+    return lines
+
+
 def scenario_business_lifecycle(db) -> list[str]:
     lines = scenario_session_ready(db)
     semester = db.query(Semester).filter(Semester.code == _SEMESTER_CODE).first()
@@ -390,11 +552,13 @@ def scenario_business_lifecycle(db) -> list[str]:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 _SCENARIOS = {
-    "baseline":             scenario_baseline,
-    "student_no_dob":       scenario_student_no_dob,
-    "student_with_credits": scenario_student_with_credits,
-    "session_ready":        scenario_session_ready,
-    "business_lifecycle":   scenario_business_lifecycle,
+    "baseline":                     scenario_baseline,
+    "student_no_dob":               scenario_student_no_dob,
+    "student_with_credits":         scenario_student_with_credits,
+    "session_ready":                scenario_session_ready,
+    "business_lifecycle":           scenario_business_lifecycle,
+    "tournament_e2e":               scenario_tournament_e2e,
+    "tournament_e2e_enrolled":      scenario_tournament_e2e_enrolled,
 }
 
 
