@@ -361,9 +361,17 @@
                 <div class="admin-badge">👑 ADMIN</div>
                 <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
                 <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
+                <a href="/admin/sessions" class="btn btn-secondary">📅 Sessions</a>
+                <a href="/admin/bookings" class="btn btn-secondary">📋 Bookings</a>
+                <a href="/admin/tournaments" class="btn btn-secondary">🏆 Tournaments</a>
+                <a href="/admin/locations" class="btn btn-secondary">📍 Locations</a>
+                <a href="/admin/game-presets" class="btn btn-secondary">🎮 Game Presets</a>
+                <a href="/admin/system-events" class="btn btn-secondary">⚙️ Events</a>
                 <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
                 <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
                 <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
+                <a href="/admin/analytics" class="btn btn-secondary">📊 Analytics</a>
+                <a href="/admin/semesters" class="btn btn-secondary">🎓 Semesters</a>
                 <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
                 <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
             </div>
@@ -399,6 +407,14 @@
             </div>
         </div>
 
+        <!-- Create Coupon Button -->
+        <div style="margin-bottom: 1.5rem">
+            <button onclick="document.getElementById('createCouponModal').style.display='flex'"
+                    class="btn btn-primary" style="background: #28a745; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem;">
+                ➕ Create Coupon
+            </button>
+        </div>
+
         <!-- Coupons Section -->
         <div class="section-card">
             <h2>🎟️ All Coupons</h2>
@@ -410,11 +426,15 @@
                 <div class="coupon-card {% if not coupon.is_active %}inactive{% endif %}">
                     <div class="coupon-header">
                         <div class="coupon-code">{{ coupon.code }}</div>
-                        <span class="type-badge type-{{ coupon.type.lower() }}">
-                            {% if coupon.type == 'PERCENT' %}📊 PERCENT
-                            {% elif coupon.type == 'FIXED' %}💵 FIXED
-                            {% elif coupon.type == 'CREDITS' %}💰 CREDITS
-                            {% endif %}
+                        <span class="type-badge
+                            {% if coupon.type.value == 'BONUS_CREDITS' %}type-credits
+                            {% elif coupon.type.value == 'PURCHASE_DISCOUNT_PERCENT' %}type-percent
+                            {% elif coupon.type.value == 'PURCHASE_BONUS_CREDITS' %}type-credits
+                            {% else %}type-fixed{% endif %}">
+                            {% if coupon.type.value == 'BONUS_CREDITS' %}🎁 BONUS CREDITS
+                            {% elif coupon.type.value == 'PURCHASE_DISCOUNT_PERCENT' %}💰 DISCOUNT %
+                            {% elif coupon.type.value == 'PURCHASE_BONUS_CREDITS' %}🎉 PURCHASE BONUS
+                            {% else %}{{ coupon.type.value }}{% endif %}
                         </span>
                     </div>
 
@@ -426,12 +446,12 @@
                         <div class="detail-item">
                             <div class="detail-label">Value</div>
                             <div class="detail-value">
-                                {% if coupon.type == 'PERCENT' %}
-                                    {{ (coupon.discount_value * 100)|int }}%
-                                {% elif coupon.type == 'FIXED' %}
-                                    {{ coupon.discount_value }} €
-                                {% elif coupon.type == 'CREDITS' %}
-                                    +{{ coupon.discount_value }} credits
+                                {% if coupon.type.value == 'PURCHASE_DISCOUNT_PERCENT' %}
+                                    {{ (coupon.discount_value * 100)|int }}% discount
+                                {% elif coupon.type.value in ['BONUS_CREDITS', 'PURCHASE_BONUS_CREDITS'] %}
+                                    +{{ coupon.discount_value|int }} credits
+                                {% else %}
+                                    {{ coupon.discount_value }}
                                 {% endif %}
                             </div>
                         </div>
@@ -469,14 +489,19 @@
                                 ⏰ Expired/Maxed
                             {% endif %}
                         </span>
-                        <button onclick="toggleCoupon({{ coupon.id }}, {{ 'true' if coupon.is_active else 'false' }})"
-                                class="toggle-btn {% if coupon.is_active %}active{% else %}inactive{% endif %}">
-                            {% if coupon.is_active %}
-                                🔴 Deactivate
-                            {% else %}
-                                🟢 Activate
-                            {% endif %}
-                        </button>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem">
+                            <form method="post" action="/admin/coupons/{{ coupon.id }}/toggle" style="display:inline">
+                                <button type="submit" class="toggle-btn {% if coupon.is_active %}active{% else %}inactive{% endif %}">
+                                    {{ '🔴 Deactivate' if coupon.is_active else '🟢 Activate' }}
+                                </button>
+                            </form>
+                            <form method="post" action="/admin/coupons/{{ coupon.id }}/delete" style="display:inline"
+                                  onsubmit="return confirm('Delete coupon {{ coupon.code }}?')">
+                                <button type="submit" style="padding: 0.5rem 0.9rem; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem">
+                                    🗑️ Delete
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -491,31 +516,86 @@
         </div>
     </div>
 
+    <!-- Create Coupon Modal -->
+    <div id="createCouponModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:12px; padding:2rem; max-width:560px; width:90%; max-height:90vh; overflow-y:auto">
+            <h3 style="margin-bottom:1.5rem; color:#2d3748">➕ Create New Coupon</h3>
+            <form method="post" action="/admin/coupons">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem">Code *</label>
+                        <input type="text" name="code" required placeholder="e.g. WELCOME500"
+                               style="width:100%; padding:0.6rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem">Type *</label>
+                        <select name="coupon_type" onchange="updateCouponValueHelp(this.value)"
+                                style="width:100%; padding:0.6rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem">
+                            <option value="BONUS_CREDITS">🎁 Bonus Credits (Instant)</option>
+                            <option value="PURCHASE_DISCOUNT_PERCENT">💰 Purchase Discount (%)</option>
+                            <option value="PURCHASE_BONUS_CREDITS">🎉 Purchase Bonus Credits</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem">Value * <span id="valueHelp" style="font-weight:400; color:#718096">(credits)</span></label>
+                        <input type="number" name="value" required min="0" step="1" placeholder="e.g. 500"
+                               style="width:100%; padding:0.6rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem">Max Uses (blank = unlimited)</label>
+                        <input type="number" name="max_uses" min="1" placeholder="e.g. 100"
+                               style="width:100%; padding:0.6rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem">Expires in Days (blank = never)</label>
+                        <input type="number" name="expires_days" min="1" placeholder="e.g. 90"
+                               style="width:100%; padding:0.6rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem">
+                    </div>
+                    <div style="grid-column:1/-1">
+                        <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.4rem">Description *</label>
+                        <input type="text" name="description" required placeholder="e.g. Welcome bonus for new users"
+                               style="width:100%; padding:0.6rem 0.9rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.9rem">
+                    </div>
+                    <div id="typeInfo" style="grid-column:1/-1; background:#ebf8ff; border-radius:8px; padding:0.75rem; font-size:0.85rem; color:#2c5282">
+                        ✅ Credits will be awarded IMMEDIATELY upon redemption (no purchase required)
+                    </div>
+                </div>
+                <div style="display:flex; gap:0.75rem; margin-top:1.5rem; justify-content:flex-end">
+                    <button type="button" onclick="document.getElementById('createCouponModal').style.display='none'"
+                            style="padding:0.6rem 1.2rem; background:#e2e8f0; color:#4a5568; border:none; border-radius:8px; cursor:pointer; font-weight:600">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            style="padding:0.6rem 1.2rem; background:#28a745; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600">
+                        ➕ Create Coupon
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-    async function toggleCoupon(couponId, isCurrentlyActive) {
-        const action = isCurrentlyActive ? 'deactivate' : 'activate';
-
-        if (!confirm(`Are you sure you want to ${action} this coupon?`)) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/v1/admin/coupons/${couponId}/toggle`, {
-                method: 'POST',
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                alert(`✅ Coupon ${action}d successfully!`);
-                location.reload();
-            } else {
-                const data = await response.json();
-                alert(`❌ Error: ${data.detail || `Failed to ${action} coupon`}`);
-            }
-        } catch (error) {
-            alert('❌ Error toggling coupon: ' + error.message);
+    function updateCouponValueHelp(type) {
+        const help = document.getElementById('valueHelp');
+        const info = document.getElementById('typeInfo');
+        if (type === 'PURCHASE_DISCOUNT_PERCENT') {
+            help.textContent = '(% e.g. 20 = 20% off)';
+            info.textContent = '💰 Percentage discount on credit package purchase. Requires invoice + admin approval.';
+            info.style.background = '#fefcbf'; info.style.color = '#744210';
+        } else if (type === 'PURCHASE_BONUS_CREDITS') {
+            help.textContent = '(bonus credits after purchase)';
+            info.textContent = '🎉 Extra credits awarded after credit package purchase. Requires invoice + admin approval.';
+            info.style.background = '#fff3e0'; info.style.color = '#e65100';
+        } else {
+            help.textContent = '(credits)';
+            info.textContent = '✅ Credits will be awarded IMMEDIATELY upon redemption (no purchase required)';
+            info.style.background = '#ebf8ff'; info.style.color = '#2c5282';
         }
     }
+    // Close modal on overlay click
+    document.getElementById('createCouponModal').addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+    });
     </script>
 
     <!-- Footer -->

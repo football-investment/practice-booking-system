@@ -1,0 +1,221 @@
+name: Cypress Web E2E Tests (FastAPI Jinja2)
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: cypress-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── NAPI REGRESSZIÓ: ROLE-ALAPÚ PÁRHUZAMOS FUTTATÁS ──────────────────────
+  # admin / instructor / student spec-ek külön job-ban futnak → hiba azonnal
+  # izolálható szerepkörönként, böngészőből megtekinthető HTML report.
+  cypress-web-by-role:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - role: admin
+            specs: "cypress/e2e/web/admin/**"
+            db_scenario: baseline
+          - role: instructor
+            specs: "cypress/e2e/web/instructor/**,cypress/e2e/web/sessions/instructor_session_lifecycle.cy.js"
+            db_scenario: session_ready
+          - role: student
+            specs: "cypress/e2e/web/auth/**,cypress/e2e/web/student/**,cypress/e2e/web/sessions/student_booking.cy.js"
+            db_scenario: student_with_credits
+          - role: business-workflow
+            specs: "cypress/e2e/web/business_workflows/**"
+            db_scenario: business_lifecycle
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: lfa_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write .env
+        run: |
+          cat > .env << 'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_test
+          SECRET_KEY=ci-web-e2e-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Seed DB — ${{ matrix.role }} scenario (${{ matrix.db_scenario }})
+        run: python scripts/reset_e2e_web_db.py --scenario ${{ matrix.db_scenario }}
+
+      - name: Start FastAPI backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 45 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
+          echo "FastAPI backend ready"
+
+      - name: Install Cypress + reporter
+        working-directory: cypress
+        run: npm ci
+
+      - name: Run Cypress — ${{ matrix.role }} role
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: cypress
+          spec: ${{ matrix.specs }}
+          browser: chrome
+          config: "baseUrl=http://localhost:8000"
+        env:
+          CYPRESS_webAdminEmail: admin@lfa.com
+          CYPRESS_webAdminPassword: admin123
+          CYPRESS_webInstructorEmail: grandmaster@lfa.com
+          CYPRESS_webInstructorPassword: TestInstructor2026
+          CYPRESS_webStudentEmail: rdias@manchestercity.com
+          CYPRESS_webStudentPassword: TestPlayer2026
+          CYPRESS_webFreshEmail: fresh.e2e@lfa.com
+          CYPRESS_webFreshPassword: FreshE2E2026
+          CYPRESS_apiUrl: http://localhost:8000
+
+      - name: Upload HTML coverage report (always)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-web-report-${{ matrix.role }}
+          path: cypress/cypress/reports/html/
+          retention-days: 14
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-web-screenshots-${{ matrix.role }}
+          path: cypress/cypress/screenshots
+          retention-days: 7
+
+  # ─── PR MERGE GATE: CROSS-ROLE INTEGRÁCIÓ ────────────────────────────────
+  # Csak PR-en fut, és csak azután, hogy az összes role-alapú job zöld.
+  # Ez az egyetlen helye a full student lifecycle integrációs tesztnek.
+  cypress-web-integration:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: cypress-web-by-role
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: lfa_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write .env
+        run: |
+          cat > .env << 'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_test
+          SECRET_KEY=ci-web-e2e-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Seed DB — session_ready (cross-role lifecycle)
+        run: python scripts/reset_e2e_web_db.py --scenario session_ready
+
+      - name: Start FastAPI backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 45 bash -c 'until curl -sf http://localhost:8000/health; do sleep 1; done'
+          echo "FastAPI backend ready"
+
+      - name: Install Cypress
+        working-directory: cypress
+        run: npm ci
+
+      - name: Run cross-role lifecycle test
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: cypress
+          spec: cypress/e2e/web/cross_role/full_student_lifecycle.cy.js
+          browser: chrome
+          config: "baseUrl=http://localhost:8000"
+        env:
+          CYPRESS_webAdminEmail: admin@lfa.com
+          CYPRESS_webAdminPassword: admin123
+          CYPRESS_webInstructorEmail: grandmaster@lfa.com
+          CYPRESS_webInstructorPassword: TestInstructor2026
+          CYPRESS_webStudentEmail: rdias@manchestercity.com
+          CYPRESS_webStudentPassword: TestPlayer2026
+          CYPRESS_webFreshEmail: fresh.e2e@lfa.com
+          CYPRESS_webFreshPassword: FreshE2E2026
+          CYPRESS_apiUrl: http://localhost:8000
+
+      - name: Upload HTML integration report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-web-report-integration
+          path: cypress/cypress/reports/html/
+          retention-days: 14
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-web-screenshots-integration
+          path: cypress/cypress/screenshots
+          retention-days: 7

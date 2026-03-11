@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Management - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; }
+        .header-content { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .user-info h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .user-info p { opacity: 0.9; }
+        .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-white { background: white; color: #4a5568; }
+        .btn-primary { background: #4299e1; color: white; }
+        .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+        .stat-card .val { font-size: 2rem; font-weight: 700; color: #2d3748; }
+        .stat-card .lbl { color: #718096; font-size: 0.85rem; margin-top: 0.25rem; }
+        .filter-bar { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 160px; }
+        .filter-group label { font-size: 0.8rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+        .filter-group select, .filter-group input { padding: 0.5rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+        .filter-actions { display: flex; gap: 0.5rem; align-items: flex-end; }
+
+        /* Location level */
+        .loc-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1rem; overflow: hidden; }
+        .loc-header { padding: 1rem 1.5rem; background: linear-gradient(135deg, #2d3748, #4a5568); color: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .loc-header h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .loc-body { display: none; padding: 1rem 1.5rem; }
+        .loc-body.open { display: block; }
+
+        /* Specialization level */
+        .spec-card { background: #f8f9fa; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; border-left: 4px solid #667eea; }
+        .spec-header { padding: 0.75rem 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .spec-header h4 { font-size: 0.95rem; color: #2d3748; display: flex; align-items: center; gap: 0.5rem; }
+        .spec-body { display: none; padding: 0 1rem 1rem; }
+        .spec-body.open { display: block; }
+
+        /* Semester level */
+        .sem-card { background: white; border-radius: 6px; margin-bottom: 0.5rem; overflow: hidden; border: 1px solid #e2e8f0; }
+        .sem-header { padding: 0.6rem 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #edf2f7; }
+        .sem-header h5 { font-size: 0.9rem; color: #4a5568; display: flex; align-items: center; gap: 0.5rem; }
+        .sem-body { display: none; padding: 0.75rem; }
+        .sem-body.open { display: block; }
+
+        /* Session row */
+        .session-row { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 1rem; align-items: center; background: #f8f9fa; border: 1px solid #e2e8f0; font-size: 0.875rem; }
+        .session-row.upcoming { border-left: 3px solid #68d391; }
+        .session-row.past { border-left: 3px solid #cbd5e0; opacity: 0.85; }
+        .session-row.in-progress { border-left: 3px solid #f6ad55; }
+        .session-title { font-weight: 600; color: #2d3748; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .session-title small { font-weight: 400; color: #718096; font-size: 0.8rem; }
+        .session-meta { color: #718096; font-size: 0.82rem; }
+        .badge { padding: 0.15rem 0.45rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+        .badge-onsite { background: #bee3f8; color: #2c5282; }
+        .badge-virtual { background: #c6f6d5; color: #276749; }
+        .badge-hybrid { background: #fef3c7; color: #92400e; }
+        .badge-scheduled { background: #e2e8f0; color: #4a5568; }
+        .badge-in-progress { background: #fef3c7; color: #92400e; }
+        .badge-completed { background: #c6f6d5; color: #276749; }
+        .badge-cancelled { background: #fed7d7; color: #9b2335; }
+        .session-actions { display: flex; gap: 0.4rem; }
+        .no-data { text-align: center; padding: 3rem; color: #718096; }
+        .section-label { font-size: 0.85rem; color: #718096; padding: 0.5rem 0; font-weight: 600; }
+        .count-badge { background: rgba(255,255,255,0.25); padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>📅 Session Management</h1>
+            <p>Sessions organized by location, specialization, and semester</p>
+        </div>
+        <div class="header-actions">
+            <a href="/admin/users" class="btn btn-white">👥 Users</a>
+            <a href="/admin/bookings" class="btn btn-white">📋 Bookings</a>
+            <a href="/admin/semesters" class="btn btn-white">📚 Semesters</a>
+            <a href="/admin/locations" class="btn btn-white">📍 Locations</a>
+            <a href="/admin/tournaments" class="btn btn-white">🏆 Tournaments</a>
+            <a href="/admin/game-presets" class="btn btn-white">🎮 Game Presets</a>
+            <a href="/admin/system-events" class="btn btn-white">⚙️ Events</a>
+            <a href="/dashboard" class="btn btn-white">🏠 Dashboard</a>
+            <a href="/logout" class="btn btn-white">🚪 Logout</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="val">{{ all_sessions | length }}</div>
+            <div class="lbl">📚 Total Sessions</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ upcoming }}</div>
+            <div class="lbl">🔜 Upcoming</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ past }}</div>
+            <div class="lbl">📊 Past</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" action="/admin/sessions" class="filter-bar">
+        <div class="filter-group">
+            <label>Session Type</label>
+            <select name="session_type">
+                <option value="" {% if not filter_session_type %}selected{% endif %}>All Types</option>
+                <option value="on_site" {% if filter_session_type == 'on_site' %}selected{% endif %}>🏟️ On-Site</option>
+                <option value="virtual" {% if filter_session_type == 'virtual' %}selected{% endif %}>💻 Virtual</option>
+                <option value="hybrid" {% if filter_session_type == 'hybrid' %}selected{% endif %}>🔀 Hybrid</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Status</label>
+            <select name="status">
+                <option value="" {% if not filter_status %}selected{% endif %}>All Statuses</option>
+                <option value="scheduled" {% if filter_status == 'scheduled' %}selected{% endif %}>📅 Scheduled</option>
+                <option value="in_progress" {% if filter_status == 'in_progress' %}selected{% endif %}>▶️ In Progress</option>
+                <option value="completed" {% if filter_status == 'completed' %}selected{% endif %}>✅ Completed</option>
+                <option value="cancelled" {% if filter_status == 'cancelled' %}selected{% endif %}>❌ Cancelled</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Location (text search)</label>
+            <input type="text" name="location_filter" value="{{ filter_location }}" placeholder="e.g. Budapest">
+        </div>
+        <div class="filter-group">
+            <label>From Date</label>
+            <input type="date" name="date_from" value="{{ filter_date_from }}">
+        </div>
+        <div class="filter-group">
+            <label>To Date</label>
+            <input type="date" name="date_to" value="{{ filter_date_to }}">
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">🔍 Apply</button>
+            <a href="/admin/sessions?cleared=1" class="btn btn-white">✕ Clear</a>
+        </div>
+    </form>
+
+    <!-- Hierarchical session display -->
+    {% if hierarchy %}
+        <div class="section-label">🗂️ Sessions by Location, Specialization &amp; Semester</div>
+
+        {% for loc_key, spec_map in hierarchy | dictsort %}
+        {% set loc_total = namespace(n=0) %}
+        {% for spec, sem_map in spec_map.items() %}
+            {% for sem_id, sessions in sem_map.items() %}
+                {% set loc_total.n = loc_total.n + sessions | length %}
+            {% endfor %}
+        {% endfor %}
+        {% set loc_upcoming = namespace(n=0) %}
+        {% for spec, sem_map in spec_map.items() %}
+            {% for sem_id, sessions in sem_map.items() %}
+                {% for s in sessions %}{% if s.date_start > now %}{% set loc_upcoming.n = loc_upcoming.n + 1 %}{% endif %}{% endfor %}
+            {% endfor %}
+        {% endfor %}
+
+        <div class="loc-card">
+            <div class="loc-header" onclick="toggleBlock(this)">
+                <h3>
+                    📍 {{ loc_key }}
+                    <span class="count-badge">{{ loc_total.n }} sessions</span>
+                    <span class="count-badge">{{ loc_upcoming.n }} upcoming</span>
+                </h3>
+                <span style="font-size: 0.85rem; opacity: 0.8">▼</span>
+            </div>
+            <div class="loc-body">
+                {% for spec, sem_map in spec_map | dictsort %}
+                {% set spec_total = namespace(n=0) %}
+                {% for sem_id, sessions in sem_map.items() %}{% set spec_total.n = spec_total.n + sessions | length %}{% endfor %}
+                {% set spec_upcoming = namespace(n=0) %}
+                {% for sem_id, sessions in sem_map.items() %}{% for s in sessions %}{% if s.date_start > now %}{% set spec_upcoming.n = spec_upcoming.n + 1 %}{% endif %}{% endfor %}{% endfor %}
+
+                <div class="spec-card">
+                    <div class="spec-header" onclick="toggleBlock(this)">
+                        <h4>
+                            🎯 {{ spec.replace('_', ' ').title() if spec not in ['Mixed', 'General'] else spec }}
+                            <span style="background: #667eea20; color: #667eea; padding: 0.1rem 0.4rem; border-radius: 12px; font-size: 0.75rem">{{ spec_total.n }} sessions · {{ spec_upcoming.n }} upcoming</span>
+                        </h4>
+                        <span style="color: #718096; font-size: 0.85rem">▼</span>
+                    </div>
+                    <div class="spec-body">
+                        {% for sem_id, sessions in sem_map.items() %}
+                        {% set sem = semesters.get(sem_id) %}
+                        {% set sem_name = sem.name if sem else ('Semester #' + sem_id|string) %}
+                        {% set sem_upcoming = namespace(n=0) %}
+                        {% for s in sessions %}{% if s.date_start > now %}{% set sem_upcoming.n = sem_upcoming.n + 1 %}{% endif %}{% endfor %}
+
+                        <div class="sem-card">
+                            <div class="sem-header" onclick="toggleBlock(this)">
+                                <h5>
+                                    📚 {{ sem_name }}
+                                    <span style="color: #718096; font-weight: 400; font-size: 0.8rem">({{ sessions | length }} sessions · {{ sem_upcoming.n }} upcoming)</span>
+                                </h5>
+                                <span style="color: #718096; font-size: 0.8rem">▼</span>
+                            </div>
+                            <div class="sem-body">
+                                {% for s in sessions | sort(attribute='date_start') %}
+                                {% set is_upcoming = s.date_start > now %}
+                                {% set is_inprog = s.session_status == 'in_progress' %}
+                                <div class="session-row {% if is_inprog %}in-progress{% elif is_upcoming %}upcoming{% else %}past{% endif %}">
+                                    <div class="session-title">
+                                        {{ '🔜' if is_upcoming else ('▶️' if is_inprog else '✅') }}
+                                        {{ s.title }}
+                                        <small>
+                                            <span class="badge badge-{{ s.session_type.value.replace('_', '-') }}">{{ s.session_type.value.replace('_', '-').title() }}</span>
+                                        </small>
+                                    </div>
+                                    <div class="session-meta">
+                                        📅 {{ s.date_start.strftime('%Y-%m-%d') }}<br>
+                                        🕐 {{ s.date_start.strftime('%H:%M') }}–{{ s.date_end.strftime('%H:%M') }}
+                                    </div>
+                                    <div class="session-meta">
+                                        👥 {{ s.booking_count }} / {{ s.capacity }}<br>
+                                        {% if s.instructor_name %}👨‍🏫 {{ s.instructor_name }}{% endif %}
+                                    </div>
+                                    <div class="session-meta">
+                                        <span class="badge badge-{{ s.session_status.replace('_', '-') }}">
+                                            {{ s.session_status.replace('_', ' ').title() }}
+                                        </span>
+                                    </div>
+                                    <div class="session-actions">
+                                        <a href="/sessions/{{ s.id }}" class="btn btn-sm btn-primary" title="View session details">👁️</a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+    {% else %}
+        <div class="no-data">
+            <p style="font-size: 1.5rem">📅</p>
+            <p>No sessions match the current filters.</p>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+function toggleBlock(header) {
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+}
+</script>
+</body>
+</html>

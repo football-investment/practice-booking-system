@@ -1952,6 +1952,72 @@
         "title": "BatchEnrollResponse",
         "type": "object"
       },
+      "Body_admin_edit_user_submit_admin_users__user_id__edit_post": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "role"
+        ],
+        "title": "Body_admin_edit_user_submit_admin_users__user_id__edit_post",
+        "type": "object"
+      },
+      "Body_admin_new_semester_submit_admin_semesters_new_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": 500,
+            "title": "Enrollment Cost",
+            "type": "integer"
+          },
+          "master_instructor_id": {
+            "default": "",
+            "title": "Master Instructor Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "specialization_type": {
+            "default": "",
+            "title": "Specialization Type",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_new_semester_submit_admin_semesters_new_post",
+        "type": "object"
+      },
       "Body_age_verification_submit_age_verification_post": {
         "properties": {
           "date_of_birth": {
@@ -2333,6 +2399,84 @@
           "date_of_birth"
         ],
         "title": "Body_profile_edit_submit_profile_edit_post",
+        "type": "object"
+      },
+      "Body_register_submit_register_post": {
+        "properties": {
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "date_of_birth": {
+            "title": "Date Of Birth",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "gender": {
+            "title": "Gender",
+            "type": "string"
+          },
+          "invitation_code": {
+            "title": "Invitation Code",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "nationality": {
+            "title": "Nationality",
+            "type": "string"
+          },
+          "nickname": {
+            "title": "Nickname",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street_address": {
+            "title": "Street Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "nickname",
+          "email",
+          "password",
+          "phone",
+          "date_of_birth",
+          "nationality",
+          "gender",
+          "street_address",
+          "city",
+          "postal_code",
+          "country",
+          "invitation_code"
+        ],
+        "title": "Body_register_submit_register_post",
         "type": "object"
       },
       "Body_specialization_select_submit_specialization_select_post": {
@@ -21014,6 +21158,107 @@
         ]
       }
     },
+    "/admin/semesters/new": {
+      "get": {
+        "description": "Admin-only: Create semester form",
+        "operationId": "admin_new_semester_page_admin_semesters_new_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin New Semester Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Create new semester",
+        "operationId": "admin_new_semester_submit_admin_semesters_new_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_new_semester_submit_admin_semesters_new_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin New Semester Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/semesters/{semester_id}/delete": {
+      "post": {
+        "description": "Admin-only: Soft-delete a semester (set is_active=False)",
+        "operationId": "admin_delete_semester_admin_semesters__semester_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "semester_id",
+            "required": true,
+            "schema": {
+              "title": "Semester Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Semester",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/students/{student_id}/motivation/{specialization}": {
       "get": {
         "description": "Admin/Instructor-only: Motivation assessment page for a student's specialization",
@@ -21141,6 +21386,139 @@
           }
         },
         "summary": "Admin Users Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/edit": {
+      "get": {
+        "description": "Admin-only: Edit user form",
+        "operationId": "admin_edit_user_page_admin_users__user_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit User Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Save user edits",
+        "operationId": "admin_edit_user_submit_admin_users__user_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_edit_user_submit_admin_users__user_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit User Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/toggle-status": {
+      "post": {
+        "description": "Admin-only: Toggle a user's is_active status",
+        "operationId": "admin_toggle_user_status_admin_users__user_id__toggle_status_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle User Status",
         "tags": [
           "web"
         ]
@@ -47749,6 +48127,66 @@
           }
         },
         "summary": "Take Quiz",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/register": {
+      "get": {
+        "description": "Display registration page (unauthenticated users only)",
+        "operationId": "register_page_register_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Register Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Process registration form",
+        "operationId": "register_submit_register_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_register_submit_register_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Submit",
         "tags": [
           "web"
         ]

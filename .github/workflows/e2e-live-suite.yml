@@ -64,6 +64,7 @@ jobs:
       - name: Set up database
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-live-suite-key-not-for-production
         run: |
           alembic upgrade head
           alembic current -v
@@ -71,6 +72,7 @@ jobs:
       - name: Seed test data (ENROLLMENT_OPEN tournaments)
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-live-suite-key-not-for-production
         run: |
           # Create seed data for live tests
           python scripts/seed_live_test_data.py || echo "No seed script - tests may skip gracefully"
@@ -78,6 +80,7 @@ jobs:
       - name: Start FastAPI backend
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-live-suite-key-not-for-production
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 5

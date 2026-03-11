@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Register - LFA Education Center{% endblock %}
+
+{% block content %}
+
+<style>
+    .register-container {
+        min-height: calc(100vh - 100px);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 2rem;
+        margin: -2rem -2rem 0 -2rem;
+    }
+
+    .register-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 680px;
+        width: 100%;
+        padding: 3rem;
+        margin: 2rem 0;
+        animation: slideUp 0.5s ease-out;
+    }
+
+    .register-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .register-logo {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .register-title {
+        color: #2c3e50;
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .register-subtitle {
+        color: #7f8c8d;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .section-divider {
+        color: #667eea;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin: 1.8rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e8ecfd;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .modern-form-group {
+        margin-bottom: 1.2rem;
+    }
+
+    .modern-label {
+        display: block;
+        color: #2c3e50;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+        font-size: 0.88rem;
+    }
+
+    .modern-input {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    .modern-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .modern-input::placeholder {
+        color: #bdc3c7;
+    }
+
+    .modern-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237f8c8d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+
+    .error-alert {
+        padding: 1rem 1.2rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .register-btn {
+        width: 100%;
+        margin-top: 1.5rem;
+        padding: 1rem;
+        font-size: 1rem;
+    }
+
+    .login-link {
+        text-align: center;
+        margin-top: 1.5rem;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+
+    .login-link a {
+        color: #667eea;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .login-link a:hover {
+        text-decoration: underline;
+    }
+
+    .hint-text {
+        font-size: 0.78rem;
+        color: #95a5a6;
+        margin-top: 0.25rem;
+    }
+
+    .invitation-highlight {
+        background: linear-gradient(135deg, #f0e7ff, #e9d5ff);
+        border: 2px solid #8e44ad;
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .invitation-highlight .modern-label {
+        color: #6c3483;
+    }
+
+    .invitation-highlight .modern-input {
+        border-color: #c39bd3;
+        background: white;
+        font-family: monospace;
+        font-size: 1rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .invitation-highlight .modern-input:focus {
+        border-color: #8e44ad;
+        box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.15);
+    }
+
+    @media (max-width: 600px) {
+        .register-container { padding: 1rem; }
+        .register-card { padding: 2rem 1.5rem; }
+        .form-row { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="register-container gradient-purple-full">
+    <div class="register-card">
+        <div class="register-header">
+            <div class="register-logo">
+                <span>⚽</span>
+                <span>🥋</span>
+                <span>💼</span>
+            </div>
+            <h1 class="register-title">Create Account</h1>
+            <p class="register-subtitle">LFA Education Center — New Student Registration</p>
+        </div>
+
+        {% if error %}
+        <div class="error-alert gradient-red animate-shake">
+            <span style="font-size: 1.3rem;">⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/register" novalidate>
+
+            <!-- Invitation Code (highlighted — must be valid to proceed) -->
+            <div class="invitation-highlight">
+                <div class="modern-form-group" style="margin-bottom:0;">
+                    <label class="modern-label" for="invitation_code">🎟️ Invitation Code (required)</label>
+                    <input
+                        type="text"
+                        id="invitation_code"
+                        name="invitation_code"
+                        class="modern-input"
+                        required
+                        placeholder="INV-YYYYMMDD-XXXXXX"
+                        value="{{ invitation_code or '' }}"
+                        autocomplete="off"
+                        spellcheck="false"
+                        oninput="this.value=this.value.toUpperCase()"
+                    >
+                    <p class="hint-text" style="color:#6c3483;">You must have received an invitation code to register. Contact your administrator if you don't have one.</p>
+                </div>
+            </div>
+
+            <!-- Personal Information -->
+            <div class="section-divider">Personal Information</div>
+
+            <div class="form-row">
+                <div class="modern-form-group">
+                    <label class="modern-label" for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" class="modern-input"
+                        required placeholder="John" value="{{ first_name or '' }}" autocomplete="given-name">
+                </div>
+                <div class="modern-form-group">
+                    <label class="modern-label" for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" class="modern-input"
+                        required placeholder="Doe" value="{{ last_name or '' }}" autocomplete="family-name">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="modern-form-group">
+                    <label class="modern-label" for="nickname">Nickname / Display Name</label>
+                    <input type="text" id="nickname" name="nickname" class="modern-input"
+                        required placeholder="Johnny" value="{{ nickname or '' }}">
+                </div>
+                <div class="modern-form-group">
+                    <label class="modern-label" for="gender">Gender</label>
+                    <select id="gender" name="gender" class="modern-input modern-select" required>
+                        <option value="">Select gender</option>
+                        <option value="Male" {% if gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if gender == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if gender == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="modern-form-group">
+                    <label class="modern-label" for="date_of_birth">Date of Birth</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" class="modern-input"
+                        required min="1930-01-01" max="{{ today }}"
+                        value="{{ date_of_birth or '' }}">
+                </div>
+                <div class="modern-form-group">
+                    <label class="modern-label" for="nationality">Nationality</label>
+                    <input type="text" id="nationality" name="nationality" class="modern-input"
+                        required placeholder="Hungarian" value="{{ nationality or '' }}">
+                </div>
+            </div>
+
+            <!-- Account Details -->
+            <div class="section-divider">Account Details</div>
+
+            <div class="modern-form-group">
+                <label class="modern-label" for="email">📧 Email Address</label>
+                <input type="email" id="email" name="email" class="modern-input"
+                    required placeholder="your.email@example.com"
+                    value="{{ email or '' }}" autocomplete="email">
+            </div>
+
+            <div class="form-row">
+                <div class="modern-form-group">
+                    <label class="modern-label" for="password">🔒 Password</label>
+                    <input type="password" id="password" name="password" class="modern-input"
+                        required placeholder="Min 6 characters" autocomplete="new-password" minlength="6">
+                </div>
+                <div class="modern-form-group">
+                    <label class="modern-label" for="phone">📱 Phone Number</label>
+                    <input type="tel" id="phone" name="phone" class="modern-input"
+                        required placeholder="+36 20 123 4567"
+                        value="{{ phone or '' }}" autocomplete="tel">
+                    <p class="hint-text">International format preferred (e.g. +36 20 123 4567)</p>
+                </div>
+            </div>
+
+            <!-- Address -->
+            <div class="section-divider">Address</div>
+
+            <div class="modern-form-group">
+                <label class="modern-label" for="street_address">Street Address</label>
+                <input type="text" id="street_address" name="street_address" class="modern-input"
+                    required placeholder="Main Street 123"
+                    value="{{ street_address or '' }}" autocomplete="street-address">
+            </div>
+
+            <div class="form-row">
+                <div class="modern-form-group">
+                    <label class="modern-label" for="city">City</label>
+                    <input type="text" id="city" name="city" class="modern-input"
+                        required placeholder="Budapest"
+                        value="{{ city or '' }}" autocomplete="address-level2">
+                </div>
+                <div class="modern-form-group">
+                    <label class="modern-label" for="postal_code">Postal Code</label>
+                    <input type="text" id="postal_code" name="postal_code" class="modern-input"
+                        required placeholder="1011"
+                        value="{{ postal_code or '' }}" autocomplete="postal-code">
+                </div>
+            </div>
+
+            <div class="modern-form-group">
+                <label class="modern-label" for="country">Country</label>
+                <input type="text" id="country" name="country" class="modern-input"
+                    required placeholder="Hungary"
+                    value="{{ country or '' }}" autocomplete="country-name">
+            </div>
+
+            <button type="submit" class="modern-btn modern-btn-purple register-btn">
+                Create Account →
+            </button>
+        </form>
+
+        <div class="login-link">
+            Already have an account? <a href="/login">Sign in here</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

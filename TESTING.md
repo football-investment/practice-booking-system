@@ -691,12 +691,12 @@ Full pipeline: **unit → integration → E2E**, measured separately. E2E requir
 
 | Layer | Scope | Tests | Time | Notes |
 |-------|-------|-------|------|-------|
-| Unit | `tests/unit/` | ~7 100 + 1 xfail | **~22s** | asyncio.run + MagicMock, no network |
+| Unit | `tests/unit/` | ~8 100 + 1 xfail | **~25s** | asyncio.run + MagicMock, no network |
 | Integration: tournament | `tests/integration/tournament/` | 25 | **~3s** | real PostgreSQL SAVEPOINT |
 | Integration: web_flows | `tests/integration/web_flows/` | 32 | **~5s** | real PostgreSQL SAVEPOINT + TestClient (+6 xp_grant) |
 | Integration: api_smoke | `tests/integration/api_smoke/` | ~1 737 | **~70s** | live endpoint contract |
-| **Combined (CI full)** | unit + integration | **8 897 + 1 xfail** | **~98s** | CI gate: stmt ≥88%, branch ≥80% |
-| E2E Cypress | `cypress/` (34 spec files) | — | **~60s** | requires live backend + seeded E2E data |
+| **Combined (CI full)** | unit + integration | **8 932 + 1 xfail** | **~60s** | CI gate: stmt ≥88%, branch ≥80% |
+| E2E Cypress (web) | `cypress/e2e/web/` (15 spec files) | **140** | **~6min** | FastAPI Jinja2 HTML frontend; requires live backend |
 | E2E Playwright | `tests/e2e/` | — | — | golden_path smoke tests |
 
 ### Permanent xfailed test (do not remove)
@@ -989,3 +989,287 @@ Current exclusions in production code:
 9. For `Query(N, ge=M)` parameters, always pass them explicitly — never rely on defaults
 10. For `.value` on enum instances, use `role_mock = MagicMock(); role_mock.value = "role_str"`
 11. If the route calls `.with_for_update().first()`, use the `_wfu_mock_db` helper pattern
+
+---
+
+## Sprint 56 — New Test Patterns
+
+### 1. Cypress DOM queries for stable user-ID extraction
+
+Admin CRUD tests need to find a non-admin user's ID from the `/admin/users` page.
+The template emits `data-testid`, `data-role`, and `data-user-id` on every `<tr>`:
+
+```html
+<tr data-testid="user-row" data-role="{{ u.role.value }}" data-user-id="{{ u.id }}">
+```
+
+**Anti-pattern (fragile):**
+```javascript
+// Breaks when HTML serialisation order changes or CSS classes are renamed
+const match = resp.body.match(/data-testid="user-row"[^>]*data-role="student"[^>]*data-user-id="(\d+)"/);
+```
+
+**Correct pattern (DOM-driven):**
+```javascript
+cy.visit('/admin/users');
+cy.get('[data-testid="user-row"][data-role="student"]')
+  .should('exist')                         // fails loudly if no student rows rendered
+  .first()
+  .should('have.attr', 'data-user-id')     // asserts attribute present AND yields its value
+  .then((userId) => {
+    cy.request({ method: 'POST', url: `/admin/users/${userId}/edit`, ... });
+  });
+```
+
+**Key insight:** chai-jquery's `.should('have.attr', name)` with a single argument:
+1. Asserts the attribute exists (fails with 15 s timeout if missing)
+2. **Changes the Cypress subject to the attribute's string value**
+
+Do NOT chain `.invoke('attr', name)` after `.should('have.attr', name)` — `invoke` would
+try to call `.attr()` on a string, which has no such method, and fail with:
+`cy.invoke() errored because the property: attr does not exist on your subject`.
+
+### 2. beforeEach DB reset for mutation specs
+
+Any Cypress spec that **mutates** the DB (edit user, toggle status, create semester) must
+reset in `beforeEach`, not `before`:
+
+```javascript
+beforeEach(() => {
+  cy.resetDb('baseline');
+  cy.clearAllCookies();
+});
+```
+
+**Why:** Cypress re-runs `beforeEach` before each retry attempt. If a test changes the
+admin user's email and fails, the next retry starts with a fresh DB — so login still works.
+Using `before()` runs only once per spec file; retries inherit the corrupted state.
+
+### 3. Time-stable age assertions
+
+Tests that compute a person's age must not hardcode year-specific bounds:
+
+```python
+# WRONG — breaks silently every year
+assert age >= 24 and age <= 25
+
+# CORRECT — dynamically computed from today
+def _expected_age(dob: date) -> int:
+    today = date.today()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+assert service.calculate_age(dob) == _expected_age(dob)
+```
+
+### 4. OpenAPI snapshot must be regenerated after every new route
+
+```bash
+python scripts/update_openapi_snapshot.py
+git add tests/snapshots/openapi_snapshot.json
+```
+
+`test_openapi_snapshot.py::test_api_contract_unchanged` enforces this in CI — any new
+route that is not in the snapshot causes a hard failure.
+
+---
+
+## Sprint 56 — API & Frontend Consistency Audit (2026-03-10)
+
+### Summary
+
+| Metric | Value |
+|--------|-------|
+| Web routes audited | 58 (across 11 route files) |
+| Templates on disk | 45 |
+| Routes → existing template | 38/38 ✅ (no broken refs) |
+| Unused templates | 7 (legacy/v2 duplicates) |
+| Duplicate route groups | 1 (quiz routes in quiz.py + instructor.py) |
+| Cypress specs | 15 |
+| Cypress tests | 140 (all passing) |
+| Pytest (unit + integration) | 8 932 passed, 1 xfailed |
+
+### Unused templates (safe to remove in a future cleanup sprint)
+
+| Template | Reason |
+|----------|--------|
+| `credits_old.html` | Superseded by `credits.html` |
+| `instructor/student_belt_status.html` | No route references it |
+| `instructor/student_skills_v2.html` | Superseded by `student_skills.html` |
+| `admin/dashboard.html` | Admin dashboard uses role-specific templates |
+| `admin/payment_management.html` | Duplicate of `admin/payments.html` |
+| `admin/coupon_management.html` | Duplicate of `admin/coupons.html` (route uses one of them) |
+| `dashboard_student_new.html` / `dashboard_student_switcher.html` | Legacy student dashboard variants |
+
+### Duplicate quiz routes
+
+`GET /quizzes/{quiz_id}/take`, `POST /quizzes/{quiz_id}/submit`, and
+`POST /sessions/{session_id}/unlock-quiz` are defined in **both** `quiz.py` and
+`instructor.py`. FastAPI registers both; the last one registered wins. Cleanup is a
+Sprint 57 housekeeping task.
+
+### Cypress coverage gaps (by priority)
+
+The 15 specs cover **all critical user paths**. Known gaps (lower-priority, future sprints):
+
+| Gap | Sprint target |
+|-----|---------------|
+| `GET /calendar` page render | Sprint 57 |
+| `POST /admin/semesters/{id}/delete` hard-delete path | Sprint 57 |
+| `GET /admin/students/{id}/motivation/{spec}` admin assessment | Sprint 58 |
+| `POST /sessions/{id}/evaluate-student` + `evaluate-instructor` | Sprint 58 |
+| Notifications inbox (Sprint 57 feature) | Sprint 57 |
+| Tournament viewer (Sprint 57 feature) | Sprint 57 |
+
+---
+
+## Sprint 57 — New Test Patterns (2026-03-10)
+
+### 1. Timer simulation with `cy.clock()` + `cy.tick()`
+
+For quiz timer auto-submit tests, use Sinon's fake timer API:
+
+```javascript
+cy.clock();                          // MUST be called BEFORE cy.visit()
+cy.visit(`/quizzes/${quizId}/take`);
+cy.window().then((win) => {
+  cy.stub(win, 'alert').as('timerAlert');   // prevent window.alert from blocking
+});
+// Derive tick duration dynamically from the rendered timer display
+cy.get('#timer').invoke('text').then((text) => {
+  const m = text.match(/Time: (\d+):(\d{2})/);
+  const displayedSeconds = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  cy.tick((displayedSeconds + 1) * 1000);  // fires all setInterval callbacks synchronously
+});
+cy.get('@timerAlert').should('have.been.calledWith', '⏰ Time is up! Submitting quiz...');
+```
+
+**Key rules:**
+- `cy.clock()` before `cy.visit()` — otherwise `setInterval` is already running on the real timer
+- `quizForm.submit()` (programmatic, used by timer callback) bypasses HTML5 `required` validation
+- Button `.click()` does NOT bypass required validation — for zero-answer tests use `cy.request()`
+- Parse timer text `"⏱️ Time: M:SS"` → `M*60+SS` remaining seconds = server-provided value
+
+### 2. Label-based stat targeting for quiz results
+
+Quiz result pages render stats as `.stat-label` / `.stat-value` sibling pairs. Target by label text to survive reordering:
+
+```javascript
+// Fragile — breaks if stat order changes:
+cy.get('.stat-value').eq(0).should('have.text', '50.0%');
+
+// Correct — label-anchored:
+cy.contains('.stat-label', 'Score').parent().find('.stat-value').should('have.text', '50.0%');
+cy.contains('.stat-label', 'Correct Answers').parent().find('.stat-value').should('have.text', '1 / 2');
+```
+
+### 3. DB persistence verification via `cy.task()`
+
+After form submission, verify the backend actually persisted the result using a Cypress task that runs a Python subprocess:
+
+```javascript
+// cypress.config.js tasks:
+getQuizAttemptData(attemptId) {
+  const { execSync } = require('child_process');
+  const script = [
+    'import sys, json; sys.path.insert(0, ".")',
+    'from app.database import SessionLocal',
+    'from app.models.quiz import QuizAttempt',
+    'db = SessionLocal()',
+    `a = db.query(QuizAttempt).filter(QuizAttempt.id == ${parseInt(attemptId, 10)}).first()`,
+    'db.close()',
+    'print(json.dumps({"score": a.score, "correct_answers": a.correct_answers, "passed": a.passed}) if a else "null")',
+  ].join('; ');
+  const out = execSync(`python -c '${script}'`, { cwd, encoding: 'utf8' }).trim();
+  return out === 'null' ? null : JSON.parse(out);
+},
+```
+
+Usage in spec:
+```javascript
+cy.get('[name="attempt_id"]').invoke('val').then((rawAttemptId) => {
+  const attemptId = parseInt(rawAttemptId, 10);
+  // ... submit form ...
+  cy.task('getQuizAttemptData', attemptId).then((row) => {
+    expect(row.score).to.equal(50);
+    expect(row.passed).to.be.true;
+  });
+});
+```
+
+### 4. Radio option ordering in quiz E2E fixture
+
+The "E2E UI Quiz" fixture has deterministic ordering: options sorted by `order_index` ASC.
+`.eq(0)` = correct answer (order_index=1), `.eq(1)` = wrong answer (order_index=2):
+
+```javascript
+// Select correct answer for question N (first radio = correct):
+cy.get('.question').eq(0).find('input[type="radio"]').eq(0).check();  // correct
+// Select wrong answer:
+cy.get('.question').eq(0).find('input[type="radio"]').eq(1).check();  // wrong
+```
+
+### 5. FK truncation order: QuizUserAnswer before QuizAttempt
+
+In `reset_e2e_web_db.py`, `quiz_user_answers` has a FK to `quiz_attempts`. Always delete user answers first:
+
+```python
+def _truncate_transactional_data(db):
+    db.query(QuizUserAnswer).delete(synchronize_session=False)   # FK child first
+    db.query(QuizAttempt).delete(synchronize_session=False)      # then parent
+```
+
+Forgetting this causes `ForeignKeyViolation` after the first quiz submission creates `QuizUserAnswer` rows.
+
+---
+
+## Sprint 58 — Audit Fixes & Coverage Gaps Closed (2026-03-10)
+
+### Summary
+
+| Metric | Value |
+|--------|-------|
+| Web routes audited | 57 HTML routes |
+| Routes with Cypress E2E coverage before Sprint 58 | 47/57 (82.5%) |
+| New spec file | `student/student_features.cy.js` (FEAT-01–06) |
+| Coverage after Sprint 58 | 57/57 (100%) |
+| Cypress specs | 17 |
+| Cypress tests | 162 (all passing) |
+| Pytest (unit + integration) | 6 980 passed, 1 xfailed |
+| Production bug fixed | `student_features.py` missing `date` import (NameError on `/about-specializations`) |
+
+### Production bug: missing `date` import in `student_features.py`
+
+`GET /about-specializations` computes `user_age` using `date.today()`, but `date` was not
+imported — only `datetime, timezone`. Any user with a `date_of_birth` set would see a 500.
+
+**Fix:**
+```python
+# Before (broken):
+from datetime import datetime, timezone
+
+# After (fixed):
+from datetime import date, datetime, timezone
+```
+
+This was caught by the Sprint 58 audit — the Cypress test FEAT-01 would have failed with a 500.
+
+### New spec: `student/student_features.cy.js`
+
+Covers 6 previously untested routes:
+
+| Test | Route | Scenario |
+|------|-------|----------|
+| FEAT-01 | `GET /about-specializations` | Smoke: 200, no 500 |
+| FEAT-02 | `GET /credits` | Smoke: 200, no 500, contains "credit" |
+| FEAT-03 | `GET /dashboard-fresh` | Smoke: 200, cache-bypass route works |
+| FEAT-04 | `GET /dashboard/{spec_type}` (no license) | Not 500 (403 or redirect) |
+| FEAT-05 | `POST /sessions/{id}/attendance/change-request` (no request) | Error redirect, not 500 |
+| FEAT-06 | `POST /sessions/{id}/evaluate-instructor` (no session) | Error redirect, not 500 |
+
+### New tests in existing specs
+
+| Test | Spec | Route covered |
+|------|------|---------------|
+| ADM-09 | `admin/user_management.cy.js` | `GET /admin/coupons` |
+| ADM-10 | `admin/user_management.cy.js` | `GET /admin/invitation-codes` |
+| XR-15 | `cross_role/full_student_lifecycle.cy.js` | `POST /sessions/{id}/evaluate-instructor` (happy path: session stopped, PRESENT) |

@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Management - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .user-info h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .user-info p { opacity: 0.9; font-size: 1rem; }
+
+        .header-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+
+        .admin-badge {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary { background: white; color: #667eea; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; border: 2px solid white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+        /* ── Flash / Error ── */
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+        .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .alert-error   { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+
+        /* ── Tabs ── */
+        .tabs { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 2rem; }
+        .tab-btn {
+            padding: 0.9rem 2rem;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #718096;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.2s;
+        }
+        .tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
+        .tab-btn:hover:not(.active) { color: #4a5568; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── Filter bar ── */
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .filter-bar select {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: white;
+            cursor: pointer;
+        }
+        .filter-count {
+            margin-left: auto;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        /* ── Tournament card (collapsible) ── */
+        .tournament-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .tournament-card summary {
+            padding: 1.25rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            list-style: none;
+            user-select: none;
+        }
+        .tournament-card summary::-webkit-details-marker { display: none; }
+        .tournament-card summary .toggle-icon {
+            font-size: 0.8rem;
+            color: #718096;
+            transition: transform 0.2s;
+        }
+        .tournament-card[open] summary .toggle-icon { transform: rotate(90deg); }
+
+        .card-title { font-size: 1.05rem; font-weight: 700; color: #2d3748; }
+        .card-meta { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-left: auto; }
+
+        .badge {
+            padding: 0.3rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge-draft      { background: #edf2f7; color: #4a5568; }
+        .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
+        .badge-closed     { background: #fefcbf; color: #744210; }
+        .badge-progress   { background: #c6f6d5; color: #22543d; }
+        .badge-completed  { background: #e9d8fd; color: #553c9a; }
+        .badge-cancelled  { background: #fed7d7; color: #742a2a; }
+        .badge-seeking    { background: #feebc8; color: #7b341e; }
+        .badge-ops        { background: #bee3f8; color: #2a4365; }
+        .badge-manual     { background: #fef3c7; color: #78350f; }
+        .badge-stuck      { background: #fed7d7; color: #742a2a; font-weight: 800; }
+        .badge-session    { background: #f0fff4; color: #276749; }
+
+        .card-body { padding: 0 1.5rem 1.5rem; }
+
+        /* ── Action buttons ── */
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .action-btn {
+            padding: 0.45rem 0.85rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 7px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: white;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: background 0.15s;
+        }
+        .action-btn:hover { background: #f7fafc; }
+        .action-btn.btn-start   { background: #48bb78; color: white; border-color: #48bb78; }
+        .action-btn.btn-start:hover { background: #38a169; }
+        .action-btn.btn-cancel  { background: #f6ad55; color: white; border-color: #f6ad55; }
+        .action-btn.btn-cancel:hover { background: #ed8936; }
+        .action-btn.btn-delete  { background: #fc8181; color: white; border-color: #fc8181; }
+        .action-btn.btn-delete:hover { background: #f56565; }
+        .action-btn.btn-rollback { background: #63b3ed; color: white; border-color: #63b3ed; }
+        .action-btn.btn-rollback:hover { background: #4299e1; }
+        .action-btn.btn-stub { color: #a0aec0; cursor: default; }
+        .action-btn.btn-stub:hover { background: white; }
+
+        /* ── Details grid ── */
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        @media (max-width: 700px) { .details-grid { grid-template-columns: 1fr; } }
+
+        .detail-section h4 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #718096;
+            margin-bottom: 0.6rem;
+        }
+        .detail-row { display: flex; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.9rem; }
+        .detail-label { color: #718096; min-width: 130px; }
+        .detail-value { color: #2d3748; font-weight: 500; }
+
+        /* ── STUCK panel ── */
+        .stuck-panel {
+            background: #fff5f5;
+            border: 2px solid #fc8181;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .stuck-panel h4 { color: #c53030; margin-bottom: 0.5rem; }
+        .stuck-panel p  { font-size: 0.9rem; color: #4a5568; margin-bottom: 0.75rem; }
+        .stuck-actions  { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+        /* ── Sessions section ── */
+        .sessions-section {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+        }
+        .sessions-section h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.75rem;
+        }
+        .session-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        /* ── Create form ── */
+        .form-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            max-width: 800px;
+        }
+        .form-card h2 {
+            font-size: 1.4rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid #667eea;
+        }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+        .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group label { font-size: 0.85rem; font-weight: 600; color: #4a5568; }
+        .form-group input, .form-group select {
+            padding: 0.65rem 0.9rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .form-group small { font-size: 0.8rem; color: #a0aec0; }
+        .form-footer { margin-top: 1.5rem; display: flex; gap: 1rem; }
+        .btn-submit {
+            padding: 0.8rem 2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-submit:hover { opacity: 0.92; }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #a0aec0;
+        }
+        .empty-state h3 { margin-bottom: 0.5rem; font-size: 1.2rem; }
+
+        .footer {
+            background: #2d3748;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>🏆 Tournament Management</h1>
+            <p>{{ user.email }}</p>
+        </div>
+        <div class="header-actions">
+            <div class="admin-badge">👑 ADMIN</div>
+            <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
+            <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
+            <a href="/admin/sessions" class="btn btn-secondary">📅 Sessions</a>
+            <a href="/admin/bookings" class="btn btn-secondary">📋 Bookings</a>
+            <a href="/admin/tournaments" class="btn btn-secondary">🏆 Tournaments</a>
+            <a href="/admin/locations" class="btn btn-secondary">📍 Locations</a>
+            <a href="/admin/game-presets" class="btn btn-secondary">🎮 Game Presets</a>
+            <a href="/admin/system-events" class="btn btn-secondary">⚙️ Events</a>
+            <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
+            <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
+            <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
+            <a href="/admin/analytics" class="btn btn-secondary">📊 Analytics</a>
+            <a href="/admin/semesters" class="btn btn-secondary">🎓 Semesters</a>
+            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
+            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    {% if flash %}
+    <div class="alert alert-success">✅ {{ flash }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">❌ {{ error }}</div>
+    {% endif %}
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn {% if active_tab != 'create' %}active{% endif %}"
+                onclick="switchTab('list', this)">📋 View Tournaments</button>
+        <button class="tab-btn {% if active_tab == 'create' %}active{% endif %}"
+                onclick="switchTab('create', this)">➕ Create Tournament</button>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         TAB 1: View Tournaments
+    ════════════════════════════════════════════════════ -->
+    <div id="tab-list" class="tab-content {% if active_tab != 'create' %}active{% endif %}">
+
+        <!-- Filter bar (client-side JS filter) -->
+        <div class="filter-bar">
+            <select id="srcFilter" onchange="applyFilters()">
+                <option value="all">All</option>
+                <option value="manual">Manual (TOURN-)</option>
+                <option value="ops">OPS (OPS-)</option>
+            </select>
+            <select id="statusFilter" onchange="applyFilters()">
+                <option value="all">All statuses</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="DRAFT">DRAFT</option>
+                <option value="ENROLLMENT_OPEN">ENROLLMENT_OPEN</option>
+                <option value="CANCELLED">CANCELLED</option>
+                <option value="stuck">⚠️ STUCK (0 sessions)</option>
+            </select>
+            <span class="filter-count" id="filterCount">
+                {{ tournament_info|length }} / {{ tournament_info|length }} tournaments
+            </span>
+        </div>
+
+        {% if tournament_info %}
+        <div id="tournamentList">
+            {% for info in tournament_info %}
+            {% set t = info.tournament %}
+            {% set enroll_count = info.enrollment_count %}
+            {% set session_count = info.session_count %}
+            {% set is_stuck = t.tournament_status == 'IN_PROGRESS' and session_count == 0 %}
+
+            <details class="tournament-card"
+                     data-src="{{ 'ops' if t.code.startswith('OPS-') else 'manual' }}"
+                     data-status="{{ t.tournament_status or 'DRAFT' }}"
+                     data-stuck="{{ 'true' if is_stuck else 'false' }}">
+                <summary>
+                    <span class="toggle-icon">▶</span>
+                    <span class="card-title">🏆 {{ t.name }}</span>
+                    <code style="font-size:0.8rem; color:#718096;">{{ t.code }}</code>
+                    <div class="card-meta">
+                        <!-- Source badge -->
+                        {% if t.code.startswith('OPS-') %}
+                        <span class="badge badge-ops">🤖 OPS</span>
+                        {% else %}
+                        <span class="badge badge-manual">🖊️ Manual</span>
+                        {% endif %}
+                        <!-- Status badge -->
+                        {% if is_stuck %}
+                        <span class="badge badge-stuck">⚠️ STUCK</span>
+                        {% elif t.tournament_status == 'IN_PROGRESS' %}
+                        <span class="badge badge-progress">🟢 IN_PROGRESS</span>
+                        {% elif t.tournament_status == 'COMPLETED' %}
+                        <span class="badge badge-completed">✅ COMPLETED</span>
+                        {% elif t.tournament_status == 'DRAFT' %}
+                        <span class="badge badge-draft">📝 DRAFT</span>
+                        {% elif t.tournament_status == 'ENROLLMENT_OPEN' %}
+                        <span class="badge badge-enrollment">📬 ENROLLMENT_OPEN</span>
+                        {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
+                        <span class="badge badge-closed">🔒 ENROLLMENT_CLOSED</span>
+                        {% elif t.tournament_status == 'CANCELLED' %}
+                        <span class="badge badge-cancelled">🚫 CANCELLED</span>
+                        {% elif t.tournament_status == 'SEEKING_INSTRUCTOR' %}
+                        <span class="badge badge-seeking">⏳ SEEKING_INSTRUCTOR</span>
+                        {% else %}
+                        <span class="badge badge-draft">{{ t.tournament_status or 'DRAFT' }}</span>
+                        {% endif %}
+                        <!-- Session count -->
+                        <span class="badge badge-session">{{ session_count }} sessions</span>
+                    </div>
+                </summary>
+
+                <div class="card-body">
+                    <!-- STUCK recovery panel -->
+                    {% if is_stuck %}
+                    <div class="stuck-panel">
+                        <h4>🚨 STUCK TOURNAMENT — IN_PROGRESS but 0 sessions generated</h4>
+                        <p>Session generation failed silently at tournament launch ({{ enroll_count }} players enrolled).
+                           The tournament moved to IN_PROGRESS but no sessions were created.<br>
+                           <strong>Recovery:</strong> click Rollback → ENROLLMENT_CLOSED, then Start again.</p>
+                        <div class="stuck-actions">
+                            <form method="POST" action="/admin/tournaments/{{ t.id }}/rollback" style="display:inline;">
+                                <button class="action-btn btn-rollback"
+                                        onclick="return confirm('Rollback {{ t.code }} to ENROLLMENT_CLOSED?')">
+                                    🔄 Rollback → ENROLLMENT_CLOSED
+                                </button>
+                            </form>
+                            <form method="POST" action="/admin/tournaments/{{ t.id }}/cancel" style="display:inline;">
+                                <button class="action-btn btn-cancel"
+                                        onclick="return confirm('Cancel tournament {{ t.code }}? This cannot be undone.')">
+                                    ❌ Cancel Tournament
+                                </button>
+                            </form>
+                            <form method="POST" action="/admin/tournaments/{{ t.id }}/delete" style="display:inline;">
+                                <button class="action-btn btn-delete"
+                                        onclick="return confirmDelete('{{ t.name }}')">
+                                    🗑️ Delete Tournament
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Action buttons (6 columns matching Streamlit) -->
+                    <div class="action-btns">
+                        <!-- ✏️ Edit (stub) -->
+                        <button class="action-btn btn-stub" title="Coming soon">✏️ Edit</button>
+
+                        <!-- ⚙️ Edit Schedule (stub, hidden if enrollment started) -->
+                        {% if t.tournament_status not in ('ENROLLMENT_OPEN', 'IN_PROGRESS', 'COMPLETED') %}
+                        <button class="action-btn btn-stub" title="Coming soon">⚙️ Edit Schedule</button>
+                        {% endif %}
+
+                        <!-- ▶ Start (ENROLLMENT_CLOSED only) -->
+                        {% if t.tournament_status == 'ENROLLMENT_CLOSED' %}
+                        <form method="POST" action="/admin/tournaments/{{ t.id }}/start" style="display:inline;">
+                            <button class="action-btn btn-start"
+                                    onclick="return confirm('Start tournament {{ t.code }}? This will advance to IN_PROGRESS and auto-generate sessions.')">
+                                ▶ Start
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <!-- 🎁 Reward Config (stub) -->
+                        <button class="action-btn btn-stub" title="Coming soon">🎁 Reward Config</button>
+
+                        <!-- ❌ Cancel (if not COMPLETED/CANCELLED) -->
+                        {% if t.tournament_status not in ('COMPLETED', 'CANCELLED') %}
+                        <form method="POST" action="/admin/tournaments/{{ t.id }}/cancel" style="display:inline;">
+                            <button class="action-btn btn-cancel"
+                                    onclick="return confirm('Cancel tournament {{ t.code }}? Players will no longer be able to participate.')">
+                                ❌ Cancel
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <!-- 🗑️ Delete (always) -->
+                        <form method="POST" action="/admin/tournaments/{{ t.id }}/delete" style="display:inline;">
+                            <button class="action-btn btn-delete"
+                                    onclick="return confirmDelete('{{ t.name }}')">
+                                🗑️ Delete
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Details grid (left: status | right: metadata) -->
+                    <div class="details-grid">
+                        <div class="detail-section">
+                            <h4>Status</h4>
+                            <div class="detail-row">
+                                <span class="detail-label">Semester Status:</span>
+                                <span class="detail-value">{{ t.status.value if t.status else 'N/A' }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Tournament Status:</span>
+                                <span class="detail-value">{{ t.tournament_status or 'N/A' }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Start Date:</span>
+                                <span class="detail-value">{{ t.start_date.strftime('%Y-%m-%d') if t.start_date else 'N/A' }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">End Date:</span>
+                                <span class="detail-value">{{ t.end_date.strftime('%Y-%m-%d') if t.end_date else 'N/A' }}</span>
+                            </div>
+                            {% if t.tournament_status == 'SEEKING_INSTRUCTOR' %}
+                            <div class="detail-row">
+                                <span class="detail-value" style="color:#7b341e;">
+                                    {% if t.assignment_type == 'APPLICATION_BASED' %}
+                                    📝 APPLICATION_BASED — Instructors can apply
+                                    {% else %}
+                                    🔒 OPEN_ASSIGNMENT — Admin will assign instructor
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="detail-section">
+                            <h4>Details</h4>
+                            {% if info.instructor %}
+                            <div class="detail-row">
+                                <span class="detail-label">Instructor:</span>
+                                <span class="detail-value">{{ info.instructor.name }} ({{ info.instructor.email }})</span>
+                            </div>
+                            {% endif %}
+                            {% if t.location %}
+                            <div class="detail-row">
+                                <span class="detail-label">Location:</span>
+                                <span class="detail-value">{{ t.location.city }}, {{ t.location.country }}</span>
+                            </div>
+                            {% endif %}
+                            {% if t.campus %}
+                            <div class="detail-row">
+                                <span class="detail-label">Campus:</span>
+                                <span class="detail-value">{{ t.campus.name }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="detail-row">
+                                <span class="detail-label">Age Group:</span>
+                                <span class="detail-value">{{ t.age_group or 'N/A' }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Enrollment Cost:</span>
+                                <span class="detail-value">
+                                    {% if t.enrollment_cost == 0 %}🆓 FREE{% else %}{{ t.enrollment_cost }} credits{% endif %}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Enrollments:</span>
+                                <span class="detail-value">{{ enroll_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sessions section -->
+                    <div class="sessions-section">
+                        <h4>🎮 Tournament Sessions ({{ session_count }})</h4>
+                        <div class="session-btns">
+                            {% if t.tournament_status == 'IN_PROGRESS' %}
+                            <button class="action-btn btn-stub" title="Coming soon — generates sessions for IN_PROGRESS tournaments">
+                                🎲 Generate Sessions
+                            </button>
+                            {% else %}
+                            <button class="action-btn btn-stub"
+                                    style="cursor:not-allowed;"
+                                    title="Only available for IN_PROGRESS tournaments. Use ▶ Start above for ENROLLMENT_CLOSED.">
+                                🎲 Generate Sessions
+                            </button>
+                            {% endif %}
+                            <button class="action-btn btn-stub" title="Coming soon">👁️ Preview</button>
+                            <button class="action-btn btn-stub" title="Coming soon">🔄 Reset</button>
+                            <button class="action-btn btn-stub" title="Coming soon">➕ Add Game</button>
+                        </div>
+                        {% if session_count == 0 %}
+                        <p style="color:#a0aec0; font-size:0.9rem; margin-top:0.75rem;">No sessions generated yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h3>No tournaments found</h3>
+            <p>Create the first tournament using the "➕ Create Tournament" tab.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         TAB 2: Create Tournament
+    ════════════════════════════════════════════════════ -->
+    <div id="tab-create" class="tab-content {% if active_tab == 'create' %}active{% endif %}">
+        <div class="form-card">
+            <h2>➕ Create Tournament</h2>
+            <p style="color:#718096; margin-bottom:1.5rem; font-size:0.95rem;">
+                ℹ️ Tournament sessions are auto-generated when status changes to IN_PROGRESS
+            </p>
+
+            <form method="POST" action="/admin/tournaments">
+                <div class="form-grid">
+                    <!-- Tournament Name -->
+                    <div class="form-group">
+                        <label for="name">Tournament Name *</label>
+                        <input type="text" id="name" name="name" required
+                               placeholder="e.g. Budapest Open 2026">
+                    </div>
+
+                    <!-- Tournament Code -->
+                    <div class="form-group">
+                        <label for="code">Tournament Code *</label>
+                        <input type="text" id="code" name="code" required
+                               placeholder="e.g. TOURN-BDPST-2026"
+                               style="font-family:monospace;">
+                        <small>Auto-prefixed with TOURN- if not set. Must be unique.</small>
+                    </div>
+
+                    <!-- Start Date -->
+                    <div class="form-group">
+                        <label for="start_date">Start Date *</label>
+                        <input type="date" id="start_date" name="start_date" required>
+                    </div>
+
+                    <!-- End Date -->
+                    <div class="form-group">
+                        <label for="end_date">End Date *</label>
+                        <input type="date" id="end_date" name="end_date" required>
+                    </div>
+
+                    <!-- Age Group -->
+                    <div class="form-group">
+                        <label for="age_group">Age Group</label>
+                        <select id="age_group" name="age_group">
+                            <option value="PRE">PRE</option>
+                            <option value="YOUTH">YOUTH</option>
+                            <option value="AMATEUR" selected>AMATEUR</option>
+                            <option value="PRO">PRO</option>
+                        </select>
+                    </div>
+
+                    <!-- Assignment Type -->
+                    <div class="form-group">
+                        <label for="assignment_type">Assignment Type</label>
+                        <select id="assignment_type" name="assignment_type">
+                            <option value="OPEN_ASSIGNMENT">OPEN_ASSIGNMENT — Admin assigns directly</option>
+                            <option value="APPLICATION_BASED">APPLICATION_BASED — Instructors apply</option>
+                        </select>
+                    </div>
+
+                    <!-- Enrollment Cost -->
+                    <div class="form-group">
+                        <label for="enrollment_cost">Enrollment Cost (credits)</label>
+                        <input type="number" id="enrollment_cost" name="enrollment_cost"
+                               min="0" max="9999" value="0">
+                        <small>Set to 0 for FREE enrollment</small>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="form-group">
+                        <label for="location_id">Location</label>
+                        <select id="location_id" name="location_id" onchange="filterCampuses()">
+                            <option value="">— No location —</option>
+                            {% for loc in locations %}
+                            <option value="{{ loc.id }}" data-location="{{ loc.id }}">
+                                {{ loc.city }}, {{ loc.country }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Campus -->
+                    <div class="form-group">
+                        <label for="campus_id">Campus</label>
+                        <select id="campus_id" name="campus_id">
+                            <option value="">— No campus —</option>
+                            {% for campus in campuses %}
+                            <option value="{{ campus.id }}" data-location="{{ campus.location_id }}">
+                                {{ campus.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-footer">
+                    <button type="submit" class="btn-submit">➕ Create Tournament</button>
+                    <button type="reset" class="btn" style="background:#edf2f7; color:#4a5568;">Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    <p>LFA Admin Panel — Tournament Management</p>
+</div>
+
+<script>
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ── Delete confirm (requires typing name) ───────────────────
+function confirmDelete(name) {
+    return confirm('Permanently delete "' + name + '"?\n\nThis will remove the tournament, all sessions, bookings, and enrollment records.\n\nThis CANNOT be undone.');
+}
+
+// ── Client-side filter ───────────────────────────────────────
+function applyFilters() {
+    const src    = document.getElementById('srcFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const cards  = document.querySelectorAll('#tournamentList .tournament-card');
+    let visible  = 0;
+
+    cards.forEach(card => {
+        const cardSrc    = card.dataset.src;
+        const cardStatus = card.dataset.status;
+        const cardStuck  = card.dataset.stuck === 'true';
+
+        const srcOk = src === 'all' || cardSrc === src;
+        let statusOk;
+        if (status === 'all') {
+            statusOk = true;
+        } else if (status === 'stuck') {
+            statusOk = cardStuck;
+        } else {
+            statusOk = cardStatus === status;
+        }
+
+        if (srcOk && statusOk) {
+            card.style.display = '';
+            visible++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    const total = cards.length;
+    document.getElementById('filterCount').textContent = visible + ' / ' + total + ' tournaments';
+}
+
+// ── Campus filter by location ────────────────────────────────
+function filterCampuses() {
+    const locId   = document.getElementById('location_id').value;
+    const options = document.querySelectorAll('#campus_id option');
+    options.forEach(opt => {
+        if (!opt.value || !locId) {
+            opt.style.display = '';
+        } else {
+            opt.style.display = (opt.dataset.location === locId) ? '' : 'none';
+        }
+    });
+    document.getElementById('campus_id').value = '';
+}
+</script>
+
+</body>
+</html>

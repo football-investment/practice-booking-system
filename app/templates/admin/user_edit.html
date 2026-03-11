@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User — Admin Panel{% endblock %}
+
+{% block content %}
+<div style="max-width:600px; margin:2rem auto;">
+    <div style="background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.12); padding:2.5rem;">
+        <div style="margin-bottom:2rem;">
+            <a href="/admin/users" style="color:#667eea; text-decoration:none; font-size:0.9rem;">← Back to Users</a>
+            <h2 style="color:#2c3e50; margin:0.5rem 0 0 0;">Edit User #{{ target.id }}</h2>
+            <p style="color:#7f8c8d; font-size:0.9rem; margin:0;">{{ target.email }}</p>
+        </div>
+
+        {% if error %}
+        <div style="background:#fee; border:1px solid #e74c3c; border-radius:8px; padding:0.8rem 1rem; margin-bottom:1.5rem; color:#c0392b;">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin/users/{{ target.id }}/edit">
+            <div style="margin-bottom:1.2rem;">
+                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Full Name</label>
+                <input type="text" name="name" required
+                    value="{{ target.name }}"
+                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            </div>
+
+            <div style="margin-bottom:1.2rem;">
+                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Email Address</label>
+                <input type="email" name="email" required
+                    value="{{ target.email }}"
+                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            </div>
+
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Role</label>
+                <select name="role"
+                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; box-sizing:border-box; background:white;">
+                    {% for r in UserRole %}
+                    <option value="{{ r.value }}" {% if target.role == r %}selected{% endif %}>{{ r.value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display:flex; gap:1rem;">
+                <button type="submit"
+                    style="flex:1; padding:0.9rem; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.95rem;">
+                    Save Changes
+                </button>
+                <a href="/admin/users"
+                    style="flex:1; padding:0.9rem; background:#ecf0f1; color:#7f8c8d; border:none; border-radius:8px; font-weight:600; text-align:center; text-decoration:none; font-size:0.95rem; display:flex; align-items:center; justify-content:center;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

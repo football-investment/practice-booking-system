@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Presets - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; }
+        .header-content { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .user-info h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .user-info p { opacity: 0.9; }
+        .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-white { background: white; color: #4a5568; }
+        .btn-primary { background: #4299e1; color: white; }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-danger { background: #fc8181; color: white; }
+        .btn-warning { background: #f6ad55; color: white; }
+        .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
+        .stat-card .val { font-size: 2rem; font-weight: 700; color: #2d3748; }
+        .stat-card .lbl { color: #718096; font-size: 0.85rem; margin-top: 0.25rem; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .section-header h2 { font-size: 1.5rem; color: #2d3748; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1rem; overflow: hidden; }
+        .card-header { padding: 1rem 1.5rem; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
+        .card-header h3 { font-size: 1.05rem; color: #2d3748; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .card-body { padding: 1.5rem; display: none; }
+        .card-body.open { display: block; }
+        .badge { padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: #c6f6d5; color: #276749; }
+        .badge-inactive { background: #fed7d7; color: #9b2335; }
+        .badge-recommended { background: #fef3c7; color: #92400e; }
+        .info-row { margin-bottom: 0.75rem; }
+        .info-row label { font-size: 0.8rem; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.2rem; }
+        .skills-str { font-size: 0.9rem; color: #2d3748; }
+        .action-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+        .create-form { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 2rem; margin-top: 1.5rem; }
+        .create-form h3 { margin-bottom: 1.5rem; color: #2d3748; }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+        .form-group.full { grid-column: 1 / -1; }
+        .skills-section { background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .skills-section h4 { font-size: 0.9rem; color: #2d3748; margin-bottom: 0.75rem; }
+        .skill-group-label { font-size: 0.8rem; color: #718096; font-weight: 600; margin-bottom: 0.4rem; margin-top: 0.75rem; }
+        .skill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .skill-item { display: flex; align-items: center; gap: 0.4rem; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.3rem 0.6rem; }
+        .skill-item input[type="checkbox"] { cursor: pointer; }
+        .skill-item label { font-size: 0.8rem; color: #4a5568; cursor: pointer; white-space: nowrap; }
+        .weights-section { background: #ebf8ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: none; }
+        .weights-section h4 { font-size: 0.9rem; color: #2c5282; margin-bottom: 0.75rem; }
+        .weight-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .weight-item label { display: block; font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; }
+        .weight-item input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #bee3f8; border-radius: 6px; font-size: 0.9rem; }
+        .sum-indicator { margin-top: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+        .sum-ok { background: #c6f6d5; color: #276749; }
+        .sum-err { background: #fed7d7; color: #9b2335; }
+        .no-data { text-align: center; padding: 3rem; color: #718096; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>🎮 Game Presets</h1>
+            <p>Declare game presets here. Each preset defines which skills a tournament will develop and their relative weights.</p>
+        </div>
+        <div class="header-actions">
+            <a href="/admin/users" class="btn btn-white">👥 Users</a>
+            <a href="/admin/sessions" class="btn btn-white">📅 Sessions</a>
+            <a href="/admin/bookings" class="btn btn-white">📋 Bookings</a>
+            <a href="/admin/locations" class="btn btn-white">📍 Locations</a>
+            <a href="/admin/system-events" class="btn btn-white">⚙️ System Events</a>
+            <a href="/admin/tournaments" class="btn btn-white">🏆 Tournaments</a>
+            <a href="/admin/analytics" class="btn btn-white">📊 Analytics</a>
+            <a href="/admin/semesters" class="btn btn-white">🎓 Semesters</a>
+            <a href="/dashboard" class="btn btn-white">🏠 Dashboard</a>
+            <a href="/logout" class="btn btn-white">🚪 Logout</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Stats -->
+    {% set active_presets = presets | selectattr('is_active') | list %}
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="val">{{ presets | length }}</div>
+            <div class="lbl">🎮 Total Presets</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ active_presets | length }}</div>
+            <div class="lbl">🟢 Active</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ presets | selectattr('is_recommended') | list | length }}</div>
+            <div class="lbl">⭐ Recommended</div>
+        </div>
+    </div>
+
+    <!-- Preset list -->
+    <div class="section-header">
+        <h2>🎮 Game Presets</h2>
+        <span style="color: #718096; font-size: 0.9rem">{{ presets | length }} presets total · {{ active_presets | length }} active</span>
+    </div>
+
+    {% if presets %}
+        {% for p in presets %}
+        {% set sc = p.game_config.get('skill_config', {}) if p.game_config else {} %}
+        {% set meta = p.game_config.get('metadata', {}) if p.game_config else {} %}
+        {% set skills = sc.get('skills_tested', []) %}
+        {% set weights = sc.get('skill_weights', {}) %}
+        <div class="card">
+            <div class="card-header" onclick="toggleCard('preset-{{ p.id }}')">
+                <h3>
+                    {% if p.is_active %}🟢{% else %}⚫{% endif %}
+                    {% if p.is_recommended %}⭐ {% endif %}
+                    <strong>{{ p.name }}</strong>
+                    <code style="background: #f0f0f0; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem">{{ p.code }}</code>
+                    · {{ skills | length }} skills
+                    <span class="badge {% if p.is_active %}badge-active{% else %}badge-inactive{% endif %}">{{ 'Active' if p.is_active else 'Inactive' }}</span>
+                    {% if p.is_recommended %}<span class="badge badge-recommended">⭐ Recommended</span>{% endif %}
+                </h3>
+                <span style="color: #718096; font-size: 0.85rem">id={{ p.id }} ▼</span>
+            </div>
+            <div class="card-body" id="preset-{{ p.id }}">
+                {% if p.description %}
+                <div class="info-row">
+                    <label>Description</label>
+                    <p class="skills-str">{{ p.description }}</p>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <label>Skills</label>
+                    <p class="skills-str">
+                        {% if weights %}
+                            {% set total_w = weights.values() | sum %}
+                            {% for s in skills %}
+                                {% if s in weights %}
+                                    {{ s.replace('_', ' ').title() }} {{ (weights[s] / total_w * 100) | round | int }}%{% if not loop.last %}  ·  {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            {{ skills | join(', ') or '—' }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="info-row" style="display: flex; gap: 2rem">
+                    {% if meta.get('game_category') %}<span>🎮 {{ meta.game_category }}</span>{% endif %}
+                    {% if meta.get('difficulty_level') %}<span>📶 {{ meta.difficulty_level }}</span>{% endif %}
+                    {% if meta.get('min_players') %}<span>👥 min {{ meta.min_players }} players</span>{% endif %}
+                    <span style="color: #718096; font-size: 0.85rem">id={{ p.id }} · code={{ p.code }}</span>
+                </div>
+                <div class="action-row">
+                    {% if not p.is_locked %}
+                    <a href="/admin/game-presets/{{ p.id }}/edit" class="btn btn-sm btn-primary">✏️ Edit</a>
+                    {% endif %}
+                    <form method="post" action="/admin/game-presets/{{ p.id }}/toggle" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            {{ '⚫ Deactivate' if p.is_active else '🟢 Activate' }}
+                        </button>
+                    </form>
+                    {% if not p.is_locked %}
+                    <form method="post" action="/admin/game-presets/{{ p.id }}/delete" style="display:inline"
+                          onsubmit="return confirm('Delete preset {{ p.name }}? This cannot be undone.')">
+                        <button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
+                    </form>
+                    {% else %}
+                    <span style="color: #718096; font-size: 0.8rem">🔒 Locked — cannot edit or delete</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-data">
+            <p style="font-size: 1.5rem">🎮</p>
+            <p>No game presets found. Create the first one below.</p>
+        </div>
+    {% endif %}
+
+    <!-- Create new preset -->
+    <div style="margin-top: 2rem">
+        <button class="btn btn-primary" onclick="toggleCreateForm()">➕ New Game Preset</button>
+    </div>
+
+    <div class="create-form" id="createForm" style="display: none">
+        <h3>➕ Create New Game Preset</h3>
+        <form method="post" action="/admin/game-presets" id="presetForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Footvolley Sprint"
+                           oninput="autoFillCode(this.value)">
+                </div>
+                <div class="form-group">
+                    <label>Code *</label>
+                    <input type="text" name="code" id="codeField" required placeholder="auto-filled from name"
+                           pattern="[a-z0-9_]+" title="Lowercase letters, digits, underscores only">
+                </div>
+                <div class="form-group full">
+                    <label>Description</label>
+                    <textarea name="description" rows="2" placeholder="Describe this game type..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" name="category" placeholder="e.g. Football">
+                </div>
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <select name="difficulty">
+                        <option value="">— None —</option>
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                        <option value="Expert">Expert</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Min Players</label>
+                    <input type="number" name="min_players" value="4" min="2" max="1024">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="skill_impact" value="1" checked>
+                        Skill impact on matches
+                    </label>
+                </div>
+            </div>
+
+            <!-- Skills selection -->
+            <div class="skills-section">
+                <h4>Skills tested — check each skill to include:</h4>
+                {% for group in skill_groups %}
+                <div class="skill-group-label">{{ group.label }}</div>
+                <div class="skill-row">
+                    {% for skill in group.skills %}
+                    <div class="skill-item">
+                        <input type="checkbox" name="skill_cb_{{ skill.key }}" id="cb_{{ skill.key }}"
+                               value="{{ skill.key }}" onchange="updateWeights()">
+                        <label for="cb_{{ skill.key }}">{{ skill.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Skill weights (shown after skills selected) -->
+            <div class="weights-section" id="weightsSection">
+                <h4>Skill weights (%) — assign a percentage to each skill; must sum to <strong>100%</strong></h4>
+                <div class="weight-row" id="weightInputs"></div>
+                <div class="sum-indicator" id="sumIndicator"></div>
+            </div>
+
+            <button type="submit" class="btn btn-success" id="submitBtn">➕ Create Preset</button>
+            <button type="button" class="btn btn-white" onclick="toggleCreateForm()">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleCard(id) {
+    const body = document.getElementById(id);
+    body.classList.toggle('open');
+}
+
+let codeManuallyEdited = false;
+document.getElementById('codeField').addEventListener('input', () => { codeManuallyEdited = true; });
+
+function autoFillCode(name) {
+    if (codeManuallyEdited) return;
+    const code = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').substring(0, 50) || 'preset';
+    document.getElementById('codeField').value = code;
+}
+
+function toggleCreateForm() {
+    const f = document.getElementById('createForm');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateWeights() {
+    const checked = Array.from(document.querySelectorAll('[name^="skill_cb_"]:checked'));
+    const section = document.getElementById('weightsSection');
+    const container = document.getElementById('weightInputs');
+    if (checked.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    // Preserve existing values
+    const existing = {};
+    container.querySelectorAll('input[type="number"]').forEach(inp => {
+        existing[inp.name] = inp.value;
+    });
+    container.innerHTML = '';
+    checked.forEach((cb, i) => {
+        const key = cb.name.replace('skill_cb_', '');
+        const label = cb.parentElement.querySelector('label').textContent;
+        const div = document.createElement('div');
+        div.className = 'weight-item';
+        const defaultVal = existing['skill_w_' + key] || 10;
+        div.innerHTML = `<label>${label} %</label><input type="number" name="skill_w_${key}" value="${defaultVal}" min="1" max="100" oninput="updateSum()">`;
+        container.appendChild(div);
+    });
+    updateSum();
+}
+
+function updateSum() {
+    const inputs = document.querySelectorAll('#weightInputs input[type="number"]');
+    let sum = 0;
+    inputs.forEach(inp => { sum += parseInt(inp.value) || 0; });
+    const indicator = document.getElementById('sumIndicator');
+    if (sum === 100) {
+        indicator.className = 'sum-indicator sum-ok';
+        indicator.textContent = '✅ Sum: ' + sum + '% — ready to save';
+    } else {
+        const diff = sum - 100;
+        indicator.className = 'sum-indicator sum-err';
+        indicator.textContent = '❌ Sum: ' + sum + '% (' + (diff > 0 ? '+' : '') + diff + '%) — must be exactly 100%';
+    }
+}
+</script>
+</body>
+</html>
