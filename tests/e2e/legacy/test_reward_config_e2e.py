@@ -133,7 +133,6 @@ try:
         specialization_type="LFA_FOOTBALL_PLAYER",
         start_date=datetime.now(),
         end_date=datetime.now() + timedelta(days=7),
-        is_active=True,
         format="INDIVIDUAL_RANKING",
         tournament_status="COMPLETED",
         reward_config=reward_config.model_dump(mode="json")

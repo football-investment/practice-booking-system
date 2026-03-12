@@ -124,7 +124,6 @@ def youth_tournament(db_session: Session):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=True
     )
     db_session.add(tournament)
     db_session.commit()
@@ -145,7 +144,6 @@ def pre_tournament(db_session: Session):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=True
     )
     db_session.add(tournament)
     db_session.commit()
@@ -166,7 +164,6 @@ def amateur_tournament(db_session: Session):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=True
     )
     db_session.add(tournament)
     db_session.commit()
@@ -187,7 +184,6 @@ def pro_tournament(db_session: Session):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=True
     )
     db_session.add(tournament)
     db_session.commit()
@@ -553,7 +549,6 @@ class TestTournamentAvailability:
             end_date=date.today() + timedelta(days=60),
             status=SemesterStatus.SEEKING_INSTRUCTOR,
             enrollment_cost=500,
-            is_active=True
         )
         db_session.add(tournament)
         db_session.commit()

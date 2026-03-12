@@ -107,7 +107,6 @@ def e2e_tournament(db_session: DBSession):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=True
     )
     db_session.add(tournament)
     db_session.commit()
@@ -365,7 +364,6 @@ class TestTournamentEnrollmentE2E:
             status=SemesterStatus.READY_FOR_ENROLLMENT,
             tournament_status="ENROLLMENT_OPEN",
             enrollment_cost=600,  # More than remaining balance (500)
-            is_active=True
         )
         db_session.add(expensive_tournament)
         db_session.commit()
@@ -583,7 +581,6 @@ class TestTournamentEnrollmentE2E:
             status=SemesterStatus.COMPLETED,  # Tournament completed (enrollment impossible)
             tournament_status="COMPLETED",
             enrollment_cost=500,
-            is_active=True
         )
         db_session.add(closed_tournament)
         db_session.commit()

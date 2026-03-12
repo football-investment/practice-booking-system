@@ -63,7 +63,6 @@ def test_tournament_creation_with_all_configs():
             name="P3 Test Tournament - End-to-End",
             start_date=datetime.now().date(),
             end_date=(datetime.now() + timedelta(days=7)).date(),
-            is_active=True,
             status="DRAFT",
             tournament_status="DRAFT",
             enrollment_cost=100

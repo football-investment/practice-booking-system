@@ -222,7 +222,6 @@ for idx, tournament_config in enumerate(TOURNAMENT_CONFIGS):
         tournament_type="FREE",
         start_date=start_date + timedelta(days=idx*10),
         end_date=start_date + timedelta(days=idx*10 + 7),
-        is_active=False,
         status="COMPLETED",
         tournament_status="COMPLETED",
         reward_config=reward_config

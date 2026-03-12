@@ -93,7 +93,6 @@ def assignment_tournament(api_url: str, admin_token: str):
             tournament_status="SEEKING_INSTRUCTOR",
             enrollment_cost=0,
             age_group="PRO",
-            is_active=True,
         )
         db.add(semester)
         db.commit()
