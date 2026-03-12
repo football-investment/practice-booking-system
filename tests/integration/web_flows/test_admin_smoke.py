@@ -28,7 +28,7 @@ from sqlalchemy import event
 
 from app.main import app
 from app.database import engine, get_db
-from app.dependencies import get_current_user_web
+from app.dependencies import get_current_user_web, get_current_user
 from app.models.user import User, UserRole
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
@@ -39,6 +39,7 @@ from app.models.invoice_request import InvoiceRequest, InvoiceRequestStatus
 from app.models.semester import Semester, SemesterStatus
 from app.models.session import Session as SessionModel, SessionType
 from app.models.semester_enrollment import SemesterEnrollment
+from app.models.license import UserLicense
 from app.core.security import get_password_hash
 
 
@@ -835,3 +836,558 @@ class TestSmoke09BookingsPanel:
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
         assert "/admin/bookings" in resp.text
+
+
+# ── SMOKE-10 Legacy reward endpoint → 410 ────────────────────────────────────
+
+class TestSmoke10LegacyRewardEndpoint:
+    """
+    SMOKE-10: POST /api/v1/tournaments/{id}/distribute-rewards returns HTTP 410.
+
+    The legacy V1 endpoint was deprecated in Sprint P2 (2026-03-12).
+    Callers must use distribute-rewards-v2 which runs the full EMA pipeline.
+    """
+
+    @pytest.fixture(scope="function")
+    def api_client(self, test_db: Session, admin_user: User) -> TestClient:
+        """TestClient with get_current_user overridden (Bearer JWT path)."""
+        def override_get_db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = lambda: admin_user
+
+        with TestClient(app) as c:
+            yield c
+
+        app.dependency_overrides.clear()
+
+    def test_01_returns_410(self, api_client):
+        """SMOKE-10a: POST legacy endpoint returns 410 Gone (not 200/400/404)."""
+        resp = api_client.post(
+            "/api/v1/tournaments/9999/distribute-rewards",
+            json={"reason": "smoke-test"},
+        )
+        assert resp.status_code == 410
+
+    def test_02_detail_contains_v2_url_hint(self, api_client):
+        """SMOKE-10b: 410 response body references distribute-rewards-v2."""
+        resp = api_client.post(
+            "/api/v1/tournaments/9999/distribute-rewards",
+            json={"reason": "smoke-test"},
+        )
+        assert resp.status_code == 410
+        # Custom exception handler wraps the message in {"error": {"message": ...}}
+        body = resp.json()
+        message = body.get("error", {}).get("message") or body.get("detail", "")
+        assert "distribute-rewards-v2" in message
+
+
+# ── SMOKE-11 Tournament + Semester + User POST actions ───────────────────────
+
+class TestSmoke11AdminPOSTActions:
+    """
+    SMOKE-11: POST action routes that were previously untested (Sprint P3-A).
+
+    Covers:
+      POST /admin/tournaments               — create tournament (DRAFT)
+      POST /admin/tournaments/{id}/start    — ENROLLMENT_CLOSED → IN_PROGRESS
+      POST /admin/tournaments/{id}/cancel   — any live state → CANCELLED
+      POST /admin/tournaments/{id}/delete   — permanent delete
+      POST /admin/tournaments/{id}/rollback — IN_PROGRESS → ENROLLMENT_CLOSED
+      POST /admin/semesters/new             — create semester
+      POST /admin/semesters/{id}/delete     — cancel/hard-delete semester
+      POST /admin/users/{id}/edit           — edit user fields
+      POST /admin/users/{id}/toggle-status  — toggle is_active
+    """
+
+    @pytest.fixture
+    def tournament_draft(self, test_db: Session) -> Semester:
+        t = Semester(
+            code=f"TOURN-SMK11-{uuid.uuid4().hex[:6].upper()}",
+            name="Smoke T11 Draft",
+            start_date=date.today() + timedelta(days=10),
+            end_date=date.today() + timedelta(days=30),
+            status=SemesterStatus.DRAFT,
+            tournament_status="DRAFT",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        test_db.add(t)
+        test_db.commit()
+        test_db.refresh(t)
+        return t
+
+    @pytest.fixture
+    def tournament_enrollment_closed(self, test_db: Session) -> Semester:
+        t = Semester(
+            code=f"TOURN-SMK11EC-{uuid.uuid4().hex[:6].upper()}",
+            name="Smoke T11 EC",
+            start_date=date.today() + timedelta(days=10),
+            end_date=date.today() + timedelta(days=30),
+            status=SemesterStatus.READY_FOR_ENROLLMENT,
+            tournament_status="ENROLLMENT_CLOSED",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        test_db.add(t)
+        test_db.commit()
+        test_db.refresh(t)
+        return t
+
+    @pytest.fixture
+    def tournament_in_progress(self, test_db: Session) -> Semester:
+        t = Semester(
+            code=f"TOURN-SMK11IP-{uuid.uuid4().hex[:6].upper()}",
+            name="Smoke T11 IP",
+            start_date=date.today() + timedelta(days=10),
+            end_date=date.today() + timedelta(days=30),
+            status=SemesterStatus.ONGOING,
+            tournament_status="IN_PROGRESS",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        test_db.add(t)
+        test_db.commit()
+        test_db.refresh(t)
+        return t
+
+    @pytest.fixture
+    def target_user(self, test_db: Session) -> User:
+        u = User(
+            email=f"smk11-target+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="SMK11 Target",
+            password_hash=get_password_hash("pass123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        test_db.add(u)
+        test_db.commit()
+        test_db.refresh(u)
+        return u
+
+    # ── Tournament actions ─────────────────────────────────────────────────────
+
+    def test_01_create_tournament(self, admin_client, test_db):
+        """SMOKE-11a: POST /admin/tournaments creates a DRAFT tournament in DB."""
+        code = f"SMK11-{uuid.uuid4().hex[:6].upper()}"
+        resp = admin_client.post(
+            "/admin/tournaments",
+            data={
+                "name": "Smoke Tournament 11",
+                "code": code,
+                "start_date": (date.today() + timedelta(days=10)).isoformat(),
+                "end_date": (date.today() + timedelta(days=40)).isoformat(),
+                "age_group": "AMATEUR",
+                "enrollment_cost": "0",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "/admin/tournaments" in resp.headers["location"]
+        full_code = f"TOURN-{code}"
+        t = test_db.query(Semester).filter(Semester.code == full_code).first()
+        assert t is not None, f"Tournament {full_code} not found in DB after create"
+        assert t.tournament_status == "DRAFT"
+        assert t.status == SemesterStatus.DRAFT
+
+    def test_02_create_tournament_duplicate_code_gives_error_redirect(
+        self, admin_client, tournament_draft
+    ):
+        """SMOKE-11b: Duplicate tournament code → 303 with error query param."""
+        # Strip TOURN- prefix — route auto-prepends it, producing the same code
+        raw_code = tournament_draft.code.replace("TOURN-", "")
+        resp = admin_client.post(
+            "/admin/tournaments",
+            data={
+                "name": "Duplicate",
+                "code": raw_code,
+                "start_date": (date.today() + timedelta(days=10)).isoformat(),
+                "end_date": (date.today() + timedelta(days=40)).isoformat(),
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "error=" in resp.headers["location"]
+
+    def test_03_start_tournament(
+        self, admin_client, tournament_enrollment_closed, test_db
+    ):
+        """SMOKE-11c: POST /admin/tournaments/{id}/start → IN_PROGRESS + ONGOING."""
+        resp = admin_client.post(
+            f"/admin/tournaments/{tournament_enrollment_closed.id}/start",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "flash=" in resp.headers["location"]
+
+        test_db.expire_all()
+        t = test_db.query(Semester).filter(
+            Semester.id == tournament_enrollment_closed.id
+        ).first()
+        assert t.tournament_status == "IN_PROGRESS"
+        assert t.status == SemesterStatus.ONGOING
+
+    def test_04_start_tournament_wrong_status_gives_error_redirect(
+        self, admin_client, tournament_draft
+    ):
+        """SMOKE-11d: Start a DRAFT tournament → 303 with error (status mismatch)."""
+        resp = admin_client.post(
+            f"/admin/tournaments/{tournament_draft.id}/start",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "error=" in resp.headers["location"]
+
+    def test_05_cancel_tournament(self, admin_client, tournament_draft, test_db):
+        """SMOKE-11e: POST /admin/tournaments/{id}/cancel → CANCELLED in DB."""
+        resp = admin_client.post(
+            f"/admin/tournaments/{tournament_draft.id}/cancel",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "flash=" in resp.headers["location"]
+
+        test_db.expire_all()
+        t = test_db.query(Semester).filter(Semester.id == tournament_draft.id).first()
+        assert t.tournament_status == "CANCELLED"
+
+    def test_06_delete_tournament(self, admin_client, tournament_draft, test_db):
+        """SMOKE-11f: POST /admin/tournaments/{id}/delete → row removed from DB."""
+        tid = tournament_draft.id
+        resp = admin_client.post(
+            f"/admin/tournaments/{tid}/delete",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        assert test_db.query(Semester).filter(Semester.id == tid).first() is None
+
+    def test_07_rollback_tournament(
+        self, admin_client, tournament_in_progress, test_db
+    ):
+        """SMOKE-11g: POST /admin/tournaments/{id}/rollback → ENROLLMENT_CLOSED."""
+        resp = admin_client.post(
+            f"/admin/tournaments/{tournament_in_progress.id}/rollback",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "flash=" in resp.headers["location"]
+
+        test_db.expire_all()
+        t = test_db.query(Semester).filter(
+            Semester.id == tournament_in_progress.id
+        ).first()
+        assert t.tournament_status == "ENROLLMENT_CLOSED"
+        assert t.status == SemesterStatus.READY_FOR_ENROLLMENT
+
+    # ── Semester CRUD ──────────────────────────────────────────────────────────
+
+    def test_08_create_semester(self, admin_client, test_db):
+        """SMOKE-11h: POST /admin/semesters/new creates a Semester row in DB."""
+        code = f"SMK11-SEM-{uuid.uuid4().hex[:6].upper()}"
+        resp = admin_client.post(
+            "/admin/semesters/new",
+            data={
+                "code": code,
+                "name": "Smoke Semester 11",
+                "start_date": (date.today() + timedelta(days=1)).isoformat(),
+                "end_date": (date.today() + timedelta(days=90)).isoformat(),
+                "enrollment_cost": "500",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "/admin/semesters" in resp.headers["location"]
+
+        sem = test_db.query(Semester).filter(Semester.code == code).first()
+        assert sem is not None, f"Semester {code} not found in DB after create"
+
+    def test_09_delete_semester_no_enrollments_hard_deletes(self, admin_client, test_db):
+        """SMOKE-11i: Delete semester with no enrollments → hard delete (row gone)."""
+        sem = Semester(
+            code=f"DEL-SMK11-{uuid.uuid4().hex[:6].upper()}",
+            name="Delete Me Smoke 11",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=30),
+            status=SemesterStatus.DRAFT,
+        )
+        test_db.add(sem)
+        test_db.commit()
+        test_db.refresh(sem)
+        sid = sem.id
+
+        resp = admin_client.post(
+            f"/admin/semesters/{sid}/delete",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        assert test_db.query(Semester).filter(Semester.id == sid).first() is None
+
+    # ── User edit / toggle ─────────────────────────────────────────────────────
+
+    def test_10_edit_user(self, admin_client, target_user, test_db):
+        """SMOKE-11j: POST /admin/users/{id}/edit updates name + email in DB."""
+        new_name = f"Edited-{uuid.uuid4().hex[:6]}"
+        new_email = f"smk11-edited-{uuid.uuid4().hex[:8]}@lfa.com"
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/edit",
+            data={"name": new_name, "email": new_email, "role": "student"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "/admin/users" in resp.headers["location"]
+
+        test_db.expire_all()
+        updated = test_db.query(User).filter(User.id == target_user.id).first()
+        assert updated.name == new_name
+        assert updated.email == new_email
+
+    def test_11_toggle_user_status(self, admin_client, target_user, test_db):
+        """SMOKE-11k: POST /admin/users/{id}/toggle-status flips is_active."""
+        original = target_user.is_active  # True by fixture
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/toggle-status",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        updated = test_db.query(User).filter(User.id == target_user.id).first()
+        assert updated.is_active == (not original)
+
+
+# ── SMOKE-12 Student Motivation Assessment ────────────────────────────────────
+
+class TestSmoke12MotivationAssessment:
+    """
+    SMOKE-12: Motivation assessment routes (Sprint P3-B).
+
+    Covers:
+      GET  /admin/students/{id}/motivation/{spec} — form page loads
+      POST /admin/students/{id}/motivation/{spec} — save assessment
+      POST with out-of-range score               — 400 validation
+      POST missing license                       — 404
+      POST as student (non-admin)                — 403
+    """
+
+    SPEC = "LFA_FOOTBALL_PLAYER"
+
+    @pytest.fixture
+    def assessed_student(self, test_db: Session) -> User:
+        u = User(
+            email=f"smk12-student+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="SMK12 Student",
+            password_hash=get_password_hash("pass123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        test_db.add(u)
+        test_db.commit()
+        test_db.refresh(u)
+        return u
+
+    @pytest.fixture
+    def student_license(self, test_db: Session, assessed_student: User) -> UserLicense:
+        lic = UserLicense(
+            user_id=assessed_student.id,
+            specialization_type=self.SPEC,
+            started_at=datetime.now(),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.commit()
+        test_db.refresh(lic)
+        return lic
+
+    @pytest.fixture
+    def student_client(self, test_db: Session, assessed_student: User) -> TestClient:
+        """TestClient with a STUDENT user — should get 403 on admin routes."""
+        def override_get_db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user_web] = lambda: assessed_student
+
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+
+        app.dependency_overrides.clear()
+
+    # ── Happy path ─────────────────────────────────────────────────────────────
+
+    def test_01_get_motivation_page_loads(
+        self, admin_client, assessed_student, student_license
+    ):
+        """SMOKE-12a: GET motivation page returns 200 with student name."""
+        resp = admin_client.get(
+            f"/admin/students/{assessed_student.id}/motivation/{self.SPEC}"
+        )
+        assert resp.status_code == 200
+        assert assessed_student.name in resp.text
+
+    def test_02_post_saves_assessment(
+        self, admin_client, assessed_student, student_license, test_db
+    ):
+        """SMOKE-12b: POST assessment → 303 to /admin/payments + scores saved in DB."""
+        resp = admin_client.post(
+            f"/admin/students/{assessed_student.id}/motivation/{self.SPEC}",
+            data={
+                "goal_clarity": "4",
+                "commitment_level": "5",
+                "engagement": "3",
+                "progress_mindset": "4",
+                "initiative": "5",
+                "notes": "Smoke test assessment",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "/admin/payments" in resp.headers["location"]
+
+        test_db.expire_all()
+        lic = test_db.query(UserLicense).filter(
+            UserLicense.id == student_license.id
+        ).first()
+        assert lic.motivation_scores is not None
+        assert lic.average_motivation_score == pytest.approx(4.2)
+
+    # ── Validation errors ──────────────────────────────────────────────────────
+
+    def test_03_score_out_of_range_returns_400(
+        self, admin_client, assessed_student, student_license
+    ):
+        """SMOKE-12c: Score=0 (below 1) → 400."""
+        resp = admin_client.post(
+            f"/admin/students/{assessed_student.id}/motivation/{self.SPEC}",
+            data={
+                "goal_clarity": "0",
+                "commitment_level": "3",
+                "engagement": "3",
+                "progress_mindset": "3",
+                "initiative": "3",
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_04_missing_license_returns_404(self, admin_client, assessed_student):
+        """SMOKE-12d: Student exists but has no license for spec → 404."""
+        resp = admin_client.post(
+            f"/admin/students/{assessed_student.id}/motivation/UNKNOWN_SPEC",
+            data={
+                "goal_clarity": "3",
+                "commitment_level": "3",
+                "engagement": "3",
+                "progress_mindset": "3",
+                "initiative": "3",
+            },
+        )
+        assert resp.status_code == 404
+
+    def test_05_student_role_gets_403(
+        self, student_client, assessed_student, student_license
+    ):
+        """SMOKE-12e: STUDENT-role user accessing motivation route → 403."""
+        resp = student_client.post(
+            f"/admin/students/{assessed_student.id}/motivation/{self.SPEC}",
+            data={
+                "goal_clarity": "3",
+                "commitment_level": "3",
+                "engagement": "3",
+                "progress_mindset": "3",
+                "initiative": "3",
+            },
+        )
+        assert resp.status_code == 403
+
+
+# ── SMOKE-13 Campus CRUD ──────────────────────────────────────────────────────
+
+class TestSmoke13CampusCRUD:
+    """
+    SMOKE-13: Campus CRUD routes (Sprint P3-C — final admin coverage gap).
+
+    Covers:
+      POST /admin/locations/{id}/campuses — create campus
+      GET  /admin/campuses/{id}/edit      — edit form page
+      POST /admin/campuses/{id}/edit      — save edits
+      POST /admin/campuses/{id}/toggle    — flip is_active
+      POST /admin/campuses/{id}/delete    — permanent delete
+    """
+
+    @pytest.fixture
+    def campus(self, test_db: Session, location: Location) -> Campus:
+        c = Campus(
+            location_id=location.id,
+            name=f"Smoke Campus {uuid.uuid4().hex[:6]}",
+            is_active=True,
+        )
+        test_db.add(c)
+        test_db.commit()
+        test_db.refresh(c)
+        return c
+
+    def test_01_create_campus(self, admin_client, location, test_db):
+        """SMOKE-13a: POST /admin/locations/{id}/campuses → 303 + row in DB."""
+        campus_name = f"New Campus {uuid.uuid4().hex[:6]}"
+        resp = admin_client.post(
+            f"/admin/locations/{location.id}/campuses",
+            data={
+                "name": campus_name,
+                "address": "Smoke Street 1",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "/admin/locations" in resp.headers["location"]
+
+        c = test_db.query(Campus).filter(Campus.name == campus_name).first()
+        assert c is not None, "Campus not found in DB after create"
+        assert c.location_id == location.id
+        assert c.is_active is True
+
+    def test_02_edit_campus_page_loads(self, admin_client, campus):
+        """SMOKE-13b: GET /admin/campuses/{id}/edit → 200, campus name in HTML."""
+        resp = admin_client.get(f"/admin/campuses/{campus.id}/edit")
+        assert resp.status_code == 200
+        assert campus.name in resp.text
+
+    def test_03_edit_campus_submit(self, admin_client, campus, test_db):
+        """SMOKE-13c: POST /admin/campuses/{id}/edit → 303 + name updated in DB."""
+        new_name = f"Updated Campus {uuid.uuid4().hex[:6]}"
+        resp = admin_client.post(
+            f"/admin/campuses/{campus.id}/edit",
+            data={"name": new_name, "address": "New Address 99"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "/admin/locations" in resp.headers["location"]
+
+        test_db.expire_all()
+        updated = test_db.query(Campus).filter(Campus.id == campus.id).first()
+        assert updated.name == new_name
+
+    def test_04_toggle_campus(self, admin_client, campus, test_db):
+        """SMOKE-13d: POST /admin/campuses/{id}/toggle → is_active flipped in DB."""
+        original = campus.is_active  # True by fixture
+        resp = admin_client.post(
+            f"/admin/campuses/{campus.id}/toggle",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        updated = test_db.query(Campus).filter(Campus.id == campus.id).first()
+        assert updated.is_active == (not original)
+
+    def test_05_delete_campus(self, admin_client, campus, test_db):
+        """SMOKE-13e: POST /admin/campuses/{id}/delete → row removed from DB."""
+        cid = campus.id
+        resp = admin_client.post(
+            f"/admin/campuses/{cid}/delete",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        assert test_db.query(Campus).filter(Campus.id == cid).first() is None

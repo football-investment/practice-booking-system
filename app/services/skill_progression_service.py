@@ -28,6 +28,7 @@ from datetime import datetime
 
 from ..models.user import User
 from ..models.license import UserLicense
+from ..models.football_skill_assessment import FootballSkillAssessment
 from ..models.tournament_achievement import TournamentParticipation, TournamentSkillMapping
 from ..skills_config import SKILL_CATEGORIES
 
@@ -662,6 +663,42 @@ def get_skill_profile(db: Session, user_id: int) -> Dict[str, any]:
     # Get all skill keys
     all_skill_keys = get_all_skill_keys()
 
+    # Batch-load FootballSkillAssessment rows for the player's active license.
+    # One query for all 29 skills (avoids N+1).
+    active_license = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == user_id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        )
+        .order_by(UserLicense.id.desc())
+        .first()
+    )
+
+    assessed_map: Dict[str, float] = {}   # skill_name -> latest ASSESSED/VALIDATED pct
+    assessed_count_map: Dict[str, int] = {}  # skill_name -> count of ASSESSED/VALIDATED rows
+
+    if active_license:
+        rows = (
+            db.query(FootballSkillAssessment)
+            .filter(
+                FootballSkillAssessment.user_license_id == active_license.id,
+                FootballSkillAssessment.status.in_(["ASSESSED", "VALIDATED"]),
+            )
+            .order_by(
+                FootballSkillAssessment.skill_name,
+                FootballSkillAssessment.id.desc(),
+            )
+            .all()
+        )
+        seen: set = set()
+        for row in rows:
+            assessed_count_map[row.skill_name] = assessed_count_map.get(row.skill_name, 0) + 1
+            if row.skill_name not in seen:
+                assessed_map[row.skill_name] = row.percentage
+                seen.add(row.skill_name)
+
     # Calculate tournament contributions for all skills
     skill_data = calculate_tournament_skill_contribution(db, user_id, all_skill_keys)
 
@@ -695,9 +732,9 @@ def get_skill_profile(db: Session, user_id: int) -> Dict[str, any]:
             "current_level": current_level,
             "total_delta": total_delta,
             "tournament_delta": total_delta,  # Currently only tournaments
-            "assessment_delta": 0.0,  # Future: assessments
+            "assessment_delta": round(assessed_map.get(skill_key, data["baseline"]) - data["baseline"], 1),
             "tournament_count": data["tournament_count"],
-            "assessment_count": 0,
+            "assessment_count": assessed_count_map.get(skill_key, 0),
             "tier": tier,
             "tier_emoji": tier_emoji
         }
@@ -710,7 +747,7 @@ def get_skill_profile(db: Session, user_id: int) -> Dict[str, any]:
         "skills": skill_profile,
         "average_level": round(average_level, 1),
         "total_tournaments": total_tournaments,
-        "total_assessments": 0  # Future: assessments
+        "total_assessments": sum(assessed_count_map.values())
     }
 
 

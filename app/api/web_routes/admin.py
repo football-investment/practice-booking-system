@@ -150,11 +150,20 @@ async def admin_enrollments_page(
     # Get all students with their licenses
     students = db.query(User).filter(User.role == UserRole.STUDENT).order_by(User.name).all()
 
-    # Attach user licenses to each student
+    # Attach user licenses to each student (batch load — avoids N+1)
+    student_ids = [s.id for s in students]
+    all_license_rows = (
+        db.query(UserLicense)
+        .filter(UserLicense.user_id.in_(student_ids))
+        .all()
+    ) if student_ids else []
+
+    license_map: dict = {}
+    for lic in all_license_rows:
+        license_map.setdefault(lic.user_id, []).append(lic)
+
     for student in students:
-        student.all_licenses = db.query(UserLicense).filter(
-            UserLicense.user_id == student.id
-        ).all()
+        student.all_licenses = license_map.get(student.id, [])
         # For specialization management section (moved from /admin/payments)
         student.active_specializations = student.all_licenses
 

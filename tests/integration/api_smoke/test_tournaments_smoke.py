@@ -2057,8 +2057,9 @@ class TestTournamentsSmoke:
         response = api_client.post(f"/api/v1/tournaments/{test_tournament['tournament_id']}/distribute-rewards", json=payload, headers=headers)
         
 
-        # Accept 200 OK, 201 Created, or 204 No Content
-        assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422], (
+        # Endpoint deprecated in Sprint P2 (2026-03-12) — returns 410 Gone.
+        # Callers must use distribute-rewards-v2 which runs the full EMA pipeline.
+        assert response.status_code in [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 410, 422], (
             f"POST /{test_tournament['tournament_id']}/distribute-rewards failed: {response.status_code} "
             f"{response.text}"
         )
