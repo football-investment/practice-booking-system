@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications — LFA Education Center{% endblock %}
+
+{% block content %}
+{% include "includes/unified_header.html" %}
+
+<style>
+    .page-content { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .page-header h2 { font-size: 1.6rem; color: #2d3748; }
+    .badge-count {
+        background: #e74c3c;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-left: 0.5rem;
+    }
+    .btn-action {
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: opacity 0.2s;
+    }
+    .btn-action:hover { opacity: 0.85; }
+    .btn-mark-all {
+        background: #667eea;
+        color: white;
+    }
+    .notif-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .notif-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        border-left: 4px solid transparent;
+        transition: box-shadow 0.2s;
+    }
+    .notif-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
+    .notif-card.unread { border-left-color: #667eea; background: #f8f7ff; }
+    .notif-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: 2px; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-title {
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.3rem;
+        font-size: 1rem;
+    }
+    .notif-card.unread .notif-title { color: #4c51bf; }
+    .notif-message { color: #4a5568; font-size: 0.95rem; line-height: 1.5; margin-bottom: 0.5rem; }
+    .notif-meta { font-size: 0.8rem; color: #a0aec0; }
+    .notif-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .btn-sm {
+        padding: 0.3rem 0.8rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .btn-sm:hover { opacity: 0.8; }
+    .btn-read { background: #ebf8ff; color: #2b6cb0; }
+    .btn-delete { background: #fff5f5; color: #c53030; }
+    .btn-link { background: #f0fff4; color: #276749; text-decoration: none; }
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #a0aec0;
+    }
+    .empty-state .emoji { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state p { font-size: 1.1rem; }
+    .flash-banner {
+        padding: 0.8rem 1.2rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    .flash-success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+</style>
+
+<div class="page-content">
+    <div class="page-header">
+        <h2>
+            🔔 Notifications
+            {% if unread_count > 0 %}
+            <span class="badge-count">{{ unread_count }}</span>
+            {% endif %}
+        </h2>
+        {% if notifications %}
+        <form method="POST" action="/notifications/read-all" style="margin:0;">
+            <button type="submit" class="btn-action btn-mark-all">✓ Mark all as read</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% set params = request.query_params %}
+    {% if params.get('success') == 'marked' %}
+    <div class="flash-banner flash-success">✅ All notifications marked as read.</div>
+    {% endif %}
+
+    {% if notifications %}
+    <div class="notif-list" id="notif-list">
+        {% for n in notifications %}
+        {% set icon = {
+            'booking_confirmed':               '✅',
+            'booking_cancelled':               '❌',
+            'session_reminder':                '⏰',
+            'session_cancelled':               '🚫',
+            'waitlist_promoted':               '⬆️',
+            'general':                         '📢',
+            'job_offer':                       '💼',
+            'offer_accepted':                  '🎉',
+            'offer_declined':                  '😔',
+            'tournament_application_approved': '🏆',
+            'tournament_application_rejected': '🚫',
+            'tournament_direct_invitation':    '📩',
+            'tournament_instructor_accepted':  '🤝',
+            'tournament_instructor_declined':  '❌',
+        }.get(n.type.value, '📢') %}
+        <div class="notif-card {% if not n.is_read %}unread{% endif %}" id="notif-{{ n.id }}">
+            <div class="notif-icon">{{ icon }}</div>
+            <div class="notif-body">
+                <div class="notif-title">{{ n.title }}</div>
+                <div class="notif-message">{{ n.message }}</div>
+                <div class="notif-meta">
+                    {{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}
+                    {% if n.is_read %} · Read{% else %} · <strong>Unread</strong>{% endif %}
+                </div>
+                <div class="notif-actions">
+                    {% if n.link %}
+                    <a href="{{ n.link }}" class="btn-sm btn-link">🔗 View</a>
+                    {% endif %}
+                    {% if not n.is_read %}
+                    <button class="btn-sm btn-read" onclick="markRead({{ n.id }}, this)">✓ Mark read</button>
+                    {% endif %}
+                    <button class="btn-sm btn-delete" onclick="deleteNotif({{ n.id }}, this)">🗑 Delete</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="emoji">🔔</div>
+        <p>No notifications yet — you're all caught up!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+function markRead(id, btn) {
+    fetch('/notifications/' + id + '/read', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() }
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            const card = document.getElementById('notif-' + id);
+            if (card) {
+                card.classList.remove('unread');
+                btn.remove();
+                // Update unread badge in header
+                updateUnreadBadges();
+            }
+        }
+    }).catch(() => {});
+}
+
+function deleteNotif(id, btn) {
+    if (!confirm('Delete this notification?')) return;
+    fetch('/notifications/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() }
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            const card = document.getElementById('notif-' + id);
+            if (card) {
+                card.style.opacity = '0';
+                card.style.transition = 'opacity 0.3s';
+                setTimeout(() => card.remove(), 300);
+                updateUnreadBadges();
+            }
+        }
+    }).catch(() => {});
+}
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+name: Skill Propagation Weekly Review
+
+# Changelog (append a line when you modify this workflow):
+# 2026-03-12  Initial version — weekly review + manual dispatch
+#             Author: backend-leads  Ref: docs/release_notes/2026-03-12_skill-propagation.md
+
+# Runs every Monday at 07:00 UTC after tournament cycles complete.
+# Also triggerable manually via workflow_dispatch for post-tournament spot-checks.
+#
+# What it checks (scripts/validate_skill_propagation.py):
+#   INV-SP-01  Every rewarded LFA player has a matching assessment row
+#   INV-SP-02  Clamped rate ≤ 20%
+#   INV-SP-03  No |delta| > 20 for standard-weight skills
+#   INV-SP-04  Average delta per placement within ±30% of EMA baseline
+#
+# Exit codes:
+#   0 — all checks passed (or only warnings with --strict not set)
+#   1 — at least one error detected (or a warning with --strict)
+#
+# Monitoring doc: docs/operations/skill_propagation_monitoring.md
+# Release note  : docs/release_notes/2026-03-12_skill-propagation.md
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'   # Monday 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: 'Look-back window in days (default: 7)'
+        required: false
+        default: '7'
+      strict:
+        description: 'Fail on warnings as well as errors (true/false)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: skill-propagation-review
+  cancel-in-progress: false   # never cancel a health check mid-run
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  propagation-health-check:
+    name: Skill Propagation Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Set up environment
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db
+          SECRET_KEY=test-secret-key-for-ci-health-check
+          ENVIRONMENT=test
+          DEBUG=false
+          ADMIN_EMAIL=admin@test.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=Test Admin
+          CORS_ALLOWED_ORIGINS=http://localhost:3000
+          ENABLE_RATE_LIMITING=false
+          ENABLE_TOURNAMENT_SKILL_PROPAGATION=true
+          EOF
+
+      - name: Run database migrations
+        run: alembic upgrade head
+
+      - name: Determine review flags
+        id: flags
+        run: |
+          DAYS="${{ github.event.inputs.since_days || '7' }}"
+          STRICT="${{ github.event.inputs.strict || 'false' }}"
+          echo "since_days=$DAYS" >> $GITHUB_OUTPUT
+          if [[ "$STRICT" == "true" ]]; then
+            echo "strict_flag=--strict" >> $GITHUB_OUTPUT
+          else
+            echo "strict_flag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run skill propagation health check
+        id: health_check
+        run: |
+          python scripts/validate_skill_propagation.py \
+            --since-days ${{ steps.flags.outputs.since_days }} \
+            ${{ steps.flags.outputs.strict_flag }} \
+            | tee skill_propagation_report.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Post results to step summary
+        if: always()
+        run: |
+          echo "# Skill Propagation Weekly Review" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Window:** ${{ steps.flags.outputs.since_days }} days" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat skill_propagation_report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📖 [Monitoring Guide](../../docs/operations/skill_propagation_monitoring.md)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-propagation-report-${{ github.run_number }}
+          path: skill_propagation_report.txt
+          retention-days: 90
+
+      - name: Fail job if errors detected
+        if: steps.health_check.outputs.exit_code != '0'
+        run: |
+          echo "❌ Skill propagation health check detected errors."
+          echo "Review the report above and consult:"
+          echo "  docs/operations/skill_propagation_monitoring.md"
+          exit 1

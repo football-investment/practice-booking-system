@@ -88,6 +88,29 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
+    /* ── Communication badge buttons ── */
+    .btn-icon-wrap {
+        position: relative;
+        display: inline-block;
+    }
+
+    .notif-dot {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        background: #e74c3c;
+        color: white;
+        border-radius: 10px;
+        padding: 1px 5px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        min-width: 16px;
+        text-align: center;
+        display: none;
+        line-height: 1.4;
+        pointer-events: none;
+    }
+
     .container {
         max-width: 1200px;
         margin: 0 auto;
@@ -121,8 +144,40 @@
             <a href="/credits" class="btn btn-primary">💳 Purchase Credits</a>
             {% endif %}
             <a href="/dashboard" class="btn btn-secondary">🏠 Dashboard</a>
+            <div class="btn-icon-wrap">
+                <a href="/notifications" class="btn btn-secondary" aria-label="Notifications">🔔</a>
+                <span class="notif-dot" id="hdr-notif-badge">0</span>
+            </div>
+            <div class="btn-icon-wrap">
+                <a href="/messages" class="btn btn-secondary" aria-label="Messages">✉️</a>
+                <span class="notif-dot" id="hdr-msg-badge">0</span>
+            </div>
             <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
             <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
         </div>
     </div>
 </div>
+
+<script>
+/* ── Unread-count badge polling ── */
+function updateUnreadBadges() {
+    fetch('/unread-counts')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) return;
+            var nb = document.getElementById('hdr-notif-badge');
+            var mb = document.getElementById('hdr-msg-badge');
+            if (nb) {
+                nb.textContent = data.notifications;
+                nb.style.display = data.notifications > 0 ? 'inline-block' : 'none';
+            }
+            if (mb) {
+                mb.textContent = data.messages;
+                mb.style.display = data.messages > 0 ? 'inline-block' : 'none';
+            }
+        })
+        .catch(function() {});
+}
+updateUnreadBadges();
+setInterval(updateUnreadBadges, 60000);
+</script>
