@@ -11,7 +11,7 @@ Covers:
 
 Mock strategy:
   - asyncio.run(endpoint(...)) direct call — bypasses FastAPI DI
-  - AuditService + AuditAction not imported in source → patch with create=True
+  - AuditService + AuditAction imported in source (fixed Sprint 54 P1)
   - db.query().filter().all() → return_value chain for list queries
   - db.query().filter().first() → side_effect list for multi-query routes
 """
@@ -294,8 +294,8 @@ class TestInstructorUpdateStudentSkills:
         db.query.return_value.filter.return_value.first.side_effect = [student, license]
 
         with patch(f"{_BASE}.templates") as mock_tmpl, \
-             patch(f"{_BASE}.AuditService", create=True) as mock_audit_svc, \
-             patch(f"{_BASE}.AuditAction", create=True):
+             patch(f"{_BASE}.AuditService") as mock_audit_svc, \
+             patch(f"{_BASE}.AuditAction"):
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_update_student_skills(
                 request=_req(), student_id=7, license_id=1, db=db, user=user,
@@ -320,8 +320,8 @@ class TestInstructorUpdateStudentSkills:
         db.query.return_value.filter.return_value.first.side_effect = [student, license]
 
         with patch(f"{_BASE}.templates") as mock_tmpl, \
-             patch(f"{_BASE}.AuditService", create=True), \
-             patch(f"{_BASE}.AuditAction", create=True):
+             patch(f"{_BASE}.AuditService"), \
+             patch(f"{_BASE}.AuditAction"):
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_update_student_skills(
                 request=_req(), student_id=7, license_id=1, db=db, user=user,

@@ -7,13 +7,15 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
+import traceback
 
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user_optional
-from ...models.user import User
+from ...models.user import User, UserRole
+from ...models.invitation_code import InvitationCode
 from ...core.auth import create_access_token
-from ...core.security import verify_password
+from ...core.security import verify_password, get_password_hash
 from ...config import settings
 
 # Setup templates
@@ -215,3 +217,165 @@ async def age_verification_submit(
                 "error": f"An error occurred: {str(e)}"
             }
         )
+
+
+# Registration Routes
+
+@router.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request, db: Session = Depends(get_db)):
+    """Display registration page (unauthenticated users only)"""
+    try:
+        user = await get_current_user_optional(request, db)
+        if user:
+            return RedirectResponse(url="/dashboard", status_code=303)
+    except:
+        pass
+    return templates.TemplateResponse(
+        "register.html",
+        {"request": request, "today": date.today().isoformat()}
+    )
+
+
+@router.post("/register")
+async def register_submit(
+    request: Request,
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    nickname: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    phone: str = Form(...),
+    date_of_birth: str = Form(...),
+    nationality: str = Form(...),
+    gender: str = Form(...),
+    street_address: str = Form(...),
+    city: str = Form(...),
+    postal_code: str = Form(...),
+    country: str = Form(...),
+    invitation_code: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Process registration form"""
+    form_data = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "nickname": nickname,
+        "email": email,
+        "phone": phone,
+        "date_of_birth": date_of_birth,
+        "nationality": nationality,
+        "gender": gender,
+        "street_address": street_address,
+        "city": city,
+        "postal_code": postal_code,
+        "country": country,
+        "invitation_code": invitation_code,
+    }
+
+    def error(msg: str):
+        return templates.TemplateResponse(
+            "register.html",
+            {"request": request, "error": msg, "today": date.today().isoformat(), **form_data}
+        )
+
+    try:
+        # Basic field validation
+        if len(password) < 6:
+            return error("Password must be at least 6 characters.")
+        if len(first_name.strip()) < 2:
+            return error("First name must be at least 2 characters.")
+        if len(last_name.strip()) < 2:
+            return error("Last name must be at least 2 characters.")
+        if len(nickname.strip()) < 2:
+            return error("Nickname must be at least 2 characters.")
+        if gender not in ("Male", "Female", "Other"):
+            return error("Please select a valid gender.")
+
+        # Parse DOB
+        try:
+            dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
+        except ValueError:
+            return error("Invalid date of birth format.")
+        today = date.today()
+        if dob > today:
+            return error("Date of birth cannot be in the future.")
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        if age < 5:
+            return error("You must be at least 5 years old to register.")
+        if age > 120:
+            return error("Please enter a valid date of birth.")
+
+        # Check email uniqueness
+        existing = db.query(User).filter(User.email == email.lower().strip()).first()
+        if existing:
+            return error("An account with this email already exists.")
+
+        # Validate invitation code
+        code_str = invitation_code.strip().upper()
+        inv_code = db.query(InvitationCode).filter(
+            InvitationCode.code == code_str
+        ).first()
+
+        if inv_code is None:
+            return error("Invalid invitation code.")
+        if not inv_code.is_valid():
+            return error("This invitation code has already been used or has expired.")
+        if not inv_code.can_be_used_by_email(email):
+            return error("This invitation code is restricted to a different email address.")
+
+        # Create user
+        new_user = User(
+            name=f"{first_name.strip()} {last_name.strip()}",
+            first_name=first_name.strip(),
+            last_name=last_name.strip(),
+            nickname=nickname.strip(),
+            email=email.lower().strip(),
+            password_hash=get_password_hash(password),
+            phone=phone.strip(),
+            date_of_birth=dob,
+            nationality=nationality.strip(),
+            gender=gender,
+            street_address=street_address.strip(),
+            city=city.strip(),
+            postal_code=postal_code.strip(),
+            country=country.strip(),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=inv_code.bonus_credits,
+        )
+        db.add(new_user)
+        db.flush()  # get new_user.id
+
+        # Mark invitation code as used
+        from datetime import timezone as _tz
+        inv_code.is_used = True
+        inv_code.used_by_user_id = new_user.id
+        inv_code.used_at = datetime.now(_tz.utc)
+        db.commit()
+        db.refresh(new_user)
+
+        print(f"New registration: {new_user.email} (credits: {new_user.credit_balance})")
+
+        # Auto-login: create session cookie and redirect
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": new_user.email}, expires_delta=access_token_expires
+        )
+        # Fresh student always needs age verification... but DOB is already set.
+        # Redirect directly to dashboard.
+        response = RedirectResponse(url="/dashboard", status_code=303)
+        response.set_cookie(
+            key="access_token",
+            value=f"Bearer {access_token}",
+            httponly=settings.COOKIE_HTTPONLY,
+            max_age=settings.COOKIE_MAX_AGE,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
+            path="/"
+        )
+        return response
+
+    except Exception as e:
+        print(f"Error during registration: {e}")
+        traceback.print_exc()
+        return error(f"Registration failed: {str(e)}")

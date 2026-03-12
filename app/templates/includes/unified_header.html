@@ -114,7 +114,7 @@
             <p>{{ user.email }}{% if user.date_of_birth and user_age %} · Age: {{ user_age }} years{% endif %}</p>
         </div>
         <div class="header-actions">
-            {% if user.role.value == 'STUDENT' %}
+            {% if user.role.value == 'student' %}
             <div class="credit-badge">
                 💰 {{ credit_balance if credit_balance is defined else user.credit_balance }} credits
             </div>

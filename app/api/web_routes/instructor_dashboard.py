@@ -17,6 +17,8 @@ from ...models.semester import Semester
 from ...models.license import UserLicense
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.specialization import SpecializationType
+from ...models.audit_log import AuditAction
+from ...services.audit_service import AuditService
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -235,7 +237,7 @@ async def instructor_update_student_skills(
     # Log audit
     audit_service = AuditService(db)
     audit_service.log(
-        action=AuditAction.UPDATE,
+        action=AuditAction.FOOTBALL_SKILLS_UPDATED,
         user_id=user.id,
         resource_type="football_skills",
         resource_id=license_id,

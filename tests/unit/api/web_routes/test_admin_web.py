@@ -34,16 +34,19 @@ from app.api.web_routes.admin import (
     admin_invitation_codes_page,
     admin_analytics_page,
     admin_payments_page,
+    motivation_assessment_page,
+    motivation_assessment_submit,
+)
+from app.api.web_routes.instructor_dashboard import (
     instructor_enrollments_page,
     instructor_edit_student_skills_page,
     instructor_update_student_skills,
-    motivation_assessment_page,
-    motivation_assessment_submit,
 )
 from app.models.user import UserRole
 
 
 _BASE = "app.api.web_routes.admin"
+_INSTRUCTOR_BASE = "app.api.web_routes.instructor_dashboard"
 
 
 def _admin(uid=1):
@@ -94,7 +97,10 @@ class TestAdminUsersPage:
     def test_admin_renders_users_template(self):
         user = _admin()
         db = MagicMock()
-        db.query.return_value.order_by.return_value.all.return_value = []
+        # count() must return int — used in max()/min() pagination math
+        db.query.return_value.count.return_value = 0
+        db.query.return_value.filter.return_value.count.return_value = 0
+        db.query.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = []
 
         with patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
@@ -194,19 +200,23 @@ class TestAdminInvitationCodesPage:
         assert template_name == "admin/invitation_codes.html"
 
     def test_code_with_used_and_created_by_enriched(self):
-        """Code with used_by_user_id + created_by_admin_id → user lookup queries."""
+        """Code with used_by_user_id + created_by_admin_id → bulk user lookup."""
         user = _admin()
         code = MagicMock()
         code.used_by_user_id = 99
         code.created_by_admin_id = 1
-        used_user = MagicMock()
-        used_user.name = "Used By User"
-        admin_user = MagicMock()
-        admin_user.name = "Admin Creator"
+        # Route now does a single bulk query: db.query(User.id, User.name).filter(User.id.in_(...)).all()
+        # Returns objects with .id and .name; we return SimpleNamespace-like mocks
+        u1 = MagicMock(); u1.id = 99; u1.name = "Used By User"
+        u2 = MagicMock(); u2.id = 1;  u2.name = "Admin Creator"
         db = MagicMock()
-        db.query.return_value.order_by.return_value.all.return_value = [code]
-        # Each inner db.query(User).filter().first() call → used_user, then admin_user
-        db.query.return_value.filter.return_value.first.side_effect = [used_user, admin_user]
+        # First db.query call: InvitationCode list
+        q_codes = MagicMock()
+        q_codes.order_by.return_value.all.return_value = [code]
+        # Second db.query call: bulk User lookup
+        q_users = MagicMock()
+        q_users.filter.return_value.all.return_value = [u1, u2]
+        db.query.side_effect = [q_codes, q_users]
 
         with patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
@@ -345,7 +355,7 @@ class TestInstructorEnrollmentsPage:
         # instructor_semesters: filter().order_by().all() → []
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_enrollments_page(request=_req(), db=db, user=user))
 
@@ -362,7 +372,7 @@ class TestInstructorEnrollmentsPage:
         # all_enrollments: options().filter().order_by().all() → []
         db.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_enrollments_page(request=_req(), db=db, user=user))
 
@@ -405,7 +415,7 @@ class TestInstructorEditSkillsPage:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_edit_student_skills_page(
                 request=_req(), student_id=99, license_id=1, db=db, user=user
@@ -520,7 +530,7 @@ class TestInstructorUpdateSkills:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(instructor_update_student_skills(
                 request=_req(), student_id=99, license_id=1, db=db, user=user,
@@ -543,8 +553,8 @@ class TestInstructorUpdateSkills:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl, \
-             patch(f"{_BASE}.AuditService") as mock_audit:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl, \
+             patch(f"{_INSTRUCTOR_BASE}.AuditService") as mock_audit:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             mock_audit.return_value.log.return_value = None
             _run(instructor_update_student_skills(
@@ -685,8 +695,8 @@ class TestMotivationAssessmentSubmit:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.side_effect = [student, license_obj]
 
-        with patch(f"{_BASE}.templates") as mock_tmpl, \
-             patch(f"{_BASE}.AuditService") as mock_audit:
+        with patch(f"{_INSTRUCTOR_BASE}.templates") as mock_tmpl, \
+             patch(f"{_INSTRUCTOR_BASE}.AuditService") as mock_audit:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             mock_audit.return_value.log.return_value = None
             _run(instructor_update_student_skills(

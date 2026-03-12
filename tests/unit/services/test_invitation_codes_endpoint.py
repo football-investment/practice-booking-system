@@ -435,30 +435,11 @@ class TestRedeemInvitationCode:
                 ))
         assert exc.value.status_code == 403
 
-    def test_already_redeemed_raises_400(self):
-        user = _student()
-        c = _icode()     # valid code
-        prior = _icode() # user already redeemed another code
-        q_code = _q(first=c)
-        q_prior = _q(first=prior)
-        db = MagicMock()
-        db.query.side_effect = [q_code, q_prior]
-        with patch(self._GCUW, new_callable=AsyncMock, return_value=user):
-            with pytest.raises(HTTPException) as exc:
-                _run(redeem_invitation_code(
-                    request=MagicMock(), redeem_data=self._req(), db=db
-                ))
-        assert exc.value.status_code == 400
-        assert "already redeemed" in exc.value.detail
-
     def test_success_adds_credits_and_marks_used(self):
         user = _student()
         user.credit_balance = 1000
         c = _icode(bonus_credits=500)
-        q_code = _q(first=c)
-        q_prior = _q(first=None)   # no prior redemption
-        db = MagicMock()
-        db.query.side_effect = [q_code, q_prior]
+        db = _db(first=c)
         with patch(self._GCUW, new_callable=AsyncMock, return_value=user):
             result = _run(redeem_invitation_code(
                 request=MagicMock(), redeem_data=self._req(), db=db

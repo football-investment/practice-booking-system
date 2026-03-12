@@ -1952,6 +1952,499 @@
         "title": "BatchEnrollResponse",
         "type": "object"
       },
+      "Body_admin_booking_attendance_admin_bookings__booking_id__attendance_post": {
+        "properties": {
+          "attendance_status": {
+            "title": "Attendance Status",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attendance_status"
+        ],
+        "title": "Body_admin_booking_attendance_admin_bookings__booking_id__attendance_post",
+        "type": "object"
+      },
+      "Body_admin_booking_cancel_admin_bookings__booking_id__cancel_post": {
+        "properties": {
+          "reason": {
+            "default": "Cancelled by admin",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "Body_admin_booking_cancel_admin_bookings__booking_id__cancel_post",
+        "type": "object"
+      },
+      "Body_admin_create_campus_admin_locations__location_id__campuses_post": {
+        "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "venue": {
+            "default": "",
+            "title": "Venue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_admin_create_campus_admin_locations__location_id__campuses_post",
+        "type": "object"
+      },
+      "Body_admin_create_coupon_admin_coupons_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "coupon_type": {
+            "title": "Coupon Type",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "expires_days": {
+            "default": "",
+            "title": "Expires Days",
+            "type": "string"
+          },
+          "max_uses": {
+            "default": "",
+            "title": "Max Uses",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "code",
+          "coupon_type",
+          "value",
+          "description"
+        ],
+        "title": "Body_admin_create_coupon_admin_coupons_post",
+        "type": "object"
+      },
+      "Body_admin_create_game_preset_admin_game_presets_post": {
+        "properties": {
+          "category": {
+            "default": "",
+            "title": "Category",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "difficulty": {
+            "default": "",
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "min_players": {
+            "default": 4,
+            "title": "Min Players",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skill_impact": {
+            "default": "",
+            "title": "Skill Impact",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "Body_admin_create_game_preset_admin_game_presets_post",
+        "type": "object"
+      },
+      "Body_admin_create_location_admin_locations_post": {
+        "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "country_code": {
+            "default": "",
+            "title": "Country Code",
+            "type": "string"
+          },
+          "location_code": {
+            "default": "",
+            "title": "Location Code",
+            "type": "string"
+          },
+          "location_type": {
+            "default": "PARTNER",
+            "title": "Location Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "postal_code": {
+            "default": "",
+            "title": "Postal Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "city",
+          "country"
+        ],
+        "title": "Body_admin_create_location_admin_locations_post",
+        "type": "object"
+      },
+      "Body_admin_create_tournament_admin_tournaments_post": {
+        "properties": {
+          "age_group": {
+            "default": "AMATEUR",
+            "title": "Age Group",
+            "type": "string"
+          },
+          "assignment_type": {
+            "default": "OPEN_ASSIGNMENT",
+            "title": "Assignment Type",
+            "type": "string"
+          },
+          "campus_id": {
+            "default": "",
+            "title": "Campus Id",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": 0,
+            "title": "Enrollment Cost",
+            "type": "integer"
+          },
+          "location_id": {
+            "default": "",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_create_tournament_admin_tournaments_post",
+        "type": "object"
+      },
+      "Body_admin_edit_game_preset_submit_admin_game_presets__preset_id__edit_post": {
+        "properties": {
+          "category": {
+            "default": "",
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "difficulty": {
+            "default": "",
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "min_players": {
+            "default": 4,
+            "title": "Min Players",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skill_impact": {
+            "default": "",
+            "title": "Skill Impact",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_admin_edit_game_preset_submit_admin_game_presets__preset_id__edit_post",
+        "type": "object"
+      },
+      "Body_admin_edit_user_submit_admin_users__user_id__edit_post": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "role"
+        ],
+        "title": "Body_admin_edit_user_submit_admin_users__user_id__edit_post",
+        "type": "object"
+      },
+      "Body_admin_invoice_cancel_admin_invoices__invoice_id__cancel_post": {
+        "properties": {
+          "reason": {
+            "default": "No reason provided",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "Body_admin_invoice_cancel_admin_invoices__invoice_id__cancel_post",
+        "type": "object"
+      },
+      "Body_admin_new_semester_submit_admin_semesters_new_post": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": 500,
+            "title": "Enrollment Cost",
+            "type": "integer"
+          },
+          "master_instructor_id": {
+            "default": "",
+            "title": "Master Instructor Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "specialization_type": {
+            "default": "",
+            "title": "Specialization Type",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_new_semester_submit_admin_semesters_new_post",
+        "type": "object"
+      },
+      "Body_admin_purge_system_events_admin_system_events_purge_post": {
+        "properties": {
+          "retention_days": {
+            "default": 90,
+            "title": "Retention Days",
+            "type": "integer"
+          }
+        },
+        "title": "Body_admin_purge_system_events_admin_system_events_purge_post",
+        "type": "object"
+      },
+      "Body_admin_resolve_system_event_admin_system_events__event_id__resolve_post": {
+        "properties": {
+          "level": {
+            "default": "",
+            "title": "Level",
+            "type": "string"
+          },
+          "page": {
+            "default": 0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "resolved": {
+            "default": "",
+            "title": "Resolved",
+            "type": "string"
+          }
+        },
+        "title": "Body_admin_resolve_system_event_admin_system_events__event_id__resolve_post",
+        "type": "object"
+      },
+      "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post": {
+        "properties": {
+          "level": {
+            "default": "",
+            "title": "Level",
+            "type": "string"
+          },
+          "page": {
+            "default": 0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "resolved": {
+            "default": "",
+            "title": "Resolved",
+            "type": "string"
+          }
+        },
+        "title": "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post",
+        "type": "object"
+      },
+      "Body_admin_update_campus_admin_campuses__campus_id__edit_post": {
+        "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "venue": {
+            "default": "",
+            "title": "Venue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_admin_update_campus_admin_campuses__campus_id__edit_post",
+        "type": "object"
+      },
+      "Body_admin_update_location_admin_locations__location_id__edit_post": {
+        "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "country_code": {
+            "default": "",
+            "title": "Country Code",
+            "type": "string"
+          },
+          "location_code": {
+            "default": "",
+            "title": "Location Code",
+            "type": "string"
+          },
+          "location_type": {
+            "default": "PARTNER",
+            "title": "Location Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "postal_code": {
+            "default": "",
+            "title": "Postal Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "city",
+          "country"
+        ],
+        "title": "Body_admin_update_location_admin_locations__location_id__edit_post",
+        "type": "object"
+      },
       "Body_age_verification_submit_age_verification_post": {
         "properties": {
           "date_of_birth": {
@@ -2333,6 +2826,84 @@
           "date_of_birth"
         ],
         "title": "Body_profile_edit_submit_profile_edit_post",
+        "type": "object"
+      },
+      "Body_register_submit_register_post": {
+        "properties": {
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "date_of_birth": {
+            "title": "Date Of Birth",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "gender": {
+            "title": "Gender",
+            "type": "string"
+          },
+          "invitation_code": {
+            "title": "Invitation Code",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "nationality": {
+            "title": "Nationality",
+            "type": "string"
+          },
+          "nickname": {
+            "title": "Nickname",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "street_address": {
+            "title": "Street Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "nickname",
+          "email",
+          "password",
+          "phone",
+          "date_of_birth",
+          "nationality",
+          "gender",
+          "street_address",
+          "city",
+          "postal_code",
+          "country",
+          "invitation_code"
+        ],
+        "title": "Body_register_submit_register_post",
         "type": "object"
       },
       "Body_specialization_select_submit_specialization_select_post": {
@@ -20886,6 +21457,18 @@
       "get": {
         "description": "Admin-only: Analytics and reports page",
         "operationId": "admin_analytics_page_admin_analytics_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "location_id",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -20896,9 +21479,395 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Admin Analytics Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/bookings": {
+      "get": {
+        "description": "Admin: list all bookings with filters and action buttons.",
+        "operationId": "admin_bookings_page_admin_bookings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Session Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Bookings Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/bookings/{booking_id}/attendance": {
+      "post": {
+        "description": "Mark/update attendance for a booking (admin, cookie auth).",
+        "operationId": "admin_booking_attendance_admin_bookings__booking_id__attendance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_booking_attendance_admin_bookings__booking_id__attendance_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Booking Attendance",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/bookings/{booking_id}/cancel": {
+      "post": {
+        "description": "Cancel a booking (admin, cookie auth).",
+        "operationId": "admin_booking_cancel_admin_bookings__booking_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_booking_cancel_admin_bookings__booking_id__cancel_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Booking Cancel",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/bookings/{booking_id}/confirm": {
+      "post": {
+        "description": "Confirm a booking (admin, cookie auth).",
+        "operationId": "admin_booking_confirm_admin_bookings__booking_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "booking_id",
+            "required": true,
+            "schema": {
+              "title": "Booking Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Booking Confirm",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/campuses/{campus_id}/delete": {
+      "post": {
+        "operationId": "admin_delete_campus_admin_campuses__campus_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Campus",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/campuses/{campus_id}/edit": {
+      "get": {
+        "operationId": "admin_edit_campus_page_admin_campuses__campus_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit Campus Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "admin_update_campus_admin_campuses__campus_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_update_campus_admin_campuses__campus_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Update Campus",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/campuses/{campus_id}/toggle": {
+      "post": {
+        "operationId": "admin_toggle_campus_admin_campuses__campus_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Campus",
         "tags": [
           "web"
         ]
@@ -20921,6 +21890,123 @@
           }
         },
         "summary": "Admin Coupons Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "admin_create_coupon_admin_coupons_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_coupon_admin_coupons_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Coupon",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/coupons/{coupon_id}/delete": {
+      "post": {
+        "operationId": "admin_delete_coupon_admin_coupons__coupon_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "coupon_id",
+            "required": true,
+            "schema": {
+              "title": "Coupon Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Coupon",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/coupons/{coupon_id}/toggle": {
+      "post": {
+        "operationId": "admin_toggle_coupon_admin_coupons__coupon_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "coupon_id",
+            "required": true,
+            "schema": {
+              "title": "Coupon Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Coupon",
         "tags": [
           "web"
         ]
@@ -20948,6 +22034,235 @@
         ]
       }
     },
+    "/admin/game-presets": {
+      "get": {
+        "description": "Admin-only: Game Presets management",
+        "operationId": "admin_game_presets_page_admin_game_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Game Presets Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "admin_create_game_preset_admin_game_presets_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_game_preset_admin_game_presets_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Game Preset",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/game-presets/{preset_id}/delete": {
+      "post": {
+        "operationId": "admin_delete_game_preset_admin_game_presets__preset_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Game Preset",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/game-presets/{preset_id}/edit": {
+      "get": {
+        "operationId": "admin_edit_game_preset_page_admin_game_presets__preset_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit Game Preset Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "admin_edit_game_preset_submit_admin_game_presets__preset_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_edit_game_preset_submit_admin_game_presets__preset_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit Game Preset Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/game-presets/{preset_id}/toggle": {
+      "post": {
+        "operationId": "admin_toggle_game_preset_admin_game_presets__preset_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preset_id",
+            "required": true,
+            "schema": {
+              "title": "Preset Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Game Preset",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/invitation-codes": {
       "get": {
         "description": "Admin-only: Partner Invitation Codes Management page",
@@ -20965,6 +22280,459 @@
           }
         },
         "summary": "Admin Invitation Codes Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/invoices/{invoice_id}/cancel": {
+      "post": {
+        "description": "Cancel an invoice request (cookie auth).",
+        "operationId": "admin_invoice_cancel_admin_invoices__invoice_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "title": "Invoice Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_invoice_cancel_admin_invoices__invoice_id__cancel_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Invoice Cancel",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/invoices/{invoice_id}/unverify": {
+      "post": {
+        "description": "Unverify invoice (reverts credits) \u2014 cookie auth.",
+        "operationId": "admin_invoice_unverify_admin_invoices__invoice_id__unverify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "title": "Invoice Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Invoice Unverify",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/invoices/{invoice_id}/verify": {
+      "post": {
+        "description": "Verify invoice payment and credit the student account (cookie auth).",
+        "operationId": "admin_invoice_verify_admin_invoices__invoice_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "title": "Invoice Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Invoice Verify",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/locations": {
+      "get": {
+        "description": "Admin-only: Locations & Campuses management with filters",
+        "operationId": "admin_locations_page_admin_locations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "city_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "City Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "title": "Status Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name_search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Name Search",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Locations Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "admin_create_location_admin_locations_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_location_admin_locations_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Location",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/locations/{location_id}/campuses": {
+      "post": {
+        "operationId": "admin_create_campus_admin_locations__location_id__campuses_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_campus_admin_locations__location_id__campuses_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Campus",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/locations/{location_id}/delete": {
+      "post": {
+        "operationId": "admin_delete_location_admin_locations__location_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Location",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/locations/{location_id}/edit": {
+      "get": {
+        "operationId": "admin_edit_location_page_admin_locations__location_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit Location Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "admin_update_location_admin_locations__location_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_update_location_admin_locations__location_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Update Location",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/locations/{location_id}/toggle": {
+      "post": {
+        "operationId": "admin_toggle_location_admin_locations__location_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Location",
         "tags": [
           "web"
         ]
@@ -21009,6 +22777,201 @@
           }
         },
         "summary": "Admin Semesters Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/semesters/new": {
+      "get": {
+        "description": "Admin-only: Create semester form",
+        "operationId": "admin_new_semester_page_admin_semesters_new_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin New Semester Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Create new semester",
+        "operationId": "admin_new_semester_submit_admin_semesters_new_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_new_semester_submit_admin_semesters_new_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin New Semester Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/semesters/{semester_id}/delete": {
+      "post": {
+        "description": "Admin-only: Soft-delete a semester (set is_active=False)",
+        "operationId": "admin_delete_semester_admin_semesters__semester_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "semester_id",
+            "required": true,
+            "schema": {
+              "title": "Semester Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Semester",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sessions": {
+      "get": {
+        "description": "Admin-only: Session management \u2014 hierarchical view (Location \u2192 Spec \u2192 Semester \u2192 Session)",
+        "operationId": "admin_sessions_page_admin_sessions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "session_type",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Session Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Date From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Date To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cleared",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Cleared",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Sessions Page",
         "tags": [
           "web"
         ]
@@ -21124,10 +23087,210 @@
         ]
       }
     },
-    "/admin/users": {
+    "/admin/system-events": {
       "get": {
-        "description": "Admin-only: User management page",
-        "operationId": "admin_users_page_admin_users_get",
+        "description": "Admin-only: System Events log with filters",
+        "operationId": "admin_system_events_page_admin_system_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resolved",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "title": "Resolved",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin System Events Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/system-events/purge": {
+      "post": {
+        "operationId": "admin_purge_system_events_admin_system_events_purge_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_purge_system_events_admin_system_events_purge_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Purge System Events",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/system-events/{event_id}/resolve": {
+      "post": {
+        "operationId": "admin_resolve_system_event_admin_system_events__event_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_resolve_system_event_admin_system_events__event_id__resolve_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Resolve System Event",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/system-events/{event_id}/unresolve": {
+      "post": {
+        "operationId": "admin_unresolve_system_event_admin_system_events__event_id__unresolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Unresolve System Event",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments": {
+      "get": {
+        "description": "Admin: list all tournaments (all statuses) + create form.",
+        "operationId": "admin_tournaments_list_admin_tournaments_get",
         "responses": {
           "200": {
             "content": {
@@ -21140,7 +23303,391 @@
             "description": "Successful Response"
           }
         },
+        "summary": "Admin Tournaments List",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin: create a new tournament.",
+        "operationId": "admin_create_tournament_admin_tournaments_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_tournament_admin_tournaments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/cancel": {
+      "post": {
+        "description": "Admin: cancel tournament.",
+        "operationId": "admin_cancel_tournament_admin_tournaments__tournament_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Cancel Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/delete": {
+      "post": {
+        "description": "Admin: permanently delete tournament.",
+        "operationId": "admin_delete_tournament_admin_tournaments__tournament_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/rollback": {
+      "post": {
+        "description": "Admin: rollback stuck IN_PROGRESS \u2192 ENROLLMENT_CLOSED for re-generation.",
+        "operationId": "admin_rollback_tournament_admin_tournaments__tournament_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Rollback Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/start": {
+      "post": {
+        "description": "Admin: advance ENROLLMENT_CLOSED \u2192 IN_PROGRESS.",
+        "operationId": "admin_start_tournament_admin_tournaments__tournament_id__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Start Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "description": "Admin-only: User management page with filters and pagination",
+        "operationId": "admin_users_page_admin_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "role_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Role Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Search",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
         "summary": "Admin Users Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/edit": {
+      "get": {
+        "description": "Admin-only: Edit user form",
+        "operationId": "admin_edit_user_page_admin_users__user_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit User Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Save user edits",
+        "operationId": "admin_edit_user_submit_admin_users__user_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_edit_user_submit_admin_users__user_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit User Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/toggle-status": {
+      "post": {
+        "description": "Admin-only: Toggle a user's is_active status",
+        "operationId": "admin_toggle_user_status_admin_users__user_id__toggle_status_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle User Status",
         "tags": [
           "web"
         ]
@@ -47400,6 +49947,28 @@
         ]
       }
     },
+    "/instructor/tournaments": {
+      "get": {
+        "description": "Instructor/Admin view: list assigned tournaments with participant details.",
+        "operationId": "instructor_tournaments_instructor_tournaments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Instructor Tournaments",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/login": {
       "get": {
         "description": "Display login page",
@@ -47749,6 +50318,66 @@
           }
         },
         "summary": "Take Quiz",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/register": {
+      "get": {
+        "description": "Display registration page (unauthenticated users only)",
+        "operationId": "register_page_register_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Register Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Process registration form",
+        "operationId": "register_submit_register_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_register_submit_register_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Submit",
         "tags": [
           "web"
         ]
@@ -48290,7 +50919,7 @@
     },
     "/specialization/lfa-player/onboarding": {
       "get": {
-        "description": "LFA Player specialized onboarding questionnaire\nMulti-step: Position \u2192 Self-Assessment \u2192 Motivation",
+        "description": "LFA Player specialized onboarding questionnaire\nMulti-step: Position -> Self-Assessment -> Motivation",
         "operationId": "lfa_player_onboarding_page_specialization_lfa_player_onboarding_get",
         "responses": {
           "200": {
@@ -48350,6 +50979,26 @@
           }
         ],
         "summary": "Lfa Player Onboarding Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/specialization/lfa-player/onboarding-web": {
+      "post": {
+        "description": "Web-compatible LFA Player onboarding submit.\nCalled via AJAX fetch from lfa_player_onboarding.html (cookie session auth).\n\nAccepts the same JSON body as /specialization/lfa-player/onboarding-submit\n(Bearer JWT endpoint for Streamlit) but uses get_current_user_web so that\nbrowser-session users can submit the 6-step onboarding form.\n\nRequest body (JSON):\n    position   : str  \u2014 STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER\n    goals      : str  \u2014 dropdown value\n    motivation : str  \u2014 free text\n    skills     : dict \u2014 all 29 skill keys (0-100 scale, step=5)\n\nReturns JSON {\"success\": true} on success; {\"error\": \"...\"} on failure.",
+        "operationId": "lfa_player_onboarding_web_submit_specialization_lfa_player_onboarding_web_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lfa Player Onboarding Web Submit",
         "tags": [
           "web"
         ]
@@ -48558,6 +51207,114 @@
           }
         ],
         "summary": "Specialization Unlock",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments": {
+      "get": {
+        "description": "Browse ENROLLMENT_OPEN / IN_PROGRESS tournaments available to the student.",
+        "operationId": "tournaments_list_tournaments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Tournaments List",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments/{tournament_id}/enroll": {
+      "post": {
+        "description": "Enroll current student in the given tournament (auto-approved, deducts credits).",
+        "operationId": "tournament_enroll_tournaments__tournament_id__enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tournament Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments/{tournament_id}/unenroll": {
+      "post": {
+        "description": "Withdraw student from tournament (50 % refund).",
+        "operationId": "tournament_unenroll_tournaments__tournament_id__unenroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tournament Unenroll",
         "tags": [
           "web"
         ]

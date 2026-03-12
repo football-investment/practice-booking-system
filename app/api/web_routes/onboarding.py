@@ -2,17 +2,22 @@
 Onboarding routes for student specialization selection and questionnaires
 """
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone, date
 import traceback
+import uuid
 
 from ...database import get_db
 from ...dependencies import get_current_user_web, get_current_user
 from ...models.user import User
-from ...models.license import UserLicense  # ✅ CRITICAL FIX: Missing import causing NameError
+from ...models.license import UserLicense
+from ...models.specialization import SpecializationType
+from ...models.credit_transaction import CreditTransaction, TransactionType
+from ...utils.age_requirements import get_available_specializations
+from ...skills_config import SKILL_CATEGORIES, get_all_skill_keys
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -105,11 +110,12 @@ async def specialization_select_submit(
 
             # Log credit transaction
             credit_transaction = CreditTransaction(
-                user_license_id=user_license.id,  # Fixed: use user_license_id, not user_id
+                user_license_id=user_license.id,
                 amount=-SPEC_UNLOCK_COST,
-                transaction_type=TransactionType.PURCHASE.value,  # Fixed: use .value for enum
+                transaction_type=TransactionType.PURCHASE.value,
                 description=f"Unlocked specialization: {spec_type.value.replace('_', ' ')}",
                 balance_after=user.credit_balance,
+                idempotency_key=str(uuid.uuid4()),
                 created_at=datetime.now()
             )
             db.add(credit_transaction)
@@ -176,9 +182,120 @@ async def lfa_player_onboarding_page(
         {
             "request": request,
             "user": user,
-            "license": license
+            "license": license,
+            "skill_categories": SKILL_CATEGORIES,   # 29 skills across 4 categories
         }
     )
+
+
+@router.post("/specialization/lfa-player/onboarding-web")
+async def lfa_player_onboarding_web_submit(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)   # cookie auth — HTML frontend
+):
+    """
+    Web-compatible LFA Player onboarding submit.
+    Called via AJAX fetch from lfa_player_onboarding.html (cookie session auth).
+
+    Accepts the same JSON body as /specialization/lfa-player/onboarding-submit
+    (Bearer JWT endpoint for Streamlit) but uses get_current_user_web so that
+    browser-session users can submit the 6-step onboarding form.
+
+    Request body (JSON):
+        position   : str  — STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER
+        goals      : str  — dropdown value
+        motivation : str  — free text
+        skills     : dict — all 29 skill keys (0-100 scale, step=5)
+
+    Returns JSON {"success": true} on success; {"error": "..."} on failure.
+    """
+    try:
+        body = await request.json()
+
+        position   = body.get("position", "")
+        goals      = body.get("goals", "")
+        motivation = body.get("motivation", "")
+        skills     = body.get("skills", {})
+
+        print(f"📥 [web] Onboarding submit for {user.email}: {len(skills)} skills received")
+
+        # Validate position
+        valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
+        if position not in valid_positions:
+            return JSONResponse(status_code=400, content={"error": f"Invalid position: {position}"})
+
+        # Validate all 29 skills present
+        expected_skills = set(get_all_skill_keys())
+        received_skills = set(skills.keys())
+        missing = expected_skills - received_skills
+        if missing:
+            return JSONResponse(status_code=400, content={"error": f"Missing skills: {sorted(missing)}"})
+
+        # Validate skill values 0-100
+        for key, val in skills.items():
+            if not (0 <= float(val) <= 100):
+                return JSONResponse(status_code=400, content={"error": f"Skill value out of range: {key}={val}"})
+
+        # Get LFA Player license
+        license = db.query(UserLicense).filter(
+            UserLicense.user_id == user.id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER"
+        ).first()
+
+        if not license:
+            return JSONResponse(status_code=400, content={"error": "LFA Player license not found. Unlock the specialization first."})
+
+        # Write skills to football_skills JSONB column (engine-compatible format)
+        football_skills = {}
+        for skill_key, baseline_value in skills.items():
+            football_skills[skill_key] = {
+                "current_level": float(baseline_value),
+                "baseline":      float(baseline_value),
+                "total_delta":        0.0,
+                "tournament_delta":   0.0,
+                "assessment_delta":   0.0,
+                "last_updated":       datetime.now(timezone.utc).isoformat(),
+                "assessment_count":   0,
+                "tournament_count":   0,
+            }
+
+        average_skill = sum(float(v) for v in skills.values()) / len(skills)
+
+        license.football_skills      = football_skills
+        license.motivation_scores    = {
+            "position":              position,
+            "goals":                 goals,
+            "motivation":            motivation,
+            "average_skill_level":   round(average_skill, 1),
+            "onboarding_completed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        license.average_motivation_score  = average_skill
+        license.motivation_last_assessed_at = datetime.now(timezone.utc)
+        license.motivation_assessed_by    = user.id
+
+        # Mark onboarding complete on both user and license
+        user.onboarding_completed       = True
+        license.onboarding_completed    = True
+        license.onboarding_completed_at = datetime.now(timezone.utc)
+
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(license, "football_skills")
+        flag_modified(license, "motivation_scores")
+
+        db.commit()
+        db.refresh(user)
+        db.refresh(license)
+
+        print(f"✅ [web] LFA onboarding complete for {user.email}: pos={position}, {len(skills)} skills, avg={average_skill:.1f}")
+
+        return {"success": True, "redirect": "/dashboard"}
+
+    except Exception as e:
+        db.rollback()
+        print(f"❌ [web] LFA onboarding error for {user.email}: {e}")
+        print(traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.get("/specialization/lfa-player/onboarding-cancel")
@@ -209,6 +326,7 @@ async def lfa_player_onboarding_cancel(
             transaction_type=TransactionType.REFUND.value,
             description=f"Refund for cancelled LFA Football Player onboarding",
             balance_after=user.credit_balance,
+            idempotency_key=str(uuid.uuid4()),
             created_at=datetime.now()
         )
         db.add(refund_transaction)

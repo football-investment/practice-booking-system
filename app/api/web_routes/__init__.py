@@ -16,7 +16,8 @@ from . import (
     quiz,
     instructor,
     instructor_dashboard,
-    admin
+    admin,
+    tournaments,
 )
 
 # Create main router with tags
@@ -35,3 +36,4 @@ router.include_router(quiz.router)
 router.include_router(instructor.router)
 router.include_router(instructor_dashboard.router)
 router.include_router(admin.router)
+router.include_router(tournaments.router)

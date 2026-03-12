@@ -8,8 +8,8 @@ module.exports = defineConfig({
 
   e2e: {
     // ── Target application ──────────────────────────────────────────────────
-    // Streamlit default port. Override with CYPRESS_BASE_URL env var.
-    baseUrl: process.env.CYPRESS_BASE_URL || 'http://localhost:8501',
+    // FastAPI Jinja2 HTML frontend. Override with CYPRESS_BASE_URL env var.
+    baseUrl: process.env.CYPRESS_BASE_URL || 'http://localhost:8000',
 
     // ── Test discovery ──────────────────────────────────────────────────────
     specPattern: 'cypress/e2e/**/*.cy.{js,jsx}',
@@ -71,18 +71,93 @@ module.exports = defineConfig({
       // grepOmitFiltered: tests that don't match the tag are omitted, not shown as pending
       grepFilterSpecs:  true,
       grepOmitFiltered: true,
+
+      // ── Web E2E (FastAPI Jinja2) credentials ──────────────────────────────
+      // Used by cypress/e2e/web/** specs (baseUrl=http://localhost:8000)
+      // Accessible via Cypress.env('webAdminEmail') etc.
+      webAdminEmail:       process.env.CYPRESS_webAdminEmail       || 'admin@lfa.com',
+      webAdminPassword:    process.env.CYPRESS_webAdminPassword    || 'admin123',
+      webInstructorEmail:  process.env.CYPRESS_webInstructorEmail  || 'grandmaster@lfa.com',
+      webInstructorPassword: process.env.CYPRESS_webInstructorPassword || 'TestInstructor2026',
+      webStudentEmail:     process.env.CYPRESS_webStudentEmail     || 'rdias@manchestercity.com',
+      webStudentPassword:  process.env.CYPRESS_webStudentPassword  || 'TestPlayer2026',
+      webFreshEmail:       process.env.CYPRESS_webFreshEmail       || 'fresh.e2e@lfa.com',
+      webFreshPassword:    process.env.CYPRESS_webFreshPassword    || 'FreshE2E2026',
     },
 
     // ── Plugin setup ─────────────────────────────────────────────────────────
     setupNodeEvents(on, config) {
       // @cypress/grep — tag-based test filtering
-      // Usage: cy:run:smoke → runs tests tagged @smoke
       try {
         require('@cypress/grep/src/plugin')(config);
-      } catch {
-        // Gracefully skip if @cypress/grep not installed yet
-      }
+      } catch {}
+
+      // cy.task("resetDb", scenario) — calls Python DB reset script
+      // Used by web/e2e specs before each suite (baseUrl=http://localhost:8000)
+      on('task', {
+        resetDb(scenario = 'baseline') {
+          const { execSync } = require('child_process');
+          const cwd = require('path').resolve(__dirname, '..');
+          execSync(
+            `python scripts/reset_e2e_web_db.py --scenario ${scenario}`,
+            { cwd, stdio: 'inherit' }
+          );
+          return null;
+        },
+
+        // Returns the DB id of the "E2E UI Quiz" seeded by reset_e2e_web_db.py
+        getE2eQuizId() {
+          const { execSync } = require('child_process');
+          const cwd = require('path').resolve(__dirname, '..');
+          const script = [
+            'import sys; sys.path.insert(0, ".")',
+            'from app.database import SessionLocal',
+            'from app.models.quiz import Quiz',
+            'db = SessionLocal()',
+            'q = db.query(Quiz).filter(Quiz.title == "E2E UI Quiz").first()',
+            'db.close()',
+            'print(q.id if q else "null")',
+          ].join('; ');
+          const out = execSync(`python -c '${script}'`, { cwd, encoding: 'utf8' }).trim();
+          return out === 'null' ? null : parseInt(out, 10);
+        },
+
+        // Returns {score, correct_answers, passed} for a QuizAttempt row by id.
+        // Used by QUIZ-13 to verify the DB record matches the displayed result.
+        getQuizAttemptData(attemptId) {
+          const { execSync } = require('child_process');
+          const cwd = require('path').resolve(__dirname, '..');
+          const script = [
+            'import sys, json; sys.path.insert(0, ".")',
+            'from app.database import SessionLocal',
+            'from app.models.quiz import QuizAttempt',
+            'db = SessionLocal()',
+            `a = db.query(QuizAttempt).filter(QuizAttempt.id == ${parseInt(attemptId, 10)}).first()`,
+            'db.close()',
+            'print(json.dumps({"score": a.score, "correct_answers": a.correct_answers, "passed": a.passed}) if a else "null")',
+          ].join('; ');
+          const out = execSync(`python -c '${script}'`, { cwd, encoding: 'utf8' }).trim();
+          return out === 'null' ? null : JSON.parse(out);
+        },
+      });
+
+      // cypress-mochawesome-reporter
+      try {
+        require('cypress-mochawesome-reporter/plugin')(on);
+      } catch {}
+
       return config;
     },
+  },
+
+  // ── Mochawesome HTML report (web E2E coverage visualization) ────────────────
+  reporter: 'cypress-mochawesome-reporter',
+  reporterOptions: {
+    reportDir:          'cypress/reports/html',
+    charts:             true,
+    reportPageTitle:    'Web E2E Coverage — FastAPI Jinja2',
+    embeddedScreenshots: true,
+    inlineAssets:       true,
+    saveAllAttempts:    false,
   },
 });

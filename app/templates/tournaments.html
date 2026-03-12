@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Tournaments - LFA Education Center{% endblock %}
+
+{% block content %}
+<style>
+.tournament-card {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    background: white;
+    border-left: 5px solid #27ae60;
+    transition: box-shadow 0.2s ease;
+}
+.tournament-card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+.tournament-card.enrolled {
+    border-left-color: #3498db;
+}
+.tournament-card.full {
+    border-left-color: #95a5a6;
+    opacity: 0.85;
+}
+.tournament-header {
+    padding: 1.2rem 1.5rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.tournament-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+}
+.status-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.status-enrollment-open { background: #d5f5e3; color: #1a7a4a; }
+.status-in-progress    { background: #fdebd0; color: #a04000; }
+.tournament-body {
+    padding: 0 1.5rem 1.2rem;
+}
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+.meta-item {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+}
+.meta-item strong { display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.2rem; }
+.capacity-bar-wrap {
+    background: #ecf0f1;
+    border-radius: 4px;
+    height: 8px;
+    margin-top: 0.3rem;
+    overflow: hidden;
+}
+.capacity-bar-fill {
+    background: #27ae60;
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+.capacity-bar-fill.nearly-full { background: #f39c12; }
+.capacity-bar-fill.full        { background: #e74c3c; }
+.enrolled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #d6eaf8;
+    color: #1a5276;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+.action-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+</style>
+
+<div class="welcome-section">
+    <h1>⚽ Tournaments</h1>
+    <p>Browse open tournaments and manage your participation</p>
+</div>
+
+{% if flash %}
+<div class="alert alert-{{ flash_type if flash_type else 'info' }}" style="padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;
+    {% if flash_type == 'success' %}background:#d5f5e3; color:#1a7a4a; border-left:4px solid #27ae60;
+    {% elif flash_type == 'error' %}background:#fadbd8; color:#7b241c; border-left:4px solid #e74c3c;
+    {% else %}background:#d6eaf8; color:#1a5276; border-left:4px solid #3498db;{% endif %}">
+    {{ flash | replace('+', ' ') | replace('%2C', ',') }}
+</div>
+{% endif %}
+
+{% if not tournaments %}
+<div class="card text-center" style="padding: 3rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
+    <h3>No Open Tournaments</h3>
+    <p style="color: #7f8c8d;">There are no tournaments open for enrollment right now. Check back later!</p>
+</div>
+{% else %}
+
+{% for item in tournaments %}
+{% set t = item.tournament %}
+{% set pct = (item.enrollment_count / item.max_players * 100) | int if item.max_players < 999 else 0 %}
+{% set is_full = item.enrollment_count >= item.max_players and item.max_players < 999 %}
+
+<div class="tournament-card {% if item.is_enrolled %}enrolled{% elif is_full %}full{% endif %}"
+     data-testid="tournament-card" data-tournament-id="{{ t.id }}">
+
+    <div class="tournament-header">
+        <div>
+            <p class="tournament-title">🏆 {{ t.name }}</p>
+            <p style="color: #7f8c8d; font-size: 0.85rem; margin: 0.25rem 0 0;">{{ t.code }}</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            {% if t.tournament_status == 'ENROLLMENT_OPEN' %}
+            <span class="status-badge status-enrollment-open">🟢 Enrollment Open</span>
+            {% elif t.tournament_status == 'IN_PROGRESS' %}
+            <span class="status-badge status-in-progress">⏳ In Progress</span>
+            {% endif %}
+            {% if t.age_group %}
+            <span class="status-badge" style="background:#eaf2ff; color:#1a5276;">{{ t.age_group }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tournament-body">
+
+        {% if item.is_enrolled %}
+        <div class="enrolled-badge" data-testid="enrolled-badge">
+            ✅ You are enrolled
+        </div>
+        {% endif %}
+
+        <div class="meta-grid">
+            <div class="meta-item">
+                <strong>📅 Start Date</strong>
+                {{ t.start_date.strftime('%b %d, %Y') if t.start_date else '—' }}
+            </div>
+            <div class="meta-item">
+                <strong>⏰ End Date</strong>
+                {{ t.end_date.strftime('%b %d, %Y') if t.end_date else '—' }}
+            </div>
+            <div class="meta-item">
+                <strong>💳 Entry Fee</strong>
+                {{ t.enrollment_cost if t.enrollment_cost is not none else 500 }} credits
+            </div>
+            <div class="meta-item">
+                <strong>👥 Players</strong>
+                {{ item.enrollment_count }} / {{ item.max_players if item.max_players < 999 else '∞' }}
+                {% if item.max_players < 999 %}
+                <div class="capacity-bar-wrap">
+                    <div class="capacity-bar-fill {% if pct >= 100 %}full{% elif pct >= 75 %}nearly-full{% endif %}"
+                         style="width: {{ [pct, 100] | min }}%"></div>
+                </div>
+                {% endif %}
+            </div>
+            {% if item.instructor %}
+            <div class="meta-item">
+                <strong>👨‍🏫 Instructor</strong>
+                {{ item.instructor.name }}
+            </div>
+            {% endif %}
+            {% if t.tournament_format %}
+            <div class="meta-item">
+                <strong>🎯 Format</strong>
+                {{ t.tournament_format.replace('_', ' ').title() }}
+            </div>
+            {% endif %}
+        </div>
+
+        {% if t.description %}
+        <p style="color: #555; margin-bottom: 1rem; font-size: 0.95rem;">{{ t.description }}</p>
+        {% endif %}
+
+        <div class="action-row">
+            {% if item.is_enrolled %}
+                <form method="POST" action="/tournaments/{{ t.id }}/unenroll" style="margin: 0;">
+                    <button type="submit" class="btn btn-secondary"
+                            style="background: #e74c3c; border-color: #c0392b; color: white;"
+                            data-testid="unenroll-btn"
+                            onclick="return confirm('Are you sure you want to withdraw? You will receive a 50% refund.')">
+                        ↩ Withdraw (50% refund)
+                    </button>
+                </form>
+            {% elif is_full %}
+                <button class="btn btn-secondary" disabled>Tournament Full</button>
+            {% elif t.tournament_status == 'ENROLLMENT_OPEN' %}
+                <form method="POST" action="/tournaments/{{ t.id }}/enroll" style="margin: 0;">
+                    <button type="submit" class="btn btn-primary" data-testid="enroll-btn">
+                        ⚽ Enroll ({{ t.enrollment_cost if t.enrollment_cost is not none else 500 }} credits)
+                    </button>
+                </form>
+            {% else %}
+                <button class="btn btn-secondary" disabled>Enrollment Closed</button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+{% endblock %}

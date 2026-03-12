@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Game Preset - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; }
+        .header-content { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .user-info h1 { font-size: 1.75rem; margin-bottom: 0.3rem; }
+        .user-info p { opacity: 0.9; font-size: 0.9rem; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-white { background: white; color: #4a5568; }
+        .btn-success { background: #48bb78; color: white; }
+        .container { max-width: 900px; margin: 2rem auto; padding: 0 2rem; }
+        .card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .card h2 { margin-bottom: 1.5rem; color: #2d3748; }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+        .form-group input:disabled { background: #f0f0f0; color: #718096; }
+        .form-group.full { grid-column: 1 / -1; }
+        .skills-section { background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .skills-section h4 { font-size: 0.9rem; color: #2d3748; margin-bottom: 0.75rem; }
+        .skill-group-label { font-size: 0.8rem; color: #718096; font-weight: 600; margin-bottom: 0.4rem; margin-top: 0.75rem; }
+        .skill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+        .skill-item { display: flex; align-items: center; gap: 0.4rem; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.3rem 0.6rem; }
+        .skill-item input[type="checkbox"] { cursor: pointer; }
+        .skill-item label { font-size: 0.8rem; color: #4a5568; cursor: pointer; white-space: nowrap; }
+        .weights-section { background: #ebf8ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .weights-section h4 { font-size: 0.9rem; color: #2c5282; margin-bottom: 0.75rem; }
+        .weight-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .weight-item label { display: block; font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; }
+        .weight-item input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #bee3f8; border-radius: 6px; font-size: 0.9rem; }
+        .sum-indicator { margin-top: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+        .sum-ok { background: #c6f6d5; color: #276749; }
+        .sum-err { background: #fed7d7; color: #9b2335; }
+        .form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-content">
+        <div class="user-info">
+            <h1>✏️ Edit Game Preset</h1>
+            <p>{{ preset.name }}  ·  code: {{ preset.code }}</p>
+        </div>
+        <a href="/admin/game-presets" class="btn btn-white">← Back to Game Presets</a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h2>✏️ Edit: {{ preset.name }}</h2>
+        <form method="post" action="/admin/game-presets/{{ preset.id }}/edit">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" value="{{ preset.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Code (immutable)</label>
+                    <input type="text" value="{{ preset.code }}" disabled title="Code cannot be changed after creation.">
+                </div>
+                <div class="form-group full">
+                    <label>Description</label>
+                    <textarea name="description" rows="2">{{ preset.description or '' }}</textarea>
+                </div>
+                {% set meta = preset.game_config.get('metadata', {}) if preset.game_config else {} %}
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" name="category" value="{{ meta.get('game_category', '') or '' }}" placeholder="e.g. Football">
+                </div>
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <select name="difficulty">
+                        <option value="">— None —</option>
+                        {% for d in ['Beginner', 'Intermediate', 'Advanced', 'Expert'] %}
+                        <option value="{{ d }}" {% if meta.get('difficulty_level') == d %}selected{% endif %}>{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Min Players</label>
+                    <input type="number" name="min_players" value="{{ meta.get('min_players', 4) }}" min="2" max="1024">
+                </div>
+                {% set sc = preset.game_config.get('skill_config', {}) if preset.game_config else {} %}
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="skill_impact" value="1"
+                               {% if sc.get('skill_impact_on_matches', True) %}checked{% endif %}>
+                        Skill impact on matches
+                    </label>
+                </div>
+            </div>
+
+            <!-- Skills selection -->
+            <div class="skills-section">
+                <h4>Skills tested — check each skill to include:</h4>
+                {% for group in skill_groups %}
+                <div class="skill-group-label">{{ group.label }}</div>
+                <div class="skill-row">
+                    {% for skill in group.skills %}
+                    <div class="skill-item">
+                        <input type="checkbox" name="skill_cb_{{ skill.key }}" id="cb_{{ skill.key }}"
+                               value="{{ skill.key }}"
+                               {% if skill.key in current_skills %}checked{% endif %}
+                               onchange="updateWeights()">
+                        <label for="cb_{{ skill.key }}">{{ skill.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Skill weights -->
+            <div class="weights-section" id="weightsSection">
+                <h4>Skill weights (%) — assign a percentage to each skill; must sum to <strong>100%</strong></h4>
+                <div class="weight-row" id="weightInputs">
+                    {% for skill_key in current_skills %}
+                    {% set pct = weight_pcts.get(skill_key, 10) %}
+                    <div class="weight-item">
+                        <label>{{ skill_key.replace('_', ' ').title() }} %</label>
+                        <input type="number" name="skill_w_{{ skill_key }}" value="{{ pct }}" min="1" max="100" oninput="updateSum()">
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="sum-indicator" id="sumIndicator"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">💾 Save Changes</button>
+                <a href="/admin/game-presets" class="btn btn-white">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateWeights() {
+    const checked = Array.from(document.querySelectorAll('[name^="skill_cb_"]:checked'));
+    const container = document.getElementById('weightInputs');
+    const section = document.getElementById('weightsSection');
+    // Preserve existing values
+    const existing = {};
+    container.querySelectorAll('input[type="number"]').forEach(inp => {
+        existing[inp.name] = inp.value;
+    });
+    container.innerHTML = '';
+    checked.forEach(cb => {
+        const key = cb.name.replace('skill_cb_', '');
+        const label = cb.parentElement.querySelector('label').textContent;
+        const div = document.createElement('div');
+        div.className = 'weight-item';
+        const val = existing['skill_w_' + key] || 10;
+        div.innerHTML = `<label>${label} %</label><input type="number" name="skill_w_${key}" value="${val}" min="1" max="100" oninput="updateSum()">`;
+        container.appendChild(div);
+    });
+    section.style.display = checked.length === 0 ? 'none' : 'block';
+    updateSum();
+}
+
+function updateSum() {
+    const inputs = document.querySelectorAll('#weightInputs input[type="number"]');
+    let sum = 0;
+    inputs.forEach(inp => { sum += parseInt(inp.value) || 0; });
+    const indicator = document.getElementById('sumIndicator');
+    if (sum === 100) {
+        indicator.className = 'sum-indicator sum-ok';
+        indicator.textContent = '✅ Sum: ' + sum + '% — ready to save';
+    } else {
+        const diff = sum - 100;
+        indicator.className = 'sum-indicator sum-err';
+        indicator.textContent = '❌ Sum: ' + sum + '% (' + (diff > 0 ? '+' : '') + diff + '%) — must be exactly 100%';
+    }
+}
+
+// Initial sum calculation
+document.addEventListener('DOMContentLoaded', updateSum);
+</script>
+</body>
+</html>

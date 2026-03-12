@@ -201,15 +201,15 @@ def test_age_calculation():
     """Test age calculation utility method"""
     service = LFACoachService()
 
-    # Someone born in 2011 is ~14 years old in 2025
-    dob = date(2011, 6, 15)
-    age = service.calculate_age(dob)
-    assert age >= 13 and age <= 14  # Depends on current date
+    def _expected_age(dob: date) -> int:
+        today = date.today()
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
-    # Someone born in 2000 is ~25 years old
+    dob = date(2011, 6, 15)
+    assert service.calculate_age(dob) == _expected_age(dob)
+
     dob = date(2000, 3, 10)
-    age = service.calculate_age(dob)
-    assert age >= 24 and age <= 25
+    assert service.calculate_age(dob) == _expected_age(dob)
 
 
 def test_invalid_certification_level():

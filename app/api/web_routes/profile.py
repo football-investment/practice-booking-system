@@ -11,6 +11,11 @@ from datetime import datetime, timezone, date
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
+from ...models.license import UserLicense
+from ...models.semester_enrollment import SemesterEnrollment
+from ...models.semester import Semester
+from ...utils.age_requirements import validate_specialization_for_age
+import traceback
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

@@ -48,6 +48,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-integration-critical-key-not-for-production
         run: |
           alembic upgrade head
 
@@ -57,6 +58,7 @@ jobs:
       - name: Start FastAPI backend
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-integration-critical-key-not-for-production
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 5
@@ -73,6 +75,9 @@ jobs:
           curl --fail http://localhost:8501 || exit 1
 
       - name: Run Integration Critical Suite (Sequential)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-integration-critical-key-not-for-production
         run: |
           PYTHONPATH=. pytest tests/e2e/integration_critical/ \
             -v \
@@ -81,6 +86,9 @@ jobs:
             --durations=5
 
       - name: Run Integration Critical Suite (Parallel - HARD REQUIREMENT)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-integration-critical-key-not-for-production
         run: |
           PYTHONPATH=. pytest tests/e2e/integration_critical/ \
             -n auto \
