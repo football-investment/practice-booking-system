@@ -424,7 +424,6 @@ def _upsert_tournament_e2e(db, instructor: User) -> Semester:
         tourn.enrollment_cost = 100
         tourn.specialization_type = "LFA_FOOTBALL_PLAYER"
         tourn.age_group = "AMATEUR"
-        tourn.is_active = True
         db.commit()
     else:
         tourn = Semester(
@@ -433,7 +432,6 @@ def _upsert_tournament_e2e(db, instructor: User) -> Semester:
             start_date=today + timedelta(days=7),
             end_date=today + timedelta(days=14),
             tournament_status="ENROLLMENT_OPEN",
-            is_active=True,
             enrollment_cost=100,
             specialization_type="LFA_FOOTBALL_PLAYER",
             age_group="AMATEUR",
