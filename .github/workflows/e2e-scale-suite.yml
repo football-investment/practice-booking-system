@@ -19,6 +19,7 @@ jobs:
   scale-suite:
     name: Scale Suite (@scale_suite)
     runs-on: ubuntu-latest
+    if: false  # Streamlit decommissioned
     timeout-minutes: 60
 
     services:

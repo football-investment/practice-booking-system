@@ -15,22 +15,16 @@ LFA Education Center - Session menedzsment, foglalás, jelenlét és gamificatio
 **URL**: http://localhost:8000
 **API Docs**: http://localhost:8000/docs
 
-### Production Frontend Indítása (ÚJ ⭐)
+### Frontend (HTML/FastAPI)
+
+The frontend is served by FastAPI (Jinja2 templates) on the same port as the backend.
 
 ```bash
-./start_streamlit_production.sh
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-**URL**: http://localhost:8502
-**Dokumentáció**: [streamlit_app/README.md](streamlit_app/README.md)
-
-### Testing Dashboard Indítása
-
-```bash
-./start_unified_dashboard.sh
-```
-
-**URL**: http://localhost:8501
+**URL**: http://localhost:8000
+**Admin Panel**: http://localhost:8000/admin/users
 
 ---
 
@@ -65,12 +59,10 @@ LFA Education Center - Session menedzsment, foglalás, jelenlét és gamificatio
 - **P0 Tasks Complete**: [P0_TASKS_COMPLETE.md](P0_TASKS_COMPLETE.md) - 4 HIGH severity N+1 fix + 52 új teszt
 - **P1 MEDIUM N+1 Fixes**: [P1_MEDIUM_N+1_FIXES_COMPLETE.md](P1_MEDIUM_N+1_FIXES_COMPLETE.md) - 4 MEDIUM severity N+1 fix
 
-### Streamlit Production Frontend (2025-12-17) ⚡ ÚJ
+### HTML Frontend / FastAPI Migration (2026-03-12) ✅
 
-- **Quick Start**: [STREAMLIT_QUICK_START.md](STREAMLIT_QUICK_START.md) - Gyors indítás útmutató 🚀 ÚJ
-- **Phase 1 Complete**: [STREAMLIT_FRONTEND_PHASE_1_COMPLETE.md](STREAMLIT_FRONTEND_PHASE_1_COMPLETE.md) - Phase 1 összefoglaló (4/19 files) ⚡ ÚJ
-- **Frontend README**: [streamlit_app/README.md](streamlit_app/README.md) - Teljes frontend dokumentáció ⚡ ÚJ
-- **Branding Update**: [BRANDING_UPDATE_COMPLETE.md](BRANDING_UPDATE_COMPLETE.md) - LFA Education Center branding ✅ ÚJ
+- **Migration Summary**: [docs/migrations/streamlit_removal.md](docs/migrations/streamlit_removal.md) - Streamlit decommission details
+- **Archive**: `archive/streamlit_app/` — legacy Streamlit source (git history preserved)
 
 ### Technical Guides ⭐ ÚJ
 
@@ -166,9 +158,9 @@ Mind a 6 Session Rule **100% implementálva** és **működik**:
 - Alembic (migrations)
 - JWT Auth
 
-**Frontend/Dashboard**:
-- Streamlit
-- Python dashboards teszteléshez
+**Frontend**:
+- FastAPI + Jinja2 templates (HTML, served on :8000)
+- 198 Cypress E2E tests (`cypress/e2e/web/`)
 
 **Testing**:
 - Pytest
@@ -311,8 +303,7 @@ pytest -m tournament           # Tournament tests
 
 **Requirements**:
 - Backend running on http://localhost:8000
-- Streamlit running on http://localhost:8501
-- All 170 critical tests must pass (100% pass rate required)
+- All critical tests must pass (100% pass rate required)
 
 **Critical Suite Contents**:
 - 14 critical spec files (blocking failures)
@@ -354,7 +345,7 @@ pytest -m tournament           # Tournament tests
 
 **API URL**: http://localhost:8000
 **API Dokumentáció**: http://localhost:8000/docs (Swagger UI)
-**Dashboard URL**: http://localhost:8501
+**Web UI**: http://localhost:8000
 
 **Fő Dokumentumok**:
 - [Session Rules Etalon](docs/CURRENT/SESSION_RULES_ETALON.md) - Hivatalos specifikáció + Mermaid diagramok

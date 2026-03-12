@@ -18,6 +18,7 @@ jobs:
   live-suite:
     name: Live Suite (Cypress @live_env)
     runs-on: ubuntu-latest
+    if: false  # Streamlit decommissioned
     timeout-minutes: 30
 
     services:

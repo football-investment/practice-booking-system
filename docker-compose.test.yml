@@ -1,21 +1,18 @@
 # =============================================================================
-# docker-compose.test.yml — Champion Badge Regression Guard (containerised)
+# docker-compose.test.yml — Integration Critical Test Stack
 # =============================================================================
 #
 # Orchestrates a complete, isolated test environment:
 #   db          → PostgreSQL 16 (ephemeral, test data only)
 #   api-migrate → Alembic schema migrations (runs once)
-#   db-seed     → Seeds junior.intern@lfa.com + CHAMPION badge (runs once)
+#   db-seed     → Seeds test data (runs once)
 #   api         → FastAPI backend (waits for db-seed complete)
-#   streamlit   → Streamlit frontend on port 8599 (waits for api healthy)
-#   e2e-tests   → Playwright test runner (waits for streamlit healthy)
+#   e2e-tests   → pytest integration_critical runner (waits for api healthy)
 #
 # Usage:
 #   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 #   docker compose -f docker-compose.test.yml logs -f e2e-tests
 #   docker compose -f docker-compose.test.yml down -v   # full teardown + volumes
-#
-# Screenshots on failure are written to tests_e2e/screenshots/ (bind-mounted).
 # =============================================================================
 
 services:
@@ -86,29 +83,6 @@ services:
       timeout: 10s
       retries: 15
 
-  # ── Streamlit frontend ───────────────────────────────────────────────────────
-  streamlit:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.test
-    command: >
-      python3 -m streamlit run "streamlit_app/🏠_Home.py"
-        --server.port 8599
-        --server.headless true
-        --server.address 0.0.0.0
-        --browser.gatherUsageStats false
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
-      API_BASE_URL: http://api:8000
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8599"]
-      interval: 5s
-      timeout: 15s
-      retries: 20
-
   # ── E2E test runner ──────────────────────────────────────────────────────────
   e2e-tests:
     build:
@@ -116,16 +90,12 @@ services:
       dockerfile: docker/Dockerfile.test
     command: >
       python3 -m pytest
-        tests_e2e/test_champion_badge_regression.py
-          ::test_champion_badge_no_ranking_data_regression
+        tests/e2e/integration_critical/
         -v -s --tb=short --no-header
     environment:
-      CHAMPION_TEST_URL: http://streamlit:8599
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/lfa_test
     depends_on:
-      streamlit:
+      api:
         condition: service_healthy
-    # Screenshots bind-mounted so they survive container exit
-    volumes:
-      - ./tests_e2e/screenshots:/app/tests_e2e/screenshots
     # Exit code propagates to `docker compose up --abort-on-container-exit`
     restart: "no"
