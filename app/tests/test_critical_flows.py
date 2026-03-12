@@ -46,7 +46,6 @@ def active_semester(db_session):
         name="2025 Spring Semester",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=120)).date(),
-        is_active=True,
         specialization_type="INTERNSHIP"
     )
     db_session.add(semester)
@@ -188,7 +187,7 @@ class TestUserOnboardingFlow:
         assert semesters_response.status_code == status.HTTP_200_OK
         semesters_data = semesters_response.json()
         assert len(semesters_data) > 0
-        assert any(s["is_active"] for s in semesters_data)
+        assert any(s.get("status") != "CANCELLED" for s in semesters_data)
 
         print("✅ Student onboarding flow complete!")
 

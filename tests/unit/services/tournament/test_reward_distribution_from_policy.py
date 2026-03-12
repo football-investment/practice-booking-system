@@ -407,7 +407,6 @@ class TestRewardDistributionFromPolicy:
             name="Legacy Tournament",
             start_date=date(2026, 2, 15),
             end_date=date(2026, 2, 15),
-            is_active=True,
             status=SemesterStatus.READY_FOR_ENROLLMENT,
             specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
             master_instructor_id=instructor.id

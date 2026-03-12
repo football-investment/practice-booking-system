@@ -2,13 +2,12 @@
 Unit tests for app/api/api_v1/endpoints/invitation_codes.py
 Sprint 24 P2 — coverage: 34% stmt, 0% branch → ≥85%
 
-6 endpoints + 1 hybrid auth helper:
-1. get_admin_user_hybrid      dependency
-2. get_all_invitation_codes   GET  /admin/invitation-codes
-3. create_invitation_code     POST /admin/invitation-codes
-4. delete_invitation_code     DELETE /admin/invitation-codes/{id}
-5. validate_invitation_code   POST /invitation-codes/validate
-6. redeem_invitation_code     POST /invitation-codes/redeem
+5 endpoints:
+1. get_all_invitation_codes   GET    /admin/invitation-codes
+2. create_invitation_code     POST   /admin/invitation-codes
+3. delete_invitation_code     DELETE /admin/invitation-codes/{id}
+4. validate_invitation_code   POST   /invitation-codes/validate
+5. redeem_invitation_code     POST   /invitation-codes/redeem
 """
 import asyncio
 import pytest
@@ -17,7 +16,6 @@ from fastapi import HTTPException
 from datetime import datetime, timezone
 
 from app.api.api_v1.endpoints.invitation_codes import (
-    get_admin_user_hybrid,
     get_all_invitation_codes,
     create_invitation_code,
     delete_invitation_code,
@@ -29,7 +27,6 @@ from app.api.api_v1.endpoints.invitation_codes import (
 from app.models.user import UserRole
 
 _BASE = "app.api.api_v1.endpoints.invitation_codes"
-_VERIFY = "app.core.auth.verify_token"
 
 
 # ---------------------------------------------------------------------------
@@ -100,77 +97,6 @@ def _run(coro):
 
 
 # ===========================================================================
-# get_admin_user_hybrid
-# ===========================================================================
-
-@pytest.mark.unit
-class TestGetAdminUserHybrid:
-    def _request(self, cookie=None):
-        req = MagicMock()
-        req.cookies.get.return_value = cookie
-        return req
-
-    def test_bearer_token_valid_admin_returns_user(self):
-        admin = _admin()
-        q = _q(first=admin)
-        db = MagicMock(); db.query.return_value = q
-        creds = MagicMock(); creds.credentials = "valid_bearer"
-        with patch(_VERIFY, return_value="admin@lfa.com"):
-            result = _run(get_admin_user_hybrid(
-                request=self._request(),
-                db=db,
-                credentials=creds,
-            ))
-        assert result is admin
-
-    def test_bearer_token_returns_non_admin_falls_to_cookie_then_403(self):
-        non_admin = MagicMock(); non_admin.is_active = True; non_admin.role = UserRole.STUDENT
-        q = _q(first=non_admin)
-        db = MagicMock(); db.query.return_value = q
-        creds = MagicMock(); creds.credentials = "student_token"
-        # No cookie
-        with patch(_VERIFY, return_value="student@lfa.com"):
-            with pytest.raises(HTTPException) as exc:
-                _run(get_admin_user_hybrid(
-                    request=self._request(cookie=None),
-                    db=db,
-                    credentials=creds,
-                ))
-        assert exc.value.status_code == 403
-
-    def test_no_credentials_cookie_valid_admin_returns_user(self):
-        admin = _admin()
-        q = _q(first=admin)
-        db = MagicMock(); db.query.return_value = q
-        with patch(_VERIFY, return_value="admin@lfa.com"):
-            result = _run(get_admin_user_hybrid(
-                request=self._request(cookie="Bearer valid_cookie"),
-                db=db,
-                credentials=None,
-            ))
-        assert result is admin
-
-    def test_cookie_exception_falls_to_403(self):
-        with patch(_VERIFY, side_effect=Exception("token error")):
-            with pytest.raises(HTTPException) as exc:
-                _run(get_admin_user_hybrid(
-                    request=self._request(cookie="Bearer bad_token"),
-                    db=_db(),
-                    credentials=None,
-                ))
-        assert exc.value.status_code == 403
-
-    def test_neither_method_works_raises_403(self):
-        with pytest.raises(HTTPException) as exc:
-            _run(get_admin_user_hybrid(
-                request=self._request(cookie=None),
-                db=_db(),
-                credentials=None,
-            ))
-        assert exc.value.status_code == 403
-
-
-# ===========================================================================
 # get_all_invitation_codes
 # ===========================================================================
 
@@ -179,7 +105,7 @@ class TestGetAllInvitationCodes:
     def test_empty_list_returns_empty(self):
         db = _db(all_=[])
         result = _run(get_all_invitation_codes(
-            request=MagicMock(), db=db, current_user=_admin()
+            db=db, current_user=_admin()
         ))
         assert result == []
 
@@ -187,7 +113,7 @@ class TestGetAllInvitationCodes:
         c = _icode(used_by_user_id=None, created_by_admin_id=None)
         db = _db(all_=[c])
         result = _run(get_all_invitation_codes(
-            request=MagicMock(), db=db, current_user=_admin()
+            db=db, current_user=_admin()
         ))
         assert len(result) == 1
         assert result[0]["used_by_name"] is None
@@ -202,7 +128,7 @@ class TestGetAllInvitationCodes:
         db = MagicMock()
         db.query.side_effect = [q_all, q_user]
         result = _run(get_all_invitation_codes(
-            request=MagicMock(), db=db, current_user=_admin()
+            db=db, current_user=_admin()
         ))
         assert result[0]["used_by_name"] == "Student User"
 
@@ -215,7 +141,7 @@ class TestGetAllInvitationCodes:
         db = MagicMock()
         db.query.side_effect = [q_all, q_admin]
         result = _run(get_all_invitation_codes(
-            request=MagicMock(), db=db, current_user=_admin()
+            db=db, current_user=_admin()
         ))
         assert result[0]["created_by_name"] == "Admin User"
 
@@ -236,7 +162,6 @@ class TestCreateInvitationCode:
         db = _db()
         with pytest.raises(HTTPException) as exc:
             _run(create_invitation_code(
-                request=MagicMock(),
                 code_data=self._payload(credits=0),
                 db=db,
                 current_user=_admin(),
@@ -253,7 +178,6 @@ class TestCreateInvitationCode:
             MockIC.generate_code.return_value = "INV-ALWAYS-DUPLICATE"
             with pytest.raises(HTTPException) as exc:
                 _run(create_invitation_code(
-                    request=MagicMock(),
                     code_data=self._payload(),
                     db=db,
                     current_user=_admin(),
@@ -271,7 +195,6 @@ class TestCreateInvitationCode:
             MockIC.generate_code.return_value = "INV-20260101-ABC123"
             MockIC.return_value = mock_ic
             result = _run(create_invitation_code(
-                request=MagicMock(),
                 code_data=self._payload(),
                 db=db,
                 current_user=_admin(),
@@ -292,7 +215,7 @@ class TestDeleteInvitationCode:
         db = _db(first=None)
         with pytest.raises(HTTPException) as exc:
             _run(delete_invitation_code(
-                request=MagicMock(), code_id=99, db=db, current_user=_admin()
+                code_id=99, db=db, current_user=_admin()
             ))
         assert exc.value.status_code == 404
 
@@ -301,7 +224,7 @@ class TestDeleteInvitationCode:
         db = _db(first=c)
         with pytest.raises(HTTPException) as exc:
             _run(delete_invitation_code(
-                request=MagicMock(), code_id=1, db=db, current_user=_admin()
+                code_id=1, db=db, current_user=_admin()
             ))
         assert exc.value.status_code == 400
         assert "used" in exc.value.detail.lower()
@@ -310,7 +233,7 @@ class TestDeleteInvitationCode:
         c = _icode(is_used=False)
         db = _db(first=c)
         result = _run(delete_invitation_code(
-            request=MagicMock(), code_id=1, db=db, current_user=_admin()
+            code_id=1, db=db, current_user=_admin()
         ))
         db.delete.assert_called_once_with(c)
         db.commit.assert_called_once()

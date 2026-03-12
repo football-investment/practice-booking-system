@@ -123,7 +123,6 @@ def create_tournament_semester(
         name=name,
         start_date=tournament_date,
         end_date=tournament_date,  # 1-day tournament
-        is_active=True,
         status=status,
         tournament_status=tournament_status,
         master_instructor_id=None,  # ⚠️ ALWAYS None at creation

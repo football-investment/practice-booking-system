@@ -11,6 +11,8 @@ from pydantic import BaseModel
 
 from zoneinfo import ZoneInfo
 
+import logging
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
@@ -23,6 +25,8 @@ from .helpers import update_specialization_xp as _update_specialization_xp
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -114,7 +118,7 @@ async def start_session(
 
     db.commit()
 
-    print(f"✅ Session {session_id} started by instructor {user.id} at {session.actual_start_time}")
+    logger.info("session_started", extra={"session_id": session_id, "instructor_id": user.id})
 
     return RedirectResponse(
         url=f"/sessions/{session_id}?success=session_started",
@@ -182,8 +186,7 @@ async def stop_session(
 
     # Calculate actual duration
     duration = session.actual_end_time - session.actual_start_time
-    print(f"✅ Session {session_id} stopped by instructor {user.id} at {session.actual_end_time}")
-    print(f"   Actual duration: {duration}")
+    logger.info("session_stopped", extra={"session_id": session_id, "instructor_id": user.id, "duration_s": int(duration.total_seconds())})
 
     return RedirectResponse(
         url=f"/sessions/{session_id}?success=session_stopped",
@@ -304,7 +307,7 @@ async def evaluate_student_performance(
         # Update specialization progress XP
         _update_specialization_xp(db, student_id, student_spec, xp_earned, session_id, is_update=True)
 
-        print(f"♻️ XP RECALCULATED: Student {student_id} | Session {session_id} | Score: {average_score:.1f}/5.0 | XP: {xp_earned}")
+        logger.info("xp_recalculated", extra={"student_id": student_id, "session_id": session_id, "score": round(average_score, 1), "xp": xp_earned})
     else:
         # Create new review
         review = StudentPerformanceReview(
@@ -332,7 +335,7 @@ async def evaluate_student_performance(
         # Update specialization progress XP
         _update_specialization_xp(db, student_id, student_spec, xp_earned, session_id, is_update=False)
 
-        print(f"🎉 XP AWARDED: Student {student_id} | Session {session_id} | Spec: {student_spec} | Score: {average_score:.1f}/5.0 | XP: {xp_earned}")
+        logger.info("xp_awarded", extra={"student_id": student_id, "session_id": session_id, "spec": student_spec, "score": round(average_score, 1), "xp": xp_earned})
 
     db.commit()
 

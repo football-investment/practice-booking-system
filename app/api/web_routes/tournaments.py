@@ -78,7 +78,7 @@ async def tournaments_list(
                 Semester.code.like("TOURN-%"),
                 Semester.tournament_status.in_(["ENROLLMENT_OPEN", "IN_PROGRESS"]),
                 Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
-                Semester.is_active == True,
+                Semester.status != SemesterStatus.CANCELLED,
                 Semester.end_date >= date.today(),
             )
         )
@@ -147,7 +147,7 @@ async def tournament_enroll(
 
     # 1. Fetch tournament
     tournament = db.query(Semester).filter(
-        Semester.id == tournament_id, Semester.is_active == True
+        Semester.id == tournament_id, Semester.status != SemesterStatus.CANCELLED
     ).first()
     if not tournament:
         return _err("Tournament+not+found")
@@ -337,7 +337,7 @@ async def instructor_tournaments(
             and_(
                 Semester.code.like("TOURN-%"),
                 Semester.master_instructor_id == user.id,
-                Semester.is_active == True,
+                Semester.status != SemesterStatus.CANCELLED,
             )
         )
         .order_by(Semester.start_date.asc())
@@ -498,7 +498,6 @@ async def admin_create_tournament(
         enrollment_cost=enrollment_cost,
         location_id=int(location_id) if location_id.strip() else None,
         campus_id=int(campus_id) if campus_id.strip() else None,
-        is_active=True,
     )
     db.add(t)
     db.commit()

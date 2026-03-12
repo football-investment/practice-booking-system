@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone
-
+import logging
 import traceback
 
 from ...database import get_db
@@ -21,6 +21,8 @@ from ...utils.age_requirements import validate_specialization_for_age
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -146,7 +148,7 @@ async def student_motivation_questionnaire_page(
     }
     specialization_display = spec_display_map.get(spec_type, spec_type.value.replace('_', ' '))
 
-    print(f"📊 Student {user.email} accessing motivation questionnaire for {spec_type.value}")
+    logger.info("motivation_questionnaire_access", extra={"user": user.email, "spec": spec_type.value})
 
     return templates.TemplateResponse(
         "student_motivation_questionnaire.html",
@@ -249,15 +251,14 @@ async def student_motivation_questionnaire_submit(
         db.refresh(user)
         db.refresh(license)
 
-        print(f"✅ Student {user.email} completed motivation questionnaire for {spec_type.value} - Average: {average_score:.2f}")
+        logger.info("motivation_questionnaire_complete", extra={"user": user.email, "spec": spec_type.value, "avg_score": round(average_score, 2)})
 
         # Redirect to dashboard - onboarding complete!
         return RedirectResponse(url="/dashboard", status_code=303)
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Error processing motivation questionnaire: {e}")
-        print(traceback.format_exc())
+        logger.error("motivation_questionnaire_error", extra={"user": user.email}, exc_info=True)
         return templates.TemplateResponse(
             "student_motivation_questionnaire.html",
             {
@@ -299,10 +300,10 @@ async def specialization_switch(
         ).first()
 
         if not license:
-            print(f"❌ User {user.email} attempted to switch to UNAUTHORIZED specialization: {spec_type.value}")
+            logger.warning("specialization_switch_unauthorized", extra={"user": user.email, "spec": spec_type.value})
             return RedirectResponse(url=redirect_url, status_code=303)
 
-        print(f"🔄 User {user.email} switching to {spec_type.value}")
+        logger.info("specialization_switch", extra={"user": user.email, "spec": spec_type.value})
 
         # Update user's current specialization
         user.specialization = spec_type
@@ -310,12 +311,11 @@ async def specialization_switch(
         db.refresh(user)
 
         # Redirect back to the page they came from (or dashboard)
-        print(f"✅ Switched to {spec_type.value}, redirecting to {redirect_url}")
+        logger.info("specialization_switch_complete", extra={"user": user.email, "spec": spec_type.value})
         return RedirectResponse(url=redirect_url, status_code=303)
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Error during specialization switch: {e}")
-        print(traceback.format_exc())
+        logger.error("specialization_switch_error", extra={"user": user.email}, exc_info=True)
         return RedirectResponse(url=redirect_url, status_code=303)
 

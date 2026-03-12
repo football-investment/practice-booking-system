@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import joinedload
 
+import logging
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
@@ -23,6 +25,8 @@ from ...services.audit_service import AuditService
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -75,7 +79,7 @@ async def instructor_enrollments_page(
             'total_count': len(spec_enrollments)
         }
 
-    print(f"🥋 Instructor {user.name}: {len(instructor_semesters)} semesters, {len(all_enrollments)} enrollments")
+    logger.info("instructor_dashboard_loaded", extra={"instructor": user.email, "semesters": len(instructor_semesters), "enrollments": len(all_enrollments)})
 
     return templates.TemplateResponse(
         "instructor/enrollments.html",
@@ -250,7 +254,7 @@ async def instructor_update_student_skills(
         }
     )
 
-    print(f"✅ Instructor {user.name} updated skills for {student.email} - {license.specialization_type}")
+    logger.info("instructor_skills_updated", extra={"instructor": user.email, "student": student.email, "spec": license.specialization_type})
 
     # Get specialization display name
     spec_display_map = {

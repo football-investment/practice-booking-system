@@ -23,11 +23,6 @@ class CouponType(str, enum.Enum):
     PURCHASE_DISCOUNT_PERCENT = "PURCHASE_DISCOUNT_PERCENT"  # % discount on purchase (e.g., 20% off)
     PURCHASE_BONUS_CREDITS = "PURCHASE_BONUS_CREDITS"  # Bonus credits after purchase (e.g., buy 1000cr, get +500cr bonus)
 
-    # Legacy types (for backwards compatibility during migration)
-    PERCENT = "PERCENT"  # DEPRECATED: Will be migrated to BONUS_CREDITS
-    FIXED = "FIXED"  # DEPRECATED: Will be migrated to BONUS_CREDITS
-    CREDITS = "CREDITS"  # DEPRECATED: Will be migrated to BONUS_CREDITS
-
 
 class Coupon(Base):
     """
@@ -89,10 +84,6 @@ class Coupon(Base):
         elif self.type == CouponType.PURCHASE_BONUS_CREDITS:
             self.requires_purchase = True
             self.requires_admin_approval = True
-        # Legacy types (treat as BONUS_CREDITS)
-        elif self.type in [CouponType.PERCENT, CouponType.FIXED, CouponType.CREDITS]:
-            self.requires_purchase = False
-            self.requires_admin_approval = False
 
     def is_valid(self) -> bool:
         """Check if coupon is currently valid"""

@@ -6,60 +6,13 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, EmailStr
 
 from ....database import get_db
-from ....dependencies import get_current_user_web, security_optional
-from fastapi.security import HTTPAuthorizationCredentials
+from ....dependencies import get_current_user_web, get_current_admin_user
 from ....models.user import User
 from ....models.invitation_code import InvitationCode
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-# ==================== HYBRID AUTH HELPER ====================
-
-async def get_admin_user_hybrid(
-    request: Request,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security_optional)
-) -> User:
-    """
-    Hybrid authentication: supports both Bearer token AND cookie-based auth
-    - Bearer token: for API tests (Authorization: Bearer <token>)
-    - Cookie: for Streamlit frontend (Cookie: access_token=<token>)
-    """
-    from ....core.auth import verify_token
-    from ....models.user import UserRole
-
-    # Try Bearer token first (API tests)
-    if credentials:
-        token = credentials.credentials
-        username = verify_token(token, "access")
-
-        if username:
-            user = db.query(User).filter(User.email == username).first()
-            if user and user.is_active and user.role == UserRole.ADMIN:
-                return user
-
-    # Try cookie (Streamlit frontend)
-    token_cookie = request.cookies.get("access_token")
-    if token_cookie:
-        try:
-            token = token_cookie.replace("Bearer ", "")
-            username = verify_token(token, "access")
-
-            if username:
-                user = db.query(User).filter(User.email == username).first()
-                if user and user.is_active and user.role == UserRole.ADMIN:
-                    return user
-        except Exception as e:
-            logger.error(f"Error verifying cookie token for admin access: {e}")
-
-    # Neither method worked
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Not authenticated or not admin"
-    )
 
 
 # ==================== SCHEMAS ====================
@@ -106,14 +59,10 @@ class InvitationCodeRedeem(BaseModel):
 
 @router.get("/admin/invitation-codes", response_model=List[InvitationCodeResponse])
 async def get_all_invitation_codes(
-    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_admin_user_hybrid)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
-    """
-    Get all invitation codes (Admin only)
-    Supports both Bearer token (API tests) and cookie (Streamlit) authentication
-    """
+    """Get all invitation codes (Admin only)"""
     codes = db.query(InvitationCode).order_by(InvitationCode.created_at.desc()).all()
 
     # Enrich with user names
@@ -155,15 +104,11 @@ async def get_all_invitation_codes(
 
 @router.post("/admin/invitation-codes", response_model=InvitationCodeResponse)
 async def create_invitation_code(
-    request: Request,
     code_data: InvitationCodeCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_admin_user_hybrid)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
-    """
-    Create a new invitation code (Admin only)
-    Supports both Bearer token (API tests) and cookie (Streamlit) authentication
-    """
+    """Create a new invitation code (Admin only)"""
     # Validate bonus_credits
     if code_data.bonus_credits <= 0:
         raise HTTPException(
@@ -201,7 +146,7 @@ async def create_invitation_code(
     db.commit()
     db.refresh(invitation_code)
 
-    print(f"✅ Invitation code created: {code} for {code_data.invited_name} ({code_data.bonus_credits} credits) by {current_user.name}")
+    logger.info("invitation_code_created", extra={"code": code, "invited_name": code_data.invited_name, "credits": code_data.bonus_credits, "admin": current_user.name})
 
     return InvitationCodeResponse(
         id=invitation_code.id,
@@ -223,16 +168,11 @@ async def create_invitation_code(
 
 @router.delete("/admin/invitation-codes/{code_id}")
 async def delete_invitation_code(
-    request: Request,
     code_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_admin_user_hybrid)
+    current_user: User = Depends(get_current_admin_user)
 ) -> Any:
-    """
-    Delete an invitation code (Admin only)
-    Only unused codes can be deleted
-    Supports both Bearer token (API tests) and cookie (Streamlit) authentication
-    """
+    """Delete an invitation code (Admin only). Only unused codes can be deleted."""
     code = db.query(InvitationCode).filter(InvitationCode.id == code_id).first()
 
     if not code:
@@ -253,7 +193,7 @@ async def delete_invitation_code(
     db.delete(code)
     db.commit()
 
-    print(f"🗑️ Invitation code {code_str} for {invited_name} deleted by {current_user.name}")
+    logger.info("invitation_code_deleted", extra={"code": code_str, "invited_name": invited_name, "admin": current_user.name})
 
     return {
         "success": True,
@@ -370,7 +310,7 @@ async def redeem_invitation_code(
     db.refresh(current_user)
     db.refresh(code)
 
-    print(f"🎁 Invitation code {code.code} redeemed by {current_user.name} ({current_user.email}). Added {code.bonus_credits} credits. Balance: {old_balance} → {new_balance}")
+    logger.info("invitation_code_redeemed", extra={"code": code.code, "user": current_user.email, "credits": code.bonus_credits, "new_balance": new_balance})
 
     return {
         "success": True,

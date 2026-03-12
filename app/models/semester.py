@@ -48,10 +48,6 @@ class Semester(Base):
     winner_count = Column(Integer, nullable=True,
                          comment="Number of winners for INDIVIDUAL_RANKING tournaments (E2E testing)")
 
-    # DEPRECATED: Use 'status' instead
-    is_active = Column(Boolean, default=True,
-                      comment="DEPRECATED: Use status field instead. Kept for backward compatibility.")
-
     # 💰 CREDIT SYSTEM: Enrollment cost for this semester
     enrollment_cost = Column(Integer, nullable=False, default=500,
                             comment="Credit cost to enroll in this semester (admin adjustable)")

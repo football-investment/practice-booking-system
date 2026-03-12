@@ -561,47 +561,6 @@ class TestApplyCoupon:
         assert result["credits_awarded"] == 500
         db.commit.assert_called_once()
 
-    def test_credits_legacy_type_awards_credits(self):
-        c = _coupon(type=CouponType.CREDITS, discount_value=200.0)
-        q_coupon = _q(first=c)
-        q_usage = _q(first=None)
-        db = MagicMock()
-        db.query.side_effect = [q_coupon, q_usage]
-        result = _run(apply_coupon(
-            coupon_data=self._req(),
-            db=db,
-            current_user=_admin(),
-        ))
-        assert result["credits_awarded"] == 200  # int(200.0)
-
-    def test_fixed_legacy_type_converts_to_credits(self):
-        c = _coupon(type=CouponType.FIXED, discount_value=5.0)
-        q_coupon = _q(first=c)
-        q_usage = _q(first=None)
-        db = MagicMock()
-        db.query.side_effect = [q_coupon, q_usage]
-        result = _run(apply_coupon(
-            coupon_data=self._req(),
-            db=db,
-            current_user=_admin(),
-        ))
-        # 1 EUR = 10 credits → 5 EUR → 50 credits
-        assert result["credits_awarded"] == 50
-
-    def test_percent_legacy_type_gives_bonus_credits(self):
-        c = _coupon(type=CouponType.PERCENT, discount_value=10.0)
-        q_coupon = _q(first=c)
-        q_usage = _q(first=None)
-        db = MagicMock()
-        db.query.side_effect = [q_coupon, q_usage]
-        result = _run(apply_coupon(
-            coupon_data=self._req(),
-            db=db,
-            current_user=_admin(),
-        ))
-        # 10% = 10 * 1000 = 10000 credits
-        assert result["credits_awarded"] == 10000
-
     def test_unhandled_type_raises_500(self):
         # requires_purchase=False but type is PURCHASE_DISCOUNT_PERCENT → else branch → 500
         c = _coupon(

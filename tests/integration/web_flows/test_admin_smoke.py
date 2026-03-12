@@ -199,7 +199,6 @@ def semester(test_db: Session) -> Semester:
         end_date=date.today() + timedelta(days=90),
         status=SemesterStatus.ONGOING,
         specialization_type="FOOTBALL_SKILLS",
-        is_active=True,
     )
     test_db.add(sem)
     test_db.commit()

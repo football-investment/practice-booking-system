@@ -194,16 +194,6 @@ class TestValidateSemesterEnrollment:
         assert exc.value.status_code == 403
         assert "ended" in exc.value.detail.lower()
 
-    def test_semester_inactive_403(self):
-        """VSE-10: semester.is_active=False → 403."""
-        project = _project(semester_id=5)
-        sem = _semester(sid=5, end_date=date(2099, 12, 31), is_active=False)
-        primary_sem = _semester(sid=5)
-        db = _seq_db(project, sem, primary_sem)
-        with pytest.raises(HTTPException) as exc:
-            self._call(db)
-        assert exc.value.status_code == 403
-        assert "not currently active" in exc.value.detail.lower()
 
 
 # ============================================================================

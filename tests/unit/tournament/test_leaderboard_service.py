@@ -105,7 +105,6 @@ def create_test_semester(db: Session, name: str = "Test Tournament") -> Semester
         name=name,
         start_date=tournament_date,
         end_date=tournament_date,
-        is_active=True,
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,
         age_group="YOUTH"

@@ -7,13 +7,14 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import date
+import logging
 import re
 
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 UserModel = User  # alias used in some template context sections
-from ...models.semester import Semester
+from ...models.semester import Semester, SemesterStatus
 from ...models.license import UserLicense
 from ...models.semester_enrollment import SemesterEnrollment
 from ...utils.age_requirements import get_available_specializations
@@ -22,6 +23,8 @@ from .helpers import get_lfa_age_category
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,7 +66,7 @@ async def dashboard(
                 "is_available": True
             })
 
-        print(f"🎓 Dashboard for {user.email}: {len(unlocked_specs)} unlocked, {len(specializations_data)} total specs")
+        logger.info("dashboard_loaded", extra={"user": user.email, "unlocked_specs": len(unlocked_specs), "total_specs": len(specializations_data)})
 
         # ALWAYS show specialization hub (no auto-redirect)
         return templates.TemplateResponse(
@@ -85,7 +88,7 @@ async def dashboard(
     if user.role == UserRole.ADMIN:
         today = date.today()
         active_semesters = db.query(Semester).filter(
-            Semester.is_active == True,
+            Semester.status != SemesterStatus.CANCELLED,
             Semester.start_date <= today,
             Semester.end_date >= today
         ).order_by(Semester.code, Semester.start_date.desc()).all()
@@ -153,7 +156,7 @@ async def dashboard(
 
     if user.role == UserRole.ADMIN:
         # ADMIN Dashboard
-        print(f"🎯 ROUTING: Using dashboard_admin.html for {user.email}")
+        logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_admin.html"})
         stats = {
             "total_users": db.query(UserModel).count(),
             "active_students": db.query(UserModel).filter(UserModel.role == UserRole.STUDENT).count(),
@@ -171,7 +174,7 @@ async def dashboard(
         )
     elif user.role == UserRole.INSTRUCTOR:
         # INSTRUCTOR Dashboard
-        print(f"🎯 ROUTING: Using dashboard_instructor.html for {user.email}")
+        logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_instructor.html"})
         response = templates.TemplateResponse(
             "dashboard_instructor.html",
             {
@@ -183,7 +186,7 @@ async def dashboard(
         )
     else:  # pragma: no cover
         # Fallback dashboard (unreachable with current 3-role enum: student early-returns above)
-        print(f"🎯 ROUTING: Using dashboard_student_new.html for {user.email}")
+        logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_student_new.html"})
         response = templates.TemplateResponse(
             "dashboard_student_new.html",
             {
@@ -302,7 +305,7 @@ async def spec_dashboard(
         if user.date_of_birth:
             user_age = today.year - user.date_of_birth.year - ((today.month, today.day) < (user.date_of_birth.month, user.date_of_birth.day))
 
-        print(f"⚽ LFA PLAYER AGE CHECK: {user.email} → {age_category} ({age_description}) - Age: {user_age}")
+        logger.debug("lfa_age_check", extra={"user": user.email, "age_category": age_category, "user_age": user_age})
 
         if not age_category:
             # User doesn't meet age requirements
@@ -323,18 +326,15 @@ async def spec_dashboard(
         'INTERNSHIP': 'INTERNSHIP'
     }.get(spec_enum, spec_enum)
 
-    print(f"🔍 SEMESTER PREFIX: {semester_code_prefix} (searching for: {semester_code_prefix}_*)")
+    logger.debug("semester_prefix_search", extra={"prefix": semester_code_prefix})
 
     # Get all track semesters
     track_semesters = db.query(Semester).filter(
         Semester.code.like(f'{semester_code_prefix}_%'),
-        Semester.is_active == True
+        Semester.status != SemesterStatus.CANCELLED
     ).order_by(Semester.start_date).all()
 
-    print(f"📚 FOUND {len(track_semesters)} semesters for prefix '{semester_code_prefix}'")
-    if track_semesters:
-        for sem in track_semesters[:3]:  # Show first 3
-            print(f"  - {sem.code} ({sem.start_date} to {sem.end_date})")
+    logger.debug("track_semesters_found", extra={"prefix": semester_code_prefix, "count": len(track_semesters)})
 
     # Check which semesters user already enrolled in
     existing_enrollments = db.query(SemesterEnrollment).filter(
@@ -349,7 +349,7 @@ async def spec_dashboard(
         if sem.id not in enrolled_semester_ids and sem.end_date >= today
     ][:6]
 
-    print(f"✅ AVAILABLE SEMESTERS: {len(available_semesters)} (after filtering enrolled + ended)")
+    logger.debug("available_semesters", extra={"count": len(available_semesters)})
 
     # Get current semester if enrolled
     current_semester = None

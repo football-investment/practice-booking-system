@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import os
@@ -144,6 +145,47 @@ class HealthChecker:
         }
     
     @staticmethod
+    async def get_worker_health() -> Dict[str, Any]:
+        """Check Redis broker and Celery worker liveness."""
+        worker_health: Dict[str, Any] = {
+            "status": "unknown",
+            "redis": "unknown",
+            "workers": None,
+            "error": None,
+        }
+        # 1. Redis ping
+        try:
+            import redis as redis_lib
+            r = redis_lib.from_url(settings.CELERY_BROKER_URL, socket_connect_timeout=2)
+            r.ping()
+            worker_health["redis"] = "healthy"
+        except Exception as e:
+            worker_health["redis"] = "unhealthy"
+            worker_health["error"] = f"Redis: {e}"
+            worker_health["status"] = "unhealthy"
+            return worker_health
+
+        # 2. Celery worker ping (blocking call → off-thread)
+        try:
+            from ..celery_app import celery_app
+            ping_result = await asyncio.to_thread(
+                lambda: celery_app.control.inspect(timeout=2).ping()
+            )
+            if ping_result:
+                worker_health["workers"] = list(ping_result.keys())
+                worker_health["status"] = "healthy"
+            else:
+                # No workers responded — app still functional, only background jobs affected
+                worker_health["workers"] = []
+                worker_health["status"] = "degraded"
+        except Exception as e:
+            worker_health["workers"] = []
+            worker_health["status"] = "degraded"
+            worker_health["error"] = f"Celery inspect: {e}"
+
+        return worker_health
+
+    @staticmethod
     async def get_comprehensive_health() -> Dict[str, Any]:
         """Get complete system health overview."""
         start_time = time.time()
@@ -152,19 +194,20 @@ class HealthChecker:
         db_health = await HealthChecker.get_database_health()
         system_health = HealthChecker.get_system_health()
         app_health = HealthChecker.get_application_health()
-        
-        # Determine overall status
-        statuses = [db_health["status"], system_health["status"], app_health["status"]]
-        
+        worker_health = await HealthChecker.get_worker_health()
+
+        # Determine overall status (worker "degraded" does not block "healthy" overall)
+        statuses = [db_health["status"], system_health["status"], app_health["status"], worker_health["status"]]
+
         if "unhealthy" in statuses:
             overall_status = "unhealthy"
         elif "degraded" in statuses:
             overall_status = "degraded"
         else:
             overall_status = "healthy"
-        
+
         total_time = round((time.time() - start_time) * 1000, 2)
-        
+
         return {
             "status": overall_status,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -172,10 +215,11 @@ class HealthChecker:
             "checks": {
                 "database": db_health,
                 "system": system_health,
-                "application": app_health
+                "application": app_health,
+                "worker": worker_health
             },
             "summary": {
-                "total_checks": 3,
+                "total_checks": 4,
                 "healthy_checks": sum(1 for s in statuses if s == "healthy"),
                 "degraded_checks": sum(1 for s in statuses if s == "degraded"),
                 "unhealthy_checks": sum(1 for s in statuses if s == "unhealthy")

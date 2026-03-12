@@ -4630,10 +4630,7 @@
         "enum": [
           "BONUS_CREDITS",
           "PURCHASE_DISCOUNT_PERCENT",
-          "PURCHASE_BONUS_CREDITS",
-          "PERCENT",
-          "FIXED",
-          "CREDITS"
+          "PURCHASE_BONUS_CREDITS"
         ],
         "title": "CouponType",
         "type": "string"
@@ -8183,17 +8180,6 @@
               }
             ],
             "title": "Postal Code"
-          },
-          "venue": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue"
           }
         },
         "required": [
@@ -8295,17 +8281,6 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "venue": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue"
           }
         },
         "required": [
@@ -8317,7 +8292,6 @@
           "country_code",
           "location_code",
           "location_type",
-          "venue",
           "address",
           "notes",
           "is_active",
@@ -8439,17 +8413,6 @@
               }
             ],
             "title": "Postal Code"
-          },
-          "venue": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue"
           }
         },
         "title": "LocationUpdate",
@@ -13200,11 +13163,6 @@
             "title": "Id",
             "type": "integer"
           },
-          "is_active": {
-            "default": true,
-            "title": "Is Active",
-            "type": "boolean"
-          },
           "location_address": {
             "anyOf": [
               {
@@ -13433,11 +13391,6 @@
               }
             ],
             "title": "Format"
-          },
-          "is_active": {
-            "default": true,
-            "title": "Is Active",
-            "type": "boolean"
           },
           "location_address": {
             "anyOf": [
@@ -13805,17 +13758,6 @@
             ],
             "title": "Format"
           },
-          "is_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Active"
-          },
           "is_multi_day": {
             "anyOf": [
               {
@@ -14080,11 +14022,6 @@
           "id": {
             "title": "Id",
             "type": "integer"
-          },
-          "is_active": {
-            "default": true,
-            "title": "Is Active",
-            "type": "boolean"
           },
           "location_address": {
             "anyOf": [
@@ -22844,7 +22781,7 @@
     },
     "/admin/semesters/{semester_id}/delete": {
       "post": {
-        "description": "Admin-only: Soft-delete a semester (set is_active=False)",
+        "description": "Admin-only: Cancel a semester (status=CANCELLED) or hard-delete if no enrollments.",
         "operationId": "admin_delete_semester_admin_semesters__semester_id__delete_post",
         "parameters": [
           {
@@ -24672,7 +24609,7 @@
     },
     "/api/v1/admin/invitation-codes": {
       "get": {
-        "description": "Get all invitation codes (Admin only)\nSupports both Bearer token (API tests) and cookie (Streamlit) authentication",
+        "description": "Get all invitation codes (Admin only)",
         "operationId": "get_all_invitation_codes_api_v1_admin_invitation_codes_get",
         "responses": {
           "200": {
@@ -24701,7 +24638,7 @@
         ]
       },
       "post": {
-        "description": "Create a new invitation code (Admin only)\nSupports both Bearer token (API tests) and cookie (Streamlit) authentication",
+        "description": "Create a new invitation code (Admin only)",
         "operationId": "create_invitation_code_api_v1_admin_invitation_codes_post",
         "requestBody": {
           "content": {
@@ -24748,7 +24685,7 @@
     },
     "/api/v1/admin/invitation-codes/{code_id}": {
       "delete": {
-        "description": "Delete an invitation code (Admin only)\nOnly unused codes can be deleted\nSupports both Bearer token (API tests) and cookie (Streamlit) authentication",
+        "description": "Delete an invitation code (Admin only). Only unused codes can be deleted.",
         "operationId": "delete_invitation_code_api_v1_admin_invitation_codes__code_id__delete",
         "parameters": [
           {
@@ -24847,7 +24784,7 @@
         ]
       },
       "post": {
-        "description": "Create a new LFA Education Center location.\n\n**Admin only**\n\nExample:\n```json\n{\n    \"name\": \"LFA Education Center - Budapest\",\n    \"city\": \"Budapest\",\n    \"country\": \"Hungary\",\n    \"venue\": \"Buda Campus\",\n    \"address\": \"1011 Budapest, F\u0151 utca 1.\",\n    \"notes\": \"Main campus in Hungary\",\n    \"is_active\": true\n}\n```",
+        "description": "Create a new LFA Education Center location.\n\n**Admin only**\n\nExample:\n```json\n{\n    \"name\": \"LFA Education Center - Budapest\",\n    \"city\": \"Budapest\",\n    \"country\": \"Hungary\",\n    \"address\": \"1011 Budapest, F\u0151 utca 1.\",\n    \"notes\": \"Main campus in Hungary\",\n    \"is_active\": true\n}\n```",
         "operationId": "create_location_api_v1_admin_locations__post",
         "requestBody": {
           "content": {
@@ -49773,6 +49710,23 @@
           }
         },
         "summary": "Readiness Check"
+      }
+    },
+    "/health/worker": {
+      "get": {
+        "description": "Redis broker and Celery worker liveness probe.",
+        "operationId": "worker_health_check_health_worker_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Worker Health Check"
       }
     },
     "/instructor/enrollments": {

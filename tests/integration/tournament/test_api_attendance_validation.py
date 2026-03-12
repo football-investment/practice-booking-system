@@ -109,7 +109,6 @@ class TestTournamentSessionDetection:
             name="Regular Semester",
             start_date=date.today() + timedelta(days=7),
             end_date=date.today() + timedelta(days=90),
-            is_active=True,
             status=SemesterStatus.ONGOING,
             specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,
             master_instructor_id=instructor_user.id

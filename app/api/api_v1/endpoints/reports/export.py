@@ -16,7 +16,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 
 from .....dependencies import get_current_admin_user
-from .....models.semester import Semester
+from .....models.semester import Semester, SemesterStatus
 from .....models.session import Session as SessionTypel
 from .....models.booking import Booking, BookingStatus
 from .....models.attendance import Attendance, AttendanceStatus
@@ -167,7 +167,7 @@ def get_system_stats(
     # Basic counts
     total_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
     total_semesters = db.query(func.count(Semester.id)).scalar() or 0
-    active_semesters = db.query(func.count(Semester.id)).filter(Semester.is_active == True).scalar() or 0
+    active_semesters = db.query(func.count(Semester.id)).filter(Semester.status != SemesterStatus.CANCELLED).scalar() or 0
     total_sessions = db.query(func.count(SessionTypel.id)).scalar() or 0
     total_bookings = db.query(func.count(Booking.id)).scalar() or 0
     total_groups = db.query(func.count(Group.id)).scalar() or 0

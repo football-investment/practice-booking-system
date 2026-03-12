@@ -153,8 +153,7 @@ def generate_lfa_player_pre_season(
             age_group="PRE",
             theme=month_theme["theme"],
             focus_description=month_theme["focus"],
-            is_active=True,
-            status=SemesterStatus.DRAFT,
+                        status=SemesterStatus.DRAFT,
             location_id=location.id
         )
         db.add(semester)
@@ -255,8 +254,7 @@ def generate_lfa_player_youth_season(
             age_group="YOUTH",
             theme=quarter_theme["theme"],
             focus_description=quarter_theme["focus"],
-            is_active=True,
-            status=SemesterStatus.DRAFT,
+                        status=SemesterStatus.DRAFT,
             location_id=location.id
         )
         db.add(semester)
@@ -351,8 +349,7 @@ def generate_lfa_player_amateur_season(
             age_group="AMATEUR",
             theme=season_theme["theme"],
             focus_description=season_theme["focus"],
-            is_active=True,
-            status=SemesterStatus.DRAFT,
+                        status=SemesterStatus.DRAFT,
             location_id=location.id
         )
         db.add(semester)
@@ -446,8 +443,7 @@ def generate_lfa_player_pro_season(
             age_group="PRO",
             theme=season_theme["theme"],
             focus_description=season_theme["focus"],
-            is_active=True,
-            status=SemesterStatus.DRAFT,
+                        status=SemesterStatus.DRAFT,
             location_id=location.id
         )
         db.add(semester)

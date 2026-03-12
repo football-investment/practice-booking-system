@@ -32,9 +32,9 @@ from typing import Optional
 @pytest.fixture(scope="module")
 def wf_session_semester_id(test_db) -> int:
     """Get or create a Semester for session lifecycle tests."""
-    from app.models.semester import Semester
+    from app.models.semester import Semester, SemesterStatus
 
-    existing = test_db.query(Semester).filter(Semester.is_active.is_(True)).first()
+    existing = test_db.query(Semester).filter(Semester.status != SemesterStatus.CANCELLED).first()
     if existing:
         return existing.id
 
@@ -44,7 +44,6 @@ def wf_session_semester_id(test_db) -> int:
         name=f"Session Lifecycle Test Semester {ts}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
-        is_active=True,
     )
     test_db.add(sem)
     test_db.commit()

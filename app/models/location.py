@@ -39,7 +39,6 @@ class Location(Base):
     country = Column(String(100), nullable=False)
     country_code = Column(String(2), nullable=True)  # ISO country code (e.g., HU, AT, SK)
     location_code = Column(String(10), nullable=True, unique=True)  # Unique location code (e.g., BDPST, VIE)
-    venue = Column(String(200), nullable=True)  # DEPRECATED - will be moved to Campus model
     address = Column(String(500), nullable=True)  # General city address info
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)

@@ -28,9 +28,6 @@ class TestSemesterBaseContract:
     def test_semester_base_has_status_field(self):
         assert "status" in SemesterBase.model_fields
 
-    def test_semester_base_has_is_active_field(self):
-        assert "is_active" in SemesterBase.model_fields
-
     def test_semester_base_has_enrollment_cost_field(self):
         assert "enrollment_cost" in SemesterBase.model_fields
 
@@ -48,9 +45,6 @@ class TestSemesterBaseContract:
 
     def test_semester_base_status_defaults_to_draft(self):
         assert SemesterBase.model_fields["status"].default == SemesterStatus.DRAFT
-
-    def test_semester_base_is_active_defaults_to_true(self):
-        assert SemesterBase.model_fields["is_active"].default is True
 
     def test_semester_base_enrollment_cost_has_default(self):
         # Enrollment cost should have a sensible default (not required)

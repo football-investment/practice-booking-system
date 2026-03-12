@@ -13,13 +13,16 @@ from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 from ...models.license import UserLicense
 from ...models.semester_enrollment import SemesterEnrollment
-from ...models.semester import Semester
+from ...models.semester import Semester, SemesterStatus
 from ...utils.age_requirements import validate_specialization_for_age
+import logging
 import traceback
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -80,7 +83,7 @@ async def profile_page(
                 today = date.today()
                 available_semesters = db.query(Semester).filter(
                     Semester.code.like(f'{semester_code_prefix}_%'),
-                    Semester.is_active == True,
+                    Semester.status != SemesterStatus.CANCELLED,
                     Semester.start_date >= today  # Only future semesters
                 ).order_by(Semester.start_date).limit(6).all()  # Show max 6 upcoming semesters
 
@@ -260,15 +263,14 @@ async def profile_edit_submit(
         db.commit()
         db.refresh(user)
 
-        print(f"Profile updated for {user.email} (Age: {age})")
+        logger.info("profile_updated", extra={"user": user.email, "age": age})
 
         # Redirect to profile page with success message
         return RedirectResponse(url="/profile?updated=true", status_code=303)
 
     except Exception as e:
         db.rollback()
-        print(f"Error updating profile: {e}")
-        traceback.print_exc()
+        logger.error("profile_update_error", extra={"user": user.email}, exc_info=True)
 
         return templates.TemplateResponse(
             "profile_edit.html",

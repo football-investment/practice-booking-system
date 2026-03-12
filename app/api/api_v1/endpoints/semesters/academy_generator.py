@@ -183,8 +183,7 @@ def generate_academy_season(
         campus_id=request.campus_id,
         master_instructor_id=request.master_instructor_id,
         status=SemesterStatus.DRAFT if not request.master_instructor_id else SemesterStatus.SEEKING_INSTRUCTOR,
-        is_active=True
-    )
+            )
 
     db.add(new_semester)
     db.commit()
