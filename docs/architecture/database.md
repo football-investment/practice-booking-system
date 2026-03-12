@@ -432,3 +432,49 @@ def postgres_db():
 **Database Verified**: PostgreSQL `lfa_intern_system` has 2 users, zero invitation codes
 **API Test Results**: 8/8 PASSED (100%)
 **E2E Test Status**: 1/1 FAILED (modal selector issue)
+
+---
+
+## Schema Changelog
+
+### v1.0.1 — 2026-03-12 (P1 Technical Debt)
+
+#### Removed columns
+
+| Table | Column | Type | Reason | Replacement |
+|-------|--------|------|--------|-------------|
+| `semesters` | `is_active` | `Boolean` | Duplicated `status` enum; marked DEPRECATED | `status != 'CANCELLED'` |
+| `locations` | `venue` | `String(200)` | Replaced by `Campus.venue`; marked DEPRECATED | `Campus.venue` |
+
+#### Removed enum values
+
+| Enum | Values removed | Migration |
+|------|---------------|-----------|
+| `coupontype` (PostgreSQL) | `PERCENT`, `FIXED`, `CREDITS` | Recreated via `coupontype_new`; existing rows migrated to `BONUS_CREDITS` |
+
+#### Alembic migrations (in order)
+
+| Revision | File | Action |
+|----------|------|--------|
+| `2026_03_12_1000` | `drop_semester_is_active.py` | `DROP COLUMN semesters.is_active` |
+| `2026_03_12_1100` | `remove_legacy_coupon_types.py` | Recreate `coupontype` PG enum without 3 legacy values |
+| `2026_03_12_1200` | `drop_location_venue.py` | `DROP COLUMN locations.venue` |
+
+#### Semantic mapping: Semester.is_active → status
+
+Before v1.0.1, queries filtering "active" semesters used `Semester.is_active == True`.
+The canonical replacement is `Semester.status != SemesterStatus.CANCELLED`.
+
+```python
+# BEFORE (removed)
+db.query(Semester).filter(Semester.is_active == True)
+
+# AFTER (correct)
+from app.models.semester import SemesterStatus
+db.query(Semester).filter(Semester.status != SemesterStatus.CANCELLED)
+```
+
+The `status` lifecycle: `DRAFT → SEEKING_INSTRUCTOR → INSTRUCTOR_ASSIGNED → READY_FOR_ENROLLMENT → ONGOING → COMPLETED | CANCELLED`
+
+All statuses except `CANCELLED` represent "active" semesters. `COMPLETED` semesters are still "active"
+in the sense that their data is live — only `CANCELLED` means administratively deactivated.

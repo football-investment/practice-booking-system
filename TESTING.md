@@ -1,6 +1,6 @@
 # Testing Strategy — LFA Practice Booking System
 
-> **Last updated:** Sprint 54 | **Coverage:** stmt 88.7%, branch 83.5%
+> **Last updated:** v1.0.1 (2026-03-12) | **Coverage:** stmt 88.7%, branch 83.5% | **Tests:** 8870 passed, 1 xfailed
 
 ---
 
@@ -1273,3 +1273,49 @@ Covers 6 previously untested routes:
 | ADM-09 | `admin/user_management.cy.js` | `GET /admin/coupons` |
 | ADM-10 | `admin/user_management.cy.js` | `GET /admin/invitation-codes` |
 | XR-15 | `cross_role/full_student_lifecycle.cy.js` | `POST /sessions/{id}/evaluate-instructor` (happy path: session stopped, PRESENT) |
+
+---
+
+## v1.0.1 — P1 Technical Debt (2026-03-12)
+
+### Sprint baseline
+
+| Metric | Value |
+|--------|-------|
+| Tests passing | 8870 passed, 1 xfailed |
+| Routes | 538 |
+| Tag | `v1.0.1-core-stable` |
+
+### Patterns introduced
+
+**`asyncio.to_thread()` mock pattern** — `HealthChecker.get_worker_health()` runs blocking
+Celery `inspect().ping()` via `asyncio.to_thread()`. Tests patch the entire method as `AsyncMock`:
+
+```python
+from unittest.mock import AsyncMock, patch
+
+_WORKER_PATCH = "app.core.health.HealthChecker.get_worker_health"
+_WORKER_RESULT = {"status": "healthy", "redis": "healthy", "workers": [], "error": None}
+
+with patch(_WORKER_PATCH, new=AsyncMock(return_value=_WORKER_RESULT)):
+    result = await HealthChecker.get_comprehensive_health()
+```
+
+**Alembic PostgreSQL enum recreation** — PG cannot drop enum values; recreate pattern:
+
+```sql
+CREATE TYPE myenum_new AS ENUM ('A', 'B');
+ALTER TABLE t ALTER COLUMN c TYPE myenum_new USING c::text::myenum_new;
+DROP TYPE myenum;
+ALTER TYPE myenum_new RENAME TO myenum;
+```
+
+**Migration revision guard in tests** — `_current_revision() == REV_X` assertions in
+`test_migration_rollback.py` are fragile: they break when newer migrations are added.
+Only assert `_current_revision() == REV_X` when explicitly downgrading to that target;
+never assert it equals a specific value after `upgrade head` (head moves forward).
+
+**Semester.is_active cleanup pattern** — when removing a boolean alias column:
+1. Grep for `ModelName(` within ±15 lines of each `is_active=` site to distinguish models
+2. Fix app/ code first (generators, endpoints, web routes), then test fixtures
+3. The migration rollback test checks for the presence of DB-level constraints, not revision IDs
