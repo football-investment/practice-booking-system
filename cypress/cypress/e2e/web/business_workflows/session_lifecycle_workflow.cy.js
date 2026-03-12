@@ -148,7 +148,7 @@ describe('Business Workflow — Session Lifecycle', {
       'satisfaction',
     ];
     ratingFields.forEach((field) => {
-      cy.get(`input[name="${field}"][value="4"]`).click();
+      cy.get(`input[name="${field}"][value="4"]`).click({ force: true });
     });
 
     // onsubmit="return confirm(...)" → auto-accepted → form POSTs
