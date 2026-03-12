@@ -5,7 +5,6 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
-      - 'streamlit_app/**'
       - 'app/**'
       - 'cypress/**'
 
@@ -39,7 +38,7 @@ jobs:
   smoke:
     name: Smoke Suite (PR Gate)
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'smoke')
+    if: false  # Streamlit decommissioned
     timeout-minutes: 20
 
     services:
@@ -143,7 +142,7 @@ jobs:
   critical:
     name: Critical Specs (${{ matrix.group }} — Blocking)
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: false  # Streamlit decommissioned
     timeout-minutes: 15
 
     strategy:
@@ -270,7 +269,7 @@ jobs:
   full:
     name: Full Suite (Nightly)
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')
+    if: false  # Streamlit decommissioned
     timeout-minutes: 60
 
     services:
@@ -397,7 +396,7 @@ jobs:
   error-states:
     name: Non-Critical Specs (Error States — Warning Only)
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.suite == 'errors')
+    if: false  # Streamlit decommissioned
     timeout-minutes: 20
 
     steps:

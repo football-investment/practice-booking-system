@@ -29,7 +29,6 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
-      - 'streamlit_app/**'
       - 'app/**'
       - 'cypress/**'
       - '.github/workflows/e2e-comprehensive.yml'
@@ -71,9 +70,7 @@ jobs:
   smoke:
     name: 🚀 Smoke Suite (PR Gate)
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' && inputs.suite == 'smoke')
+    if: false  # Streamlit decommissioned
     timeout-minutes: 15
 
     services:
@@ -175,9 +172,7 @@ jobs:
   critical:
     name: 🛡️ Critical Suite (Blocking)
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_dispatch' && (inputs.suite == 'critical' || inputs.suite == 'full'))
+    if: false  # Streamlit decommissioned
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -288,9 +283,7 @@ jobs:
   full:
     name: 📦 Full Suite - ${{ matrix.role }}
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')
+    if: false  # Streamlit decommissioned
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -449,7 +442,7 @@ jobs:
     name: 📊 Test Summary & Coverage Report
     runs-on: ubuntu-latest
     needs: [smoke, critical]
-    if: always()
+    if: false  # Streamlit decommissioned
 
     steps:
       - name: Generate summary

@@ -66,14 +66,6 @@ jobs:
           # Health check
           curl --fail http://localhost:8000/health || exit 1
 
-      - name: Start Streamlit frontend
-        run: |
-          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          sleep 10
-
-          # Health check
-          curl --fail http://localhost:8501 || exit 1
-
       - name: Run Integration Critical Suite (Sequential)
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
