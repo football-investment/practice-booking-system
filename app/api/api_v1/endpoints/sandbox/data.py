@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.api.deps import get_current_admin_user
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.license import UserLicense
 from app.services import skill_progression_service
 
@@ -90,7 +90,7 @@ def list_users_for_sandbox(
     """
     logger.info(f"Admin {current_admin.email} listing users for sandbox (search={search}, license_type={license_type})")
 
-    query = db.query(User).filter(User.role == "STUDENT")
+    query = db.query(User).filter(User.role == UserRole.STUDENT)
 
     # Apply search filter
     if search:
@@ -177,7 +177,7 @@ def list_instructors_for_sandbox(
     """
     logger.info(f"Admin {current_admin.email} listing instructors for sandbox (search={search}, specialization={specialization})")
 
-    query = db.query(User).filter(User.role == "INSTRUCTOR")
+    query = db.query(User).filter(User.role == UserRole.INSTRUCTOR)
 
     # Apply search filter
     if search:

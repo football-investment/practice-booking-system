@@ -10,7 +10,7 @@ from ....database import get_db
 from ....dependencies import get_current_user
 from ....core.auth import create_access_token, create_refresh_token, verify_token
 from ....core.security import verify_password, get_password_hash
-from ....models.user import User
+from ....models.user import User, UserRole
 from ....models.invitation_code import InvitationCode
 from ....schemas.auth import Login, Token, RefreshToken, ChangePassword
 from ....schemas.user import User as UserSchema
@@ -366,7 +366,7 @@ def register_with_invitation(
         last_name=registration_data.last_name,
         nickname=registration_data.nickname,
         phone=formatted_phone,  # Use validated and formatted international phone number
-        role="STUDENT",
+        role=UserRole.STUDENT,
         is_active=True,
         payment_verified=False,
         nda_accepted=False,

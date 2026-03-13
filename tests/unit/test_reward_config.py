@@ -30,10 +30,7 @@ Coverage targets (97 stmts, ~17% → ≥95%):
     - happy path: all 5 placement tiers → totals calculated
     - happy path: partial tiers (only 1st place) → others contribute 0
 
-NOTE on production inconsistency found during test writing:
-  delete_tournament_reward_config uses `role != "ADMIN"` (string compare),
-  while save uses `role != UserRole.ADMIN` (enum compare).
-  Tests use u.role = "ADMIN" / "INSTRUCTOR" strings for the delete endpoint.
+NOTE: delete_tournament_reward_config now uses UserRole enum comparison (fixed in Issue #11).
 """
 
 import pytest
@@ -72,21 +69,6 @@ def _admin():
 def _non_admin():
     u = MagicMock()
     u.role = UserRole.INSTRUCTOR
-    u.id = 42
-    return u
-
-
-def _str_admin():
-    """For delete endpoint: uses string comparison `role != 'ADMIN'`."""
-    u = MagicMock()
-    u.role = "ADMIN"
-    u.id = 42
-    return u
-
-
-def _str_non_admin():
-    u = MagicMock()
-    u.role = "INSTRUCTOR"
     u.id = 42
     return u
 
@@ -268,11 +250,10 @@ class TestUpdateTournamentRewardConfig:
 
 class TestDeleteTournamentRewardConfig:
 
-    def test_403_non_admin_string_check(self):
-        """delete uses `role != 'ADMIN'` string comparison (not enum)."""
+    def test_403_non_admin(self):
         with pytest.raises(HTTPException) as exc:
             delete_tournament_reward_config(
-                1, db=MagicMock(), current_user=_str_non_admin()
+                1, db=MagicMock(), current_user=_non_admin()
             )
         assert exc.value.status_code == 403
 
@@ -281,9 +262,8 @@ class TestDeleteTournamentRewardConfig:
         db = MagicMock()
         with patch(_REPO) as MockRepo:
             MockRepo.return_value.get_or_404.return_value = t
-            result = delete_tournament_reward_config(1, db=db, current_user=_str_admin())
-        assert t.reward_config is None
-        assert t.reward_policy_name == "default"
+            result = delete_tournament_reward_config(1, db=db, current_user=_admin())
+        assert t.reward_config_obj is None
         db.commit.assert_called_once()
         assert "deleted" in result["message"].lower()
 

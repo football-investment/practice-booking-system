@@ -171,15 +171,16 @@ def delete_tournament_reward_config(
         Success message
     """
     # Check if user is admin
-    if current_user.role != "ADMIN":
+    if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Only admins can delete tournament reward configs")
 
     # Get tournament
     tournament = TournamentRepository(db).get_or_404(tournament_id)
 
-    # Reset reward_config
-    tournament.reward_config = None
-    tournament.reward_policy_name = "default"
+    # Reset reward config by removing the related TournamentRewardConfig record.
+    # reward_config and reward_policy_name are read-only @property on Semester;
+    # the ORM relationship handles deletion via delete-orphan cascade.
+    tournament.reward_config_obj = None
 
     db.commit()
 

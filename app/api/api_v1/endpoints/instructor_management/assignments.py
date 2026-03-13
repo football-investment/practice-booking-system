@@ -17,7 +17,7 @@ from datetime import datetime
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User, Location, InstructorAssignment, LocationMasterInstructor, Semester, SemesterStatus
+from app.models import User, UserRole, Location, InstructorAssignment, LocationMasterInstructor, Semester, SemesterStatus
 from app.models.specialization import SpecializationType
 from app.schemas.instructor_management import (
     AssignmentCreate,
@@ -390,7 +390,7 @@ def delete_assignment(
         )
 
     # Check permissions
-    is_admin = current_user.role == "ADMIN"
+    is_admin = current_user.role == UserRole.ADMIN
     is_master = db.query(LocationMasterInstructor).filter(
         LocationMasterInstructor.location_id == assignment.location_id,
         LocationMasterInstructor.instructor_id == current_user.id,

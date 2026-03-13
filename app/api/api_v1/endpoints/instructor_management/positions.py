@@ -16,7 +16,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User, Location, InstructorPosition, PositionApplication, LocationMasterInstructor, PositionStatus
+from app.models import User, UserRole, Location, InstructorPosition, PositionApplication, LocationMasterInstructor, PositionStatus
 from app.schemas.instructor_management import (
     PositionCreate,
     PositionResponse,
@@ -338,7 +338,7 @@ def delete_position(
         )
 
     # Check ownership (unless admin)
-    is_admin = current_user.role == "ADMIN"
+    is_admin = current_user.role == UserRole.ADMIN
     if not is_admin and position.posted_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
