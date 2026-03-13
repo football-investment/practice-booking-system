@@ -34,6 +34,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Write .env (disables rate limiting for test suite)
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY=ci-integration-critical-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
