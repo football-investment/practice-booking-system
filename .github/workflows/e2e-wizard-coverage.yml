@@ -348,6 +348,8 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
       SECRET_KEY: ci-test-secret-key-not-for-production
       API_URL: http://localhost:8000
+      # Required to pass require_streamlit_url guard in conftest.py (API-only job — no Streamlit)
+      STREAMLIT_URL: "http://not-available"
 
     steps:
       - uses: actions/checkout@v4
@@ -433,12 +435,15 @@ jobs:
           name: junit-api-boundary
           path: tests/e2e/results/ci_api_boundary*.xml
 
-  # ── Job 5: P1 Critical Coverage (API + Playwright) ────────────────────────
+  # ── Job 5: P1 Simulation API Coverage ─────────────────────────────────────
+  # Runs the API-only subset of test_p1_coverage.py (14 of the original 23
+  # tests). The 9 Playwright/Streamlit tests (TestWizardErrorStateRetention
+  # and the 5 UI methods in TestIndividualRankingSafetyGate) are skipped
+  # because the Streamlit wizard was decommissioned in Sprint 59h.
   p1-critical-coverage:
-    name: P1 Critical Coverage (23 tests)
+    name: P1 Simulation API Coverage (14 tests)
     runs-on: ubuntu-latest
-    if: false  # Streamlit decommissioned
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -458,9 +463,10 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
       SECRET_KEY: ci-test-secret-key-not-for-production
-      BASE_URL: http://localhost:8501
       API_URL: http://localhost:8000
       PYTEST_HEADLESS: "true"
+      # Required to pass require_streamlit_url guard in conftest.py (API-only job — no Streamlit)
+      STREAMLIT_URL: "http://not-available"
 
     steps:
       - uses: actions/checkout@v4
@@ -490,9 +496,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-          pip install pytest pytest-playwright pytest-mock
+          # playwright package (no browser binary needed — API-only tests use Page as type hint only)
+          pip install pytest pytest-playwright pytest-mock requests
           pip check
-          python -m playwright install chromium
 
       - name: Run DB migrations
         run: alembic upgrade head
@@ -503,17 +509,22 @@ jobs:
           python scripts/seed_8_physical_campuses.py
           python scripts/seed_tournament_types.py
 
-      - name: Start backend + Streamlit
+      - name: Start FastAPI backend
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          streamlit run streamlit_app/Home.py --server.port 8501 --server.headless true &
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
-          timeout 60 bash -c 'until curl -sf http://localhost:8501/_stcore/health; do sleep 2; done'
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend ready after ${i}s"; break
+            fi
+            sleep 1
+          done
+          curl --fail http://localhost:8000/health || exit 1
 
-      - name: P1 Critical Coverage tests
+      - name: P1 Simulation API Coverage tests
         run: |
           cd tests/e2e
           pytest test_p1_coverage.py \
+            -k "TestSimulationModeAPI or test_individual_ranking_128p_api" \
             --junitxml=results/ci_p1_coverage.xml \
             -v --tb=short
 
@@ -524,43 +535,40 @@ jobs:
           name: junit-p1-coverage
           path: tests/e2e/results/ci_p1_coverage.xml
 
-      - name: Upload screenshots on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots-p1-coverage
-          path: tests/e2e/screenshots/
-
   # ── Summary job ────────────────────────────────────────────────────────────
   coverage-summary:
     name: E2E Coverage Summary
     runs-on: ubuntu-latest
-    needs: [api-boundary]
+    needs: [api-boundary, p1-critical-coverage]
     if: always()
 
     steps:
       - name: Coverage gate
         run: |
-          echo "## E2E API Boundary Coverage Results" >> $GITHUB_STEP_SUMMARY
+          echo "## E2E API Coverage Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Tests | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| API Boundary (non-slow) | 127 | ${{ needs.api-boundary.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| P1 Simulation API | 14 | ${{ needs.p1-critical-coverage.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           API="${{ needs.api-boundary.result }}"
+          P1="${{ needs.p1-critical-coverage.result }}"
 
-          if [ "$API" = "success" ]; then
-            echo "### ✅ API Boundary coverage gate passed — safe to merge" >> $GITHUB_STEP_SUMMARY
+          if [ "$API" = "success" ] && [ "$P1" = "success" ]; then
+            echo "### ✅ API coverage gate passed — safe to merge" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Coverage validated (127 tests):**" >> $GITHUB_STEP_SUMMARY
+            echo "**Coverage validated (141 tests):**" >> $GITHUB_STEP_SUMMARY
             echo "- Knockout / League / Group-Knockout / Individual Ranking types" >> $GITHUB_STEP_SUMMARY
             echo "- Boundary values: 2,3,4,7,8,15,16,31,32,63,64,127,128" >> $GITHUB_STEP_SUMMARY
             echo "- Post-launch observability: status, sessions, rankings, enrolled count" >> $GITHUB_STEP_SUMMARY
+            echo "- Simulation modes: manual / auto_immediate / accelerated" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ E2E coverage gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Failing job(s):" >> $GITHUB_STEP_SUMMARY
             [ "$API" != "success" ] && echo "- API Boundary: $API" >> $GITHUB_STEP_SUMMARY
+            [ "$P1" != "success" ] && echo "- P1 Simulation API: $P1" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
