@@ -125,6 +125,14 @@ class Settings(BaseSettings):
     # Propagate tournament EMA skill deltas into FootballSkillAssessment rows.
     # Set to False to disable instantly without a code deploy.
     ENABLE_TOURNAMENT_SKILL_PROPAGATION: bool = True
+
+    # Payment configuration (override via environment variables in production)
+    PAYMENT_AMOUNT_HUF: int = 50000
+    PAYMENT_BANK_ACCOUNT_HOLDER: str = "LFA Education Center Kft."
+    PAYMENT_BANK_ACCOUNT_NUMBER: str = "12345678-12345678-12345678"
+    PAYMENT_BANK_NAME: str = "OTP Bank"
+    PAYMENT_BANK_SWIFT: str = "OTPVHUHB"
+    PAYMENT_BANK_IBAN: str = "HU42 1177 3016 1111 1118 0000 0000"
     
     # Rate Limiting Configuration
     RATE_LIMIT_CALLS: int = 100
