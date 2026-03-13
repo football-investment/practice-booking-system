@@ -127,28 +127,10 @@ def browser_config():
     return config
 
 
-@pytest.fixture(scope="session", autouse=True)
-def require_streamlit_url():
-    """
-    Guard: skip the entire E2E session if STREAMLIT_URL is not configured.
-
-    In CI, the fast-suite workflow sets STREAMLIT_URL=http://localhost:8501
-    before running these tests.  In local dev, developers who haven't started
-    Streamlit will get a clean SKIP rather than a connection-refused error.
-
-    To run locally with Streamlit: set STREAMLIT_URL=http://localhost:8501
-    """
-    if not os.environ.get("STREAMLIT_URL"):
-        pytest.skip(
-            "STREAMLIT_URL not set — Streamlit is not available. "
-            "Start Streamlit and export STREAMLIT_URL=http://localhost:8501 to run E2E tests."
-        )
-
-
 @pytest.fixture(scope="session")
 def base_url():
-    """Streamlit application URL."""
-    return os.environ.get("BASE_URL", os.environ.get("STREAMLIT_URL", "http://localhost:8501"))
+    """Streamlit application URL (legacy — Streamlit decommissioned in Sprint 59h)."""
+    return os.environ.get("BASE_URL", "http://localhost:8501")
 
 
 @pytest.fixture(scope="session")

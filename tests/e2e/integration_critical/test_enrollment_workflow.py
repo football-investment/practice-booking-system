@@ -124,13 +124,16 @@ class TestEnrollmentWorkflow:
 
         enroll_data = enroll_resp.json()
         # Tournament enrollment is auto-approved
-        assert enroll_data.get("request_status") in ["APPROVED", "approved", "AUTO_APPROVED"], (
+        # Response shape: {"enrollment": {"request_status": ...}, ...}
+        enroll_status = enroll_data.get("enrollment", {}).get("request_status") or enroll_data.get("request_status")
+        assert enroll_status in ["APPROVED", "approved", "AUTO_APPROVED"], (
             f"Expected auto-approved, got: {enroll_data}"
         )
 
         # Admin lists enrollments — student must appear
+        # Tournament enrollment uses SemesterEnrollment (semester_id=tournament_id)
         list_resp = requests.get(
-            f"{api_url}/api/v1/tournaments/{tid}/admin/enrollments",
+            f"{api_url}/api/v1/semester-enrollments/semesters/{tid}/enrollments",
             headers=_auth(admin_token)
         )
         assert list_resp.status_code in [200, 201], (
@@ -213,7 +216,7 @@ class TestEnrollmentWorkflow:
 
         # Verify both appear in enrollment list
         list_resp = requests.get(
-            f"{api_url}/api/v1/tournaments/{tid}/admin/enrollments",
+            f"{api_url}/api/v1/semester-enrollments/semesters/{tid}/enrollments",
             headers=_auth(admin_token)
         )
         assert list_resp.status_code in [200, 201]

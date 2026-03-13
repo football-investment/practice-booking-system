@@ -1033,25 +1033,6 @@ class TestMonitoringPanel:
             sidebar.get_by_role("button", name="Refresh now")
         ).to_be_visible(timeout=_LOAD_TIMEOUT)
 
-    @pytest.mark.xfail(
-        reason=(
-            "Iteration 3 replaced the 'Enable auto-refresh' checkbox with a "
-            "Streamlit fragment-based auto-refresh. Checkbox no longer exists. "
-            "Test kept for documentation; remove once fragment behaviour is "
-            "explicitly validated."
-        ),
-        strict=False,
-    )
-    def test_auto_refresh_checkbox_present(
-        self, page: Page, base_url: str, api_url: str
-    ):
-        """'Enable auto-refresh' checkbox visible in sidebar (pre-Iteration-3 UI)."""
-        _go_to_monitor_authenticated(page, base_url, api_url)
-        sidebar = page.locator("[data-testid='stSidebar']")
-        expect(
-            sidebar.get_by_text("Enable auto-refresh", exact=False)
-        ).to_be_visible(timeout=_LOAD_TIMEOUT)
-
     def test_no_active_tests_shows_info_message(
         self, page: Page, base_url: str, api_url: str
     ):
