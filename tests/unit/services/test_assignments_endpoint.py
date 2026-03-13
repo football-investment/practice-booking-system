@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.models.user import UserRole
 from app.api.api_v1.endpoints.instructor_management.assignments import (
     create_assignment,
     delete_assignment,
@@ -502,7 +503,7 @@ class TestDeleteAssignment:
         assignment = MagicMock()
         assignment.location_id = 1
         db = _seq_db(_q(first=assignment), _q(first=None))
-        u = _user(role="INSTRUCTOR")  # string comparison in endpoint
+        u = _user(role=UserRole.INSTRUCTOR)
         with pytest.raises(Exception) as exc:
             delete_assignment(1, db=db, current_user=u)
         assert exc.value.status_code == 403
@@ -512,7 +513,7 @@ class TestDeleteAssignment:
         assignment.location_id = 1
         # master check still runs but returns None → is_master=False; is_admin=True wins
         db = _seq_db(_q(first=assignment), _q(first=None))
-        u = _user(role="ADMIN")
+        u = _user(role=UserRole.ADMIN)
         result = delete_assignment(1, db=db, current_user=u)
         assert result is None
         db.delete.assert_called_once_with(assignment)
@@ -521,7 +522,7 @@ class TestDeleteAssignment:
         assignment = MagicMock()
         assignment.location_id = 1
         db = _seq_db(_q(first=assignment), _q(first=MagicMock()))
-        u = _user(role="INSTRUCTOR")
+        u = _user(role=UserRole.INSTRUCTOR)
         result = delete_assignment(1, db=db, current_user=u)
         assert result is None
         db.delete.assert_called_once_with(assignment)

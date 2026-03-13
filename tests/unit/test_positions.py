@@ -40,15 +40,14 @@ Coverage targets (105 stmts, ~14% → ≥95%):
     - admin override: can delete with applications (different owner)
     - happy path: no applications → deleted
 
-NOTE on production inconsistency:
-  delete_position uses `role == "ADMIN"` (string compare).
-  Tests use u.role = "ADMIN" / "INSTRUCTOR" strings.
+NOTE: delete_position uses UserRole enum comparison (fixed in Issue #11).
 """
 
 import pytest
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 
+from app.models.user import UserRole
 from app.api.api_v1.endpoints.instructor_management.positions import (
     create_position,
     list_my_positions,
@@ -446,7 +445,7 @@ class TestDeletePosition:
             _q(first=pos),
             _q(count_=5),   # has applications — admin still allowed
         )
-        result = delete_position(1, db=db, current_user=_user(role="ADMIN"))
+        result = delete_position(1, db=db, current_user=_user(role=UserRole.ADMIN))
         db.delete.assert_called_once_with(pos)
         db.commit.assert_called_once()
         assert result is None
