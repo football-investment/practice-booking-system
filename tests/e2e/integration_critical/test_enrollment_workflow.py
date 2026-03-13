@@ -131,8 +131,9 @@ class TestEnrollmentWorkflow:
         )
 
         # Admin lists enrollments — student must appear
+        # Tournament enrollment uses SemesterEnrollment (semester_id=tournament_id)
         list_resp = requests.get(
-            f"{api_url}/api/v1/tournaments/{tid}/admin/enrollments",
+            f"{api_url}/api/v1/semester-enrollments/semesters/{tid}/enrollments",
             headers=_auth(admin_token)
         )
         assert list_resp.status_code in [200, 201], (
