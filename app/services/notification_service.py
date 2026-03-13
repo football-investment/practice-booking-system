@@ -223,6 +223,33 @@ def create_tournament_instructor_accepted_notification(
     )
 
 
+def create_skill_tier_notification(
+    db: Session,
+    user_id: int,
+    skill_name: str,
+    tier_name: str,
+    new_pct: float,
+    tournament_id: Optional[int] = None,
+) -> Notification:
+    """
+    Notify a player that their skill has crossed a tier boundary.
+    Caller is responsible for committing the session.
+    """
+    readable = skill_name.replace("_", " ").title()
+    return create_notification(
+        db=db,
+        user_id=user_id,
+        title=f"Skill Milestone: {readable} — {tier_name}",
+        message=(
+            f"Your {readable} skill has reached {tier_name} level "
+            f"({new_pct:.0f}%). Keep competing to progress further!"
+        ),
+        notification_type=NotificationType.SKILL_TIER_REACHED,
+        link="/notifications",
+        related_semester_id=tournament_id,
+    )
+
+
 def mark_notification_as_read(
     db: Session,
     notification_id: int,

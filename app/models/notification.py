@@ -24,6 +24,9 @@ class NotificationType(enum.Enum):
     TOURNAMENT_INSTRUCTOR_ACCEPTED = "tournament_instructor_accepted"  # Instructor accepted assignment
     TOURNAMENT_INSTRUCTOR_DECLINED = "tournament_instructor_declined"  # Instructor declined assignment
 
+    # Skill progression notifications
+    SKILL_TIER_REACHED = "skill_tier_reached"
+
 
 class Notification(Base):
     __tablename__ = "notifications"
