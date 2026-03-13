@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, EmailStr
 
 from ....database import get_db
-from ....dependencies import get_current_user_web, get_current_admin_user
+from ....dependencies import get_current_user_web, get_current_admin_user, get_current_admin_user_hybrid
 from ....models.user import User
 from ....models.invitation_code import InvitationCode
 
@@ -106,7 +106,7 @@ async def get_all_invitation_codes(
 async def create_invitation_code(
     code_data: InvitationCodeCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ) -> Any:
     """Create a new invitation code (Admin only)"""
     # Validate bonus_credits
@@ -170,7 +170,7 @@ async def create_invitation_code(
 async def delete_invitation_code(
     code_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ) -> Any:
     """Delete an invitation code (Admin only). Only unused codes can be deleted."""
     code = db.query(InvitationCode).filter(InvitationCode.id == code_id).first()
