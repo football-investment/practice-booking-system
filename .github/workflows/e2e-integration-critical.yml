@@ -69,6 +69,13 @@ jobs:
           # Verify migration state
           alembic current -v
 
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-integration-critical-key-not-for-production
+        run: |
+          python scripts/seed_tournament_types.py
+
       - name: Start FastAPI backend
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
