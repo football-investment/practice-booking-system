@@ -24,6 +24,7 @@ from app.models.license import UserLicense
 from app.models.xp_transaction import XPTransaction
 from app.schemas.reward_config import TournamentRewardConfig
 from app.config import settings
+from app.services.notification_service import create_skill_tier_notification
 
 logger = logging.getLogger(__name__)
 # Separate logger for skill-propagation metrics.
@@ -182,6 +183,7 @@ def update_skill_assessments(
     skill_points: Dict[str, float],
     assessed_by_id: Optional[int] = None,
     skill_rating_delta: Optional[Dict[str, float]] = None,
+    tournament_id: Optional[int] = None,
 ) -> None:
     """
     Propagate tournament EMA skill deltas into FootballSkillAssessment rows.
@@ -327,6 +329,25 @@ def update_skill_assessments(
             notes=f"Auto-assessed from tournament EMA delta ({delta:+.1f})",
         )
         db.add(new_assessment)
+
+        # ── Tier notification (guarded by feature flag) ────────────────────
+        if settings.ENABLE_SKILL_TIER_NOTIFICATIONS:
+            for threshold, tier_name in sorted(settings.SKILL_TIER_THRESHOLDS.items()):
+                if current_pct < threshold <= new_pct:
+                    create_skill_tier_notification(
+                        db=db,
+                        user_id=user_id,
+                        skill_name=skill_key,
+                        tier_name=tier_name,
+                        new_pct=new_pct,
+                        tournament_id=tournament_id,
+                    )
+                    logger.info(
+                        "skill_tier_reached user=%d skill=%s tier=%s pct=%.1f",
+                        user_id, skill_key, tier_name, new_pct,
+                    )
+                    break  # at most one tier crossed per update
+
         skills_written += 1
 
     # ── Summary log + metrics marker ──────────────────────────────────────
@@ -424,6 +445,7 @@ def record_tournament_participation(
         skill_points,
         assessed_by_id,
         skill_rating_delta=rating_delta,
+        tournament_id=tournament_id,
     )
 
     # Create XP transaction for bonus XP (if any)

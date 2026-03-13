@@ -9773,7 +9773,8 @@
           "tournament_application_rejected",
           "tournament_direct_invitation",
           "tournament_instructor_accepted",
-          "tournament_instructor_declined"
+          "tournament_instructor_declined",
+          "skill_tier_reached"
         ],
         "title": "NotificationType",
         "type": "string"

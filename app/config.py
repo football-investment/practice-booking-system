@@ -126,6 +126,17 @@ class Settings(BaseSettings):
     # Set to False to disable instantly without a code deploy.
     ENABLE_TOURNAMENT_SKILL_PROPAGATION: bool = True
 
+    # Skill Tier Notifications
+    # Send in-app notification when a player's skill crosses a tier boundary.
+    # Requires ENABLE_TOURNAMENT_SKILL_PROPAGATION=True.
+    ENABLE_SKILL_TIER_NOTIFICATIONS: bool = False
+
+    SKILL_TIER_THRESHOLDS: dict = {
+        60: "Intermediate",
+        75: "Advanced",
+        90: "Expert",
+    }
+
     # Payment configuration (override via environment variables in production)
     PAYMENT_AMOUNT_HUF: int = 50000
     PAYMENT_BANK_ACCOUNT_HOLDER: str = "LFA Education Center Kft."
