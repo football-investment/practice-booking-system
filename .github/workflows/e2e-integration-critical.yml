@@ -61,9 +61,15 @@ jobs:
           SECRET_KEY: ci-integration-critical-key-not-for-production
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
 
-          # Health check
+          # Wait up to 30s for the server to be ready (retry loop)
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
           curl --fail http://localhost:8000/health || exit 1
 
       - name: Run Integration Critical Suite (Sequential)
