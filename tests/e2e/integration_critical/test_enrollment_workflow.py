@@ -124,7 +124,9 @@ class TestEnrollmentWorkflow:
 
         enroll_data = enroll_resp.json()
         # Tournament enrollment is auto-approved
-        assert enroll_data.get("request_status") in ["APPROVED", "approved", "AUTO_APPROVED"], (
+        # Response shape: {"enrollment": {"request_status": ...}, ...}
+        enroll_status = enroll_data.get("enrollment", {}).get("request_status") or enroll_data.get("request_status")
+        assert enroll_status in ["APPROVED", "approved", "AUTO_APPROVED"], (
             f"Expected auto-approved, got: {enroll_data}"
         )
 
