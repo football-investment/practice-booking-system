@@ -240,6 +240,7 @@ _MATRIX = [
 """(player_count, num_groups, expected_round1_sessions)"""
 
 
+@pytest.mark.skip(reason="Streamlit Tournament Monitor decommissioned in Sprint 59h; API-only equivalent: test_seeding_api_only")
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
 @pytest.mark.parametrize("player_count,num_groups,expected_r1", _MATRIX)
