@@ -208,7 +208,6 @@ def booking_session(db_session: DBSession, booking_campus, booking_tournament_ty
         age_group="PRO",
         enrollment_cost=0,
         tournament_status="IN_PROGRESS",
-        is_active=True,
         master_instructor_id=booking_instructor.id
     )
     db_session.add(tournament)
@@ -376,7 +375,6 @@ class TestBookingFlowE2E:
             age_group="PRO",
             enrollment_cost=0,
             tournament_status="IN_PROGRESS",
-            is_active=True,
             master_instructor_id=booking_instructor.id
         )
         db_session.add(tournament)

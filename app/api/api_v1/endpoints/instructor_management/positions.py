@@ -75,7 +75,6 @@ def create_position(
         Semester.location_id == data.location_id,
         Semester.specialization_type == data.specialization_type,
         Semester.age_group == data.age_group,
-        Semester.is_active == True,
         Semester.status.in_([
             SemesterStatus.DRAFT,
             SemesterStatus.SEEKING_INSTRUCTOR,

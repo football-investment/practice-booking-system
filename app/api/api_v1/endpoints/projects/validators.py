@@ -11,7 +11,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from .....models.user import User
-from .....models.semester import Semester
+from .....models.semester import Semester, SemesterStatus
 from .....models.project import Project as ProjectModel
 
 
@@ -64,7 +64,7 @@ def validate_semester_enrollment(project_id: int, current_user: User, db: Sessio
     if not user_primary_semester:
         # Fallback to most recent active semester
         user_primary_semester = db.query(Semester).filter(
-            Semester.is_active == True
+            Semester.status != SemesterStatus.CANCELLED
         ).order_by(Semester.id.desc()).first()
     
     if user_primary_semester and project.semester_id != user_primary_semester.id:
@@ -92,13 +92,6 @@ def validate_semester_enrollment(project_id: int, current_user: User, db: Sessio
             detail=detail
         )
     
-    # Additional check: semester must be marked as active in the database
-    if not semester.is_active:
-        detail = f"Enrollment not allowed. Semester '{semester.name}' is not currently active"
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=detail
-        )
 
 
 def validate_specialization_enrollment(project_id: int, current_user: User, db: Session) -> None:

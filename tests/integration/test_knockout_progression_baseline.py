@@ -56,7 +56,6 @@ def _create_test_tournament(test_db: Session, test_name: str) -> Semester:
         start_date=datetime.now().date(),
         end_date=(datetime.now() + timedelta(days=30)).date(),
         specialization_type="FOOTBALL",
-        is_active=True
     )
     test_db.add(tournament)
     test_db.commit()

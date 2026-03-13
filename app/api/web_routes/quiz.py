@@ -12,6 +12,8 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
 
+import logging
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
@@ -24,6 +26,8 @@ from ...models.gamification import UserStats
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -74,7 +78,7 @@ async def unlock_quiz(
     session.quiz_unlocked = True
     db.commit()
 
-    print(f"🔓 Quiz unlocked for HYBRID session {session_id} by instructor {user.id}")
+    logger.info("quiz_unlocked_hybrid", extra={"session_id": session_id, "instructor_id": user.id})
 
     return RedirectResponse(
         url=f"/sessions/{session_id}?success=quiz_unlocked",
@@ -383,7 +387,7 @@ async def submit_quiz(
                         )
                         db.add(auto_attendance)
                         db.commit()
-                        print(f"✅ Auto-marked attendance for VIRTUAL session {session.id} - student {user.email}")
+                        logger.info("attendance_auto_marked_virtual", extra={"session_id": session.id, "user": user.email})
 
         except ValueError:
             pass

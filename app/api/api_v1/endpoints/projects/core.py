@@ -136,7 +136,7 @@ def list_projects(
                 "name": project.semester.name,
                 "start_date": project.semester.start_date.isoformat(),
                 "end_date": project.semester.end_date.isoformat(),
-                "is_active": project.semester.is_active
+                "status": project.semester.status.value if project.semester.status else None
             }
         
         # Get the properties

@@ -47,12 +47,12 @@ def migrate_locations_to_campuses():
         # Step 1: Get all existing locations
         print("\n📍 Step 1: Reading existing locations...")
         locations = db.execute(
-            text("SELECT id, name, city, venue, address, notes, is_active FROM locations ORDER BY id")
+            text("SELECT id, name, city, address, notes, is_active FROM locations ORDER BY id")
         ).fetchall()
 
         print(f"Found {len(locations)} locations:")
         for loc in locations:
-            print(f"  - ID {loc.id}: {loc.name} (City: {loc.city}, Venue: {loc.venue})")
+            print(f"  - ID {loc.id}: {loc.name} (City: {loc.city})")
 
         # Step 2: For each location, create a campus entry
         print("\n🏫 Step 2: Creating campus entries...")
@@ -61,8 +61,8 @@ def migrate_locations_to_campuses():
 
         for loc in locations:
             location_id = loc.id
-            campus_name = loc.venue if loc.venue else f"{loc.city} Main Campus"
-            venue = loc.venue
+            campus_name = f"{loc.city} Main Campus"
+            venue = None
             address = loc.address
             notes = loc.notes
             is_active = loc.is_active

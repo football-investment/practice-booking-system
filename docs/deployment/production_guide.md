@@ -75,7 +75,6 @@ Update `app/config.py` or use environment variable:
 ```python
 # Development (localhost)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8501",
     "http://localhost:8000"
 ]
 
@@ -156,28 +155,10 @@ server {
     }
 }
 
-# Streamlit Frontend
-server {
-    listen 443 ssl http2;
-    server_name app.lfa-education.com;
-
-    ssl_certificate /etc/letsencrypt/live/app.lfa-education.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/app.lfa-education.com/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:8501;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-
 # Redirect HTTP to HTTPS
 server {
     listen 80;
-    server_name api.lfa-education.com app.lfa-education.com;
+    server_name api.lfa-education.com;
     return 301 https://$server_name$request_uri;
 }
 ```
@@ -222,33 +203,8 @@ sudo systemctl start lfa-api
 sudo systemctl status lfa-api
 ```
 
-#### Streamlit (systemd service)
-
-Create `/etc/systemd/system/lfa-streamlit.service`:
-
-```ini
-[Unit]
-Description=LFA Education Streamlit App
-After=network.target lfa-api.service
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/lfa-education/streamlit_app
-ExecStart=/var/www/lfa-education/venv/bin/streamlit run 🏠_Home.py --server.port 8501
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Start service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable lfa-streamlit
-sudo systemctl start lfa-streamlit
-sudo systemctl status lfa-streamlit
-```
+> **Note (v1.0+):** Streamlit has been decommissioned. The FastAPI app at port 8000
+> serves both the REST API and the HTML frontend. No separate frontend service is needed.
 
 ---
 
@@ -256,17 +212,43 @@ sudo systemctl status lfa-streamlit
 
 ### 1. Health Checks
 
-```bash
-# API health
-curl https://api.lfa-education.com/health
+Three endpoints are available — all should be monitored in production:
 
+| Endpoint | Expected status | Failure meaning |
+|----------|----------------|-----------------|
+| `GET /health` | `{"status":"healthy"}` | DB unreachable |
+| `GET /health/detailed` | all checks `healthy` | one subsystem down |
+| `GET /health/worker` | `{"status":"healthy"}` or `"degraded"` | `"unhealthy"` = Redis down |
+
+```bash
+# Basic liveness (DB connectivity)
+curl https://api.lfa-education.com/health
 # Expected: {"status": "healthy"}
+
+# Detailed subsystem check
+curl https://api.lfa-education.com/health/detailed | python3 -m json.tool
+# Expected: database, redis, worker keys all present
+
+# Worker / Redis liveness (v1.0.1+)
+curl https://api.lfa-education.com/health/worker | python3 -m json.tool
+# Expected healthy:  {"status":"healthy",  "redis":"healthy","workers":["celery@host"],"error":null}
+# Expected degraded: {"status":"degraded", "redis":"healthy","workers":[],             "error":null}
+# Expected unhealthy:{"status":"unhealthy","redis":"unhealthy","workers":null,         "error":"..."}
+#
+# "degraded" = Redis OK, no Celery workers running (tournament generation disabled)
+# "unhealthy" = Redis unreachable (credit transactions and task queue unavailable)
 
 # API docs (verify accessible)
 curl -I https://api.lfa-education.com/docs
-
 # Expected: 200 OK
 ```
+
+#### Monitoring Checklist
+
+- [ ] `/health` returns `200` with `status=healthy` — include in uptime monitor (e.g. UptimeRobot)
+- [ ] `/health/worker` `status` is not `unhealthy` — alert if Redis goes down
+- [ ] `/health/worker` `workers` is non-empty during tournament periods — alert if Celery dies
+- [ ] `/health/detailed` checked after every deployment to confirm all subsystems healthy
 
 ### 2. Security Verification
 

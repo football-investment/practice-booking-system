@@ -195,7 +195,6 @@ def create_tournament(
         name=request.name,
         start_date=datetime.now().date(),
         end_date=(datetime.now() + timedelta(days=30)).date(),
-        is_active=True,
         tournament_status="IN_PROGRESS",  # Ready for enrollment and session generation
         master_instructor_id=grandmaster.id if grandmaster else None,
         enrollment_cost=request.enrollment_cost

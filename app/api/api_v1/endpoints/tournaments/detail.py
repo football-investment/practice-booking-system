@@ -13,7 +13,7 @@ from datetime import datetime
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.semester import Semester
+from app.models.semester import Semester, SemesterStatus
 
 router = APIRouter()
 
@@ -59,7 +59,7 @@ def get_tournament_detail(
     """
     tournament = db.query(Semester).filter(
         Semester.id == tournament_id,
-        Semester.is_active == True
+        Semester.status != SemesterStatus.CANCELLED
     ).first()
 
     if not tournament:

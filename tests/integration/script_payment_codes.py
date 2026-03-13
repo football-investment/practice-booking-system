@@ -13,7 +13,7 @@ os.environ['DATABASE_URL'] = "postgresql://postgres:postgres@localhost:5432/lfa_
 
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models.semester import Semester
+from app.models.semester import Semester, SemesterStatus
 from app.models.user import User
 from app.models.license import UserLicense
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
@@ -27,7 +27,7 @@ db: Session = SessionLocal()
 try:
     # Get test data
     student = db.query(User).filter(User.email == "junior.intern@lfa.com").first()
-    current_semester = db.query(Semester).filter(Semester.is_active == True).first()
+    current_semester = db.query(Semester).filter(Semester.status != SemesterStatus.CANCELLED).first()
 
     if not student:
         print("❌ Test student not found! Run setup_test_scenarios.py first")

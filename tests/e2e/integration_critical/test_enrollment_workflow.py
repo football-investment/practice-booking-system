@@ -68,7 +68,6 @@ def enrollment_tournament(api_url: str, admin_token: str, test_campus_ids: List[
             enrollment_cost=0,
             age_group="PRO",
             campus_id=campus_id,
-            is_active=True,
         )
         db.add(semester)
         db.commit()

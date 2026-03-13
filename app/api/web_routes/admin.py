@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import datetime, timezone, date
+import logging
 
 import re
 from collections import defaultdict
@@ -17,7 +18,7 @@ from sqlalchemy import func as sqlfunc, or_
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
-from ...models.semester import Semester
+from ...models.semester import Semester, SemesterStatus
 from ...models.license import UserLicense
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.specialization import SpecializationType
@@ -41,6 +42,8 @@ from ...skills_config import SKILL_CATEGORIES
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -58,8 +61,7 @@ async def admin_users_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: User management page with filters and pagination"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     q = db.query(User)
     if role_filter:
@@ -118,8 +120,7 @@ async def admin_semesters_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Semester management page"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
     
     # Get all semesters
     semesters = db.query(Semester).order_by(Semester.start_date.desc()).all()
@@ -141,8 +142,7 @@ async def admin_enrollments_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Unified Semester Enrollment Management page (replaces /admin/payments)"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     # Get all semesters (for dropdown)
     semesters = db.query(Semester).order_by(Semester.start_date.desc()).all()
@@ -150,11 +150,20 @@ async def admin_enrollments_page(
     # Get all students with their licenses
     students = db.query(User).filter(User.role == UserRole.STUDENT).order_by(User.name).all()
 
-    # Attach user licenses to each student
+    # Attach user licenses to each student (batch load — avoids N+1)
+    student_ids = [s.id for s in students]
+    all_license_rows = (
+        db.query(UserLicense)
+        .filter(UserLicense.user_id.in_(student_ids))
+        .all()
+    ) if student_ids else []
+
+    license_map: dict = {}
+    for lic in all_license_rows:
+        license_map.setdefault(lic.user_id, []).append(lic)
+
     for student in students:
-        student.all_licenses = db.query(UserLicense).filter(
-            UserLicense.user_id == student.id
-        ).all()
+        student.all_licenses = license_map.get(student.id, [])
         # For specialization management section (moved from /admin/payments)
         student.active_specializations = student.all_licenses
 
@@ -162,7 +171,7 @@ async def admin_enrollments_page(
     today = date.today()
 
     active_semesters = db.query(Semester).filter(
-        Semester.is_active == True,
+        Semester.status != SemesterStatus.CANCELLED,
         Semester.start_date <= today,
         Semester.end_date >= today
     ).order_by(Semester.code, Semester.start_date.desc()).all()
@@ -280,7 +289,7 @@ async def admin_enrollments_page(
             if lic.specialization_type == spec_type.value
         ]
 
-    print(f"📋 Admin Enrollments: {len(all_enrollments)} enrollments, {len(newcomer_licenses)} newcomer licenses")
+    logger.info("admin_enrollments_loaded", extra={"enrollments": len(all_enrollments), "newcomers": len(newcomer_licenses)})
 
     return templates.TemplateResponse(
         "admin/enrollments.html",
@@ -332,8 +341,7 @@ async def admin_payments_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Payment Management page (invoice requests + license payment verification)"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     # 8-metric financial KPI
     fin_kpi = _build_financial_kpi(db)
@@ -388,8 +396,7 @@ async def admin_coupons_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Coupon Management page"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     # Get all coupons (ordered by creation date)
     coupons = db.query(Coupon).order_by(Coupon.created_at.desc()).all()
@@ -398,7 +405,7 @@ async def admin_coupons_page(
     for coupon in coupons:
         coupon.is_currently_valid = coupon.is_valid()
 
-    print(f"🎟️ Admin Coupons: {len(coupons)} coupons")
+    logger.info("admin_coupons_loaded", extra={"count": len(coupons)})
 
     return templates.TemplateResponse(
         "admin/coupons.html",
@@ -418,8 +425,7 @@ async def admin_invitation_codes_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Partner Invitation Codes Management page"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     # Get all invitation codes with creator/redeemer in one query
     codes = db.query(InvitationCode).order_by(InvitationCode.created_at.desc()).all()
@@ -437,7 +443,7 @@ async def admin_invitation_codes_page(
         code.used_by_name = users_map.get(code.used_by_user_id) if code.used_by_user_id else None
         code.created_by_name = users_map.get(code.created_by_admin_id) if code.created_by_admin_id else None
 
-    print(f"🎁 Admin Invitation Codes: {len(codes)} codes")
+    logger.info("admin_invitation_codes_loaded", extra={"count": len(codes)})
 
     return templates.TemplateResponse(
         "admin/invitation_codes.html",
@@ -462,8 +468,7 @@ async def admin_toggle_user_status(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Toggle a user's is_active status"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
@@ -475,7 +480,7 @@ async def admin_toggle_user_status(
 
     target.is_active = not target.is_active
     db.commit()
-    print(f"Admin {user.email} toggled user {target.email} → is_active={target.is_active}")
+    logger.info("admin_user_toggled", extra={"admin": user.email, "target": target.email, "is_active": target.is_active})
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
@@ -487,8 +492,7 @@ async def admin_edit_user_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Edit user form"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
@@ -511,8 +515,7 @@ async def admin_edit_user_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Save user edits"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
@@ -529,6 +532,7 @@ async def admin_edit_user_submit(
     if new_email != target.email:
         existing = db.query(User).filter(User.email == new_email).first()
         if existing:
+            logger.warning("admin_user_edit_duplicate_email", extra={"admin": user.email, "duplicate_email": new_email})
             return templates.TemplateResponse(
                 "admin/user_edit.html",
                 {
@@ -542,7 +546,7 @@ async def admin_edit_user_submit(
     target.email = new_email
     target.role = new_role
     db.commit()
-    print(f"Admin {user.email} edited user {target.email}: name={target.name}, role={target.role}")
+    logger.info("admin_user_edited", extra={"admin": user.email, "target": target.email, "role": str(target.role)})
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
@@ -557,8 +561,7 @@ async def admin_new_semester_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Create semester form"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR, User.is_active == True).all()
     return templates.TemplateResponse(
@@ -585,8 +588,7 @@ async def admin_new_semester_submit(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Create new semester"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR, User.is_active == True).all()
 
@@ -630,11 +632,10 @@ async def admin_new_semester_submit(
         enrollment_cost=enrollment_cost,
         specialization_type=specialization_type.strip() or None,
         master_instructor_id=instructor_id,
-        is_active=True,
     )
     db.add(new_sem)
     db.commit()
-    print(f"Admin {user.email} created semester {new_sem.code}")
+    logger.info("admin_semester_created", extra={"admin": user.email, "code": new_sem.code})
     return RedirectResponse(url="/admin/semesters", status_code=303)
 
 
@@ -645,9 +646,8 @@ async def admin_delete_semester(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web)
 ):
-    """Admin-only: Soft-delete a semester (set is_active=False)"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    """Admin-only: Cancel a semester (status=CANCELLED) or hard-delete if no enrollments."""
+    _admin_guard(user)
 
     sem = db.query(Semester).filter(Semester.id == semester_id).first()
     if not sem:
@@ -660,14 +660,14 @@ async def admin_delete_semester(
     ).count()
 
     if active_count > 0:
-        # Don't delete — just deactivate
-        sem.is_active = False
+        # Don't delete — cancel the semester
+        sem.status = SemesterStatus.CANCELLED
         db.commit()
-        print(f"Admin {user.email} deactivated semester {sem.code} ({active_count} active enrollments)")
+        logger.info("admin_semester_cancelled", extra={"admin": user.email, "code": sem.code, "active_enrollments": active_count})
     else:
         db.delete(sem)
         db.commit()
-        print(f"Admin {user.email} deleted semester {sem.code}")
+        logger.info("admin_semester_deleted", extra={"admin": user.email, "code": sem.code})
 
     return RedirectResponse(url="/admin/semesters", status_code=303)
 
@@ -680,8 +680,7 @@ async def admin_analytics_page(
     user: User = Depends(get_current_user_web)
 ):
     """Admin-only: Analytics and reports page"""
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _admin_guard(user)
 
     # Platform stats
     total_users = db.query(User).count()
@@ -708,7 +707,7 @@ async def admin_analytics_page(
     # Semesters grouped by specialization — eager-load location + campus for table columns
     all_semesters = (
         db.query(Semester)
-        .filter(Semester.is_active == True)
+        .filter(Semester.status != SemesterStatus.CANCELLED)
         .options(joinedload(Semester.location), joinedload(Semester.campus))
         .order_by(Semester.start_date.desc())
         .all()
@@ -871,7 +870,7 @@ async def motivation_assessment_submit(
 
     db.commit()
 
-    print(f"✅ {user.name} assessed {student_id}'s motivation for {specialization}: {average_score:.1f}/5.0")
+    logger.info("admin_motivation_assessed", extra={"assessor": user.email, "student_id": student_id, "spec": specialization, "avg_score": round(average_score, 1)})
 
     # Redirect back to student details or payments page
     return RedirectResponse(url=f"/admin/payments", status_code=303)
@@ -1243,7 +1242,7 @@ async def admin_purge_system_events(
         SystemEvent.created_at < cutoff
     ).delete(synchronize_session=False)
     db.commit()
-    print(f"Admin {user.email} purged {deleted} resolved system events older than {retention_days} days")
+    logger.info("admin_events_purged", extra={"admin": user.email, "deleted": deleted, "retention_days": retention_days})
     return RedirectResponse(url="/admin/system-events", status_code=303)
 
 

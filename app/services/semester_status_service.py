@@ -194,8 +194,7 @@ def get_semesters_for_status_transition(
         List of semesters eligible for transition
     """
     semesters = db.query(Semester).filter(
-        Semester.status == from_status,
-        Semester.is_active == True
+        Semester.status == from_status
     ).all()
 
     logger.info(

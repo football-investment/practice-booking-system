@@ -77,12 +77,12 @@ async def get_analytics_metrics(
         current_date = datetime.now().date()
         
         # Import here to avoid circular import
-        from app.models.semester import Semester
+        from app.models.semester import Semester, SemesterStatus
         active_semester_obj = db.query(Semester).filter(
             and_(
                 Semester.start_date <= current_date,
                 Semester.end_date >= current_date,
-                Semester.is_active == True
+                Semester.status != SemesterStatus.CANCELLED
             )
         ).first()
         

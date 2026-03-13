@@ -123,7 +123,6 @@ def test_semester_checkin(db_session: Session):
         start_date=date.today() + timedelta(days=30),
         end_date=date.today() + timedelta(days=60),
         status=SemesterStatus.READY_FOR_ENROLLMENT,
-        is_active=True
     )
     db_session.add(semester)
     db_session.commit()

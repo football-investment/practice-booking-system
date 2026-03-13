@@ -584,23 +584,12 @@ async def apply_coupon(
             }
         )
 
-    # Calculate credits to award (only BONUS_CREDITS and legacy types)
+    # Calculate credits to award (BONUS_CREDITS only)
     credits_awarded = 0
 
     if coupon.type == CouponType.BONUS_CREDITS:
         # Direct bonus credits (e.g., 500 = +500 credits)
         credits_awarded = int(coupon.discount_value)
-
-    # Legacy type handling (backwards compatibility)
-    elif coupon.type == CouponType.CREDITS:
-        # Legacy CREDITS type → treat as BONUS_CREDITS
-        credits_awarded = int(coupon.discount_value)
-    elif coupon.type == CouponType.FIXED:
-        # Legacy FIXED type → treat as BONUS_CREDITS (convert EUR to credits: 1 EUR = 10 credits)
-        credits_awarded = int(coupon.discount_value * 10)
-    elif coupon.type == CouponType.PERCENT:
-        # Legacy PERCENT type → treat as BONUS_CREDITS (award bonus credits: 10% = 100 credits)
-        credits_awarded = int(coupon.discount_value * 1000)
 
     else:
         # This should never happen for PURCHASE_* types (blocked above)

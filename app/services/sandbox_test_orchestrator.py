@@ -222,7 +222,6 @@ class SandboxTestOrchestrator:
             name=f"SANDBOX-TEST-{tournament_type_code.upper()}-{self.start_time.strftime('%Y-%m-%d')}",
             start_date=datetime.now().date(),
             end_date=(datetime.now() + timedelta(days=30)).date(),
-            is_active=True,
             tournament_status="IN_PROGRESS",  # Start in IN_PROGRESS for sandbox (skip instructor assignment)
             master_instructor_id=grandmaster.id if grandmaster else None,  # Assign Grand Master
             enrollment_cost=0  # 🆓 FREE for testing - no credit deductions!

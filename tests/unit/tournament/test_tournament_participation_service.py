@@ -258,23 +258,27 @@ class TestRecordTournamentParticipation:
 
     def test_skill_rating_delta_written_when_none(self):
         db, _ = self._base_db(existing=False)
+        _base = "app.services.tournament.tournament_participation_service"
         with patch(
             'app.services.skill_progression_service.compute_single_tournament_skill_delta',
             return_value={"agility": 0.5}
-        ):
+        ), patch(f"{_base}.update_skill_assessments"):
+            # Phase 3 (update_skill_assessments) is patched as a no-op here;
+            # PROP-U-* and PROP-I-* test suites cover it in full detail.
             result = record_tournament_participation(
                 db, user_id=42, tournament_id=1, placement=1,
                 skill_points={}, base_xp=100, credits=0
             )
-        # skill_rating_delta should have been set on the new participation
-        assert result.skill_rating_delta is not None or result.skill_rating_delta is None
+        # skill_rating_delta should have been set on the new participation (Phase 2)
+        assert result.skill_rating_delta == {"agility": 0.5}
 
     def test_skill_rating_delta_not_overwritten_when_already_set(self):
         """Write-once guard: existing delta must not be recomputed."""
         db, existing = self._base_db(existing=True, skill_delta={"speed": 0.3})
+        _base = "app.services.tournament.tournament_participation_service"
         with patch(
             'app.services.skill_progression_service.compute_single_tournament_skill_delta',
-        ) as mock_compute:
+        ) as mock_compute, patch(f"{_base}.update_skill_assessments"):
             record_tournament_participation(
                 db, user_id=42, tournament_id=1, placement=1,
                 skill_points={}, base_xp=100, credits=0

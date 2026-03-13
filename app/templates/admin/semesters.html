@@ -60,10 +60,10 @@
                 <td style="padding: 0.75rem;">{{ semester.start_date.strftime('%Y-%m-%d') }}</td>
                 <td style="padding: 0.75rem;">{{ semester.end_date.strftime('%Y-%m-%d') }}</td>
                 <td style="padding: 0.75rem;">
-                    {% if semester.is_active %}
+                    {% if semester.status.value != 'CANCELLED' %}
                         <span style="color: #27ae60; font-weight: 600;">✓ Active</span>
                     {% else %}
-                        <span style="color: #95a5a6;">Inactive</span>
+                        <span style="color: #95a5a6;">Cancelled</span>
                     {% endif %}
                 </td>
                 <td style="padding: 0.75rem;">

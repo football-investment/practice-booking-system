@@ -72,7 +72,6 @@ class TestKnockoutTournamentLifecycle:
                 license = UserLicense(
                     user_id=user.id,
                     specialization_type="LFA_FOOTBALL_PLAYER",
-                    is_active=True,
                     football_skills={
                         "ball_control": 50.0,
                         "agility": 50.0,

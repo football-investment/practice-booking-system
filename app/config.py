@@ -120,6 +120,11 @@ class Settings(BaseSettings):
     ENABLE_SECURITY_HEADERS: bool = True
     ENABLE_REQUEST_SIZE_LIMIT: bool = True
     ENABLE_STRUCTURED_LOGGING: bool = True
+
+    # Player Progression Feature Flags
+    # Propagate tournament EMA skill deltas into FootballSkillAssessment rows.
+    # Set to False to disable instantly without a code deploy.
+    ENABLE_TOURNAMENT_SKILL_PROPAGATION: bool = True
     
     # Rate Limiting Configuration
     RATE_LIMIT_CALLS: int = 100

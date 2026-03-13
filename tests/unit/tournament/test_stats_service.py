@@ -62,7 +62,6 @@ def create_test_tournament(db: Session, code: str, name: str, enrollment_cost: i
         name=name,
         start_date=tournament_date,
         end_date=tournament_date,
-        is_active=True,
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,
         age_group="YOUTH",
@@ -80,7 +79,6 @@ def create_test_user_license(db: Session, user_id: int, specialization_type: str
         user_id=user_id,
         specialization_type=specialization_type,
         credit_balance=1000,  # Give enough credits for testing
-        is_active=True,
         onboarding_completed=True,
         started_at=datetime.now()  # Required field
     )

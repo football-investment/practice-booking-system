@@ -76,24 +76,6 @@ class TestSetFlagsBasedOnType:
         assert c.requires_purchase is True
         assert c.requires_admin_approval is True
 
-    def test_legacy_percent_treated_as_bonus(self):
-        c = _coupon(type=CouponType.PERCENT)
-        c.set_flags_based_on_type()
-        assert c.requires_purchase is False
-        assert c.requires_admin_approval is False
-
-    def test_legacy_fixed_treated_as_bonus(self):
-        c = _coupon(type=CouponType.FIXED)
-        c.set_flags_based_on_type()
-        assert c.requires_purchase is False
-        assert c.requires_admin_approval is False
-
-    def test_legacy_credits_treated_as_bonus(self):
-        c = _coupon(type=CouponType.CREDITS)
-        c.set_flags_based_on_type()
-        assert c.requires_purchase is False
-        assert c.requires_admin_approval is False
-
 
 # ============================================================================
 # is_valid()

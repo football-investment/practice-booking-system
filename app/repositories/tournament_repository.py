@@ -15,7 +15,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 
-from ..models.semester import Semester
+from ..models.semester import Semester, SemesterStatus
 from ..models.semester_enrollment import SemesterEnrollment
 from ..models.session import Session as SessionModel
 
@@ -206,7 +206,7 @@ class TournamentRepository:
             List of active Semester instances
         """
         query = self.db.query(Semester).filter(
-            Semester.is_active == True
+            Semester.status != SemesterStatus.CANCELLED
         )
 
         if campus_id:

@@ -126,7 +126,6 @@ def tournament_seeking_instructor(test_db: Session) -> Semester:
         name="Tournament Seeking Instructor",
         start_date=tournament_date,
         end_date=tournament_date,
-        is_active=True,
         status=SemesterStatus.SEEKING_INSTRUCTOR,  # ❌ BLOCKED
         tournament_status="SEEKING_INSTRUCTOR",
         master_instructor_id=None,
@@ -167,7 +166,6 @@ def tournament_instructor_assigned(test_db: Session, instructor_user: User) -> S
         name="Tournament Instructor Assigned",
         start_date=tournament_date,
         end_date=tournament_date,
-        is_active=True,
         status=SemesterStatus.INSTRUCTOR_ASSIGNED,  # ❌ BLOCKED (admin hasn't opened enrollment yet)
         tournament_status="INSTRUCTOR_ASSIGNED",
         master_instructor_id=instructor_user.id,
@@ -208,7 +206,6 @@ def tournament_ready_for_enrollment(test_db: Session, instructor_user: User) -> 
         name="Tournament Ready for Enrollment",
         start_date=tournament_date,
         end_date=tournament_date,
-        is_active=True,
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",  # ✅ ALLOWED — endpoint checks tournament_status
         master_instructor_id=instructor_user.id,

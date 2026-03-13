@@ -362,6 +362,9 @@ class TestGetApplicationHealth:
 
 class TestGetComprehensiveHealth:
 
+    _WORKER_PATCH = "app.core.health.HealthChecker.get_worker_health"
+    _WORKER_RESULT = {"status": "healthy", "redis": "healthy", "workers": [], "error": None}
+
     def _mock_components(self, db_status="healthy", sys_status="healthy", app_status="healthy"):
         """Return patch context where each component reports the given status."""
         db_result = {"status": db_status, "response_time_ms": 5.0, "details": {}, "error": None}
@@ -378,7 +381,8 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert result["status"] == "healthy"
@@ -391,7 +395,8 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert result["status"] == "unhealthy"
@@ -404,7 +409,8 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert result["status"] == "degraded"
@@ -419,26 +425,28 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert result["status"] == "unhealthy"
 
-    def test_summary_total_checks_is_3(self):
-        """summary.total_checks == 3."""
+    def test_summary_total_checks_is_4(self):
+        """summary.total_checks == 4 (db + system + app + worker)."""
         db_r, sys_r, app_r = self._mock_components()
         with patch("app.core.health.HealthChecker.get_database_health",
                    new=AsyncMock(return_value=db_r)), \
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
-        assert result["summary"]["total_checks"] == 3
+        assert result["summary"]["total_checks"] == 4
 
     def test_summary_healthy_checks_count(self):
-        """summary.healthy_checks = 2 when 2 of 3 are healthy."""
+        """summary.healthy_checks = 3 when 3 of 4 are healthy (db degraded)."""
         db_r = {"status": "degraded"}
         sys_r = {"status": "healthy"}
         app_r = {"status": "healthy"}
@@ -447,10 +455,11 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
-        assert result["summary"]["healthy_checks"] == 2
+        assert result["summary"]["healthy_checks"] == 3
         assert result["summary"]["degraded_checks"] == 1
 
     def test_response_time_ms_present(self):
@@ -461,26 +470,29 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert "response_time_ms" in result
         assert result["response_time_ms"] >= 0
 
     def test_checks_dict_has_all_component_keys(self):
-        """checks dict contains database, system, and application keys."""
+        """checks dict contains database, system, application, and worker keys."""
         db_r, sys_r, app_r = self._mock_components()
         with patch("app.core.health.HealthChecker.get_database_health",
                    new=AsyncMock(return_value=db_r)), \
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert "database" in result["checks"]
         assert "system" in result["checks"]
         assert "application" in result["checks"]
+        assert "worker" in result["checks"]
 
     def test_timestamp_key_present(self):
         """Result contains ISO timestamp."""
@@ -490,7 +502,8 @@ class TestGetComprehensiveHealth:
              patch("app.core.health.HealthChecker.get_system_health",
                    return_value=sys_r), \
              patch("app.core.health.HealthChecker.get_application_health",
-                   return_value=app_r):
+                   return_value=app_r), \
+             patch(self._WORKER_PATCH, new=AsyncMock(return_value=self._WORKER_RESULT)):
             result = _run(HealthChecker.get_comprehensive_health())
 
         assert "timestamp" in result

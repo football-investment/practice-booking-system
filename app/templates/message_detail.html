@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Message — LFA Education Center{% endblock %}
+
+{% block content %}
+{% include "includes/unified_header.html" %}
+
+<style>
+    .page-content { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+        transition: opacity 0.2s;
+    }
+    .back-link:hover { opacity: 0.75; }
+    .msg-card {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    .msg-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem 1.8rem;
+    }
+    .msg-header h2 { font-size: 1.3rem; margin-bottom: 0.6rem; line-height: 1.4; }
+    .msg-meta { font-size: 0.88rem; opacity: 0.9; display: flex; flex-wrap: wrap; gap: 1rem; }
+    .priority-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .priority-LOW    { background: rgba(255,255,255,0.25); }
+    .priority-NORMAL { background: rgba(255,255,255,0.25); }
+    .priority-HIGH   { background: rgba(255, 200, 0, 0.4); }
+    .priority-URGENT { background: rgba(255, 80, 80, 0.5); }
+    .msg-body {
+        padding: 1.8rem;
+        font-size: 1rem;
+        color: #2d3748;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .msg-footer {
+        padding: 1rem 1.8rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.8rem;
+    }
+    .msg-status { font-size: 0.82rem; color: #a0aec0; }
+    .btn-reply {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.4rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: opacity 0.2s;
+    }
+    .btn-reply:hover { opacity: 0.88; }
+    .btn-delete {
+        background: #fff5f5;
+        color: #c53030;
+        border: 1px solid #fc8181;
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .btn-delete:hover { opacity: 0.8; }
+    .edit-indicator {
+        font-size: 0.78rem;
+        color: #a0aec0;
+        padding: 0 1.8rem 1rem;
+    }
+</style>
+
+<div class="page-content">
+    <a href="/messages" class="back-link">← Back to Messages</a>
+
+    <div class="msg-card">
+        <div class="msg-header">
+            <h2>{{ msg.subject }}</h2>
+            <div class="msg-meta">
+                {% if msg.sender_id == user.id %}
+                <span>To: <strong>{{ msg.recipient.name if msg.recipient else 'Unknown' }}</strong></span>
+                {% else %}
+                <span>From: <strong>{{ msg.sender.name if msg.sender else 'Unknown' }}</strong></span>
+                {% endif %}
+                <span>{{ msg.created_at.strftime('%Y-%m-%d %H:%M') if msg.created_at else '' }}</span>
+                <span class="priority-badge priority-{{ msg.priority.value }}">{{ msg.priority.value }}</span>
+            </div>
+        </div>
+
+        <div class="msg-body">{{ msg.message }}</div>
+
+        {% if msg.is_edited %}
+        <div class="edit-indicator">✏️ Edited {{ msg.edited_at.strftime('%Y-%m-%d %H:%M') if msg.edited_at else '' }}</div>
+        {% endif %}
+
+        <div class="msg-footer">
+            <div class="msg-status">
+                {% if msg.recipient_id == user.id %}
+                    {% if msg.is_read %}✅ Read {{ msg.read_at.strftime('%Y-%m-%d %H:%M') if msg.read_at else '' }}{% else %}📭 Unread{% endif %}
+                {% else %}
+                    {% if msg.is_read %}✅ Read by recipient{% else %}📤 Delivered, not yet read{% endif %}
+                {% endif %}
+            </div>
+            <div style="display:flex; gap:0.6rem;">
+                {% if msg.recipient_id == user.id and msg.sender %}
+                <a href="/messages?tab=compose&reply_to={{ msg.sender_id }}" class="btn-reply">↩ Reply</a>
+                {% endif %}
+                <button class="btn-delete" onclick="deleteAndRedirect({{ msg.id }})">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+function deleteAndRedirect(id) {
+    if (!confirm('Delete this message?')) return;
+    fetch('/messages/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() }
+    }).then(r => r.json()).then(data => {
+        if (data.ok) window.location.href = '/messages';
+    }).catch(() => { window.location.href = '/messages'; });
+}
+</script>
+{% endblock %}

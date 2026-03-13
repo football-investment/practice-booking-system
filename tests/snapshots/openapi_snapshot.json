@@ -2723,6 +2723,34 @@
         "title": "Body_mark_attendance_sessions__session_id__attendance_mark_post",
         "type": "object"
       },
+      "Body_message_send_messages_send_post": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "priority": {
+            "default": "NORMAL",
+            "title": "Priority",
+            "type": "string"
+          },
+          "recipient_id": {
+            "title": "Recipient Id",
+            "type": "integer"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_id",
+          "subject",
+          "message"
+        ],
+        "title": "Body_message_send_messages_send_post",
+        "type": "object"
+      },
       "Body_motivation_assessment_submit_admin_students__student_id__motivation__specialization__post": {
         "properties": {
           "commitment_level": {
@@ -4630,10 +4658,7 @@
         "enum": [
           "BONUS_CREDITS",
           "PURCHASE_DISCOUNT_PERCENT",
-          "PURCHASE_BONUS_CREDITS",
-          "PERCENT",
-          "FIXED",
-          "CREDITS"
+          "PURCHASE_BONUS_CREDITS"
         ],
         "title": "CouponType",
         "type": "string"
@@ -8183,17 +8208,6 @@
               }
             ],
             "title": "Postal Code"
-          },
-          "venue": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue"
           }
         },
         "required": [
@@ -8295,17 +8309,6 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
-          },
-          "venue": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue"
           }
         },
         "required": [
@@ -8317,7 +8320,6 @@
           "country_code",
           "location_code",
           "location_type",
-          "venue",
           "address",
           "notes",
           "is_active",
@@ -8439,17 +8441,6 @@
               }
             ],
             "title": "Postal Code"
-          },
-          "venue": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Venue"
           }
         },
         "title": "LocationUpdate",
@@ -13200,11 +13191,6 @@
             "title": "Id",
             "type": "integer"
           },
-          "is_active": {
-            "default": true,
-            "title": "Is Active",
-            "type": "boolean"
-          },
           "location_address": {
             "anyOf": [
               {
@@ -13433,11 +13419,6 @@
               }
             ],
             "title": "Format"
-          },
-          "is_active": {
-            "default": true,
-            "title": "Is Active",
-            "type": "boolean"
           },
           "location_address": {
             "anyOf": [
@@ -13805,17 +13786,6 @@
             ],
             "title": "Format"
           },
-          "is_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Active"
-          },
           "is_multi_day": {
             "anyOf": [
               {
@@ -14080,11 +14050,6 @@
           "id": {
             "title": "Id",
             "type": "integer"
-          },
-          "is_active": {
-            "default": true,
-            "title": "Is Active",
-            "type": "boolean"
           },
           "location_address": {
             "anyOf": [
@@ -22844,7 +22809,7 @@
     },
     "/admin/semesters/{semester_id}/delete": {
       "post": {
-        "description": "Admin-only: Soft-delete a semester (set is_active=False)",
+        "description": "Admin-only: Cancel a semester (status=CANCELLED) or hard-delete if no enrollments.",
         "operationId": "admin_delete_semester_admin_semesters__semester_id__delete_post",
         "parameters": [
           {
@@ -24672,7 +24637,7 @@
     },
     "/api/v1/admin/invitation-codes": {
       "get": {
-        "description": "Get all invitation codes (Admin only)\nSupports both Bearer token (API tests) and cookie (Streamlit) authentication",
+        "description": "Get all invitation codes (Admin only)",
         "operationId": "get_all_invitation_codes_api_v1_admin_invitation_codes_get",
         "responses": {
           "200": {
@@ -24701,7 +24666,7 @@
         ]
       },
       "post": {
-        "description": "Create a new invitation code (Admin only)\nSupports both Bearer token (API tests) and cookie (Streamlit) authentication",
+        "description": "Create a new invitation code (Admin only)",
         "operationId": "create_invitation_code_api_v1_admin_invitation_codes_post",
         "requestBody": {
           "content": {
@@ -24748,7 +24713,7 @@
     },
     "/api/v1/admin/invitation-codes/{code_id}": {
       "delete": {
-        "description": "Delete an invitation code (Admin only)\nOnly unused codes can be deleted\nSupports both Bearer token (API tests) and cookie (Streamlit) authentication",
+        "description": "Delete an invitation code (Admin only). Only unused codes can be deleted.",
         "operationId": "delete_invitation_code_api_v1_admin_invitation_codes__code_id__delete",
         "parameters": [
           {
@@ -24847,7 +24812,7 @@
         ]
       },
       "post": {
-        "description": "Create a new LFA Education Center location.\n\n**Admin only**\n\nExample:\n```json\n{\n    \"name\": \"LFA Education Center - Budapest\",\n    \"city\": \"Budapest\",\n    \"country\": \"Hungary\",\n    \"venue\": \"Buda Campus\",\n    \"address\": \"1011 Budapest, F\u0151 utca 1.\",\n    \"notes\": \"Main campus in Hungary\",\n    \"is_active\": true\n}\n```",
+        "description": "Create a new LFA Education Center location.\n\n**Admin only**\n\nExample:\n```json\n{\n    \"name\": \"LFA Education Center - Budapest\",\n    \"city\": \"Budapest\",\n    \"country\": \"Hungary\",\n    \"address\": \"1011 Budapest, F\u0151 utca 1.\",\n    \"notes\": \"Main campus in Hungary\",\n    \"is_active\": true\n}\n```",
         "operationId": "create_location_api_v1_admin_locations__post",
         "requestBody": {
           "content": {
@@ -45828,7 +45793,7 @@
     },
     "/api/v1/tournaments/{tournament_id}/distribute-rewards": {
       "post": {
-        "description": "Distribute rewards to players based on rankings (Admin only)\n\nBusiness Rules:\n- Tournament must be in COMPLETED status\n- Rankings must be submitted first\n- Transitions tournament to REWARDS_DISTRIBUTED status\n- Credits are added to player accounts\n- Transactions are recorded",
+        "description": "DEPRECATED \u2014 use POST /{tournament_id}/distribute-rewards-v2\n\nReturns HTTP 410 Gone. The V2 endpoint runs the full EMA skill\npropagation pipeline (Phase 3) and issues idempotent credit/XP grants.",
         "operationId": "distribute_tournament_rewards_api_v1_tournaments__tournament_id__distribute_rewards_post",
         "parameters": [
           {
@@ -49775,6 +49740,23 @@
         "summary": "Readiness Check"
       }
     },
+    "/health/worker": {
+      "get": {
+        "description": "Redis broker and Celery worker liveness probe.",
+        "operationId": "worker_health_check_health_worker_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Worker Health Check"
+      }
+    },
     "/instructor/enrollments": {
       "get": {
         "description": "Instructor-only: View and approve enrollment requests for their semesters",
@@ -50044,6 +50026,293 @@
           }
         },
         "summary": "Logout",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/messages": {
+      "get": {
+        "operationId": "messages_page_messages_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "inbox",
+              "title": "Tab",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Messages Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/messages/send": {
+      "post": {
+        "operationId": "message_send_messages_send_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_message_send_messages_send_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Message Send",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/messages/{message_id}": {
+      "get": {
+        "operationId": "message_detail_messages__message_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Message Detail",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/messages/{message_id}/delete": {
+      "post": {
+        "description": "Delete a message (sender or recipient). Called via fetch; returns JSON.",
+        "operationId": "message_delete_messages__message_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Message Delete",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "notifications_page_notifications_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Notifications Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "operationId": "notifications_mark_all_read_notifications_read_all_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Notifications Mark All Read",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/notifications/{notification_id}/delete": {
+      "post": {
+        "description": "Delete a notification. Called via fetch; returns JSON.",
+        "operationId": "notification_delete_notifications__notification_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "title": "Notification Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Notification Delete",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/notifications/{notification_id}/read": {
+      "post": {
+        "description": "Mark one notification as read. Called via fetch; returns JSON.",
+        "operationId": "notification_mark_read_notifications__notification_id__read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "title": "Notification Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Notification Mark Read",
         "tags": [
           "web"
         ]
@@ -51315,6 +51584,26 @@
           }
         },
         "summary": "Tournament Unenroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/unread-counts": {
+      "get": {
+        "description": "Return unread notification + message counts for the header badge.\nUses the optional dependency so unauthenticated requests get 0/0\ninstead of a redirect (this endpoint is called by JS polling).",
+        "operationId": "unread_counts_unread_counts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Unread Counts",
         "tags": [
           "web"
         ]

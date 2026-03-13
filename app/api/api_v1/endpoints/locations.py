@@ -32,7 +32,6 @@ class LocationCreate(BaseModel):
     country_code: str | None = None  # 2-letter ISO code (e.g., HU, AT, SK)
     location_code: str | None = None  # Unique location identifier (e.g., BDPST)
     location_type: str = "CENTER"  # NEW: PARTNER or CENTER
-    venue: str | None = None
     address: str | None = None
     notes: str | None = None
     is_active: bool = True
@@ -47,7 +46,6 @@ class LocationUpdate(BaseModel):
     country_code: str | None = None
     location_code: str | None = None
     location_type: str | None = None  # NEW: PARTNER or CENTER
-    venue: str | None = None
     address: str | None = None
     notes: str | None = None
     is_active: bool | None = None
@@ -63,7 +61,6 @@ class LocationResponse(BaseModel):
     country_code: str | None
     location_code: str | None
     location_type: str  # NEW: PARTNER or CENTER
-    venue: str | None
     address: str | None
     notes: str | None
     is_active: bool
@@ -137,7 +134,6 @@ async def create_location(
         "name": "LFA Education Center - Budapest",
         "city": "Budapest",
         "country": "Hungary",
-        "venue": "Buda Campus",
         "address": "1011 Budapest, Fő utca 1.",
         "notes": "Main campus in Hungary",
         "is_active": true
@@ -160,7 +156,6 @@ async def create_location(
         country_code=location_data.country_code,  # 🔥 FIX: Add country_code
         location_code=location_data.location_code,  # 🔥 FIX: Add location_code
         location_type=location_data.location_type,  # NEW: PARTNER or CENTER
-        venue=location_data.venue,
         address=location_data.address,
         notes=location_data.notes,
         is_active=location_data.is_active,

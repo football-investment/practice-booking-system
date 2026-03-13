@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
 
+import logging
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
@@ -24,6 +26,8 @@ from ...models.performance_review import InstructorSessionReview, StudentPerform
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -222,15 +226,13 @@ async def book_session(
     session_start = session.date_start  # Stored as naive Budapest time
     booking_deadline = session_start - timedelta(hours=12)
 
-    # DEBUG PRINT
-    print(f"🔍 BOOKING CHECK:")
-    print(f"   Now (Budapest, naive): {now}")
-    print(f"   Session start (naive): {session_start}")
-    print(f"   Booking deadline: {booking_deadline}")
-    print(f"   now >= booking_deadline? {now >= booking_deadline}")
+    logger.debug(
+        "booking_deadline_check",
+        extra={"now": str(now), "start": str(session_start), "deadline": str(booking_deadline)},
+    )
 
     if now >= booking_deadline:
-        print(f"❌ BOOKING BLOCKED - deadline passed!")
+        logger.warning("booking_blocked_deadline", extra={"user": user.email, "session_id": session_id})
         return RedirectResponse(url="/sessions?error=booking_deadline_passed", status_code=303)
 
     # Check if already booked
@@ -252,7 +254,7 @@ async def book_session(
     db.add(booking)
     db.commit()
 
-    print(f"✅ User {user.email} booked session {session.title}")
+    logger.info("session_booked", extra={"user": user.email, "session_id": session_id})
 
     # Redirect back to sessions
     return RedirectResponse(url="/sessions?success=booked", status_code=303)
@@ -315,7 +317,7 @@ async def cancel_booking(
     db.delete(booking)
     db.commit()
 
-    print(f"✅ User {user.email} cancelled booking for session {session_id}")
+    logger.info("session_booking_cancelled", extra={"user": user.email, "session_id": session_id})
 
     return RedirectResponse(url="/sessions?success=cancelled", status_code=303)
 

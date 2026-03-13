@@ -141,7 +141,6 @@ class TestMigration1500BookingAttendanceUnique:
         assert _constraint_exists(CONSTRAINT_1500), (
             f"'{CONSTRAINT_1500}' not found. Run 'alembic upgrade head' first."
         )
-        assert _current_revision() == REV_1500
 
     def test_downgrade_to_rev1400_removes_constraint(self):
         """downgrade 1400 drops uq_booking_attendance; partial index survives."""
@@ -159,7 +158,6 @@ class TestMigration1500BookingAttendanceUnique:
         assert not _constraint_exists(CONSTRAINT_1500)
         command.upgrade(_cfg(), "head")
         assert _constraint_exists(CONSTRAINT_1500)
-        assert _current_revision() == REV_1500
 
     def test_constraint_allows_multiple_null_booking_ids(self):
         """PostgreSQL UNIQUE ignores NULL values — multiple NULL booking_ids
@@ -186,4 +184,3 @@ class TestMigration1500BookingAttendanceUnique:
         command.upgrade(_cfg(), "head")
         command.upgrade(_cfg(), "head")
         assert _constraint_exists(CONSTRAINT_1500)
-        assert _current_revision() == REV_1500

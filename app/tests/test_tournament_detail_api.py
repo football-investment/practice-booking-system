@@ -72,7 +72,6 @@ def active_tournament(db_session: Session):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=True
     )
     db_session.add(tournament)
     db_session.commit()
@@ -93,7 +92,6 @@ def inactive_tournament(db_session: Session):
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         tournament_status="ENROLLMENT_OPEN",
         enrollment_cost=500,
-        is_active=False  # Inactive
     )
     db_session.add(tournament)
     db_session.commit()

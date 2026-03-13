@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
 from datetime import timedelta, datetime, date
+import logging
 import traceback
 
 from ...database import get_db
@@ -21,6 +22,8 @@ from ...config import settings
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -78,7 +81,7 @@ async def login_submit(
     if user.role == UserRole.STUDENT and user.date_of_birth is None:
         # First time login - redirect to age verification
         redirect_url = "/age-verification"
-        print(f"First-time student login: {user.email} -> redirecting to age verification")
+        logger.info("first_time_student_login_redirect", extra={"user": user.email})
 
     # Redirect with token in cookie (SECURITY: SameSite + Secure flags)
     response = RedirectResponse(url=redirect_url, status_code=303)
@@ -189,7 +192,7 @@ async def age_verification_submit(
         db.commit()
         db.refresh(user)
 
-        print(f"Age verified for {user.email}: {age} years old (born {dob})")
+        logger.info("age_verified", extra={"user": user.email, "age": age})
 
         # Redirect to dashboard
         return RedirectResponse(url="/dashboard", status_code=303)
@@ -206,7 +209,7 @@ async def age_verification_submit(
             }
         )
     except Exception as e:
-        print(f"Error during age verification: {e}")
+        logger.error("age_verification_error", exc_info=True)
         traceback.print_exc()
         return templates.TemplateResponse(
             "age_verification.html",
@@ -354,7 +357,7 @@ async def register_submit(
         db.commit()
         db.refresh(new_user)
 
-        print(f"New registration: {new_user.email} (credits: {new_user.credit_balance})")
+        logger.info("new_registration", extra={"user": new_user.email, "credits": new_user.credit_balance})
 
         # Auto-login: create session cookie and redirect
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -376,6 +379,6 @@ async def register_submit(
         return response
 
     except Exception as e:
-        print(f"Error during registration: {e}")
+        logger.error("registration_error", exc_info=True)
         traceback.print_exc()
         return error(f"Registration failed: {str(e)}")

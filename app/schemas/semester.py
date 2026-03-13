@@ -10,7 +10,6 @@ class SemesterBase(BaseModel):
     start_date: date
     end_date: date
     status: SemesterStatus = SemesterStatus.DRAFT
-    is_active: bool = True
     enrollment_cost: int = 500
     master_instructor_id: Optional[int] = None
     specialization_type: Optional[str] = None
@@ -41,7 +40,6 @@ class SemesterUpdate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     status: Optional[SemesterStatus] = None
-    is_active: Optional[bool] = None
     enrollment_cost: Optional[int] = None
     master_instructor_id: Optional[int] = None
 

@@ -25,7 +25,7 @@ from sqlalchemy import and_, or_
 from datetime import date
 
 from ..models.user import User, UserRole
-from ..models.semester import Semester
+from ..models.semester import Semester, SemesterStatus
 from ..models.session import Session as SessionTypel
 
 
@@ -126,7 +126,7 @@ class RoleSemesterFilterService:
                 and_(
                     Semester.start_date <= today,
                     Semester.end_date >= today,
-                    Semester.is_active == True
+                    Semester.status != SemesterStatus.CANCELLED
                 )
             ).all()
 
@@ -137,7 +137,7 @@ class RoleSemesterFilterService:
             else:
                 # Fallback: if no current semesters by date, show most recent semesters
                 recent_semesters = self.db.query(Semester).filter(
-                    Semester.is_active == True
+                    Semester.status != SemesterStatus.CANCELLED
                 ).order_by(Semester.id.desc()).limit(3).all()
 
                 if recent_semesters:

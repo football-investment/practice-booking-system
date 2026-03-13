@@ -1,0 +1,27 @@
+# CODEOWNERS
+#
+# Pairs that require an additional review pass for key subsystems.
+# Format: <path pattern>  <owner(s) or team>
+#
+# GitHub uses the LAST matching rule, so more-specific patterns below
+# override broader ones.
+#
+# ── Skill Propagation ─────────────────────────────────────────────────────────
+# Any change to the tournament→assessment pipeline or its monitoring guide
+# requires a reviewer to validate against the monitoring checklist.
+# Checklist: docs/operations/skill_propagation_monitoring.md
+
+app/services/tournament/tournament_participation_service.py  @football-investment/backend-leads
+app/services/skill_progression_service.py                   @football-investment/backend-leads
+tests/unit/services/test_skill_propagation.py               @football-investment/backend-leads
+tests/integration/tournament/test_skill_propagation_integration.py @football-investment/backend-leads
+docs/operations/skill_propagation_monitoring.md             @football-investment/backend-leads
+
+# ── Health / Worker liveness ───────────────────────────────────────────────────
+app/core/health.py                                          @football-investment/backend-leads
+
+# ── Alembic migrations (any migration must be reviewed) ───────────────────────
+alembic/versions/                                           @football-investment/backend-leads
+
+# ── CI workflow changes ────────────────────────────────────────────────────────
+.github/workflows/                                          @football-investment/backend-leads

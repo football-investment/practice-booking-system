@@ -66,7 +66,6 @@ def create_test_tournament(db: Session, tournament_id: int = None) -> Semester:
         name="Test Tournament",
         start_date=date.today() + timedelta(days=7),
         end_date=date.today() + timedelta(days=7),
-        is_active=True,
         status=SemesterStatus.READY_FOR_ENROLLMENT,
         master_instructor_id=instructor.id,  # Assign instructor
         specialization_type=SpecializationType.LFA_PLAYER_YOUTH.value,

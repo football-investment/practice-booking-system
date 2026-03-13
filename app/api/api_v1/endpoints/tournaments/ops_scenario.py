@@ -1271,7 +1271,6 @@ def run_ops_scenario(
         name=tournament_name,
         start_date=_dt.now().date(),
         end_date=(_dt.now() + _td(days=30)).date(),
-        is_active=True,
         status=_SemStatus.ONGOING,        # lifecycle enum
         tournament_status=request.initial_tournament_status,  # Use parameter (default: IN_PROGRESS)
         master_instructor_id=grandmaster.id if grandmaster else None,

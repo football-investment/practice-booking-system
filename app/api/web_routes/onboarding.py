@@ -18,10 +18,13 @@ from ...models.specialization import SpecializationType
 from ...models.credit_transaction import CreditTransaction, TransactionType
 from ...utils.age_requirements import get_available_specializations
 from ...skills_config import SKILL_CATEGORIES, get_all_skill_keys
+import logging
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -68,7 +71,7 @@ async def specialization_select_submit(
         try:
             spec_type = SpecializationType[specialization]
         except KeyError:
-            print(f"Invalid specialization value: {specialization}")
+            logger.warning("onboarding_invalid_specialization", extra={"value": specialization})
             return templates.TemplateResponse(
                 "specialization_select.html",
                 {"request": request, "user": user, "error": f"Invalid specialization: {specialization}"}
@@ -86,13 +89,13 @@ async def specialization_select_submit(
 
             # Check if user has enough credits
             if user.credit_balance < SPEC_UNLOCK_COST:
-                print(f"User {user.email} has insufficient credits ({user.credit_balance}) to unlock {spec_type.value} (needs {SPEC_UNLOCK_COST})")
+                logger.warning("onboarding_insufficient_credits", extra={"user": user.email, "balance": user.credit_balance, "required": SPEC_UNLOCK_COST, "spec": spec_type.value})
                 # Redirect back to dashboard with error message
                 error_msg = f"Insufficient credits! Unlocking {spec_type.value.replace('_', ' ')} requires {SPEC_UNLOCK_COST} credits. You have {user.credit_balance} credits."
                 return RedirectResponse(url=f"/dashboard?error={error_msg}", status_code=303)
 
             # DEDUCT credits and create the license
-            print(f"Deducting {SPEC_UNLOCK_COST} credits from user {user.email} (balance: {user.credit_balance} → {user.credit_balance - SPEC_UNLOCK_COST})")
+            logger.info("onboarding_credits_deducted", extra={"user": user.email, "cost": SPEC_UNLOCK_COST, "new_balance": user.credit_balance - SPEC_UNLOCK_COST})
             user.credit_balance -= SPEC_UNLOCK_COST
 
             # Create the UserLicense (unlock specialization)
@@ -120,9 +123,9 @@ async def specialization_select_submit(
             )
             db.add(credit_transaction)
 
-            print(f"User {user.email} unlocked {spec_type.value} for {SPEC_UNLOCK_COST} credits")
+            logger.info("onboarding_spec_unlocked", extra={"user": user.email, "spec": spec_type.value, "cost": SPEC_UNLOCK_COST})
 
-        print(f"Setting specialization {spec_type} for user {user.email}")
+        logger.info("onboarding_spec_set", extra={"user": user.email, "spec": str(spec_type)})
 
         # Update user's specialization BUT DO NOT mark onboarding as completed yet
         # Student needs to fill out motivation questionnaire first
@@ -133,7 +136,7 @@ async def specialization_select_submit(
         db.commit()
         db.refresh(user)  # Refresh to get updated values
 
-        print(f"User {user.email} selected specialization: {spec_type.value}, redirecting to onboarding")
+        logger.info("onboarding_spec_selected", extra={"user": user.email, "spec": spec_type.value})
 
         # Redirect based on specialization type
         if spec_type == SpecializationType.LFA_FOOTBALL_PLAYER:
@@ -145,8 +148,7 @@ async def specialization_select_submit(
 
     except Exception as e:
         db.rollback()
-        print(f"Error during specialization selection: {e}")
-        print(traceback.format_exc())
+        logger.error("onboarding_spec_selection_error", extra={"user": user.email}, exc_info=True)
         # Redirect back to dashboard with error message (instead of showing old 4-card page)
         return RedirectResponse(url=f"/dashboard?error={str(e)}", status_code=303)
 
@@ -167,15 +169,15 @@ async def lfa_player_onboarding_page(
     ).first()
 
     if not license:
-        print(f"User {user.email} tried to access LFA Player onboarding without license")
+        logger.warning("onboarding_no_license", extra={"user": user.email})
         return RedirectResponse(url="/dashboard", status_code=303)
 
     # If already completed onboarding, redirect to dashboard
     if license.onboarding_completed:
-        print(f"User {user.email} already completed LFA Player onboarding")
+        logger.info("onboarding_already_complete", extra={"user": user.email})
         return RedirectResponse(url="/dashboard", status_code=303)
 
-    print(f"User {user.email} starting LFA Player onboarding questionnaire")
+    logger.info("onboarding_started", extra={"user": user.email})
 
     return templates.TemplateResponse(
         "lfa_player_onboarding.html",
@@ -218,7 +220,7 @@ async def lfa_player_onboarding_web_submit(
         motivation = body.get("motivation", "")
         skills     = body.get("skills", {})
 
-        print(f"📥 [web] Onboarding submit for {user.email}: {len(skills)} skills received")
+        logger.info("onboarding_submit_received", extra={"user": user.email, "skill_count": len(skills)})
 
         # Validate position
         valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
@@ -287,14 +289,13 @@ async def lfa_player_onboarding_web_submit(
         db.refresh(user)
         db.refresh(license)
 
-        print(f"✅ [web] LFA onboarding complete for {user.email}: pos={position}, {len(skills)} skills, avg={average_skill:.1f}")
+        logger.info("onboarding_complete", extra={"user": user.email, "position": position, "skill_count": len(skills), "avg_skill": round(average_skill, 1)})
 
         return {"success": True, "redirect": "/dashboard"}
 
     except Exception as e:
         db.rollback()
-        print(f"❌ [web] LFA onboarding error for {user.email}: {e}")
-        print(traceback.format_exc())
+        logger.error("onboarding_submit_error", extra={"user": user.email}, exc_info=True)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -339,7 +340,7 @@ async def lfa_player_onboarding_cancel(
 
         db.commit()
 
-        print(f"Refunded {REFUND_AMOUNT} credits to {user.email} (cancelled onboarding)")
+        logger.info("onboarding_cancelled_refund", extra={"user": user.email, "refund": REFUND_AMOUNT})
         return RedirectResponse(url="/dashboard?success=Onboarding cancelled. 100 credits refunded.", status_code=303)
     else:
         return RedirectResponse(url="/dashboard", status_code=303)
@@ -366,7 +367,7 @@ async def lfa_player_onboarding_submit(
         motivation = body.get("motivation", "")
         skills = body.get("skills", {})  # NEW: All 36 skills, 0-100 scale
 
-        print(f"📥 Onboarding submit for {user.email}: {len(skills)} skills received")
+        logger.info("onboarding_full_submit_received", extra={"user": user.email, "skill_count": len(skills)})
 
         # Validate position
         valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
@@ -381,7 +382,7 @@ async def lfa_player_onboarding_submit(
         if received_skills != expected_skills:
             missing = expected_skills - received_skills
             extra = received_skills - expected_skills
-            print(f"⚠️ Skill mismatch: missing={missing}, extra={extra}")
+            logger.warning("onboarding_skill_mismatch", extra={"user": user.email, "missing": list(missing), "extra": list(extra)})
             # Don't fail, just log - allow submission with whatever skills we have
 
         # Get user's LFA Player license
@@ -436,15 +437,14 @@ async def lfa_player_onboarding_submit(
         db.refresh(user)
         db.refresh(license)
 
-        print(f"✅ LFA Player onboarding completed for {user.email}: Position={position}, {len(skills)} skills saved, Avg={average_skill:.1f}")
+        logger.info("onboarding_full_complete", extra={"user": user.email, "position": position, "skill_count": len(skills), "avg_skill": round(average_skill, 1)})
 
         # Return JSON response for Streamlit API call
         return {"success": True, "message": "Onboarding completed successfully"}
 
     except Exception as e:
         db.rollback()
-        print(f"Error processing LFA Player onboarding: {e}")
-        print(traceback.format_exc())
+        logger.error("onboarding_full_error", extra={"user": user.email}, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -503,7 +503,7 @@ async def onboarding_set_birthdate(
         user.date_of_birth = dob
         db.commit()
 
-        print(f"Set date of birth for {user.email}: {dob} (age: {age})")
+        logger.info("onboarding_dob_set", extra={"user": user.email, "age": age})
 
         # Redirect back to onboarding to show spec selection
         return RedirectResponse(url="/onboarding/start", status_code=303)

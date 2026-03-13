@@ -171,3 +171,9 @@ async def readiness_check():
 async def liveness_check():
     """Kubernetes-style liveness probe"""
     return {"status": "alive"}
+
+
+@app.get("/health/worker")
+async def worker_health_check():
+    """Redis broker and Celery worker liveness probe."""
+    return await HealthChecker.get_worker_health()

@@ -24,7 +24,7 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from app.models.semester import Semester
+from app.models.semester import Semester, SemesterStatus
 from app.models.booking import Booking
 
 
@@ -36,7 +36,7 @@ def wf_semester_id(test_db) -> int:
     Get or create a minimal Semester for session creation.
     Reuses existing active semesters; falls back to creating one.
     """
-    existing = test_db.query(Semester).filter(Semester.is_active.is_(True)).first()
+    existing = test_db.query(Semester).filter(Semester.status != SemesterStatus.CANCELLED).first()
     if existing:
         return existing.id
 
@@ -46,7 +46,6 @@ def wf_semester_id(test_db) -> int:
         name=f"Booking Workflow Test Semester {ts}",
         start_date=datetime.now(timezone.utc).date(),
         end_date=(datetime.now(timezone.utc) + timedelta(days=30)).date(),
-        is_active=True,
     )
     test_db.add(sem)
     test_db.commit()

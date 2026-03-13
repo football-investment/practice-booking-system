@@ -223,7 +223,6 @@ def session_tournament(db_session: DBSession, session_campus, session_tournament
         age_group="PRO",
         enrollment_cost=0,
         tournament_status="IN_PROGRESS",
-        is_active=True,
         master_instructor_id=session_instructor.id
     )
     db_session.add(tournament)

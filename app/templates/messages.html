@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Messages — LFA Education Center{% endblock %}
+
+{% block content %}
+{% include "includes/unified_header.html" %}
+
+<style>
+    .page-content { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .page-header h2 { font-size: 1.6rem; color: #2d3748; }
+    .badge-count {
+        background: #e74c3c;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-left: 0.5rem;
+    }
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        background: none;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #718096;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: color 0.2s, border-color 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .tab-btn:hover { color: #4c51bf; }
+    .tab-btn.active { color: #4c51bf; border-bottom-color: #667eea; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    /* Message list */
+    .msg-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .msg-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        display: flex;
+        gap: 0.8rem;
+        align-items: flex-start;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        border-left: 4px solid transparent;
+        transition: box-shadow 0.2s;
+    }
+    .msg-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
+    .msg-card.unread { border-left-color: #667eea; background: #f8f7ff; }
+    .msg-card-main { flex: 1; min-width: 0; }
+    .msg-card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+    .msg-from { font-weight: 700; color: #2d3748; font-size: 0.95rem; }
+    .msg-card.unread .msg-from { color: #4c51bf; }
+    .msg-date { font-size: 0.78rem; color: #a0aec0; flex-shrink: 0; }
+    .msg-subject { font-weight: 600; color: #4a5568; font-size: 0.9rem; margin: 0.2rem 0; }
+    .msg-card.unread .msg-subject { color: #2d3748; }
+    .msg-preview { font-size: 0.85rem; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+    .priority-badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+    .priority-LOW      { background: #ebf8ff; color: #2b6cb0; }
+    .priority-NORMAL   { background: #f0fff4; color: #276749; }
+    .priority-HIGH     { background: #fefcbf; color: #744210; }
+    .priority-URGENT   { background: #fff5f5; color: #c53030; }
+    .btn-delete-msg {
+        padding: 0.25rem 0.6rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.78rem;
+        background: #fff5f5;
+        color: #c53030;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: opacity 0.2s;
+    }
+    .btn-delete-msg:hover { opacity: 0.8; }
+    /* Compose form */
+    .compose-form {
+        background: white;
+        border-radius: 12px;
+        padding: 1.8rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; font-size: 0.95rem; }
+    .form-control {
+        width: 100%;
+        padding: 0.65rem 0.9rem;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        color: #2d3748;
+        box-sizing: border-box;
+        transition: border-color 0.2s;
+    }
+    .form-control:focus { outline: none; border-color: #667eea; }
+    textarea.form-control { min-height: 120px; resize: vertical; }
+    .btn-send {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .btn-send:hover { opacity: 0.9; }
+    /* Empty / flash */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #a0aec0; }
+    .empty-state .emoji { font-size: 2.5rem; margin-bottom: 0.8rem; }
+    .empty-state p { font-size: 1rem; }
+    .flash-banner { padding: 0.8rem 1.2rem; border-radius: 8px; margin-bottom: 1.2rem; font-weight: 600; }
+    .flash-success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    .flash-error   { background: #fff5f5; color: #c53030;  border: 1px solid #fc8181; }
+</style>
+
+<div class="page-content">
+    <div class="page-header">
+        <h2>
+            ✉️ Messages
+            {% if unread_count > 0 %}
+            <span class="badge-count">{{ unread_count }}</span>
+            {% endif %}
+        </h2>
+    </div>
+
+    {% set params = request.query_params %}
+    {% if params.get('success') == 'sent' %}
+    <div class="flash-banner flash-success">✅ Message sent successfully.</div>
+    {% elif params.get('error') == 'invalid_recipient' %}
+    <div class="flash-banner flash-error">❌ Recipient not found. Please select a valid user.</div>
+    {% elif params.get('error') == 'empty_fields' %}
+    <div class="flash-banner flash-error">❌ Subject and message cannot be empty.</div>
+    {% elif params.get('error') == 'not_found' %}
+    <div class="flash-banner flash-error">❌ Message not found.</div>
+    {% endif %}
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <a href="/messages?tab=inbox"   class="tab-btn {% if active_tab == 'inbox'   %}active{% endif %}">📥 Inbox{% if unread_count > 0 %} ({{ unread_count }}){% endif %}</a>
+        <a href="/messages?tab=sent"    class="tab-btn {% if active_tab == 'sent'    %}active{% endif %}">📤 Sent</a>
+        <a href="/messages?tab=compose" class="tab-btn {% if active_tab == 'compose' %}active{% endif %}">✏️ Compose</a>
+    </div>
+
+    <!-- Inbox -->
+    <div class="tab-panel {% if active_tab == 'inbox' %}active{% endif %}" id="tab-inbox">
+        {% if inbox %}
+        <div class="msg-list">
+            {% for m in inbox %}
+            <div class="msg-card {% if not m.is_read %}unread{% endif %}" id="msg-{{ m.id }}">
+                <div class="msg-card-main" onclick="window.location='/messages/{{ m.id }}'">
+                    <div class="msg-card-header">
+                        <span class="msg-from">{{ m.sender.name if m.sender else 'Unknown' }}</span>
+                        <span class="priority-badge priority-{{ m.priority.value }}">{{ m.priority.value }}</span>
+                        <span class="msg-date">{{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else '' }}</span>
+                    </div>
+                    <div class="msg-subject">{{ m.subject }}</div>
+                    <div class="msg-preview">{{ m.message[:120] }}{% if m.message|length > 120 %}…{% endif %}</div>
+                </div>
+                <button class="btn-delete-msg" onclick="deleteMsg({{ m.id }}, this)">🗑</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="emoji">📭</div>
+            <p>Your inbox is empty.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sent -->
+    <div class="tab-panel {% if active_tab == 'sent' %}active{% endif %}" id="tab-sent">
+        {% if sent %}
+        <div class="msg-list">
+            {% for m in sent %}
+            <div class="msg-card" id="msg-{{ m.id }}">
+                <div class="msg-card-main" onclick="window.location='/messages/{{ m.id }}'">
+                    <div class="msg-card-header">
+                        <span class="msg-from">To: {{ m.recipient.name if m.recipient else 'Unknown' }}</span>
+                        <span class="priority-badge priority-{{ m.priority.value }}">{{ m.priority.value }}</span>
+                        <span class="msg-date">{{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else '' }}</span>
+                    </div>
+                    <div class="msg-subject">{{ m.subject }}</div>
+                    <div class="msg-preview">{{ m.message[:120] }}{% if m.message|length > 120 %}…{% endif %}</div>
+                </div>
+                <button class="btn-delete-msg" onclick="deleteMsg({{ m.id }}, this)">🗑</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="emoji">📤</div>
+            <p>No sent messages yet.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Compose -->
+    <div class="tab-panel {% if active_tab == 'compose' %}active{% endif %}" id="tab-compose">
+        <form class="compose-form" method="POST" action="/messages/send" id="compose-form">
+            <div class="form-group">
+                <label for="recipient_id">To</label>
+                <select name="recipient_id" id="recipient_id" class="form-control" required>
+                    <option value="">— Select recipient —</option>
+                    {% for r in recipients %}
+                    <option value="{{ r.id }}">{{ r.name }} ({{ r.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" name="subject" id="subject" class="form-control"
+                       placeholder="Message subject…" required maxlength="200">
+            </div>
+            <div class="form-group">
+                <label for="message">Message</label>
+                <textarea name="message" id="message" class="form-control"
+                          placeholder="Write your message…" required maxlength="4000"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="priority">Priority</label>
+                <select name="priority" id="priority" class="form-control">
+                    {% for p in priorities %}
+                    <option value="{{ p }}" {% if p == 'NORMAL' %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-send">📨 Send Message</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+function deleteMsg(id, btn) {
+    if (!confirm('Delete this message?')) return;
+    fetch('/messages/' + id + '/delete', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() }
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            const card = document.getElementById('msg-' + id);
+            if (card) {
+                card.style.opacity = '0';
+                card.style.transition = 'opacity 0.3s';
+                setTimeout(() => card.remove(), 300);
+                updateUnreadBadges();
+            }
+        }
+    }).catch(() => {});
+}
+
+// Handle compose form submission with CSRF
+document.getElementById('compose-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = this;
+    const data = new FormData(form);
+    fetch('/messages/send', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() },
+        body: data
+    }).then(r => {
+        // FastAPI returns 303 redirect; follow it
+        if (r.redirected) {
+            window.location.href = r.url;
+        } else {
+            window.location.href = '/messages?tab=sent&success=sent';
+        }
+    }).catch(() => {
+        window.location.href = '/messages?tab=compose&error=server';
+    });
+});
+</script>
+{% endblock %}

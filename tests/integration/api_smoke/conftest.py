@@ -383,7 +383,6 @@ def test_tournament(test_db: Session, test_campus_id: int, student_token: str) -
         enrollment_cost=0,
         age_group="PRO",
         campus_id=test_campus_id,
-        is_active=True
     )
     test_db.add(tournament)
     test_db.commit()

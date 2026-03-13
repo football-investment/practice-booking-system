@@ -121,8 +121,7 @@ def generate_monthly_semesters(year: int, template: dict, db: Session) -> List[S
             theme=theme,
             focus_description=focus,
             status=SemesterStatus.DRAFT,  # DRAFT by default - admin must assign instructor first
-            is_active=False,
-            enrollment_cost=500  # Default cost
+                        enrollment_cost=500  # Default cost
         )
         semesters.append(semester)
         last_end_date = end
@@ -175,8 +174,7 @@ def generate_quarterly_semesters(year: int, template: dict, db: Session) -> List
             theme=theme,
             focus_description=focus,
             status=SemesterStatus.DRAFT,  # DRAFT by default - admin must assign instructor first
-            is_active=False,
-            enrollment_cost=500
+                        enrollment_cost=500
         )
         semesters.append(semester)
         last_end_date = end
@@ -233,8 +231,7 @@ def generate_semiannual_semesters(year: int, template: dict, db: Session) -> Lis
             theme=theme,
             focus_description=focus,
             status=SemesterStatus.DRAFT,  # DRAFT by default - admin must assign instructor first
-            is_active=False,
-            enrollment_cost=500
+                        enrollment_cost=500
         )
         semesters.append(semester)
         last_end_date = end
@@ -276,7 +273,6 @@ def generate_annual_semesters(year: int, template: dict, db: Session) -> List[Se
         age_group=age_group,
         theme=theme,
         focus_description=focus,
-        is_active=False,  # Inactive by default - admin must assign instructor first
         enrollment_cost=500
     )
     semesters.append(semester)

@@ -4,6 +4,7 @@ Tournament Participation Service
 Handles skill point calculation, XP rewards, and participation tracking (DATA LAYER).
 Separate from visual badge awards.
 """
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
@@ -19,10 +20,16 @@ from app.models.tournament_achievement import (
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.models.football_skill_assessment import FootballSkillAssessment
+from app.models.license import UserLicense
 from app.models.xp_transaction import XPTransaction
 from app.schemas.reward_config import TournamentRewardConfig
+from app.config import settings
 
 logger = logging.getLogger(__name__)
+# Separate logger for skill-propagation metrics.
+# Route this to a metrics sink (CloudWatch, Datadog, ELK) by adding a handler
+# for "app.metrics.skill_propagation" without touching the main app logger.
+_metrics = logging.getLogger("app.metrics.skill_propagation")
 
 # Placement-based skill point rewards
 PLACEMENT_SKILL_POINTS = {
@@ -173,28 +180,166 @@ def update_skill_assessments(
     db: Session,
     user_id: int,
     skill_points: Dict[str, float],
-    assessed_by_id: Optional[int] = None
+    assessed_by_id: Optional[int] = None,
+    skill_rating_delta: Optional[Dict[str, float]] = None,
 ) -> None:
     """
-    Update football skill assessments with earned skill points.
+    Propagate tournament EMA skill deltas into FootballSkillAssessment rows.
 
-    Note: This function currently skips updating FootballSkillAssessment because
-    tournaments award skill points directly to users, not to specific licenses.
-    FootballSkillAssessment uses user_license_id, not user_id.
+    Uses ``skill_rating_delta`` (V3 EMA per-skill delta dict stored on
+    TournamentParticipation) to update the player's live FootballSkillAssessment
+    records.  ``skill_points`` is retained for XP/bonus accounting (handled
+    upstream) and is otherwise unused here.
 
-    Future enhancement: Create a tournament-specific skill tracking table
-    or map tournament skills to user licenses appropriately.
+    Guard conditions — writes are skipped when:
+    - ENABLE_TOURNAMENT_SKILL_PROPAGATION flag is False
+    - No active LFA_FOOTBALL_PLAYER license found for the user
+    - skill_rating_delta is empty or None
+
+    License selection: most-recently-created active LFA_FOOTBALL_PLAYER license
+    (order by id DESC, LIMIT 1).  This is deterministic even if — by some
+    operational edge-case — two active licenses exist for the same user.
+
+    Per-skill write pattern:
+    1. Find the current active assessment (ASSESSED or VALIDATED, most recent).
+    2. Compute new_pct = clamp(current_pct + delta, 40.0, 99.0).
+    3. Archive the existing assessment (idempotency: skip if already ARCHIVED).
+    4. Insert a new assessment row (audit trail — never mutate existing rows).
+
+    Write-once safety: caller (record_tournament_participation) only calls this
+    when TournamentParticipation.skill_rating_delta is None, so the propagation
+    is performed at most once per participation record.
 
     Args:
-        db: Database session
-        user_id: Player user ID
-        skill_points: Dictionary of skill_name -> points
-        assessed_by_id: ID of admin/instructor who triggered the assessment (optional)
+        db:                 Database session
+        user_id:            Player's user ID
+        skill_points:       skill_name -> points (used upstream for XP; not used here)
+        assessed_by_id:     Assessor user ID; falls back to user_id if None
+        skill_rating_delta: V3 EMA per-skill delta dict e.g. {"dribbling": +1.2}
     """
-    # TODO: Implement tournament skill tracking
-    # For now, skill points are recorded in TournamentParticipation.skill_points_awarded
-    # and contribute to XP bonus, but don't update FootballSkillAssessment
-    pass
+    if not settings.ENABLE_TOURNAMENT_SKILL_PROPAGATION:
+        logger.debug(
+            "update_skill_assessments: propagation disabled by flag (user=%d)", user_id
+        )
+        return
+
+    if not skill_rating_delta:
+        return
+
+    # ── Resolve the player's active LFA Football Player license ──────────────
+    # Order by id DESC so if (in an edge case) multiple active licenses exist
+    # we always pick the most recent one — deterministic behaviour.
+    license = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == user_id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        )
+        .order_by(UserLicense.id.desc())
+        .first()
+    )
+
+    if not license:
+        logger.debug(
+            "update_skill_assessments: no active LFA_FOOTBALL_PLAYER license "
+            "for user=%d — skipping", user_id
+        )
+        return
+
+    assessor_id = assessed_by_id if assessed_by_id is not None else user_id
+    now = datetime.now(timezone.utc)
+    skills_written = 0
+
+    for skill_key, delta in skill_rating_delta.items():
+        if delta == 0.0:
+            continue
+
+        # ── Find the current active assessment for this skill ─────────────
+        existing = (
+            db.query(FootballSkillAssessment)
+            .filter(
+                FootballSkillAssessment.user_license_id == license.id,
+                FootballSkillAssessment.skill_name == skill_key,
+                FootballSkillAssessment.status.in_(["ASSESSED", "VALIDATED"]),
+            )
+            .order_by(FootballSkillAssessment.id.desc())
+            .first()
+        )
+
+        current_pct = existing.percentage if existing else 50.0
+        raw_new = current_pct + delta
+        new_pct = round(max(40.0, min(99.0, raw_new)), 1)
+        clamped = round(raw_new, 1) != new_pct
+
+        # ── Per-skill structured log ───────────────────────────────────────
+        # Readable in plain logs; parseable by structured log aggregators.
+        logger.info(
+            "skill_propagation skill=%s user=%d license=%d "
+            "old_pct=%.1f delta=%+.1f new_pct=%.1f clamped=%s",
+            skill_key, user_id, license.id,
+            current_pct, delta, new_pct, clamped,
+        )
+
+        # ── Idempotency guard: skip if this exact delta was already written ──
+        expected_notes = f"Auto-assessed from tournament EMA delta ({delta:+.1f})"
+        already_propagated = (
+            db.query(FootballSkillAssessment)
+            .filter(
+                FootballSkillAssessment.user_license_id == license.id,
+                FootballSkillAssessment.skill_name == skill_key,
+                FootballSkillAssessment.status == "ASSESSED",
+                FootballSkillAssessment.notes == expected_notes,
+            )
+            .first()
+        )
+        if already_propagated:
+            logger.debug(
+                "update_skill_assessments: idempotency skip skill=%s user=%d "
+                "(ASSESSED row with same notes already exists)",
+                skill_key, user_id,
+            )
+            continue
+
+        # ── Archive the superseded assessment ─────────────────────────────
+        if existing:
+            existing.previous_status = existing.status
+            existing.status = "ARCHIVED"
+            existing.archived_at = now
+            existing.archived_by = assessor_id
+            existing.archived_reason = (
+                f"tournament_progression_delta={delta:+.1f}"
+            )
+            existing.status_changed_at = now
+            existing.status_changed_by = assessor_id
+
+        # ── Insert new assessment (audit trail) ───────────────────────────
+        new_assessment = FootballSkillAssessment(
+            user_license_id=license.id,
+            skill_name=skill_key,
+            points_earned=round(new_pct),
+            points_total=100,
+            percentage=new_pct,
+            assessed_by=assessor_id,
+            assessed_at=now,
+            status="ASSESSED",
+            requires_validation=False,
+            notes=f"Auto-assessed from tournament EMA delta ({delta:+.1f})",
+        )
+        db.add(new_assessment)
+        skills_written += 1
+
+    # ── Summary log + metrics marker ──────────────────────────────────────
+    # _metrics logger uses name "app.metrics.skill_propagation" — add a
+    # dedicated handler in logging config to route to a metrics sink.
+    logger.info(
+        "update_skill_assessments: wrote %d skill(s) for user=%d license=%d",
+        skills_written, user_id, license.id,
+    )
+    _metrics.info(
+        "skill_propagation_complete user=%d license=%d skills_written=%d",
+        user_id, license.id, skills_written,
+    )
 
 
 def record_tournament_participation(
@@ -229,10 +374,6 @@ def record_tournament_participation(
     # Calculate bonus XP from skill points
     bonus_xp = convert_skill_points_to_xp(db, skill_points)
     total_xp = base_xp + bonus_xp
-
-    # Update skill assessments
-    if skill_points:
-        update_skill_assessments(db, user_id, skill_points, assessed_by_id)
 
     # ── Phase 1: upsert placement + rewards (no skill_rating_delta yet) ──────────
     # skill_rating_delta requires placement to be visible in DB before computing.
@@ -271,6 +412,19 @@ def record_tournament_participation(
         from app.services.skill_progression_service import compute_single_tournament_skill_delta
         rating_delta = compute_single_tournament_skill_delta(db, user_id, tournament_id) or None
         participation.skill_rating_delta = rating_delta
+    else:
+        rating_delta = participation.skill_rating_delta
+
+    # ── Phase 3: propagate EMA delta → FootballSkillAssessment rows ──────────
+    # Called after Phase 2 so that rating_delta is available.
+    # Guarded internally by ENABLE_TOURNAMENT_SKILL_PROPAGATION flag.
+    update_skill_assessments(
+        db,
+        user_id,
+        skill_points,
+        assessed_by_id,
+        skill_rating_delta=rating_delta,
+    )
 
     # Create XP transaction for bonus XP (if any)
     if bonus_xp > 0:

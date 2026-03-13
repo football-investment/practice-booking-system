@@ -50,7 +50,6 @@ class TestCreateTournamentSemester:
         assert semester.name == "Holiday Football Cup"
         assert semester.start_date == tournament_date
         assert semester.end_date == tournament_date  # 1-day tournament
-        assert semester.is_active is True
         assert semester.status == SemesterStatus.SEEKING_INSTRUCTOR
         assert semester.master_instructor_id is None  # No instructor yet
 

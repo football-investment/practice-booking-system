@@ -11,6 +11,8 @@ from pydantic import BaseModel
 
 from zoneinfo import ZoneInfo
 
+import logging
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
@@ -21,6 +23,8 @@ from ...models.attendance import Attendance, AttendanceHistory, AttendanceStatus
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -95,7 +99,7 @@ async def mark_attendance(
             attendance.change_request_reason = notes
             db.commit()
 
-            print(f"📝 Instructor requested change from {attendance.status.value} to {attendance_status.value} - awaiting student approval")
+            logger.info("attendance_change_requested", extra={"from": attendance.status.value, "to": attendance_status.value})
 
             return RedirectResponse(
                 url=f"/sessions/{session_id}?success=change_requested",
@@ -285,7 +289,7 @@ async def handle_change_request(
         attendance.updated_at = datetime.now(timezone.utc)
 
         message = "change_approved"
-        print(f"✅ Student approved change from {old_status} to {new_status}")
+        logger.info("attendance_change_approved", extra={"from": old_status, "to": new_status})
 
     elif action == "reject":
         # Student rejected the change - clear the request
@@ -310,7 +314,7 @@ async def handle_change_request(
         attendance.updated_at = datetime.now(timezone.utc)
 
         message = "change_rejected"
-        print(f"❌ Student rejected change request to {old_value}")
+        logger.info("attendance_change_rejected", extra={"rejected_status": old_value})
 
     else:
         return RedirectResponse(url=f"/sessions/{session_id}?error=invalid_action", status_code=303)

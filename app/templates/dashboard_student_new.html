@@ -326,7 +326,7 @@
                 <p class="spec-description">
                     <strong>Code:</strong> {{ semester.code }}<br>
                     <strong>Location:</strong> {{ 'BUDA' if 'BUDA' in semester.code else 'PEST' if 'PEST' in semester.code else 'N/A' }}<br>
-                    <strong>Status:</strong> {{ 'Active ✅' if semester.is_active else 'Inactive ❌' }}
+                    <strong>Status:</strong> {{ semester.status.value if semester.status else 'Unknown' }}
                 </p>
 
                 <div class="spec-action">

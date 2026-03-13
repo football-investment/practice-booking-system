@@ -356,11 +356,10 @@ class TestDeleteSemester:
             ))
         assert exc.value.status_code == 404
 
-    def test_semester_with_active_enrollments_deactivated_not_deleted(self):
+    def test_semester_with_active_enrollments_cancelled_not_deleted(self):
         sem = MagicMock()
         sem.id = 10
         sem.code = "SEM_2026"
-        sem.is_active = True
 
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = sem
@@ -369,7 +368,8 @@ class TestDeleteSemester:
         result = _run(admin_delete_semester(
             semester_id=10, request=_req(), db=db, user=_admin_user()
         ))
-        assert sem.is_active is False
+        from app.models.semester import SemesterStatus
+        assert sem.status == SemesterStatus.CANCELLED
         db.commit.assert_called_once()
         db.delete.assert_not_called()
         assert isinstance(result, RedirectResponse)
