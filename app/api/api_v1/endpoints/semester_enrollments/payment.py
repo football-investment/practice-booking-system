@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 
+from .....config import settings
 from .....database import get_db
 from .....dependencies import get_current_admin_user_web, get_current_user_web
 from .....models.user import User, UserRole
@@ -119,16 +120,20 @@ async def get_payment_info(
         "semester_name": enrollment.semester.name,
         "semester_id": enrollment.semester_id,
         "payment_verified": enrollment.payment_verified,
-        "amount": 50000,  # TODO: Make this configurable per semester/specialization
+        "amount": settings.PAYMENT_AMOUNT_HUF,
         "currency": "HUF",
         "bank_details": {
-            "account_holder": "LFA Education Center Kft.",
-            "account_number": "12345678-12345678-12345678",
-            "bank_name": "OTP Bank",
-            "swift": "OTPVHUHB",
-            "iban": "HU42 1177 3016 1111 1118 0000 0000"
+            "account_holder": settings.PAYMENT_BANK_ACCOUNT_HOLDER,
+            "account_number": settings.PAYMENT_BANK_ACCOUNT_NUMBER,
+            "bank_name": settings.PAYMENT_BANK_NAME,
+            "swift": settings.PAYMENT_BANK_SWIFT,
+            "iban": settings.PAYMENT_BANK_IBAN,
         },
-        "instructions": f"Please transfer {50000} HUF to the account above and include this EXACT code in the transaction comment: {enrollment.payment_reference_code}"
+        "instructions": (
+            f"Please transfer {settings.PAYMENT_AMOUNT_HUF} HUF to the account above "
+            f"and include this EXACT code in the transaction comment: "
+            f"{enrollment.payment_reference_code}"
+        )
     }
 
     return JSONResponse(

@@ -13,7 +13,7 @@ import re
 from collections import defaultdict
 
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func as sqlfunc, or_
+from sqlalchemy import func as sqlfunc, or_, case
 
 from ...database import get_db
 from ...dependencies import get_current_user_web
@@ -85,11 +85,17 @@ async def admin_users_page(
 
     page_users = q.order_by(User.id).offset(offset).limit(_USERS_PAGE_SIZE).all()
 
-    # Stats (always from full DB — filter-independent)
-    total_all = db.query(User).count()
-    total_students = db.query(User).filter(User.role == UserRole.STUDENT).count()
-    total_instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR).count()
-    total_active = db.query(User).filter(User.is_active == True).count()
+    # Stats (always from full DB — filter-independent; single aggregation query)
+    _stats = db.query(
+        sqlfunc.count().label("total_all"),
+        sqlfunc.sum(case((User.role == UserRole.STUDENT, 1), else_=0)).label("total_students"),
+        sqlfunc.sum(case((User.role == UserRole.INSTRUCTOR, 1), else_=0)).label("total_instructors"),
+        sqlfunc.sum(case((User.is_active == True, 1), else_=0)).label("total_active"),
+    ).first()
+    total_all = _stats.total_all or 0
+    total_students = _stats.total_students or 0
+    total_instructors = _stats.total_instructors or 0
+    total_active = _stats.total_active or 0
 
     return templates.TemplateResponse(
         "admin/users.html",
@@ -170,11 +176,17 @@ async def admin_enrollments_page(
     # Get ALL truly active semesters (running TODAY - between start_date and end_date)
     today = date.today()
 
-    active_semesters = db.query(Semester).filter(
-        Semester.status != SemesterStatus.CANCELLED,
-        Semester.start_date <= today,
-        Semester.end_date >= today
-    ).order_by(Semester.code, Semester.start_date.desc()).all()
+    active_semesters = (
+        db.query(Semester)
+        .options(joinedload(Semester.location), joinedload(Semester.campus))
+        .filter(
+            Semester.status != SemesterStatus.CANCELLED,
+            Semester.start_date <= today,
+            Semester.end_date >= today,
+        )
+        .order_by(Semester.code, Semester.start_date.desc())
+        .all()
+    )
 
     # Add specialization_type and extract location from code
     for semester in active_semesters:
@@ -232,14 +244,9 @@ async def admin_enrollments_page(
         # Group by venue within this specialization (using helper function)
         location_groups = defaultdict(list)
 
-        # Eager load location relationships for helper function
-        for semester in spec_semesters:
-            db.refresh(semester, ['location', 'campus'])
-
         # First, add enrollments to their locations
         for enrollment in spec_enrollments:
-            # Get venue using helper function with fallback chain
-            db.refresh(enrollment.semester, ['location', 'campus'])
+            # get_tournament_venue reads location/campus loaded via joinedload above
             location_key = get_tournament_venue(enrollment.semester)
             location_groups[location_key].append(enrollment)
 
@@ -354,15 +361,14 @@ async def admin_payments_page(
         .all()
     )
 
-    # Get all UserLicenses that DON'T have any SemesterEnrollment yet
-    all_enrollments = db.query(SemesterEnrollment).all()
-    enrollment_license_ids = [e.user_license_id for e in all_enrollments]
+    # Get all UserLicenses that DON'T have any SemesterEnrollment yet (subquery avoids full table scan)
+    enrolled_license_ids_subq = db.query(SemesterEnrollment.user_license_id)
 
     newcomer_licenses = (
         db.query(UserLicense)
         .options(joinedload(UserLicense.user))
         .filter(
-            UserLicense.id.notin_(enrollment_license_ids) if enrollment_license_ids else True,
+            UserLicense.id.notin_(enrolled_license_ids_subq),
             UserLicense.payment_reference_code.isnot(None)
         )
         .order_by(UserLicense.started_at.desc())
