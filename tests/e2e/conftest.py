@@ -422,6 +422,7 @@ def seed_ops_players(request):
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.exc import IntegrityError as SAIntegrityError
     from datetime import datetime, timezone
 
     # Import models
@@ -498,7 +499,9 @@ def seed_ops_players(request):
                 # User exists - skip creation
                 continue
 
-            # Create new player
+            # Create new player — use SAVEPOINT so xdist parallel workers
+            # survive the race condition if two workers pass the `existing`
+            # check simultaneously before either commits.
             player = User(
                 email=email,
                 password_hash=get_password_hash(password),
@@ -510,26 +513,29 @@ def seed_ops_players(request):
                 date_of_birth=datetime(2000, 1, 1),
                 phone=f"+3620{i:07d}"
             )
-            db.add(player)
-            db.flush()
-            created_user_ids.append(player.id)
-
-            # Create LFA_FOOTBALL_PLAYER license with baseline skills
             baseline_skills = {
                 "finishing": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0},
                 "dribbling": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0},
                 "passing": {"baseline": 50.0, "current_level": 50.0, "tournament_delta": 0.0, "total_delta": 0.0, "tournament_count": 0}
             }
-            license = UserLicense(
-                user_id=player.id,
-                specialization_type="LFA_FOOTBALL_PLAYER",
-                is_active=True,
-                started_at=datetime.now(timezone.utc),
-                football_skills=baseline_skills
-            )
-            db.add(license)
-            db.flush()
-            created_license_ids.append(license.id)
+            try:
+                with db.begin_nested():  # SAVEPOINT
+                    db.add(player)
+                    db.flush()
+                    license = UserLicense(
+                        user_id=player.id,
+                        specialization_type="LFA_FOOTBALL_PLAYER",
+                        is_active=True,
+                        started_at=datetime.now(timezone.utc),
+                        football_skills=baseline_skills
+                    )
+                    db.add(license)
+                    db.flush()
+                created_user_ids.append(player.id)
+                created_license_ids.append(license.id)
+            except SAIntegrityError:
+                # Another xdist worker created this user between our SELECT and INSERT
+                continue
 
         db.commit()
         print(f"   ✅ OPS seed complete: {len(created_user_ids)} players created, {64 - len(created_user_ids)} already existed")
