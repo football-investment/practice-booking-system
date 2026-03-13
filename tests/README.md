@@ -126,18 +126,15 @@ pytest -m validation      # Validation logic
 | Workflow YAML | Runs | Test Path |
 |---------------|------|-----------|
 | `test-baseline-check.yml` | Unit + API smoke + coverage gate | `tests/unit/` `tests/integration/` |
-| `e2e-fast-suite.yml` | Playwright fast suite (52 tests, mandatory) | `tests/e2e/test_tournament_monitor_*.py` |
 | `e2e-integration-critical.yml` | Multi-role blocking flows (nightly) | `tests/e2e/integration_critical/` |
-| `e2e-wizard-coverage.yml` | Wizard coverage tests | `tests/e2e/` |
-| `e2e-scale-suite.yml` | Scale suite (optional) | `tests/e2e/` |
+| `e2e-wizard-coverage.yml` | Wizard + API boundary coverage | `tests/e2e/` |
 | `cypress-tests.yml` | Cypress frontend smoke (7 specs, mandatory) | `cypress/` |
-| `cypress-e2e.yml` | Full Cypress suite | `cypress/` |
 
 **Run locally:**
 ```bash
 # Python tests
 pytest tests/unit/ tests/integration/        # unit + integration
-pytest tests/e2e/ -m "not scale_suite"      # Playwright E2E (needs backend + Streamlit)
+pytest tests/e2e/ -m "not scale_suite"      # Playwright E2E
 
 # Cypress
 cd cypress && npx cypress run               # headless
