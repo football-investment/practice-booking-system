@@ -4,7 +4,7 @@ EventRewardLog — universal reward tracking for sessions (M-07, 2026-03-15).
 Records XP and skill-area rewards earned per user per session.
 Decoupled from LicenseProgression (which tracks structural level advancement).
 """
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey, String
+from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -17,11 +17,16 @@ class EventRewardLog(Base):
     Tracks rewards earned when a user completes a session (TRAINING or MATCH).
 
     Design principles:
-    - One row per (user, session) pair — upsert on re-award
+    - One row per (user, session) pair — upsert on re-award via ON CONFLICT DO UPDATE
+    - Unique constraint on (user_id, session_id) guarantees at-most-one row per pair
+      even under concurrent INSERT calls, eliminating the TOCTOU race condition.
     - skill_areas_affected mirrors session_reward_config.skill_areas
     - multiplier_applied captures any dynamic multiplier (streak, performance tier, etc.)
     """
     __tablename__ = "event_reward_logs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "session_id", name="uq_event_reward_log_user_session"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 
