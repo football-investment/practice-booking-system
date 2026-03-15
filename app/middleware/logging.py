@@ -2,6 +2,7 @@ import logging
 import time
 import json
 import os
+from logging.handlers import RotatingFileHandler
 from typing import Callable
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -21,9 +22,18 @@ os.makedirs(log_dir, exist_ok=True)
 # Configure structured logging
 handlers = [logging.StreamHandler()]
 
-# Only add file handler if not in test environment
+# Only add file handler if not in test environment.
+# RotatingFileHandler caps each log file at 10 MB and keeps 5 rotated backups,
+# giving ~50 MB maximum disk usage before the oldest file is overwritten.
 if not os.getenv('TESTING', '').lower() == 'true':
-    handlers.append(logging.FileHandler(os.path.join(log_dir, 'app.log'), mode='a'))
+    handlers.append(
+        RotatingFileHandler(
+            os.path.join(log_dir, 'app.log'),
+            maxBytes=10 * 1024 * 1024,  # 10 MB per file
+            backupCount=5,              # keep app.log.1 … app.log.5
+            encoding='utf-8',
+        )
+    )
 
 logging.basicConfig(
     level=logging.INFO,

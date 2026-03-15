@@ -36,8 +36,10 @@ def _sq_after_execute(conn, cursor, statement, params, context, executemany):
     elapsed_ms = (time.perf_counter() - conn.info["_sq_start"].pop()) * 1000
     if elapsed_ms >= _SLOW_QUERY_THRESHOLD_MS:
         # Deferred imports to avoid circular dependency at module load time
+        from app.core.metrics import metrics
         from app.core.structured_log import log_warn
         from app.core.request_context import get_request_id
+        metrics.increment("slow_queries_total")
         rid = get_request_id()
         extra = {"request_id": rid} if rid else {}
         log_warn(
