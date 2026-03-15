@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from datetime import datetime
 
+from app.core.structured_log import log_info, log_warn
+
 _logger = logging.getLogger(__name__)
 
 from .....database import get_db
@@ -73,9 +75,12 @@ async def create_enrollment(
             SemesterEnrollment.is_active == True,
         ).first()
         if not parent_enrollment:
-            _logger.warning(
-                "enrollment_gate_blocked user=%d semester=%d parent=%d reason=no_active_parent_enrollment",
-                enrollment.user_id, enrollment.semester_id, semester.parent_semester_id,
+            log_warn(
+                _logger, "enrollment_gate_blocked",
+                user_id=enrollment.user_id,
+                semester_id=enrollment.semester_id,
+                parent_semester_id=semester.parent_semester_id,
+                reason="no_active_parent_enrollment",
             )
             raise HTTPException(
                 status_code=403,
@@ -84,10 +89,12 @@ async def create_enrollment(
                     "this nested semester"
                 )
             )
-        _logger.info(
-            "enrollment_gate_passed user=%d semester=%d parent=%d parent_enrollment=%d",
-            enrollment.user_id, enrollment.semester_id,
-            semester.parent_semester_id, parent_enrollment.id,
+        log_info(
+            _logger, "enrollment_gate_passed",
+            user_id=enrollment.user_id,
+            semester_id=enrollment.semester_id,
+            parent_semester_id=semester.parent_semester_id,
+            parent_enrollment_id=parent_enrollment.id,
         )
 
     # 🎯 NEW: Calculate automatic age category based on date_of_birth

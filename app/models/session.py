@@ -43,7 +43,8 @@ class Session(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    date_start = Column(DateTime, nullable=False)
+    date_start = Column(DateTime, nullable=False, index=True,
+                        comment="Indexed for schedule range queries (upcoming sessions, calendar views)")
     date_end = Column(DateTime, nullable=False)
     session_type = Column(Enum(SessionType), default=SessionType.on_site, nullable=False)
     capacity = Column(Integer, default=20)
@@ -52,7 +53,8 @@ class Session(Base):
     sport_type = Column(String, default='General')  # Enhanced field for UI
     level = Column(String, default='All Levels')  # Enhanced field for UI
     instructor_name = Column(String, nullable=True)  # Enhanced field for UI
-    semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False)
+    semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False, index=True,
+                         comment="Indexed — all sessions in a semester is the most common query pattern")
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)  # FIXED: Made nullable to allow sessions without groups
     instructor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     campus_id = Column(Integer, ForeignKey("campuses.id"), nullable=True, comment="Campus/venue for multi-campus tournaments")
