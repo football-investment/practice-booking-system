@@ -1752,10 +1752,81 @@ jobs:
         echo "Required: 0 flake in 3 runs, parallel execution stable"
         exit 1
 
+  migration-integrity:
+    name: "Migration Chain Integrity (empty → head → base → head)"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_migration_integrity_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Upgrade from empty database to head
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_migration_integrity_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        alembic upgrade head
+        CURRENT=$(alembic current 2>&1)
+        echo "After upgrade: $CURRENT"
+        if ! echo "$CURRENT" | grep -q "(head)"; then
+          echo "❌ Not at head after upgrade from empty DB"
+          exit 1
+        fi
+        echo "✅ Empty → head: OK"
+
+    - name: Full round-trip downgrade to base then upgrade to head
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_migration_integrity_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        alembic downgrade base
+        echo "✅ Downgrade to base: OK"
+        alembic upgrade head
+        CURRENT=$(alembic current 2>&1)
+        echo "After round-trip: $CURRENT"
+        if ! echo "$CURRENT" | grep -q "(head)"; then
+          echo "❌ Not at head after base → head round-trip"
+          exit 1
+        fi
+        echo "✅ base → head round-trip: OK"
+
+    - name: Migration chain failure annotation
+      if: failure()
+      run: |
+        echo "::error::Migration chain integrity failed."
+        echo "A migration may have broken references, invalid SQL, or missing dependency."
+        echo "Run locally: alembic downgrade base && alembic upgrade head"
+        exit 1
+
   baseline-report:
     name: Generate Baseline Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate, user-account-gate, instructor-assignment-lifecycle-gate]
+    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, migration-integrity, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate, user-account-gate, instructor-assignment-lifecycle-gate]
     if: always()
 
     steps:
@@ -1770,6 +1841,7 @@ jobs:
         SMOKE="${{ needs.smoke-tests.result }}"
         INTEGRITY="${{ needs.api-module-integrity.result }}"
         ID_GUARD="${{ needs.hardcoded-id-guard.result }}"
+        MIGRATION="${{ needs.migration-integrity.result }}"
         PAYMENT="${{ needs.payment-workflow-gate.result }}"
         CORE_ACCESS="${{ needs.core-access-gate.result }}"
         STUDENT_LIFECYCLE="${{ needs.student-lifecycle-gate.result }}"
@@ -1784,7 +1856,7 @@ jobs:
         USER_ACCOUNT="${{ needs.user-account-gate.result }}"
         INSTRUCTOR_ASSIGNMENT="${{ needs.instructor-assignment-lifecycle-gate.result }}"
 
-        if [ "$UNIT" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ] && [ "$PAYMENT" == "success" ] && [ "$CORE_ACCESS" == "success" ] && [ "$STUDENT_LIFECYCLE" == "success" ] && [ "$INSTRUCTOR_LIFECYCLE" == "success" ] && [ "$REFUND_WORKFLOW" == "success" ] && [ "$MULTI_CAMPUS" == "success" ] && [ "$SESSION_MANAGEMENT" == "success" ] && [ "$SKILL_LIFECYCLE" == "success" ] && [ "$BOOKING_LIFECYCLE" == "success" ] && [ "$AUTH_LIFECYCLE" == "success" ] && [ "$ENROLLMENT_WORKFLOW" == "success" ] && [ "$USER_ACCOUNT" == "success" ] && [ "$INSTRUCTOR_ASSIGNMENT" == "success" ]; then
+        if [ "$UNIT" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ] && [ "$MIGRATION" == "success" ] && [ "$PAYMENT" == "success" ] && [ "$CORE_ACCESS" == "success" ] && [ "$STUDENT_LIFECYCLE" == "success" ] && [ "$INSTRUCTOR_LIFECYCLE" == "success" ] && [ "$REFUND_WORKFLOW" == "success" ] && [ "$MULTI_CAMPUS" == "success" ] && [ "$SESSION_MANAGEMENT" == "success" ] && [ "$SKILL_LIFECYCLE" == "success" ] && [ "$BOOKING_LIFECYCLE" == "success" ] && [ "$AUTH_LIFECYCLE" == "success" ] && [ "$ENROLLMENT_WORKFLOW" == "success" ] && [ "$USER_ACCOUNT" == "success" ] && [ "$INSTRUCTOR_ASSIGNMENT" == "success" ]; then
           echo "✅ **PASS** - Baseline maintained (100% LIFECYCLE COVERAGE)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Unit & Integration Tests" >> $GITHUB_STEP_SUMMARY
@@ -1824,6 +1896,7 @@ jobs:
           echo "| E2E smoke tests | $SMOKE |" >> $GITHUB_STEP_SUMMARY
           echo "| API module integrity | $INTEGRITY |" >> $GITHUB_STEP_SUMMARY
           echo "| Hardcoded FK ID guard | $ID_GUARD |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Migration chain integrity** | $MIGRATION |" >> $GITHUB_STEP_SUMMARY
           echo "| Payment workflow E2E | $PAYMENT |" >> $GITHUB_STEP_SUMMARY
           echo "| Core Access E2E | $CORE_ACCESS |" >> $GITHUB_STEP_SUMMARY
           echo "| **Student Lifecycle E2E** | $STUDENT_LIFECYCLE |" >> $GITHUB_STEP_SUMMARY
