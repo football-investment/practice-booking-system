@@ -31,6 +31,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException
 from app.models.user import User, UserRole
+from app.models.session import EventCategory
 
 from app.api.api_v1.endpoints.tournaments.results.submission import (
     check_instructor_access,
@@ -73,6 +74,7 @@ def _session_mock(sid=10, tournament_id=1, is_tournament_game=True,
     s.id = sid
     s.semester_id = tournament_id
     s.is_tournament_game = is_tournament_game
+    s.event_category = EventCategory.MATCH if is_tournament_game else EventCategory.TRAINING
     s.match_format = match_format
     s.game_results = game_results
     s.rounds_data = rounds_data

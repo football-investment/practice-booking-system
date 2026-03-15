@@ -12,7 +12,7 @@ from decimal import Decimal
 import json
 
 from app.models.semester import Semester
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.services.tournament.ranking.ranking_service import RankingService
 from app.services.tournament.leaderboard_service import (
     get_or_create_ranking,
@@ -115,7 +115,7 @@ class SessionFinalizer:
         """
         all_sessions = self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         ).all()
 
         unfinalized_sessions = [

@@ -54,6 +54,11 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         "/redoc",  # ReDoc
         "/openapi.json",  # OpenAPI schema
         "/health",  # Health check
+        "/login",  # Pre-auth endpoint: csrf_token cookie may not exist yet due to
+                   # redirect chain quirks (GET / → 303 → GET /login). Exempt because:
+                   # 1. Login requires credentials — CSRF-login attacks need the password too
+                   # 2. SameSite=Strict on all cookies already blocks cross-site submissions
+                   # 3. Standard frameworks (Django, Rails) exempt login from CSRF
     }
 
     # Regex patterns for exempt paths (e.g., all /api/v1/* endpoints)

@@ -15,7 +15,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.semester import Semester
 from app.models.tournament_enums import TournamentPhase
 
@@ -177,7 +177,7 @@ class SQLSessionRepository(SessionRepository):
                 SessionModel.semester_id == tournament_id,
                 SessionModel.tournament_phase == phase,
                 SessionModel.tournament_round == round_num,
-                SessionModel.is_tournament_game == True
+                SessionModel.event_category == EventCategory.MATCH
             )
         )
 
@@ -202,7 +202,7 @@ class SQLSessionRepository(SessionRepository):
         rounds = self.db.query(SessionModel.tournament_round).filter(
             and_(
                 SessionModel.semester_id == tournament_id,
-                SessionModel.is_tournament_game == True,
+                SessionModel.event_category == EventCategory.MATCH,
                 SessionModel.tournament_phase == phase
             )
         ).distinct().all()
@@ -257,7 +257,7 @@ class SQLSessionRepository(SessionRepository):
             session_type=session_data.get("session_type", "on_site"),
             capacity=session_data.get("capacity", tournament.max_participants),
             location=session_data.get("location", tournament.location),
-            is_tournament_game=True,
+            event_category=EventCategory.MATCH,
             tournament_phase=session_data["tournament_phase"],
             tournament_round=session_data["tournament_round"],
             tournament_match_number=session_data.get("tournament_match_number"),
@@ -306,7 +306,7 @@ class FakeSessionRepository(SessionRepository):
             if (s.semester_id == tournament_id and
                 s.tournament_phase == phase and
                 s.tournament_round == round_num and
-                s.is_tournament_game)
+                s.event_category == EventCategory.MATCH)
         ]
 
         if exclude_bronze:

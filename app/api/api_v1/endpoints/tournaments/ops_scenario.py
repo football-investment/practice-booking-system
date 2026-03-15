@@ -178,12 +178,12 @@ def _get_tournament_sessions(
     ordered: bool = False,
     with_phase: bool = False,
 ):
-    """Fetch all is_tournament_game sessions for a tournament.
+    """Fetch all MATCH-category sessions for a tournament.
 
     Consolidates the repeated:
         db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
         ).order_by(...).all()
     pattern used across every simulation function.
 
@@ -197,11 +197,11 @@ def _get_tournament_sessions(
     Returns:
         List of SessionModel instances.
     """
-    from app.models.session import Session as _SM
+    from app.models.session import Session as _SM, EventCategory as _EC
     from sqlalchemy import asc as _asc
     q = db.query(_SM).filter(
         _SM.semester_id == tournament_id,
-        _SM.is_tournament_game == True,
+        _SM.event_category == _EC.MATCH,
     )
     if with_phase:
         q = q.order_by(_SM.tournament_phase, _asc(_SM.tournament_round), _asc(_SM.tournament_match_number))
@@ -1651,10 +1651,10 @@ def run_ops_scenario(
         _ops_logger.warning("[ops] Audit log failed (non-fatal): %s", audit_exc)
 
     # Count sessions created (query after generation)
-    from app.models.session import Session as _SessionModel
+    from app.models.session import Session as _SessionModel, EventCategory as _EventCategory
     _session_count = db.query(_SessionModel).filter(
         _SessionModel.semester_id == tid,
-        _SessionModel.is_tournament_game == True,
+        _SessionModel.event_category == _EventCategory.MATCH,
     ).count()
 
     return OpsScenarioResponse(

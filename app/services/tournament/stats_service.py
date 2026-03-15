@@ -13,6 +13,7 @@ from app.models import (
     TournamentRanking,
     Semester,
     Session as SessionModel,
+    EventCategory,
     Attendance,
     AttendanceStatus,
     SemesterEnrollment,
@@ -73,7 +74,7 @@ def update_tournament_stats(db: Session, tournament_id: int) -> Optional[Tournam
     total_matches = db.query(SessionModel).filter(
         and_(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         )
     ).count()
     
@@ -81,7 +82,7 @@ def update_tournament_stats(db: Session, tournament_id: int) -> Optional[Tournam
     completed_matches = db.query(SessionModel).filter(
         and_(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.game_results.isnot(None)
         )
     ).count()

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from .....database import get_db
-from .....dependencies import get_current_admin_user_web
+from .....dependencies import get_current_admin_user_hybrid
 from .....models.user import User, UserRole
 from .....models.semester import Semester
 from .....models.license import UserLicense
@@ -28,7 +28,7 @@ async def create_enrollment(
     request: Request,
     enrollment: EnrollmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Enroll a student in a specialization for a specific semester (Admin only)
@@ -60,6 +60,23 @@ async def create_enrollment(
 
     if existing:
         raise HTTPException(status_code=400, detail="Student is already enrolled in this specialization for this semester")
+
+    # 🏗️ Hierarchy access gate (M-02): if this semester is nested inside a parent,
+    # the student must already have an active enrollment in the parent semester.
+    if semester.parent_semester_id is not None:
+        parent_enrollment = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.user_id == enrollment.user_id,
+            SemesterEnrollment.semester_id == semester.parent_semester_id,
+            SemesterEnrollment.is_active == True,
+        ).first()
+        if not parent_enrollment:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Student must be enrolled in the parent program before joining "
+                    "this nested semester"
+                )
+            )
 
     # 🎯 NEW: Calculate automatic age category based on date_of_birth
     age_category = None
@@ -97,7 +114,7 @@ async def delete_enrollment(
     request: Request,
     enrollment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Delete an enrollment (Admin only)
@@ -121,7 +138,7 @@ async def toggle_enrollment_active(
     request: Request,
     enrollment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user_web)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Toggle enrollment active status (Admin only)

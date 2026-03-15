@@ -57,6 +57,7 @@ from app.api.api_v1.endpoints.attendance import (
 )
 from app.models.attendance import AttendanceStatus
 from app.models.booking import BookingStatus
+from app.models.session import EventCategory
 
 _BASE = "app.api.api_v1.endpoints.attendance"
 
@@ -145,6 +146,7 @@ def _session(is_tournament=False):
     s = MagicMock()
     s.id = 1
     s.is_tournament_game = is_tournament
+    s.event_category = EventCategory.MATCH if is_tournament else EventCategory.TRAINING
     return s
 
 

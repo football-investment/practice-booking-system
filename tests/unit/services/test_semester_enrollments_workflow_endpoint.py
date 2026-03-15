@@ -271,7 +271,7 @@ class TestCreateEnrollment:
     def test_ce05_success_no_dob(self):
         """CE-05: all valid, no date_of_birth → age_category=None."""
         student = MagicMock(); student.date_of_birth = None; student.name = "Alice"
-        semester = MagicMock(); semester.code = "2025Q1"
+        semester = MagicMock(); semester.code = "2025Q1"; semester.parent_semester_id = None
         lic = MagicMock(); lic.specialization_type = "LFA_PLAYER_PRE"
         db = _model_db(student=student, semester=semester, lic=lic, existing=None)
         result = self._call(db=db)
@@ -282,7 +282,7 @@ class TestCreateEnrollment:
         """CE-06: student has date_of_birth → age_category auto-assigned."""
         from datetime import date
         student = MagicMock(); student.date_of_birth = date(2010, 3, 1); student.name = "Bob"
-        semester = MagicMock(); semester.code = "2025Q1"
+        semester = MagicMock(); semester.code = "2025Q1"; semester.parent_semester_id = None
         lic = MagicMock(); lic.specialization_type = "LFA_PLAYER_PRE"
         db = _model_db(student=student, semester=semester, lic=lic, existing=None)
         with patch(f"{_BASE_CRUD}.get_current_season_year", return_value=2025), \

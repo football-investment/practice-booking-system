@@ -22,7 +22,7 @@ import json
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.semester import Semester
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.dependencies import get_current_user
 
 # Import shared services
@@ -119,7 +119,7 @@ def get_session_or_404(
             detail=f"Session {session_id} not found in tournament {tournament_id}"
         )
 
-    if not session.is_tournament_game:
+    if session.event_category != EventCategory.MATCH:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This session is not a tournament match"
@@ -433,7 +433,7 @@ def submit_round_results(
             # Extract combined round_results from all IR sessions
             all_sessions_for_ranking = db.query(SessionModel).filter(
                 SessionModel.semester_id == tournament_id,
-                SessionModel.is_tournament_game == True,
+                SessionModel.event_category == EventCategory.MATCH,
             ).all()
 
             combined_round_results: Dict[str, Any] = {}

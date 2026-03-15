@@ -52,6 +52,15 @@ class CreditTransaction(Base):
     semester_id = Column(Integer, ForeignKey("semesters.id", ondelete="SET NULL"), nullable=True)
     enrollment_id = Column(Integer, ForeignKey("semester_enrollments.id", ondelete="SET NULL"), nullable=True)
 
+    # Admin audit: which admin performed this adjustment (NULL for system/user actions)
+    performed_by_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Admin user who performed this adjustment (NULL for system/user-initiated transactions)",
+    )
+
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Ensure exactly one of user_id or user_license_id is set
@@ -67,6 +76,7 @@ class CreditTransaction(Base):
     user_license = relationship("UserLicense", back_populates="credit_transactions")
     semester = relationship("Semester")
     enrollment = relationship("SemesterEnrollment")
+    performed_by = relationship("User", foreign_keys=[performed_by_user_id])
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
@@ -81,5 +91,6 @@ class CreditTransaction(Base):
             "idempotency_key": self.idempotency_key,
             "semester_id": self.semester_id,
             "enrollment_id": self.enrollment_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "performed_by_user_id": self.performed_by_user_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

@@ -18,6 +18,14 @@ class SemesterStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"  # Admin cancelled
 
 
+class SemesterCategory(str, enum.Enum):
+    """Top-level category for a semester, drives access control and reporting."""
+    ACADEMY_SEASON = "ACADEMY_SEASON"  # Jul-Jun multi-month program
+    MINI_SEASON = "MINI_SEASON"        # Short academy season (4-8 weeks)
+    TOURNAMENT = "TOURNAMENT"          # Competitive tournament
+    CAMP = "CAMP"                      # Short-term intensive camp (e.g. summer/winter camp)
+
+
 # Many-to-many association table for additional instructors
 semester_instructors = Table(
     'semester_instructors',
@@ -54,6 +62,22 @@ class Semester(Base):
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # 📦 CATEGORY & HIERARCHY (M-01 / M-02 — 2026-03-15)
+    semester_category = Column(
+        Enum(SemesterCategory, name='semester_category_type'),
+        nullable=True,
+        index=True,
+        comment="Program category: ACADEMY_SEASON | MINI_SEASON | TOURNAMENT | CAMP"
+    )
+    parent_semester_id = Column(
+        Integer,
+        ForeignKey('semesters.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+        comment="Parent semester for nested programs (e.g. training inside a CAMP). "
+                "Access control: only enrollees of parent can enroll in children."
+    )
 
     # 🥋 Master Instructor (Grandmaster who approves enrollments)
     master_instructor_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True,
@@ -112,6 +136,14 @@ class Semester(Base):
                            doc="Location where this semester takes place")
     master_instructor = relationship("User", foreign_keys=[master_instructor_id],
                                     backref="mastered_semesters")
+    # Hierarchy (M-02)
+    parent_semester = relationship(
+        "Semester",
+        foreign_keys=[parent_semester_id],
+        remote_side="Semester.id",
+        backref="child_semesters",
+        doc="Parent program (e.g. the CAMP this training sub-season belongs to)"
+    )
     assistant_instructors = relationship("User", secondary=semester_instructors,
                                         backref="assisted_semesters")
     groups = relationship("Group", back_populates="semester")

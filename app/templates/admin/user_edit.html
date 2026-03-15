@@ -1,58 +1,532 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}Edit User — Admin Panel{% endblock %}
+{% block title %}Edit User{% endblock %}
+{% block page_heading %}Edit User{% endblock %}
+{% block page_subtitle %}#{{ target.id }} — {{ target.email }}{% endblock %}
 
-{% block content %}
-<div style="max-width:600px; margin:2rem auto;">
-    <div style="background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.12); padding:2.5rem;">
-        <div style="margin-bottom:2rem;">
-            <a href="/admin/users" style="color:#667eea; text-decoration:none; font-size:0.9rem;">← Back to Users</a>
-            <h2 style="color:#2c3e50; margin:0.5rem 0 0 0;">Edit User #{{ target.id }}</h2>
-            <p style="color:#7f8c8d; font-size:0.9rem; margin:0;">{{ target.email }}</p>
-        </div>
+{% block extra_styles %}
+<style>
+.section-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    overflow: visible;
+    position: relative;
+}
+.section-card h3 {
+    margin: 0 0 1.2rem 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #2c3e50;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.6rem;
+}
+.field { margin-bottom: 1rem; }
+.field label { display: block; font-weight: 600; color: #555; margin-bottom: 0.35rem; font-size: 0.88rem; }
+.field input,
+.field select,
+.field textarea {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.93rem;
+    box-sizing: border-box;
+    background: white;
+}
+.field input:focus, .field select:focus { border-color: #667eea; outline: none; }
+.btn-primary {
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background: #ecf0f1;
+    color: #7f8c8d;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+.btn-danger {
+    padding: 0.5rem 1rem;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.btn-success {
+    padding: 0.75rem 1.5rem;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.inline-form { display: flex; gap: 0.7rem; align-items: flex-end; flex-wrap: wrap; }
+.inline-form .field { margin-bottom: 0; flex: 1; min-width: 120px; }
+.msg-success {
+    background: #d4edda;
+    border: 1px solid #27ae60;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1.5rem;
+    color: #155724;
+    font-weight: 600;
+}
+.msg-error {
+    background: #fee;
+    border: 1px solid #e74c3c;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1.5rem;
+    color: #c0392b;
+}
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 1rem; }
+.history-table th {
+    background: #f8f9fa;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 2px solid #e0e0e0;
+}
+.history-table td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+.history-table tr:hover td { background: #fafafa; }
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.badge-green { background: #d4edda; color: #155724; }
+.badge-red { background: #fee; color: #c0392b; }
+.badge-blue { background: #d1ecf1; color: #0c5460; }
+.badge-grey { background: #e2e3e5; color: #383d41; }
+.status-row { display: flex; gap: 2rem; flex-wrap: wrap; }
+.status-item { display: flex; flex-direction: column; gap: 0.2rem; }
+.status-item .label { font-size: 0.82rem; color: #888; font-weight: 600; }
+.status-item .value { font-size: 0.95rem; color: #2c3e50; font-weight: 600; }
+</style>
+{% endblock %}
 
-        {% if error %}
-        <div style="background:#fee; border:1px solid #e74c3c; border-radius:8px; padding:0.8rem 1rem; margin-bottom:1.5rem; color:#c0392b;">
-            ⚠️ {{ error }}
-        </div>
-        {% endif %}
+{% block admin_content %}
+<div style="max-width: 860px;">
 
+    <div style="margin-bottom: 1.2rem;">
+        <a href="/admin/users" style="color: #667eea; text-decoration: none; font-size: 0.9rem;">← Back to Users</a>
+    </div>
+
+    {% if msg == "password_reset" %}
+    <div class="msg-success">Password has been reset successfully. Communicate the new password via a secure channel.</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="msg-error">{{ error }}</div>
+    {% endif %}
+
+    <!-- ===== SECTION 1: Basic Info ===== -->
+    <div class="section-card">
+        <h3>Basic Information</h3>
         <form method="POST" action="/admin/users/{{ target.id }}/edit">
-            <div style="margin-bottom:1.2rem;">
-                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Full Name</label>
-                <input type="text" name="name" required
-                    value="{{ target.name }}"
-                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            <div class="field">
+                <label>Full Name</label>
+                <input type="text" name="name" required value="{{ target.name }}">
             </div>
-
-            <div style="margin-bottom:1.2rem;">
-                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Email Address</label>
-                <input type="email" name="email" required
-                    value="{{ target.email }}"
-                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            <div class="field">
+                <label>Email Address</label>
+                <input type="email" name="email" required value="{{ target.email }}">
             </div>
-
-            <div style="margin-bottom:1.5rem;">
-                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Role</label>
-                <select name="role"
-                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.95rem; box-sizing:border-box; background:white;">
+            <div class="field">
+                <label>Role</label>
+                <select name="role">
                     {% for r in UserRole %}
                     <option value="{{ r.value }}" {% if target.role == r %}selected{% endif %}>{{ r.value }}</option>
                     {% endfor %}
                 </select>
             </div>
-
-            <div style="display:flex; gap:1rem;">
-                <button type="submit"
-                    style="flex:1; padding:0.9rem; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:0.95rem;">
-                    Save Changes
-                </button>
-                <a href="/admin/users"
-                    style="flex:1; padding:0.9rem; background:#ecf0f1; color:#7f8c8d; border:none; border-radius:8px; font-weight:600; text-align:center; text-decoration:none; font-size:0.95rem; display:flex; align-items:center; justify-content:center;">
-                    Cancel
-                </a>
+            <div style="display: flex; gap: 1rem; margin-top: 1.2rem;">
+                <button type="submit" class="btn-primary">Save Changes</button>
+                <a href="/admin/users" class="btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
+
+    <!-- ===== SECTION 2: Password Reset ===== -->
+    <div class="section-card">
+        <h3>Reset Password</h3>
+        <form method="POST" action="/admin/users/{{ target.id }}/reset-password">
+            <div class="inline-form">
+                <div class="field">
+                    <label>New Password (min 8 characters)</label>
+                    <input type="password" name="new_password" minlength="8" required placeholder="Enter new password...">
+                </div>
+                <button type="submit" class="btn-danger" style="white-space: nowrap; margin-bottom: 0; padding: 0.7rem 1.2rem;">Reset Password</button>
+            </div>
+            <p style="margin: 0.7rem 0 0 0; font-size: 0.83rem; color: #888;">
+                ⚠️ Communicate the new password to the user via a secure channel (not email).
+            </p>
+        </form>
+    </div>
+
+    <!-- ===== SECTION 3: Credit Management ===== -->
+    <div class="section-card" id="credits">
+        <h3>Credit Management</h3>
+
+        <div style="margin-bottom: 1.2rem; padding: 1rem; background: #f8f9fa; border-radius: 10px; display: flex; gap: 2rem; flex-wrap: wrap;">
+            <div>
+                <div style="font-size: 0.82rem; color: #888; font-weight: 600;">Current Balance</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #2c3e50;">{{ target.credit_balance or 0 }}</div>
+            </div>
+            <div>
+                <div style="font-size: 0.82rem; color: #888; font-weight: 600;">Total Purchased</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #7f8c8d;">{{ target.credit_purchased or 0 }}</div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+
+            <!-- Grant credit -->
+            <div style="flex: 1; min-width: 280px; background: #f0fff4; border: 1px solid #27ae60; border-radius: 10px; padding: 1rem;">
+                <div style="font-weight: 700; color: #27ae60; margin-bottom: 0.7rem; font-size: 0.9rem;">+ Grant Credits</div>
+                <form method="POST" action="/admin/users/{{ target.id }}/grant-credit">
+                    <div class="field">
+                        <label>Amount</label>
+                        <input type="number" name="amount" min="1" max="50000" required placeholder="e.g. 500">
+                    </div>
+                    <div class="field">
+                        <label>Reason</label>
+                        <input type="text" name="reason" required maxlength="200" placeholder="e.g. Competition reward">
+                    </div>
+                    <button type="submit" class="btn-success" style="padding: 0.6rem 1.2rem; font-size: 0.88rem;">Grant Credits</button>
+                </form>
+            </div>
+
+            <!-- Deduct credit -->
+            <div style="flex: 1; min-width: 280px; background: #fff5f5; border: 1px solid #e74c3c; border-radius: 10px; padding: 1rem;">
+                <div style="font-weight: 700; color: #e74c3c; margin-bottom: 0.7rem; font-size: 0.9rem;">- Deduct Credits</div>
+                <form method="POST" action="/admin/users/{{ target.id }}/deduct-credit">
+                    <div class="field">
+                        <label>Amount</label>
+                        <input type="number" name="amount" min="1" max="50000" required placeholder="e.g. 200">
+                    </div>
+                    <div class="field">
+                        <label>Reason</label>
+                        <input type="text" name="reason" required maxlength="200" placeholder="e.g. Correction">
+                    </div>
+                    <button type="submit" class="btn-danger" style="padding: 0.6rem 1.2rem; font-size: 0.88rem;">Deduct Credits</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Credit history -->
+        {% if credit_history %}
+        <div style="font-weight: 600; font-size: 0.9rem; color: #555; margin-bottom: 0.5rem;">Credit History (last 20)</div>
+        <div class="table-scroll-wrap">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Balance After</th>
+                        <th>By</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for ct in credit_history %}
+                <tr>
+                    <td style="white-space: nowrap; color: #888; font-size: 0.82rem;">
+                        {{ ct.created_at.strftime("%Y-%m-%d %H:%M") if ct.created_at else "—" }}
+                    </td>
+                    <td>
+                        <span class="badge {% if ct.amount > 0 %}badge-green{% else %}badge-red{% endif %}">
+                            {{ ct.transaction_type }}
+                        </span>
+                    </td>
+                    <td style="font-weight: 700; color: {% if ct.amount > 0 %}#27ae60{% else %}#e74c3c{% endif %};">
+                        {% if ct.amount > 0 %}+{% endif %}{{ ct.amount }}
+                    </td>
+                    <td>{{ ct.balance_after }}</td>
+                    <td style="font-size: 0.82rem; color: #555;">
+                        {% if ct.performed_by_user_id and performer_map[ct.performed_by_user_id] is defined %}
+                            {{ performer_map[ct.performed_by_user_id].name }}
+                        {% elif ct.performed_by_user_id %}
+                            Admin #{{ ct.performed_by_user_id }}
+                        {% else %}
+                            System
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 0.82rem; color: #555; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ ct.description or "—" }}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #aaa; font-size: 0.88rem; margin: 0;">No credit transactions recorded yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== SECTION 4: License Management ===== -->
+    <div class="section-card" id="licenses">
+        <h3>License Management</h3>
+
+        <!-- License error flash -->
+        {% if error == "duplicate_license" %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; color: #856404; font-size: 0.9rem;">
+            ⚠️ <strong>{{ error_detail }}</strong> — this user already has an active license for this specialization. Revoke it first before granting a new one.
+        </div>
+        {% elif error == "invalid_spec" %}
+        <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; color: #721c24; font-size: 0.9rem;">
+            ❌ Invalid specialization type: <strong>{{ error_detail }}</strong>
+        </div>
+        {% elif error == "already_revoked" %}
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; color: #856404; font-size: 0.9rem;">
+            ⚠️ License #{{ error_detail }} is already revoked — no action taken.
+        </div>
+        {% elif error == "cannot_renew_revoked" %}
+        <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; color: #721c24; font-size: 0.9rem;">
+            ❌ Cannot renew license #{{ error_detail }} — it has been revoked. Grant a new license instead.
+        </div>
+        {% endif %}
+
+        <!-- Grant new license -->
+        <div style="background: #f0f4ff; border: 1px solid #667eea; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; position: relative; z-index: 50; overflow: visible;">
+            <div style="font-weight: 700; color: #667eea; margin-bottom: 0.7rem; font-size: 0.9rem;">+ Grant New License</div>
+            {# Count available (non-active) specializations without using 'not in' Jinja2 test #}
+            {% set ns = namespace(available_count=0) %}
+            {% for spec in SpecializationType %}
+                {% if spec.value not in active_spec_types %}{% set ns.available_count = ns.available_count + 1 %}{% endif %}
+            {% endfor %}
+            {% if ns.available_count > 0 %}
+            <form method="POST" action="/admin/users/{{ target.id }}/grant-license">
+                <div style="display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="field" style="min-width: 220px; flex: 1; margin-bottom: 0; position: static;">
+                        <label>Specialization</label>
+                        <select name="specialization_type" required style="position: relative; z-index: 51;">
+                            {% for spec in SpecializationType %}
+                            {% if spec.value in active_spec_types %}
+                            <option value="{{ spec.value }}" disabled style="color: #aaa;">{{ spec.value }} (already active)</option>
+                            {% else %}
+                            <option value="{{ spec.value }}">{{ spec.value }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field" style="flex: 2; min-width: 180px; margin-bottom: 0;">
+                        <label>Reason</label>
+                        <input type="text" name="reason" required maxlength="200" placeholder="e.g. Manual enrollment">
+                    </div>
+                    <div class="field" style="min-width: 160px; flex: 0; margin-bottom: 0;">
+                        <label style="font-size: 0.85rem;">Expires At <span style="color:#aaa;">(optional)</span></label>
+                        <input type="date" name="expires_at" min="{{ today_iso }}"
+                               style="padding: 0.65rem 0.8rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; width: 100%;">
+                    </div>
+                    <div style="padding-bottom: 1px;">
+                        <button type="submit" class="btn-primary" style="white-space: nowrap;">Grant License</button>
+                    </div>
+                </div>
+            </form>
+            {% else %}
+            <p style="color: #667eea; font-size: 0.88rem; margin: 0;">All specialization types are already covered by active licenses.</p>
+            {% endif %}
+        </div>
+
+        <!-- Existing licenses -->
+        {% if licenses %}
+        <div style="font-weight: 600; font-size: 0.9rem; color: #555; margin-bottom: 0.7rem;">Licenses</div>
+        {% for lic in licenses %}
+        {% set is_expired = lic.id in expired_license_ids %}
+        <div style="border: 1px solid {% if not lic.is_active %}#ccc{% elif is_expired %}#e67e22{% else %}#27ae60{% endif %}; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; background: {% if not lic.is_active %}#fafafa{% elif is_expired %}#fff8f0{% else %}#f0fff4{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                    <span class="badge {% if not lic.is_active %}badge-grey{% elif is_expired %}badge-orange{% else %}badge-green{% endif %}" style="font-size: 0.85rem; padding: 0.3rem 0.7rem;">
+                        {{ lic.specialization_type }}
+                    </span>
+                    {% if not lic.is_active %}
+                    <span class="badge badge-red" style="font-size: 0.82rem; padding: 0.2rem 0.55rem; margin-left: 0.3rem;">REVOKED</span>
+                    {% elif is_expired %}
+                    <span class="badge badge-red" style="font-size: 0.82rem; padding: 0.2rem 0.55rem; margin-left: 0.3rem;">EXPIRED</span>
+                    {% else %}
+                    <span class="badge badge-green" style="font-size: 0.82rem; padding: 0.2rem 0.55rem; margin-left: 0.3rem;">ACTIVE</span>
+                    {% endif %}
+                    <span style="margin-left: 0.5rem; font-size: 0.83rem; color: #888;">
+                        ID #{{ lic.id }} | Started: {{ lic.started_at.strftime("%Y-%m-%d") if lic.started_at else "—" }}
+                    </span>
+                </div>
+                {% if lic.is_active %}
+                <form method="POST" action="/admin/users/{{ target.id }}/revoke-license/{{ lic.id }}" style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" name="reason" required placeholder="Reason for revocation" style="padding: 0.4rem 0.7rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.85rem; width: 200px;">
+                    <button type="submit" class="btn-danger" onclick="return confirm('Revoke this license?')" style="padding: 0.4rem 0.8rem; font-size: 0.83rem;">Revoke</button>
+                </form>
+                {% endif %}
+            </div>
+
+            <!-- Expiry / date metadata row -->
+            <div style="margin-top: 0.5rem; font-size: 0.83rem; color: #555; display: flex; flex-wrap: wrap; gap: 1rem;">
+                {% if lic.issued_at %}
+                <span>Issued: <strong>{{ lic.issued_at.strftime("%Y-%m-%d") }}</strong></span>
+                {% endif %}
+                {% if lic.expires_at %}
+                <span style="{% if is_expired %}color: #e74c3c; font-weight: 600;{% endif %}">
+                    Expires: <strong>{{ lic.expires_at.strftime("%Y-%m-%d") }}</strong>
+                    {% if is_expired %} (expired){% endif %}
+                </span>
+                {% else %}
+                <span style="color: #aaa;">No expiry (perpetual)</span>
+                {% endif %}
+                {% if lic.last_renewed_at %}
+                <span>Last renewed: {{ lic.last_renewed_at.strftime("%Y-%m-%d") }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Renewal form (active licenses only, including expired-but-active) -->
+            {% if lic.is_active %}
+            <div style="margin-top: 0.8rem; background: #fff8e1; border: 1px solid #f0ad4e; border-radius: 8px; padding: 0.7rem 1rem;">
+                <div style="font-weight: 700; color: #856404; margin-bottom: 0.5rem; font-size: 0.88rem;">Renew / Extend License</div>
+                <form method="POST" action="/admin/users/{{ target.id }}/renew-license/{{ lic.id }}">
+                    <div style="display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="field" style="min-width: 160px; flex: 0; margin-bottom: 0;">
+                            <label style="font-size: 0.85rem;">New Expiry Date</label>
+                            <input type="date" name="new_expires_at" required min="{{ today_iso }}"
+                                   style="padding: 0.55rem 0.7rem; border: 1px solid #f0ad4e; border-radius: 6px; font-size: 0.88rem;">
+                        </div>
+                        <div class="field" style="flex: 2; min-width: 160px; margin-bottom: 0;">
+                            <label style="font-size: 0.85rem;">Reason <span style="font-weight: 400; color: #aaa;">(optional)</span></label>
+                            <input type="text" name="reason" maxlength="200" placeholder="e.g. Annual renewal"
+                                   style="padding: 0.55rem 0.7rem; border: 1px solid #f0ad4e; border-radius: 6px; font-size: 0.88rem;">
+                        </div>
+                        <div style="padding-bottom: 1px;">
+                            <button type="submit" style="padding: 0.55rem 1rem; background: #e6930a; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">
+                                Renew
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Progression history for this license -->
+            {% set progs = progression_map[lic.id] %}
+            {% if progs %}
+            <div style="margin-top: 0.8rem;">
+                <table class="history-table" style="background: transparent;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Event</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for p in progs %}
+                    <tr>
+                        <td style="white-space: nowrap; color: #888; font-size: 0.82rem;">
+                            {{ p.advanced_at.strftime("%Y-%m-%d %H:%M") if p.advanced_at else "—" }}
+                        </td>
+                        <td>
+                            {% set event_label = p.requirements_met if p.requirements_met else ("Level " ~ p.to_level) %}
+                            <span class="badge {% if p.requirements_met == 'REVOKED' %}badge-red{% elif p.requirements_met == 'INITIAL_GRANT' %}badge-green{% else %}badge-blue{% endif %}">
+                                {{ event_label }}
+                            </span>
+                        </td>
+                        <td style="font-size: 0.82rem; color: #888;">{{ p.from_level if p.from_level is not none else "—" }}</td>
+                        <td style="font-size: 0.82rem;">{{ p.to_level if p.to_level is not none else "—" }}</td>
+                        <td style="font-size: 0.82rem; color: #555;">{{ p.advancement_reason or "—" }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color: #aaa; font-size: 0.88rem; margin: 0;">No licenses found.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== SECTION 5: Profile Status (read-only) ===== -->
+    <div class="section-card">
+        <h3>Profile Status</h3>
+        <div class="status-row" style="margin-bottom: 1.2rem;">
+            <div class="status-item">
+                <span class="label">Account Active</span>
+                <span class="value">
+                    {% if target.is_active %}
+                    <span class="badge badge-green">Active</span>
+                    {% else %}
+                    <span class="badge badge-red">Inactive</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="label">NDA Accepted</span>
+                <span class="value">
+                    {% if target.nda_accepted %}
+                    <span class="badge badge-green">Yes</span>
+                    {% if target.nda_accepted_at %}
+                    <span style="font-size: 0.8rem; color: #888; font-weight: 400;">{{ target.nda_accepted_at.strftime("%Y-%m-%d") }}</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="badge badge-grey">No</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="label">Onboarding</span>
+                <span class="value">
+                    {% if target.onboarding_completed %}
+                    <span class="badge badge-green">Completed</span>
+                    {% else %}
+                    <span class="badge badge-grey">Pending</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="label">Member Since</span>
+                <span class="value" style="font-size: 0.9rem; font-weight: 400; color: #555;">
+                    {{ target.created_at.strftime("%Y-%m-%d") if target.created_at else "—" }}
+                </span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="/admin/bookings?search={{ target.email }}" style="font-size: 0.88rem; color: #667eea; text-decoration: none;">
+                View Bookings →
+            </a>
+            <a href="/admin/enrollments?search={{ target.email }}" style="font-size: 0.88rem; color: #667eea; text-decoration: none;">
+                View Enrollments →
+            </a>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

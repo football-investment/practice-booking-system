@@ -18,6 +18,73 @@
         </footer>
     </div>
 
+    <script>
+      /* ── Browser CSRF guard ─────────────────────────────────────────────────
+       * The server uses Double Submit Cookie CSRF protection:
+       *   Cookie:  csrf_token  (httponly=false — JS-readable)
+       *   Header:  X-CSRF-Token  (must match cookie on POST/PUT/PATCH/DELETE)
+       *
+       * HTML <form> submissions cannot add custom headers, so every native form
+       * POST is intercepted here and re-submitted via fetch() with the required
+       * header.
+       *
+       * Cypress skip: when window.Cypress is defined the test runner already
+       * injects X-CSRF-Token via cy.setupCsrf() intercepts at the network layer.
+       * Native form submissions in Cypress go through that interceptor directly,
+       * so no fetch()-based workaround is needed there.
+       * ─────────────────────────────────────────────────────────────────────── */
+      (function () {
+        'use strict';
+
+        /* Skip when running inside Cypress — cy.setupCsrf() handles it. */
+        if (window.Cypress) return;
+
+        function getCsrfToken() {
+          var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+          return m ? decodeURIComponent(m[1]) : null;
+        }
+
+        document.addEventListener('submit', function (e) {
+          var form = e.target;
+          if (form.method.toLowerCase() !== 'post') return;
+          var token = getCsrfToken();
+          if (!token) return; // no cookie yet — let browser submit (will 403)
+
+          e.preventDefault();
+          var body = new URLSearchParams(new FormData(form)).toString();
+          var url  = form.action || window.location.href;
+
+          fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRF-Token': token,
+            },
+            body: body,
+            credentials: 'include',
+            redirect: 'follow',
+          }).then(function (resp) {
+            if (resp.redirected) {
+              /* Server sent 303 redirect (success) — navigate there. */
+              window.location.href = resp.url;
+              return;
+            }
+            /* 200 response — usually a re-rendered form with an error message.
+               Replace body content so the error displays correctly.          */
+            return resp.text().then(function (html) {
+              var parser = new DOMParser();
+              var newDoc = parser.parseFromString(html, 'text/html');
+              document.title = newDoc.title;
+              document.body.innerHTML = newDoc.body.innerHTML;
+              window.history.replaceState(null, newDoc.title, url);
+            });
+          }).catch(function (err) {
+            console.error('[CSRF] form submit error:', err);
+          });
+        }, /* useCapture */ true);
+      }());
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>

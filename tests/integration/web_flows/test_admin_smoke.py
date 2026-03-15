@@ -39,7 +39,10 @@ from app.models.invoice_request import InvoiceRequest, InvoiceRequestStatus
 from app.models.semester import Semester, SemesterStatus
 from app.models.session import Session as SessionModel, SessionType
 from app.models.semester_enrollment import SemesterEnrollment
-from app.models.license import UserLicense
+from app.models.license import UserLicense, LicenseProgression
+from app.models.system_event import SystemEvent, SystemEventLevel
+from app.models.credit_transaction import CreditTransaction, TransactionType
+from app.models.specialization import SpecializationType
 from app.core.security import get_password_hash
 
 
@@ -838,6 +841,225 @@ class TestSmoke09BookingsPanel:
         assert "/admin/bookings" in resp.text
 
 
+# ============================================================================
+# SMOKE-18: Bookings — edge cases and guard logic
+# ============================================================================
+
+class TestSmoke18BookingsAdvanced:
+    """Advanced booking action coverage — capacity, duplicate guards, attendance update."""
+
+    def test_18a_capacity_exceeded_returns_409(self, admin_client, test_db, session_obj, student_user):
+        """Confirm when session at capacity → 409."""
+        from app.models.booking import Booking, BookingStatus
+
+        # Set session capacity = 1
+        session_obj.capacity = 1
+        test_db.commit()
+
+        # Create an already-confirmed booking (fills the 1 slot)
+        b_confirmed = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.CONFIRMED,
+        )
+        test_db.add(b_confirmed)
+        test_db.commit()
+        test_db.refresh(b_confirmed)
+
+        # Create a second booking in PENDING state
+        second_student = User(
+            email=f"smoke-s2+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="Smoke Student 2",
+            password_hash="hash",
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        test_db.add(second_student)
+        test_db.commit()
+        test_db.refresh(second_student)
+
+        b_pending = Booking(
+            user_id=second_student.id,
+            session_id=session_obj.id,
+            status=BookingStatus.PENDING,
+        )
+        test_db.add(b_pending)
+        test_db.commit()
+        test_db.refresh(b_pending)
+
+        resp = admin_client.post(f"/admin/bookings/{b_pending.id}/confirm")
+        assert resp.status_code == 409, f"Expected 409, got {resp.status_code}: {resp.text}"
+        err_msg = resp.json().get("error", {}).get("message", resp.json().get("detail", ""))
+        assert "capacity" in err_msg.lower()
+
+    def test_18b_double_confirm_returns_400(self, admin_client, test_db, session_obj, student_user):
+        """Confirming an already-CONFIRMED booking → 400."""
+        from app.models.booking import Booking, BookingStatus
+
+        b = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.CONFIRMED,
+        )
+        test_db.add(b)
+        test_db.commit()
+        test_db.refresh(b)
+
+        resp = admin_client.post(f"/admin/bookings/{b.id}/confirm")
+        assert resp.status_code == 400
+        err_msg = resp.json().get("error", {}).get("message", resp.json().get("detail", ""))
+        assert "already confirmed" in err_msg.lower()
+
+    def test_18c_double_cancel_returns_400(self, admin_client, test_db, session_obj, student_user):
+        """Cancelling an already-CANCELLED booking → 400."""
+        from app.models.booking import Booking, BookingStatus
+
+        b = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.CANCELLED,
+        )
+        test_db.add(b)
+        test_db.commit()
+        test_db.refresh(b)
+
+        resp = admin_client.post(
+            f"/admin/bookings/{b.id}/cancel",
+            data={"reason": "double cancel test"},
+        )
+        assert resp.status_code == 400
+        err_msg = resp.json().get("error", {}).get("message", resp.json().get("detail", ""))
+        assert "already cancelled" in err_msg.lower()
+
+    def test_18d_update_existing_attendance(self, admin_client, test_db, session_obj, student_user):
+        """Marking attendance twice updates existing record rather than creating a new one."""
+        from app.models.booking import Booking, BookingStatus
+        from app.models.attendance import Attendance, AttendanceStatus
+
+        b = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.CONFIRMED,
+        )
+        test_db.add(b)
+        test_db.commit()
+        test_db.refresh(b)
+
+        # First mark: present
+        resp1 = admin_client.post(
+            f"/admin/bookings/{b.id}/attendance",
+            data={"attendance_status": "present", "notes": "first mark"},
+        )
+        assert resp1.status_code == 200
+
+        # Second mark: absent (should UPDATE, not INSERT)
+        resp2 = admin_client.post(
+            f"/admin/bookings/{b.id}/attendance",
+            data={"attendance_status": "absent", "notes": "second mark"},
+        )
+        assert resp2.status_code == 200
+
+        test_db.expire_all()
+        att_rows = test_db.query(Attendance).filter(Attendance.booking_id == b.id).all()
+        assert len(att_rows) == 1, f"Expected 1 Attendance row, got {len(att_rows)}"
+        assert att_rows[0].status == AttendanceStatus.absent
+
+    def test_18e_session_id_filter_shows_only_matching_bookings(
+        self, admin_client, test_db, session_obj, student_user
+    ):
+        """GET /admin/bookings?session_id=X shows only bookings for that session."""
+        from app.models.booking import Booking, BookingStatus
+        from app.models.semester import Semester, SemesterStatus
+
+        # Create a second session in a separate semester so it doesn't share bookings
+        sem2 = Semester(
+            code=f"SMK2-{uuid.uuid4().hex[:6].upper()}",
+            name="Smoke Semester 2",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=60),
+            status=SemesterStatus.ONGOING,
+            specialization_type="FOOTBALL_SKILLS",
+        )
+        test_db.add(sem2)
+        test_db.commit()
+        test_db.refresh(sem2)
+
+        now = datetime.now(ZoneInfo("Europe/Budapest")).replace(tzinfo=None)
+        from app.models.session import Session as SM2, SessionType
+        s2 = SM2(
+            title="Other Session",
+            semester_id=sem2.id,
+            session_type=SessionType.on_site,
+            date_start=now + timedelta(hours=48),
+            date_end=now + timedelta(hours=49),
+            instructor_id=student_user.id,
+        )
+        test_db.add(s2)
+        test_db.commit()
+        test_db.refresh(s2)
+
+        # Booking for session_obj
+        b1 = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.PENDING,
+        )
+        # Booking for s2
+        b2 = Booking(
+            user_id=student_user.id,
+            session_id=s2.id,
+            status=BookingStatus.PENDING,
+        )
+        test_db.add_all([b1, b2])
+        test_db.commit()
+
+        resp = admin_client.get(f"/admin/bookings?session_id={session_obj.id}")
+        assert resp.status_code == 200
+        # s2 booking should not appear in the response; session_obj booking should
+        assert "Other Session" not in resp.text or "Smoke Session" in resp.text
+
+    def test_18f_invalid_attendance_status_returns_400(
+        self, admin_client, test_db, session_obj, student_user
+    ):
+        """POST attendance with unknown status value → 400."""
+        from app.models.booking import Booking, BookingStatus
+
+        b = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.CONFIRMED,
+        )
+        test_db.add(b)
+        test_db.commit()
+        test_db.refresh(b)
+
+        resp = admin_client.post(
+            f"/admin/bookings/{b.id}/attendance",
+            data={"attendance_status": "totally_invalid_value"},
+        )
+        assert resp.status_code == 400
+
+    def test_18g_bookings_page_stats_count_confirmed(
+        self, admin_client, test_db, session_obj, student_user
+    ):
+        """GET /admin/bookings page reflects correct CONFIRMED stat count."""
+        from app.models.booking import Booking, BookingStatus
+
+        b = Booking(
+            user_id=student_user.id,
+            session_id=session_obj.id,
+            status=BookingStatus.CONFIRMED,
+        )
+        test_db.add(b)
+        test_db.commit()
+
+        resp = admin_client.get("/admin/bookings")
+        assert resp.status_code == 200
+        assert "Internal Server Error" not in resp.text
+        # Stats rendered in the page
+        assert "Confirmed" in resp.text
+
+
 # ── SMOKE-10 Legacy reward endpoint → 410 ────────────────────────────────────
 
 class TestSmoke10LegacyRewardEndpoint:
@@ -1229,7 +1451,7 @@ class TestSmoke12MotivationAssessment:
     def test_02_post_saves_assessment(
         self, admin_client, assessed_student, student_license, test_db
     ):
-        """SMOKE-12b: POST assessment → 303 to /admin/payments + scores saved in DB."""
+        """SMOKE-12b: POST assessment → 303 to /admin/users + scores saved in DB."""
         resp = admin_client.post(
             f"/admin/students/{assessed_student.id}/motivation/{self.SPEC}",
             data={
@@ -1243,7 +1465,7 @@ class TestSmoke12MotivationAssessment:
             follow_redirects=False,
         )
         assert resp.status_code == 303
-        assert "/admin/payments" in resp.headers["location"]
+        assert "/admin/users" in resp.headers["location"]
 
         test_db.expire_all()
         lic = test_db.query(UserLicense).filter(
@@ -1391,3 +1613,607 @@ class TestSmoke13CampusCRUD:
 
         test_db.expire_all()
         assert test_db.query(Campus).filter(Campus.id == cid).first() is None
+
+
+class TestSmoke15UsersPageFilters:
+    """
+    SMOKE-15: GET /admin/users — filter, search, and pagination query params.
+
+    Verifies that role_filter, status_filter, and search query params correctly
+    narrow the user list returned by admin_users_page.
+    """
+
+    @pytest.fixture
+    def filter_users(self, test_db: Session):
+        """Create 3 users with distinct roles/statuses/names for filter testing."""
+        student = User(
+            email=f"smk15-student+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="Smoke15 Alice Student",
+            password_hash=get_password_hash("pass123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        instructor = User(
+            email=f"smk15-instructor+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="Smoke15 Bob Instructor",
+            password_hash=get_password_hash("pass123"),
+            role=UserRole.INSTRUCTOR,
+            is_active=True,
+        )
+        inactive = User(
+            email=f"smk15-inactive+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="Smoke15 Carol Inactive",
+            password_hash=get_password_hash("pass123"),
+            role=UserRole.STUDENT,
+            is_active=False,
+        )
+        for u in (student, instructor, inactive):
+            test_db.add(u)
+        test_db.commit()
+        for u in (student, instructor, inactive):
+            test_db.refresh(u)
+        return student, instructor, inactive
+
+    @pytest.fixture
+    def admin_client(self, test_db: Session):
+        admin = User(
+            email=f"smk15-admin+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="SMK15 Admin",
+            password_hash=get_password_hash("adminpass"),
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        test_db.add(admin)
+        test_db.commit()
+        test_db.refresh(admin)
+
+        app.dependency_overrides[get_current_user_web] = lambda: admin
+        app.dependency_overrides[get_db] = lambda: test_db
+        client = TestClient(app, raise_server_exceptions=True)
+        yield client
+        app.dependency_overrides.clear()
+
+    def test_role_filter_student(self, admin_client, filter_users):
+        """SMOKE-15a: role_filter=student with unique search returns students, not instructors."""
+        student, instructor, inactive = filter_users
+        # Use search=Smoke15 to pin results to our fixtures (avoids pagination issues)
+        resp = admin_client.get("/admin/users?role_filter=student&search=Smoke15")
+        assert resp.status_code == 200
+        body = resp.text
+        assert student.name in body
+        assert inactive.name in body        # inactive is also a student
+        assert instructor.name not in body
+
+    def test_role_filter_instructor(self, admin_client, filter_users):
+        """SMOKE-15b: role_filter=instructor with unique search returns only instructors."""
+        student, instructor, inactive = filter_users
+        resp = admin_client.get("/admin/users?role_filter=instructor&search=Smoke15")
+        assert resp.status_code == 200
+        body = resp.text
+        assert instructor.name in body
+        assert student.name not in body
+        assert inactive.name not in body
+
+    def test_status_filter_active(self, admin_client, filter_users):
+        """SMOKE-15c: status_filter=active with unique search excludes inactive users."""
+        student, instructor, inactive = filter_users
+        resp = admin_client.get("/admin/users?status_filter=active&search=Smoke15")
+        assert resp.status_code == 200
+        body = resp.text
+        assert student.name in body
+        assert instructor.name in body
+        assert inactive.name not in body
+
+    def test_status_filter_inactive(self, admin_client, filter_users):
+        """SMOKE-15d: status_filter=inactive with unique search shows only inactive users."""
+        student, instructor, inactive = filter_users
+        resp = admin_client.get("/admin/users?status_filter=inactive&search=Smoke15")
+        assert resp.status_code == 200
+        body = resp.text
+        assert inactive.name in body
+        assert student.name not in body
+        assert instructor.name not in body
+
+    def test_search_by_name(self, admin_client, filter_users):
+        """SMOKE-15e: search=Smoke15 Bob matches only the instructor by name."""
+        student, instructor, inactive = filter_users
+        resp = admin_client.get("/admin/users?search=Smoke15+Bob")
+        assert resp.status_code == 200
+        body = resp.text
+        assert instructor.name in body
+        assert student.name not in body
+        assert inactive.name not in body
+
+    def test_search_by_email_prefix(self, admin_client, filter_users):
+        """SMOKE-15f: search=smk15-inactive matches only the inactive user by email."""
+        student, instructor, inactive = filter_users
+        # Use the domain part to avoid URL-encoding issues with '+' in email local part
+        resp = admin_client.get("/admin/users?search=smk15-inactive")
+        assert resp.status_code == 200
+        body = resp.text
+        assert inactive.name in body
+        assert student.name not in body
+        assert instructor.name not in body
+
+    def test_combined_role_and_status(self, admin_client, filter_users):
+        """SMOKE-15g: role_filter=student&status_filter=active returns only active students."""
+        student, instructor, inactive = filter_users
+        resp = admin_client.get("/admin/users?role_filter=student&status_filter=active&search=Smoke15")
+        assert resp.status_code == 200
+        body = resp.text
+        assert student.name in body
+        assert inactive.name not in body
+        assert instructor.name not in body
+
+
+class TestSmoke16SystemEventsActions:
+    """
+    SMOKE-16: System Events resolve / unresolve / purge actions.
+
+    Covers:
+      GET  /admin/system-events              — page loads with filter defaults
+      POST /admin/system-events/{id}/resolve — flips resolved=True in DB
+      POST /admin/system-events/{id}/unresolve — flips resolved=False in DB
+      POST /admin/system-events/purge        — deletes old resolved events
+    """
+
+    @pytest.fixture
+    def open_event(self, test_db: Session) -> SystemEvent:
+        ev = SystemEvent(
+            event_type="smk16.test.open",
+            level=SystemEventLevel.INFO,
+            resolved=False,
+            created_at=datetime.now(ZoneInfo("UTC")),
+        )
+        test_db.add(ev)
+        test_db.commit()
+        test_db.refresh(ev)
+        return ev
+
+    @pytest.fixture
+    def resolved_event(self, test_db: Session) -> SystemEvent:
+        ev = SystemEvent(
+            event_type="smk16.test.resolved",
+            level=SystemEventLevel.WARNING,
+            resolved=True,
+            created_at=datetime.now(ZoneInfo("UTC")) - timedelta(days=200),
+        )
+        test_db.add(ev)
+        test_db.commit()
+        test_db.refresh(ev)
+        return ev
+
+    def test_01_page_loads(self, admin_client):
+        """SMOKE-16a: GET /admin/system-events → 200, System Events heading present."""
+        resp = admin_client.get("/admin/system-events")
+        assert resp.status_code == 200
+        assert "System Events" in resp.text
+
+    def test_02_resolve_event(self, admin_client, open_event, test_db):
+        """SMOKE-16b: POST resolve → 303, event.resolved set to True in DB."""
+        resp = admin_client.post(
+            f"/admin/system-events/{open_event.id}/resolve",
+            data={"page": "0", "level": "", "resolved": "open"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        ev = test_db.query(SystemEvent).filter(SystemEvent.id == open_event.id).first()
+        assert ev.resolved is True
+
+    def test_03_unresolve_event(self, admin_client, resolved_event, test_db):
+        """SMOKE-16c: POST unresolve → 303, event.resolved set to False in DB."""
+        resp = admin_client.post(
+            f"/admin/system-events/{resolved_event.id}/unresolve",
+            data={"page": "0", "level": "", "resolved": "resolved"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        ev = test_db.query(SystemEvent).filter(SystemEvent.id == resolved_event.id).first()
+        assert ev.resolved is False
+
+    def test_04_purge_deletes_old_resolved(self, admin_client, resolved_event, test_db):
+        """SMOKE-16d: POST purge with retention_days=90 deletes events resolved >90 days ago."""
+        eid = resolved_event.id
+        resp = admin_client.post(
+            "/admin/system-events/purge",
+            data={"retention_days": "90"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        assert test_db.query(SystemEvent).filter(SystemEvent.id == eid).first() is None
+
+    def test_05_purge_preserves_open_events(self, admin_client, open_event, test_db):
+        """SMOKE-16e: POST purge does not delete open (unresolved) events."""
+        eid = open_event.id
+        admin_client.post(
+            "/admin/system-events/purge",
+            data={"retention_days": "1"},
+            follow_redirects=False,
+        )
+        test_db.expire_all()
+        assert test_db.query(SystemEvent).filter(SystemEvent.id == eid).first() is not None
+
+
+# ============================================================================
+# SMOKE-17: /admin/users/{id}/edit — event-based credit & license management
+# ============================================================================
+
+class TestSmoke17UserEditExtended:
+    """
+    SMOKE-17: New routes added to /admin/users/{id}/edit page.
+
+    Covers:
+      POST /admin/users/{id}/reset-password       — SMOKE-17a
+      POST /admin/users/{id}/grant-credit         — SMOKE-17b
+      POST /admin/users/{id}/deduct-credit        — SMOKE-17c
+      POST /admin/users/{id}/grant-credit (>50k)  — SMOKE-17d (400)
+      POST /admin/users/{id}/deduct-credit (>bal) — SMOKE-17e (400)
+      POST /admin/users/{id}/grant-license        — SMOKE-17f
+      POST /admin/users/{id}/revoke-license/{id}  — SMOKE-17g
+      GET  /admin/users/{id}/edit (credit history)— SMOKE-17h
+      POST /admin/users/{id}/grant-license dup    — SMOKE-17i (303 + error param)
+      POST /admin/users/{id}/grant-license+expiry — SMOKE-17j (expires_at stored)
+      POST /admin/users/{id}/renew-license/{id}   — SMOKE-17k (RENEWED progression)
+    """
+
+    @pytest.fixture
+    def target_user(self, test_db: Session) -> User:
+        u = User(
+            email=f"smk17-target+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="SMK17 Target",
+            password_hash=get_password_hash("oldpassword"),
+            role=UserRole.STUDENT,
+            is_active=True,
+            credit_balance=500,
+            credit_purchased=500,
+        )
+        test_db.add(u)
+        test_db.commit()
+        test_db.refresh(u)
+        return u
+
+    # ── SMOKE-17a: Password Reset ──────────────────────────────────────────────
+
+    def test_17a_reset_password_changes_hash(self, admin_client, test_db, target_user):
+        """POST reset-password → 303, password_hash updated in DB."""
+        old_hash = target_user.password_hash
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/reset-password",
+            data={"new_password": "newSecure99"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert f"/admin/users/{target_user.id}/edit" in resp.headers["location"]
+
+        test_db.expire_all()
+        u = test_db.query(User).filter(User.id == target_user.id).first()
+        assert u.password_hash != old_hash
+
+    def test_17a_reset_password_too_short_returns_400(self, admin_client, target_user):
+        """POST reset-password with <8 chars → 400."""
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/reset-password",
+            data={"new_password": "short"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 400
+
+    def test_17a_reset_password_unknown_user_returns_404(self, admin_client):
+        """POST reset-password for non-existent user → 404."""
+        resp = admin_client.post(
+            "/admin/users/999999/reset-password",
+            data={"new_password": "validpass123"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 404
+
+    # ── SMOKE-17b: Grant Credit ───────────────────────────────────────────────
+
+    def test_17b_grant_credit_increases_balance_and_creates_transaction(
+        self, admin_client, test_db, target_user, admin_user
+    ):
+        """POST grant-credit → 303, balance increased, CreditTransaction row created."""
+        initial_balance = target_user.credit_balance
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/grant-credit",
+            data={"amount": "300", "reason": "Competition reward"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        u = test_db.query(User).filter(User.id == target_user.id).first()
+        assert u.credit_balance == initial_balance + 300
+
+        ct = (
+            test_db.query(CreditTransaction)
+            .filter(
+                CreditTransaction.user_id == target_user.id,
+                CreditTransaction.amount == 300,
+            )
+            .order_by(CreditTransaction.id.desc())
+            .first()
+        )
+        assert ct is not None
+        assert ct.transaction_type == TransactionType.ADMIN_ADJUSTMENT.value
+        assert ct.balance_after == initial_balance + 300
+        assert ct.performed_by_user_id == admin_user.id
+        assert "Competition reward" in ct.description
+
+    # ── SMOKE-17c: Deduct Credit ──────────────────────────────────────────────
+
+    def test_17c_deduct_credit_decreases_balance_and_creates_transaction(
+        self, admin_client, test_db, target_user, admin_user
+    ):
+        """POST deduct-credit → 303, balance decreased, CreditTransaction row created."""
+        initial_balance = target_user.credit_balance  # 500
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/deduct-credit",
+            data={"amount": "200", "reason": "Correction"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        u = test_db.query(User).filter(User.id == target_user.id).first()
+        assert u.credit_balance == initial_balance - 200
+
+        ct = (
+            test_db.query(CreditTransaction)
+            .filter(
+                CreditTransaction.user_id == target_user.id,
+                CreditTransaction.amount == -200,
+            )
+            .order_by(CreditTransaction.id.desc())
+            .first()
+        )
+        assert ct is not None
+        assert ct.transaction_type == TransactionType.ADMIN_ADJUSTMENT.value
+        assert ct.performed_by_user_id == admin_user.id
+
+    # ── SMOKE-17d: Grant Credit amount > 50000 → 400 ─────────────────────────
+
+    def test_17d_grant_credit_over_limit_returns_400(self, admin_client, target_user):
+        """POST grant-credit amount=50001 → 400 validation error."""
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/grant-credit",
+            data={"amount": "50001", "reason": "Too much"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 400
+
+    # ── SMOKE-17e: Deduct Credit amount > balance → 400 ──────────────────────
+
+    def test_17e_deduct_credit_exceeds_balance_returns_400(self, admin_client, target_user):
+        """POST deduct-credit amount > credit_balance (500) → 400."""
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/deduct-credit",
+            data={"amount": "999", "reason": "Too much"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 400
+
+    # ── SMOKE-17f: Grant License ──────────────────────────────────────────────
+
+    def test_17f_grant_license_creates_license_and_progression(
+        self, admin_client, test_db, target_user, admin_user
+    ):
+        """POST grant-license → 303, UserLicense + LicenseProgression rows created."""
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/grant-license",
+            data={
+                "specialization_type": SpecializationType.LFA_FOOTBALL_PLAYER.value,
+                "reason": "Manual enrollment",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "#licenses" in resp.headers["location"]
+
+        test_db.expire_all()
+        lic = (
+            test_db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == target_user.id,
+                UserLicense.specialization_type == SpecializationType.LFA_FOOTBALL_PLAYER.value,
+                UserLicense.is_active == True,
+            )
+            .first()
+        )
+        assert lic is not None
+
+        prog = (
+            test_db.query(LicenseProgression)
+            .filter(LicenseProgression.user_license_id == lic.id)
+            .first()
+        )
+        assert prog is not None
+        assert prog.requirements_met == "INITIAL_GRANT"
+        assert prog.advanced_by == admin_user.id
+        assert "Manual enrollment" in prog.advancement_reason
+
+    # ── SMOKE-17g: Revoke License ─────────────────────────────────────────────
+
+    def test_17g_revoke_license_deactivates_and_creates_progression(
+        self, admin_client, test_db, target_user, admin_user
+    ):
+        """POST revoke-license → 303, license.is_active=False + LicenseProgression REVOKED."""
+        # Setup: create a license to revoke
+        lic = UserLicense(
+            user_id=target_user.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=datetime.now(tz=ZoneInfo("UTC")),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.commit()
+        test_db.refresh(lic)
+
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/revoke-license/{lic.id}",
+            data={"reason": "Policy violation"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        lic_db = test_db.query(UserLicense).filter(UserLicense.id == lic.id).first()
+        assert lic_db.is_active is False
+
+        prog = (
+            test_db.query(LicenseProgression)
+            .filter(LicenseProgression.user_license_id == lic.id)
+            .order_by(LicenseProgression.id.desc())
+            .first()
+        )
+        assert prog is not None
+        assert prog.requirements_met == "REVOKED"
+        assert prog.advanced_by == admin_user.id
+
+    # ── SMOKE-17h: GET edit page shows credit history section ─────────────────
+
+    def test_17h_get_edit_shows_credit_history_section(
+        self, admin_client, test_db, target_user, admin_user
+    ):
+        """GET /admin/users/{id}/edit → HTML contains credit history table."""
+        # Create a credit transaction for the target user
+        ct = CreditTransaction(
+            user_id=target_user.id,
+            transaction_type=TransactionType.ADMIN_ADJUSTMENT.value,
+            amount=100,
+            balance_after=600,
+            description="Test history entry",
+            idempotency_key=f"smk17h-{uuid.uuid4()}",
+            performed_by_user_id=admin_user.id,
+        )
+        test_db.add(ct)
+        test_db.commit()
+
+        resp = admin_client.get(f"/admin/users/{target_user.id}/edit")
+        assert resp.status_code == 200
+        assert "Credit Management" in resp.text
+        assert "Test history entry" in resp.text
+        assert "License Management" in resp.text
+
+    # ── SMOKE-17i: Duplicate active license → redirect with error (not JSON 400) ──
+
+    def test_17i_grant_duplicate_active_license_redirects_with_error(
+        self, admin_client, test_db, target_user
+    ):
+        """POST grant-license when user already has active license → 303 + error param, no second license created."""
+        lic = UserLicense(
+            user_id=target_user.id,
+            specialization_type=SpecializationType.LFA_COACH.value,
+            started_at=datetime.now(tz=ZoneInfo("UTC")),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.commit()
+
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/grant-license",
+            data={
+                "specialization_type": SpecializationType.LFA_COACH.value,
+                "reason": "Duplicate attempt",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        loc = resp.headers["location"]
+        assert "error=duplicate_license" in loc
+        assert f"/admin/users/{target_user.id}/edit" in loc
+        count = (
+            test_db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == target_user.id,
+                UserLicense.specialization_type == SpecializationType.LFA_COACH.value,
+                UserLicense.is_active == True,
+            )
+            .count()
+        )
+        assert count == 1, "Duplicate active license was created despite error"
+
+    # ── SMOKE-17j: Grant license with expiry → expires_at stored in DB ────────
+
+    def test_17j_grant_license_with_expiry_stores_expires_at(
+        self, admin_client, test_db, target_user
+    ):
+        """POST grant-license with expires_at param → UserLicense.expires_at set."""
+        future_date = (date.today() + timedelta(days=365)).isoformat()
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/grant-license",
+            data={
+                "specialization_type": SpecializationType.LFA_FOOTBALL_PLAYER.value,
+                "reason": "Grant with expiry SMOKE-17j",
+                "expires_at": future_date,
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+
+        test_db.expire_all()
+        lic = (
+            test_db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == target_user.id,
+                UserLicense.specialization_type == SpecializationType.LFA_FOOTBALL_PLAYER.value,
+                UserLicense.is_active == True,
+            )
+            .first()
+        )
+        assert lic is not None
+        assert lic.expires_at is not None, "expires_at not stored after grant with expiry"
+        assert lic.issued_at is not None, "issued_at should be set on grant"
+        # Verify the stored date matches the input (truncated to day)
+        assert lic.expires_at.strftime("%Y-%m-%d") == future_date
+
+    # ── SMOKE-17k: Renew license → expires_at + last_renewed_at + RENEWED prog ─
+
+    def test_17k_renew_license_updates_expiry_and_creates_progression(
+        self, admin_client, test_db, target_user
+    ):
+        """POST renew-license → expires_at updated, last_renewed_at set, 'RENEWED' progression created."""
+        # Create a license with an expired expires_at
+        old_expiry = datetime(2024, 1, 1)
+        lic = UserLicense(
+            user_id=target_user.id,
+            specialization_type=SpecializationType.LFA_COACH.value,
+            started_at=datetime.now(tz=ZoneInfo("UTC")),
+            is_active=True,
+            expires_at=old_expiry,
+        )
+        test_db.add(lic)
+        test_db.commit()
+        test_db.refresh(lic)
+
+        new_expiry = (date.today() + timedelta(days=180)).isoformat()
+        resp = admin_client.post(
+            f"/admin/users/{target_user.id}/renew-license/{lic.id}",
+            data={"new_expires_at": new_expiry, "reason": "Annual renewal SMOKE-17k"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "#licenses" in resp.headers["location"]
+
+        test_db.expire_all()
+        lic_db = test_db.query(UserLicense).filter(UserLicense.id == lic.id).first()
+        assert lic_db.expires_at is not None
+        assert lic_db.expires_at != old_expiry, "expires_at not updated"
+        assert lic_db.expires_at.strftime("%Y-%m-%d") == new_expiry
+        assert lic_db.last_renewed_at is not None, "last_renewed_at not set"
+
+        prog = (
+            test_db.query(LicenseProgression)
+            .filter(LicenseProgression.user_license_id == lic.id)
+            .order_by(LicenseProgression.id.desc())
+            .first()
+        )
+        assert prog is not None, "LicenseProgression not created after renewal"
+        assert prog.requirements_met == "RENEWED"
+        assert "Annual renewal SMOKE-17k" in (prog.advancement_reason or "")

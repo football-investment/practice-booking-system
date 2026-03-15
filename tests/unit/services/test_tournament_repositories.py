@@ -12,6 +12,7 @@ from app.services.tournament.repositories import (
     FakeSessionRepository,
 )
 from app.models.tournament_enums import TournamentPhase
+from app.models.session import EventCategory
 
 
 # ---------------------------------------------------------------------------
@@ -32,6 +33,7 @@ def _session(
     s.tournament_round = round_num
     s.title = title
     s.is_tournament_game = is_tournament_game
+    s.event_category = EventCategory.MATCH if is_tournament_game else EventCategory.TRAINING
     s.game_results = game_results
     return s
 

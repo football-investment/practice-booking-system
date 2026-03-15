@@ -312,7 +312,7 @@ def list_tournaments_admin(
     tournaments = query.order_by(Semester.id.desc()).all()
 
     from app.models.semester_enrollment import SemesterEnrollment
-    from app.models.session import Session as _SessionModel
+    from app.models.session import Session as _SessionModel, EventCategory as _EventCategory
     from sqlalchemy import func
 
     t_ids = [t.id for t in tournaments]
@@ -335,7 +335,7 @@ def list_tournaments_admin(
             db.query(_SessionModel.semester_id, func.count(_SessionModel.id))
             .filter(
                 _SessionModel.semester_id.in_(t_ids),
-                _SessionModel.is_tournament_game == True,
+                _SessionModel.event_category == _EventCategory.MATCH,
             )
             .group_by(_SessionModel.semester_id)
             .all()

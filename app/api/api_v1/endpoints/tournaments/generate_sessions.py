@@ -19,7 +19,7 @@ from app.database import get_db, SessionLocal
 from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
 from app.models.user import User, UserRole
 from app.models.tournament_type import TournamentType
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.repositories import TournamentRepository
 from app.services.tournament_session_generator import TournamentSessionGenerator
 
@@ -727,7 +727,7 @@ def get_tournament_sessions(
             "location": session.location,
             "session_type": session.session_type,
             "capacity": session.capacity,
-            "is_tournament_game": session.is_tournament_game,
+            "is_tournament_game": session.event_category == EventCategory.MATCH,
             "auto_generated": session.auto_generated,
             "match_format": session.match_format,
             "scoring_type": session.scoring_type,

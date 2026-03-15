@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models.semester import Semester
 from app.models.tournament_type import TournamentType
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.repositories.tournament_repository import TournamentRepository
 
@@ -322,7 +322,7 @@ class TournamentSessionGenerator:
                     session = SessionModel(
                         semester_id=tournament_id,
                         instructor_id=tournament.master_instructor_id,
-                        is_tournament_game=True,
+                        event_category=EventCategory.MATCH,
                         auto_generated=True,
                         capacity=player_count,  # Tournament sessions support all enrolled players
                         **session_data

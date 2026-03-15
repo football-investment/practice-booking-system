@@ -7,7 +7,7 @@ Responsibility:
 
 Critical Requirements:
     - NULL handling: capacity, credit_cost, created_at, mixed_specialization
-    - Tournament flags: is_tournament_game, game_type (must be included)
+    - Tournament flags: is_tournament_game (derived from event_category), game_type (must be included)
     - Stats integration: booking, attendance, rating from aggregator
     - Schema validation: SessionWithStats Pydantic model
 
@@ -22,7 +22,7 @@ Complexity Target: B (7) for main method
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session as DBSession
 
-from ..models.session import Session as SessionTypel
+from ..models.session import Session as SessionTypel, EventCategory
 from ..schemas.session import SessionWithStats, SessionList
 
 
@@ -97,7 +97,7 @@ class SessionResponseBuilder:
         - credit_cost: NULL → 1
         - created_at: NULL → date_start
         - mixed_specialization: missing attribute → False
-        - is_tournament_game: missing attribute → False
+        - is_tournament_game: derived from event_category == MATCH; missing attribute → False
         - game_type: missing attribute → None
 
         Args:
@@ -149,9 +149,10 @@ class SessionResponseBuilder:
                 else False
             ),
             # Tournament flags (must be included)
+            # Key kept for API backward-compat; value derived from event_category
             "is_tournament_game": (
-                session.is_tournament_game
-                if hasattr(session, 'is_tournament_game')
+                session.event_category == EventCategory.MATCH
+                if hasattr(session, 'event_category')
                 else False
             ),
             "game_type": (

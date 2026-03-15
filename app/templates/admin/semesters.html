@@ -1,34 +1,11 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}Semester Management - Admin Panel{% endblock %}
+{% block title %}Semester Management{% endblock %}
+{% block page_heading %}🎓 Semester Management{% endblock %}
+{% block page_subtitle %}Manage semesters and specialization availability{% endblock %}
 
-{% block content %}
-<div style="background:#2d3748;padding:0.6rem 1.5rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;font-size:0.82rem;">
-    <a href="/dashboard" style="color:#a0aec0;text-decoration:none;">🏠 Dashboard</a>
-    <a href="/admin/users" style="color:#a0aec0;text-decoration:none;">👥 Users</a>
-    <a href="/admin/sessions" style="color:#a0aec0;text-decoration:none;">📅 Sessions</a>
-    <a href="/admin/bookings" style="color:#a0aec0;text-decoration:none;">📋 Bookings</a>
-    <a href="/admin/semesters" style="color:white;font-weight:600;text-decoration:none;">🎓 Semesters</a>
-    <a href="/admin/analytics" style="color:#a0aec0;text-decoration:none;">📊 Analytics</a>
-    <a href="/admin/tournaments" style="color:#a0aec0;text-decoration:none;">🏆 Tournaments</a>
-    <a href="/admin/locations" style="color:#a0aec0;text-decoration:none;">📍 Locations</a>
-    <a href="/admin/game-presets" style="color:#a0aec0;text-decoration:none;">🎮 Game Presets</a>
-    <a href="/admin/system-events" style="color:#a0aec0;text-decoration:none;">⚙️ Events</a>
-    <a href="/admin/payments" style="color:#a0aec0;text-decoration:none;">💳 Payments</a>
-    <a href="/admin/coupons" style="color:#a0aec0;text-decoration:none;">🎟️ Coupons</a>
-    <a href="/admin/invitation-codes" style="color:#a0aec0;text-decoration:none;">🎁 Codes</a>
-    <span style="margin-left:auto;display:flex;gap:0.75rem;">
-        <a href="/profile" style="color:#a0aec0;text-decoration:none;">⚙️ Profile</a>
-        <a href="/logout" style="color:#a0aec0;text-decoration:none;">🚪 Logout</a>
-    </span>
-</div>
-<div class="welcome-section">
-    <h1>🎓 Semester Management</h1>
-    <p>Manage semesters and specialization availability</p>
-</div>
-
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-    <div></div>
+{% block admin_content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
     <a href="/admin/semesters/new"
         style="padding:0.6rem 1.2rem; background:linear-gradient(135deg,#27ae60,#219a52); color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:0.9rem;">
         + Create Semester
@@ -39,34 +16,34 @@
     <h2>All Semesters ({{ semesters|length }})</h2>
 
     {% if semesters %}
-    <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+    <table>
         <thead>
-            <tr style="border-bottom: 2px solid #ecf0f1;">
-                <th style="padding: 0.75rem; text-align: left;">ID</th>
-                <th style="padding: 0.75rem; text-align: left;">Code</th>
-                <th style="padding: 0.75rem; text-align: left;">Name</th>
-                <th style="padding: 0.75rem; text-align: left;">Start Date</th>
-                <th style="padding: 0.75rem; text-align: left;">End Date</th>
-                <th style="padding: 0.75rem; text-align: left;">Status</th>
-                <th style="padding: 0.75rem; text-align: left;">Actions</th>
+            <tr>
+                <th>ID</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for semester in semesters %}
-            <tr style="border-bottom: 1px solid #ecf0f1;">
-                <td style="padding: 0.75rem;">{{ semester.id }}</td>
-                <td style="padding: 0.75rem; font-family:monospace; font-size:0.8rem;">{{ semester.code }}</td>
-                <td style="padding: 0.75rem;">{{ semester.name }}</td>
-                <td style="padding: 0.75rem;">{{ semester.start_date.strftime('%Y-%m-%d') }}</td>
-                <td style="padding: 0.75rem;">{{ semester.end_date.strftime('%Y-%m-%d') }}</td>
-                <td style="padding: 0.75rem;">
+            <tr>
+                <td>{{ semester.id }}</td>
+                <td><code style="font-size:0.8rem;">{{ semester.code }}</code></td>
+                <td>{{ semester.name }}</td>
+                <td>{{ semester.start_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ semester.end_date.strftime('%Y-%m-%d') }}</td>
+                <td>
                     {% if semester.status.value != 'CANCELLED' %}
-                        <span style="color: #27ae60; font-weight: 600;">✓ Active</span>
+                        <span class="status-yes">✓ Active</span>
                     {% else %}
-                        <span style="color: #95a5a6;">Cancelled</span>
+                        <span class="text-muted">Cancelled</span>
                     {% endif %}
                 </td>
-                <td style="padding: 0.75rem;">
+                <td>
                     <form method="POST" action="/admin/semesters/{{ semester.id }}/delete" style="display:inline;">
                         <button type="submit"
                             style="padding:0.3rem 0.7rem; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer; background:#e74c3c; color:white;"
@@ -80,7 +57,7 @@
         </tbody>
     </table>
     {% else %}
-    <p style="color: #7f8c8d; margin-top: 1rem;">No semesters found. Create the first semester to get started.</p>
+    <p class="text-muted" style="margin-top: 1rem;">No semesters found. Create the first semester to get started.</p>
     {% endif %}
 </div>
 {% endblock %}

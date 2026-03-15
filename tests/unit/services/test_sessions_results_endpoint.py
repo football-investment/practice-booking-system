@@ -23,6 +23,7 @@ from app.api.api_v1.endpoints.sessions.results import (
 )
 from app.models.user import UserRole
 from app.models.tournament_enums import TournamentPhase
+from app.models.session import EventCategory
 
 _BASE = "app.api.api_v1.endpoints.sessions.results"
 _KPS = "app.services.tournament.knockout_progression_service.KnockoutProgressionService"
@@ -65,6 +66,7 @@ def _session(
     s = MagicMock()
     s.id = session_id
     s.is_tournament_game = is_tournament_game
+    s.event_category = EventCategory.MATCH if is_tournament_game else EventCategory.TRAINING
     s.game_type = "HEAD_TO_HEAD"
     s.game_results = game_results
     s.rounds_data = rounds_data

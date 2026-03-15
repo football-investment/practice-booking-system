@@ -19,11 +19,13 @@ from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 from ...models.semester import Semester, SemesterStatus
-from ...models.license import UserLicense
+from ...models.license import UserLicense, LicenseProgression
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.specialization import SpecializationType
 from ...models.invoice_request import InvoiceRequest, InvoiceRequestStatus
-from ...models.credit_transaction import CreditTransaction
+from ...models.credit_transaction import CreditTransaction, TransactionType
+from ...core.security import get_password_hash
+import uuid as _uuid
 from ...models.coupon import Coupon
 from ...models.invitation_code import InvitationCode
 from ...models.session import Session as SessionModel
@@ -504,9 +506,68 @@ async def admin_edit_user_page(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Credit history (last 20 user-level transactions)
+    credit_history = (
+        db.query(CreditTransaction)
+        .filter(CreditTransaction.user_id == user_id)
+        .order_by(CreditTransaction.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    # Licenses with progression history
+    licenses = (
+        db.query(UserLicense)
+        .filter(UserLicense.user_id == user_id)
+        .order_by(UserLicense.is_active.desc(), UserLicense.id.asc())
+        .all()
+    )
+    license_ids = [lic.id for lic in licenses]
+    progressions = (
+        db.query(LicenseProgression)
+        .filter(LicenseProgression.user_license_id.in_(license_ids))
+        .order_by(LicenseProgression.advanced_at.desc())
+        .all()
+    ) if license_ids else []
+    progression_map = defaultdict(list)
+    for p in progressions:
+        progression_map[p.user_license_id].append(p)
+
+    # Admin users map for credit history performer names
+    performer_ids = {ct.performed_by_user_id for ct in credit_history if ct.performed_by_user_id}
+    performers = db.query(User).filter(User.id.in_(performer_ids)).all() if performer_ids else []
+    performer_map = {u.id: u for u in performers}
+
+    # Set of specialization_type strings that already have an active license
+    active_spec_types = {lic.specialization_type for lic in licenses if lic.is_active}
+
+    # Expired licenses: is_active=True but expires_at in the past
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    expired_license_ids = {
+        lic.id
+        for lic in licenses
+        if lic.is_active and lic.expires_at is not None and lic.expires_at < now_naive
+    }
+
     return templates.TemplateResponse(
         "admin/user_edit.html",
-        {"request": request, "user": user, "target": target, "UserRole": UserRole}
+        {
+            "request": request,
+            "user": user,
+            "target": target,
+            "UserRole": UserRole,
+            "SpecializationType": SpecializationType,
+            "credit_history": credit_history,
+            "licenses": licenses,
+            "progression_map": progression_map,
+            "performer_map": performer_map,
+            "active_spec_types": active_spec_types,
+            "expired_license_ids": expired_license_ids,
+            "today_iso": date.today().isoformat(),
+            "msg": request.query_params.get("msg", ""),
+            "error": request.query_params.get("error", ""),
+            "error_detail": request.query_params.get("error_detail", ""),
+        }
     )
 
 
@@ -554,6 +615,273 @@ async def admin_edit_user_submit(
     db.commit()
     logger.info("admin_user_edited", extra={"admin": user.email, "target": target.email, "role": str(target.role)})
     return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_user_password(
+    user_id: int,
+    request: Request,
+    new_password: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: reset a user's password."""
+    _admin_guard(user)
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.password_hash = get_password_hash(new_password)
+    db.commit()
+    logger.info("admin_password_reset", extra={"admin": user.email, "target": target.email})
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit?msg=password_reset", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/grant-credit")
+async def admin_grant_credit(
+    user_id: int,
+    request: Request,
+    amount: int = Form(...),
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: grant credits to a user (creates CreditTransaction audit record)."""
+    _admin_guard(user)
+    if amount < 1 or amount > 50000:
+        raise HTTPException(status_code=400, detail="Amount must be between 1 and 50000")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.credit_balance = (target.credit_balance or 0) + amount
+    target.credit_purchased = (target.credit_purchased or 0) + amount
+    ct = CreditTransaction(
+        user_id=target.id,
+        transaction_type=TransactionType.ADMIN_ADJUSTMENT.value,
+        amount=amount,
+        balance_after=target.credit_balance,
+        description=reason[:500],
+        idempotency_key=f"admin-grant-{target.id}-{_uuid.uuid4()}",
+        performed_by_user_id=user.id,
+    )
+    db.add(ct)
+    db.commit()
+    logger.info("admin_credit_granted", extra={"admin": user.email, "target": target.email, "amount": amount})
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit#credits", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/deduct-credit")
+async def admin_deduct_credit(
+    user_id: int,
+    request: Request,
+    amount: int = Form(...),
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: deduct credits from a user (creates CreditTransaction audit record)."""
+    _admin_guard(user)
+    if amount < 1 or amount > 50000:
+        raise HTTPException(status_code=400, detail="Amount must be between 1 and 50000")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if amount > (target.credit_balance or 0):
+        raise HTTPException(status_code=400, detail="Cannot deduct more than current balance")
+    target.credit_balance = (target.credit_balance or 0) - amount
+    ct = CreditTransaction(
+        user_id=target.id,
+        transaction_type=TransactionType.ADMIN_ADJUSTMENT.value,
+        amount=-amount,
+        balance_after=target.credit_balance,
+        description=reason[:500],
+        idempotency_key=f"admin-deduct-{target.id}-{_uuid.uuid4()}",
+        performed_by_user_id=user.id,
+    )
+    db.add(ct)
+    db.commit()
+    logger.info("admin_credit_deducted", extra={"admin": user.email, "target": target.email, "amount": amount})
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit#credits", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/grant-license")
+async def admin_grant_license(
+    user_id: int,
+    request: Request,
+    specialization_type: str = Form(...),
+    reason: str = Form(...),
+    expires_at: str = Form(default=""),  # optional "YYYY-MM-DD"; empty = perpetual
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: grant a new license to a user (creates LicenseProgression audit record)."""
+    _admin_guard(user)
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Validate specialization type
+    try:
+        spec = SpecializationType(specialization_type)
+    except ValueError:
+        return RedirectResponse(
+            url=f"/admin/users/{user_id}/edit?error=invalid_spec&error_detail={specialization_type}#licenses",
+            status_code=303,
+        )
+
+    # Check for existing active license — redirect with user-friendly error instead of
+    # returning JSON 400 (which breaks the admin_base.html CSRF JS handler)
+    existing = (
+        db.query(UserLicense)
+        .filter(UserLicense.user_id == user_id, UserLicense.specialization_type == spec.value, UserLicense.is_active == True)
+        .first()
+    )
+    if existing:
+        return RedirectResponse(
+            url=f"/admin/users/{user_id}/edit?error=duplicate_license&error_detail={spec.value}#licenses",
+            status_code=303,
+        )
+
+    # Parse optional expiry date (blank = perpetual license)
+    expires_at_dt = None
+    if expires_at and expires_at.strip():
+        try:
+            expires_at_dt = datetime.strptime(expires_at.strip(), "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59
+            )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid expires_at format (expected YYYY-MM-DD)")
+        if expires_at_dt <= datetime.now(timezone.utc).replace(tzinfo=None):
+            raise HTTPException(status_code=400, detail="expires_at must be in the future")
+
+    now = datetime.now(timezone.utc)
+    now_naive = now.replace(tzinfo=None)
+    new_license = UserLicense(
+        user_id=user_id,
+        specialization_type=spec.value,
+        started_at=now_naive,
+        issued_at=now_naive,
+        is_active=True,
+        expires_at=expires_at_dt,
+    )
+    db.add(new_license)
+    db.flush()  # get new_license.id
+
+    progression = LicenseProgression(
+        user_license_id=new_license.id,
+        from_level=0,
+        to_level=0,
+        advanced_by=user.id,
+        advancement_reason=reason[:500],
+        requirements_met="INITIAL_GRANT",
+        advanced_at=now,
+    )
+    db.add(progression)
+    db.commit()
+    logger.info("admin_license_granted", extra={"admin": user.email, "target": target.email, "spec": spec.value})
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit#licenses", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/revoke-license/{license_id}")
+async def admin_revoke_license(
+    user_id: int,
+    license_id: int,
+    request: Request,
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: revoke a user's license (creates LicenseProgression audit record)."""
+    _admin_guard(user)
+    license = (
+        db.query(UserLicense)
+        .filter(UserLicense.id == license_id, UserLicense.user_id == user_id)
+        .first()
+    )
+    if not license:
+        raise HTTPException(status_code=404, detail="License not found")
+
+    if not license.is_active:
+        return RedirectResponse(
+            url=f"/admin/users/{user_id}/edit?error=already_revoked&error_detail={license_id}#licenses",
+            status_code=303,
+        )
+
+    now = datetime.now(timezone.utc)
+    license.is_active = False
+    progression = LicenseProgression(
+        user_license_id=license.id,
+        from_level=license.current_level or 0,
+        to_level=-1,
+        advanced_by=user.id,
+        advancement_reason=reason[:500],
+        requirements_met="REVOKED",
+        advanced_at=now,
+    )
+    db.add(progression)
+    db.commit()
+    logger.info("admin_license_revoked", extra={"admin": user.email, "license_id": license_id})
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit#licenses", status_code=303)
+
+
+@router.post("/admin/users/{user_id}/renew-license/{license_id}")
+async def admin_renew_license(
+    user_id: int,
+    license_id: int,
+    request: Request,
+    new_expires_at: str = Form(...),  # "YYYY-MM-DD" required
+    reason: str = Form(default=""),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: renew a license — set new expires_at + record LicenseProgression('RENEWED')."""
+    _admin_guard(user)
+    license = (
+        db.query(UserLicense)
+        .filter(UserLicense.id == license_id, UserLicense.user_id == user_id)
+        .first()
+    )
+    if not license:
+        raise HTTPException(status_code=404, detail="License not found")
+
+    if not license.is_active:
+        return RedirectResponse(
+            url=f"/admin/users/{user_id}/edit?error=cannot_renew_revoked&error_detail={license_id}#licenses",
+            status_code=303,
+        )
+
+    try:
+        new_expires_dt = datetime.strptime(new_expires_at.strip(), "%Y-%m-%d").replace(
+            hour=23, minute=59, second=59
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format (expected YYYY-MM-DD)")
+
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    if new_expires_dt <= now_naive:
+        raise HTTPException(status_code=400, detail="New expiry date must be in the future")
+
+    now = datetime.now(timezone.utc)
+    license.expires_at = new_expires_dt
+    license.last_renewed_at = now_naive
+
+    progression = LicenseProgression(
+        user_license_id=license.id,
+        from_level=license.current_level or 0,
+        to_level=license.current_level or 0,
+        advanced_by=user.id,
+        advancement_reason=(reason[:500] if reason else "License renewed by admin"),
+        requirements_met="RENEWED",
+        advanced_at=now,
+    )
+    db.add(progression)
+    db.commit()
+    logger.info(
+        "admin_license_renewed",
+        extra={"admin": user.email, "license_id": license_id, "new_expires": new_expires_at}
+    )
+    return RedirectResponse(url=f"/admin/users/{user_id}/edit#licenses", status_code=303)
 
 
 # ============================================================================
@@ -878,8 +1206,8 @@ async def motivation_assessment_submit(
 
     logger.info("admin_motivation_assessed", extra={"assessor": user.email, "student_id": student_id, "spec": specialization, "avg_score": round(average_score, 1)})
 
-    # Redirect back to student details or payments page
-    return RedirectResponse(url=f"/admin/payments", status_code=303)
+    # Redirect back to user management page
+    return RedirectResponse(url="/admin/users", status_code=303)
 
 
 # ============================================================================
@@ -1683,6 +2011,16 @@ async def admin_invoice_verify(
     invoice.verified_at = datetime.now(timezone.utc)
     student.credit_balance += invoice.credit_amount
     student.credit_purchased = (student.credit_purchased or 0) + invoice.credit_amount
+    ct = CreditTransaction(
+        user_id=student.id,
+        transaction_type=TransactionType.PURCHASE.value,
+        amount=invoice.credit_amount,
+        balance_after=student.credit_balance,
+        description=f"Invoice #{invoice.id} verified by admin",
+        idempotency_key=f"invoice-verify-{invoice.id}",
+        performed_by_user_id=user.id,
+    )
+    db.add(ct)
     db.commit()
     db.refresh(invoice)
     db.refresh(student)
@@ -1733,10 +2071,21 @@ async def admin_invoice_unverify(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    deducted = min(invoice.credit_amount, student.credit_balance or 0)
     student.credit_balance = max(0, (student.credit_balance or 0) - invoice.credit_amount)
     student.credit_purchased = max(0, (student.credit_purchased or 0) - invoice.credit_amount)
     invoice.status = "pending"
     invoice.verified_at = None
+    ct = CreditTransaction(
+        user_id=student.id,
+        transaction_type=TransactionType.REFUND.value,
+        amount=-deducted,
+        balance_after=student.credit_balance,
+        description=f"Invoice #{invoice.id} unverified by admin",
+        idempotency_key=f"invoice-unverify-{invoice.id}",
+        performed_by_user_id=user.id,
+    )
+    db.add(ct)
     db.commit()
     db.refresh(invoice)
     db.refresh(student)

@@ -2196,6 +2196,24 @@
         "title": "Body_admin_create_tournament_admin_tournaments_post",
         "type": "object"
       },
+      "Body_admin_deduct_credit_admin_users__user_id__deduct_credit_post": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "reason"
+        ],
+        "title": "Body_admin_deduct_credit_admin_users__user_id__deduct_credit_post",
+        "type": "object"
+      },
       "Body_admin_edit_game_preset_submit_admin_game_presets__preset_id__edit_post": {
         "properties": {
           "category": {
@@ -2255,6 +2273,47 @@
           "role"
         ],
         "title": "Body_admin_edit_user_submit_admin_users__user_id__edit_post",
+        "type": "object"
+      },
+      "Body_admin_grant_credit_admin_users__user_id__grant_credit_post": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "reason"
+        ],
+        "title": "Body_admin_grant_credit_admin_users__user_id__grant_credit_post",
+        "type": "object"
+      },
+      "Body_admin_grant_license_admin_users__user_id__grant_license_post": {
+        "properties": {
+          "expires_at": {
+            "default": "",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "specialization_type": {
+            "title": "Specialization Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "specialization_type",
+          "reason"
+        ],
+        "title": "Body_admin_grant_license_admin_users__user_id__grant_license_post",
         "type": "object"
       },
       "Body_admin_invoice_cancel_admin_invoices__invoice_id__cancel_post": {
@@ -2322,6 +2381,37 @@
         "title": "Body_admin_purge_system_events_admin_system_events_purge_post",
         "type": "object"
       },
+      "Body_admin_renew_license_admin_users__user_id__renew_license__license_id__post": {
+        "properties": {
+          "new_expires_at": {
+            "title": "New Expires At",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_expires_at"
+        ],
+        "title": "Body_admin_renew_license_admin_users__user_id__renew_license__license_id__post",
+        "type": "object"
+      },
+      "Body_admin_reset_user_password_admin_users__user_id__reset_password_post": {
+        "properties": {
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
+        ],
+        "title": "Body_admin_reset_user_password_admin_users__user_id__reset_password_post",
+        "type": "object"
+      },
       "Body_admin_resolve_system_event_admin_system_events__event_id__resolve_post": {
         "properties": {
           "level": {
@@ -2341,6 +2431,19 @@
           }
         },
         "title": "Body_admin_resolve_system_event_admin_system_events__event_id__resolve_post",
+        "type": "object"
+      },
+      "Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post",
         "type": "object"
       },
       "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post": {
@@ -23526,6 +23629,57 @@
         ]
       }
     },
+    "/admin/users/{user_id}/deduct-credit": {
+      "post": {
+        "description": "Admin: deduct credits from a user (creates CreditTransaction audit record).",
+        "operationId": "admin_deduct_credit_admin_users__user_id__deduct_credit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_deduct_credit_admin_users__user_id__deduct_credit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Deduct Credit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/users/{user_id}/edit": {
       "get": {
         "description": "Admin-only: Edit user form",
@@ -23613,6 +23767,279 @@
           }
         },
         "summary": "Admin Edit User Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/grant-credit": {
+      "post": {
+        "description": "Admin: grant credits to a user (creates CreditTransaction audit record).",
+        "operationId": "admin_grant_credit_admin_users__user_id__grant_credit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_grant_credit_admin_users__user_id__grant_credit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Grant Credit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/grant-license": {
+      "post": {
+        "description": "Admin: grant a new license to a user (creates LicenseProgression audit record).",
+        "operationId": "admin_grant_license_admin_users__user_id__grant_license_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_grant_license_admin_users__user_id__grant_license_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Grant License",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/renew-license/{license_id}": {
+      "post": {
+        "description": "Admin: renew a license \u2014 set new expires_at + record LicenseProgression('RENEWED').",
+        "operationId": "admin_renew_license_admin_users__user_id__renew_license__license_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "license_id",
+            "required": true,
+            "schema": {
+              "title": "License Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_renew_license_admin_users__user_id__renew_license__license_id__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Renew License",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/reset-password": {
+      "post": {
+        "description": "Admin: reset a user's password.",
+        "operationId": "admin_reset_user_password_admin_users__user_id__reset_password_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_reset_user_password_admin_users__user_id__reset_password_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Reset User Password",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/revoke-license/{license_id}": {
+      "post": {
+        "description": "Admin: revoke a user's license (creates LicenseProgression audit record).",
+        "operationId": "admin_revoke_license_admin_users__user_id__revoke_license__license_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "license_id",
+            "required": true,
+            "schema": {
+              "title": "License Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Revoke License",
         "tags": [
           "web"
         ]
@@ -41218,6 +41645,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Enrollment",
         "tags": [
           "semester-enrollments",
@@ -41411,6 +41843,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Enrollment",
         "tags": [
           "semester-enrollments",
@@ -41647,6 +42084,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Toggle Enrollment Active",
         "tags": [
           "semester-enrollments",
@@ -45206,7 +45648,7 @@
     },
     "/api/v1/tournaments/{tournament_id}/active-match": {
       "get": {
-        "description": "Get the current active match (session) that needs attention.\n\nReturns the first tournament session where:\n- is_tournament_game = true\n- game_results IS NULL (not yet recorded)\n\nIncludes:\n- Session details\n- List of enrolled participants with attendance status\n- Next upcoming matches (queue)\n\nAuthorization: INSTRUCTOR (must be assigned to tournament) or ADMIN",
+        "description": "Get the current active match (session) that needs attention.\n\nReturns the first tournament session where:\n- event_category = MATCH (formerly is_tournament_game = true)\n- game_results IS NULL (not yet recorded)\n\nIncludes:\n- Session details\n- List of enrolled participants with attendance status\n- Next upcoming matches (queue)\n\nAuthorization: INSTRUCTOR (must be assigned to tournament) or ADMIN",
         "operationId": "get_active_match_api_v1_tournaments__tournament_id__active_match_get",
         "parameters": [
           {

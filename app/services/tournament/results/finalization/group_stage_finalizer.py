@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.models.semester import Semester
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.tournament_enums import TournamentPhase
 from app.services.tournament.results.calculators import (
     StandingsCalculator,
@@ -53,7 +53,7 @@ class GroupStageFinalizer:
         """
         return self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.tournament_phase == TournamentPhase.GROUP_STAGE.value
         ).all()
 
@@ -69,7 +69,7 @@ class GroupStageFinalizer:
         """
         return self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.tournament_phase == TournamentPhase.KNOCKOUT.value
         ).order_by(SessionModel.tournament_round, SessionModel.id).all()
 

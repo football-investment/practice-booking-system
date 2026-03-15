@@ -36,7 +36,19 @@ from app.api.web_routes.admin import (
     admin_payments_page,
     motivation_assessment_page,
     motivation_assessment_submit,
+    admin_reset_user_password,
+    admin_grant_credit,
+    admin_deduct_credit,
+    admin_grant_license,
+    admin_revoke_license,
+    admin_renew_license,
+    admin_bookings_page,
+    admin_booking_confirm,
+    admin_booking_cancel,
+    admin_booking_attendance,
 )
+from app.models.booking import BookingStatus
+from app.models.attendance import AttendanceStatus
 from app.api.web_routes.instructor_dashboard import (
     instructor_enrollments_page,
     instructor_edit_student_skills_page,
@@ -665,7 +677,7 @@ class TestMotivationAssessmentSubmit:
         ))
 
         assert isinstance(result, RedirectResponse)
-        assert "/admin/payments" in result.headers["location"]
+        assert "/admin/users" in result.headers["location"]
         db.commit.assert_called_once()
         assert license_obj.motivation_scores is not None
 
@@ -723,3 +735,631 @@ class TestMotivationAssessmentSubmit:
                 db=db, user=user,
             ))
         assert exc_info.value.status_code == 404
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_reset_user_password (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminPasswordReset:
+
+    def test_non_admin_raises_403(self):
+        user = _student_user()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_reset_user_password(
+                user_id=1, request=_req(),
+                new_password="validpass123", db=MagicMock(), user=user,
+            ))
+        assert exc_info.value.status_code == 403
+
+    def test_password_too_short_raises_400(self):
+        user = _admin()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_reset_user_password(
+                user_id=1, request=_req(),
+                new_password="short", db=MagicMock(), user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_user_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_reset_user_password(
+                user_id=999, request=_req(),
+                new_password="validpass123", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 404
+
+    def test_success_redirects(self):
+        user = _admin()
+        target = MagicMock()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = target
+
+        with patch(f"{_BASE}.get_password_hash", return_value="hashed_pw"):
+            result = _run(admin_reset_user_password(
+                user_id=5, request=_req(),
+                new_password="newSecure99", db=db, user=user,
+            ))
+
+        assert isinstance(result, RedirectResponse)
+        assert "/admin/users/5/edit" in result.headers["location"]
+        assert target.password_hash == "hashed_pw"
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_grant_credit (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminCreditGrant:
+
+    def test_non_admin_raises_403(self):
+        user = _student_user()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_grant_credit(
+                user_id=1, request=_req(),
+                amount=100, reason="test", db=MagicMock(), user=user,
+            ))
+        assert exc_info.value.status_code == 403
+
+    def test_negative_amount_raises_400(self):
+        user = _admin()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_grant_credit(
+                user_id=1, request=_req(),
+                amount=-1, reason="bad", db=MagicMock(), user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_over_limit_raises_400(self):
+        user = _admin()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_grant_credit(
+                user_id=1, request=_req(),
+                amount=50001, reason="too much", db=MagicMock(), user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_user_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_grant_credit(
+                user_id=999, request=_req(),
+                amount=100, reason="test", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 404
+
+    def test_success_creates_transaction_and_redirects(self):
+        user = _admin()
+        target = MagicMock()
+        target.id = 5
+        target.credit_balance = 1000
+        target.credit_purchased = 1000
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = target
+
+        result = _run(admin_grant_credit(
+            user_id=5, request=_req(),
+            amount=300, reason="Competition reward", db=db, user=user,
+        ))
+
+        assert isinstance(result, RedirectResponse)
+        assert "/admin/users/5/edit" in result.headers["location"]
+        assert target.credit_balance == 1300
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_deduct_credit (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminCreditDeduct:
+
+    def test_amount_exceeds_balance_raises_400(self):
+        user = _admin()
+        target = MagicMock()
+        target.credit_balance = 100
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = target
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_deduct_credit(
+                user_id=5, request=_req(),
+                amount=500, reason="too much", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_success_decreases_balance_and_redirects(self):
+        user = _admin()
+        target = MagicMock()
+        target.id = 5
+        target.credit_balance = 500
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = target
+
+        result = _run(admin_deduct_credit(
+            user_id=5, request=_req(),
+            amount=200, reason="Correction", db=db, user=user,
+        ))
+
+        assert isinstance(result, RedirectResponse)
+        assert target.credit_balance == 300
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_grant_license (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminLicenseGrant:
+
+    def test_invalid_specialization_redirects_with_error(self):
+        """Invalid spec → redirect with ?error=invalid_spec (not JSON 400)."""
+        user = _admin()
+        target = MagicMock()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = target
+
+        result = _run(admin_grant_license(
+            user_id=5, request=_req(),
+            specialization_type="INVALID_SPEC", reason="test", db=db, user=user,
+        ))
+        assert isinstance(result, RedirectResponse)
+        loc = result.headers["location"]
+        assert "error=invalid_spec" in loc
+        assert "/admin/users/5/edit" in loc
+
+    def test_duplicate_active_license_redirects_with_error(self):
+        """Duplicate active license → redirect with ?error=duplicate_license (not JSON 400)."""
+        user = _admin()
+        target = MagicMock()
+        target.id = 5
+        existing_license = MagicMock()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [target, existing_license]
+
+        result = _run(admin_grant_license(
+            user_id=5, request=_req(),
+            specialization_type="LFA_FOOTBALL_PLAYER", reason="dup", db=db, user=user,
+        ))
+        assert isinstance(result, RedirectResponse)
+        loc = result.headers["location"]
+        assert "error=duplicate_license" in loc
+        assert "LFA_FOOTBALL_PLAYER" in loc
+        assert "/admin/users/5/edit" in loc
+
+    def test_success_redirects(self):
+        user = _admin()
+        target = MagicMock()
+        target.id = 5
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [target, None]  # target found, no existing license
+
+        result = _run(admin_grant_license(
+            user_id=5, request=_req(),
+            specialization_type="LFA_FOOTBALL_PLAYER", reason="Manual",
+            expires_at="",  # blank = perpetual; must pass explicitly (Form default not evaluated in direct calls)
+            db=db, user=user,
+        ))
+
+        assert isinstance(result, RedirectResponse)
+        assert "/admin/users/5/edit" in result.headers["location"]
+        assert db.add.call_count == 2  # UserLicense + LicenseProgression
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_revoke_license (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminLicenseRevoke:
+
+    def test_license_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_revoke_license(
+                user_id=5, license_id=99, request=_req(),
+                reason="test", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 404
+
+    def test_already_revoked_license_redirects_with_error(self):
+        """Re-revoking an already-revoked license → redirect with ?error=already_revoked (no-op)."""
+        user = _admin()
+        license_obj = MagicMock()
+        license_obj.id = 10
+        license_obj.is_active = False  # already revoked
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = license_obj
+
+        result = _run(admin_revoke_license(
+            user_id=5, license_id=10, request=_req(),
+            reason="duplicate revoke", db=db, user=user,
+        ))
+        assert isinstance(result, RedirectResponse)
+        loc = result.headers["location"]
+        assert "error=already_revoked" in loc
+        assert "/admin/users/5/edit" in loc
+        db.add.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_success_deactivates_and_redirects(self):
+        user = _admin()
+        license_obj = MagicMock()
+        license_obj.id = 10
+        license_obj.is_active = True
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = license_obj
+
+        result = _run(admin_revoke_license(
+            user_id=5, license_id=10, request=_req(),
+            reason="Policy violation", db=db, user=user,
+        ))
+
+        assert isinstance(result, RedirectResponse)
+        assert license_obj.is_active is False
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_renew_license (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminLicenseRenew:
+    """Unit tests for POST /admin/users/{id}/renew-license/{license_id}."""
+
+    def test_non_admin_raises_403(self):
+        user = _student_user()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_renew_license(
+                user_id=5, license_id=10, request=_req(),
+                new_expires_at="2027-12-31", reason="test", db=MagicMock(), user=user,
+            ))
+        assert exc_info.value.status_code == 403
+
+    def test_license_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_renew_license(
+                user_id=5, license_id=99, request=_req(),
+                new_expires_at="2027-12-31", reason="test", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 404
+
+    def test_revoked_license_redirects_with_error(self):
+        """Renewing a revoked license → redirect with error=cannot_renew_revoked."""
+        user = _admin()
+        license_obj = MagicMock()
+        license_obj.id = 10
+        license_obj.is_active = False
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = license_obj
+
+        result = _run(admin_renew_license(
+            user_id=5, license_id=10, request=_req(),
+            new_expires_at="2027-12-31", reason="test", db=db, user=user,
+        ))
+        assert isinstance(result, RedirectResponse)
+        assert "error=cannot_renew_revoked" in result.headers["location"]
+        db.add.assert_not_called()
+        db.commit.assert_not_called()
+
+    def test_past_date_raises_400(self):
+        user = _admin()
+        license_obj = MagicMock()
+        license_obj.is_active = True
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = license_obj
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_renew_license(
+                user_id=5, license_id=10, request=_req(),
+                new_expires_at="2000-01-01", reason="test", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_invalid_date_format_raises_400(self):
+        user = _admin()
+        license_obj = MagicMock()
+        license_obj.is_active = True
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = license_obj
+
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_renew_license(
+                user_id=5, license_id=10, request=_req(),
+                new_expires_at="not-a-date", reason="test", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_success_updates_expiry_and_creates_renewed_progression(self):
+        user = _admin()
+        license_obj = MagicMock()
+        license_obj.id = 10
+        license_obj.is_active = True
+        license_obj.current_level = 2
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = license_obj
+
+        result = _run(admin_renew_license(
+            user_id=5, license_id=10, request=_req(),
+            new_expires_at="2027-06-30", reason="Annual renewal",
+            db=db, user=user,
+        ))
+
+        assert isinstance(result, RedirectResponse)
+        assert "#licenses" in result.headers["location"]
+        assert license_obj.expires_at is not None
+        assert license_obj.last_renewed_at is not None
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+        added_prog = db.add.call_args[0][0]
+        assert added_prog.requirements_met == "RENEWED"
+        assert added_prog.advancement_reason == "Annual renewal"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_bookings_page (GET)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminBookingsPage:
+
+    def test_not_admin_raises_403(self):
+        user = _instructor()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_bookings_page(request=_req(), db=MagicMock(), user=user))
+        assert exc_info.value.status_code == 403
+
+    def test_renders_bookings_template(self):
+        user = _admin()
+        db = MagicMock()
+        # Main paginated query: db.query(Booking).options(...).count/order_by/.../all
+        db.query.return_value.options.return_value.count.return_value = 0
+        db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = []
+        # Stats: db.query(sqlfunc.count(...)).filter(...).scalar()
+        db.query.return_value.filter.return_value.scalar.return_value = 0
+        # Sessions dropdown: db.query(SessionModel).join(...).distinct().order_by(...).limit(100).all()
+        db.query.return_value.join.return_value.distinct.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(admin_bookings_page(request=_req(), db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "admin/bookings.html"
+
+    def test_invalid_status_filter_silently_ignored(self):
+        """Invalid status_filter raises ValueError in BookingStatus() — caught, no filter applied."""
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.options.return_value.count.return_value = 0
+        db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.scalar.return_value = 0
+        db.query.return_value.join.return_value.distinct.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            # should not raise
+            _run(admin_bookings_page(
+                request=_req(), status_filter="TOTALLY_INVALID", db=db, user=user
+            ))
+
+        assert mock_tmpl.TemplateResponse.called
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_booking_confirm (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminBookingConfirm:
+
+    def test_not_admin_raises_403(self):
+        user = _instructor()
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_confirm(booking_id=1, request=_req(), db=db, user=user))
+        assert exc_info.value.status_code == 403
+
+    def test_booking_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_confirm(booking_id=1, request=_req(), db=db, user=user))
+        assert exc_info.value.status_code == 404
+
+    def test_already_confirmed_raises_400(self):
+        user = _admin()
+        booking_mock = MagicMock()
+        booking_mock.status = BookingStatus.CONFIRMED
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = booking_mock
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_confirm(booking_id=1, request=_req(), db=db, user=user))
+        assert exc_info.value.status_code == 400
+
+    def test_capacity_exceeded_raises_409(self):
+        """Session at capacity: confirmed_count >= capacity → 409."""
+        user = _admin()
+        booking_mock = MagicMock()
+        booking_mock.status = BookingStatus.PENDING
+        booking_mock.session_id = 42
+        session_mock = MagicMock()
+        session_mock.capacity = 5
+        db = MagicMock()
+        # First .first() → booking, second .first() → session
+        db.query.return_value.filter.return_value.first.side_effect = [booking_mock, session_mock]
+        # confirmed_count == capacity
+        db.query.return_value.filter.return_value.scalar.return_value = 5
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_confirm(booking_id=1, request=_req(), db=db, user=user))
+        assert exc_info.value.status_code == 409
+
+    def test_success_sets_status_confirmed(self):
+        """Happy path: session has no capacity limit → booking confirmed."""
+        user = _admin()
+        booking_mock = MagicMock()
+        booking_mock.status = BookingStatus.PENDING
+        booking_mock.session_id = 42
+        session_mock = MagicMock()
+        session_mock.capacity = None  # no capacity limit
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [booking_mock, session_mock]
+
+        result = _run(admin_booking_confirm(booking_id=1, request=_req(), db=db, user=user))
+
+        assert booking_mock.status == BookingStatus.CONFIRMED
+        db.commit.assert_called_once()
+        assert result.status_code == 200
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_booking_cancel (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminBookingCancel:
+
+    def test_not_admin_raises_403(self):
+        user = _instructor()
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_cancel(
+                booking_id=1, request=_req(), reason="x", db=db, user=user
+            ))
+        assert exc_info.value.status_code == 403
+
+    def test_booking_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_cancel(
+                booking_id=1, request=_req(), reason="x", db=db, user=user
+            ))
+        assert exc_info.value.status_code == 404
+
+    def test_already_cancelled_raises_400(self):
+        user = _admin()
+        booking_mock = MagicMock()
+        booking_mock.status = BookingStatus.CANCELLED
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = booking_mock
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_cancel(
+                booking_id=1, request=_req(), reason="x", db=db, user=user
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_success_sets_cancelled_fields(self):
+        """Happy path: sets CANCELLED status, notes=reason, cancelled_at."""
+        user = _admin()
+        booking_mock = MagicMock()
+        booking_mock.status = BookingStatus.CONFIRMED
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = booking_mock
+
+        result = _run(admin_booking_cancel(
+            booking_id=1, request=_req(), reason="Admin test cancel", db=db, user=user
+        ))
+
+        assert booking_mock.status == BookingStatus.CANCELLED
+        assert booking_mock.notes == "Admin test cancel"
+        assert booking_mock.cancelled_at is not None
+        db.commit.assert_called_once()
+        assert result.status_code == 200
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# admin_booking_attendance (POST)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAdminBookingAttendance:
+
+    def test_not_admin_raises_403(self):
+        user = _instructor()
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_attendance(
+                booking_id=1, request=_req(),
+                attendance_status="present", notes="", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 403
+
+    def test_invalid_attendance_status_raises_400(self):
+        """Status not in AttendanceStatus enum values → 400."""
+        user = _admin()
+        db = MagicMock()
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_attendance(
+                booking_id=1, request=_req(),
+                attendance_status="flying_saucer", notes="", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 400
+
+    def test_booking_not_found_raises_404(self):
+        user = _admin()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
+        with pytest.raises(HTTPException) as exc_info:
+            _run(admin_booking_attendance(
+                booking_id=1, request=_req(),
+                attendance_status="present", notes="", db=db, user=user,
+            ))
+        assert exc_info.value.status_code == 404
+
+    def test_creates_new_attendance_when_none_exists(self):
+        """booking.attendance is None → Attendance() created and db.add() called."""
+        user = _admin()
+        booking_mock = MagicMock()
+        booking_mock.attendance = None  # no existing attendance
+        booking_mock.user_id = 10
+        booking_mock.session_id = 20
+        booking_mock.id = 30
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = booking_mock
+
+        with patch(f"{_BASE}.Attendance") as mock_att_cls:
+            result = _run(admin_booking_attendance(
+                booking_id=30, request=_req(),
+                attendance_status="present", notes="test note", db=db, user=user,
+            ))
+
+        mock_att_cls.assert_called_once()
+        db.add.assert_called_once()
+        db.commit.assert_called_once()
+        booking_mock.update_attendance_status.assert_called_once()
+        assert result.status_code == 200
+
+    def test_updates_existing_attendance(self):
+        """booking.attendance exists → status/marked_by updated, no db.add()."""
+        user = _admin()
+        existing_att = MagicMock()
+        booking_mock = MagicMock()
+        booking_mock.attendance = existing_att  # truthy — existing record
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = booking_mock
+
+        result = _run(admin_booking_attendance(
+            booking_id=1, request=_req(),
+            attendance_status="absent", notes="", db=db, user=user,
+        ))
+
+        assert existing_att.status == AttendanceStatus.absent
+        assert existing_att.marked_by == user.id
+        db.add.assert_not_called()  # update path — no new row
+        db.commit.assert_called_once()
+        booking_mock.update_attendance_status.assert_called_once()
+        assert result.status_code == 200
