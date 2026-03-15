@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Index, Integer, String, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime, timezone
@@ -16,10 +16,19 @@ class BookingStatus(enum.Enum):
 
 class Booking(Base):
     __tablename__ = "bookings"
+    __table_args__ = (
+        # Composite index for the hot capacity-check query:
+        #   SELECT COUNT(*) FROM bookings WHERE session_id=? AND status='CONFIRMED'
+        # Also covers waitlist count query (session_id=? AND status='WAITLISTED')
+        Index("ix_bookings_session_status", "session_id", "status"),
+        # Single-column index for participant-level queries (user's booking history,
+        # duplicate-booking check: WHERE user_id=? AND session_id=? AND status!=CANCELLED)
+        Index("ix_bookings_user_id", "user_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False, index=True)
     status = Column(Enum(BookingStatus), default=BookingStatus.PENDING)
     waitlist_position = Column(Integer, nullable=True)
     notes = Column(String, nullable=True)
