@@ -119,8 +119,8 @@
         <h2>📄 Invoice Requests</h2>
         <p class="section-subtitle">Review and verify student payment requests</p>
 
-        {% if invoice_requests %}
         <div class="table-scroll-wrap">
+        {% if invoice_requests %}
             <table>
                 <thead>
                     <tr>
@@ -188,7 +188,6 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
         {% else %}
         <div class="empty-state">
             <div class="empty-state-icon">📄</div>
@@ -196,6 +195,7 @@
             <p style="font-size: 0.9rem;">Invoice requests will appear here when students purchase credits</p>
         </div>
         {% endif %}
+        </div>
     </div>
 
 {% endblock %}
