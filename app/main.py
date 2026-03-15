@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -180,13 +181,47 @@ async def worker_health_check():
 
 
 @app.get("/metrics")
-async def domain_metrics():
+async def domain_metrics(
+    format: str = Query(
+        default="json",
+        description="Output format: 'json' (default) or 'prometheus'.",
+    ),
+):
     """
     In-process domain event counters.
 
     Returns lifetime totals (since last process start) for key operational
     events: reward generation, booking creation, enrollment gate decisions.
     Intended for internal monitoring and alerting dashboards.
+
+    Set ``?format=prometheus`` to receive Prometheus text exposition format
+    (``text/plain; version=0.0.4``) suitable for a Prometheus scrape target.
     """
     from .core.metrics import metrics
+    if format == "prometheus":
+        return PlainTextResponse(
+            content=metrics.format_prometheus(),
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+        )
     return {"counters": metrics.get_snapshot()}
+
+
+@app.get("/metrics/alerts")
+async def metrics_alerts():
+    """
+    Evaluate in-process counter values against configured alert thresholds.
+
+    Returns ``{"status": "ok"|"warning", "thresholds": {...}}`` where each
+    entry in ``thresholds`` includes ``value``, ``threshold`` and ``firing``.
+    Only ratio-based alerts are emitted when enough traffic has been seen
+    (denominator > 0); the slow-query count is always evaluated.
+
+    Thresholds are configured via the application Settings:
+    - ``ALERT_REWARD_FAILURE_RATE`` (default 0.05)
+    - ``ALERT_BOOKING_WAITLIST_RATE`` (default 0.30)
+    - ``ALERT_ENROLLMENT_GATE_BLOCK_RATE`` (default 0.20)
+    - ``ALERT_SLOW_QUERY_TOTAL`` (default 10)
+    """
+    from .core.metrics import metrics
+    from .config import settings
+    return metrics.evaluate_alerts(settings)

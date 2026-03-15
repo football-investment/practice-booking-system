@@ -137,6 +137,19 @@ class Settings(BaseSettings):
         90: "Expert",
     }
 
+    # ── Alert thresholds for in-process metrics ────────────────────────────────
+    # These control GET /metrics/alerts. Adjust in production .env as traffic
+    # patterns become known.  All ratios are 0–1 (e.g. 0.05 = 5 %).
+    #
+    # ALERT_REWARD_FAILURE_RATE    — rewards_failed / total_rewards
+    # ALERT_BOOKING_WAITLIST_RATE  — bookings_waitlisted / total_bookings
+    # ALERT_ENROLLMENT_GATE_BLOCK_RATE — enrollment_gate_blocked / enrollment_attempts
+    # ALERT_SLOW_QUERY_TOTAL       — absolute count of slow queries (>200 ms) since start
+    ALERT_REWARD_FAILURE_RATE: float = 0.05        # >5 % reward failures → warning
+    ALERT_BOOKING_WAITLIST_RATE: float = 0.30      # >30 % bookings waitlisted → warning
+    ALERT_ENROLLMENT_GATE_BLOCK_RATE: float = 0.20  # >20 % enrollments gate-blocked → warning
+    ALERT_SLOW_QUERY_TOTAL: int = 10               # >10 slow queries since start → warning
+
     # Payment configuration (override via environment variables in production)
     PAYMENT_AMOUNT_HUF: int = 50000
     PAYMENT_BANK_ACCOUNT_HOLDER: str = "LFA Education Center Kft."
