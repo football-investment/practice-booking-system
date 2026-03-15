@@ -6,13 +6,25 @@ uniform ``event=<name> field=value …`` format so that production log
 aggregators (ELK, Loki, CloudWatch Insights) can filter and correlate
 across services without parsing free-form strings.
 
+Log correlation
+---------------
+Every ``log_event`` call automatically appends ``request_id`` and
+``operation_id`` from the current async/thread context
+(``app.core.request_context``).  Both are omitted when empty (e.g. in
+tests and CLI scripts) to keep log lines concise.
+
+This means any log line emitted anywhere inside a FastAPI request handler can
+be correlated with all other lines for the same request simply by filtering
+on ``request_id=<uuid>``.
+
 Usage
 -----
     from app.core.structured_log import log_event, log_warn
 
     log_event(_logger, "reward_awarded",
               user_id=123, session_id=456, xp=50, multiplier=1.5)
-    # → INFO  event=reward_awarded user_id=123 session_id=456 xp=50 multiplier=1.5
+    # → INFO  event=reward_awarded multiplier=1.5 session_id=456 user_id=123 xp=50
+    #         request_id=3f1ed36b operation_id=a8c2f01d
 
 Canonical event names
 ---------------------
@@ -34,11 +46,17 @@ Session flow:
     session_scheduled       — Session created in a semester
     session_capacity_full   — Session confirmed slots exhausted (next → WAITLIST)
 
+Performance flow:
+    slow_query              — DB query exceeded SLOW_QUERY_THRESHOLD_MS (200 ms)
+
 Consistent field names
 -----------------------
     user_id, session_id, semester_id, enrollment_id, booking_id
     xp, multiplier, status, event_category, capacity, confirmed_count
     error (exception repr for failed events)
+    duration_ms (query or request duration)
+    request_id  (HTTP request UUID — set by LoggingMiddleware)
+    operation_id (multi-step flow ID — set by callers via set_operation_id())
 """
 from __future__ import annotations
 
@@ -59,7 +77,13 @@ def log_event(
     Fields are sorted alphabetically after ``event`` so that log output is
     deterministic and easy to grep.  Non-string values are formatted with
     ``%r`` only when they would otherwise be ambiguous (e.g. None, lists).
+
+    ``request_id`` and ``operation_id`` from the current context are appended
+    automatically (omitted when empty).
     """
+    # Deferred import to avoid circular dependency at module load time
+    from app.core.request_context import get_request_id, get_operation_id
+
     parts = [f"event={event_name}"]
     for key in sorted(fields):
         value = fields[key]
@@ -67,6 +91,15 @@ def log_event(
             parts.append(f"{key}={value!r}")
         else:
             parts.append(f"{key}={value}")
+
+    rid = get_request_id()
+    if rid:
+        parts.append(f"request_id={rid}")
+
+    oid = get_operation_id()
+    if oid:
+        parts.append(f"operation_id={oid}")
+
     getattr(logger, level)(" ".join(parts))
 
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from datetime import datetime
 
+from app.core.metrics import metrics
 from app.core.structured_log import log_info, log_warn
 
 _logger = logging.getLogger(__name__)
@@ -66,6 +67,8 @@ async def create_enrollment(
     if existing:
         raise HTTPException(status_code=400, detail="Student is already enrolled in this specialization for this semester")
 
+    metrics.increment("enrollment_attempts")
+
     # 🏗️ Hierarchy access gate (M-02): if this semester is nested inside a parent,
     # the student must already have an active enrollment in the parent semester.
     if semester.parent_semester_id is not None:
@@ -75,6 +78,7 @@ async def create_enrollment(
             SemesterEnrollment.is_active == True,
         ).first()
         if not parent_enrollment:
+            metrics.increment("enrollment_gate_blocked")
             log_warn(
                 _logger, "enrollment_gate_blocked",
                 user_id=enrollment.user_id,

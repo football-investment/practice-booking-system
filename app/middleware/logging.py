@@ -4,15 +4,15 @@ import json
 import os
 from typing import Callable
 from uuid import uuid4
-from contextvars import ContextVar
 from datetime import datetime, timezone
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
-# Context variable for request ID tracking
-request_id_var: ContextVar[str] = ContextVar('request_id', default='')
+# Canonical ContextVar — defined in request_context so domain services can
+# read it without importing from middleware (avoids circular imports).
+from app.core.request_context import request_id_var
 
 # Create logs directory if it doesn't exist
 log_dir = 'logs'
