@@ -9,7 +9,7 @@ from ....core import time_provider
 from ....database import get_db
 from ....dependencies import get_current_user, get_current_admin_or_instructor_user
 from ....models.user import User
-from ....models.session import Session as SessionTypel
+from ....models.session import Session as SessionTypel, EventCategory
 from ....models.booking import Booking, BookingStatus
 from ....models.attendance import Attendance, AttendanceStatus
 from ....models.project import ProjectEnrollment, ProjectMilestone, ProjectMilestoneProgress, MilestoneStatus
@@ -43,7 +43,7 @@ def create_attendance(
         )
 
     # 🏆 TOURNAMENT SESSION: No booking required
-    if session.is_tournament_game:
+    if session.event_category == EventCategory.MATCH:
         # Tournament sessions ONLY support present/absent (NO late/excused)
         if attendance_data.status not in [AttendanceStatus.present, AttendanceStatus.absent]:
             raise HTTPException(
@@ -268,7 +268,7 @@ def update_attendance(
 
     # 🏆 TOURNAMENT VALIDATION: Check if session is a tournament game
     session = db.query(SessionTypel).filter(SessionTypel.id == attendance.session_id).first()
-    if session and session.is_tournament_game:
+    if session and session.event_category == EventCategory.MATCH:
         # Tournament sessions ONLY support present/absent (NO late/excused)
         if hasattr(attendance_update, 'status') and attendance_update.status:
             if attendance_update.status not in [AttendanceStatus.present, AttendanceStatus.absent]:

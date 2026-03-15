@@ -17,7 +17,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.semester import Semester, SemesterStatus
-from app.models.session import Session as SessionModel, SessionType
+from app.models.session import Session as SessionModel, SessionType, EventCategory
 from app.models.booking import Booking
 from app.models.specialization import SpecializationType
 from app.services.tournament.reward_policy_loader import load_policy
@@ -263,7 +263,7 @@ def create_tournament_sessions(
             semester_id=semester_id,
             credit_cost=config.get("credit_cost", 1),
             # Tournament game fields
-            is_tournament_game=True,  # Mark as tournament game
+            event_category=EventCategory.MATCH,
             game_type=config.get("game_type")  # User-defined game type (optional)
         )
 

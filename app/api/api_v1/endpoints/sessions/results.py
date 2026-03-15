@@ -13,7 +13,7 @@ import json
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User, UserRole
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.tournament_enums import TournamentPhase  # Phase 2.1: Import enum
 
 router = APIRouter()
@@ -72,7 +72,7 @@ def submit_game_results(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Check if tournament game
-    if not session.is_tournament_game:
+    if session.event_category != EventCategory.MATCH:
         raise HTTPException(status_code=400, detail="This is not a tournament game session")
 
     # Authorization: Only master instructor of the tournament or admin
@@ -135,7 +135,7 @@ def get_game_results(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Check if tournament game
-    if not session.is_tournament_game:
+    if session.event_category != EventCategory.MATCH:
         raise HTTPException(status_code=400, detail="This is not a tournament game session")
 
     # Parse results from rounds_data (submitted results) or game_results (finalized)
@@ -204,7 +204,7 @@ def submit_head_to_head_match_result(
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Check if tournament game
-    if not session.is_tournament_game:
+    if session.event_category != EventCategory.MATCH:
         raise HTTPException(status_code=400, detail="This is not a tournament game session")
 
     # Validate HEAD_TO_HEAD format

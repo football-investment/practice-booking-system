@@ -20,7 +20,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User, UserRole
 from app.models.semester import Semester
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.booking import Booking
 from app.models.tournament_ranking import TournamentRanking
 from app.models.tournament_achievement import TournamentParticipation
@@ -71,7 +71,7 @@ def calculate_tournament_rankings(
     all_sessions = db.query(SessionModel).filter(
         and_(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         )
     ).all()
 
@@ -316,7 +316,7 @@ def get_tournament_rankings(
     if is_ir_tournament:
         ir_sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.match_format == "INDIVIDUAL_RANKING",
         ).all()
         for ir_sess in ir_sessions:

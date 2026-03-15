@@ -137,11 +137,11 @@ def _compute_match_performance_modifier(
     For INDIVIDUAL_RANKING tournaments (no score data), score_signal=0 naturally.
     """
     import json as _json
-    from app.models.session import Session as SessionModel
+    from app.models.session import Session as SessionModel, EventCategory
 
     sessions = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
+        SessionModel.event_category == EventCategory.MATCH,
         SessionModel.game_results.isnot(None),
     ).all()
 

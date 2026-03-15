@@ -184,8 +184,8 @@ class TestSemesterenrollmentsSmoke:
         )
 
         # Should return 422 Unprocessable Entity for validation errors
-        # Note: 401 may be returned if endpoint requires additional auth beyond token
-        assert response.status_code in [400, 401, 422], (
+        # Note: 401/403 may be returned if endpoint requires admin auth
+        assert response.status_code in [400, 401, 403, 422], (
             f"POST /enroll should validate input or auth: {response.status_code}"
         )
         

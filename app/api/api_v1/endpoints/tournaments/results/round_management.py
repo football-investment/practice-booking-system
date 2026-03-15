@@ -14,7 +14,7 @@ from typing import Dict, Any
 
 from app.database import get_db
 from app.models.user import User
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.dependencies import get_current_user
 
 # Import shared services
@@ -57,7 +57,7 @@ def get_session_or_404(
             detail=f"Session {session_id} not found in tournament {tournament_id}"
         )
 
-    if not session.is_tournament_game:
+    if session.event_category != EventCategory.MATCH:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This session is not a tournament match"

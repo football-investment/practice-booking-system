@@ -1,433 +1,274 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management - Admin Panel</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% extends "admin/admin_base.html" %}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-        }
+{% block title %}User Management{% endblock %}
+{% block page_heading %}👥 User Management{% endblock %}
+{% block page_subtitle %}Manage all users in the system{% endblock %}
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+{% block extra_styles %}
+<style>
+/* ── Desktop / mobile container toggle ──────────────────────── */
+.desktop-table-container { display: block; }
+.mobile-cards-container  { display: none;  }
 
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
+@media (max-width: 639px) {
+    .desktop-table-container { display: none; }
+    .mobile-cards-container  { display: flex; flex-direction: column; gap: 0.75rem; }
+}
 
-        .user-info h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
+/* ── Mobile user card ────────────────────────────────────────── */
+.mobile-user-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border-left: 4px solid #667eea;
+}
+.mcard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    overflow: hidden;
+}
+.mcard-header > div:first-child { min-width: 0; flex: 1; }
+.mcard-header .badge           { flex-shrink: 0; }
+.mcard-name  { font-weight: 600; font-size: 0.95rem; color: #2c3e50; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcard-email { font-size: 0.8rem; color: #7f8c8d; margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcard-meta  {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0 0.75rem;
+    font-size: 0.8rem;
+}
+.mcard-actions { display: flex; gap: 0.5rem; }
+.mcard-btn {
+    flex: 1;
+    padding: 0.45rem 0.6rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.mcard-btn-edit       { background: #667eea; color: white; }
+.mcard-btn-deactivate { background: #e74c3c; color: white; }
+.mcard-btn-activate   { background: #27ae60; color: white; }
 
-        .user-info p {
-            opacity: 0.9;
-            font-size: 1rem;
-        }
+/* ── Desktop table: constrain name/email to prevent horizontal overflow ─ */
+.desktop-table-container .cell-trunc {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+/* Actions cell: keep buttons on one line */
+.desktop-table-container td:last-child { white-space: nowrap; }
+</style>
+{% endblock %}
 
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+{% block admin_content %}
 
-        .admin-badge {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            padding: 0.8rem 1.5rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .btn {
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn-primary {
-            background: white;
-            color: #667eea;
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .content-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .content-card h2 {
-            font-size: 1.5rem;
-            color: #2d3748;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 3px solid #667eea;
-        }
-
-        table {
-            width: 100%;
-            margin-top: 1rem;
-            border-collapse: collapse;
-        }
-
-        thead tr {
-            background: #f8f9fa;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        th {
-            padding: 1rem 0.75rem;
-            text-align: left;
-            font-weight: 700;
-            color: #2d3748;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        tbody tr {
-            border-bottom: 1px solid #e2e8f0;
-            transition: background 0.2s;
-        }
-
-        tbody tr:hover {
-            background: #f8f9fa;
-        }
-
-        td {
-            padding: 1rem 0.75rem;
-            color: #4a5568;
-        }
-
-        .badge {
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-block;
-        }
-
-        .badge-admin {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-            color: white;
-        }
-
-        .badge-instructor {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            color: white;
-        }
-
-        .badge-student {
-            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-            color: white;
-        }
-
-        .status-yes {
-            color: #27ae60;
-            font-weight: 600;
-        }
-
-        .status-no {
-            color: #e74c3c;
-            font-weight: 600;
-        }
-
-        .text-muted {
-            color: #95a5a6;
-        }
-
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
-        .stat-card .val { font-size: 2rem; font-weight: 700; color: #2d3748; }
-        .stat-card .lbl { color: #718096; font-size: 0.85rem; margin-top: 0.25rem; }
-        .filter-bar { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
-        .filter-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 160px; }
-        .filter-group label { font-size: 0.8rem; font-weight: 600; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
-        .filter-group select, .filter-group input { padding: 0.5rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
-        .filter-actions { display: flex; gap: 0.5rem; align-items: flex-end; }
-        .btn-filter { padding: 0.5rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-block; }
-        .btn-filter-primary { background: #4299e1; color: white; }
-        .btn-filter-white { background: #f0f0f0; color: #4a5568; }
-        .pagination { display: flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; justify-content: center; flex-wrap: wrap; }
-        .pagination a, .pagination span { padding: 0.4rem 0.85rem; border-radius: 6px; font-size: 0.9rem; text-decoration: none; font-weight: 600; }
-        .pagination a { background: #ebf4ff; color: #2b6cb0; }
-        .pagination a:hover { background: #bee3f8; }
-        .pagination .current { background: #4299e1; color: white; }
-        .pagination .disabled { background: #f0f0f0; color: #a0aec0; cursor: default; }
-        .page-info { text-align: center; font-size: 0.85rem; color: #718096; margin-top: 0.5rem; }
-
-        .footer {
-            background: #2d3748;
-            color: white;
-            text-align: center;
-            padding: 2rem;
-            margin-top: 4rem;
-        }
-
-        .footer p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 0.95rem;
-        }
-
-        @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .header-actions {
-                width: 100%;
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                text-align: center;
-            }
-
-            table {
-                font-size: 0.85rem;
-            }
-
-            th, td {
-                padding: 0.5rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Modern Header (same design as other admin pages) -->
-    <div class="header">
-        <div class="header-content">
-            <div class="user-info">
-                <h1>👑 User Management</h1>
-                <p>Manage all users in the system</p>
-            </div>
-            <div class="header-actions">
-                <div class="admin-badge">👑 ADMIN</div>
-                <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
-                <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
-                <a href="/admin/sessions" class="btn btn-secondary">📅 Sessions</a>
-                <a href="/admin/bookings" class="btn btn-secondary">📋 Bookings</a>
-                <a href="/admin/tournaments" class="btn btn-secondary">🏆 Tournaments</a>
-                <a href="/admin/locations" class="btn btn-secondary">📍 Locations</a>
-                <a href="/admin/game-presets" class="btn btn-secondary">🎮 Game Presets</a>
-                <a href="/admin/system-events" class="btn btn-secondary">⚙️ Events</a>
-                <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
-                <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
-                <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
-                <a href="/admin/analytics" class="btn btn-secondary">📊 Analytics</a>
-                <a href="/admin/semesters" class="btn btn-secondary">🎓 Semesters</a>
-                <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
-                <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
-            </div>
-        </div>
+<!-- Stats -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="val">{{ stat_total }}</div>
+        <div class="lbl">👥 Total Users</div>
     </div>
+    <div class="stat-card">
+        <div class="val">{{ stat_students }}</div>
+        <div class="lbl">🎓 Students</div>
+    </div>
+    <div class="stat-card">
+        <div class="val">{{ stat_instructors }}</div>
+        <div class="lbl">👨‍🏫 Instructors</div>
+    </div>
+    <div class="stat-card">
+        <div class="val">{{ stat_active }}</div>
+        <div class="lbl">✅ Active</div>
+    </div>
+</div>
 
-    <!-- Main Content -->
-    <div class="container">
+<!-- Filters -->
+<form method="get" action="/admin/users" class="filter-bar">
+    <div class="filter-group">
+        <label>Role</label>
+        <select name="role_filter">
+            <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
+            <option value="student" {% if role_filter == 'student' %}selected{% endif %}>🎓 Student</option>
+            <option value="instructor" {% if role_filter == 'instructor' %}selected{% endif %}>👨‍🏫 Instructor</option>
+            <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>👑 Admin</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Status</label>
+        <select name="status_filter">
+            <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>✅ Active</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>❌ Inactive</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Search (name or email)</label>
+        <input type="text" name="search" value="{{ search }}" placeholder="Enter name or email...">
+    </div>
+    <div class="filter-actions">
+        <button type="submit" class="btn-filter btn-filter-primary">🔍 Filter</button>
+        <a href="/admin/users" class="btn-filter btn-filter-white">✕ Clear</a>
+    </div>
+</form>
 
-        <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="val">{{ stat_total }}</div>
-                <div class="lbl">👥 Total Users</div>
-            </div>
-            <div class="stat-card">
-                <div class="val">{{ stat_students }}</div>
-                <div class="lbl">🎓 Students</div>
-            </div>
-            <div class="stat-card">
-                <div class="val">{{ stat_instructors }}</div>
-                <div class="lbl">👨‍🏫 Instructors</div>
-            </div>
-            <div class="stat-card">
-                <div class="val">{{ stat_active }}</div>
-                <div class="lbl">✅ Active</div>
-            </div>
-        </div>
+<div class="content-card">
+    <h2>Users ({{ all_users|length }}{% if role_filter or status_filter or search %} filtered{% endif %})</h2>
 
-        <!-- Filters -->
-        <form method="get" action="/admin/users" class="filter-bar">
-            <div class="filter-group">
-                <label>Role</label>
-                <select name="role_filter">
-                    <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
-                    <option value="student" {% if role_filter == 'student' %}selected{% endif %}>🎓 Student</option>
-                    <option value="instructor" {% if role_filter == 'instructor' %}selected{% endif %}>👨‍🏫 Instructor</option>
-                    <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>👑 Admin</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Status</label>
-                <select name="status_filter">
-                    <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
-                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>✅ Active</option>
-                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>❌ Inactive</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Search (name or email)</label>
-                <input type="text" name="search" value="{{ search }}" placeholder="Enter name or email...">
-            </div>
-            <div class="filter-actions">
-                <button type="submit" class="btn-filter btn-filter-primary">🔍 Filter</button>
-                <a href="/admin/users" class="btn-filter btn-filter-white">✕ Clear</a>
-            </div>
-        </form>
-
-        <div class="content-card">
-            <h2>Users ({{ all_users|length }}{% if role_filter or status_filter or search %} filtered{% endif %})</h2>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Specialization</th>
-                        <th>Onboarding</th>
-                        <th>Active</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for u in all_users %}
-                    <tr data-testid="user-row" data-role="{{ u.role.value }}" data-user-id="{{ u.id }}">
-                        <td><strong>#{{ u.id }}</strong></td>
-                        <td>{{ u.name }}</td>
-                        <td>{{ u.email }}</td>
-                        <td>
-                            {% if u.role.name == 'ADMIN' %}
-                                <span class="badge badge-admin">👑 ADMIN</span>
-                            {% elif u.role.name == 'INSTRUCTOR' %}
-                                <span class="badge badge-instructor">👨‍🏫 INSTRUCTOR</span>
-                            {% elif u.role.name == 'STUDENT' %}
-                                <span class="badge badge-student">🎓 STUDENT</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if u.specialization %}
-                                {{ u.specialization.value.replace('_', ' ') }}
-                            {% else %}
-                                <span class="text-muted">None</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if u.onboarding_completed %}
-                                <span class="status-yes">✓ Yes</span>
-                            {% else %}
-                                <span class="status-no">✗ No</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if u.is_active %}
-                                <span class="status-yes">✓ Active</span>
-                            {% else %}
-                                <span class="status-no">✗ Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td style="white-space:nowrap;">
-                            <a href="/admin/users/{{ u.id }}/edit"
-                               style="display:inline-block; padding:0.3rem 0.7rem; background:#667eea; color:white; border-radius:6px; text-decoration:none; font-size:0.8rem; margin-right:0.3rem;">
-                                Edit
-                            </a>
-                            <form method="POST" action="/admin/users/{{ u.id }}/toggle-status" style="display:inline;">
-                                <button type="submit"
-                                    style="padding:0.3rem 0.7rem; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer; background:{% if u.is_active %}#e74c3c{% else %}#27ae60{% endif %}; color:white;"
-                                    onclick="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} user {{ u.name }}?')">
-                                    {{ 'Deactivate' if u.is_active else 'Activate' }}
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            {% if total_pages > 1 %}
-            <div class="page-info">
-                Showing {{ page_start }}–{{ page_end }} of {{ total_filtered }} user{{ 's' if total_filtered != 1 else '' }}
-            </div>
-            <div class="pagination">
-                {% if current_page > 1 %}
-                    <a href="/admin/users?page={{ current_page - 1 }}&role_filter={{ role_filter }}&status_filter={{ status_filter }}&search={{ search }}">◀ Prev</a>
-                {% else %}
-                    <span class="disabled">◀ Prev</span>
-                {% endif %}
-
-                {% for p in range(1, total_pages + 1) %}
-                    {% if p == current_page %}
-                        <span class="current">{{ p }}</span>
-                    {% elif p == 1 or p == total_pages or (p >= current_page - 2 and p <= current_page + 2) %}
-                        <a href="/admin/users?page={{ p }}&role_filter={{ role_filter }}&status_filter={{ status_filter }}&search={{ search }}">{{ p }}</a>
-                    {% elif p == current_page - 3 or p == current_page + 3 %}
-                        <span class="disabled">…</span>
+    <!-- ── Desktop table (≥640px) ───────────────────────────────────────── -->
+    <div class="desktop-table-container table-scroll-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th data-priority="low">ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th data-priority="medium">Specialization</th>
+                <th data-priority="low">Onboarding</th>
+                <th data-priority="medium">Active</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in all_users %}
+            <tr data-testid="user-row" data-role="{{ u.role.value }}" data-user-id="{{ u.id }}">
+                <td data-priority="low"><strong>#{{ u.id }}</strong></td>
+                <td><div class="cell-trunc">{{ u.name }}</div></td>
+                <td><div class="cell-trunc">{{ u.email }}</div></td>
+                <td>
+                    {% if u.role.name == 'ADMIN' %}
+                        <span class="badge badge-admin">👑 ADMIN</span>
+                    {% elif u.role.name == 'INSTRUCTOR' %}
+                        <span class="badge badge-instructor">👨‍🏫 INSTRUCTOR</span>
+                    {% elif u.role.name == 'STUDENT' %}
+                        <span class="badge badge-student">🎓 STUDENT</span>
                     {% endif %}
-                {% endfor %}
+                </td>
+                <td data-priority="medium">
+                    {% if u.specialization %}
+                        {{ u.specialization.value.replace('_', ' ') }}
+                    {% else %}
+                        <span class="text-muted">None</span>
+                    {% endif %}
+                </td>
+                <td data-priority="low">
+                    {% if u.onboarding_completed %}
+                        <span class="status-yes">✓ Yes</span>
+                    {% else %}
+                        <span class="status-no">✗ No</span>
+                    {% endif %}
+                </td>
+                <td data-priority="medium">
+                    {% if u.is_active %}
+                        <span class="status-yes">✓ Active</span>
+                    {% else %}
+                        <span class="status-no">✗ Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="user-actions-cell">
+                    <a href="/admin/users/{{ u.id }}/edit"
+                       style="display:inline-block; padding:0.3rem 0.7rem; background:#667eea; color:white; border-radius:6px; text-decoration:none; font-size:0.8rem; margin-right:0.3rem;">
+                        Edit
+                    </a>
+                    <form method="POST" action="/admin/users/{{ u.id }}/toggle-status" style="display:inline;">
+                        <button type="submit"
+                            style="padding:0.3rem 0.7rem; border:none; border-radius:6px; font-size:0.8rem; cursor:pointer; background:{% if u.is_active %}#e74c3c{% else %}#27ae60{% endif %}; color:white;"
+                            onclick="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} user {{ u.name }}?')">
+                            {{ 'Deactivate' if u.is_active else 'Activate' }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div><!-- /desktop-table-container -->
 
-                {% if current_page < total_pages %}
-                    <a href="/admin/users?page={{ current_page + 1 }}&role_filter={{ role_filter }}&status_filter={{ status_filter }}&search={{ search }}">Next ▶</a>
-                {% else %}
-                    <span class="disabled">Next ▶</span>
+    <!-- ── Mobile cards (≤639px) ─────────────────────────────────────────── -->
+    <div class="mobile-cards-container">
+        {% for u in all_users %}
+        <div class="mobile-user-card">
+            <div class="mcard-header">
+                <div>
+                    <div class="mcard-name">{{ u.name }}</div>
+                    <div class="mcard-email">{{ u.email }}</div>
+                </div>
+                {% if u.role.name == 'ADMIN' %}
+                    <span class="badge badge-admin">👑 ADMIN</span>
+                {% elif u.role.name == 'INSTRUCTOR' %}
+                    <span class="badge badge-instructor">👨‍🏫 INSTRUCTOR</span>
+                {% elif u.role.name == 'STUDENT' %}
+                    <span class="badge badge-student">🎓 STUDENT</span>
                 {% endif %}
             </div>
-            {% else %}
-            <div class="page-info">{{ total_filtered }} user{{ 's' if total_filtered != 1 else '' }}</div>
-            {% endif %}
+            <div class="mcard-meta">
+                {% if u.specialization %}
+                    <span>{{ u.specialization.value.replace('_', ' ') }}</span>
+                {% endif %}
+                {% if u.is_active %}
+                    <span class="status-yes">✓ Active</span>
+                {% else %}
+                    <span class="status-no">✗ Inactive</span>
+                {% endif %}
+            </div>
+            <div class="mcard-actions">
+                <a href="/admin/users/{{ u.id }}/edit" class="mcard-btn mcard-btn-edit">Edit</a>
+                <form method="POST" action="/admin/users/{{ u.id }}/toggle-status" style="flex:1;">
+                    <button type="submit"
+                        class="mcard-btn {% if u.is_active %}mcard-btn-deactivate{% else %}mcard-btn-activate{% endif %}"
+                        style="width:100%;"
+                        onclick="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} user {{ u.name }}?')">
+                        {{ 'Deactivate' if u.is_active else 'Activate' }}
+                    </button>
+                </form>
+            </div>
         </div>
-    </div>
+        {% endfor %}
+    </div><!-- /mobile-cards-container -->
 
-    <!-- Footer -->
-    <div class="footer">
-        <p>&copy; 2025 LFA Education Center. All rights reserved.</p>
+    {% if total_pages > 1 %}
+    <div class="page-info">
+        Showing {{ page_start }}–{{ page_end }} of {{ total_filtered }} user{{ 's' if total_filtered != 1 else '' }}
     </div>
-</body>
-</html>
+    <div class="pagination">
+        {% if current_page > 1 %}
+            <a href="/admin/users?page={{ current_page - 1 }}&role_filter={{ role_filter }}&status_filter={{ status_filter }}&search={{ search }}">◀ Prev</a>
+        {% else %}
+            <span class="disabled">◀ Prev</span>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == current_page %}
+                <span class="current">{{ p }}</span>
+            {% elif p == 1 or p == total_pages or (p >= current_page - 2 and p <= current_page + 2) %}
+                <a href="/admin/users?page={{ p }}&role_filter={{ role_filter }}&status_filter={{ status_filter }}&search={{ search }}">{{ p }}</a>
+            {% elif p == current_page - 3 or p == current_page + 3 %}
+                <span class="disabled">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if current_page < total_pages %}
+            <a href="/admin/users?page={{ current_page + 1 }}&role_filter={{ role_filter }}&status_filter={{ status_filter }}&search={{ search }}">Next ▶</a>
+        {% else %}
+            <span class="disabled">Next ▶</span>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="page-info">{{ total_filtered }} user{{ 's' if total_filtered != 1 else '' }}</div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -12,7 +12,7 @@ import json
 import logging
 
 from app.models.semester import Semester
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.tournament_enums import TournamentPhase
 from app.utils.lock_logger import lock_timer
 
@@ -56,7 +56,7 @@ class TournamentFinalizer:
         """
         return self.db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         ).all()
 
     def check_all_matches_completed(

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY, case
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
@@ -14,6 +15,26 @@ class SessionType(enum.Enum):
     on_site = "on_site"    # Physical presence required at venue
     virtual = "virtual"    # Remote attendance via online platform
     hybrid = "hybrid"      # Both on-site and virtual attendance options available
+
+
+class EventCategory(str, enum.Enum):
+    """What kind of event this session is — replaces boolean is_tournament_game (M-03)."""
+    TRAINING = "TRAINING"  # Practice, drill, skills session
+    MATCH = "MATCH"        # Competitive game / tournament match
+
+
+class SessionParticipantType(str, enum.Enum):
+    """How participants attend this session (M-04)."""
+    INDIVIDUAL = "INDIVIDUAL"  # Solo athlete (default for training)
+    GROUP = "GROUP"            # Open group class (fixed roster per session)
+    TEAM = "TEAM"              # Team vs team (requires Team records)
+
+
+class DeliveryMode(str, enum.Enum):
+    """Physical delivery mode — successor to SessionType (M-05)."""
+    ON_SITE = "ON_SITE"    # Physical presence at venue
+    VIRTUAL = "VIRTUAL"    # Remote / online
+    HYBRID = "HYBRID"      # Both on-site and virtual attendance options available
 
 
 class Session(Base):
@@ -88,13 +109,32 @@ class Session(Base):
         comment="Number of credits required to book this session (default: 1, workshops may cost more)"
     )
 
-    # 🏆 Tournament Game Fields
-    is_tournament_game = Column(
-        Boolean,
-        default=False,
-        index=True,
-        comment="True if this session is a tournament game"
-    )
+    # 🏆 DEPRECATED — is_tournament_game (backward-compat bridge, scheduled for removal)
+    # ────────────────────────────────────────────────────────────────────────────
+    # The DB column was dropped in M-10 (2026-03-15). This hybrid_property
+    # provides a transparent compatibility bridge so existing callers continue
+    # to work without changes.
+    #
+    # Replacement: use `event_category` / `EventCategory` directly.
+    #   Read:   session.event_category == EventCategory.MATCH
+    #   Filter: SessionModel.event_category == EventCategory.MATCH
+    #   Write:  session.event_category = EventCategory.MATCH
+    #
+    # TODO: remove after all call-sites have been migrated to event_category.
+    @hybrid_property
+    def is_tournament_game(self) -> bool:
+        """DEPRECATED — use event_category == EventCategory.MATCH instead."""
+        return self.event_category == EventCategory.MATCH
+
+    @is_tournament_game.setter
+    def is_tournament_game(self, value: bool) -> None:
+        """DEPRECATED — use event_category = EventCategory.MATCH instead."""
+        self.event_category = EventCategory.MATCH if value else EventCategory.TRAINING
+
+    @is_tournament_game.expression
+    def is_tournament_game(cls):  # noqa: N805
+        """DEPRECATED — use SessionModel.event_category == EventCategory.MATCH instead."""
+        return cls.event_category == EventCategory.MATCH
 
     game_type = Column(
         String(100),
@@ -207,6 +247,40 @@ class Session(Base):
         nullable=True,
         comment="Explicit list of user_ids participating in THIS MATCH (not tournament-wide). "
                 "This fixes the architectural issue where participants were determined at runtime."
+    )
+
+    # ─── NEW SEMANTIC DIMENSIONS (M-03 to M-06, 2026-03-15) ───────────────────
+
+    # M-03: Replaces is_tournament_game boolean with a proper categorical discriminator
+    event_category = Column(
+        Enum(EventCategory, name='event_category_type'),
+        nullable=True,
+        index=True,
+        comment="Event category: TRAINING | MATCH. Supersedes is_tournament_game boolean."
+    )
+
+    # M-04: How participants are organised for this session
+    session_participant_type = Column(
+        Enum(SessionParticipantType, name='session_participant_type'),
+        nullable=True,
+        comment="Participant organisation: INDIVIDUAL | GROUP | TEAM"
+    )
+
+    # M-05: Delivery mode — mirrors session_type but uses uppercase values.
+    #        Both coexist until session_type is dropped in a later migration.
+    delivery_mode = Column(
+        Enum(DeliveryMode, name='delivery_mode_type'),
+        nullable=True,
+        comment="Physical delivery: ON_SITE | VIRTUAL | HYBRID. Successor to session_type."
+    )
+
+    # M-06: Per-session reward configuration (versioned JSONB)
+    #        Schema: {"v": 1, "base_xp": 50, "skill_areas": [], "multipliers": {}}
+    session_reward_config = Column(
+        JSONB,
+        nullable=True,
+        comment="Per-session reward config (versioned JSONB). "
+                "Schema v1: {\"v\":1, \"base_xp\":50, \"skill_areas\":[], \"multipliers\":{}}"
     )
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

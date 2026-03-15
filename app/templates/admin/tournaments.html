@@ -1,341 +1,224 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Management - Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+{% extends "admin/admin_base.html" %}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-        }
+{% block title %}Tournament Management{% endblock %}
+{% block page_heading %}🏆 Tournament Management{% endblock %}
+{% block page_subtitle %}Create and manage tournaments{% endblock %}
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+{% block extra_styles %}
+<style>
+    /* Flash / Error */
+    .alert {
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+    }
+    .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+    .alert-error   { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
 
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 2rem; }
+    .tab-btn {
+        padding: 0.9rem 2rem;
+        border: none;
+        background: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        color: #718096;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: color 0.2s;
+    }
+    .tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
+    .tab-btn:hover:not(.active) { color: #4a5568; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
-        .user-info h1 { font-size: 2rem; margin-bottom: 0.5rem; }
-        .user-info p { opacity: 0.9; font-size: 1rem; }
+    /* Filter bar */
+    .tourn-filter-bar {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .tourn-filter-bar select {
+        padding: 0.5rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: white;
+        cursor: pointer;
+    }
+    .filter-count { margin-left: auto; color: #718096; font-size: 0.9rem; }
 
-        .header-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    /* Tournament card (collapsible) */
+    .tournament-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+    .tournament-card summary {
+        padding: 1.25rem 1.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        list-style: none;
+        user-select: none;
+    }
+    .tournament-card summary::-webkit-details-marker { display: none; }
+    .tournament-card summary .toggle-icon {
+        font-size: 0.8rem;
+        color: #718096;
+        transition: transform 0.2s;
+    }
+    .tournament-card[open] summary .toggle-icon { transform: rotate(90deg); }
 
-        .admin-badge {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            padding: 0.6rem 1.2rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1rem;
-        }
+    .card-title { font-size: 1.05rem; font-weight: 700; color: #2d3748; }
+    .card-meta { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-left: auto; }
 
-        .btn {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .btn-primary { background: white; color: #667eea; }
-        .btn-secondary { background: rgba(255,255,255,0.2); color: white; border: 2px solid white; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .badge-draft      { background: #edf2f7; color: #4a5568; }
+    .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
+    .badge-closed     { background: #fefcbf; color: #744210; }
+    .badge-progress   { background: #c6f6d5; color: #22543d; }
+    .badge-completed  { background: #e9d8fd; color: #553c9a; }
+    .badge-cancelled  { background: #fed7d7; color: #742a2a; }
+    .badge-seeking    { background: #feebc8; color: #7b341e; }
+    .badge-ops        { background: #bee3f8; color: #2a4365; }
+    .badge-manual     { background: #fef3c7; color: #78350f; }
+    .badge-stuck      { background: #fed7d7; color: #742a2a; font-weight: 800; }
+    .badge-session    { background: #f0fff4; color: #276749; }
 
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .card-body { padding: 0 1.5rem 1.5rem; }
 
-        /* ── Flash / Error ── */
-        .alert {
-            padding: 1rem 1.5rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-            font-weight: 500;
-        }
-        .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
-        .alert-error   { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+    /* Action buttons */
+    .action-btns {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .action-btn {
+        padding: 0.45rem 0.85rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: white;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        transition: background 0.15s;
+    }
+    .action-btn:hover { background: #f7fafc; }
+    .action-btn.btn-start   { background: #48bb78; color: white; border-color: #48bb78; }
+    .action-btn.btn-start:hover { background: #38a169; }
+    .action-btn.btn-cancel  { background: #f6ad55; color: white; border-color: #f6ad55; }
+    .action-btn.btn-cancel:hover { background: #ed8936; }
+    .action-btn.btn-delete  { background: #fc8181; color: white; border-color: #fc8181; }
+    .action-btn.btn-delete:hover { background: #f56565; }
+    .action-btn.btn-rollback { background: #63b3ed; color: white; border-color: #63b3ed; }
+    .action-btn.btn-rollback:hover { background: #4299e1; }
+    .action-btn.btn-stub { color: #a0aec0; cursor: default; }
+    .action-btn.btn-stub:hover { background: white; }
 
-        /* ── Tabs ── */
-        .tabs { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 2rem; }
-        .tab-btn {
-            padding: 0.9rem 2rem;
-            border: none;
-            background: none;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            color: #718096;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-            transition: color 0.2s;
-        }
-        .tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
-        .tab-btn:hover:not(.active) { color: #4a5568; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+    /* Details grid */
+    .details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    @media (max-width: 700px) { .details-grid { grid-template-columns: 1fr; } }
 
-        /* ── Filter bar ── */
-        .filter-bar {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-        .filter-bar select {
-            padding: 0.5rem 1rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            background: white;
-            cursor: pointer;
-        }
-        .filter-count {
-            margin-left: auto;
-            color: #718096;
-            font-size: 0.9rem;
-        }
+    .detail-section h4 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #718096;
+        margin-bottom: 0.6rem;
+    }
+    .detail-row { display: flex; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.9rem; }
+    .detail-label { color: #718096; min-width: 130px; }
+    .detail-value { color: #2d3748; font-weight: 500; }
 
-        /* ── Tournament card (collapsible) ── */
-        .tournament-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            margin-bottom: 1rem;
-            overflow: hidden;
-        }
-        .tournament-card summary {
-            padding: 1.25rem 1.5rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            list-style: none;
-            user-select: none;
-        }
-        .tournament-card summary::-webkit-details-marker { display: none; }
-        .tournament-card summary .toggle-icon {
-            font-size: 0.8rem;
-            color: #718096;
-            transition: transform 0.2s;
-        }
-        .tournament-card[open] summary .toggle-icon { transform: rotate(90deg); }
+    /* STUCK panel */
+    .stuck-panel {
+        background: #fff5f5;
+        border: 2px solid #fc8181;
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .stuck-panel h4 { color: #c53030; margin-bottom: 0.5rem; }
+    .stuck-panel p  { font-size: 0.9rem; color: #4a5568; margin-bottom: 0.75rem; }
+    .stuck-actions  { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
-        .card-title { font-size: 1.05rem; font-weight: 700; color: #2d3748; }
-        .card-meta { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-left: auto; }
+    /* Sessions section */
+    .sessions-section { border-top: 1px solid #e2e8f0; padding-top: 1rem; }
+    .sessions-section h4 { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin-bottom: 0.75rem; }
+    .session-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-        .badge {
-            padding: 0.3rem 0.7rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .badge-draft      { background: #edf2f7; color: #4a5568; }
-        .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
-        .badge-closed     { background: #fefcbf; color: #744210; }
-        .badge-progress   { background: #c6f6d5; color: #22543d; }
-        .badge-completed  { background: #e9d8fd; color: #553c9a; }
-        .badge-cancelled  { background: #fed7d7; color: #742a2a; }
-        .badge-seeking    { background: #feebc8; color: #7b341e; }
-        .badge-ops        { background: #bee3f8; color: #2a4365; }
-        .badge-manual     { background: #fef3c7; color: #78350f; }
-        .badge-stuck      { background: #fed7d7; color: #742a2a; font-weight: 800; }
-        .badge-session    { background: #f0fff4; color: #276749; }
+    /* Create form */
+    .form-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        max-width: 800px;
+    }
+    .form-card h2 {
+        font-size: 1.4rem;
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #667eea;
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-group.full-width { grid-column: 1 / -1; }
+    .form-group label { font-size: 0.85rem; font-weight: 600; color: #4a5568; }
+    .form-group input, .form-group select {
+        padding: 0.65rem 0.9rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+    }
+    .form-group small { font-size: 0.8rem; color: #a0aec0; }
+    .form-footer { margin-top: 1.5rem; display: flex; gap: 1rem; }
+    .btn-submit {
+        padding: 0.8rem 2rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .btn-submit:hover { opacity: 0.92; }
 
-        .card-body { padding: 0 1.5rem 1.5rem; }
+    .empty-state { text-align: center; padding: 3rem 2rem; color: #a0aec0; }
+    .empty-state h3 { margin-bottom: 0.5rem; font-size: 1.2rem; }
+</style>
+{% endblock %}
 
-        /* ── Action buttons ── */
-        .action-btns {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-bottom: 1.25rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .action-btn {
-            padding: 0.45rem 0.85rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 7px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            background: white;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            transition: background 0.15s;
-        }
-        .action-btn:hover { background: #f7fafc; }
-        .action-btn.btn-start   { background: #48bb78; color: white; border-color: #48bb78; }
-        .action-btn.btn-start:hover { background: #38a169; }
-        .action-btn.btn-cancel  { background: #f6ad55; color: white; border-color: #f6ad55; }
-        .action-btn.btn-cancel:hover { background: #ed8936; }
-        .action-btn.btn-delete  { background: #fc8181; color: white; border-color: #fc8181; }
-        .action-btn.btn-delete:hover { background: #f56565; }
-        .action-btn.btn-rollback { background: #63b3ed; color: white; border-color: #63b3ed; }
-        .action-btn.btn-rollback:hover { background: #4299e1; }
-        .action-btn.btn-stub { color: #a0aec0; cursor: default; }
-        .action-btn.btn-stub:hover { background: white; }
-
-        /* ── Details grid ── */
-        .details-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 1.25rem;
-        }
-        @media (max-width: 700px) { .details-grid { grid-template-columns: 1fr; } }
-
-        .detail-section h4 {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #718096;
-            margin-bottom: 0.6rem;
-        }
-        .detail-row { display: flex; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.9rem; }
-        .detail-label { color: #718096; min-width: 130px; }
-        .detail-value { color: #2d3748; font-weight: 500; }
-
-        /* ── STUCK panel ── */
-        .stuck-panel {
-            background: #fff5f5;
-            border: 2px solid #fc8181;
-            border-radius: 10px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-        }
-        .stuck-panel h4 { color: #c53030; margin-bottom: 0.5rem; }
-        .stuck-panel p  { font-size: 0.9rem; color: #4a5568; margin-bottom: 0.75rem; }
-        .stuck-actions  { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-
-        /* ── Sessions section ── */
-        .sessions-section {
-            border-top: 1px solid #e2e8f0;
-            padding-top: 1rem;
-        }
-        .sessions-section h4 {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 0.75rem;
-        }
-        .session-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-
-        /* ── Create form ── */
-        .form-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            max-width: 800px;
-        }
-        .form-card h2 {
-            font-size: 1.4rem;
-            color: #2d3748;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 3px solid #667eea;
-        }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
-        .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-        .form-group.full-width { grid-column: 1 / -1; }
-        .form-group label { font-size: 0.85rem; font-weight: 600; color: #4a5568; }
-        .form-group input, .form-group select {
-            padding: 0.65rem 0.9rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            transition: border-color 0.2s;
-        }
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
-        }
-        .form-group small { font-size: 0.8rem; color: #a0aec0; }
-        .form-footer { margin-top: 1.5rem; display: flex; gap: 1rem; }
-        .btn-submit {
-            padding: 0.8rem 2rem;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .btn-submit:hover { opacity: 0.92; }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem 2rem;
-            color: #a0aec0;
-        }
-        .empty-state h3 { margin-bottom: 0.5rem; font-size: 1.2rem; }
-
-        .footer {
-            background: #2d3748;
-            color: white;
-            text-align: center;
-            padding: 2rem;
-            margin-top: 4rem;
-            font-size: 0.95rem;
-            opacity: 0.9;
-        }
-    </style>
-</head>
-<body>
-
-<!-- Header -->
-<div class="header">
-    <div class="header-content">
-        <div class="user-info">
-            <h1>🏆 Tournament Management</h1>
-            <p>{{ user.email }}</p>
-        </div>
-        <div class="header-actions">
-            <div class="admin-badge">👑 ADMIN</div>
-            <a href="/dashboard" class="btn btn-primary">🏠 Dashboard</a>
-            <a href="/admin/users" class="btn btn-secondary">👥 Users</a>
-            <a href="/admin/sessions" class="btn btn-secondary">📅 Sessions</a>
-            <a href="/admin/bookings" class="btn btn-secondary">📋 Bookings</a>
-            <a href="/admin/tournaments" class="btn btn-secondary">🏆 Tournaments</a>
-            <a href="/admin/locations" class="btn btn-secondary">📍 Locations</a>
-            <a href="/admin/game-presets" class="btn btn-secondary">🎮 Game Presets</a>
-            <a href="/admin/system-events" class="btn btn-secondary">⚙️ Events</a>
-            <a href="/admin/payments" class="btn btn-secondary">💳 Payments</a>
-            <a href="/admin/coupons" class="btn btn-secondary">🎟️ Coupons</a>
-            <a href="/admin/invitation-codes" class="btn btn-secondary">🎁 Codes</a>
-            <a href="/admin/analytics" class="btn btn-secondary">📊 Analytics</a>
-            <a href="/admin/semesters" class="btn btn-secondary">🎓 Semesters</a>
-            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
-            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
-        </div>
-    </div>
-</div>
-
-<div class="container">
+{% block admin_content %}
 
     {% if flash %}
     <div class="alert alert-success">✅ {{ flash }}</div>
@@ -352,13 +235,11 @@
                 onclick="switchTab('create', this)">➕ Create Tournament</button>
     </div>
 
-    <!-- ════════════════════════════════════════════════════
-         TAB 1: View Tournaments
-    ════════════════════════════════════════════════════ -->
+    <!-- TAB 1: View Tournaments -->
     <div id="tab-list" class="tab-content {% if active_tab != 'create' %}active{% endif %}">
 
         <!-- Filter bar (client-side JS filter) -->
-        <div class="filter-bar">
+        <div class="tourn-filter-bar">
             <select id="srcFilter" onchange="applyFilters()">
                 <option value="all">All</option>
                 <option value="manual">Manual (TOURN-)</option>
@@ -457,17 +338,17 @@
                     </div>
                     {% endif %}
 
-                    <!-- Action buttons (6 columns matching Streamlit) -->
+                    <!-- Action buttons -->
                     <div class="action-btns">
-                        <!-- ✏️ Edit (stub) -->
+                        <!-- Edit (stub) -->
                         <button class="action-btn btn-stub" title="Coming soon">✏️ Edit</button>
 
-                        <!-- ⚙️ Edit Schedule (stub, hidden if enrollment started) -->
+                        <!-- Edit Schedule (stub, hidden if enrollment started) -->
                         {% if t.tournament_status not in ('ENROLLMENT_OPEN', 'IN_PROGRESS', 'COMPLETED') %}
                         <button class="action-btn btn-stub" title="Coming soon">⚙️ Edit Schedule</button>
                         {% endif %}
 
-                        <!-- ▶ Start (ENROLLMENT_CLOSED only) -->
+                        <!-- Start (ENROLLMENT_CLOSED only) -->
                         {% if t.tournament_status == 'ENROLLMENT_CLOSED' %}
                         <form method="POST" action="/admin/tournaments/{{ t.id }}/start" style="display:inline;">
                             <button class="action-btn btn-start"
@@ -477,10 +358,10 @@
                         </form>
                         {% endif %}
 
-                        <!-- 🎁 Reward Config (stub) -->
+                        <!-- Reward Config (stub) -->
                         <button class="action-btn btn-stub" title="Coming soon">🎁 Reward Config</button>
 
-                        <!-- ❌ Cancel (if not COMPLETED/CANCELLED) -->
+                        <!-- Cancel (if not COMPLETED/CANCELLED) -->
                         {% if t.tournament_status not in ('COMPLETED', 'CANCELLED') %}
                         <form method="POST" action="/admin/tournaments/{{ t.id }}/cancel" style="display:inline;">
                             <button class="action-btn btn-cancel"
@@ -490,7 +371,7 @@
                         </form>
                         {% endif %}
 
-                        <!-- 🗑️ Delete (always) -->
+                        <!-- Delete (always) -->
                         <form method="POST" action="/admin/tournaments/{{ t.id }}/delete" style="display:inline;">
                             <button class="action-btn btn-delete"
                                     onclick="return confirmDelete('{{ t.name }}')">
@@ -499,7 +380,7 @@
                         </form>
                     </div>
 
-                    <!-- Details grid (left: status | right: metadata) -->
+                    <!-- Details grid -->
                     <div class="details-grid">
                         <div class="detail-section">
                             <h4>Status</h4>
@@ -604,9 +485,7 @@
         {% endif %}
     </div>
 
-    <!-- ════════════════════════════════════════════════════
-         TAB 2: Create Tournament
-    ════════════════════════════════════════════════════ -->
+    <!-- TAB 2: Create Tournament -->
     <div id="tab-create" class="tab-content {% if active_tab == 'create' %}active{% endif %}">
         <div class="form-card">
             <h2>➕ Create Tournament</h2>
@@ -701,20 +580,17 @@
 
                 <div class="form-footer">
                     <button type="submit" class="btn-submit">➕ Create Tournament</button>
-                    <button type="reset" class="btn" style="background:#edf2f7; color:#4a5568;">Reset</button>
+                    <button type="reset" class="btn btn-secondary">Reset</button>
                 </div>
             </form>
         </div>
     </div>
 
-</div>
+{% endblock %}
 
-<div class="footer">
-    <p>LFA Admin Panel — Tournament Management</p>
-</div>
-
+{% block scripts %}
 <script>
-// ── Tab switching ────────────────────────────────────────────
+// Tab switching
 function switchTab(tabId, btn) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -722,12 +598,12 @@ function switchTab(tabId, btn) {
     btn.classList.add('active');
 }
 
-// ── Delete confirm (requires typing name) ───────────────────
+// Delete confirm (requires typing name)
 function confirmDelete(name) {
     return confirm('Permanently delete "' + name + '"?\n\nThis will remove the tournament, all sessions, bookings, and enrollment records.\n\nThis CANNOT be undone.');
 }
 
-// ── Client-side filter ───────────────────────────────────────
+// Client-side filter
 function applyFilters() {
     const src    = document.getElementById('srcFilter').value;
     const status = document.getElementById('statusFilter').value;
@@ -761,7 +637,7 @@ function applyFilters() {
     document.getElementById('filterCount').textContent = visible + ' / ' + total + ' tournaments';
 }
 
-// ── Campus filter by location ────────────────────────────────
+// Campus filter by location
 function filterCampuses() {
     const locId   = document.getElementById('location_id').value;
     const options = document.querySelectorAll('#campus_id option');
@@ -775,6 +651,4 @@ function filterCampuses() {
     document.getElementById('campus_id').value = '';
 }
 </script>
-
-</body>
-</html>
+{% endblock %}

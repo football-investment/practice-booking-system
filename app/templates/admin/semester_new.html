@@ -1,13 +1,25 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}Create Semester — Admin Panel{% endblock %}
+{% block title %}Create Semester{% endblock %}
+{% block page_heading %}🎓 Create New Semester{% endblock %}
+{% block page_subtitle %}Add a new semester for a specialization{% endblock %}
 
-{% block content %}
-<div style="max-width:640px; margin:2rem auto;">
-    <div style="background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.12); padding:2.5rem;">
-        <div style="margin-bottom:2rem;">
+{% block extra_styles %}
+<style>
+.edit-form-wrap { max-width: 640px; }
+.edit-form-wrap .form-card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.12); padding: 2.5rem; }
+.edit-form-wrap .field label { display: block; font-weight: 600; color: #2c3e50; margin-bottom: 0.4rem; font-size: 0.9rem; }
+.edit-form-wrap .field input,
+.edit-form-wrap .field select { width: 100%; padding: 0.8rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; background: white; }
+.edit-form-wrap .field .hint { font-size: 0.75rem; color: #95a5a6; margin-top: 0.25rem; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="edit-form-wrap">
+    <div class="form-card">
+        <div style="margin-bottom:1.5rem;">
             <a href="/admin/semesters" style="color:#667eea; text-decoration:none; font-size:0.9rem;">← Back to Semesters</a>
-            <h2 style="color:#2c3e50; margin:0.5rem 0 0 0;">Create New Semester</h2>
         </div>
 
         {% if error %}
@@ -18,51 +30,46 @@
 
         <form method="POST" action="/admin/semesters/new">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
-                <div>
-                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Semester Code *</label>
+                <div class="field">
+                    <label>Semester Code *</label>
                     <input type="text" name="code" required
                         placeholder="e.g. LFA_PLAYER_PRE_2026_JAN_BUDA"
                         value="{{ form.code if form else '' }}"
-                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; font-family:monospace;">
-                    <p style="font-size:0.75rem; color:#95a5a6; margin-top:0.25rem;">Unique identifier (uppercase, underscores)</p>
+                        style="font-family:monospace;">
+                    <p class="hint">Unique identifier (uppercase, underscores)</p>
                 </div>
-                <div>
-                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Display Name *</label>
+                <div class="field">
+                    <label>Display Name *</label>
                     <input type="text" name="name" required
                         placeholder="e.g. LFA Player PRE — Spring 2026"
-                        value="{{ form.name if form else '' }}"
-                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                        value="{{ form.name if form else '' }}">
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
-                <div>
-                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Start Date *</label>
+                <div class="field">
+                    <label>Start Date *</label>
                     <input type="date" name="start_date" required
                         min="{{ today }}"
-                        value="{{ form.start_date if form else '' }}"
-                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                        value="{{ form.start_date if form else '' }}">
                 </div>
-                <div>
-                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">End Date *</label>
+                <div class="field">
+                    <label>End Date *</label>
                     <input type="date" name="end_date" required
                         min="{{ today }}"
-                        value="{{ form.end_date if form else '' }}"
-                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                        value="{{ form.end_date if form else '' }}">
                 </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
-                <div>
-                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Enrollment Cost (credits)</label>
+                <div class="field">
+                    <label>Enrollment Cost (credits)</label>
                     <input type="number" name="enrollment_cost" min="0" step="50"
-                        value="{{ form.enrollment_cost if form else 500 }}"
-                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                        value="{{ form.enrollment_cost if form else 500 }}">
                 </div>
-                <div>
-                    <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Specialization Type</label>
-                    <select name="specialization_type"
-                        style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; background:white;">
+                <div class="field">
+                    <label>Specialization Type</label>
+                    <select name="specialization_type">
                         <option value="">— none —</option>
                         <option value="LFA_PLAYER_PRE">LFA Player PRE</option>
                         <option value="LFA_PLAYER_YOUTH">LFA Player Youth</option>
@@ -75,10 +82,9 @@
                 </div>
             </div>
 
-            <div style="margin-bottom:1.5rem;">
-                <label style="display:block; font-weight:600; color:#2c3e50; margin-bottom:0.4rem; font-size:0.9rem;">Assigned Instructor</label>
-                <select name="master_instructor_id"
-                    style="width:100%; padding:0.8rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.9rem; box-sizing:border-box; background:white;">
+            <div class="field" style="margin-bottom:1.5rem;">
+                <label>Assigned Instructor</label>
+                <select name="master_instructor_id">
                     <option value="">— no instructor yet —</option>
                     {% for inst in instructors %}
                     <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.email }})</option>

@@ -14,9 +14,10 @@ from .instructor_assignment import (
 )
 from .location import Location
 from .campus import Campus
-from .semester import Semester, SemesterStatus
+from .semester import Semester, SemesterStatus, SemesterCategory
 from .group import Group, group_users
-from .session import Session, SessionType
+from .session import Session, SessionType, EventCategory, SessionParticipantType, DeliveryMode
+from .event_reward_log import EventRewardLog
 from .booking import Booking, BookingStatus
 from .attendance import Attendance, AttendanceStatus
 from .feedback import Feedback
@@ -88,10 +89,15 @@ __all__ = [
     "Campus",
     "Semester",
     "SemesterStatus",
+    "SemesterCategory",
     "Group",
     "group_users",
     "Session",
     "SessionType",
+    "EventCategory",
+    "SessionParticipantType",
+    "DeliveryMode",
+    "EventRewardLog",
     "Booking",
     "BookingStatus",
     "Attendance",

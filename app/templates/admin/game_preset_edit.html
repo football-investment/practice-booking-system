@@ -1,59 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Game Preset - Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; }
-        .header-content { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-        .user-info h1 { font-size: 1.75rem; margin-bottom: 0.3rem; }
-        .user-info p { opacity: 0.9; font-size: 0.9rem; }
-        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
-        .btn-white { background: white; color: #4a5568; }
-        .btn-success { background: #48bb78; color: white; }
-        .container { max-width: 900px; margin: 2rem auto; padding: 0 2rem; }
-        .card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .card h2 { margin-bottom: 1.5rem; color: #2d3748; }
-        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
-        .form-group input:disabled { background: #f0f0f0; color: #718096; }
-        .form-group.full { grid-column: 1 / -1; }
-        .skills-section { background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-        .skills-section h4 { font-size: 0.9rem; color: #2d3748; margin-bottom: 0.75rem; }
-        .skill-group-label { font-size: 0.8rem; color: #718096; font-weight: 600; margin-bottom: 0.4rem; margin-top: 0.75rem; }
-        .skill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
-        .skill-item { display: flex; align-items: center; gap: 0.4rem; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.3rem 0.6rem; }
-        .skill-item input[type="checkbox"] { cursor: pointer; }
-        .skill-item label { font-size: 0.8rem; color: #4a5568; cursor: pointer; white-space: nowrap; }
-        .weights-section { background: #ebf8ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-        .weights-section h4 { font-size: 0.9rem; color: #2c5282; margin-bottom: 0.75rem; }
-        .weight-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
-        .weight-item label { display: block; font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; }
-        .weight-item input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #bee3f8; border-radius: 6px; font-size: 0.9rem; }
-        .sum-indicator { margin-top: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
-        .sum-ok { background: #c6f6d5; color: #276749; }
-        .sum-err { background: #fed7d7; color: #9b2335; }
-        .form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
-    </style>
-</head>
-<body>
+{% extends "admin/admin_base.html" %}
 
-<div class="header">
-    <div class="header-content">
-        <div class="user-info">
-            <h1>✏️ Edit Game Preset</h1>
-            <p>{{ preset.name }}  ·  code: {{ preset.code }}</p>
-        </div>
-        <a href="/admin/game-presets" class="btn btn-white">← Back to Game Presets</a>
+{% block title %}Edit Game Preset{% endblock %}
+{% block page_heading %}✏️ Edit Game Preset{% endblock %}
+{% block page_subtitle %}Modify skill weights and configuration{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .edit-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        max-width: 900px;
+    }
+    .edit-card h2 { margin-bottom: 1.5rem; color: #2d3748; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; }
+    .form-group input:disabled { background: #f0f0f0; color: #718096; }
+    .form-group.full { grid-column: 1 / -1; }
+    .skills-section { background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .skills-section h4 { font-size: 0.9rem; color: #2d3748; margin-bottom: 0.75rem; }
+    .skill-group-label { font-size: 0.8rem; color: #718096; font-weight: 600; margin-bottom: 0.4rem; margin-top: 0.75rem; }
+    .skill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .skill-item { display: flex; align-items: center; gap: 0.4rem; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.3rem 0.6rem; }
+    .skill-item input[type="checkbox"] { cursor: pointer; }
+    .skill-item label { font-size: 0.8rem; color: #4a5568; cursor: pointer; white-space: nowrap; }
+    .weights-section { background: #ebf8ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .weights-section h4 { font-size: 0.9rem; color: #2c5282; margin-bottom: 0.75rem; }
+    .weight-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+    .weight-item label { display: block; font-size: 0.8rem; color: #4a5568; margin-bottom: 0.3rem; }
+    .weight-item input { width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #bee3f8; border-radius: 6px; font-size: 0.9rem; }
+    .sum-indicator { margin-top: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; }
+    .sum-ok { background: #c6f6d5; color: #276749; }
+    .sum-err { background: #fed7d7; color: #9b2335; }
+    .form-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+    <div style="margin-bottom: 1rem;">
+        <a href="/admin/game-presets" class="btn btn-secondary">← Back to Game Presets</a>
     </div>
-</div>
 
-<div class="container">
-    <div class="card">
+    <div class="edit-card">
         <h2>✏️ Edit: {{ preset.name }}</h2>
         <form method="post" action="/admin/game-presets/{{ preset.id }}/edit">
             <div class="form-grid">
@@ -133,12 +124,14 @@
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-success">💾 Save Changes</button>
-                <a href="/admin/game-presets" class="btn btn-white">Cancel</a>
+                <a href="/admin/game-presets" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
-</div>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
 function updateWeights() {
     const checked = Array.from(document.querySelectorAll('[name^="skill_cb_"]:checked'));
@@ -181,5 +174,4 @@ function updateSum() {
 // Initial sum calculation
 document.addEventListener('DOMContentLoaded', updateSum);
 </script>
-</body>
-</html>
+{% endblock %}

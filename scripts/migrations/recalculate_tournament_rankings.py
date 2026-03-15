@@ -9,7 +9,7 @@ This script:
 
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.services.tournament.result_processor import ResultProcessor
@@ -44,7 +44,7 @@ def main():
         print(f"\n📋 Step 2: Finding all matches with results...")
         sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.game_results.isnot(None)
         ).order_by(SessionModel.id).all()
 

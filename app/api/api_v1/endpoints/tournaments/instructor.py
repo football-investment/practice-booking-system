@@ -41,7 +41,7 @@ import json
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.semester import Semester
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.dependencies import get_current_user
 
@@ -62,7 +62,7 @@ async def get_active_match(
     Get the current active match (session) that needs attention.
 
     Returns the first tournament session where:
-    - is_tournament_game = true
+    - event_category = MATCH (formerly is_tournament_game = true)
     - game_results IS NULL (not yet recorded)
 
     Includes:
@@ -115,13 +115,13 @@ async def get_active_match(
         # Get the ONLY session (INDIVIDUAL_RANKING has exactly 1 session)
         active_session = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         ).order_by(SessionModel.id).first()
     else:
         # Legacy: Get first session without results
         active_session = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.game_results == None
         ).order_by(SessionModel.id).first()
 
@@ -211,7 +211,7 @@ async def get_active_match(
     # ============================================================================
     upcoming_sessions = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
+        SessionModel.event_category == EventCategory.MATCH,
         SessionModel.game_results == None,
         SessionModel.id != active_session.id
     ).order_by(SessionModel.date_start).limit(5).all()
@@ -236,12 +236,12 @@ async def get_active_match(
         # Legacy: count sessions
         total_matches = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         ).count()
 
         completed_matches = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.game_results != None
         ).count()
 
@@ -390,7 +390,7 @@ async def get_tournament_leaderboard(
     # Check if this tournament has group stage sessions
     group_sessions = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True,
+        SessionModel.event_category == EventCategory.MATCH,
         SessionModel.tournament_phase == 'GROUP_STAGE'  # Fixed: Use enum value, not display name
     ).all()
 
@@ -406,12 +406,12 @@ async def get_tournament_leaderboard(
         # For non-group tournaments, count all matches
         total_matches = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         ).count()
 
         completed_matches = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.game_results != None
         ).count()
 
@@ -538,7 +538,7 @@ async def get_tournament_leaderboard(
         # Check if any knockout session has participants assigned
         knockout_sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.tournament_phase == "KNOCKOUT"  # Fixed: Use enum value
         ).all()
 
@@ -549,7 +549,7 @@ async def get_tournament_leaderboard(
         # Check if tournament phase is "Knockout" - if so, bracket is always "finalized"
         knockout_sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             SessionModel.tournament_phase == "KNOCKOUT"  # Fixed: Use enum value
         ).all()
 
@@ -698,7 +698,7 @@ async def get_tournament_leaderboard(
     # Get the session to check its format
     individual_session = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True
+        SessionModel.event_category == EventCategory.MATCH
     ).first()
 
     if individual_session and individual_session.match_format == "INDIVIDUAL_RANKING":
@@ -1014,7 +1014,7 @@ def get_tournament_sessions_debug(
         # Get all sessions
         sessions = db.query(SessionModel).filter(
             SessionModel.semester_id == tournament_id,
-            SessionModel.is_tournament_game == True
+            SessionModel.event_category == EventCategory.MATCH
         ).order_by(SessionModel.date_start).all()
 
         print(f"🔍 DEBUG: Found {len(sessions)} tournament sessions")

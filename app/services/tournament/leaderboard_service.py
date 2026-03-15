@@ -15,6 +15,7 @@ from app.models import (
     Attendance,
     AttendanceStatus,
     Session as SessionModel,
+    EventCategory,
     ParticipantType,
     Semester
 )
@@ -138,7 +139,7 @@ def calculate_ranks(db: Session, tournament_id: int) -> List[TournamentRanking]:
     from app.models.session import Session as SessionModel
     session = db.query(SessionModel).filter(
         SessionModel.semester_id == tournament_id,
-        SessionModel.is_tournament_game == True
+        SessionModel.event_category == EventCategory.MATCH
     ).first()
 
     if session and session.scoring_type == "PLACEMENT":

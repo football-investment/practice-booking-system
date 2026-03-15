@@ -1,13 +1,10 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}Motivation Assessment - Admin Panel{% endblock %}
+{% block title %}Motivation Assessment{% endblock %}
+{% block page_heading %}📊 Motivation Assessment{% endblock %}
+{% block page_subtitle %}Evaluate student motivation for {{ specialization_display }}{% endblock %}
 
-{% block content %}
-<div class="welcome-section">
-    <h1>📊 Motivation Assessment</h1>
-    <p>Evaluate student motivation for {{ specialization_display }}</p>
-</div>
-
+{% block admin_content %}
 <div class="card">
     <h2>Student: {{ student.name }} ({{ student.email }})</h2>
     <p><strong>Specialization:</strong> {{ specialization_display }}</p>

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.booking import Booking
 from app.models.semester_enrollment import SemesterEnrollment
-from app.models.session import Session as SessionModel
+from app.models.session import Session as SessionModel, EventCategory
 
 
 def backfill_enrollment_links():
@@ -30,7 +30,7 @@ def backfill_enrollment_links():
         tournament_bookings = db.query(Booking).join(
             SessionModel, Booking.session_id == SessionModel.id
         ).filter(
-            SessionModel.is_tournament_game == True,
+            SessionModel.event_category == EventCategory.MATCH,
             Booking.enrollment_id == None
         ).all()
 

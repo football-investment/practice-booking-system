@@ -1,0 +1,92 @@
+"""
+Reward Service — session completion rewards (EventRewardLog).
+
+Provides `award_session_completion()` which creates (or updates) an
+EventRewardLog row when a user completes a session.
+
+Design principles:
+  - Idempotent: calling twice for the same (user, session) updates the existing row.
+  - Multiplier chain: base_xp from session_reward_config → multiplier_applied.
+  - Decoupled from LicenseProgression (structural level changes stay separate).
+"""
+from __future__ import annotations
+
+from typing import Optional
+from sqlalchemy.orm import Session
+
+from app.models.event_reward_log import EventRewardLog
+from app.models.session import Session as SessionModel, EventCategory
+
+
+_DEFAULT_XP_BY_CATEGORY: dict[str, int] = {
+    EventCategory.MATCH.value: 100,
+    EventCategory.TRAINING.value: 50,
+}
+
+
+def award_session_completion(
+    db: Session,
+    user_id: int,
+    session: SessionModel,
+    multiplier: float = 1.0,
+    skill_areas: Optional[list[str]] = None,
+) -> EventRewardLog:
+    """
+    Create or update an EventRewardLog for a user completing a session.
+
+    XP priority:
+      1. session.session_reward_config["base_xp"]   (explicit per-session config)
+      2. _DEFAULT_XP_BY_CATEGORY[session.event_category]  (category default)
+      3. session.base_xp                              (legacy xp field fallback)
+
+    Returns the upserted EventRewardLog row (committed).
+    """
+    base_xp = _resolve_base_xp(session)
+    xp_earned = int(base_xp * multiplier)
+
+    # Upsert: update if row already exists (re-award scenario)
+    log = db.query(EventRewardLog).filter(
+        EventRewardLog.user_id == user_id,
+        EventRewardLog.session_id == session.id,
+    ).first()
+
+    if log is None:
+        log = EventRewardLog(
+            user_id=user_id,
+            session_id=session.id,
+            xp_earned=xp_earned,
+            points_earned=xp_earned,          # 1:1 default; override in caller if needed
+            skill_areas_affected=skill_areas,
+            multiplier_applied=multiplier,
+        )
+        db.add(log)
+    else:
+        log.xp_earned = xp_earned
+        log.points_earned = xp_earned
+        log.skill_areas_affected = skill_areas
+        log.multiplier_applied = multiplier
+
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+def _resolve_base_xp(session: SessionModel) -> int:
+    """Determine base XP for a session using priority order."""
+    # Priority 1: explicit per-session config
+    if session.session_reward_config and isinstance(session.session_reward_config, dict):
+        cfg_xp = session.session_reward_config.get("base_xp")
+        if cfg_xp is not None:
+            return int(cfg_xp)
+
+    # Priority 2: category default
+    if session.event_category is not None:
+        cat_xp = _DEFAULT_XP_BY_CATEGORY.get(session.event_category.value)
+        if cat_xp is not None:
+            return cat_xp
+
+    # Priority 3: legacy field
+    if session.base_xp is not None:
+        return int(session.base_xp)
+
+    return 50  # ultimate fallback

@@ -1,51 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Location — Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; min-height: 100vh; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; }
-        .header-content { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-        .user-info h1 { font-size: 1.8rem; margin-bottom: 0.4rem; }
-        .user-info p { opacity: 0.85; }
-        .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-decoration: none; display: inline-block; }
-        .btn-white { background: white; color: #4a5568; }
-        .container { max-width: 960px; margin: 2rem auto; padding: 0 2rem; }
-        .card { background: white; border-radius: 14px; padding: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.07); }
-        .card h2 { font-size: 1.2rem; color: #2d3748; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid #667eea; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-        .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-        .form-group.full { grid-column: 1 / -1; }
-        .form-group label { font-size: 0.82rem; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.04em; }
-        .form-group input, .form-group select, .form-group textarea { padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
-        .form-actions { display: flex; gap: 1rem; margin-top: 2rem; }
-        .btn-save { background: #27ae60; color: white; padding: 0.7rem 2rem; border-radius: 8px; border: none; font-size: 1rem; font-weight: 700; cursor: pointer; }
-        .btn-cancel { background: #f0f0f0; color: #4a5568; padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none; font-size: 1rem; font-weight: 600; display: inline-block; }
-        .footer { background: #2d3748; color: white; text-align: center; padding: 1.5rem; margin-top: 3rem; font-size: 0.9rem; opacity: 0.9; }
-    </style>
-</head>
-<body>
-<div class="header">
-    <div class="header-content">
-        <div class="user-info">
-            <h1>✏️ Edit Location</h1>
-            <p>{{ loc.name }} — {{ loc.city }}{% if loc.country %}, {{ loc.country }}{% endif %}</p>
-        </div>
-        <div class="header-actions">
-            <a href="/admin/locations" class="btn btn-white">← Back to Locations</a>
-            <a href="/dashboard" class="btn btn-white">🏠 Dashboard</a>
-            <a href="/logout" class="btn btn-white">🚪 Logout</a>
-        </div>
-    </div>
-</div>
+{% extends "admin/admin_base.html" %}
 
-<div class="container">
-    <div class="card">
+{% block title %}Edit Location{% endblock %}
+{% block page_heading %}✏️ Edit Location{% endblock %}
+{% block page_subtitle %}Modify location details{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .edit-card {
+        background: white;
+        border-radius: 14px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+        max-width: 960px;
+    }
+    .edit-card h2 { font-size: 1.2rem; color: #2d3748; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid #667eea; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 0.82rem; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.04em; }
+    .form-group input, .form-group select, .form-group textarea { padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+    .form-actions { display: flex; gap: 1rem; margin-top: 2rem; }
+    .btn-save { background: #27ae60; color: white; padding: 0.7rem 2rem; border-radius: 8px; border: none; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    .btn-cancel-link { background: #f0f0f0; color: #4a5568; padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none; font-size: 1rem; font-weight: 600; display: inline-block; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+    <div style="margin-bottom: 1rem;">
+        <a href="/admin/locations" class="btn btn-secondary">← Back to Locations</a>
+    </div>
+
+    <div class="edit-card">
         <h2>Location Details</h2>
         <form method="post" action="/admin/locations/{{ loc.id }}/edit">
             <div class="form-grid">
@@ -91,14 +78,9 @@
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn-save">💾 Save Changes</button>
-                <a href="/admin/locations" class="btn-cancel">Cancel</a>
+                <a href="/admin/locations" class="btn-cancel-link">Cancel</a>
             </div>
         </form>
     </div>
-</div>
 
-<div class="footer">
-    <p>&copy; 2025 LFA Education Center. All rights reserved.</p>
-</div>
-</body>
-</html>
+{% endblock %}
