@@ -30,6 +30,10 @@ Tests
   MTR-24  format_prometheus() includes labeled metrics with {key="val"} syntax
   MTR-25  format_prometheus() labels appear under same HELP/TYPE block as flat total
   MTR-26  increment_labeled() label keys are sorted (consistent label_str)
+  MTR-27  increment_labeled() with allowed label value produces no warning
+  MTR-28  increment_labeled() with unknown label value logs a cardinality warning
+  MTR-29  increment_labeled() with unguarded label key is silently accepted
+  MTR-30  cardinality warning does not block the increment
 """
 from __future__ import annotations
 
@@ -361,3 +365,40 @@ class TestDomainMetricsLabeled:
         snap = m.get_labeled_snapshot()
         # Both calls should map to the same sorted label string
         assert snap["rewards_generated"].get("a_key=1,b_key=2") == 2
+
+
+# ── Tests — Cardinality guard ──────────────────────────────────────────────────
+
+class TestDomainMetricsCardinalityGuard:
+
+    def test_mtr27_known_label_value_no_warning(self, m: DomainMetrics, caplog):
+        """MTR-27: increment_labeled() with an allowed label value produces no warning."""
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.metrics.cardinality"):
+            m.increment_labeled("bookings_created", {"event_category": "TRAINING"})
+        assert not caplog.records
+
+    def test_mtr28_unknown_label_value_logs_warning(self, m: DomainMetrics, caplog):
+        """MTR-28: increment_labeled() with a high-cardinality value logs a WARNING."""
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.metrics.cardinality"):
+            m.increment_labeled("bookings_created", {"event_category": "UNKNOWN_TYPE_99"})
+        assert len(caplog.records) == 1
+        msg = caplog.records[0].getMessage()
+        assert "cardinality" in msg.lower()
+        assert "UNKNOWN_TYPE_99" in msg
+
+    def test_mtr29_unguarded_label_key_no_warning(self, m: DomainMetrics, caplog):
+        """MTR-29: increment_labeled() with a label key not in the guard dict is silently accepted."""
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.metrics.cardinality"):
+            m.increment_labeled("bookings_created", {"custom_dimension": "anything"})
+        assert not caplog.records
+
+    def test_mtr30_cardinality_warning_does_not_block_increment(self, m: DomainMetrics, caplog):
+        """MTR-30: the counter is still incremented even when a cardinality warning fires."""
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.metrics.cardinality"):
+            m.increment_labeled("bookings_created", {"event_category": "UNKNOWN_TYPE_99"})
+        snap = m.get_labeled_snapshot()
+        assert snap["bookings_created"]["event_category=UNKNOWN_TYPE_99"] == 1

@@ -157,6 +157,20 @@ class Settings(BaseSettings):
     LOG_MAX_BYTES: int = 10 * 1024 * 1024   # max size per log file (10 MB default)
     LOG_BACKUP_COUNT: int = 5               # rotated backups to keep (app.log.1–5)
 
+    # ── Database connection resilience ─────────────────────────────────────────
+    # Controls how long the driver waits when opening a new database connection
+    # and how many retries the startup health-check makes before aborting.
+    #
+    # DB_CONNECT_TIMEOUT       — seconds the psycopg2 driver waits per attempt
+    # DB_STATEMENT_TIMEOUT_MS  — per-statement wall-clock limit (0 = disabled).
+    #                            Prevents runaway queries from holding connections.
+    # DB_STARTUP_RETRIES       — how many times wait_for_db() retries before abort
+    # DB_STARTUP_RETRY_DELAY   — initial backoff (seconds); multiplied per attempt
+    DB_CONNECT_TIMEOUT: int = 10           # seconds per connection attempt
+    DB_STATEMENT_TIMEOUT_MS: int = 0       # 0 = disabled; e.g. 30000 = 30 s limit
+    DB_STARTUP_RETRIES: int = 5            # attempts before giving up at startup
+    DB_STARTUP_RETRY_DELAY: float = 2.0    # initial backoff in seconds
+
     # ── Slow-query monitoring ──────────────────────────────────────────────────
     # Queries slower than SLOW_QUERY_THRESHOLD_MS are logged to app.slow_query
     # and counted in the slow_queries_total metric.  Raise this value if normal

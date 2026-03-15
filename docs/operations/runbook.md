@@ -57,6 +57,49 @@ start in production without **SECRET_KEY**, **DATABASE_URL**, **ADMIN_EMAIL**,
 | `ENABLE_RATE_LIMITING` | `true` (non-test) | Toggle rate limiting |
 | `ENABLE_STRUCTURED_LOGGING` | `true` | Toggle HTTP access logging middleware |
 
+### Deployment sequence
+
+Follow this order strictly to avoid downtime or data inconsistency:
+
+```
+1. Run: alembic upgrade head       ← apply schema changes first
+2. Run: python scripts/seed_tournament_types.py   ← (first deploy only)
+3. Start: uvicorn / gunicorn workers               ← app reads new schema
+4. Poll:  GET /health/ready → 200                  ← orchestrator gate
+5. Enable: load-balancer traffic                   ← serve real requests
+```
+
+**Never reverse steps 3 and 1**: if app code expects columns that do not yet
+exist, every request fails until migrations catch up.
+
+**Zero-downtime upgrade with two app versions (blue/green)**:
+1. Apply migrations on the old (blue) cluster — schema must be backwards-compatible
+2. Deploy new (green) cluster — it starts, runs `wait_for_db()`, reports ready
+3. Shift traffic to green; drain blue
+4. Remove blue cluster
+
+> **Tip**: use `wait_for_db()` at the start of your entrypoint to prevent the
+> app from accepting requests before the database is reachable:
+>
+> ```python
+> # entrypoint / startup script
+> from app.database import wait_for_db
+> wait_for_db()          # raises RuntimeError after DB_STARTUP_RETRIES attempts
+> # then start uvicorn / gunicorn
+> ```
+
+#### Connection resilience settings
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `DB_CONNECT_TIMEOUT` | `10` | Seconds the driver waits per connection attempt |
+| `DB_STATEMENT_TIMEOUT_MS` | `0` (off) | Per-statement wall-clock limit (ms); prevents runaway queries |
+| `DB_STARTUP_RETRIES` | `5` | `wait_for_db()` attempts before aborting |
+| `DB_STARTUP_RETRY_DELAY` | `2.0` | Initial backoff in seconds (multiplied per attempt) |
+
+Set `DB_STATEMENT_TIMEOUT_MS=30000` in production to cap individual queries at
+30 s and protect the connection pool from long-running analytical queries.
+
 ### Database migration procedure
 
 Always run migrations **before** deploying new application code:

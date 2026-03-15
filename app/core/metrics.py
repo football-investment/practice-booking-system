@@ -53,9 +53,24 @@ Alert evaluation::
 """
 from __future__ import annotations
 
+import logging
 import threading
 from collections import defaultdict
 from typing import Any, Dict
+
+
+# ── Cardinality guard ─────────────────────────────────────────────────────────
+# Maps label key → set of allowed values.  increment_labeled() logs a WARNING
+# when a value outside this set is used, which helps catch typos and prevents
+# monitoring systems from being flooded with unbounded label cardinality.
+#
+# The guard is non-blocking: the counter IS still incremented so production
+# traffic is never dropped.  Add new values here as the domain evolves.
+_ALLOWED_LABEL_VALUES: Dict[str, frozenset] = {
+    "event_category": frozenset({"TRAINING", "MATCH", "ASSESSMENT", "TOURNAMENT"}),
+}
+
+_cardinality_log = logging.getLogger("app.metrics.cardinality")
 
 
 # Human-readable descriptions for Prometheus HELP lines.
@@ -123,6 +138,16 @@ class DomainMetrics:
         Typically called *in addition* to ``increment()`` so both the flat
         total and the per-label breakdown are kept up-to-date.
         """
+        # Cardinality guard: warn on unexpected label values before storing.
+        for k, v in labels.items():
+            allowed = _ALLOWED_LABEL_VALUES.get(k)
+            if allowed is not None and v not in allowed:
+                _cardinality_log.warning(
+                    "metrics cardinality violation: counter=%s label %s=%r "
+                    "not in allowed set %s — increment still recorded",
+                    name, k, v, sorted(allowed),
+                )
+
         label_str = ",".join(
             f"{k}={v}" for k, v in sorted(labels.items())
         )
