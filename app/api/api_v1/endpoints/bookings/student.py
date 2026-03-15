@@ -124,6 +124,9 @@ def create_booking(
             and_(Booking.session_id == booking_data.session_id, Booking.status == BookingStatus.WAITLISTED)
         ).scalar() + 1
         metrics.increment("bookings_waitlisted")
+        _cat = getattr(session, "event_category", None)
+        if _cat is not None:
+            metrics.increment_labeled("bookings_waitlisted", {"event_category": _cat.value})
 
     booking = Booking(
         user_id=current_user.id,
@@ -137,6 +140,9 @@ def create_booking(
     try:
         db.commit()
         metrics.increment("bookings_created")
+        _cat = getattr(session, "event_category", None)
+        if _cat is not None:
+            metrics.increment_labeled("bookings_created", {"event_category": _cat.value})
     except IntegrityError as e:
         db.rollback()
         orig = str(getattr(e, "orig", e))

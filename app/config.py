@@ -137,6 +137,46 @@ class Settings(BaseSettings):
         90: "Expert",
     }
 
+    # ── Alert thresholds for in-process metrics ────────────────────────────────
+    # These control GET /metrics/alerts. Adjust in production .env as traffic
+    # patterns become known.  All ratios are 0–1 (e.g. 0.05 = 5 %).
+    #
+    # ALERT_REWARD_FAILURE_RATE    — rewards_failed / total_rewards
+    # ALERT_BOOKING_WAITLIST_RATE  — bookings_waitlisted / total_bookings
+    # ALERT_ENROLLMENT_GATE_BLOCK_RATE — enrollment_gate_blocked / enrollment_attempts
+    # ALERT_SLOW_QUERY_TOTAL       — absolute count of slow queries (>200 ms) since start
+    ALERT_REWARD_FAILURE_RATE: float = 0.05        # >5 % reward failures → warning
+    ALERT_BOOKING_WAITLIST_RATE: float = 0.30      # >30 % bookings waitlisted → warning
+    ALERT_ENROLLMENT_GATE_BLOCK_RATE: float = 0.20  # >20 % enrollments gate-blocked → warning
+    ALERT_SLOW_QUERY_TOTAL: int = 10               # >10 slow queries since start → warning
+
+    # ── Logging configuration ──────────────────────────────────────────────────
+    # All settings are read from environment variables; override in .env or
+    # the container environment for deployment-specific paths and retention needs.
+    LOG_DIR: str = "logs"                    # directory for rotating log files
+    LOG_MAX_BYTES: int = 10 * 1024 * 1024   # max size per log file (10 MB default)
+    LOG_BACKUP_COUNT: int = 5               # rotated backups to keep (app.log.1–5)
+
+    # ── Database connection resilience ─────────────────────────────────────────
+    # Controls how long the driver waits when opening a new database connection
+    # and how many retries the startup health-check makes before aborting.
+    #
+    # DB_CONNECT_TIMEOUT       — seconds the psycopg2 driver waits per attempt
+    # DB_STATEMENT_TIMEOUT_MS  — per-statement wall-clock limit (0 = disabled).
+    #                            Prevents runaway queries from holding connections.
+    # DB_STARTUP_RETRIES       — how many times wait_for_db() retries before abort
+    # DB_STARTUP_RETRY_DELAY   — initial backoff (seconds); multiplied per attempt
+    DB_CONNECT_TIMEOUT: int = 10           # seconds per connection attempt
+    DB_STATEMENT_TIMEOUT_MS: int = 0       # 0 = disabled; e.g. 30000 = 30 s limit
+    DB_STARTUP_RETRIES: int = 5            # attempts before giving up at startup
+    DB_STARTUP_RETRY_DELAY: float = 2.0    # initial backoff in seconds
+
+    # ── Slow-query monitoring ──────────────────────────────────────────────────
+    # Queries slower than SLOW_QUERY_THRESHOLD_MS are logged to app.slow_query
+    # and counted in the slow_queries_total metric.  Raise this value if normal
+    # reporting queries regularly exceed the default (e.g. large dashboards).
+    SLOW_QUERY_THRESHOLD_MS: float = 200.0  # milliseconds
+
     # Payment configuration (override via environment variables in production)
     PAYMENT_AMOUNT_HUF: int = 50000
     PAYMENT_BANK_ACCOUNT_HOLDER: str = "LFA Education Center Kft."

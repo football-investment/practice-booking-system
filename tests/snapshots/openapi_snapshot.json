@@ -50168,7 +50168,7 @@
     },
     "/health/ready": {
       "get": {
-        "description": "Kubernetes-style readiness probe",
+        "description": "Kubernetes-style readiness probe.\n\nReturns HTTP 200 when the service is ready to accept traffic (database\nreachable and responding).  Returns HTTP 503 when the database is unhealthy\nso orchestrators remove the pod from the load-balancer rotation.",
         "operationId": "readiness_check_health_ready_get",
         "responses": {
           "200": {
@@ -50185,7 +50185,7 @@
     },
     "/health/worker": {
       "get": {
-        "description": "Redis broker and Celery worker liveness probe.",
+        "description": "Redis broker and Celery worker liveness probe.\n\nReturns HTTP 200 when Redis is reachable (workers may be degraded but\nthe app is still operational).  Returns HTTP 503 only when Redis itself\nis unreachable, which prevents background job enqueueing entirely.",
         "operationId": "worker_health_check_health_worker_get",
         "responses": {
           "200": {
@@ -50641,8 +50641,49 @@
     },
     "/metrics": {
       "get": {
-        "description": "In-process domain event counters.\n\nReturns lifetime totals (since last process start) for key operational\nevents: reward generation, booking creation, enrollment gate decisions.\nIntended for internal monitoring and alerting dashboards.",
+        "description": "In-process domain event counters.\n\nReturns lifetime totals (since last process start) for key operational\nevents: reward generation, booking creation, enrollment gate decisions.\nIntended for internal monitoring and alerting dashboards.\n\nSet ``?format=prometheus`` to receive Prometheus text exposition format\n(``text/plain; version=0.0.4``) suitable for a Prometheus scrape target.",
         "operationId": "domain_metrics_metrics_get",
+        "parameters": [
+          {
+            "description": "Output format: 'json' (default) or 'prometheus'.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "Output format: 'json' (default) or 'prometheus'.",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Domain Metrics"
+      }
+    },
+    "/metrics/alerts": {
+      "get": {
+        "description": "Evaluate in-process counter values against configured alert thresholds.\n\nReturns ``{\"status\": \"ok\"|\"warning\", \"thresholds\": {...}}`` where each\nentry in ``thresholds`` includes ``value``, ``threshold`` and ``firing``.\nOnly ratio-based alerts are emitted when enough traffic has been seen\n(denominator > 0); the slow-query count is always evaluated.\n\nThresholds are configured via the application Settings:\n- ``ALERT_REWARD_FAILURE_RATE`` (default 0.05)\n- ``ALERT_BOOKING_WAITLIST_RATE`` (default 0.30)\n- ``ALERT_ENROLLMENT_GATE_BLOCK_RATE`` (default 0.20)\n- ``ALERT_SLOW_QUERY_TOTAL`` (default 10)",
+        "operationId": "metrics_alerts_metrics_alerts_get",
         "responses": {
           "200": {
             "content": {
@@ -50653,7 +50694,7 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Domain Metrics"
+        "summary": "Metrics Alerts"
       }
     },
     "/notifications": {
