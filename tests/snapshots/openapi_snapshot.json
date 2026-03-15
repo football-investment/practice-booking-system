@@ -50639,6 +50639,23 @@
         ]
       }
     },
+    "/metrics": {
+      "get": {
+        "description": "In-process domain event counters.\n\nReturns lifetime totals (since last process start) for key operational\nevents: reward generation, booking creation, enrollment gate decisions.\nIntended for internal monitoring and alerting dashboards.",
+        "operationId": "domain_metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Domain Metrics"
+      }
+    },
     "/notifications": {
       "get": {
         "operationId": "notifications_page_notifications_get",

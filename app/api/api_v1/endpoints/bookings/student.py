@@ -21,6 +21,7 @@ from .....schemas.booking import (
     BookingList
 )
 from .....api.helpers.spec_validation import validate_can_book_session
+from .....core.metrics import metrics
 from .helpers import auto_promote_from_waitlist
 
 router = APIRouter()
@@ -122,6 +123,7 @@ def create_booking(
         waitlist_position = db.query(func.count(Booking.id)).filter(
             and_(Booking.session_id == booking_data.session_id, Booking.status == BookingStatus.WAITLISTED)
         ).scalar() + 1
+        metrics.increment("bookings_waitlisted")
 
     booking = Booking(
         user_id=current_user.id,
@@ -134,6 +136,7 @@ def create_booking(
     db.add(booking)
     try:
         db.commit()
+        metrics.increment("bookings_created")
     except IntegrityError as e:
         db.rollback()
         orig = str(getattr(e, "orig", e))

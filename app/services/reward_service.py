@@ -22,6 +22,7 @@ from typing import Optional
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.core.metrics import metrics
 from app.core.structured_log import log_debug, log_error, log_info
 from app.models.event_reward_log import EventRewardLog
 from app.models.session import Session as SessionModel, EventCategory
@@ -93,6 +94,7 @@ def award_session_completion(
         db.commit()
     except Exception as exc:
         db.rollback()
+        metrics.increment("rewards_failed")
         log_error(
             _logger, "reward_failed",
             user_id=user_id, session_id=session.id,
@@ -105,6 +107,7 @@ def award_session_completion(
         EventRewardLog.session_id == session.id,
     ).one()
 
+    metrics.increment("rewards_generated")
     log_info(
         _logger, "reward_awarded",
         user_id=user_id, session_id=session.id,

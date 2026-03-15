@@ -177,3 +177,16 @@ async def liveness_check():
 async def worker_health_check():
     """Redis broker and Celery worker liveness probe."""
     return await HealthChecker.get_worker_health()
+
+
+@app.get("/metrics")
+async def domain_metrics():
+    """
+    In-process domain event counters.
+
+    Returns lifetime totals (since last process start) for key operational
+    events: reward generation, booking creation, enrollment gate decisions.
+    Intended for internal monitoring and alerting dashboards.
+    """
+    from .core.metrics import metrics
+    return {"counters": metrics.get_snapshot()}
