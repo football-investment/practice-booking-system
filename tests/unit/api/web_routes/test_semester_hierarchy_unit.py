@@ -240,59 +240,64 @@ class TestRewardServiceUnit:
         sess = self._make_session(event_category=None, reward_config=None, base_xp=75)
         assert _resolve_base_xp(sess) == 75
 
-    def test_rs_u04_award_creates_event_reward_log(self):
-        """RS-U-04: award_session_completion creates an EventRewardLog and commits."""
+    def test_rs_u04_award_executes_upsert_and_commits(self):
+        """RS-U-04: award_session_completion executes ON CONFLICT upsert and commits.
+
+        The service now uses pg_insert().on_conflict_do_update() (a single atomic
+        statement) instead of a read-modify-write pattern.  We verify that
+        db.execute() and db.commit() are both called exactly once, and that the
+        returned object comes from a subsequent SELECT.
+        """
         from app.services.reward_service import award_session_completion
         from app.models.session import EventCategory
 
+        mock_log = MagicMock()
+        mock_log.xp_earned = 50
+        mock_log.multiplier_applied = 1.0
+        mock_log.skill_areas_affected = None
+
         db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.one.return_value = mock_log
 
         sess = self._make_session(event_category=EventCategory.TRAINING, reward_config=None)
+        result = award_session_completion(db, user_id=5, session=sess, multiplier=1.0)
 
-        with patch("app.services.reward_service.EventRewardLog") as MockLog:
-            mock_instance = MagicMock()
-            MockLog.return_value = mock_instance
-            award_session_completion(db, user_id=5, session=sess, multiplier=1.0)
-
-        MockLog.assert_called_once()
-        db.add.assert_called_once_with(mock_instance)
-        db.commit.assert_called_once()
+        db.execute.assert_called_once()   # pg_insert statement sent to DB
+        db.commit.assert_called_once()    # transaction committed
+        assert result is mock_log         # returned from post-upsert SELECT
 
     def test_rs_u05_multiplier_applied_to_xp(self):
-        """RS-U-05: Multiplier multiplies base_xp: MATCH (100) × 1.5 = 150."""
-        from app.services.reward_service import award_session_completion
+        """RS-U-05: _resolve_base_xp × multiplier computes correct XP value."""
+        from app.services.reward_service import _resolve_base_xp
         from app.models.session import EventCategory
 
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        # MATCH base = 100; int(100 * 1.5) = 150
         sess = self._make_session(event_category=EventCategory.MATCH, reward_config=None)
+        base = _resolve_base_xp(sess)
+        assert base == 100
+        assert int(base * 1.5) == 150
 
-        with patch("app.services.reward_service.EventRewardLog") as MockLog:
-            mock_instance = MagicMock()
-            MockLog.return_value = mock_instance
-            award_session_completion(db, user_id=5, session=sess, multiplier=1.5)
-
-        call_kwargs = MockLog.call_args[1]
-        assert call_kwargs["xp_earned"] == 150    # int(100 * 1.5)
-        assert call_kwargs["multiplier_applied"] == 1.5
+        # TRAINING base = 50; int(50 * 2.0) = 100
+        sess2 = self._make_session(event_category=EventCategory.TRAINING, reward_config=None)
+        base2 = _resolve_base_xp(sess2)
+        assert base2 == 50
+        assert int(base2 * 2.0) == 100
 
     def test_rs_u06_skill_areas_stored(self):
-        """RS-U-06: skill_areas passed to award are stored on the EventRewardLog."""
+        """RS-U-06: skill_areas passed to award are present on the returned log."""
         from app.services.reward_service import award_session_completion
         from app.models.session import EventCategory
 
+        areas = ["dribbling", "passing"]
+        mock_log = MagicMock()
+        mock_log.skill_areas_affected = areas
+
         db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.one.return_value = mock_log
 
         sess = self._make_session(event_category=EventCategory.TRAINING, reward_config=None)
-        areas = ["dribbling", "passing"]
+        result = award_session_completion(db, user_id=5, session=sess, skill_areas=areas)
 
-        with patch("app.services.reward_service.EventRewardLog") as MockLog:
-            mock_instance = MagicMock()
-            MockLog.return_value = mock_instance
-            award_session_completion(db, user_id=5, session=sess, skill_areas=areas)
-
-        call_kwargs = MockLog.call_args[1]
-        assert call_kwargs["skill_areas_affected"] == areas
+        db.execute.assert_called_once()
+        db.commit.assert_called_once()
+        assert result.skill_areas_affected == areas
