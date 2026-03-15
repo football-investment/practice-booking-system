@@ -23,6 +23,13 @@ Tests
   MTR-17  evaluate_alerts() returns "warning" on slow_queries_total exceeding threshold
   MTR-18  evaluate_alerts() does not emit ratio alerts when denominator is zero
   MTR-19  evaluate_alerts() status "ok" when all ratios are below threshold
+  MTR-20  increment_labeled() stores count under label string
+  MTR-21  increment_labeled() multiple label values tracked independently
+  MTR-22  get_labeled_snapshot() returns a copy (mutations don't affect store)
+  MTR-23  reset() clears labeled counters as well as flat counters
+  MTR-24  format_prometheus() includes labeled metrics with {key="val"} syntax
+  MTR-25  format_prometheus() labels appear under same HELP/TYPE block as flat total
+  MTR-26  increment_labeled() label keys are sorted (consistent label_str)
 """
 from __future__ import annotations
 
@@ -278,3 +285,79 @@ class TestDomainMetricsAlerts:
             assert alert_data["firing"] is False, (
                 f"Alert '{alert_key}' unexpectedly firing: {alert_data}"
             )
+
+
+# ── Tests — Labeled counters ───────────────────────────────────────────────────
+
+class TestDomainMetricsLabeled:
+
+    def test_mtr20_increment_labeled_stores_count(self, m: DomainMetrics):
+        """MTR-20: increment_labeled() stores count under the correct label string."""
+        m.increment_labeled("bookings_created", {"event_category": "TRAINING"})
+        m.increment_labeled("bookings_created", {"event_category": "TRAINING"})
+        m.increment_labeled("bookings_created", {"event_category": "MATCH"})
+
+        snap = m.get_labeled_snapshot()
+        assert snap["bookings_created"]["event_category=TRAINING"] == 2
+        assert snap["bookings_created"]["event_category=MATCH"] == 1
+
+    def test_mtr21_increment_labeled_independent_counters(self, m: DomainMetrics):
+        """MTR-21: different counter names with same labels are tracked independently."""
+        m.increment_labeled("bookings_created", {"event_category": "TRAINING"}, by=5)
+        m.increment_labeled("bookings_waitlisted", {"event_category": "TRAINING"}, by=2)
+
+        snap = m.get_labeled_snapshot()
+        assert snap["bookings_created"]["event_category=TRAINING"] == 5
+        assert snap["bookings_waitlisted"]["event_category=TRAINING"] == 2
+
+    def test_mtr22_get_labeled_snapshot_returns_copy(self, m: DomainMetrics):
+        """MTR-22: mutating the returned labeled snapshot does not affect the store."""
+        m.increment_labeled("rewards_generated", {"event_category": "TRAINING"})
+        snap = m.get_labeled_snapshot()
+        snap["rewards_generated"]["event_category=TRAINING"] = 999
+
+        fresh = m.get_labeled_snapshot()
+        assert fresh["rewards_generated"]["event_category=TRAINING"] == 1
+
+    def test_mtr23_reset_clears_labeled_counters(self, m: DomainMetrics):
+        """MTR-23: reset() clears both flat and labeled counters."""
+        m.increment("bookings_created", by=3)
+        m.increment_labeled("bookings_created", {"event_category": "TRAINING"}, by=3)
+        m.reset()
+
+        assert m.get_snapshot() == {}
+        assert m.get_labeled_snapshot() == {}
+
+    def test_mtr24_format_prometheus_labeled_with_braces(self, m: DomainMetrics):
+        """MTR-24: labeled metrics appear with {key="val"} Prometheus syntax."""
+        m.increment("bookings_created", by=10)
+        m.increment_labeled("bookings_created", {"event_category": "TRAINING"}, by=8)
+        m.increment_labeled("bookings_created", {"event_category": "MATCH"}, by=2)
+
+        text = m.format_prometheus()
+
+        assert 'bookings_created_total{event_category="TRAINING"} 8' in text
+        assert 'bookings_created_total{event_category="MATCH"} 2' in text
+
+    def test_mtr25_format_prometheus_labeled_under_same_help_type_block(self, m: DomainMetrics):
+        """MTR-25: flat total and labeled breakdowns appear under one HELP/TYPE block."""
+        m.increment("bookings_created", by=10)
+        m.increment_labeled("bookings_created", {"event_category": "TRAINING"}, by=8)
+
+        text = m.format_prometheus()
+        # Only one HELP line for the metric
+        help_count = text.count("# HELP bookings_created_total")
+        assert help_count == 1
+        # Flat total present
+        assert "bookings_created_total 10" in text
+        # Labeled breakdown present
+        assert 'bookings_created_total{event_category="TRAINING"} 8' in text
+
+    def test_mtr26_increment_labeled_keys_sorted(self, m: DomainMetrics):
+        """MTR-26: label keys are sorted — calling order doesn't change label_str."""
+        m.increment_labeled("rewards_generated", {"b_key": "2", "a_key": "1"})
+        m.increment_labeled("rewards_generated", {"a_key": "1", "b_key": "2"})
+
+        snap = m.get_labeled_snapshot()
+        # Both calls should map to the same sorted label string
+        assert snap["rewards_generated"].get("a_key=1,b_key=2") == 2

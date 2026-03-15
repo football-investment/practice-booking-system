@@ -20,20 +20,31 @@ enrollment_attempts     ``create_enrollment()`` endpoint calls
 enrollment_gate_blocked enrollment attempts blocked by parent-semester hierarchy gate
 slow_queries_total      SQL queries that exceeded the slow-query threshold (200 ms)
 
+Labeled counters
+----------------
+The same counters above can also be broken down by label using
+``increment_labeled()``.  Labels are low-cardinality key/value pairs such as
+``event_category`` (TRAINING | MATCH | …).  Use ``get_labeled_snapshot()`` or
+the Prometheus export to see per-label breakdowns.
+
 Usage::
 
     from app.core.metrics import metrics
 
     metrics.increment("rewards_generated")
-    metrics.increment("rewards_failed")
+    metrics.increment_labeled("rewards_generated", {"event_category": "TRAINING"})
 
     snapshot = metrics.get_snapshot()
-    # → {"rewards_generated": 42, "rewards_failed": 0, ...}
+    # → {"rewards_generated": 42, ...}
+
+    labeled = metrics.get_labeled_snapshot()
+    # → {"rewards_generated": {"event_category=TRAINING": 42}, ...}
 
 Prometheus export::
 
     text = metrics.format_prometheus()
-    # → "# HELP rewards_generated_total ...\\n# TYPE ...\\nrewards_generated_total 42\\n"
+    # → "# HELP rewards_generated_total ...\\n...\\nrewards_generated_total 42\\n"
+    # → "rewards_generated_total{event_category=\\"TRAINING\\"} 42\\n"
 
 Alert evaluation::
 
@@ -74,26 +85,65 @@ _COUNTER_HELP: Dict[str, str] = {
 
 
 class DomainMetrics:
-    """Thread-safe in-process counter store."""
+    """Thread-safe in-process counter store with optional label support."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._counters: Dict[str, int] = defaultdict(int)
+        # Labeled counters: name → {label_string → count}
+        # label_string is "key1=val1,key2=val2" (sorted by key)
+        self._labeled_counters: Dict[str, Dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
+
+    # ── Flat counters ──────────────────────────────────────────────────────────
 
     def increment(self, name: str, by: int = 1) -> None:
-        """Atomically increment counter ``name`` by ``by`` (default 1)."""
+        """Atomically increment flat counter ``name`` by ``by`` (default 1)."""
         with self._lock:
             self._counters[name] += by
 
     def get_snapshot(self) -> Dict[str, int]:
-        """Return a point-in-time copy of all counters."""
+        """Return a point-in-time copy of all flat counters."""
         with self._lock:
             return dict(self._counters)
 
+    # ── Labeled counters ───────────────────────────────────────────────────────
+
+    def increment_labeled(
+        self, name: str, labels: Dict[str, str], by: int = 1
+    ) -> None:
+        """
+        Atomically increment a labeled counter.
+
+        Labels are low-cardinality key/value pairs, e.g.
+        ``{"event_category": "TRAINING"}``.  The label dict is serialised as
+        sorted ``key=value`` pairs so callers do not need to pre-sort.
+
+        Typically called *in addition* to ``increment()`` so both the flat
+        total and the per-label breakdown are kept up-to-date.
+        """
+        label_str = ",".join(
+            f"{k}={v}" for k, v in sorted(labels.items())
+        )
+        with self._lock:
+            self._labeled_counters[name][label_str] += by
+
+    def get_labeled_snapshot(self) -> Dict[str, Dict[str, int]]:
+        """Return a point-in-time copy of all labeled counters."""
+        with self._lock:
+            return {
+                name: dict(label_counts)
+                for name, label_counts in self._labeled_counters.items()
+            }
+
+    # ── Lifecycle ──────────────────────────────────────────────────────────────
+
     def reset(self) -> None:
-        """Reset all counters to zero.  Intended for test isolation only."""
+        """Reset all counters (flat and labeled).  Intended for test isolation."""
         with self._lock:
             self._counters.clear()
+            self._labeled_counters.clear()
 
     # ── Prometheus exposition format ──────────────────────────────────────────
 
@@ -102,24 +152,40 @@ class DomainMetrics:
         Return metrics in Prometheus text exposition format.
 
         Output is ``text/plain; version=0.0.4`` compatible.  Each counter is
-        emitted with a ``# HELP`` line, a ``# TYPE counter`` line and a metric
-        line with a ``_total`` suffix (Prometheus naming convention for counters).
-        Counter names that already end with ``_total`` are not doubled.
+        emitted with a ``# HELP`` line, a ``# TYPE counter`` line, and metric
+        lines with a ``_total`` suffix (Prometheus naming convention).
+
+        Flat totals appear first (no labels), followed by labeled breakdowns
+        for any counter that has been incremented via ``increment_labeled()``.
+        Counter names already ending with ``_total`` are not doubled.
 
         Returns an empty-comment line when no counters have been recorded yet.
         """
-        snapshot = self.get_snapshot()
-        if not snapshot:
+        flat = self.get_snapshot()
+        labeled = self.get_labeled_snapshot()
+        all_names = sorted(set(flat) | set(labeled))
+
+        if not all_names:
             return "# No counters registered yet\n"
 
         lines: list[str] = []
-        for name in sorted(snapshot):
-            # Prometheus counter names must end with _total
+        for name in all_names:
             prom_name = name if name.endswith("_total") else f"{name}_total"
             help_text = _COUNTER_HELP.get(name, f"Counter: {name}.")
             lines.append(f"# HELP {prom_name} {help_text}")
             lines.append(f"# TYPE {prom_name} counter")
-            lines.append(f"{prom_name} {snapshot[name]}")
+            # Flat total (if present)
+            if name in flat:
+                lines.append(f"{prom_name} {flat[name]}")
+            # Labeled breakdowns (if present)
+            for label_str, count in sorted(labeled.get(name, {}).items()):
+                # Convert "key=val,key2=val2" → {key="val",key2="val2"} syntax
+                pairs = []
+                for part in label_str.split(","):
+                    k, v = part.split("=", 1)
+                    pairs.append(f'{k}="{v}"')
+                labels_rendered = "{" + ",".join(pairs) + "}"
+                lines.append(f"{prom_name}{labels_rendered} {count}")
 
         return "\n".join(lines) + "\n"
 

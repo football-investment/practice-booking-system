@@ -150,6 +150,19 @@ class Settings(BaseSettings):
     ALERT_ENROLLMENT_GATE_BLOCK_RATE: float = 0.20  # >20 % enrollments gate-blocked → warning
     ALERT_SLOW_QUERY_TOTAL: int = 10               # >10 slow queries since start → warning
 
+    # ── Logging configuration ──────────────────────────────────────────────────
+    # All settings are read from environment variables; override in .env or
+    # the container environment for deployment-specific paths and retention needs.
+    LOG_DIR: str = "logs"                    # directory for rotating log files
+    LOG_MAX_BYTES: int = 10 * 1024 * 1024   # max size per log file (10 MB default)
+    LOG_BACKUP_COUNT: int = 5               # rotated backups to keep (app.log.1–5)
+
+    # ── Slow-query monitoring ──────────────────────────────────────────────────
+    # Queries slower than SLOW_QUERY_THRESHOLD_MS are logged to app.slow_query
+    # and counted in the slow_queries_total metric.  Raise this value if normal
+    # reporting queries regularly exceed the default (e.g. large dashboards).
+    SLOW_QUERY_THRESHOLD_MS: float = 200.0  # milliseconds
+
     # Payment configuration (override via environment variables in production)
     PAYMENT_AMOUNT_HUF: int = 50000
     PAYMENT_BANK_ACCOUNT_HOLDER: str = "LFA Education Center Kft."
