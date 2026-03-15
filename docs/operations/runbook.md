@@ -15,6 +15,9 @@ Last updated: 2026-03-15
 6. [Migration Rollback Procedure](#6-migration-rollback-procedure)
 7. [Log Files and Retention](#7-log-files-and-retention)
 8. [Health Endpoints](#8-health-endpoints)
+9. [Connection Pool Tuning](#9-connection-pool-tuning)
+10. [Graceful Shutdown](#10-graceful-shutdown)
+11. [Production Configuration Profile](#11-production-configuration-profile)
 
 ---
 
@@ -606,3 +609,180 @@ your container orchestrator.
 A `"degraded"` worker status means Redis is reachable but no Celery workers
 are registered — background tasks (email, notifications) will not execute.
 This is expected in development environments without a running worker.
+
+---
+
+## 9. Connection Pool Tuning
+
+### Sizing guide
+
+Each uvicorn/gunicorn **worker process** maintains its own connection pool.
+Total PostgreSQL connections consumed = `workers × (pool_size + max_overflow)`.
+
+| Concurrent users | `DB_POOL_SIZE` | `DB_MAX_OVERFLOW` | Max connections/worker | Notes |
+|---|---|---|---|---|
+| ≤ 20 | 5 | 10 | 15 | Small single-worker deployment |
+| 21–100 | 10 | 20 | 30 | Medium load, 2–4 workers |
+| 101–500 | **20** | **30** | **50** | Default — 4 workers → 200 total |
+| 500+ | 40 | 20 | 60 | Many workers, keep total < PG `max_connections` |
+
+> **Rule of thumb**: `total_pool = workers × (pool_size + max_overflow)` must
+> stay below your PostgreSQL `max_connections` (default 100; raise to 200–500
+> in `postgresql.conf` for production).
+
+### Current settings (env-overridable)
+
+| Setting | Default | Override via |
+|---|---|---|
+| `DB_POOL_SIZE` | `20` | `DB_POOL_SIZE=10` in `.env` |
+| `DB_MAX_OVERFLOW` | `30` | `DB_MAX_OVERFLOW=20` in `.env` |
+| `DB_POOL_RECYCLE` | `3600` | `DB_POOL_RECYCLE=1800` in `.env` |
+
+`pool_pre_ping=True` is always enabled — SQLAlchemy tests each connection with
+a `SELECT 1` before handing it to a request handler, which handles stale
+connections from network blips and PostgreSQL idle-timeout closes.
+
+### Adjusting `max_connections` in PostgreSQL
+
+```sql
+-- Check current max_connections
+SHOW max_connections;
+
+-- Check current usage
+SELECT count(*) FROM pg_stat_activity;
+```
+
+To raise: edit `postgresql.conf` (or `--max_connections` in Docker) and
+`pg_hba.conf` if needed, then `SELECT pg_reload_conf();`.
+
+---
+
+## 10. Graceful Shutdown
+
+### How it works
+
+When uvicorn receives **SIGTERM** (from `docker stop`, `kubectl delete pod`, or
+`systemctl stop`), it:
+
+1. Stops accepting **new** HTTP connections.
+2. Waits up to `--timeout-graceful-shutdown` seconds for **in-flight requests** to finish.
+3. Calls the FastAPI **lifespan shutdown** hook, which runs `stop_scheduler()`.
+4. `stop_scheduler()` waits up to `GRACEFUL_SHUTDOWN_TIMEOUT` seconds for any
+   running APScheduler job to finish before forcibly stopping it.
+5. The process exits.
+
+### Recommended uvicorn command
+
+```bash
+uvicorn app.main:app \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --workers 4 \
+  --timeout-graceful-shutdown 30
+```
+
+> Keep `--timeout-graceful-shutdown` and `GRACEFUL_SHUTDOWN_TIMEOUT` in sync
+> (both 30 s by default).  The total shutdown window from SIGTERM to process
+> exit is approximately `HTTP_graceful + scheduler_graceful` ≈ 60 s.
+
+### Kubernetes `terminationGracePeriodSeconds`
+
+```yaml
+spec:
+  terminationGracePeriodSeconds: 70   # > HTTP timeout + scheduler timeout
+  containers:
+    - name: app
+      lifecycle:
+        preStop:
+          exec:
+            command: ["/bin/sh", "-c", "sleep 5"]  # allow LB to drain before SIGTERM
+```
+
+### Celery worker shutdown
+
+Celery workers handle SIGTERM by:
+
+1. Stopping new task consumption.
+2. Waiting for the **currently executing task** to finish (warm shutdown).
+3. Exiting.
+
+To trigger: `celery -A app.celery_app control shutdown` or `kill -TERM <PID>`.
+
+If the task must not be interrupted, set a long Kubernetes
+`terminationGracePeriodSeconds` (e.g. 300 for large tournament generation).
+
+---
+
+## 11. Production Configuration Profile
+
+### Complete `.env.production` example
+
+```bash
+# ── Core ─────────────────────────────────────────────────────────────────────
+SECRET_KEY=<64-char hex from openssl rand -hex 32>
+ENVIRONMENT=production
+DEBUG=false
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=<20+ char random password>
+CORS_ALLOWED_ORIGINS=https://app.yourdomain.com
+
+# ── Database ──────────────────────────────────────────────────────────────────
+DATABASE_URL=postgresql://gancuju:password@db.internal:5432/gancuju_prod
+
+# Pool: 4 workers × 50 connections = 200 total (adjust to PG max_connections)
+DB_POOL_SIZE=20
+DB_MAX_OVERFLOW=30
+DB_POOL_RECYCLE=3600
+
+# Resilience
+DB_CONNECT_TIMEOUT=10
+DB_STATEMENT_TIMEOUT_MS=30000   # kill queries > 30 s (protect pool)
+DB_STARTUP_RETRIES=5
+DB_STARTUP_RETRY_DELAY=2.0
+
+# ── Redis / Celery ────────────────────────────────────────────────────────────
+REDIS_URL=redis://redis.internal:6379/0
+CELERY_BROKER_URL=redis://redis.internal:6379/0
+CELERY_RESULT_BACKEND=redis://redis.internal:6379/1
+CELERY_BROKER_CONNECTION_MAX_RETRIES=10
+
+# ── Graceful shutdown ─────────────────────────────────────────────────────────
+GRACEFUL_SHUTDOWN_TIMEOUT=30   # match --timeout-graceful-shutdown in uvicorn
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOG_DIR=/app/logs
+LOG_MAX_BYTES=10485760    # 10 MB per file
+LOG_BACKUP_COUNT=5        # keep 5 rotated files = ~60 MB max
+
+# ── Observability ─────────────────────────────────────────────────────────────
+SLOW_QUERY_THRESHOLD_MS=200.0
+ALERT_REWARD_FAILURE_RATE=0.05
+ALERT_BOOKING_WAITLIST_RATE=0.30
+ALERT_ENROLLMENT_GATE_BLOCK_RATE=0.20
+ALERT_SLOW_QUERY_TOTAL=10
+
+# ── Security ──────────────────────────────────────────────────────────────────
+ENABLE_RATE_LIMITING=true
+RATE_LIMIT_CALLS=100
+RATE_LIMIT_WINDOW_SECONDS=60
+LOGIN_RATE_LIMIT_CALLS=10
+COOKIE_SECURE=true
+COOKIE_SAMESITE=strict
+
+# ── Feature flags ─────────────────────────────────────────────────────────────
+ENABLE_TOURNAMENT_SKILL_PROPAGATION=true
+ENABLE_SKILL_TIER_NOTIFICATIONS=true
+```
+
+### Pre-deployment checklist
+
+- [ ] `SECRET_KEY` is ≥ 32 random bytes (not a default/example value)
+- [ ] `ADMIN_PASSWORD` is ≥ 20 characters, randomly generated
+- [ ] `CORS_ALLOWED_ORIGINS` contains only HTTPS production domains (no localhost)
+- [ ] `DATABASE_URL` points to the production database
+- [ ] `DB_STATEMENT_TIMEOUT_MS=30000` is set (protects against runaway queries)
+- [ ] `alembic upgrade head` completed successfully before starting the app
+- [ ] `/health/ready` returns `{"status": "ready"}` after first startup
+- [ ] `GET /metrics/alerts` returns `{"status": "ok"}` after warm-up
+- [ ] Log volume at `LOG_DIR` is mounted as a persistent volume
+- [ ] `terminationGracePeriodSeconds` ≥ `GRACEFUL_SHUTDOWN_TIMEOUT` + HTTP graceful timeout

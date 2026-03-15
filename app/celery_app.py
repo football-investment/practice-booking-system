@@ -46,6 +46,19 @@ def create_celery() -> Celery:
         task_acks_late=True,               # ACK only after successful execution
         task_reject_on_worker_lost=True,   # Re-queue if worker crashes mid-task
         worker_prefetch_multiplier=1,      # One task at a time per worker thread
+        # ── Broker connection resilience ──────────────────────────────────────
+        # Retry broker connection on worker startup so the worker survives a
+        # brief Redis restart or a delayed pod scheduling sequence.
+        broker_connection_retry_on_startup=True,
+        broker_connection_retry=True,       # Retry on transient mid-run disconnects
+        broker_connection_max_retries=settings.CELERY_BROKER_CONNECTION_MAX_RETRIES,
+        # Socket-level timeouts prevent the worker from hanging on a silently
+        # dropped Redis TCP connection (e.g. firewall rule change, network blip).
+        broker_transport_options={
+            "socket_timeout": 10,           # seconds for Redis socket operations
+            "socket_connect_timeout": 10,   # seconds to establish Redis connection
+            "retry_on_timeout": True,       # re-issue timed-out Redis commands
+        },
         # Routing: large tournament generation goes to dedicated queue
         task_routes={
             "app.tasks.tournament_tasks.generate_sessions_task": {"queue": "tournaments"},

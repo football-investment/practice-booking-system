@@ -15,15 +15,18 @@ if settings.DB_STATEMENT_TIMEOUT_MS > 0:
     # the connection pool.  Set DB_STATEMENT_TIMEOUT_MS in .env for production.
     _connect_args["options"] = f"-c statement_timeout={settings.DB_STATEMENT_TIMEOUT_MS}"
 
-# Production-ready connection pool configuration
-# For 100+ concurrent users, we need larger pool
+# Production-ready connection pool — all values from settings so they can be
+# tuned via environment variables without a code change.
+# Sizing: pool_size + max_overflow = max connections per worker process.
+# With 4 uvicorn workers: 4 × (20 + 30) = 200 total → keep under postgresql
+# max_connections (default 100, typically raised to 200-500 in production).
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_size=20,          # Base pool size (was: 5 default)
-    max_overflow=30,       # Extra connections beyond pool_size (total: 50)
-    pool_pre_ping=True,    # Verify connections before use (prevents stale connections)
-    pool_recycle=3600,     # Recycle connections after 1 hour
-    echo_pool=False,       # Set to True for debugging pool issues
+    pool_size=settings.DB_POOL_SIZE,       # persistent connections per worker
+    max_overflow=settings.DB_MAX_OVERFLOW, # burst connections (released when idle)
+    pool_pre_ping=True,                    # verify connections before use
+    pool_recycle=settings.DB_POOL_RECYCLE, # recycle connections after N seconds
+    echo_pool=False,                       # set True only for pool debugging
     connect_args=_connect_args,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
