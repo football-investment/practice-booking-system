@@ -50168,7 +50168,7 @@
     },
     "/health/ready": {
       "get": {
-        "description": "Kubernetes-style readiness probe",
+        "description": "Kubernetes-style readiness probe.\n\nReturns HTTP 200 when the service is ready to accept traffic (database\nreachable and responding).  Returns HTTP 503 when the database is unhealthy\nso orchestrators remove the pod from the load-balancer rotation.",
         "operationId": "readiness_check_health_ready_get",
         "responses": {
           "200": {
@@ -50185,7 +50185,7 @@
     },
     "/health/worker": {
       "get": {
-        "description": "Redis broker and Celery worker liveness probe.",
+        "description": "Redis broker and Celery worker liveness probe.\n\nReturns HTTP 200 when Redis is reachable (workers may be degraded but\nthe app is still operational).  Returns HTTP 503 only when Redis itself\nis unreachable, which prevents background job enqueueing entirely.",
         "operationId": "worker_health_check_health_worker_get",
         "responses": {
           "200": {

@@ -15,22 +15,27 @@ from starlette.responses import StreamingResponse
 # read it without importing from middleware (avoids circular imports).
 from app.core.request_context import request_id_var
 
+# Log directory and rotation settings — all overridable via environment variables
+# (LOG_DIR, LOG_MAX_BYTES, LOG_BACKUP_COUNT).  Defaults match app/config.py Settings.
+_log_dir = os.getenv('LOG_DIR', 'logs')
+_log_max_bytes = int(os.getenv('LOG_MAX_BYTES', str(10 * 1024 * 1024)))
+_log_backup_count = int(os.getenv('LOG_BACKUP_COUNT', '5'))
+
 # Create logs directory if it doesn't exist
-log_dir = 'logs'
-os.makedirs(log_dir, exist_ok=True)
+os.makedirs(_log_dir, exist_ok=True)
 
 # Configure structured logging
 handlers = [logging.StreamHandler()]
 
 # Only add file handler if not in test environment.
-# RotatingFileHandler caps each log file at 10 MB and keeps 5 rotated backups,
-# giving ~50 MB maximum disk usage before the oldest file is overwritten.
+# RotatingFileHandler caps each log file at LOG_MAX_BYTES (default 10 MB) and
+# keeps LOG_BACKUP_COUNT rotated backups (default 5) — ~50 MB max disk usage.
 if not os.getenv('TESTING', '').lower() == 'true':
     handlers.append(
         RotatingFileHandler(
-            os.path.join(log_dir, 'app.log'),
-            maxBytes=10 * 1024 * 1024,  # 10 MB per file
-            backupCount=5,              # keep app.log.1 … app.log.5
+            os.path.join(_log_dir, 'app.log'),
+            maxBytes=_log_max_bytes,
+            backupCount=_log_backup_count,
             encoding='utf-8',
         )
     )

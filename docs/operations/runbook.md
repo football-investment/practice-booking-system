@@ -6,6 +6,7 @@ Last updated: 2026-03-15
 
 ## Table of Contents
 
+0. [Deployment Guide](#0-deployment-guide)
 1. [Metrics Endpoint](#1-metrics-endpoint)
 2. [Counter Definitions](#2-counter-definitions)
 3. [Prometheus Integration](#3-prometheus-integration)
@@ -14,6 +15,178 @@ Last updated: 2026-03-15
 6. [Migration Rollback Procedure](#6-migration-rollback-procedure)
 7. [Log Files and Retention](#7-log-files-and-retention)
 8. [Health Endpoints](#8-health-endpoints)
+
+---
+
+## 0. Deployment Guide
+
+### Required environment variables
+
+Set these in `.env` or your container environment.  The application refuses to
+start in production without **SECRET_KEY**, **DATABASE_URL**, **ADMIN_EMAIL**,
+**ADMIN_PASSWORD**, and **CORS_ALLOWED_ORIGINS**.
+
+| Variable | Required | Description | Example |
+|---|---|---|---|
+| `SECRET_KEY` | **Yes** | JWT signing key (≥32 random bytes) | `openssl rand -base64 32` |
+| `DATABASE_URL` | **Yes** | PostgreSQL DSN | `postgresql://user:pass@db:5432/gancuju` |
+| `REDIS_URL` | Yes (for workers) | Redis DSN for Celery broker | `redis://redis:6379/0` |
+| `CELERY_BROKER_URL` | Yes (for workers) | Celery broker URL | `redis://redis:6379/0` |
+| `CELERY_RESULT_BACKEND` | Yes (for workers) | Celery result backend | `redis://redis:6379/1` |
+| `ADMIN_EMAIL` | **Yes (prod)** | Initial admin email | `admin@company.com` |
+| `ADMIN_PASSWORD` | **Yes (prod)** | Initial admin password (strong) | `$(pwgen -s 20 1)` |
+| `CORS_ALLOWED_ORIGINS` | **Yes (prod)** | Comma-separated allowed origins | `https://app.example.com` |
+| `ENVIRONMENT` | No | `development` / `production` | `production` |
+| `DEBUG` | No | Must be `false` in production | `false` |
+| `COOKIE_SECURE` | No | `true` enforces HTTPS cookies | `true` |
+
+#### Operational settings (all optional — defaults match below)
+
+| Variable | Default | Description |
+|---|---|---|
+| `LOG_DIR` | `logs` | Directory for rotating log files |
+| `LOG_MAX_BYTES` | `10485760` | Max log file size in bytes (10 MB) |
+| `LOG_BACKUP_COUNT` | `5` | Rotating backups to keep |
+| `SLOW_QUERY_THRESHOLD_MS` | `200.0` | SQL slow-query alert threshold (ms) |
+| `ALERT_REWARD_FAILURE_RATE` | `0.05` | Reward failure rate threshold (5 %) |
+| `ALERT_BOOKING_WAITLIST_RATE` | `0.30` | Booking waitlist rate threshold (30 %) |
+| `ALERT_ENROLLMENT_GATE_BLOCK_RATE` | `0.20` | Enrollment gate block rate threshold (20 %) |
+| `ALERT_SLOW_QUERY_TOTAL` | `10` | Absolute slow-query count threshold |
+| `RATE_LIMIT_CALLS` | `100` | Requests per rate-limit window |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window in seconds |
+| `ENABLE_RATE_LIMITING` | `true` (non-test) | Toggle rate limiting |
+| `ENABLE_STRUCTURED_LOGGING` | `true` | Toggle HTTP access logging middleware |
+
+### Database migration procedure
+
+Always run migrations **before** deploying new application code:
+
+```bash
+# 1. Verify you are pointing at the correct database
+echo $DATABASE_URL
+
+# 2. Check current migration state
+alembic current
+
+# 3. Preview what will run
+alembic upgrade head --sql | head -40
+
+# 4. Apply migrations
+alembic upgrade head
+
+# 5. Verify
+alembic current
+```
+
+For zero-downtime index creation, add `postgresql_concurrently=True` to
+`op.create_index()` in the migration — this avoids table locks on large tables.
+
+### First-time setup
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Copy and populate environment file
+cp .env.example .env
+# Edit .env with production values
+
+# 3. Run migrations
+alembic upgrade head
+
+# 4. Start the application
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# 5. Verify health
+curl http://localhost:8000/health/ready
+# Expected: {"status": "ready", "database": "healthy"}
+```
+
+### Docker deployment (example)
+
+```yaml
+# docker-compose.yml
+version: "3.9"
+services:
+  app:
+    image: gancuju-education-center:latest
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://user:pass@db:5432/gancuju
+      - REDIS_URL=redis://redis:6379/0
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - CORS_ALLOWED_ORIGINS=https://app.example.com
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_DIR=/app/logs
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gancuju
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d gancuju"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+
+  worker:
+    image: gancuju-education-center:latest
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/gancuju
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+```
+
+### Kubernetes readiness/liveness probes
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  failureThreshold: 3
+```
+
+`/health/ready` returns **HTTP 503** when the database is unreachable, causing
+Kubernetes to remove the pod from the Service endpoint slice until the database
+recovers.  `/health/live` always returns **HTTP 200** as long as the process is
+running (a 5xx here triggers a pod restart).
 
 ---
 
@@ -32,16 +205,31 @@ Response:
 ```json
 {
   "counters": {
-    "rewards_generated": 142,
+    "rewards_generated": 157,
     "rewards_failed": 3,
     "bookings_created": 512,
     "bookings_waitlisted": 18,
     "enrollment_attempts": 87,
     "enrollment_gate_blocked": 7,
     "slow_queries_total": 2
+  },
+  "labeled_counters": {
+    "bookings_created": {
+      "event_category=TRAINING": 430,
+      "event_category=MATCH": 82
+    },
+    "rewards_generated": {
+      "event_category=TRAINING": 130,
+      "event_category=MATCH": 27
+    }
   }
 }
 ```
+
+`counters` contains flat lifetime totals.  `labeled_counters` contains
+per-label breakdowns for counters that were also incremented with
+``increment_labeled()`` — currently `bookings_created`, `bookings_waitlisted`,
+`rewards_generated`, and `rewards_failed` carry an `event_category` label.
 
 Counters are **lifetime totals since the process started**.  In a multi-process
 deployment (multiple uvicorn workers) each process maintains its own counters;

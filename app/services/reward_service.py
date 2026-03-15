@@ -95,6 +95,10 @@ def award_session_completion(
     except Exception as exc:
         db.rollback()
         metrics.increment("rewards_failed")
+        if session.event_category is not None:
+            metrics.increment_labeled(
+                "rewards_failed", {"event_category": session.event_category.value}
+            )
         log_error(
             _logger, "reward_failed",
             user_id=user_id, session_id=session.id,
@@ -108,6 +112,10 @@ def award_session_completion(
     ).one()
 
     metrics.increment("rewards_generated")
+    if session.event_category is not None:
+        metrics.increment_labeled(
+            "rewards_generated", {"event_category": session.event_category.value}
+        )
     log_info(
         _logger, "reward_awarded",
         user_id=user_id, session_id=session.id,
