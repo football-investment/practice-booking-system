@@ -71,15 +71,41 @@
                     <label>Specialization Type</label>
                     <select name="specialization_type">
                         <option value="">— none —</option>
-                        <option value="LFA_PLAYER_PRE">LFA Player PRE</option>
-                        <option value="LFA_PLAYER_YOUTH">LFA Player Youth</option>
-                        <option value="LFA_PLAYER_AMATEUR">LFA Player Amateur</option>
-                        <option value="LFA_PLAYER_PRO">LFA Player PRO</option>
-                        <option value="GANCUJU_PLAYER">GānCuju Player</option>
-                        <option value="INTERNSHIP">Internship</option>
-                        <option value="LFA_COACH">LFA Coach</option>
+                        <optgroup label="Mini Season (PARTNER + CENTER)">
+                            <option value="LFA_PLAYER_PRE" {% if form and form.specialization_type == 'LFA_PLAYER_PRE' %}selected{% endif %}>LFA Player PRE</option>
+                            <option value="LFA_PLAYER_YOUTH" {% if form and form.specialization_type == 'LFA_PLAYER_YOUTH' %}selected{% endif %}>LFA Player Youth</option>
+                            <option value="LFA_PLAYER_AMATEUR" {% if form and form.specialization_type == 'LFA_PLAYER_AMATEUR' %}selected{% endif %}>LFA Player Amateur</option>
+                            <option value="LFA_PLAYER_PRO" {% if form and form.specialization_type == 'LFA_PLAYER_PRO' %}selected{% endif %}>LFA Player PRO</option>
+                        </optgroup>
+                        <optgroup label="Academy Season (CENTER only 🏫)">
+                            <option value="LFA_PLAYER_PRE_ACADEMY" {% if form and form.specialization_type == 'LFA_PLAYER_PRE_ACADEMY' %}selected{% endif %}>LFA Player PRE Academy</option>
+                            <option value="LFA_PLAYER_YOUTH_ACADEMY" {% if form and form.specialization_type == 'LFA_PLAYER_YOUTH_ACADEMY' %}selected{% endif %}>LFA Player Youth Academy</option>
+                            <option value="LFA_PLAYER_AMATEUR_ACADEMY" {% if form and form.specialization_type == 'LFA_PLAYER_AMATEUR_ACADEMY' %}selected{% endif %}>LFA Player Amateur Academy</option>
+                            <option value="LFA_PLAYER_PRO_ACADEMY" {% if form and form.specialization_type == 'LFA_PLAYER_PRO_ACADEMY' %}selected{% endif %}>LFA Player PRO Academy</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="GANCUJU_PLAYER" {% if form and form.specialization_type == 'GANCUJU_PLAYER' %}selected{% endif %}>GānCuju Player</option>
+                            <option value="INTERNSHIP" {% if form and form.specialization_type == 'INTERNSHIP' %}selected{% endif %}>Internship</option>
+                            <option value="LFA_COACH" {% if form and form.specialization_type == 'LFA_COACH' %}selected{% endif %}>LFA Coach</option>
+                        </optgroup>
                     </select>
+                    <p class="hint">Academy Season types require a CENTER location.</p>
                 </div>
+            </div>
+
+            <div class="field" style="margin-bottom:1.2rem;">
+                <label>Location <span style="font-size:0.8em; color:#e74c3c;">* required for Academy Season</span></label>
+                <select name="location_id">
+                    <option value="">— no location —</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}"
+                        {% if form and form.location_id|string == loc.id|string %}selected{% endif %}>
+                        {{ loc.city }}
+                        {% if loc.location_type.value == 'CENTER' %}🏫 CENTER{% else %}🤝 PARTNER{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="hint">CENTER locations can host Academy Seasons. PARTNER locations can only host Mini Seasons and Tournaments.</p>
             </div>
 
             <div class="field" style="margin-bottom:1.5rem;">

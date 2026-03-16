@@ -138,12 +138,13 @@ class TestCreateSemester:
     def test_400_location_validation_fails(self):
         db = _db_seq(_q(first=None))
         sd = _semester_data()
-        sd.location_id = 5          # triggers location check
+        sd.location_id = 5                                  # triggers location check
+        sd.specialization_type = "LFA_PLAYER_PRE_ACADEMY"  # valid enum → validation runs
         with patch(_LVS) as MockLVS:
             MockLVS.can_create_semester_at_location.return_value = {
                 "allowed": False,
                 "reason": "PARTNER locations only",
-                "location_type": "CENTER",
+                "location_type": "PARTNER",
             }
             with pytest.raises(HTTPException) as exc:
                 create_semester(sd, db=db, current_user=_user())

@@ -2342,6 +2342,11 @@
             "title": "Enrollment Cost",
             "type": "integer"
           },
+          "location_id": {
+            "default": "",
+            "title": "Location Id",
+            "type": "string"
+          },
           "master_instructor_id": {
             "default": "",
             "title": "Master Instructor Id",
@@ -13545,6 +13550,17 @@
               }
             ],
             "title": "Location City"
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
           },
           "location_venue": {
             "anyOf": [

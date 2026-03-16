@@ -2217,3 +2217,263 @@ class TestSmoke17UserEditExtended:
         assert prog is not None, "LicenseProgression not created after renewal"
         assert prog.requirements_met == "RENEWED"
         assert "Annual renewal SMOKE-17k" in (prog.advancement_reason or "")
+
+
+# ============================================================================
+# SMOKE-20: CENTER vs PARTNER location capability enforcement
+# ============================================================================
+
+class TestSmoke20LocationCapabilityEnforcement:
+    """
+    SMOKE-20: Verify that the CENTER vs PARTNER location rule is enforced
+    in the admin semester creation form.
+
+    Covers:
+      POST /admin/semesters/new with PARTNER loc + ACADEMY type → 200 + error (SMOKE-20a)
+      POST /admin/semesters/new with CENTER loc + ACADEMY type  → 303 success (SMOKE-20b)
+      POST /admin/semesters/new with PARTNER loc + MINI type    → 303 success (SMOKE-20c)
+      POST /admin/semesters/new with no location + ACADEMY type → 200 error (SMOKE-20d, loc required for ACADEMY)
+    """
+
+    @pytest.fixture
+    def partner_location(self, test_db: Session) -> Location:
+        loc = Location(
+            name=f"SMK20-Partner-{uuid.uuid4().hex[:6]}",
+            city=f"PartnerCity-{uuid.uuid4().hex[:8]}",
+            country="Hungary",
+            country_code="HU",
+            location_type=LocationType.PARTNER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.commit()
+        test_db.refresh(loc)
+        return loc
+
+    @pytest.fixture
+    def center_location(self, test_db: Session) -> Location:
+        loc = Location(
+            name=f"SMK20-Center-{uuid.uuid4().hex[:6]}",
+            city=f"CenterCity-{uuid.uuid4().hex[:8]}",
+            country="Hungary",
+            country_code="HU",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.commit()
+        test_db.refresh(loc)
+        return loc
+
+    def _semester_payload(self, code_prefix: str, spec_type: str, location_id: str = "") -> dict:
+        return {
+            "code": f"{code_prefix}-{uuid.uuid4().hex[:6].upper()}",
+            "name": f"Smoke20 {code_prefix}",
+            "start_date": (date.today() + timedelta(days=1)).isoformat(),
+            "end_date": (date.today() + timedelta(days=90)).isoformat(),
+            "enrollment_cost": "500",
+            "specialization_type": spec_type,
+            "location_id": location_id,
+        }
+
+    def test_20a_partner_location_blocks_academy_season(
+        self, admin_client, partner_location
+    ):
+        """SMOKE-20a: PARTNER location + Academy type → form re-rendered with error."""
+        resp = admin_client.post(
+            "/admin/semesters/new",
+            data=self._semester_payload(
+                "SMK20A", "LFA_PLAYER_PRE_ACADEMY", str(partner_location.id)
+            ),
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200 (form error), got {resp.status_code}"
+        )
+        assert "Academy Season" in resp.text or "CENTER" in resp.text or "PARTNER" in resp.text, (
+            "Error message about location restriction not found in response"
+        )
+
+    def test_20b_center_location_allows_academy_season(
+        self, admin_client, center_location, test_db
+    ):
+        """SMOKE-20b: CENTER location + Academy type → 303 success."""
+        payload = self._semester_payload(
+            "SMK20B", "LFA_PLAYER_YOUTH_ACADEMY", str(center_location.id)
+        )
+        resp = admin_client.post(
+            "/admin/semesters/new",
+            data=payload,
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303, (
+            f"Expected 303, got {resp.status_code}. Body: {resp.text[:400]}"
+        )
+
+        sem = test_db.query(Semester).filter(Semester.code == payload["code"]).first()
+        assert sem is not None, "Semester not created in DB after CENTER + ACADEMY"
+
+    def test_20c_partner_location_allows_mini_season(
+        self, admin_client, partner_location, test_db
+    ):
+        """SMOKE-20c: PARTNER location + Mini Season type → 303 success."""
+        payload = self._semester_payload(
+            "SMK20C", "LFA_PLAYER_PRE", str(partner_location.id)
+        )
+        resp = admin_client.post(
+            "/admin/semesters/new",
+            data=payload,
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303, (
+            f"Expected 303 for PARTNER + Mini Season, got {resp.status_code}"
+        )
+
+        sem = test_db.query(Semester).filter(Semester.code == payload["code"]).first()
+        assert sem is not None, "Semester not created in DB after PARTNER + Mini Season"
+
+    def test_20d_no_location_blocks_academy_season(self, admin_client):
+        """SMOKE-20d: No location + Academy type → 200 form error (location is required for ACADEMY)."""
+        resp = admin_client.post(
+            "/admin/semesters/new",
+            data=self._semester_payload("SMK20D", "LFA_PLAYER_AMATEUR_ACADEMY", ""),
+            follow_redirects=False,
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200 (location-required error), got {resp.status_code}"
+        )
+        # Error message is in Hungarian; check for key words from the error
+        assert "kötelező" in resp.text or "CENTER" in resp.text or "Academy" in resp.text, (
+            "Expected location-required error message in response"
+        )
+
+
+# ============================================================================
+# SMOKE-21: K2 admin form — CENTER→PARTNER blocked when active Academy semesters exist
+# ============================================================================
+
+class TestSmoke21LocationTypeDowngradeAdminForm:
+    """
+    SMOKE-21: Verify that the admin location edit form enforces the K2 rule:
+    CENTER→PARTNER type change is blocked when active Academy semesters exist.
+
+    Covers:
+      POST /admin/locations/{id}/edit CENTER→PARTNER with READY_FOR_ENROLLMENT Academy → 409 + error (SMOKE-21a)
+      POST /admin/locations/{id}/edit CENTER→PARTNER with only DRAFT Academy          → 303 success (SMOKE-21b)
+      POST /admin/locations/{id}/edit PARTNER→CENTER always allowed                   → 303 success (SMOKE-21c)
+    """
+
+    def _loc_payload(self, loc, location_type: str) -> dict:
+        return {
+            "name": loc.name,
+            "city": loc.city,
+            "country": loc.country,
+            "country_code": loc.country_code or "",
+            "location_code": loc.location_code or "",
+            "postal_code": loc.postal_code or "",
+            "address": loc.address or "",
+            "notes": loc.notes or "",
+            "location_type": location_type,
+        }
+
+    def _make_center(self, test_db: Session) -> Location:
+        loc = Location(
+            name=f"SMK21-Center-{uuid.uuid4().hex[:6]}",
+            city=f"CenterCity-{uuid.uuid4().hex[:6]}",
+            country="Hungary",
+            country_code="HU",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.commit()
+        test_db.refresh(loc)
+        return loc
+
+    def _make_partner(self, test_db: Session) -> Location:
+        loc = Location(
+            name=f"SMK21-Partner-{uuid.uuid4().hex[:6]}",
+            city=f"PartnerCity-{uuid.uuid4().hex[:6]}",
+            country="Hungary",
+            country_code="HU",
+            location_type=LocationType.PARTNER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.commit()
+        test_db.refresh(loc)
+        return loc
+
+    def _make_semester(self, test_db: Session, location: Location,
+                       status: SemesterStatus) -> Semester:
+        code = f"K2ADM-{uuid.uuid4().hex[:8].upper()}"
+        sem = Semester(
+            code=code,
+            name=f"SMOKE-21 sem {code}",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=90),
+            status=status,
+            specialization_type="LFA_PLAYER_PRE_ACADEMY",
+            location_id=location.id,
+            enrollment_cost=500,
+        )
+        test_db.add(sem)
+        test_db.commit()
+        test_db.refresh(sem)
+        return sem
+
+    def test_21a_center_to_partner_blocked_with_active_academy_semester(
+        self, admin_client, test_db: Session
+    ):
+        """SMOKE-21a: CENTER→PARTNER blocked when READY_FOR_ENROLLMENT Academy semester exists."""
+        center = self._make_center(test_db)
+        self._make_semester(test_db, center, SemesterStatus.READY_FOR_ENROLLMENT)
+
+        resp = admin_client.post(
+            f"/admin/locations/{center.id}/edit",
+            data=self._loc_payload(center, "PARTNER"),
+            follow_redirects=False,
+        )
+        assert resp.status_code == 409, (
+            f"Expected 409 (K2 block), got {resp.status_code}. Body: {resp.text[:400]}"
+        )
+        assert "CENTER" in resp.text or "PARTNER" in resp.text or "Academy" in resp.text, (
+            "Expected K2 conflict error message in HTML response"
+        )
+        # Location type must NOT have changed in the DB
+        test_db.expire(center)
+        center_reloaded = test_db.query(Location).filter(Location.id == center.id).first()
+        assert center_reloaded.location_type == LocationType.CENTER, (
+            "Location type was incorrectly changed to PARTNER despite active Academy semester"
+        )
+
+    def test_21b_center_to_partner_allowed_with_only_draft_academy_semester(
+        self, admin_client, test_db: Session
+    ):
+        """SMOKE-21b: CENTER→PARTNER allowed when only DRAFT Academy semester exists (not active)."""
+        center = self._make_center(test_db)
+        self._make_semester(test_db, center, SemesterStatus.DRAFT)
+
+        resp = admin_client.post(
+            f"/admin/locations/{center.id}/edit",
+            data=self._loc_payload(center, "PARTNER"),
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303, (
+            f"Expected 303 (allowed), got {resp.status_code}. Body: {resp.text[:400]}"
+        )
+
+    def test_21c_partner_to_center_always_allowed(
+        self, admin_client, test_db: Session
+    ):
+        """SMOKE-21c: PARTNER→CENTER is always allowed regardless of semesters."""
+        partner = self._make_partner(test_db)
+
+        resp = admin_client.post(
+            f"/admin/locations/{partner.id}/edit",
+            data=self._loc_payload(partner, "CENTER"),
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303, (
+            f"Expected 303 (PARTNER→CENTER always OK), got {resp.status_code}"
+        )

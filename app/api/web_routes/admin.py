@@ -39,6 +39,7 @@ from ...models.campus import Campus
 from ...models.system_event import SystemEvent, SystemEventLevel
 from ...models.game_preset import GamePreset
 from ...skills_config import SKILL_CATEGORIES
+from ...services.location_validation_service import LocationValidationService
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -898,11 +899,13 @@ async def admin_new_semester_page(
     _admin_guard(user)
 
     instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR, User.is_active == True).all()
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
     return templates.TemplateResponse(
         "admin/semester_new.html",
         {
             "request": request, "user": user,
             "instructors": instructors,
+            "locations": locations,
             "today": date.today().isoformat()
         }
     )
@@ -918,6 +921,7 @@ async def admin_new_semester_submit(
     enrollment_cost: int = Form(500),
     specialization_type: str = Form(""),
     master_instructor_id: str = Form(""),
+    location_id: str = Form(""),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web)
 ):
@@ -925,6 +929,7 @@ async def admin_new_semester_submit(
     _admin_guard(user)
 
     instructors = db.query(User).filter(User.role == UserRole.INSTRUCTOR, User.is_active == True).all()
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
 
     def form_error(msg: str):
         return templates.TemplateResponse(
@@ -932,11 +937,13 @@ async def admin_new_semester_submit(
             {
                 "request": request, "user": user,
                 "error": msg, "instructors": instructors,
+                "locations": locations,
                 "today": date.today().isoformat(),
                 "form": {
                     "code": code, "name": name, "start_date": start_date,
                     "end_date": end_date, "enrollment_cost": enrollment_cost,
-                    "specialization_type": specialization_type
+                    "specialization_type": specialization_type,
+                    "location_id": location_id,
                 }
             }
         )
@@ -950,6 +957,35 @@ async def admin_new_semester_submit(
 
     if ed <= sd:
         return form_error("End date must be after start date.")
+
+    # Validate CENTER vs PARTNER rule
+    _ACADEMY_TYPES = {
+        SpecializationType.LFA_PLAYER_PRE_ACADEMY,
+        SpecializationType.LFA_PLAYER_YOUTH_ACADEMY,
+        SpecializationType.LFA_PLAYER_AMATEUR_ACADEMY,
+        SpecializationType.LFA_PLAYER_PRO_ACADEMY,
+    }
+    parsed_location_id = int(location_id) if location_id.strip() else None
+    spec_str = specialization_type.strip()
+    try:
+        spec_enum = SpecializationType(spec_str) if spec_str else None
+    except ValueError:
+        spec_enum = None
+
+    # Academy Season requires a location (so the CENTER rule can be evaluated)
+    if spec_enum in _ACADEMY_TYPES and not parsed_location_id:
+        return form_error(
+            "Academy Season típus létrehozásához kötelező helyszínt kiválasztani, "
+            "hogy a CENTER / PARTNER szabályt ellenőrizni lehessen."
+        )
+
+    # If location is selected, check the CENTER / PARTNER capability rule
+    if parsed_location_id and spec_enum:
+        result = LocationValidationService.can_create_semester_at_location(
+            parsed_location_id, spec_enum, db
+        )
+        if not result["allowed"]:
+            return form_error(result["reason"])
 
     # Check code uniqueness
     existing = db.query(Semester).filter(Semester.code == code.strip()).first()
@@ -1386,10 +1422,44 @@ async def admin_update_location(
     loc.postal_code = postal_code.strip() or None
     loc.address = address.strip() or None
     loc.notes = notes.strip() or None
+    # K2: Block CENTER→PARTNER when active Academy semesters exist at this location.
+    _ACADEMY_SPECS = {
+        "LFA_PLAYER_PRE_ACADEMY", "LFA_PLAYER_YOUTH_ACADEMY",
+        "LFA_PLAYER_AMATEUR_ACADEMY", "LFA_PLAYER_PRO_ACADEMY",
+    }
+    _ACTIVE_STATUSES = {SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING}
     try:
-        loc.location_type = LocationType(location_type)
+        new_loc_type = LocationType(location_type)
     except ValueError:
-        pass
+        new_loc_type = loc.location_type  # unchanged
+    if loc.location_type == LocationType.CENTER and new_loc_type == LocationType.PARTNER:
+        conflict = (
+            db.query(Semester)
+            .filter(
+                Semester.location_id == location_id,
+                Semester.specialization_type.in_(_ACADEMY_SPECS),
+                Semester.status.in_(_ACTIVE_STATUSES),
+            )
+            .first()
+        )
+        if conflict:
+            loc_for_template = db.query(Location).filter(Location.id == location_id).first()
+            return templates.TemplateResponse(
+                "admin/location_edit.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "loc": loc_for_template,
+                    "LocationType": LocationType,
+                    "error": (
+                        f"Nem változtatható CENTER→PARTNER típusra: "
+                        f"'{conflict.name}' ({conflict.code}) aktív Academy Season "
+                        f"ehhez a helyszínhez van rendelve."
+                    ),
+                },
+                status_code=409,
+            )
+    loc.location_type = new_loc_type
     db.commit()
     return RedirectResponse(url="/admin/locations", status_code=303)
 

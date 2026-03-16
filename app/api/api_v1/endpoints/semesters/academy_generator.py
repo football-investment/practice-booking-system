@@ -176,7 +176,7 @@ def generate_academy_season(
     new_semester = Semester(
         code=semester_code,
         name=semester_name,
-        specialization_type=request.specialization_type,
+        specialization_type=request.specialization_type.value,
         start_date=start_date,
         end_date=end_date,
         location_id=request.location_id,

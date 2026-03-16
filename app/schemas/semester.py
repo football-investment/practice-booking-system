@@ -31,7 +31,7 @@ class SemesterBase(BaseModel):
 
 
 class SemesterCreate(SemesterBase):
-    pass
+    location_id: Optional[int] = None  # FK to locations table; required for ACADEMY types at CENTER
 
 
 class SemesterUpdate(BaseModel):
